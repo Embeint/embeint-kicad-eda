@@ -284,6 +284,11 @@ bool SCH_SHEET::Deserialize( const google::protobuf::Any& aContainer )
         AddPin( pin.release() );
     }
 
+    // Honor the autoplaced flag as the editor does; otherwise API-created sheets keep their
+    // name and filename fields at the field positions sent (usually the origin)
+    if( m_fieldsAutoplaced != AUTOPLACE_NONE )
+        AutoplaceFields( nullptr, m_fieldsAutoplaced );
+
     kiapi::common::UnpackCustomProperties( sheet.custom_properties(), *this );
     return true;
 }
