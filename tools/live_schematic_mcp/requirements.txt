@@ -1,0 +1,5 @@
+mcp>=1.20,<2
+pynng>=0.8,<1
+protobuf>=6.33.5,<8
+grpcio-tools>=1.78,<2
+pytest>=8,<10
