@@ -3276,8 +3276,10 @@ HANDLER_RESULT<PlaceFromLibraryResponse> API_HANDLER_SCH::handlePlaceSymbolFromL
 
     VECTOR2I position = UnpackVector2( aCtx.Request.position(), schIUScale );
 
+    // Body style 1 is the standard body, as interactive placement uses; 0 would match no pins in
+    // GetConnectionPoints(), so moves and drags would not see the symbol's pins
     std::unique_ptr<SCH_SYMBOL> symbol(
-            std::make_unique<SCH_SYMBOL>( *libSymbol, libId, &targetPath, unit, 0, position ) );
+            std::make_unique<SCH_SYMBOL>( *libSymbol, libId, &targetPath, unit, 1, position ) );
 
     if( aCtx.Request.has_orientation() )
         symbol->SetOrientationProp(  FromProtoEnum<SYMBOL_ORIENTATION_PROP>( aCtx.Request.orientation() ) );
