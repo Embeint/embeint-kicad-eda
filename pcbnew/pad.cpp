@@ -441,7 +441,9 @@ void PAD::Serialize( google::protobuf::Any &aContainer ) const
     }
 
     kiapi::common::PackCustomProperties( pad.mutable_custom_properties(), *this );
-    aContainer.PackFrom( pad );
+
+    if( !aContainer.PackFrom( pad ) )
+        wxFAIL_MSG( wxT( "Failed to pack PAD" ) );
 }
 
 
@@ -458,13 +460,16 @@ bool PAD::Deserialize( const google::protobuf::Any &aContainer )
     SetLocked( pad.locked() == kiapi::common::types::LockedState::LS_LOCKED );
     SetAttribute( FromProtoEnum<PAD_ATTRIB>( pad.type() ) );
     SetNumber( wxString::FromUTF8( pad.number() ) );
-    SetPadToDieLength( pad.pad_to_die_length().value_nm() );
-    SetPadToDieDelay( pad.pad_to_die_delay().value_as() );
+    SetPadToDieLength( (int) pad.pad_to_die_length().value_nm() );
+    SetPadToDieDelay( (int) pad.pad_to_die_delay().value_as() );
     SetSimElectricalType( FromProtoEnum<PAD_SIM_ELECTRICAL_TYPE>( pad.sim_electrical_type() ) );
     SetProperty( FromProtoEnum<PAD_PROP>( pad.fab_property() ) );
 
     google::protobuf::Any padStackWrapper;
-    padStackWrapper.PackFrom( pad.pad_stack() );
+
+    if( !padStackWrapper.PackFrom( pad.pad_stack() ) )
+        wxFAIL_MSG( wxT( "Failed to pack PADSTACK" ) );
+
     m_padStack.Deserialize( padStackWrapper );
     SetOrientation( m_padStack.GetOrientation() );
 
@@ -2852,11 +2857,8 @@ double PAD::ViewGetLOD( int aLayer, const KIGFX::VIEW* aView ) const
         }
         else
         {
-            LSET visible = board->GetVisibleLayers();
-            visible &= board->GetEnabledLayers();
-
             // Hide netnames unless pad is flashed to a visible layer
-            if( !FlashLayer( visible ) )
+            if( !FlashLayer( viewVisibleLayers( aView ) ) )
                 return LOD_HIDE;
         }
 
@@ -3324,6 +3326,9 @@ bool PAD::operator==( const BOARD_ITEM& aBoardItem ) const
 
 bool PAD::operator==( const PAD& aOther ) const
 {
+    if( GetNumber() != aOther.GetNumber() )
+        return false;
+
     if( Padstack() != aOther.Padstack() )
         return false;
 
@@ -3997,24 +4002,29 @@ static struct PAD_DESC
 
         propMgr.AddProperty( new PROPERTY<PAD, std::optional<int>>( _HKI( "Clearance Override" ),
                     &PAD::SetLocalClearance, &PAD::GetLocalClearance, PROPERTY_DISPLAY::PT_SIZE ),
-                    groupOverrides ).SetIsCopyable();
+                    groupOverrides )
+                .SetIsCopyable();
 
         propMgr.AddProperty( new PROPERTY<PAD, std::optional<int>>( _HKI( "Soldermask Margin Override" ),
                     &PAD::SetLocalSolderMaskMargin, &PAD::GetLocalSolderMaskMargin, PROPERTY_DISPLAY::PT_SIZE ),
-                    groupOverrides ).SetIsCopyable();
+                    groupOverrides )
+                .SetIsCopyable();
 
         propMgr.AddProperty( new PROPERTY<PAD, std::optional<int>>( _HKI( "Solderpaste Margin Override" ),
                     &PAD::SetLocalSolderPasteMargin, &PAD::GetLocalSolderPasteMargin, PROPERTY_DISPLAY::PT_SIZE ),
-                    groupOverrides ).SetIsCopyable();
+                    groupOverrides )
+                .SetIsCopyable();
 
         propMgr.AddProperty( new PROPERTY<PAD, std::optional<double>>( _HKI( "Solderpaste Margin Ratio Override" ),
                     &PAD::SetLocalSolderPasteMarginRatio, &PAD::GetLocalSolderPasteMarginRatio,
                     PROPERTY_DISPLAY::PT_RATIO ),
-                    groupOverrides ).SetIsCopyable();
+                    groupOverrides )
+                .SetIsCopyable();
 
         propMgr.AddProperty( new PROPERTY_ENUM<PAD, ZONE_CONNECTION>( _HKI( "Zone Connection Style" ),
                     &PAD::SetLocalZoneConnection, &PAD::GetLocalZoneConnection ),
-                    groupOverrides ).SetIsCopyable();
+                    groupOverrides )
+                .SetIsCopyable();
 
         constexpr int minZoneWidth = pcbIUScale.mmToIU( ZONE_THICKNESS_MIN_VALUE_MM );
 
@@ -4022,18 +4032,21 @@ static struct PAD_DESC
                     &PAD::SetLocalThermalSpokeWidthOverride, &PAD::GetLocalThermalSpokeWidthOverride,
                     PROPERTY_DISPLAY::PT_SIZE ),
                     groupOverrides )
-                .SetValidator( PROPERTY_VALIDATORS::RangeIntValidator<minZoneWidth, INT_MAX> ).SetIsCopyable();
+                .SetValidator( PROPERTY_VALIDATORS::RangeIntValidator<minZoneWidth, INT_MAX> )
+                .SetIsCopyable();
 
         propMgr.AddProperty( new PROPERTY<PAD, double>( _HKI( "Thermal Relief Spoke Angle" ),
                     &PAD::SetThermalSpokeAngleDegrees, &PAD::GetThermalSpokeAngleDegrees,
                     PROPERTY_DISPLAY::PT_DEGREE ),
-                    groupOverrides ).SetIsCopyable();
+                    groupOverrides )
+                .SetIsCopyable();
 
         propMgr.AddProperty( new PROPERTY<PAD, std::optional<int>>( _HKI( "Thermal Relief Gap" ),
                     &PAD::SetLocalThermalGapOverride, &PAD::GetLocalThermalGapOverride,
                     PROPERTY_DISPLAY::PT_SIZE ),
                     groupOverrides )
-                .SetValidator( PROPERTY_VALIDATORS::PositiveIntValidator ).SetIsCopyable();
+                .SetValidator( PROPERTY_VALIDATORS::PositiveIntValidator )
+                .SetIsCopyable();
 
         // TODO delta, drill shape offset, layer set
     }

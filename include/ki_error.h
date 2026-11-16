@@ -95,8 +95,7 @@ private:
 };
 
 
-// Provides {fmt} formatting.  The return type must be explicit: fmt probes format_as() in every
-// translation unit, and an undeduced 'auto' declaration is ill-formed there.
-KICOMMON_API std::string format_as( const KI_ERROR& aError );
+// Provides {fmt} formatting
+std::string format_as( const KI_ERROR& aError );
 
 #endif // KI_ERROR_H_

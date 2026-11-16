@@ -140,7 +140,9 @@ void PCB_TEXT::Serialize( google::protobuf::Any& aContainer ) const
 {
     kiapi::board::types::BoardText boardText;
     Serialize( boardText );
-    aContainer.PackFrom( boardText );
+
+    if( !aContainer.PackFrom( boardText ) )
+        wxFAIL_MSG( wxT( "Failed to pack PCB_TEXT" ) );
 }
 
 
@@ -927,11 +929,13 @@ static struct PCB_TEXT_DESC
 
         propMgr.AddProperty( new PROPERTY<PCB_TEXT, bool, BOARD_ITEM>( _HKI( "Knockout" ),
                     &BOARD_ITEM::SetIsKnockout, &BOARD_ITEM::IsKnockout ),
-                    _HKI( "Text Properties" ) ).SetIsCopyable();
+                    _HKI( "Text Properties" ) )
+                .SetIsCopyable();
 
         propMgr.AddProperty( new PROPERTY<PCB_TEXT, bool, EDA_TEXT>( _HKI( "Keep Upright" ),
                     &PCB_TEXT::SetKeepUpright, &PCB_TEXT::IsKeepUpright ),
-                    _HKI( "Text Properties" ) ).SetIsCopyable();
+                    _HKI( "Text Properties" ) )
+                .SetIsCopyable();
 
         auto isFootprintText =
                 []( INSPECTABLE* aItem ) -> bool

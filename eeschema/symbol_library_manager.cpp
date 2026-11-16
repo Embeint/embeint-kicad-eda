@@ -354,21 +354,6 @@ bool SYMBOL_LIBRARY_MANAGER::ClearLibraryModified( const wxString& aLibrary ) co
 }
 
 
-bool SYMBOL_LIBRARY_MANAGER::ClearSymbolModified( const wxString& aSymbolName, const wxString& aLibrary ) const
-{
-    auto libIt = m_libs.find( aLibrary );
-
-    if( libIt == m_libs.end() )
-        return false;
-
-    std::shared_ptr<SYMBOL_BUFFER> symbolBuf = libIt->second.GetBuffer( aSymbolName );
-    wxCHECK( symbolBuf, false );
-
-    symbolBuf->GetScreen()->SetContentModified( false );
-    return true;
-}
-
-
 bool SYMBOL_LIBRARY_MANAGER::IsLibraryReadOnly( const wxString& aLibrary ) const
 {
     SYMBOL_LIBRARY_ADAPTER* adapter = PROJECT_SCH::SymbolLibAdapter( &m_frame.Prj() );
@@ -560,6 +545,8 @@ LIB_ID SYMBOL_LIBRARY_MANAGER::RevertSymbol( const LIB_ID& aIdToRevert )
         OnDataChanged();
     }
 
+    symbolBuf->GetScreen()->SetContentModified( false );
+
     return LIB_ID( aIdToRevert.GetLibNickname(), original.GetName() );
 }
 
@@ -600,12 +587,15 @@ bool SYMBOL_LIBRARY_MANAGER::RevertAll()
             if( !buffer->IsModified() )
                 continue;
 
-            RevertSymbol( LIB_ID( libName, buffer->GetOriginal().GetName() ) );
+            // Restore the buffer itself, since renames can pass its name to another buffer
+            libBuffer.UpdateBuffer( *buffer, buffer->GetOriginal() );
+            buffer->GetScreen()->SetContentModified( false );
         }
 
         libBuffer.RevertAddedBuffers();
     }
 
+    OnDataChanged();
     return retv;
 }
 
@@ -930,13 +920,13 @@ bool SYMBOL_LIBRARY_MANAGER::UpdateLibraryBuffer( const wxString& aLibrary )
 }
 
 
-std::vector<wxString> SYMBOL_LIBRARY_MANAGER::DropUnmodifiedBuffers()
+std::vector<wxString> SYMBOL_LIBRARY_MANAGER::DropUnmodifiedBuffers( const std::set<wxString>& aKeep )
 {
     std::vector<wxString> dropped;
 
     for( auto it = m_libs.begin(); it != m_libs.end(); )
     {
-        if( it->second.IsModified() )
+        if( it->second.IsModified() || aKeep.contains( it->first ) )
         {
             ++it;
             continue;

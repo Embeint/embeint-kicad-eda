@@ -72,6 +72,7 @@
 #include <advanced_config.h>
 #include <connectivity/conn_facade.h>
 #include <sim/simulator_frame.h>
+#include <sim/operating_point.h>
 #include <tool/action_manager.h>
 #include <tool/action_toolbar.h>
 #include <tool/common_control.h>
@@ -1420,6 +1421,15 @@ void SCH_EDIT_FRAME::OnModify()
 }
 
 
+void SCH_EDIT_FRAME::SetContentModified( bool aModified )
+{
+    if( SCH_SCREEN* screen = GetScreen() )
+        screen->SetContentModified( aModified );
+
+    updateTitle();
+}
+
+
 void SCH_EDIT_FRAME::OnUpdatePCB()
 {
     if( Kiface().IsSingle() )
@@ -1582,7 +1592,13 @@ void SCH_EDIT_FRAME::ProjectChanged()
         m_symbolFieldsTableDialog = nullptr;
     }
 
-    // Register schematic saver for autosave history
+    registerHistorySaver();
+    m_designBlocksPane->ProjectChanged();
+}
+
+
+void SCH_EDIT_FRAME::registerHistorySaver()
+{
     Kiway().LocalHistory().RegisterSaver( m_schematic,
             [this]( const wxString& aProjectPath, std::vector<HISTORY_FILE_DATA>& aFileData )
             {
@@ -1590,7 +1606,8 @@ void SCH_EDIT_FRAME::ProjectChanged()
             },
             m_schematic->GetHistoryLifetimeToken() );
 
-    m_designBlocksPane->ProjectChanged();
+    // A standalone editor has no project manager to record the project's own files
+    Kiway().LocalHistory().RegisterProjectSaver( &Prj() );
 }
 
 
@@ -1842,42 +1859,11 @@ void SCH_EDIT_FRAME::RefreshOperatingPointDisplay()
         }
     }
 
-    for( const auto& [ key, subgraphList ] : m_schematic->m_connectionGraph->GetNetMap() )
-    {
-        wxString op = m_schematic->GetOperatingPoint( key.Name, settings.m_OPO_VPrecision, settings.m_OPO_VRange );
-
-        if( !op.IsEmpty() && op != wxS( "--" ) && op != wxS( "?" ) )
-        {
-            for( CONNECTION_SUBGRAPH* subgraph : subgraphList )
+    UpdateOperatingPointVoltages( *m_schematic,
+            [this]( SCH_LINE* aWire )
             {
-                SCH_LINE* longestWire = nullptr;
-                double    length = 0.0;
-
-                if( subgraph->GetSheet().GetExcludedFromSim( variant ) )
-                    continue;
-
-                for( SCH_ITEM* item : subgraph->GetItems() )
-                {
-                    if( item->Type() == SCH_LINE_T )
-                    {
-                        SCH_LINE* line = static_cast<SCH_LINE*>( item );
-
-                        if( line->IsWire() && line->GetLength() > length )
-                        {
-                            longestWire = line;
-                            length = line->GetLength();
-                        }
-                    }
-                }
-
-                if( longestWire )
-                {
-                    longestWire->SetOperatingPoint( op );
-                    GetCanvas()->GetView()->Update( longestWire );
-                }
-            }
-        }
-    }
+                GetCanvas()->GetView()->Update( aWire );
+            } );
 }
 
 
@@ -2401,6 +2387,10 @@ void SCH_EDIT_FRAME::FocusOnItem( EDA_ITEM* aItem, bool aAllowScroll )
 
         UpdateItem( lastItem );
         lastBrightenedItemID = niluuid;
+
+        // Focusing a new item repaints as it moves the view, but clearing alone has to ask
+        if( !aItem )
+            GetCanvas()->Refresh();
     }
 
     if( aItem )
@@ -3326,6 +3316,7 @@ void SCH_EDIT_FRAME::SetSchematic( SCHEMATIC* aSchematic )
     m_toolManager->SetEnvironment( m_schematic, GetCanvas()->GetView(), GetCanvas()->GetViewControls(), config(),
                                    this );
     subscribeConnectivity();
+    registerHistorySaver();
 }
 
 
@@ -3449,7 +3440,7 @@ void SCH_EDIT_FRAME::RemoveVariant()
     if( Schematic().GetCurrentVariant() == variantName )
         SetCurrentVariant( wxEmptyString );
 
-    UpdateVariantSelectionCtrl( Schematic().GetVariantNamesForUI() );
+    SyncVariantUI();
 
     GetCanvas()->Refresh();
 }
@@ -3548,11 +3539,9 @@ void SCH_EDIT_FRAME::RenameVariant()
     // The registry entry changes even when no symbol carries an override, so always mark dirty.
     OnModify();
 
-    UpdateVariantSelectionCtrl( Schematic().GetVariantNamesForUI() );
+    SyncVariantUI();
 
-    // The renamed label just disappeared from the control, so a plain repopulate falls back to the
-    // default selection.  Re-selecting the new name resyncs the toolbar and (via SetCurrentVariant)
-    // repaints ${VARIANT} text; a non-current rename needs no redraw.
+    // Repaint ${VARIANT} text under the new name; a non-current rename needs no redraw
     if( wasCurrent )
         SetCurrentVariant( newName );
 }
@@ -3614,7 +3603,7 @@ void SCH_EDIT_FRAME::CopyVariant()
     // The new registry entry changes project state even when no symbol carries an override.
     OnModify();
 
-    UpdateVariantSelectionCtrl( Schematic().GetVariantNamesForUI() );
+    SyncVariantUI();
 
     // Switching to the freshly-created variant already refreshes properties and redraws.
     SetCurrentVariant( newName );

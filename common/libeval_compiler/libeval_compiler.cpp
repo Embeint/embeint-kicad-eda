@@ -703,6 +703,13 @@ void CONTEXT::ReportError( const wxString& aErrorMsg )
 }
 
 
+void CONTEXT::stackOverflow()
+{
+    ReportError( _( "Expression evaluation stack overflow" ) );
+    throw STACK_OVERFLOW{};
+}
+
+
 void COMPILER::reportError( COMPILATION_STAGE stage, const wxString& aErrorMsg, int aPos )
 {
     if( aPos == -1 )
@@ -997,14 +1004,9 @@ bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
 
                     if( func && literalArgs )
                     {
-                        for( TREE_NODE* pnode : params )
-                        {
-                            VALUE*   param = aPreflightContext->AllocValue();
-                            param->Set( formatNode( pnode ) );
-                            aPreflightContext->Push( param );
-                        }
+                        bool overflow = false;
 
-                        aPreflightContext->SetErrorCallback(
+                        auto previousCallback = aPreflightContext->ExchangeErrorCallback(
                                 [&]( const wxString& aMessage, int aOffset )
                                 {
                                     size_t loc = node->leaf[1]->leaf[1]->srcPos;
@@ -1013,12 +1015,31 @@ bool COMPILER::generateUCode( UCODE* aCode, CONTEXT* aPreflightContext )
 
                         try
                         {
+                            for( TREE_NODE* pnode : params )
+                            {
+                                VALUE* param = aPreflightContext->AllocValue();
+                                param->Set( formatNode( pnode ) );
+                                aPreflightContext->Push( param );
+                            }
+
                             func( aPreflightContext, vref.get() );
                             aPreflightContext->Pop();           // return value
+                        }
+                        catch( const CONTEXT::STACK_OVERFLOW& )
+                        {
+                            overflow = true;
                         }
                         catch( ... )
                         {
                         }
+
+                        // Each preflight checks one call.
+                        // Also reset the error callback, so we don't leak the local variables
+                        aPreflightContext->ClearStack();
+                        aPreflightContext->SetErrorCallback( std::move( previousCallback ) );
+
+                        if( overflow )
+                            return false;
                     }
 
                     node->leaf[0]->isVisited = true;
@@ -1279,19 +1300,37 @@ int UOP::Exec( CONTEXT* ctx )
 
     if( m_op & TR_OP_BINARY_MASK )
     {
+        LIBEVAL::VALUE  autoConverted;
         LIBEVAL::VALUE* arg2 = ctx->Pop();
         LIBEVAL::VALUE* arg1 = ctx->Pop();
         double          result;
 
-        if( ctx->HasErrorCallback() )
+        if( arg1 && arg1->GetType() == VT_STRING && arg2 && arg2->GetType() == VT_NUMERIC )
         {
-            if( arg1 && arg1->GetType() == VT_STRING && arg2 && arg2->GetType() == VT_NUMERIC )
+            double doubleVal;
+
+            if( !arg1->StringIsLiteral() && QuacksLikeADuck( arg1->AsString(), &doubleVal ) )
+            {
+                autoConverted = LIBEVAL::VALUE( doubleVal );
+                arg1 = &autoConverted;
+            }
+            else if( ctx->HasErrorCallback() )
             {
                 ctx->ReportError( wxString::Format( _( "Type mismatch between '%s' and %lf" ),
                                                     arg1->AsString(),
                                                     arg2->AsDouble() ) );
             }
-            else if( arg1 && arg1->GetType() == VT_NUMERIC && arg2 && arg2->GetType() == VT_STRING )
+        }
+        else if( arg1 && arg1->GetType() == VT_NUMERIC && arg2 && arg2->GetType() == VT_STRING )
+        {
+            double doubleVal;
+
+            if( !arg2->StringIsLiteral() && QuacksLikeADuck( arg2->AsString(), &doubleVal ) )
+            {
+                autoConverted = LIBEVAL::VALUE( doubleVal );
+                arg2 = &autoConverted;
+            }
+            else if( ctx->HasErrorCallback() )
             {
                 ctx->ReportError( wxString::Format( _( "Type mismatch between %lf and '%s'" ),
                                                     arg1->AsDouble(),
@@ -1445,8 +1484,9 @@ VALUE* UCODE::Run( CONTEXT* ctx )
                 op->Exec( ctx );
         }
     }
-    catch(...)
+    catch( ... )
     {
+        ctx->ClearStack();
         // rules which fail outright should not be fired; return 0/false
         return ctx->StoreValue( new VALUE( 0 ) );
     }
@@ -1455,17 +1495,11 @@ VALUE* UCODE::Run( CONTEXT* ctx )
     {
         return ctx->Pop();
     }
-    else
-    {
-        // If stack is corrupted after execution it suggests a problem with the compiler, not
-        // the rule....
 
-        // do not use "assert"; it crashes outright on OSX
-        wxASSERT( ctx->SP() == 1 );
-
-        // non-well-formed rules should not be fired on a release build
-        return ctx->StoreValue( new VALUE( 0 ) );
-    }
+    // Extra function arguments can leave values on the stack even without an overflow.
+    ctx->ClearStack();
+    ctx->ReportError( _( "Malformed expression" ) );
+    return ctx->StoreValue( new VALUE( 0 ) );
 }
 
 

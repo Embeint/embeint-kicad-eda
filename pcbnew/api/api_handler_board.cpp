@@ -423,7 +423,14 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_BOARD::handleCreateUpdateItemsInte
         if( type == PCB_DIMENSION_T )
         {
             board::types::Dimension dimension;
-            anyItem.UnpackTo( &dimension );
+
+            if( !anyItem.UnpackTo( &dimension ) )
+            {
+                status.set_code( ItemStatusCode::ISC_INVALID_TYPE );
+                status.set_error_message( "Failed to unpack dimension" );
+                aItemHandler( status, anyItem );
+                continue;
+            }
 
             switch( dimension.dimension_style_case() )
             {
@@ -439,7 +446,14 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_BOARD::handleCreateUpdateItemsInte
         if( *type == PCB_SHAPE_T )
         {
             board::types::BoardGraphicShape shape;
-            anyItem.UnpackTo( &shape );
+
+            if(! anyItem.UnpackTo( &shape ) )
+            {
+                status.set_code( ItemStatusCode::ISC_INVALID_TYPE );
+                status.set_error_message( "Failed to unpack shape" );
+                aItemHandler( status, anyItem );
+                continue;
+            }
 
             if( shape.has_pad_custom_shape_options() )
             {
@@ -1527,8 +1541,7 @@ HANDLER_RESULT<CreateItemsResponse> API_HANDLER_BOARD::handleParseAndCreateItems
 }
 
 
-HANDLER_RESULT<BoardLayers> API_HANDLER_BOARD::handleGetVisibleLayers(
-        const HANDLER_CONTEXT<GetVisibleLayers>& aCtx )
+HANDLER_RESULT<BoardLayers> API_HANDLER_BOARD::handleGetVisibleLayers( const HANDLER_CONTEXT<GetVisibleLayers>& aCtx )
 {
     if( std::optional<ApiResponseStatus> headless = checkForHeadless( "GetVisibleLayers" ) )
         return tl::unexpected( *headless );
@@ -1540,15 +1553,14 @@ HANDLER_RESULT<BoardLayers> API_HANDLER_BOARD::handleGetVisibleLayers(
 
     BoardLayers response;
 
-    for( PCB_LAYER_ID layer : board()->GetVisibleLayers() )
+    for( PCB_LAYER_ID layer : LSET( board()->GetEnabledLayers() & board()->GetVisibleLayers() ) )
         response.add_layers( ToProtoEnum<PCB_LAYER_ID, board::types::BoardLayer>( layer ) );
 
     return response;
 }
 
 
-HANDLER_RESULT<Empty> API_HANDLER_BOARD::handleSetVisibleLayers(
-        const HANDLER_CONTEXT<SetVisibleLayers>& aCtx )
+HANDLER_RESULT<Empty> API_HANDLER_BOARD::handleSetVisibleLayers( const HANDLER_CONTEXT<SetVisibleLayers>& aCtx )
 {
     if( std::optional<ApiResponseStatus> headless = checkForHeadless( "SetVisibleLayers" ) )
         return tl::unexpected( *headless );

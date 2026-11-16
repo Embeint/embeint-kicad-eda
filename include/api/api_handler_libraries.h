@@ -107,10 +107,7 @@ protected:
     virtual int scoreSearchMatch( LIBRARY_MANAGER_ADAPTER& aAdapter, const wxString& aNickname,
                                   const wxString& aItemName, const std::vector<wxString>& aTerms ) const;
 
-    virtual bool packLibraryItem( const LIB_ID& aId, google::protobuf::Any& aOutput ) const
-    {
-        return false;
-    }
+    virtual bool packLibraryItem( const LIB_ID& aId, google::protobuf::Any& aOutput ) const;
 
     LIBRARY_TABLE_TYPE libraryType() const { return m_type; }
 

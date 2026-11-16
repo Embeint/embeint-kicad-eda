@@ -207,7 +207,9 @@ void PCB_BARCODE::Serialize( google::protobuf::Any& aContainer ) const
                                    : kiapi::common::types::LockedState::LS_UNLOCKED );
 
     kiapi::common::PackCustomProperties( barcode.mutable_custom_properties(), *this );
-    aContainer.PackFrom( barcode );
+
+    if( !aContainer.PackFrom( barcode ) )
+        wxFAIL_MSG( wxT( "Failed to pack PCB_BARCODE" ) );
 }
 
 
@@ -1051,7 +1053,8 @@ static struct PCB_BARCODE_DESC
 
         propMgr.AddProperty( new PROPERTY<PCB_BARCODE, bool>( _HKI( "Show Text" ),
                     &PCB_BARCODE::SetShowText, &PCB_BARCODE::GetShowText ),
-                    groupBarcode ).SetIsCopyable();
+                    groupBarcode )
+                .SetIsCopyable();
 
         propMgr.AddProperty( new PROPERTY<PCB_BARCODE, int>( _HKI( "Text Size" ),
                     &PCB_BARCODE::SetTextSize, &PCB_BARCODE::GetTextSize, PROPERTY_DISPLAY::PT_COORD ),
@@ -1059,11 +1062,13 @@ static struct PCB_BARCODE_DESC
 
         propMgr.AddProperty( new PROPERTY<PCB_BARCODE, int>( _HKI( "Width" ),
                     &PCB_BARCODE::SetBarcodeWidth, &PCB_BARCODE::GetWidth, PROPERTY_DISPLAY::PT_COORD ),
-                    groupBarcode ).SetIsCopyable();
+                    groupBarcode )
+                .SetIsCopyable();
 
         propMgr.AddProperty( new PROPERTY<PCB_BARCODE, int>( _HKI( "Height" ),
                     &PCB_BARCODE::SetBarcodeHeight, &PCB_BARCODE::GetHeight, PROPERTY_DISPLAY::PT_COORD ),
-                    groupBarcode ).SetIsCopyable();
+                    groupBarcode )
+                .SetIsCopyable();
 
         propMgr.AddProperty( new PROPERTY<PCB_BARCODE, double>( _HKI( "Orientation" ),
                     &PCB_BARCODE::SetOrientation, &PCB_BARCODE::GetOrientation ),
@@ -1104,7 +1109,8 @@ static struct PCB_BARCODE_DESC
 
         propMgr.AddProperty( new PROPERTY<PCB_BARCODE, bool>( _HKI( "Knockout" ),
                     &PCB_BARCODE::SetIsKnockout, &PCB_BARCODE::IsKnockout ),
-                    groupBarcode ).SetIsCopyable();
+                    groupBarcode )
+                .SetIsCopyable();
 
         propMgr.AddProperty( new PROPERTY<PCB_BARCODE, int>( _HKI( "Margin X" ),
                     &PCB_BARCODE::SetMarginX, &PCB_BARCODE::GetMarginX, PROPERTY_DISPLAY::PT_COORD ),

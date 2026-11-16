@@ -55,6 +55,8 @@ set( QA_COMMON_SRCS
     test_eda_text.cpp
     test_editor_tabs_panel.cpp
     test_edit_relations.cpp
+    test_embedded_si_literals.cpp
+    test_observable.cpp
     test_union_find.cpp
     test_unit_binder.cpp
     test_wx_dataviewctrl.cpp
@@ -88,6 +90,7 @@ set( QA_COMMON_SRCS
     test_png_plotter.cpp
     test_render_utils.cpp
     test_kiid.cpp
+    test_kiway.cpp
     test_layer_ids.cpp
     test_line_ending.cpp
     test_lib_id.cpp
@@ -181,6 +184,7 @@ set( QA_COMMON_SRCS
     test_netname_validator.cpp
 
     # GAL tests
+    test_gal_cursor.cpp
     test_gal_xor_mode.cpp
     test_gal_resize_strategy.cpp
 

@@ -73,6 +73,8 @@ set( QA_EESCHEMA_SRCS
     sch_io/easyeda/test_easyeda_sch_import.cpp
     sch_io/orcad/test_orcad_sch_import.cpp
     sch_io/cadstar/test_issue14447_arc_connection.cpp
+    sch_io/cadstar/test_issue26031_wire_over_pin.cpp
+    sch_io/kicad_sexpr/test_sch_io_kicad_sexpr_leak_cache.cpp
 
     erc/test_erc_annotation.cpp
     erc/test_erc_empty_label.cpp
@@ -163,6 +165,7 @@ set( QA_EESCHEMA_SRCS
     test_issue24290_local_labels_across_top_sheets.cpp
     test_issue24217_cli_variant_export.cpp
     test_issue24409_cli_hierarchical_instances.cpp
+    test_issue25978_operating_point_voltages.cpp
     test_issue24760_plot_page_numbers.cpp
     test_issue24858_variant_persistence.cpp
     test_issue24915_job_variant_fields.cpp

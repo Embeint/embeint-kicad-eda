@@ -599,6 +599,9 @@ std::vector<PCB_MARKER*> BOARD::ResolveDRCExclusions( bool aCreateMarkers )
 
     for( PCB_MARKER* marker : GetBoard()->Markers() )
     {
+        if( !marker->GetRCItem() )
+            continue;
+
         DRC_EXCLUSION lookup = DRC_EXCLUSION::FromMarker( *marker );
 
         if( auto it = exclusions.find( lookup ); it != exclusions.end() )
@@ -641,6 +644,31 @@ std::vector<PCB_MARKER*> BOARD::ResolveDRCExclusions( bool aCreateMarkers )
                 m_designSettings->m_DrcExclusions.insert( exclusion );
             }
         }
+    }
+
+    return newMarkers;
+}
+
+
+std::vector<PCB_MARKER*> BOARD::ReloadDRCExclusions( std::vector<PCB_MARKER*>& aStale )
+{
+    std::vector<PCB_MARKER*> wereExcluded;
+
+    for( PCB_MARKER* marker : m_markers )
+    {
+        if( marker->IsExcluded() )
+        {
+            wereExcluded.push_back( marker );
+            marker->SetExcluded( false );
+        }
+    }
+
+    std::vector<PCB_MARKER*> newMarkers = ResolveDRCExclusions( true );
+
+    for( PCB_MARKER* marker : wereExcluded )
+    {
+        if( !marker->IsExcluded() )
+            aStale.push_back( marker );
     }
 
     return newMarkers;
@@ -4387,13 +4415,14 @@ void BOARD::SaveToHistory( const wxString& aProjectPath, std::vector<HISTORY_FIL
         return;
     }
 
-    wxString boardPath = GetFileName();
-
-    if( boardPath.IsEmpty() )
+    if( GetFileName().IsEmpty() )
         return; // unsaved board
 
+    // A loaded board's name uses forward slashes, which never prefix a Windows project path
+    wxString boardPath = wxFileName( GetFileName() ).GetFullPath();
+
     // Derive relative path from project root.
-    if( !boardPath.StartsWith( projPath ) )
+    if( !boardPath.Left( projPath.length() ).IsSameAs( projPath, wxFileName::IsCaseSensitive() ) )
     {
         wxLogTrace( traceAutoSave, wxS( "[history] pcb saver skipping - board not under project: %s" ), boardPath );
         return; // not under project
@@ -4423,6 +4452,7 @@ void BOARD::SaveToHistory( const wxString& aProjectPath, std::vector<HISTORY_FIL
     }
     catch( const IO_ERROR& ioe )
     {
-        wxLogTrace( traceAutoSave, wxS( "[history] pcb saver serialize failed: %s" ), wxString::FromUTF8( ioe.What() ) );
+        wxLogTrace( traceAutoSave, wxS( "[history] pcb saver serialize failed: %s" ),
+                    wxString::FromUTF8( ioe.What() ) );
     }
 }

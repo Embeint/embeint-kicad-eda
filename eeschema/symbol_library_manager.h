@@ -264,9 +264,9 @@ public:
      */
     bool UpdateLibraryBuffer( const wxString& aLibrary );
 
-    /// Forget the buffers of libraries with no unsaved changes, so they are read again from their
-    /// files, and return those libraries' names
-    std::vector<wxString> DropUnmodifiedBuffers();
+    /// Forget the buffers of libraries with no unsaved changes, except those in aKeep, so they are
+    /// read again from their files, and return those libraries' names
+    std::vector<wxString> DropUnmodifiedBuffers( const std::set<wxString>& aKeep = {} );
 
     /**
      * Remove the symbol from the symbol buffer.
@@ -343,11 +343,6 @@ public:
     bool ClearLibraryModified( const wxString& aLibrary ) const;
 
     /**
-     * Clear the modified flag for a symbol.
-     */
-    bool ClearSymbolModified( const wxString& aSymbolName, const wxString& aLibrary ) const;
-
-    /**
      * Return true if the library is stored in a read-only file.
      *
      * @return True on success, false otherwise.
@@ -367,7 +362,7 @@ public:
                       SCH_IO_MGR::SCH_FILE_T aFileType = SCH_IO_MGR::SCH_FILE_T::SCH_LEGACY );
 
     /**
-     * Revert unsaved changes for a symbol.
+     * Revert unsaved changes for a symbol and clear its modified flag.
      *
      * @return The LIB_ID of the reverted symbol (which may be different in the case
      * of a rename)

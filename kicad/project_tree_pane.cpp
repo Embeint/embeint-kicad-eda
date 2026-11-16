@@ -892,14 +892,14 @@ void PROJECT_TREE_PANE::showContextMenu()
     {
         KIUI::AddMenuItem( &popup_menu, ID_PROJECT_SWITCH_TO_OTHER, _( "Switch to this Project" ),
                            _( "Close all editors, and switch to the selected project" ),
-                           KiBitmap( BITMAPS::open_project ) );
+                           KiBitmapBundle( BITMAPS::open_project ) );
         popup_menu.AppendSeparator();
     }
 
     if( can_create_new_directory )
     {
         KIUI::AddMenuItem( &popup_menu, ID_PROJECT_NEWDIR, _( "New Directory..." ),
-                           _( "Create a New Directory" ), KiBitmap( BITMAPS::directory ) );
+                           _( "Create a New Directory" ), KiBitmapBundle( BITMAPS::directory ) );
     }
 
     if( can_open_this_directory )
@@ -926,7 +926,7 @@ void PROJECT_TREE_PANE::showContextMenu()
         }
 
         KIUI::AddMenuItem( &popup_menu, ID_PROJECT_OPEN_DIR, text, help_text,
-                           KiBitmap( BITMAPS::directory_browser ) );
+                           KiBitmapBundle( BITMAPS::directory_browser ) );
     }
 
     if( can_edit )
@@ -937,13 +937,13 @@ void PROJECT_TREE_PANE::showContextMenu()
             help_text = _( "Open files in a Text Editor" );
 
         KIUI::AddMenuItem( &popup_menu, ID_PROJECT_TXTEDIT, _( "Edit in a Text Editor" ), help_text,
-                           KiBitmap( BITMAPS::editor ) );
+                           KiBitmapBundle( BITMAPS::editor ) );
     }
 
     if( run_jobs && selection.size() == 1 )
     {
         KIUI::AddMenuItem( &popup_menu, ID_JOBS_RUN, _( "Run Jobs" ), help_text,
-                           KiBitmap( BITMAPS::exchange ) );
+                           KiBitmapBundle( BITMAPS::exchange ) );
     }
 
     if( can_rename )
@@ -960,7 +960,7 @@ void PROJECT_TREE_PANE::showContextMenu()
         }
 
         KIUI::AddMenuItem( &popup_menu, ID_PROJECT_RENAME, text, help_text,
-                           KiBitmap( BITMAPS::right ) );
+                           KiBitmapBundle( BITMAPS::right ) );
     }
 
     if( can_delete )
@@ -981,10 +981,10 @@ void PROJECT_TREE_PANE::showContextMenu()
 
 #ifdef __WINDOWS__
         KIUI::AddMenuItem( &popup_menu, ID_PROJECT_DELETE, _( "Delete" ), help_text,
-                           KiBitmap( BITMAPS::trash ) );
+                           KiBitmapBundle( BITMAPS::trash ) );
 #else
         KIUI::AddMenuItem( &popup_menu, ID_PROJECT_DELETE, _( "Move to Trash" ), help_text,
-                           KiBitmap( BITMAPS::trash ) );
+                           KiBitmapBundle( BITMAPS::trash ) );
 #endif
     }
 
@@ -1790,7 +1790,6 @@ git_repository* PROJECT_TREE_PANE::gitRepo() const
 
 void PROJECT_TREE_PANE::onThemeChanged( wxSysColourChangedEvent &aEvent )
 {
-    GetBitmapStore()->ThemeChanged();
     m_TreeProject->LoadIcons();
     m_TreeProject->Refresh();
 
@@ -1820,7 +1819,7 @@ void KICAD_MANAGER_FRAME::OnChangeWatchedPaths( wxCommandEvent& aEvent )
 // Prompts for git credentials after an auth failure. Returns false if cancelled.
 static bool promptForGitCredentials( wxWindow* aParent, KIGIT_COMMON* aCommon, const wxString& aExplanation )
 {
-    return KIGIT::PromptForCredentials( aParent, aCommon, &Prj(), aExplanation );
+    return KIGIT::PromptForCredentials( aParent, aCommon, &Prj(), aExplanation ) == KIGIT::PROMPT_ANSWER::ACCEPTED;
 }
 
 
@@ -1828,9 +1827,10 @@ static bool promptForGitCredentials( wxWindow* aParent, KIGIT_COMMON* aCommon, c
 // local settings. Runs only after the remote itself was set up successfully.
 static void saveAcceptedRemoteSettings( PROJECT& aProject, const RemoteConfig& aConfig )
 {
-    // Keyed like the attach-time lookup, which never sees credentials embedded in the address
-    KIPLATFORM::SECRETS::StoreSecret( KIGIT_COMMON::ParseRemoteURL( aConfig.url ).url, aConfig.username,
-                                      aConfig.password );
+    // Keyed like the attach-time lookup, which never sees credentials embedded in the address. Async so an
+    // unlock prompt cannot hold the event loop
+    KIPLATFORM::SECRETS::StoreSecretAsync( KIGIT_COMMON::ParseRemoteURL( aConfig.url ).url, aConfig.username,
+                                           aConfig.password );
     aProject.GetLocalSettings().m_GitRepoUsername = aConfig.username;
     aProject.GetLocalSettings().m_GitSSHKey = aConfig.sshKey;
 
@@ -1930,7 +1930,7 @@ void PROJECT_TREE_PANE::onGitInitializeProject( wxCommandEvent& aEvent )
 
         if( std::optional<KIGIT::HOST_KEY_FAILURE> hostKey = handler.GetHostKeyFailure() )
         {
-            if( !KIGIT::PromptToTrustHost( m_parent, *hostKey, retriedAfterTrust ) )
+            if( KIGIT::PromptToTrustHost( m_parent, *hostKey, retriedAfterTrust ) != KIGIT::PROMPT_ANSWER::ACCEPTED )
                 break;
 
             retriedAfterTrust = true;
@@ -1991,16 +1991,48 @@ void PROJECT_TREE_PANE::onGitRemoteSettings( wxCommandEvent& aEvent )
         }
     }
 
-    wxWindow*             topLevelParent = wxGetTopLevelParent( this );
-    DIALOG_GIT_REPOSITORY dlg( topLevelParent, repo, existingURL );
-    dlg.SetTitle( _( "Configure Default Remote" ) );
-
     // Credentials are stored separately from the remote URL.
     KIGIT_COMMON credentials( nullptr );
     credentials.SetUsername( common->GetUsername() );
     credentials.SetRemote( existingURL );
-    dlg.SetUsername( credentials.GetUsername() );
-    dlg.SetPassword( credentials.GetPassword() );
+
+    if( credentials.SecretRead() )
+    {
+        showGitRemoteSettings( existingURL, credentials.GetUsername(), credentials.GetPassword() );
+        return;
+    }
+
+    wxWeakRef<PROJECT_TREE_PANE>  self( this );
+    std::shared_ptr<KIGIT_COMMON> session = gitCommon();
+    wxString                      username = credentials.GetUsername();
+
+    // Saving the dialog stores its password, so a locked keyring must unlock rather than read as empty
+    KIPLATFORM::SECRETS::GetSecretAsync(
+            credentials.GetRemote(), username,
+            [self, session, existingURL, username]( bool aFound, const wxString& aSecret )
+            {
+                if( !self || self->gitCommon() != session || session->IsShuttingDown() || !session->GetRepo() )
+                    return;
+
+                self->showGitRemoteSettings( existingURL, username, aFound ? aSecret : wxString() );
+            } );
+}
+
+
+void PROJECT_TREE_PANE::showGitRemoteSettings( const wxString& aExistingURL, const wxString& aUsername,
+                                               const wxString& aPassword )
+{
+    KIGIT_COMMON*   common = gitCommon().get();
+    git_repository* repo = common ? common->GetRepo() : nullptr;
+
+    if( !repo )
+        return;
+
+    wxWindow*             topLevelParent = wxGetTopLevelParent( this );
+    DIALOG_GIT_REPOSITORY dlg( topLevelParent, repo, aExistingURL );
+    dlg.SetTitle( _( "Configure Default Remote" ) );
+    dlg.SetUsername( aUsername );
+    dlg.SetPassword( aPassword );
     dlg.SetRepoSSHPath( Prj().GetLocalSettings().m_GitSSHKey );
 
     if( dlg.ShowModal() != wxID_OK )

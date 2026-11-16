@@ -2960,6 +2960,10 @@ SCH_SHEET_PIN* SCH_IO_KICAD_SEXPR_PARSER::parseSchSheetPin( SCH_SHEET* aSheet )
             NeedRIGHT();
             break;
 
+        case T_custom_property:
+            parseCustomProperty( sheetPin.get() );
+            break;
+
         default:
             Expecting( "at, uuid or effects" );
         }
@@ -4074,6 +4078,7 @@ SCH_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseSchematicSymbol()
             wxString number;
             KIID     uuid;
             wxString alt;
+            std::map<wxString, wxString> pin_properties;
 
             NeedSYMBOL();
             number = FromUTF8();
@@ -4104,12 +4109,25 @@ SCH_SYMBOL* SCH_IO_KICAD_SEXPR_PARSER::parseSchematicSymbol()
                     NeedRIGHT();
                     break;
 
+                case T_custom_property:
+                {
+                    NeedSYMBOL();
+                    wxString key = FromUTF8();
+                    NeedSYMBOL();
+                    wxString value = FromUTF8();
+                    pin_properties[key] = value;
+                    NeedRIGHT();
+                    break;
+                }
+
                 default:
                     Expecting( "alternate or uuid" );
                 }
             }
 
-            symbol->GetRawPins().emplace_back( std::make_unique<SCH_PIN>( symbol.get(), number, alt, uuid ) );
+            std::unique_ptr<SCH_PIN>& pin =
+                    symbol->GetRawPins().emplace_back( std::make_unique<SCH_PIN>( symbol.get(), number, alt, uuid ) );
+            pin->SetCustomProperties( pin_properties );
             break;
         }
 
@@ -6056,7 +6074,7 @@ void SCH_IO_KICAD_SEXPR_PARSER::parseSchNetChain()
 
     wxString netClass;
     COLOR4D  color = COLOR4D::UNSPECIFIED;
-    wxString fromRef, fromPin, toRef, toPin;
+    wxString fromRefDes, fromPinNum, toRefDes, toPinNum;
     std::set<wxString> memberNets;
 
     for( T tok = NextTok(); tok != T_RIGHT; tok = NextTok() )
@@ -6067,17 +6085,17 @@ void SCH_IO_KICAD_SEXPR_PARSER::parseSchNetChain()
         if( tok == T_from )
         {
             NeedSYMBOLorNUMBER();
-            fromRef = From_UTF8( CurText() );
+            fromRefDes = From_UTF8( CurText() );
             NeedSYMBOLorNUMBER();
-            fromPin = From_UTF8( CurText() );
+            fromPinNum = From_UTF8( CurText() );
             NeedRIGHT();
         }
         else if( tok == T_to )
         {
             NeedSYMBOLorNUMBER();
-            toRef = From_UTF8( CurText() );
+            toRefDes = From_UTF8( CurText() );
             NeedSYMBOLorNUMBER();
-            toPin = From_UTF8( CurText() );
+            toPinNum = From_UTF8( CurText() );
             NeedRIGHT();
         }
         else if( tok == T_net_class )
@@ -6125,9 +6143,9 @@ void SCH_IO_KICAD_SEXPR_PARSER::parseSchNetChain()
         }
     }
 
-    if( !fromRef.IsEmpty() && !toRef.IsEmpty() )
+    if( !fromRefDes.IsEmpty() && !toRefDes.IsEmpty() )
     {
-        m_netChainTerminalRefs[name] = { { fromRef, fromPin }, { toRef, toPin } };
+        m_netChainTerminalRefs[name] = { { fromRefDes, fromPinNum }, { toRefDes, toPinNum } };
     }
 
     if( !netClass.IsEmpty() )

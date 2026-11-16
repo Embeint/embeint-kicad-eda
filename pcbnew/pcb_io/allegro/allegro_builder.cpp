@@ -1335,6 +1335,28 @@ void BOARD_BUILDER::applyConstraintSets()
             setName = resolveConstraintSetNameFromField( csBlock.m_FieldPtr );
         }
 
+        // Pre-V172 boards store the name as an index into the 0x36 name table
+        if( setName.IsEmpty() && !isV172Plus && ( csBlock.m_NameStrKey >> 24 ) == 0x03 )
+        {
+            const uint32_t index = csBlock.m_NameStrKey & 0x00FFFFFF;
+
+            TYPED_LL_WALKER<BLK_0x36_DEF_TABLE> nameTables( m_brdDb.m_Header->m_LL_0x36.m_Head,
+                                                            m_brdDb.m_Header->m_LL_0x36.m_Tail, m_brdDb );
+
+            for( const BLK_0x36_DEF_TABLE& table : nameTables )
+            {
+                if( table.m_Code != 0x03 || index >= table.m_Items.size() )
+                    continue;
+
+                const auto& item = std::get<BLK_0x36_DEF_TABLE::X03>( table.m_Items[index] );
+
+                if( item.m_Str16x.has_value() )
+                    setName = wxString( item.m_Str16x.value() );
+
+                break;
+            }
+        }
+
         if( setName.IsEmpty() )
             setName = wxString::Format( wxS( "CS_%d" ), csIndex );
 
@@ -1435,24 +1457,33 @@ void BOARD_BUILDER::applyConstraintSets()
     {
         // Field 0x1a0 references the constraint set. It can be an integer (string table key
         // that matches 0x1D.m_NameStrKey) or a direct string (the constraint set name).
-        auto csField = GetFirstFieldOfType( m_brdDb, netBlk.m_FieldsPtr, netBlk.m_Key,
-                                            FIELD_KEYS::PHYS_CONSTRAINT_SET );
-
-        wxString assignedSetName;
-
-        if( csField.has_value() )
+        auto resolveSetName = [&]( const std::optional<FIELD_VALUE>& aField ) -> wxString
         {
-            if( auto* intVal = std::get_if<uint32_t>( &csField.value() ) )
+            if( !aField.has_value() )
+                return wxEmptyString;
+
+            if( auto* intVal = std::get_if<uint32_t>( &aField.value() ) )
             {
                 auto it = keyToSetName.find( *intVal );
-
-                if( it != keyToSetName.end() )
-                    assignedSetName = it->second;
+                return it != keyToSetName.end() ? it->second : wxString();
             }
-            else if( auto* strVal = std::get_if<wxString>( &csField.value() ) )
+
+            if( auto* strVal = std::get_if<wxString>( &aField.value() ) )
+                return constraintSets.count( *strVal ) ? *strVal : wxString();
+
+            return wxEmptyString;
+        };
+
+        wxString assignedSetName = resolveSetName( GetFirstFieldOfType( m_brdDb, netBlk.m_FieldsPtr, netBlk.m_Key,
+                                                                         FIELD_KEYS::PHYS_CONSTRAINT_SET ) );
+
+        // Differential pairs carry the set on their match group table instead of on the net
+        if( assignedSetName.IsEmpty() )
+        {
+            if( const BLK_0x2C_TABLE* table = resolveMatchGroupTable( netBlk ) )
             {
-                if( constraintSets.count( *strVal ) )
-                    assignedSetName = *strVal;
+                assignedSetName = resolveSetName( GetFirstFieldOfType( m_brdDb, table->m_Ptr2, table->m_Key,
+                                                                        FIELD_KEYS::PHYS_CONSTRAINT_SET ) );
             }
         }
 
@@ -1549,15 +1580,15 @@ void BOARD_BUILDER::applyNetConstraints()
 }
 
 
-wxString BOARD_BUILDER::resolveMatchGroupName( const BLK_0x1B_NET& aNet ) const
+const BLK_0x2C_TABLE* BOARD_BUILDER::resolveMatchGroupTable( const BLK_0x1B_NET& aNet ) const
 {
     if( aNet.m_MatchGroupPtr == 0 )
-        return wxEmptyString;
+        return nullptr;
 
     const BLOCK_BASE* block = m_brdDb.GetObjectByKey( aNet.m_MatchGroupPtr );
 
     if( !block )
-        return wxEmptyString;
+        return nullptr;
 
     uint32_t tableKey = 0;
 
@@ -1586,20 +1617,26 @@ wxString BOARD_BUILDER::resolveMatchGroupName( const BLK_0x1B_NET& aNet ) const
     }
     else
     {
-        return wxEmptyString;
+        return nullptr;
     }
 
     if( tableKey == 0 )
-        return wxEmptyString;
+        return nullptr;
 
     // Verify the target is actually a 0x2C TABLE before calling expectBlockByKey to
     // avoid noisy warnings on boards with unexpected pointer chain configurations.
     const BLOCK_BASE* tableBlock = m_brdDb.GetObjectByKey( tableKey );
 
     if( !tableBlock || tableBlock->GetBlockType() != 0x2C )
-        return wxEmptyString;
+        return nullptr;
 
-    const BLK_0x2C_TABLE* tbl = expectBlockByKey<BLK_0x2C_TABLE>( tableKey );
+    return expectBlockByKey<BLK_0x2C_TABLE>( tableKey );
+}
+
+
+wxString BOARD_BUILDER::resolveMatchGroupName( const BLK_0x1B_NET& aNet ) const
+{
+    const BLK_0x2C_TABLE* tbl = resolveMatchGroupTable( aNet );
 
     if( !tbl || tbl->m_StringPtr == 0 )
         return wxEmptyString;
@@ -1607,7 +1644,7 @@ wxString BOARD_BUILDER::resolveMatchGroupName( const BLK_0x1B_NET& aNet ) const
     const wxString& name = m_brdDb.GetString( tbl->m_StringPtr );
 
     wxLogTrace( traceAllegroBuilder, "Resolving match group name for NET '%s': found table at key %#010x, subtype %#x, name '%s'",
-                m_brdDb.GetString( aNet.m_NetName ), tableKey, tbl->m_SubType, name );
+                m_brdDb.GetString( aNet.m_NetName ), tbl->m_Key, tbl->m_SubType, name );
 
     // A group made from a schematic path keeps Cadence's \name\ wrapper, which is not part of the name
     return DecodeEscapedIdentifiers( name );
@@ -3187,6 +3224,92 @@ static std::optional<FP_3DMODEL> build3DModel( const BRD_DB& aDb, const BLK_0x2B
 }
 
 
+void BOARD_BUILDER::addFootprintText( FOOTPRINT& aFp, GRAPHIC_DEDUP& aGraphics,
+                                      const BLK_0x30_STR_WRAPPER& aStrWrapper, bool& aValueFieldSet )
+{
+    std::unique_ptr<PCB_TEXT> text = buildPcbText( aStrWrapper, aFp );
+
+    if( !text )
+        return;
+
+    const uint8_t textClass = aStrWrapper.m_Layer.m_Class;
+    const uint8_t textSubclass = aStrWrapper.m_Layer.m_Subclass;
+
+    bool isSilk = ( textSubclass == LAYER_INFO::SUBCLASS::SILKSCREEN_TOP
+                    || textSubclass == LAYER_INFO::SUBCLASS::SILKSCREEN_BOTTOM );
+    bool isAssembly = ( textSubclass == LAYER_INFO::SUBCLASS::ASSEMBLY_TOP
+                        || textSubclass == LAYER_INFO::SUBCLASS::ASSEMBLY_BOTTOM );
+
+    if( textClass == LAYER_INFO::CLASS::REF_DES && isSilk )
+    {
+        // Visible silkscreen refdes updates the built-in REFERENCE field.
+        PCB_FIELD* const refDes = aFp.GetField( FIELD_T::REFERENCE );
+
+        // KiCad netlisting requires non-digit + digit annotation.
+        if( !text->GetText().IsEmpty() && !wxIsalpha( text->GetText()[0] ) )
+            text->SetText( wxString( "UNK" ) + text->GetText() );
+
+        *refDes = PCB_FIELD( *text, FIELD_T::REFERENCE );
+        refDes->SetTextAngle( text->GetTextAngle() ); // Set to absolute orientation
+    }
+    else if( textClass == LAYER_INFO::CLASS::REF_DES && isAssembly )
+    {
+        // Assembly refdes becomes a text item with the magic ${REFERENCE}
+        // if it's an un-referenced refdes (e.g. in an unplaced footprint)
+        if( text->GetText().Contains( wxS( "*" ) ) )
+            text->SetText( wxS( "${REFERENCE}" ) );
+
+        aFp.Add( text.release() );
+    }
+    else if( textClass == LAYER_INFO::CLASS::COMPONENT_VALUE && isAssembly )
+    {
+        if( !aValueFieldSet )
+        {
+            // First COMPONENT_VALUE on assembly updates the built-in VALUE field
+            PCB_FIELD* valField = aFp.GetField( FIELD_T::VALUE );
+            *valField = PCB_FIELD( *text, FIELD_T::VALUE );
+            valField->SetTextAngle( text->GetTextAngle() ); // Set to absolute orientation
+            valField->SetVisible( false );
+            aValueFieldSet = true;
+        }
+        else
+        {
+            PCB_FIELD* field = new PCB_FIELD( *text, FIELD_T::USER, wxS( "Component Value" ) );
+            field->SetVisible( false );
+            aFp.Add( field, ADD_MODE::APPEND );
+        }
+    }
+    else if( textClass == LAYER_INFO::CLASS::DEVICE_TYPE )
+    {
+        PCB_FIELD* field = new PCB_FIELD( *text, FIELD_T::USER, wxS( "Device Type" ) );
+        field->SetVisible( !isAssembly );
+        aFp.Add( field, ADD_MODE::APPEND );
+    }
+    else if( textClass == LAYER_INFO::CLASS::TOLERANCE )
+    {
+        PCB_FIELD* field = new PCB_FIELD( *text, FIELD_T::USER, wxS( "Tolerance" ) );
+        field->SetVisible( isSilk );
+        aFp.Add( field, ADD_MODE::APPEND );
+    }
+    else if( textClass == LAYER_INFO::CLASS::USER_PART_NUMBER )
+    {
+        PCB_FIELD* field = new PCB_FIELD( *text, FIELD_T::USER, wxS( "User Part Number" ) );
+        field->SetVisible( isSilk );
+        aFp.Add( field, ADD_MODE::APPEND );
+    }
+    else if( textClass == LAYER_INFO::CLASS::COMPONENT_VALUE && isSilk )
+    {
+        PCB_FIELD* field = new PCB_FIELD( *text, FIELD_T::USER, wxS( "Component Value" ) );
+        field->SetVisible( true );
+        aFp.Add( field, ADD_MODE::APPEND );
+    }
+    else if( aGraphics.IsFirst( text.get() ) )
+    {
+        aFp.Add( text.release() );
+    }
+}
+
+
 std::unique_ptr<FOOTPRINT> BOARD_BUILDER::buildFootprint( const BLK_0x2D_FOOTPRINT_INST& aFpInstance )
 {
     std::unique_ptr<FOOTPRINT> fp = std::make_unique<FOOTPRINT>( &m_board );
@@ -3327,87 +3450,7 @@ std::unique_ptr<FOOTPRINT> BOARD_BUILDER::buildFootprint( const BLK_0x2D_FOOTPRI
                                                       MISMATCH_POLICY::LOG_TRACE };
 
     for( const BLK_0x30_STR_WRAPPER& strWrapper : textWalker )
-    {
-        std::unique_ptr<PCB_TEXT> text = buildPcbText( strWrapper, *fp );
-
-        if( !text )
-            continue;
-
-        const uint8_t textClass = strWrapper.m_Layer.m_Class;
-        const uint8_t textSubclass = strWrapper.m_Layer.m_Subclass;
-
-        bool isSilk = ( textSubclass == LAYER_INFO::SUBCLASS::SILKSCREEN_TOP
-                        || textSubclass == LAYER_INFO::SUBCLASS::SILKSCREEN_BOTTOM );
-        bool isAssembly = ( textSubclass == LAYER_INFO::SUBCLASS::ASSEMBLY_TOP
-                            || textSubclass == LAYER_INFO::SUBCLASS::ASSEMBLY_BOTTOM );
-
-        if( textClass == LAYER_INFO::CLASS::REF_DES && isSilk )
-        {
-            // Visible silkscreen refdes updates the built-in REFERENCE field.
-            PCB_FIELD* const refDes = fp->GetField( FIELD_T::REFERENCE );
-
-            // KiCad netlisting requires non-digit + digit annotation.
-            if( !text->GetText().IsEmpty() && !wxIsalpha( text->GetText()[0] ) )
-                text->SetText( wxString( "UNK" ) + text->GetText() );
-
-            *refDes = PCB_FIELD( *text, FIELD_T::REFERENCE );
-            refDes->SetTextAngle( text->GetTextAngle() ); // Set to absolute orientation
-        }
-        else if( textClass == LAYER_INFO::CLASS::REF_DES && isAssembly )
-        {
-            // Assembly refdes becomes a user field with the KiCad reference variable
-            PCB_FIELD* field = new PCB_FIELD( *text, FIELD_T::USER, wxS( "Ref Des" ) );
-            field->SetText( wxS( "${REFERENCE}" ) );
-            field->SetVisible( false );
-            fp->Add( field, ADD_MODE::APPEND );
-        }
-        else if( textClass == LAYER_INFO::CLASS::COMPONENT_VALUE && isAssembly )
-        {
-            if( !valueFieldSet )
-            {
-                // First COMPONENT_VALUE on assembly updates the built-in VALUE field
-                PCB_FIELD* valField = fp->GetField( FIELD_T::VALUE );
-                *valField = PCB_FIELD( *text, FIELD_T::VALUE );
-                valField->SetTextAngle( text->GetTextAngle() ); // Set to absolute orientation
-                valField->SetVisible( false );
-                valueFieldSet = true;
-            }
-            else
-            {
-                PCB_FIELD* field = new PCB_FIELD( *text, FIELD_T::USER, wxS( "Component Value" ) );
-                field->SetVisible( false );
-                fp->Add( field, ADD_MODE::APPEND );
-            }
-        }
-        else if( textClass == LAYER_INFO::CLASS::DEVICE_TYPE )
-        {
-            PCB_FIELD* field = new PCB_FIELD( *text, FIELD_T::USER, wxS( "Device Type" ) );
-            field->SetVisible( !isAssembly );
-            fp->Add( field, ADD_MODE::APPEND );
-        }
-        else if( textClass == LAYER_INFO::CLASS::TOLERANCE )
-        {
-            PCB_FIELD* field = new PCB_FIELD( *text, FIELD_T::USER, wxS( "Tolerance" ) );
-            field->SetVisible( isSilk );
-            fp->Add( field, ADD_MODE::APPEND );
-        }
-        else if( textClass == LAYER_INFO::CLASS::USER_PART_NUMBER )
-        {
-            PCB_FIELD* field = new PCB_FIELD( *text, FIELD_T::USER, wxS( "User Part Number" ) );
-            field->SetVisible( isSilk );
-            fp->Add( field, ADD_MODE::APPEND );
-        }
-        else if( textClass == LAYER_INFO::CLASS::COMPONENT_VALUE && isSilk )
-        {
-            PCB_FIELD* field = new PCB_FIELD( *text, FIELD_T::USER, wxS( "Component Value" ) );
-            field->SetVisible( true );
-            fp->Add( field, ADD_MODE::APPEND );
-        }
-        else if( fpGraphics.IsFirst( text.get() ) )
-        {
-            fp->Add( text.release() );
-        }
-    }
+        addFootprintText( *fp, fpGraphics, strWrapper, valueFieldSet );
 
     // Assembly drawing
     LL_WALKER assemblyWalker{ aFpInstance.m_AssemblyPtr, aFpInstance.m_Key, m_brdDb };
@@ -4406,7 +4449,7 @@ std::vector<const BLOCK_BASE*> BOARD_BUILDER::getShapeRelatedBlocks( const BLK_0
     if( !ptrArray || ptrArray->m_Count == 0 )
         return ret;
 
-    const size_t count = std::min( std::min( ptrArray->m_Count, ptrArray->m_Capacity ), 100u );
+    const size_t count = std::min<size_t>( ptrArray->m_Count, ptrArray->m_Ptrs.size() );
     ret.resize( count );
 
     for( size_t i = 0; i < count; i++ )

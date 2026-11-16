@@ -199,7 +199,8 @@ void PCB_REFERENCE_IMAGE::Serialize( google::protobuf::Any& aContainer ) const
     refImage.mutable_orientation()->set_value_degrees( m_referenceImage.GetOrientation().AsDegrees() );
     refImage.set_opacity( m_referenceImage.GetOpacity() );
 
-    aContainer.PackFrom( refImage );
+    if( !aContainer.PackFrom( refImage ) )
+        wxFAIL_MSG( wxT( "Failed to pack PCB_REFERENCE_IMAGE" ) );
 }
 
 
@@ -462,7 +463,8 @@ static struct PCB_REFERENCE_IMAGE_DESC
 
         propMgr.ReplaceProperty( TYPE_HASH( BOARD_ITEM ), _HKI( "Layer" ),
                     new PROPERTY_ENUM<PCB_REFERENCE_IMAGE, PCB_LAYER_ID, BOARD_ITEM>( _HKI( "Associated Layer" ),
-                                &PCB_REFERENCE_IMAGE::SetLayer, &PCB_REFERENCE_IMAGE::GetLayer ) ).SetIsCopyable();
+                                &PCB_REFERENCE_IMAGE::SetLayer, &PCB_REFERENCE_IMAGE::GetLayer ) )
+                .SetIsCopyable();
 
         const wxString groupImage = _HKI( "Image Properties" );
 

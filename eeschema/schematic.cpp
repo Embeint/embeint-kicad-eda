@@ -68,6 +68,7 @@
 #include <text_eval/text_eval_wrapper.h>
 #include <tool/tool_manager.h>
 #include <undo_redo_container.h>
+#include <wildcards_and_files_ext.h>
 #include <local_history.h>
 #include <richio.h>
 #include <sch_io/sch_io_mgr.h>
@@ -75,6 +76,7 @@
 #include <sch_io/sch_io.h>
 
 #include <connectivity/conn_facade.h>
+#include <wx/filename.h>
 #include <wx/log.h>
 
 SCHEMATIC::SCHEMATIC( PROJECT* aPrj ) :
@@ -1655,7 +1657,10 @@ void SCHEMATIC::SetBusAliases( const std::vector<std::shared_ptr<BUS_ALIAS>>& aA
     updateProjectBusAliases();
 
     if( m_project )
+    {
         m_project->GetProjectFile().m_BusAliasesDefined = true;
+        m_busAliasesFromTable = true;
+    }
 }
 
 
@@ -1668,6 +1673,7 @@ bool SCHEMATIC::HasProjectBusAliases() const
 void SCHEMATIC::loadBusAliasesFromProject()
 {
     m_busAliases.clear();
+    m_busAliasesFromTable = HasProjectBusAliases();
 
     if( !m_project )
         return;
@@ -1683,6 +1689,39 @@ void SCHEMATIC::loadBusAliasesFromProject()
 
         m_busAliases.push_back( busAlias );
     }
+}
+
+
+SCHEMATIC::BUS_ALIAS_RELOAD SCHEMATIC::ReloadProjectBusAliases()
+{
+    if( !m_project )
+        return BUS_ALIAS_RELOAD::UNCHANGED;
+
+    if( !HasProjectBusAliases() )
+    {
+        // The reread cleared the project copy, and a save without it would drop the aliases in use
+        updateProjectBusAliases();
+
+        if( !m_busAliasesFromTable )
+            return BUS_ALIAS_RELOAD::UNCHANGED;
+
+        // Kept as a table, so an empty one still suppresses the sheets' legacy aliases on reopen
+        m_project->GetProjectFile().m_BusAliasesDefined = true;
+        return BUS_ALIAS_RELOAD::TABLE_REMOVED;
+    }
+
+    std::map<wxString, std::vector<wxString>> inUse;
+
+    for( const std::shared_ptr<BUS_ALIAS>& alias : m_busAliases )
+    {
+        if( alias )
+            inUse.insert_or_assign( alias->GetName(), alias->Members() );
+    }
+
+    loadBusAliasesFromProject();
+
+    return inUse != m_project->GetProjectFile().m_BusAliases ? BUS_ALIAS_RELOAD::CHANGED
+                                                              : BUS_ALIAS_RELOAD::UNCHANGED;
 }
 
 
@@ -1771,7 +1810,7 @@ bool SCHEMATIC::resolveCrossReference( wxString* token, int aDepth ) const
     KIID_PATH      path( ref );
     KIID           uuid( 0 );
 
-    if( path.size() > 1 )
+    if( path.size() > 0 )
         uuid = path.back();
 
     SCH_SHEET_PATH sheetPath;
@@ -2489,6 +2528,45 @@ void SCHEMATIC::ResolveERCExclusionsPostUpdate()
     // Once we have the ERC Exclusions, record them in the project file so that
     // they are retained even before the schematic is saved (PCB Editor can also save the project)
     RecordERCExclusions();
+}
+
+
+std::vector<SCH_MARKER*> SCHEMATIC::ReloadERCExclusions()
+{
+    // The reread file carries every exclusion the old unresolved list held
+    m_unresolvedErcExclusions.clear();
+
+    std::vector<std::pair<SCH_MARKER*, SCH_SCREEN*>> wereExcluded;
+    SCH_SCREENS                                       screens( Root() );
+
+    for( SCH_SCREEN* screen = screens.GetFirst(); screen; screen = screens.GetNext() )
+    {
+        for( SCH_ITEM* item : screen->Items().OfType( SCH_MARKER_T ) )
+        {
+            SCH_MARKER* marker = static_cast<SCH_MARKER*>( item );
+
+            if( marker->IsExcluded() )
+            {
+                wereExcluded.emplace_back( marker, screen );
+                marker->SetExcluded( false );
+            }
+        }
+    }
+
+    ResolveERCExclusionsPostUpdate();
+
+    std::vector<SCH_MARKER*> stale;
+
+    for( auto& [marker, screen] : wereExcluded )
+    {
+        if( !marker->IsExcluded() )
+        {
+            screen->Remove( marker );
+            stale.push_back( marker );
+        }
+    }
+
+    return stale;
 }
 
 
@@ -3263,6 +3341,70 @@ SCH_SHEET* SCHEMATIC::GetTopLevelSheet( int aIndex ) const
 }
 
 
+std::vector<TOP_LEVEL_SHEET_INFO> SCHEMATIC::TopLevelSheetInfos() const
+{
+    std::vector<TOP_LEVEL_SHEET_INFO> infos;
+    wxString                          projectPath = m_project ? m_project->GetProjectPath() : wxString();
+
+    for( SCH_SHEET* sheet : GetTopLevelSheets() )
+    {
+        if( !sheet->GetScreen() )
+            continue;
+
+        // A top-level sheet's file is its screen's; the SHEET_FILENAME field is for instances
+        wxFileName sheetFn( sheet->GetScreen()->GetFileName() );
+
+        if( sheetFn.IsAbsolute() )
+            sheetFn.MakeRelativeTo( projectPath );
+
+        infos.emplace_back( sheet->m_Uuid, sheet->GetName(), sheetFn.GetFullPath() );
+    }
+
+    return infos;
+}
+
+
+bool SCHEMATIC::TopLevelSheetsMatch( const std::vector<TOP_LEVEL_SHEET_INFO>& aSheets ) const
+{
+    std::vector<TOP_LEVEL_SHEET_INFO> loaded = TopLevelSheetInfos();
+
+    if( loaded.size() != aSheets.size() )
+        return false;
+
+    wxString projectPath = m_project ? m_project->GetProjectPath() : wxString();
+
+    for( size_t ii = 0; ii < loaded.size(); ++ii )
+    {
+        wxFileName have( loaded[ii].filename );
+        have.MakeAbsolute( projectPath );
+
+        wxFileName want = TopLevelSheetFile( aSheets[ii], projectPath,
+                                             have.GetExt() == FILEEXT::LegacySchematicFileExtension );
+
+        if( ( aSheets[ii].uuid != niluuid && aSheets[ii].uuid != loaded[ii].uuid )
+                || aSheets[ii].name != loaded[ii].name || !have.SameAs( want ) )
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
+wxFileName SCHEMATIC::TopLevelSheetFile( const TOP_LEVEL_SHEET_INFO& aSheet, const wxString& aProjectPath,
+                                         bool aLegacy )
+{
+    wxFileName fn( aSheet.filename );
+    fn.MakeAbsolute( aProjectPath );
+
+    if( aLegacy )
+        fn.SetExt( FILEEXT::LegacySchematicFileExtension );
+
+    return fn;
+}
+
+
 bool SCHEMATIC::IsTopLevelSheetUuid( const KIID& aUuid ) const
 {
     if( !m_rootSheet )
@@ -3501,22 +3643,24 @@ void SCHEMATIC::AddVariant( const wxString& aVariantName )
 }
 
 
-void SCHEMATIC::DeleteVariant( const wxString& aVariantName, SCH_COMMIT* aCommit )
+void SCHEMATIC::DeleteVariantDefinition( const wxString& aVariantName )
 {
-    if( aCommit )
-    {
-        wxCHECK( m_rootSheet, /* void */ );
-
-        SCH_SCREENS allScreens( m_rootSheet );
-
-        allScreens.DeleteVariant( aVariantName, aCommit );
-    }
-
     if( m_currentVariant == aVariantName )
         SetCurrentVariant( wxEmptyString );
 
     m_variantNames.erase( aVariantName );
     Settings().m_VariantDescriptions.erase( aVariantName );
+}
+
+
+void SCHEMATIC::DeleteVariant( const wxString& aVariantName, SCH_COMMIT* aCommit )
+{
+    wxCHECK( m_rootSheet, /* void */ );
+
+    SCH_SCREENS allScreens( m_rootSheet );
+
+    allScreens.DeleteVariant( aVariantName, aCommit );
+    DeleteVariantDefinition( aVariantName );
 }
 
 
@@ -3618,6 +3762,24 @@ void SCHEMATIC::LoadVariants()
 }
 
 
+bool SCHEMATIC::ReloadProjectVariants()
+{
+    std::set<wxString> before;
+    before.swap( m_variantNames );
+    LoadVariants();
+
+    bool changed = m_variantNames != before;
+
+    if( !m_currentVariant.IsEmpty() && !m_variantNames.contains( m_currentVariant ) )
+    {
+        SetCurrentVariant( wxEmptyString );
+        changed = true;
+    }
+
+    return changed;
+}
+
+
 void SCHEMATIC::SaveToHistory( const wxString& aProjectPath, std::vector<HISTORY_FILE_DATA>& aFileData )
 {
     if( !IsValid() )
@@ -3672,7 +3834,8 @@ void SCHEMATIC::SaveToHistory( const wxString& aProjectPath, std::vector<HISTORY
 
         wxString absPath = abs.GetFullPath();
 
-        if( absPath.IsEmpty() || !absPath.StartsWith( projPath ) )
+        if( absPath.IsEmpty()
+            || !absPath.Left( projPath.length() ).IsSameAs( projPath, wxFileName::IsCaseSensitive() ) )
             continue;
 
         wxString rel = absPath.Mid( projPath.length() );

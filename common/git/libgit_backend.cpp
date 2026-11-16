@@ -32,6 +32,7 @@
 #include "kicad_git_memory.h"
 #include "kigit_failure.h"
 #include "kigit_ssh_keys.h"
+#include "kigit_transport.h"
 #include "trace_helpers.h"
 
 #include "kicad_git_compat.h"
@@ -145,21 +146,6 @@ static void reportRemoteLookupFailure( KIGIT_ERRORS* aHandler, int aRc, const wx
 }
 
 
-// url.insteadOf can rewrite the clone URL, which would otherwise read as a new identity and drop the
-// credentials entered for the original
-static int clone_remote_cb( git_remote** aOut, git_repository* aRepo, const char* aName, const char* aUrl,
-                            void* aPayload )
-{
-    if( int rc = git_remote_create( aOut, aRepo, aName, aUrl ); rc != GIT_OK )
-        return rc;
-
-    if( const char* url = git_remote_url( *aOut ) )
-        static_cast<KIGIT_COMMON*>( aPayload )->FollowRewrittenUrl( wxString::FromUTF8( url ) );
-
-    return GIT_OK;
-}
-
-
 bool LIBGIT_BACKEND::Clone( GIT_CLONE_HANDLER* aHandler )
 {
     KIGIT_COMMON* common = aHandler->GetCommon();
@@ -189,32 +175,15 @@ bool LIBGIT_BACKEND::Clone( GIT_CLONE_HANDLER* aHandler )
         }
     }
 
-    git_clone_options cloneOptions;
-    git_clone_init_options( &cloneOptions, GIT_CLONE_OPTIONS_VERSION );
-    cloneOptions.checkout_opts.checkout_strategy = GIT_CHECKOUT_SAFE;
-    cloneOptions.checkout_opts.progress_cb = clone_progress_cb;
-    cloneOptions.checkout_opts.progress_payload = aHandler;
-    cloneOptions.fetch_opts.callbacks.transfer_progress = transfer_progress_cb;
-    cloneOptions.fetch_opts.callbacks.credentials = credentials_cb;
-    cloneOptions.fetch_opts.callbacks.certificate_check = certificate_check_cb;
-    cloneOptions.fetch_opts.callbacks.payload = aHandler;
-    cloneOptions.fetch_opts.proxy_opts.type = GIT_PROXY_AUTO;
-    cloneOptions.remote_cb = clone_remote_cb;
-    cloneOptions.remote_cb_payload = common;
+    KIGIT::REMOTE_TRANSPORT transport( aHandler );
+    git_repository*         newRepo = nullptr;
 
-    aHandler->ResetTransferState();
-    git_repository* newRepo = nullptr;
-    wxString        remote = common->GetRemote();
-    std::string     remoteUtf8 = remote.utf8_string();
-
-    if( int rc = git_clone( &newRepo, remoteUtf8.c_str(), aHandler->GetClonePath().mbc_str(), &cloneOptions ) )
+    if( transport.Clone( common->GetRemote(), aHandler->GetClonePath(), &newRepo ) )
     {
-        aHandler->ReportTransferFailure( KIGIT_COMMON::GetLastGitErrorInfo( rc ), KIGIT_OPERATION::CLONE,
-                                         wxEmptyString );
+        aHandler->ReportTransferFailure( transport.Error(), KIGIT_OPERATION::CLONE, wxEmptyString );
         return false;
     }
 
-    aHandler->RememberWorkingSSHKey();
     common->SetRepo( newRepo );
 
     return true;
@@ -911,15 +880,18 @@ static int reachableFromRemote( git_repository* aRepo, const git_oid& aCommit, w
     if( tips.empty() )
         return 0;
 
-    if( int reachable = git_graph_reachable_from_any( aRepo, &aCommit, tips.data(), tips.size() ); reachable <= 0 )
+#if LIBGIT2_VER_MAJOR > 1 || ( LIBGIT2_VER_MAJOR == 1 && LIBGIT2_VER_MINOR >= 5 )
+    int reachable = git_graph_reachable_from_any( aRepo, &aCommit, tips.data(), tips.size() );
+
+    if( reachable <= 0 ) // Not reachable, or an error occurred
         return reachable;
 
     // One walk answers the common unpublished case, so only a published commit pays to find which branch holds it
     for( size_t ii = 0; ii < tips.size(); ++ii )
     {
-        int reachable = git_graph_reachable_from_any( aRepo, &aCommit, &tips[ii], 1 );
+        reachable = git_graph_reachable_from_any( aRepo, &aCommit, &tips[ii], 1 );
 
-        if( reachable < 0 )
+        if( reachable < 0 ) // Error occurred
             return reachable;
 
         if( reachable > 0 )
@@ -930,6 +902,24 @@ static int reachableFromRemote( git_repository* aRepo, const git_oid& aCommit, w
     }
 
     return 1;
+#else
+    for( size_t ii = 0; ii < tips.size(); ++ii )
+    {
+        int reachable =
+                git_oid_equal( &aCommit, &tips[ii] ) ? 1 : git_graph_descendant_of( aRepo, &tips[ii], &aCommit );
+
+        if( reachable < 0 ) // Error occurred
+            return reachable;
+
+        if( reachable > 0 )
+        {
+            aRemoteRef = names[ii];
+            return 1;
+        }
+    }
+
+    return 0;
+#endif
 }
 
 
@@ -1100,8 +1090,6 @@ PushResult LIBGIT_BACKEND::Push( GIT_PUSH_HANDLER* aHandler, bool aForce )
         }
     }
 
-    PushResult result = PushResult::Success;
-
     wxString    remoteName = common->GetRemoteNameOrDefault();
     std::string remoteNameUtf8 = remoteName.utf8_string();
     git_remote* remote = nullptr;
@@ -1117,107 +1105,87 @@ PushResult LIBGIT_BACKEND::Push( GIT_PUSH_HANDLER* aHandler, bool aForce )
     // The URL may have changed outside KiCad, and libgit2 connects to the push URL when there is one
     const char* pushUrl = git_remote_pushurl( remote ) ? git_remote_pushurl( remote ) : git_remote_url( remote );
 
+    // The push dials this remote object, so checking its address here pins where the push goes
+    if( !aHandler->MatchesExpectedDestination( remoteName, pushUrl ? wxString::FromUTF8( pushUrl ) : wxString() ) )
+    {
+        aHandler->AddErrorString( _( "The remote changed while the push was waiting. Review it and try again." ) );
+        return PushResult::Error;
+    }
+
     if( pushUrl )
         common->SyncRemoteUrl( wxString::FromUTF8( pushUrl ) );
 
-    git_remote_callbacks remoteCallbacks;
-    git_remote_init_callbacks( &remoteCallbacks, GIT_REMOTE_CALLBACKS_VERSION );
-    remoteCallbacks.sideband_progress = progress_cb;
-    remoteCallbacks.transfer_progress = transfer_progress_cb;
-    remoteCallbacks.update_tips = update_cb;
-    remoteCallbacks.push_transfer_progress = push_transfer_progress_cb;
-    remoteCallbacks.push_update_reference = push_update_reference_cb;
-    remoteCallbacks.credentials = credentials_cb;
-    remoteCallbacks.certificate_check = certificate_check_cb;
-    remoteCallbacks.payload = aHandler;
-
-    git_proxy_options proxyOpts;
-    git_proxy_init_options( &proxyOpts, GIT_PROXY_OPTIONS_VERSION );
-    proxyOpts.type = GIT_PROXY_AUTO;
     // Cancelled while this task was still queued, so it must not start network work.
     if( aHandler->IsThisOperationCancelled() )
         return PushResult::Error;
 
-    aHandler->ResetTransferState();
+    // A redirect would land the pinned push on a server nobody confirmed. Older libgit2 versions
+    // cannot disable redirects, so this protection is unavailable with those versions.
+    KIGIT::REMOTE_TRANSPORT transport( aHandler, remote, !aHandler->HasExpectedDestination() );
+    KIGIT::GitReferencePtr  headPtr;
+    bool                    refused = false;
 
-    if( int connectResult = git_remote_connect( remote, GIT_DIRECTION_PUSH, &remoteCallbacks, &proxyOpts, nullptr ) )
+    auto refuse = [&]( const wxString& aMessage )
     {
-        aHandler->ReportTransferFailure( KIGIT_COMMON::GetLastGitErrorInfo( connectResult ), KIGIT_OPERATION::PUSH,
-                                         remoteName );
-        return PushResult::Error;
-    }
+        aHandler->AddErrorString( aMessage );
+        refused = true;
+        return wxString();
+    };
 
-    aHandler->RememberWorkingSSHKey();
-
-    git_push_options pushOptions;
-    git_push_init_options( &pushOptions, GIT_PUSH_OPTIONS_VERSION );
-    pushOptions.callbacks = remoteCallbacks;
-    pushOptions.proxy_opts.type = GIT_PROXY_AUTO;
-
-    git_reference* head = nullptr;
-
-    if( git_repository_head( &head, aHandler->GetRepo() ) != 0 )
+    // Another program can update Git during a connect, so the target is chosen and checked only once connected
+    auto connected = [&]() -> wxString
     {
-        git_remote_disconnect( remote );
-        aHandler->AddErrorString( _( "Could not get the repository head." ) );
-        return PushResult::Error;
-    }
+        git_reference* head = nullptr;
 
-    KIGIT::GitReferencePtr headPtr( head );
+        if( git_repository_head( &head, aHandler->GetRepo() ) != 0 )
+            return refuse( _( "Could not get the repository head." ) );
 
-    // A detached HEAD is not a branch, so its name is the literal "HEAD" and the remote has no
-    // branch for it. Without this the push fails with nothing to show the user.
-    if( !git_reference_is_branch( head ) )
+        headPtr.reset( head );
+
+        // A detached HEAD is not a branch, so its name is the literal "HEAD" and the remote has no
+        // branch for it. Without this the push fails with nothing to show the user.
+        if( !git_reference_is_branch( head ) )
+        {
+            return refuse( _( "This project is showing an old snapshot rather than a branch, so there "
+                              "is nothing to push. Go back to a branch first." ) );
+        }
+
+        if( !matchesExpectedTarget( head ) )
+            return refuse( targetChanged );
+
+        // Force push prepends "+" to the refspec source, matching `git push --force`. The source is the
+        // checked commit, since another program can move the branch before libgit2 reads it
+        return wxString::Format( wxS( "%s%s:%s" ), aForce ? wxS( "+" ) : wxS( "" ),
+                                 wxString::FromUTF8( git_oid_tostr_s( git_reference_target( head ) ) ),
+                                 wxString::FromUTF8( git_reference_name( head ) ) );
+    };
+
+    if( int pushResult = transport.Push( connected ) )
     {
-        git_remote_disconnect( remote );
-        aHandler->AddErrorString( _( "This project is showing an old snapshot rather than a branch, so there "
-                                     "is nothing to push. Go back to a branch first." ) );
-        return PushResult::Error;
-    }
+        if( refused )
+            return PushResult::Error;
 
-    if( !matchesExpectedTarget( head ) )
-    {
-        git_remote_disconnect( remote );
-        aHandler->AddErrorString( targetChanged );
-        return PushResult::Error;
-    }
-
-    // Force push prepends "+" to the refspec source, matching `git push --force`.
-    wxString           refspec = ( aForce ? wxS( "+" ) : wxS( "" ) ) + wxString( git_reference_name( head ) );
-    std::string        refspecUtf8 = refspec.utf8_string();
-    const char*        refs[1] = { refspecUtf8.c_str() };
-    const git_strarray refspecs = { (char**) refs, 1 };
-
-    if( int pushResult = git_remote_push( remote, &refspecs, &pushOptions ) )
-    {
-        aHandler->ReportTransferFailure( KIGIT_COMMON::GetLastGitErrorInfo( pushResult ), KIGIT_OPERATION::PUSH,
-                                         remoteName );
-        git_remote_disconnect( remote );
+        aHandler->ReportTransferFailure( transport.Error(), KIGIT_OPERATION::PUSH, remoteName );
 
         // The return code, not the message, which varies between libgit2 versions.
         return pushResult == GIT_ENONFASTFORWARD ? PushResult::NonFastForward : PushResult::Error;
     }
 
     // First push from this branch: point it at where we just pushed (git push -u).
-    if( git_reference_is_branch( head ) )
-    {
-        git_reference* upstreamRef = nullptr;
-        int            rc = git_branch_upstream( &upstreamRef, head );
+    git_reference* upstreamRef = nullptr;
+    int            rc = git_branch_upstream( &upstreamRef, headPtr.get() );
 
-        if( rc == GIT_ENOTFOUND )
-        {
-            wxString upstreamName = wxString::Format( "%s/%s", remoteName, git_reference_shorthand( head ) );
-            git_branch_set_upstream( head, upstreamName.utf8_string().c_str() );
-        }
-        else if( rc == GIT_OK )
-        {
-            KIGIT::GitReferencePtr upstreamPtr( upstreamRef );
-        }
+    if( rc == GIT_ENOTFOUND )
+    {
+        wxString upstreamName = wxString::Format( "%s/%s", remoteName, git_reference_shorthand( headPtr.get() ) );
+        git_branch_set_upstream( headPtr.get(), upstreamName.utf8_string().c_str() );
+    }
+    else if( rc == GIT_OK )
+    {
+        KIGIT::GitReferencePtr upstreamPtr( upstreamRef );
     }
 
-    git_remote_disconnect( remote );
-
-    return result;
+    return PushResult::Success;
 }
 
 
@@ -1400,7 +1368,11 @@ bool LIBGIT_BACKEND::IsRepository( GIT_INIT_HANDLER* aHandler, const wxString& a
 
     // A repository git refuses to open is still a repository. Answering false here sends the
     // initialize path into reinitializing it.
+#if KIGIT_HAS_EOWNER
     return error == GIT_EOWNER;
+#else
+    return false;
+#endif
 }
 
 
@@ -1804,18 +1776,6 @@ static bool fetchRemote( GIT_PULL_HANDLER* aHandler, bool aSkipLock, bool* aRemo
     if( const char* url = git_remote_url( remote ) )
         aHandler->GetCommon()->SyncRemoteUrl( wxString::FromUTF8( url ) );
 
-    git_remote_callbacks remoteCallbacks;
-    git_remote_init_callbacks( &remoteCallbacks, GIT_REMOTE_CALLBACKS_VERSION );
-    remoteCallbacks.sideband_progress = progress_cb;
-    remoteCallbacks.transfer_progress = transfer_progress_cb;
-    remoteCallbacks.credentials = credentials_cb;
-    remoteCallbacks.certificate_check = certificate_check_cb;
-    remoteCallbacks.payload = aHandler;
-
-    git_proxy_options proxyOpts;
-    git_proxy_init_options( &proxyOpts, GIT_PROXY_OPTIONS_VERSION );
-    proxyOpts.type = GIT_PROXY_AUTO;
-
     // Do not SetShuttingDown( false ) here. A close or a preference change can raise the flag
     // after this fetch starts, and clearing it would strand the caller on the transfer.
 
@@ -1823,42 +1783,17 @@ static bool fetchRemote( GIT_PULL_HANDLER* aHandler, bool aSkipLock, bool* aRemo
     if( aHandler->IsThisOperationCancelled() )
         return false;
 
-    aHandler->ResetTransferState();
-
-    if( int rc = git_remote_connect( remote, GIT_DIRECTION_FETCH, &remoteCallbacks, &proxyOpts, nullptr ) )
-    {
-        aHandler->ReportTransferFailure( KIGIT_COMMON::GetLastGitErrorInfo( rc ), KIGIT_OPERATION::FETCH, remoteName );
-        return false;
-    }
-
-    aHandler->RememberWorkingSSHKey();
-
-    const git_remote_head** heads = nullptr;
-    size_t                  headCount = 0;
+    KIGIT::REMOTE_TRANSPORT transport( aHandler, remote );
     std::vector<wxString>   remoteBranches;
 
-    // The advertisement, not local tracking refs, because a custom refspec or stale refs mislead those
-    if( git_remote_ls( &heads, &headCount, remote ) == GIT_OK )
+    if( transport.Fetch( &remoteBranches ) )
     {
-        for( size_t ii = 0; ii < headCount; ++ii )
-        {
-            if( std::strncmp( heads[ii]->name, "refs/heads/", 11 ) == 0 )
-                remoteBranches.push_back( wxString::FromUTF8( heads[ii]->name + 11 ) );
-        }
+        aHandler->ReportTransferFailure( transport.Error(), KIGIT_OPERATION::FETCH, remoteName );
+        return false;
     }
 
     if( aRemoteHasBranches )
         *aRemoteHasBranches = !remoteBranches.empty();
-
-    git_fetch_options fetchOptions;
-    git_fetch_init_options( &fetchOptions, GIT_FETCH_OPTIONS_VERSION );
-    fetchOptions.callbacks = remoteCallbacks;
-
-    if( int rc = git_remote_fetch( remote, nullptr, &fetchOptions, nullptr ) )
-    {
-        aHandler->ReportTransferFailure( KIGIT_COMMON::GetLastGitErrorInfo( rc ), KIGIT_OPERATION::FETCH, remoteName );
-        return false;
-    }
 
     if( !adoptRemoteBranch( aHandler->GetRepo(), remoteName, remoteBranches ) )
     {
@@ -2198,6 +2133,7 @@ PullResult LIBGIT_BACKEND::PerformPull( GIT_PULL_HANDLER* aHandler )
 
     // KiCad runs no filter program, so merging a version that keeps design files in Git LFS
     // would put pointer text where the design belongs. Judged before anything is written.
+    // With libgit2 before 1.3, this checks only current index and working tree attributes.
     if( KIGIT_COMMON* common = aHandler->GetCommon() )
     {
         wxString example;
@@ -2767,6 +2703,7 @@ git_repository* LIBGIT_BACKEND::GetRepositoryForFile( const char* aFilename, wxS
     {
         wxLogTrace( traceGit, "Can't open repo for %s: %s", aFilename, KIGIT_COMMON::GetLastGitError() );
 
+#if KIGIT_HAS_EOWNER
         // Left unexplained, a repository git refuses to open looks like no repository at all.
         if( rc == GIT_EOWNER && aError )
         {
@@ -2788,6 +2725,7 @@ git_repository* LIBGIT_BACKEND::GetRepositoryForFile( const char* aFilename, wxS
                     *aTrustCommand = refusal.trustCommand;
             }
         }
+#endif
 
         return nullptr;
     }
@@ -4058,9 +3996,19 @@ MergeCommitResult LIBGIT_BACKEND::CreateMergedCommit( git_repository* aRepo, con
 
         std::string bytes( ( std::istreambuf_iterator<char>( in ) ), std::istreambuf_iterator<char>() );
 
-        git_oid blobOid;
+        git_oid          blobOid;
+        git_writestream* stream = nullptr;
 
-        if( git_blob_create_from_buffer( &blobOid, aRepo, bytes.data(), bytes.size() ) != GIT_OK )
+        // The path picks the clean filters that core.autocrlf and .gitattributes name, as "git add" would
+        bool stored = git_blob_create_from_stream( &stream, aRepo, pathUtf8.c_str() ) == GIT_OK;
+
+        if( stored && stream->write( stream, bytes.data(), bytes.size() ) != GIT_OK )
+        {
+            stream->free( stream );
+            stored = false;
+        }
+
+        if( !stored || git_blob_create_from_stream_commit( &blobOid, stream ) != GIT_OK )
         {
             aError.details = wxString::Format( _( "Could not store the resolved file for '%s'." ), path );
             return MergeCommitResult::FailedCleanly;

@@ -606,11 +606,19 @@ void SYMBOL_EDIT_FRAME::setupUIConditions()
                 return IsSymbolEditable() && m_symbol && m_symbol->CanUpdateFieldsFromParent();
             };
 
-    auto symbolModifiedCondition =
+    auto revertableCondition =
             [this]( const SELECTION& sel )
             {
-                return m_libMgr && m_libMgr->IsSymbolModified( GetTargetLibId().GetLibItemName(),
-                                                               GetTargetLibId().GetLibNickname() );
+                if( !m_libMgr )
+                    return false;
+
+                const LIB_ID target = GetTargetLibId();
+
+                // A library row reverts the whole library
+                if( target.GetLibItemName().empty() )
+                    return m_libMgr->IsLibraryModified( target.GetLibNickname() );
+
+                return m_libMgr->IsSymbolModified( target.GetLibItemName(), target.GetLibNickname() );
             };
 
     auto libSelectedCondition =
@@ -648,6 +656,7 @@ void SYMBOL_EDIT_FRAME::setupUIConditions()
     mgr->SetConditions( ACTIONS::saveAll,                       ENABLE( SELECTION_CONDITIONS::ShowAlways ) );
     mgr->SetConditions( ACTIONS::save,                          ENABLE( SELECTION_CONDITIONS::ShowAlways ) );
     mgr->SetConditions( SCH_ACTIONS::saveLibraryAs,             ENABLE( libSelectedCondition ) );
+    mgr->SetConditions( ACTIONS::exportForOlderVersion,         ENABLE( libSelectedCondition ) );
     mgr->SetConditions( SCH_ACTIONS::saveSymbolAs,              ENABLE( saveSymbolAsCondition ) );
     mgr->SetConditions( SCH_ACTIONS::saveSymbolCopyAs,          ENABLE( saveSymbolAsCondition ) );
     mgr->SetConditions( SCH_ACTIONS::newSymbol,                 ENABLE( SELECTION_CONDITIONS::ShowAlways ) );
@@ -656,7 +665,7 @@ void SYMBOL_EDIT_FRAME::setupUIConditions()
 
     mgr->SetConditions( ACTIONS::undo,                ENABLE( haveSymbolCond && cond.UndoAvailable() ) );
     mgr->SetConditions( ACTIONS::redo,                ENABLE( haveSymbolCond && cond.RedoAvailable() ) );
-    mgr->SetConditions( ACTIONS::revert,              ENABLE( symbolModifiedCondition ) );
+    mgr->SetConditions( ACTIONS::revert,              ENABLE( revertableCondition ) );
 
     mgr->SetConditions( ACTIONS::toggleGrid,          CHECK( cond.GridVisible() ) );
     mgr->SetConditions( ACTIONS::toggleGridOverrides, CHECK( cond.GridOverrides() ) );
@@ -1623,6 +1632,10 @@ void SYMBOL_EDIT_FRAME::SyncLibraries( bool aShowProgress, bool aPreloadCancelle
         for( const LIB_ID& libId : expanded )
             GetLibTree()->ExpandLibId( libId );
 
+        // A filter selects its best match, which tree actions would take for the user's choice
+        if( selected.GetLibNickname().empty() )
+            GetLibTree()->Unselect();
+
         // Try to select the parent library, in case the symbol is not found
         if( !found && selected.IsValid() )
         {
@@ -2072,12 +2085,47 @@ void SYMBOL_EDIT_FRAME::KiwayMailIn( KIWAY_MAIL_EVENT& mail )
         break;
     }
 
+    case MAIL_LIB_SAVE_ALL:
+        mail.SetPayload( saveAllLibraries( false ) ? "success" : "failed" );
+        break;
+
+    case MAIL_LIB_HAS_UNSAVED:
+    {
+        // A symbol from the schematic is saved with it, so Save All Libraries could never clear it
+        bool unsaved = HasLibModifications() || ( IsContentModified() && !IsSymbolFromSchematic() );
+        mail.SetPayload( unsaved ? "yes" : "no" );
+        break;
+    }
+
     case MAIL_RELOAD_LIB:
     {
         wxLogTrace( wxT( "KICAD_TABS_DBG" ), wxT( "SYMBOL_EDIT_FRAME::KiwayMailIn MAIL_RELOAD_LIB -> SyncLibraries" ) );
 
+        LIB_SYMBOL* current = GetCurSymbol();
+        wxString    lib = current ? current->GetLibId().GetLibNickname().wx_str() : wxString();
+
+        // The open symbol is a copy, so an unedited one is refreshed when nothing holds on to it
+        bool refresh = current && !IsContentModified() && !IsSymbolFromSchematic() && IsEnabled()
+                       && !Kiway().HasBlockingDialog() && ToolStackIsEmpty();
+
+        // A derived symbol's copy links to its parent in the buffer, so keep every buffer a copy
+        // still shows
+        std::set<wxString> keep;
+
+        for( const std::unique_ptr<SYMBOL_EDITOR_TAB_CONTEXT>& ctx : m_tabContexts )
+        {
+            if( ctx.get() != m_activeTab || !refresh )
+                keep.insert( ctx->GetLibrary() );
+        }
+
+        if( current && !refresh )
+            keep.insert( lib );
+
+        // Holds a refreshed copy's parent alive until the copy is replaced
+        std::shared_ptr<LIB_SYMBOL> heldParent = refresh ? current->GetParent().lock() : nullptr;
+
         // Untouched buffers hold the files as they were, and a pull may have changed them since
-        std::vector<wxString> dropped = m_libMgr->DropUnmodifiedBuffers();
+        std::vector<wxString> dropped = m_libMgr->DropUnmodifiedBuffers( keep );
 
         // Only the pane is frozen. A frozen adapter hides every parent, and the view rebuilt from it
         // at the end of the sync is left with rows that no longer exist.
@@ -2089,25 +2137,30 @@ void SYMBOL_EDIT_FRAME::KiwayMailIn( KIWAY_MAIL_EVENT& mail )
         m_treePane->Thaw();
         RefreshLibraryTree();
 
-        LIB_SYMBOL* current = GetCurSymbol();
-        wxString    lib = current ? current->GetLibId().GetLibNickname().wx_str() : wxString();
-
-        // The open symbol is a copy, so an unedited one is refreshed when nothing holds on to it
-        if( current && !IsContentModified() && !IsSymbolFromSchematic() && IsEnabled()
-            && !Kiway().HasBlockingDialog() && ToolStackIsEmpty() && alg::contains( dropped, lib ) )
+        if( refresh && alg::contains( dropped, lib ) )
         {
             const wxString name = current->GetName();
+            LIB_SYMBOL*    refreshed = nullptr;
 
             if( m_libMgr->SymbolExists( name, lib ) )
-            {
-                if( LIB_SYMBOL* refreshed = m_libMgr->GetBufferedSymbol( name, lib ) )
-                {
-                    SetCurSymbol( new LIB_SYMBOL( *refreshed ), false );
-                    RebuildSymbolUnitAndBodyStyleLists();
+                refreshed = m_libMgr->GetBufferedSymbol( name, lib );
 
-                    if( m_toolManager )
-                        m_toolManager->ResetTools( TOOL_BASE::MODEL_RELOAD );
-                }
+            LIB_SYMBOL* replacement = nullptr;
+
+            if( refreshed )
+                replacement = new LIB_SYMBOL( *refreshed );
+            else if( heldParent )
+                replacement = current->Flatten().release(); // The pull removed it and its parent dies with heldParent
+
+            if( replacement )
+            {
+                // The undo list holds the replaced copy's items
+                ClearUndoRedoList();
+                SetCurSymbol( replacement, false );
+                RebuildSymbolUnitAndBodyStyleLists();
+
+                if( m_toolManager )
+                    m_toolManager->ResetTools( TOOL_BASE::MODEL_RELOAD );
             }
         }
 
@@ -2224,6 +2277,13 @@ bool SYMBOL_EDIT_FRAME::IsContentModified() const
     }
 
     return false;
+}
+
+
+bool SYMBOL_EDIT_FRAME::hasUnsavedLibraryEdits( const wxString& aLibNickname ) const
+{
+    // Edits in any tab of the library live in its buffer, which a reload replaces
+    return SCH_BASE_FRAME::hasUnsavedLibraryEdits( aLibNickname ) || m_libMgr->IsLibraryModified( aLibNickname );
 }
 
 

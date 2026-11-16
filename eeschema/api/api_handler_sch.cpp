@@ -291,7 +291,11 @@ bool API_HANDLER_SCH::packSchItem( google::protobuf::Any& aOut, SCH_ITEM* aItem,
         if( !PackSymbol( &symbol, static_cast<SCH_SYMBOL*>( aItem ), aPath ) )
             return false;
 
-        aOut.PackFrom( symbol );
+        if( !aOut.PackFrom( symbol ) )
+        {
+            wxFAIL_MSG( wxT( "Failed to pack SCH_SYMBOL" ) );
+            return false;
+        }
     }
     else if( aItem->Type() == SCH_SHEET_T )
     {
@@ -300,7 +304,11 @@ bool API_HANDLER_SCH::packSchItem( google::protobuf::Any& aOut, SCH_ITEM* aItem,
         if( !PackSheet( &sheet, static_cast<SCH_SHEET*>( aItem ), aPath ) )
             return false;
 
-        aOut.PackFrom( sheet );
+        if( !aOut.PackFrom( sheet ) )
+        {
+            wxFAIL_MSG( wxT( "Failed to pack SCH_SHEET" ) );
+            return false;
+        }
     }
     else
     {
@@ -825,10 +833,10 @@ HANDLER_RESULT<GetItemsResponse> API_HANDLER_SCH::handleGetItemsById( const HAND
 
     GetItemsResponse response;
     SCH_ITEM* item = nullptr;
-    google::protobuf::Any any;
 
     for( const types::KIID& idProto : aCtx.Request.items() )
     {
+        google::protobuf::Any any;
         KIID id( idProto.value() );
 
         SCH_SHEET_PATH itemPath;
@@ -853,7 +861,8 @@ HANDLER_RESULT<GetItemsResponse> API_HANDLER_SCH::handleGetItemsById( const HAND
             if( !PackSymbol( &symbol, static_cast<SCH_SYMBOL*>( item ), itemPath ) )
                 continue;
 
-            any.PackFrom( symbol );
+            if( !any.PackFrom( symbol ) )
+                continue;
         }
         else if( item->Type() == SCH_SHEET_T )
         {
@@ -862,7 +871,8 @@ HANDLER_RESULT<GetItemsResponse> API_HANDLER_SCH::handleGetItemsById( const HAND
             if( !PackSheet( &sheet, static_cast<SCH_SHEET*>( item ), itemPath ) )
                 continue;
 
-            any.PackFrom( sheet );
+            if( !any.PackFrom( sheet ) )
+                continue;
         }
         else
         {
@@ -1405,9 +1415,10 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
                 if( wxString rawFilename = sheet->GetFileName(); !rawFilename.IsEmpty() )
                 {
                     wxFileName fileName( ExpandTextVars( rawFilename, &schematic()->Project(), INTERNAL ) );
+                    wxFileName parentFileName( targetPath.LastScreen()->GetFileName() );
 
                     if( !fileName.Normalize( FN_NORMALIZE_FLAGS | wxPATH_NORM_ENV_VARS,
-                                             targetPath.LastScreen()->GetFileName() ) )
+                                             parentFileName.GetPath() ) )
                     {
                         status.set_code( ItemStatusCode::ISC_INVALID_DATA );
                         status.set_error_message( fmt::format( "could not resolve sheet filename '{}' for new sheet",
@@ -1500,7 +1511,7 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
                 }
 
                 if( PackSymbol( &packed, symbol, targetPath, schematic() ) )
-                    newItem.PackFrom( packed );
+                    (void) newItem.PackFrom( packed );
             }
             else if( createdItem->Type() == SCH_SHEET_T )
             {
@@ -1517,7 +1528,7 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
                 }
 
                 if( PackSheet( &packed, sheet, targetPath ) )
-                    newItem.PackFrom( packed );
+                    (void) newItem.PackFrom( packed );
             }
             else
             {
@@ -1569,7 +1580,7 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
                 }
 
                 if( PackSymbol( &packed, symbol, existingPath ) )
-                    newItem.PackFrom( packed );
+                    (void) newItem.PackFrom( packed );
             }
             else if( existingItem->Type() == SCH_SHEET_T )
             {
@@ -1586,7 +1597,7 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
                 }
 
                 if( PackSheet( &packed, sheet, existingPath ) )
-                    newItem.PackFrom( packed );
+                    (void) newItem.PackFrom( packed );
             }
             else
             {
@@ -1764,13 +1775,11 @@ applySchematicPlotSettings( const schematic::jobs::SchematicPlotSettings& aSetti
     if( aSettings.page_size() != schematic::jobs::SchematicJobPageSize::SJPS_UNKNOWN )
         aJob.m_pageSizeSelect = FromProtoEnum<JOB_PAGE_SIZE>( aSettings.page_size() );
 
-    switch( aSettings.sheet_mode() )
-    {
-    case schematic::jobs::SJSM_ALL_SHEETS:   aJob.m_plotAll = true;  break;
-    case schematic::jobs::SJSM_SINGLE_SHEET: aJob.m_plotAll = false; break;
-    case schematic::jobs::SJSM_UNKNOWN:
-    default:                                 aJob.m_plotAll = false; break;
-    }
+    // An unspecified sheet mode keeps the value from aSettings.plot_all()
+    if( aSettings.sheet_mode() == schematic::jobs::SJSM_ALL_SHEETS )
+        aJob.m_plotAll = true;
+    else if( aSettings.sheet_mode() == schematic::jobs::SJSM_SINGLE_SHEET )
+        aJob.m_plotAll = false;
 
     if( aDocument.has_sheet_path() )
         aJob.m_sheetPath = UnpackSheetPath( aDocument.sheet_path() ).AsString();
@@ -2908,7 +2917,7 @@ HANDLER_RESULT<Empty> API_HANDLER_SCH::handleAddVariant( const HANDLER_CONTEXT<A
         undoCmd->SetDescription( _( "Add Variant" ) );
         frame()->PushCommandToUndoList( undoCmd );
 
-        frame()->UpdateVariantSelectionCtrl( frame()->Schematic().GetVariantNamesForUI() );
+        frame()->SyncVariantUI();
     }
 
     return Empty();
@@ -2971,7 +2980,7 @@ HANDLER_RESULT<Empty> API_HANDLER_SCH::handleDeleteVariant( const HANDLER_CONTEX
         if( frame()->Schematic().GetCurrentVariant().CmpNoCase( name ) == 0 )
             frame()->SetCurrentVariant( wxEmptyString );
 
-        frame()->UpdateVariantSelectionCtrl( frame()->Schematic().GetVariantNamesForUI() );
+        frame()->SyncVariantUI();
         frame()->GetCanvas()->Refresh();
     }
 
@@ -3051,15 +3060,11 @@ HANDLER_RESULT<Empty> API_HANDLER_SCH::handleRenameVariant( const HANDLER_CONTEX
         undoCmd->SetDescription( _( "Rename Variant" ) );
         frame()->PushCommandToUndoList( undoCmd );
 
-        // This will zero out the selection if it happened to point to the old name
-        frame()->UpdateVariantSelectionCtrl( frame()->Schematic().GetVariantNamesForUI() );
+        frame()->SyncVariantUI();
 
+        // Repaint ${VARIANT} text under the new name
         if( isCurrent )
-        {
-            // This will reset the variant-selection-ctrl's selection, but only if the
-            // names have already been updated to include the new name
             frame()->SetCurrentVariant( newName );
-        }
     }
 
     return Empty();
@@ -3139,7 +3144,7 @@ HANDLER_RESULT<Empty> API_HANDLER_SCH::handleCopyVariant( const HANDLER_CONTEXT<
         undoCmd->SetDescription( _( "Copy Variant" ) );
         frame()->PushCommandToUndoList( undoCmd );
 
-        frame()->UpdateVariantSelectionCtrl( frame()->Schematic().GetVariantNamesForUI() );
+        frame()->SyncVariantUI();
     }
 
     return Empty();
@@ -3259,7 +3264,19 @@ HANDLER_RESULT<PlaceFromLibraryResponse> API_HANDLER_SCH::handlePlaceSymbolFromL
     }
 
     SYMBOL_LIBRARY_ADAPTER* adapter = PROJECT_SCH::SymbolLibAdapter( &project() );
-    LIB_SYMBOL* libSymbol = loadLibrarySymbol( adapter, libId );
+    LIB_SYMBOL* libSymbol = nullptr;
+
+    try
+    {
+        libSymbol = loadLibrarySymbol( adapter, libId );
+    }
+    catch( const IO_ERROR& ioe )
+    {
+        ApiResponseStatus e;
+        e.set_status( ApiStatusCode::AS_BAD_REQUEST );
+        e.set_error_message( fmt::format( "error loading symbol '{}' from library", libId.Format().wx_str() ) );
+        return tl::unexpected( e );
+    }
 
     if( !libSymbol )
     {
@@ -3377,7 +3394,7 @@ HANDLER_RESULT<PlaceFromLibraryResponse> API_HANDLER_SCH::handlePlaceSymbolFromL
     kiapi::schematic::types::SchematicSymbolInstance packed;
 
     if( PackSymbol( &packed, placed, targetPath, schematic() ) )
-        response.mutable_item()->PackFrom( packed );
+        (void) response.mutable_item()->PackFrom( packed );
 
     return response;
 }

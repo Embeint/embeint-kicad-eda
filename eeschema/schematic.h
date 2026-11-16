@@ -41,6 +41,7 @@
 
 
 struct HISTORY_FILE_DATA;
+struct TOP_LEVEL_SHEET_INFO;
 class BUS_ALIAS;
 class CONNECTION_GRAPH;
 class EDA_BASE_FRAME;
@@ -56,6 +57,7 @@ class SCH_GLOBALLABEL;
 class SCH_REFERENCE;
 class PROGRESS_REPORTER;
 class TOOL_MANAGER;
+class wxFileName;
 class PICKED_ITEMS_LIST;
 
 namespace SCH_CONNECTIVITY
@@ -291,6 +293,19 @@ public:
 
     SCH_SHEET* GetTopLevelSheet( int aIndex = 0 ) const;
 
+    /// The top-level sheets as the project file records them, with file names relative to the project.
+    std::vector<TOP_LEVEL_SHEET_INFO> TopLevelSheetInfos() const;
+
+    /**
+     * Check a project file's top-level sheet list against the sheets this schematic loaded.  A nil
+     * UUID in the list matches any sheet, as it does when loading.
+     */
+    bool TopLevelSheetsMatch( const std::vector<TOP_LEVEL_SHEET_INFO>& aSheets ) const;
+
+    /// The file loaded for a listed top-level sheet. A legacy project reads it under the legacy extension.
+    static wxFileName TopLevelSheetFile( const TOP_LEVEL_SHEET_INFO& aSheet, const wxString& aProjectPath,
+                                         bool aLegacy );
+
     /**
      * Check if a UUID names one of this schematic's top level sheets.
      *
@@ -426,6 +441,19 @@ public:
     // An explicit project table, including an empty one, supersedes legacy sheet definitions.
     bool HasProjectBusAliases() const;
 
+    enum class BUS_ALIAS_RELOAD
+    {
+        UNCHANGED,
+        CHANGED,       ///< The project table changed the aliases in use, so connectivity needs a rebuild
+        TABLE_REMOVED  ///< The reread file has no table; the one in use is kept, even empty, and saved back
+    };
+
+    /**
+     * Take the bus aliases from the project file again after it was reread.  A file without a table
+     * keeps the aliases in use, since the sheets' own definitions only take effect when they are read.
+     */
+    BUS_ALIAS_RELOAD ReloadProjectBusAliases();
+
     const std::vector<std::shared_ptr<BUS_ALIAS>>& GetAllBusAliases() const
     {
         return m_busAliases;
@@ -534,6 +562,14 @@ public:
      * Update markers to match recorded exclusions.
      */
     void ResolveERCExclusionsPostUpdate();
+
+    /**
+     * Resolve exclusions again after the project file was reread.
+     *
+     * @return the markers whose exclusion the file no longer holds.  A fresh load would not have
+     *         them, so they come off their screens and the caller owns them.
+     */
+    std::vector<SCH_MARKER*> ReloadERCExclusions();
 
     /**
      * Must be used if Add() is used using a BULK_x ADD_MODE to generate a change event for
@@ -699,9 +735,9 @@ public:
      * Delete all information for @a aVariantName.
      *
      * @param aVariantName is the name of the variant to remove.
-     * @param aCommit is the commit object to handle undo/redo actions.
+     * @param aCommit is an optional SCH_COMMIT for undo/redo support.
      */
-    void DeleteVariant( const wxString& aVariantName, SCH_COMMIT* aCommit = nullptr );
+    void DeleteVariant( const wxString& aVariantName, SCH_COMMIT* aCommit );
 
     void AddVariant( const wxString& aVariantName );
 
@@ -714,8 +750,7 @@ public:
      * @param aNewName is the new name for the variant.
      * @param aCommit is an optional SCH_COMMIT for undo/redo support.
      */
-    void RenameVariant( const wxString& aOldName, const wxString& aNewName,
-                        SCH_COMMIT* aCommit = nullptr );
+    void RenameVariant( const wxString& aOldName, const wxString& aNewName, SCH_COMMIT* aCommit );
 
     /**
      * Copy a variant from @a aSourceVariant to @a aNewVariant.
@@ -727,8 +762,7 @@ public:
      * @param aNewVariant is the name of the new variant to create.
      * @param aCommit is an optional SCH_COMMIT for undo/redo support.
      */
-    void CopyVariant( const wxString& aSourceVariant, const wxString& aNewVariant,
-                      SCH_COMMIT* aCommit = nullptr );
+    void CopyVariant( const wxString& aSourceVariant, const wxString& aNewVariant, SCH_COMMIT* aCommit );
 
     /**
      * Return the set of variant names (without the default placeholder).
@@ -763,6 +797,21 @@ public:
      * be removed.
      */
     void LoadVariants();
+
+    /**
+     * Delete the definition of a variant.  (Use DeleteVariant() if you also want any variant-overrides
+     * deleted with it.  This is primarily used internally and by the undo code.)
+     * @param aVariantName
+     */
+    void DeleteVariantDefinition( const wxString& aVariantName );
+
+    /**
+     * Take the variant list from the project file again after it was reread.  Variants the
+     * symbols use are kept.  A current variant the file no longer names falls back to the default.
+     *
+     * @return true if the variant list or the current variant changed.
+     */
+    bool ReloadProjectVariants();
 
 #if defined(DEBUG)
     void Show( int nestLevel, std::ostream& os ) const override {}
@@ -899,6 +948,9 @@ private:
     void updateProjectBusAliases();
 
     std::vector<std::shared_ptr<BUS_ALIAS>> m_busAliases;
+
+    /// The aliases in use came from a project table rather than from the sheets
+    bool m_busAliasesFromTable = false;
 
     wxString m_currentVariant;
 

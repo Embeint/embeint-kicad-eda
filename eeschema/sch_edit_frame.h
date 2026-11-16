@@ -166,6 +166,24 @@ public:
      */
     bool LoadProjectSettings();
 
+    /// Apply the project file's render settings.  The drawing sheet name is left alone because
+    /// Page Settings holds an unsaved choice in BASE_SCREEN until the schematic is saved.
+    void ApplyProjectFileSettings();
+
+    /**
+     * Bring the frame in line with a project file that was reread from disk.
+     *
+     * Every value this frame copies out of the project file and writes back on save must be
+     * refreshed here; a copy left stale silently undoes the new file on the next save.
+     */
+    void ReloadProjectFileSettings();
+
+    /**
+     * Update what depends on the schematic's project settings after they changed in memory.
+     * @param aAliasesChanged rebuilds connectivity for the new bus alias members.
+     */
+    void RefreshProjectSettings( bool aAliasesChanged );
+
     /**
      * Load the drawing sheet file.
      */
@@ -192,6 +210,13 @@ public:
      * data structures and GUI elements.
      */
     void OnModify() override;
+
+    /**
+     * Set whether the schematic has unsaved changes.
+     *
+     * @param aModified is true when the schematic has unsaved changes.
+     */
+    void SetContentModified( bool aModified );
 
     SEVERITY GetSeverity( int aErrorCode ) const override;
 
@@ -277,13 +302,11 @@ public:
     void CopyVariant();
 
     /**
-     * Update the variant name control on the main toolbar.
+     * Refill the toolbar variant control and any open symbol fields table from the schematic.
      *
-     * Updating will attempt to maintain the current selection if it's available.  If the current
-     * selection is no longer available, the default (no variant) will be selected.
-     *
+     * The control selects the schematic's current variant.
      */
-    void UpdateVariantSelectionCtrl( const wxArrayString& aVariantNames );
+    void SyncVariantUI();
 
     void SetCurrentVariant( const wxString& aVariantName );
 
@@ -513,6 +536,20 @@ public:
      * @return false when there is no filename or the reload fails.
      */
     bool ReloadFromDisk();
+
+    /**
+     * Ask whether to reload when that would discard unsaved edits.
+     *
+     * @return true when there are no unsaved edits or the user chose to reload.
+     */
+    bool ConfirmReloadFromDisk( const wxString& aMessage, const wxString& aTitle );
+
+    /**
+     * Check whether the last read of the project file brought a top-level sheet list that the
+     * open schematic does not have.  An unsaved change made here is not one.  A reread list that
+     * matches the open sheets is settled.
+     */
+    bool TopLevelSheetsChangedOnDisk();
 
     void SetSchematic( SCHEMATIC* aSchematic );
 
@@ -1046,6 +1083,12 @@ protected:
     void onPluginAvailabilityChanged( wxCommandEvent& aEvt );
 
 private:
+    /// Register the loaded schematic and its project for autosave history. A no-op when they already are.
+    void registerHistorySaver();
+
+    /// Select the schematic's current variant in the toolbar control, which must exist.
+    void selectCurrentVariant();
+
     // Called when resizing the Hierarchy Navigator panel
     void OnResizeHierarchyNavigator( wxSizeEvent& aEvent );
 

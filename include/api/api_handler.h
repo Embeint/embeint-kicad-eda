@@ -142,7 +142,7 @@ protected:
                       wxString::Format( "Duplicate API handler for type %s", typeName ) );
 
         m_handlers[typeName] =
-                HANDLER_ENTRY{ [this, aHandler]( ApiRequest& aRequest ) -> API_RESULT
+                HANDLER_ENTRY{ [this, aHandler, typeName]( ApiRequest& aRequest ) -> API_RESULT
                 {
                     HANDLER_CONTEXT<RequestType> ctx;
                     ApiResponse envelope;
@@ -157,8 +157,17 @@ protected:
 
                     if( response.has_value() )
                     {
+                        if( !envelope.mutable_message()->PackFrom( *response ) )
+                        {
+                            wxFAIL_MSG( wxString::Format( "Failed to pack '%s'", typeName ) );
+
+                            ApiResponseStatus status;
+                            status.set_status( ApiStatusCode::AS_INTERNAL_ERROR );
+                            status.set_error_message( "the response could not be serialized" );
+                            return tl::unexpected( status );
+                        }
+
                         envelope.mutable_status()->set_status( ApiStatusCode::AS_OK );
-                        envelope.mutable_message()->PackFrom( *response );
                         return envelope;
                     }
                     else
