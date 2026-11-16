@@ -2,6 +2,7 @@
 """Footprint Editor, footprint library and embedded-file operations, mixed into LiveSchematic."""
 
 from pathlib import Path
+import re
 import sys
 import uuid
 
@@ -10,6 +11,7 @@ from google.protobuf import empty_pb2, json_format
 sys.path.insert(0, str(Path(__file__).resolve().parent / "_generated"))
 from board import board_commands_pb2 as bc            # noqa: E402
 from board import board_types_pb2 as bt               # noqa: E402
+from common.commands import base_commands_pb2 as base  # noqa: E402
 from common.commands import editor_commands_pb2 as editor  # noqa: E402
 from common.commands import library_commands_pb2 as library  # noqa: E402
 from common.commands import project_commands_pb2 as project  # noqa: E402
@@ -326,13 +328,73 @@ class FootprintTools:
         return {"removed": name}
 
     def footprint_attach_step(self, doc, step_path, offset=(0, 0, 0), rotation=(0, 0, 0), scale=(1, 1, 1)):
-        """Embed a STEP/WRL model in the footprint and make it the footprint's 3D model."""
+        """Embed a STEP/WRL model in the footprint and make it the footprint's 3D model.
+
+        Windows paths (as SolidCraft reports them) are translated to the WSL path KiCad reads.
+        """
+        from model_handoff import to_wsl
+        step_path = to_wsl(step_path)
         if Path(step_path).suffix.lower() not in (".step", ".stp", ".stpz", ".wrl", ".wrz"):
             raise ValueError("3D models must be .step, .stp, .stpz, .wrl or .wrz")
         embedded = self.embed_file(doc, step_path, overwrite=True)
         self.footprint_set_properties(doc, models=[{"filename": embedded["uri"], "offset": offset,
                                                     "rotation": rotation, "scale": scale}])
         return {"embedded": embedded["name"], "model": embedded["uri"]}
+
+
+    # ---- 3D models: SolidCraft handoff and checks in KiCad ------------------------------------
+
+    def footprint_model_plan(self, package, params, body_height, standoff=0.1, lead_thickness=0.2,
+                             lead_width=None, lead_span=None, foot_length=None, export_path=None):
+        """The SolidCraft batch and export call that model this package, and how to come back."""
+        from footprint_gen import generate
+        from model_handoff import default_model_dir, model_plan, to_wsl
+        if export_path is None:
+            export_path = f"{default_model_dir()}/{generate(package, **params)['name']}.step"
+        Path(to_wsl(export_path)).parent.mkdir(parents=True, exist_ok=True)
+        return model_plan(package, params, body_height, standoff, lead_thickness, lead_width, lead_span,
+                          foot_length, export_path)
+
+    def kicad_cli(self):
+        path = self.send(base.GetKiCadBinaryPath(binary_name="kicad-cli"), base.PathResponse).path
+        if not path or not Path(path).exists():
+            raise RuntimeError("KiCad did not report a kicad-cli binary")
+        return path
+
+    def saved_footprint_text(self, lib_id):
+        nickname, _, name = lib_id.partition(":")
+        for row in self.library_table(kind="footprint"):
+            if row["nickname"] == nickname:
+                path = Path(row["path"]) / f"{name}.kicad_mod"
+                if not path.exists():
+                    raise ValueError(f"{lib_id} is not saved yet (no {path})")
+                return path.read_text()
+        raise ValueError(f"footprint library {nickname} is not in the tables")
+
+    def footprint_view_3d(self, lib_id, rotate="-45,0,45", zoom=1.0):
+        """KiCad's own 3D render of a SAVED footprint with its models, on a scratch board."""
+        from model_handoff import render_footprint_3d
+        return render_footprint_3d(self.kicad_cli(), self.saved_footprint_text(lib_id), lib_id, rotate, zoom=zoom)
+
+    def footprint_check_model(self, lib_id, source_path=None):
+        """Check a saved footprint's embedded models: stored bytes, links, and KiCad loading them."""
+        import hashlib
+        from model_handoff import embedded_file_bytes, export_board_step, to_wsl
+        text = self.saved_footprint_text(lib_id)
+        links = re.findall(r'\(model\s+"([^"]+)"', text)
+        report = {"lib_id": lib_id, "models": links, "embedded": []}
+        for name in re.findall(r'\(file\s+\(name\s+"([^"]+)"\)', text):
+            data = embedded_file_bytes(text, name)
+            entry = {"name": name, "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest(),
+                     "is_step": data.lstrip()[:13] == b"ISO-10303-21;", "linked": f"kicad-embed://{name}" in links}
+            if source_path:
+                source = Path(to_wsl(source_path)).read_bytes()
+                entry["matches_source"] = hashlib.sha256(source).hexdigest() == entry["sha256"]
+            report["embedded"].append(entry)
+        step = export_board_step(self.kicad_cli(), text, lib_id)
+        report["kicad_export_step_bytes"] = len(step)
+        report["kicad_export_solids"] = step.count("MANIFOLD_SOLID_BREP")
+        return report
 
 
 def _item_id(packed):

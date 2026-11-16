@@ -82,6 +82,32 @@ outline with a chamfered pin-1 corner and `${REFERENCE}`, and a 0.05 mm courtyar
 (0.5 mm for connectors) on a 0.01 mm grid. Datasheets are linked in the Datasheet field, not
 embedded; STEP models are embedded so a library carries its own 3D models.
 
+### 3D models from SolidCraft
+
+| Tool | Purpose |
+| --- | --- |
+| `live_footprint_model_plan` | From the datasheet package drawing: a SolidCraft `batch` (body, gull-wing leads or terminals, pin-1 dimple, colours) and `export` call, in KiCad 3D conventions |
+| `live_footprint_view_3d` | KiCad's own 3D render (kicad-cli) of a saved footprint and its models |
+| `live_footprint_check_model` | Decode each embedded file, compare it byte for byte with its source, confirm it is the footprint's model, and count the solids KiCad exports when it loads the footprint |
+
+The agent holds both MCP servers and carries the plan across:
+
+1. `live_footprint_generate` the footprint, then `live_footprint_model_plan` with the drawing's A, A1, b, c, E, L
+2. SolidCraft MCP: run `solidcraft.arguments` with `batch`, check it with `screenshot`/`measure`, run `export`
+3. `live_footprint_attach_step` with the exported file (a Windows path is translated for KiCad in WSL),
+   `live_footprint_save`, then `live_footprint_view_3d` and `live_footprint_check_model`
+
+Model conventions: millimetres, origin on the footprint origin at the board's top surface, +Z up,
++X as the footprint, +Y as the footprint's -Y (pin 1 top-left in KiCad sits at model x<0, y>0).
+Plans cover gull-wing packages (SOIC/TSSOP/MSOP/SSOP, SOT-23/223), QFN/DFN and chip parts.
+
+Give SolidCraft's MCP a folder on the Windows drive both programs can reach (the plans default to
+`%USERPROFILE%\kicad-models`, or set `KICAD_LIVE_MODEL_DIR`):
+
+```bash
+claude mcp add solidcraft -- solidcraft-cli mcp --allow-path C:\Users\<you>\kicad-models
+```
+
 The Footprint Editor lives in pcbnew; the footprint tools ask the schematic editor to open it
 (`OpenFootprintEditor`), which loads pcbnew's code into the running process.
 
@@ -131,4 +157,5 @@ claude mcp add kicad-live -- wsl.exe -d Ubuntu -- bash /mnt/c/<fork>/tools/live_
 ~/kicad-live/venv/bin/python e2e_features.py out/          # annotate, wiring, move, undo, ERC, batch, export
 ~/kicad-live/venv/bin/python e2e_symbols.py out/           # search, build, save, register and place a symbol
 ~/kicad-live/venv/bin/python e2e_footprints.py out/        # generate a footprint, embed its STEP, link it from a symbol
+SOLIDCRAFT_CLI=/path/to/solidcraft-cli ~/kicad-live/venv/bin/python e2e_model_handoff.py out/     # SolidCraft builds the STEP; KiCad embeds and renders it
 ```

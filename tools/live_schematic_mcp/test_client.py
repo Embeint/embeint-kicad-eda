@@ -498,3 +498,61 @@ def test_attach_step_embeds_then_links_the_model():
     assert props.models[0].scale.x_nm == 1 and props.models[0].rotation.z_nm == 90
     with pytest.raises(ValueError):
         client.footprint_attach_step(doc_, "/tmp/datasheet.pdf")
+
+
+# ---- SolidCraft model handoff -----------------------------------------------------------------
+
+def test_paths_translate_between_windows_and_wsl():
+    from model_handoff import to_windows, to_wsl
+    assert to_wsl(r"C:\Users\me\kicad-models\a.step") == "/mnt/c/Users/me/kicad-models/a.step"
+    assert to_windows("/mnt/d/models/a.step") == r"D:\models\a.step"
+    assert to_wsl("/home/me/a.step") == "/home/me/a.step" and to_windows("relative.step") == "relative.step"
+
+
+def test_model_plan_follows_kicad_3d_conventions():
+    from model_handoff import model_plan
+    plan = model_plan("soic", dict(pins=8, pitch=1.27, body_width=3.9, body_length=4.9, pad_length=1.95,
+                                   pad_width=0.6, row_pitch=4.95),
+                      body_height=1.75, standoff=0.1, lead_width=0.41, lead_span=6.0, foot_length=0.835,
+                      export_path="/mnt/c/Users/me/kicad-models/SOIC-8.step")
+    steps = plan["solidcraft"]["arguments"]["commands"]
+    assert plan["bodies"] == ["Body"] + [f"Lead{n}" for n in range(1, 9)]
+    assert plan["export"]["arguments"] == {"path": r"C:\Users\me\kicad-models\SOIC-8.step", "format": "step"}
+    assert plan["then"]["step_path"] == "/mnt/c/Users/me/kicad-models/SOIC-8.step"
+    # The body rises from the standoff to the seated height
+    body = next(s for s in steps if s["params"].get("body_name") == "Body")
+    first_sketch = steps[0]["params"]
+    assert first_sketch["offset"] == 0.1 and abs(body["params"]["distance"] - 1.65) < 1e-9
+    # Pin 1 is at footprint y = -1.905, so its lead is sketched at model y = +1.905 (Y flips)
+    lead_planes = [s["params"]["plane"] for s in steps if s["command"] == "sketch.create"
+                   and isinstance(s["params"]["plane"], dict)]
+    assert lead_planes[0]["origin"] == [0, 1.905, 0]
+    # Every lead toe reaches the datasheet span, and touches the board
+    lines = [s["params"]["points"] for s in steps if s["command"] == "sketch.line"]
+    assert all(max(abs(x) for x, _ in pts) == 3.0 and min(z for _, z in pts) == 0.0 for pts in lines)
+    dimple = [s for s in steps if s["command"] == "sketch.circle.center"][0]["params"]["center"]
+    assert dimple[0] < 0 < dimple[1], "pin-1 dimple at model x<0, y>0"
+
+
+def test_footprint_board_unwraps_kicad11_library_files():
+    from model_handoff import footprint_board
+    library_file = ('(kicad_footprint_lib (version 20261031) (generator "kicad_footprint_editor") '
+                    '(generator_version "10.99")\n(footprint "X" (version 20261031) (generator "pcbnew")\n'
+                    '  (layer "F.Cu")\n  (fp_text user "a(b)" (at 1 2))\n  (pad "1" smd rect (at -1 0) (size 1 1)))\n)')
+    board = footprint_board(library_file, "lib:X")
+    assert board.startswith("(kicad_pcb\n  (version 20261031)")
+    assert '(footprint "lib:X"' in board and "kicad_footprint_lib" not in board and "(at 0 0)" in board
+    assert 'Edge.Cuts' in board and board.count("(") == board.count(")")
+
+
+def test_embedded_file_bytes_decodes_kicad_storage():
+    import base64
+    from model_handoff import embedded_file_bytes
+    try:
+        from compression import zstd
+    except ImportError:
+        pytest.skip("needs Python 3.14 compression.zstd")
+    payload = b"ISO-10303-21;\nHEADER;\n" * 50
+    encoded = base64.b64encode(zstd.compress(payload)).decode()
+    text = f'(embedded_files (file (name "m.step") (type model) (data |{encoded[:40]}|\n |{encoded[40:]}|) (checksum "x")))'
+    assert embedded_file_bytes(text, "m.step") == payload

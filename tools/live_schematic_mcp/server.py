@@ -537,6 +537,45 @@ def live_footprint_save(footprint_document: dict) -> dict:
     return client.footprint_save(footprint_document_spec(footprint_document))
 
 
+@mcp.tool()
+def live_footprint_model_plan(package: str, params: dict, body_height: float, standoff: float = 0.1,
+                              lead_thickness: float = 0.2, lead_width: float | None = None,
+                              lead_span: float | None = None, foot_length: float | None = None,
+                              export_path: str | None = None) -> dict:
+    """Plan a STEP model for the package in SolidCraft, from the datasheet, to hand off and come back.
+
+    package/params are those given to live_footprint_generate. From the datasheet's package drawing:
+    body_height (A, seated height), standoff (A1), lead_thickness (c), lead_width (b), lead_span (E,
+    tip to tip), foot_length (L). Returns:
+      solidcraft: a `batch` call for the SolidCraft MCP (body, leads, pin-1 dimple, colours, built in
+                  KiCad 3D conventions: mm, origin on the footprint origin, +Z up, model +Y = footprint -Y)
+      export:     the SolidCraft `export` call writing the STEP (a Windows path SolidCraft may write;
+                  start SolidCraft's MCP with --allow-path for that folder)
+      then:       live_footprint_attach_step with the same file as KiCad sees it
+    Check the SolidCraft model (its screenshot/measure tools) before exporting, then attach, save,
+    and confirm with live_footprint_view_3d and live_footprint_check_model.
+    """
+    return client.footprint_model_plan(package, params, body_height, standoff, lead_thickness, lead_width,
+                                       lead_span, foot_length, export_path)
+
+
+@mcp.tool()
+def live_footprint_view_3d(lib_id: str, rotate: str = "-45,0,45", zoom: float = 1.0) -> Image:
+    """KiCad's own 3D render (kicad-cli) of a SAVED footprint and its models on a scratch board.
+
+    rotate is 'X,Y,Z' degrees ('0,0,0' looks straight down). Use after live_footprint_save.
+    """
+    return Image(data=client.footprint_view_3d(lib_id, rotate, zoom), format="png")
+
+
+@mcp.tool()
+def live_footprint_check_model(lib_id: str, source_path: str | None = None) -> dict:
+    """Check a SAVED footprint's 3D model: each embedded file decoded (size, sha256, is it STEP, is it the
+    footprint's model, does it match source_path byte for byte) and the solid count KiCad exports when it
+    loads the footprint in a separate process (0 means the model did not load)."""
+    return client.footprint_check_model(lib_id, source_path)
+
+
 def any_editor_document(spec):
     if spec.get("type") == "DOCTYPE_FOOTPRINT":
         return footprint_document_spec(spec)
