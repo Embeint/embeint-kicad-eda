@@ -20,11 +20,12 @@ try:
     from common.commands import base_commands_pb2 as base
     from common.commands import cross_probe_commands_pb2 as cross_probe
     from common.commands import editor_commands_pb2 as editor
-    from common.commands import library_commands_pb2  # noqa: F401  (registers descriptors)
+    from common.commands import library_commands_pb2 as library
     from common.commands import project_commands_pb2 as project
     from common.commands import variant_commands_pb2  # noqa: F401
     from common.types import base_types_pb2 as types
     from common.types import jobs_pb2 as jobs
+    from common.types import library_types_pb2 as lib_types
     from common.types import project_settings_pb2  # noqa: F401
     from schematic import schematic_commands_pb2 as commands
     from schematic import schematic_jobs_pb2 as sch_jobs
@@ -71,6 +72,56 @@ def lib_identifier(lib_id):
 
 def sheet_key(path):
     return tuple(k.value for k in path.path)
+
+
+def symbol_document(value):
+    """A DOCTYPE_SYMBOL document as returned by new_symbol/edit_symbol."""
+    result = json_format.ParseDict(value, types.DocumentSpecifier())
+    if result.type != types.DOCTYPE_SYMBOL or not result.lib_id.entry_name:
+        raise ValueError("Use the symbol document returned by live_symbol_new or live_symbol_edit")
+    return result
+
+
+def lib_id_text(identifier):
+    return f"{identifier.library_nickname}:{identifier.entry_name}"
+
+
+def item_id(packed):
+    """The UUID of a packed library item, or None."""
+    for message in (sch.SchematicPin(), sch.SchematicGraphicShape(), sch.SchematicText()):
+        if packed.Unpack(message):
+            return message.id.value or None
+    return None
+
+
+SCOPES = {"global": lib_types.LTS_GLOBAL, "project": lib_types.LTS_PROJECT, "both": lib_types.LTS_BOTH}
+SCOPE_NAMES = {lib_types.LTS_GLOBAL: "global", lib_types.LTS_PROJECT: "project"}
+
+
+def check_library_status(status, action):
+    if status.code != lib_types.LibraryCommandStatus.LCS_OK:
+        code = lib_types.LibraryCommandStatus.Code.Name(status.code)
+        raise RuntimeError(f"Could not {action}: {code} {status.error_message}".strip())
+    return {"success": True}
+
+
+def summarize_symbol(symbol):
+    """The parts of a library symbol an agent needs, without its graphics."""
+    pins = []
+    for child in symbol.items:
+        pin = sch.SchematicPin()
+        if child.item.Unpack(pin):
+            entry = {"number": pin.number, "name": pin.name, "type": types.ElectricalPinType.Name(pin.electrical_type),
+                     "position_mm": mm(pin.position), "orientation": sch.SchematicPinOrientation.Name(pin.orientation)}
+            if child.HasField("unit"):
+                entry["unit"] = child.unit.unit
+            pins.append(entry)
+    fields = {name: getattr(symbol, f"{name}_field").text.text
+              for name in ("reference", "value", "footprint", "datasheet", "description")}
+    return {"lib_id": lib_id_text(symbol.id), **fields, "keywords": symbol.keywords,
+            "footprint_filters": list(symbol.footprint_filters), "units": symbol.unit_count or 1,
+            "type": sch.SchematicSymbolType.Name(symbol.type),
+            "pins": sorted(pins, key=lambda p: (len(p["number"]), p["number"]))}
 
 
 # A pin's drawn orientation is the direction from its connection point toward the body, so wires
@@ -419,6 +470,197 @@ class LiveSchematic:
                 results.append({"command": full, "result": as_dict(response)})
         return {"committed": True, "steps": results}
 
+    # ---- Symbol libraries -------------------------------------------------------------------
+
+    def library_table(self, scope="both"):
+        request = library.GetLibraryTable(type=lib_types.LT_SYMBOL, scope=SCOPES[scope], substituted=True)
+        response = self.send(request, library.LibraryTableResponse)
+        return [{"nickname": r.nickname, "path": r.uri, "scope": SCOPE_NAMES.get(r.scope, "?"),
+                 "description": r.description, "writable": r.writable,
+                 **({"disabled": True} if r.disabled else {})} for r in response.rows]
+
+    def add_library(self, nickname, path, scope="global", description="", create=True):
+        if scope not in ("global", "project"):
+            raise ValueError("scope must be global or project")
+        if create and not str(path).endswith(".kicad_sym"):
+            raise ValueError("A new symbol library file must end in .kicad_sym")
+        entry = lib_types.LibraryTableEntry(nickname=nickname, uri=str(path), type=lib_types.LT_SYMBOL,
+                                            description=description)
+        status = self.send(library.AddLibraryTableEntry(entry=entry, scope=SCOPES[scope], create_library=create),
+                           lib_types.LibraryCommandStatus)
+        return check_library_status(status, f"add library {nickname}")
+
+    def remove_library(self, nickname, scope="global"):
+        """Remove a library from a table; its file is left on disk."""
+        request = library.DeleteLibraryTableEntry(type=lib_types.LT_SYMBOL, nickname=nickname, scope=SCOPES[scope])
+        return check_library_status(self.send(request, lib_types.LibraryCommandStatus), f"remove {nickname}")
+
+    def reload_library(self, nickname):
+        for row in self.library_table():
+            if row["nickname"] == nickname:
+                request = library.ReloadLibrary(type=lib_types.LT_SYMBOL, scope=SCOPES[row["scope"]],
+                                                nickname=[nickname])
+                return check_library_status(self.send(request, lib_types.LibraryCommandStatus), "reload")
+        raise ValueError(f"Library {nickname} is not in the symbol library tables")
+
+    def library_symbols(self, lib_ids):
+        request = library.GetItemsFromLibrary(type=lib_types.LT_SYMBOL)
+        request.item_ids.extend(lib_identifier(i) for i in lib_ids)
+        response = self.send(request, editor.GetItemsResponse)
+        result = []
+        for packed in response.items:
+            symbol = sch.SchematicSymbol()
+            if packed.Unpack(symbol):
+                result.append(symbol)
+        return result
+
+    def search_symbols(self, query, limit=25, details=True):
+        response = self.send(library.SearchLibraries(type=lib_types.LT_SYMBOL, query=query),
+                             library.SearchLibrariesResponse)
+        ids = [f"{i.library_nickname}:{i.entry_name}" for i in response.items]
+        top = ids[:max(1, min(limit, 200))]
+        loading = {"libraries_still_loading": response.libraries_loading} if response.libraries_loading else {}
+        if not details or not top:
+            return {"total": len(ids), **loading, "results": [{"lib_id": i} for i in top]}
+        found = {lib_id_text(s.id): s for s in self.library_symbols(top)}
+        results = []
+        for lib_id in top:
+            symbol = found.get(lib_id)
+            entry = {"lib_id": lib_id}
+            if symbol:
+                entry.update(description=symbol.description_field.text.text, keywords=symbol.keywords,
+                             pins=sum(1 for c in symbol.items if c.item.TypeName().endswith(".SchematicPin")),
+                             units=symbol.unit_count or 1)
+                if symbol.footprint_field.text.text:
+                    entry["footprint"] = symbol.footprint_field.text.text
+            results.append(entry)
+        return {"total": len(ids), **loading, "results": results}
+
+    def library_symbol(self, lib_id):
+        symbols = self.library_symbols([lib_id])
+        if not symbols:
+            raise ValueError(f"{lib_id} not found")
+        return summarize_symbol(symbols[0])
+
+    # ---- Symbol Editor (live, unsaved until symbol_save) ------------------------------------
+
+    def new_symbol(self, library_nickname, name, reference_prefix="U", unit_count=1, inherit_from="",
+                   power_symbol=False, pin_names_outside=False, hide_pin_numbers=False, hide_pin_names=False,
+                   exclude_from_bom=False, exclude_from_board=False, replace_existing=False):
+        request = commands.NewLibrarySymbol(
+            library_nickname=library_nickname, name=name, reference_prefix=reference_prefix,
+            unit_count=unit_count, inherit_from=inherit_from, power_symbol=power_symbol,
+            pin_names_outside=pin_names_outside, hide_pin_numbers=hide_pin_numbers,
+            hide_pin_names=hide_pin_names, exclude_from_bom=exclude_from_bom,
+            exclude_from_board=exclude_from_board, replace_existing=replace_existing)
+        return as_dict(self.send(request, commands.LibrarySymbolResponse).document)
+
+    def edit_symbol(self, lib_id):
+        request = commands.EditLibrarySymbol(id=lib_identifier(lib_id))
+        return as_dict(self.send(request, commands.LibrarySymbolResponse).document)
+
+    def symbol_items(self, doc):
+        response = self.send(editor.GetItems(header=types.ItemHeader(document=doc)), editor.GetItemsResponse)
+        return response
+
+    def symbol_add_pins(self, doc, pins, draw_body=True, replace=False):
+        """Add pins (and a body rectangle) laid out around a box, as one undo step."""
+        from symbol_layout import layout_box
+        layout = layout_box(pins)
+        items = []
+        if replace:
+            existing = [i for i in self.symbol_items(doc).items
+                        if i.TypeName().endswith((".SchematicPin", ".SchematicGraphicShape"))]
+            if existing:
+                self.symbol_delete(doc, [item_id(i) for i in existing if item_id(i)])
+        if draw_body:
+            x1, y1, x2, y2 = layout["body"]
+            body = sch.SchematicGraphicShape()
+            body.shape.rectangle.top_left.CopyFrom(point(x1, y1))
+            body.shape.rectangle.bottom_right.CopyFrom(point(x2, y2))
+            body.shape.attributes.stroke.width.value_nm = 254000
+            body.shape.attributes.fill.fill_type = types.GFT_FILLED_WITH_BACKGROUND_BODY_COLOR
+            items.append(body)
+        for pin in layout["pins"]:
+            message = sch.SchematicPin(
+                id=kiid(), name=str(pin.get("name", "")), number=pin["number"], position=point(*pin["position"]),
+                orientation=sch.SchematicPinOrientation.Value(pin["orientation"]),
+                electrical_type=types.ElectricalPinType.Value(pin["electrical_type"]),
+                shape=sch.SchematicPinShape.Value(pin.get("shape", "SPS_LINE")), visible=not pin.get("hidden"))
+            message.length.value_nm = round(pin["length"] * 1_000_000)
+            # 1.27 mm (50 mil) is KiCad's standard pin text; zero would hide names and numbers
+            message.name_text_size.value_nm = 1270000
+            message.number_text_size.value_nm = 1270000
+            items.append(message)
+        request = editor.CreateItems(header=types.ItemHeader(document=doc))
+        for item in items:
+            request.items.add().Pack(item)
+        with self.transaction(doc, "MCP: add symbol pins"):
+            response = self.send(request, editor.CreateItemsResponse)
+            check_item_statuses(0, "CreateItems", response)
+            if draw_body:
+                self.send(commands.SetLibrarySymbolProperties(document=doc, place_fields_around_body=True), empty())
+        return {"body_mm": list(layout["body"]),
+                "pins": [{"number": p["number"], "name": p.get("name", ""), "side": p["side"],
+                          "position_mm": list(p["position"])} for p in layout["pins"]]}
+
+    def symbol_delete(self, doc, ids):
+        request = editor.DeleteItems(header=types.ItemHeader(document=doc))
+        request.item_ids.extend(kiid(v) for v in ids)
+        with self.transaction(doc, "MCP: delete symbol items"):
+            response = self.send(request, editor.DeleteItemsResponse)
+            check_item_statuses(0, "DeleteItems", response)
+        return {"deleted": len(ids)}
+
+    def symbol_set_properties(self, doc, value=None, footprint=None, datasheet=None, description=None,
+                              keywords=None, reference_prefix=None, footprint_filters=None, user_fields=None,
+                              remove_user_fields=None, show_pin_numbers=None, show_pin_names=None,
+                              exclude_from_bom=None, exclude_from_board=None, exclude_from_sim=None,
+                              power_symbol=None, place_fields_around_body=False):
+        request = commands.SetLibrarySymbolProperties(document=doc, place_fields_around_body=place_fields_around_body)
+        for name, setting in (("value", value), ("footprint", footprint), ("datasheet", datasheet),
+                              ("description", description), ("keywords", keywords),
+                              ("reference_prefix", reference_prefix), ("show_pin_numbers", show_pin_numbers),
+                              ("show_pin_names", show_pin_names), ("exclude_from_bom", exclude_from_bom),
+                              ("exclude_from_board", exclude_from_board), ("exclude_from_sim", exclude_from_sim),
+                              ("power_symbol", power_symbol)):
+            if setting is not None:
+                setattr(request, name, setting)
+        if footprint_filters is not None:
+            request.set_footprint_filters = True
+            request.footprint_filters.extend(footprint_filters)
+        for field in user_fields or []:
+            request.user_fields.add(name=field["name"], value=str(field.get("value", "")),
+                                    visible=bool(field.get("visible", False)))
+        request.remove_user_fields.extend(remove_user_fields or [])
+        with self.transaction(doc, "MCP: symbol properties"):
+            self.send(request, empty())
+        return {"success": True}
+
+    def symbol_render(self, doc, dpi=600, unit=0):
+        if not 150 <= dpi <= 1200:
+            raise ValueError("dpi must be between 150 and 1200")
+        request = commands.RenderLibrarySymbol(document=doc, dpi=dpi, unit=unit)
+        return self.send(request, commands.RenderLibrarySymbolResponse).image
+
+    def symbol_summary(self, doc):
+        pins, shapes = [], []
+        for packed in self.symbol_items(doc).items:
+            pin = sch.SchematicPin()
+            if packed.Unpack(pin):
+                pins.append({"number": pin.number, "name": pin.name, "position_mm": mm(pin.position),
+                             "type": types.ElectricalPinType.Name(pin.electrical_type),
+                             "orientation": sch.SchematicPinOrientation.Name(pin.orientation), "id": pin.id.value})
+            elif packed.TypeName().endswith(".SchematicGraphicShape"):
+                shapes.append(item_id(packed))
+        return {"lib_id": lib_id_text(doc.lib_id), "pins": pins, "graphic_shape_ids": shapes}
+
+    def symbol_save(self, doc):
+        """Write the symbol into its library file and make the schematic see the new version."""
+        self.send(project.SaveDocument(document=doc), empty())
+        self.reload_library(doc.lib_id.library_nickname)
+        return {"saved": f"{doc.lib_id.library_nickname}:{doc.lib_id.entry_name}"}
+
     def place_symbol(self, doc, lib_id, x, y, reference=None, rotation=0):
         if rotation not in (0, 90, 180, 270):
             raise ValueError("rotation must be 0, 90, 180, or 270 degrees")
@@ -430,7 +672,7 @@ class LiveSchematic:
         if reference:
             request.reference = reference
         with self.transaction(doc, "MCP: place schematic symbol"):
-            result = self.send(request, library_commands_pb2.PlaceFromLibraryResponse)
+            result = self.send(request, library.PlaceFromLibraryResponse)
         # The reply embeds the full library definition (graphics, pins); return only what an
         # agent needs. live_schematic_items has the complete instance when required.
         placed = sch.SchematicSymbolInstance()

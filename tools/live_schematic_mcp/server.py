@@ -5,6 +5,7 @@ from google.protobuf import empty_pb2
 from mcp.server.fastmcp import FastMCP, Image
 
 from client import LiveSchematic, as_dict, document, editor, parse_items, project
+from client import symbol_document as symbol_document_spec
 
 mcp = FastMCP("KiCad Live Schematic")
 client = LiveSchematic()
@@ -248,10 +249,140 @@ def live_schematic_execute(command: str, payload: dict | None = None) -> dict:
 def live_schematic_batch(document_spec: dict, steps: list[dict], description: str = "MCP: batch") -> dict:
     """Run several read/edit/view commands as ONE undo step; if any step fails, all are rolled back.
 
+    document_spec is a schematic document, or a symbol document to batch Symbol Editor edits.
+
     steps: [{"command": "CreateItems", "payload": {...}}, ...] using names from live_schematic_list_commands.
     Undo/redo and file/job commands are not allowed in a batch.
     """
-    return client.batch(document(document_spec), steps, description)
+    spec = symbol_document_spec(document_spec) if document_spec.get("type") == "DOCTYPE_SYMBOL"         else document(document_spec)
+    return client.batch(spec, steps, description)
+
+
+# ---- Symbol libraries and the Symbol Editor ---------------------------------------------------
+
+@mcp.tool()
+def live_symbol_search(query: str, limit: int = 25) -> dict:
+    """Search every symbol library KiCad has loaded (names, then keywords and descriptions).
+
+    Words must all match; * and ? are wildcards in names. Returns lib_ids with description, keywords,
+    pin count and footprint. Use live_symbol_get for pins. If libraries_still_loading is reported,
+    those libraries were skipped while KiCad loads them in the background; search again shortly.
+    """
+    return client.search_symbols(query, limit)
+
+
+@mcp.tool()
+def live_symbol_get(lib_id: str) -> dict:
+    """Read one library symbol (Library:Symbol): fields, keywords, footprint filters, units and pins."""
+    return client.library_symbol(lib_id)
+
+
+@mcp.tool()
+def live_symbol_libraries(scope: str = "both") -> list[dict]:
+    """List symbol libraries in the global and/or project library table (scope: global | project | both)."""
+    return client.library_table(scope)
+
+
+@mcp.tool()
+def live_symbol_create_library(nickname: str, path: str, scope: str = "global", description: str = "") -> dict:
+    """Create an empty .kicad_sym library at path and add it to the global (all projects) or project table.
+
+    path is as KiCad sees it (inside WSL for this build); environment variables like ${KIPRJMOD} work.
+    """
+    return client.add_library(nickname, path, scope, description, create=True)
+
+
+@mcp.tool()
+def live_symbol_register_library(nickname: str, path: str, scope: str = "global", description: str = "") -> dict:
+    """Add an existing symbol library file to the global or project library table."""
+    return client.add_library(nickname, path, scope, description, create=False)
+
+
+@mcp.tool()
+def live_symbol_unregister_library(nickname: str, scope: str = "global") -> dict:
+    """Remove a library from the global or project table. The library file is NOT deleted."""
+    return client.remove_library(nickname, scope)
+
+
+@mcp.tool()
+def live_symbol_new(library: str, name: str, reference_prefix: str = "U", unit_count: int = 1,
+                    inherit_from: str = "", power_symbol: bool = False, pin_names_outside: bool = False,
+                    exclude_from_bom: bool = False, exclude_from_board: bool = False,
+                    replace_existing: bool = False) -> dict:
+    """Start a new symbol in a writable library and show it in KiCad's Symbol Editor (unsaved).
+
+    Returns the symbol document the other live_symbol_* tools take. inherit_from derives from another
+    symbol in the same library. Nothing is written until live_symbol_save.
+    """
+    return client.new_symbol(library, name, reference_prefix, unit_count, inherit_from, power_symbol,
+                             pin_names_outside, False, False, exclude_from_bom, exclude_from_board,
+                             replace_existing)
+
+
+@mcp.tool()
+def live_symbol_edit(lib_id: str) -> dict:
+    """Open an existing library symbol in the Symbol Editor and return its symbol document."""
+    return client.edit_symbol(lib_id)
+
+
+@mcp.tool()
+def live_symbol_add_pins(symbol_document: dict, pins: list[dict], draw_body: bool = True,
+                         replace: bool = False) -> dict:
+    """Lay out pins around a rectangular body on the 2.54 mm grid, as one undo step.
+
+    pins: [{"number": "1", "name": "VIN", "type": "power_in", "side": "top"}, ...]. type is one of
+    input, output, bidirectional, tri_state, passive, free, unspecified, power_in, power_out,
+    open_collector, open_emitter, no_connect. side (left/right/top/bottom) defaults by type: power
+    inputs top (grounds bottom), outputs right, others left. Order within a side is kept; {"gap": true,
+    "side": "left"} leaves a space. Optional "shape" (SPS_INVERTED, SPS_CLOCK, ...) and "hidden".
+    replace=true first removes existing pins and shapes.
+    """
+    return client.symbol_add_pins(symbol_document_spec(symbol_document), pins, draw_body, replace)
+
+
+@mcp.tool()
+def live_symbol_set_properties(symbol_document: dict, value: str | None = None, footprint: str | None = None,
+                               datasheet: str | None = None, description: str | None = None,
+                               keywords: str | None = None, reference_prefix: str | None = None,
+                               footprint_filters: list[str] | None = None,
+                               user_fields: list[dict] | None = None,
+                               remove_user_fields: list[str] | None = None,
+                               show_pin_numbers: bool | None = None, show_pin_names: bool | None = None,
+                               exclude_from_bom: bool | None = None, exclude_from_board: bool | None = None,
+                               exclude_from_sim: bool | None = None) -> dict:
+    """Fill in the open symbol's details as one undo step; omitted settings are unchanged.
+
+    footprint is Library:Footprint. footprint_filters are globs like "SOIC*3.9x4.9mm*".
+    user_fields: [{"name": "MPN", "value": "LM1117-3.3", "visible": false}] adds or updates fields.
+    """
+    return client.symbol_set_properties(
+        symbol_document_spec(symbol_document), value, footprint, datasheet, description, keywords,
+        reference_prefix, footprint_filters, user_fields, remove_user_fields, show_pin_numbers,
+        show_pin_names, exclude_from_bom, exclude_from_board, exclude_from_sim)
+
+
+@mcp.tool()
+def live_symbol_view(symbol_document: dict, dpi: int = 600) -> Image:
+    """See the symbol open in the Symbol Editor, including unsaved changes, as a PNG."""
+    return Image(data=client.symbol_render(symbol_document_spec(symbol_document), dpi), format="png")
+
+
+@mcp.tool()
+def live_symbol_summary(symbol_document: dict) -> dict:
+    """List the open symbol's pins (number, name, type, position, id) and graphic shape ids."""
+    return client.symbol_summary(symbol_document_spec(symbol_document))
+
+
+@mcp.tool()
+def live_symbol_delete_items(symbol_document: dict, ids: list[str]) -> dict:
+    """Delete pins or graphics from the open symbol by UUID (ids from live_symbol_summary), as one undo step."""
+    return client.symbol_delete(symbol_document_spec(symbol_document), ids)
+
+
+@mcp.tool()
+def live_symbol_save(symbol_document: dict) -> dict:
+    """SAVE the open symbol into its library file, then reload the library so schematics can place it."""
+    return client.symbol_save(symbol_document_spec(symbol_document))
 
 
 @mcp.tool()

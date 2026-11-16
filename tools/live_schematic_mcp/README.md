@@ -34,13 +34,36 @@ Requires this development build (10.99 / KiCad 11). Released KiCad 10.x has no s
 | `live_schematic_list_commands` / `_describe_command` / `_execute` | Every IPC command KiCad registers, by name |
 | `live_schematic_batch` | Several commands as one undo step, all rolled back if any fails |
 
+### Symbol libraries and the Symbol Editor
+
+| Tool | Purpose |
+| --- | --- |
+| `live_symbol_search` | Search all loaded symbol libraries by name, keywords and description |
+| `live_symbol_get` | One library symbol's fields, filters, units and pins |
+| `live_symbol_libraries` | Rows of the global and/or project symbol library table |
+| `live_symbol_create_library` | New empty `.kicad_sym`, added to the global or project table |
+| `live_symbol_register_library` / `_unregister_library` | Add or remove an existing library file in a table |
+| `live_symbol_new` / `live_symbol_edit` | Start a new symbol, or open one, in the Symbol Editor (shown live, unsaved) |
+| `live_symbol_add_pins` | Pins laid out around a body rectangle on the 2.54 mm grid, from a pin list |
+| `live_symbol_set_properties` | Value, footprint, datasheet, description, keywords, filters, user fields (MPN ...) |
+| `live_symbol_view` | PNG of the open symbol, including unsaved changes |
+| `live_symbol_summary` / `_delete_items` | Pins and shapes of the open symbol; remove items |
+| `live_symbol_save` | Write the symbol to its library and reload it, ready for `live_schematic_place_symbol` |
+
+Typical flow: search first; if nothing fits, `live_symbol_create_library` (once), `live_symbol_new`,
+`live_symbol_add_pins`, `live_symbol_set_properties`, check with `live_symbol_view`, `live_symbol_save`,
+then place it. Pins of multi-unit symbols cannot be assigned to units yet.
+
 Hierarchy: create a `SheetSymbol` (with `pins`) on the parent, read its path from
 `live_schematic_hierarchy`, then target the child sheet with that `sheet_path` to add matching
 `HierarchicalLabel`s.
 
 KiCad commands this fork adds for the tools above (`api/proto/schematic/schematic_commands.proto`):
 `AnnotateSchematic`, `UpdateSymbolsFromLibrary`, `AutoplaceFields`, `TransformItems`,
-`UndoLastChange` / `RedoLastChange` and `GetSymbolPins`. Every editing command joins an open
+`UndoLastChange` / `RedoLastChange`, `GetSymbolPins`, `NewLibrarySymbol`, `EditLibrarySymbol`,
+`SetLibrarySymbolProperties` and `RenderLibrarySymbol`; it also implements the library table and
+search commands KiCad declared but left unimplemented (`GetLibraryTable`, `Add`/`Update`/
+`DeleteLibraryTableEntry`, `SearchLibraries`). Every editing command joins an open
 `BeginCommit`, so a batch is one undo step. Undo/redo need the GUI and refuse an open commit.
 
 ## Setup (Windows + WSL Ubuntu)
@@ -73,4 +96,5 @@ claude mcp add kicad-live -- wsl.exe -d Ubuntu -- bash /mnt/c/<fork>/tools/live_
 ~/kicad-live/venv/bin/python -m pytest test_client.py      # protocol contracts, no KiCad needed
 ~/kicad-live/venv/bin/python e2e_smoke.py out/             # against a running editor; never saves
 ~/kicad-live/venv/bin/python e2e_features.py out/          # annotate, wiring, move, undo, ERC, batch, export
+~/kicad-live/venv/bin/python e2e_symbols.py out/           # search, build, save, register and place a symbol
 ```

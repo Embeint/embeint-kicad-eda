@@ -247,6 +247,93 @@ def test_transform_maps_rotation_and_reports_dragged_items():
         client.transform(doc(), [str(uuid.uuid4())], rotation=45)
 
 
+def test_box_layout_keeps_pins_on_grid_and_outside_the_body():
+    from symbol_layout import layout_box
+    pins = [{"number": "1", "name": "VIN", "type": "power_in"},
+            {"number": "2", "name": "GND", "type": "power_in"},
+            {"number": "3", "name": "VOUT", "type": "power_out"},
+            {"number": "4", "name": "EN", "type": "input"},
+            {"number": "5", "name": "ADJ", "type": "passive", "side": "left"}]
+    layout = layout_box(pins)
+    x1, y1, x2, y2 = layout["body"]
+    sides = {p["number"]: p for p in layout["pins"]}
+    assert sides["1"]["side"] == "top" and sides["2"]["side"] == "bottom" and sides["3"]["side"] == "right"
+    for pin in layout["pins"]:
+        x, y = pin["position"]
+        assert abs(x / 2.54 - round(x / 2.54)) < 1e-6 and abs(y / 2.54 - round(y / 2.54)) < 1e-6
+        assert not (x1 < x < x2 and y1 < y < y2), f"pin {pin['number']} sits inside the body"
+    assert sides["4"]["position"][1] < sides["5"]["position"][1], "left pins keep their order top-down"
+    assert sides["4"]["orientation"] == "SPO_RIGHT" and sides["1"]["orientation"] == "SPO_DOWN"
+    # Top/bottom names run down the middle and must clear the side pins' inward-reading names
+    from symbol_layout import CHAR_WIDTH
+    side_label = max(len("EN"), len("ADJ"), len("VOUT")) * CHAR_WIDTH
+    for number in ("1", "2"):
+        assert abs(sides[number]["position"][0]) + 1.27 <= x2 - side_label
+
+
+def test_box_layout_centres_even_pin_counts_on_grid():
+    from symbol_layout import layout_box
+    layout = layout_box([{"number": str(n), "name": f"P{n}", "side": "top"} for n in range(1, 5)])
+    xs = sorted(p["position"][0] for p in layout["pins"])
+    assert xs == [-5.08, -2.54, 2.54, 5.08]
+
+
+@pytest.mark.parametrize("bad", [[], [{"number": "1"}, {"number": "1"}], [{"number": "1", "type": "magic"}],
+                                 [{"number": "1", "side": "middle"}]])
+def test_box_layout_rejects_bad_pin_lists(bad):
+    from symbol_layout import layout_box
+    with pytest.raises(ValueError):
+        layout_box(bad)
+
+
+def symbol_doc():
+    return types.DocumentSpecifier(type=types.DOCTYPE_SYMBOL,
+                                   lib_id=types.LibraryIdentifier(library_nickname="mylib", entry_name="REG"))
+
+
+def test_symbol_add_pins_sends_body_and_pins_in_one_commit():
+    sent = []
+    def reply(request, response_type):
+        if not isinstance(request, editor.CreateItems):
+            return response_type()
+        sent.append(request)
+        response = editor.CreateItemsResponse(status=types.IRS_OK)
+        for item in request.items:
+            response.created_items.add(status=editor.ItemStatus(code=editor.ISC_OK), item=item)
+        return response
+    client = FakeClient(reply)
+    result = client.symbol_add_pins(symbol_doc(), [{"number": "1", "name": "A"}, {"number": "2", "name": "B",
+                                                                                  "type": "output"}])
+    assert [type(r).__name__ for r in client.requests] == ["BeginCommit", "CreateItems",
+                                                           "SetLibrarySymbolProperties", "EndCommit"]
+    assert client.requests[2].place_fields_around_body
+    kinds = [i.TypeName().rsplit(".", 1)[-1] for i in sent[0].items]
+    assert kinds == ["SchematicGraphicShape", "SchematicPin", "SchematicPin"]
+    pin = sch.SchematicPin()
+    sent[0].items[2].Unpack(pin)
+    assert pin.number == "2" and pin.electrical_type == types.EPT_OUTPUT and pin.length.value_nm == 2540000
+    assert pin.name_text_size.value_nm == pin.number_text_size.value_nm == 1270000
+    assert [p["side"] for p in result["pins"]] == ["left", "right"]
+
+
+def test_library_errors_are_raised_not_returned():
+    from client import lib_types
+    status = lib_types.LibraryCommandStatus(code=lib_types.LibraryCommandStatus.LCS_ALREADY_EXISTS,
+                                            error_message="Library 'mylib' is already in the table")
+    client = FakeClient(lambda *_: status)
+    with pytest.raises(RuntimeError, match="ALREADY_EXISTS"):
+        client.add_library("mylib", "/tmp/mylib.kicad_sym")
+    with pytest.raises(ValueError):
+        client.add_library("mylib", "/tmp/mylib.txt")
+
+
+def test_symbol_documents_are_validated():
+    from client import symbol_document
+    assert symbol_document(as_dict(symbol_doc())).lib_id.entry_name == "REG"
+    with pytest.raises(ValueError):
+        symbol_document(as_dict(doc()))
+
+
 def test_installed_kicad10_is_rejected_clearly():
     client = FakeClient(lambda *_: base.GetVersionResponse(version=types.KiCadVersion(major=10, minor=0, patch=6)))
     with pytest.raises(RuntimeError, match="development build"):
