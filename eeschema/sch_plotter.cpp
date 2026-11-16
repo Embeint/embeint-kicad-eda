@@ -1239,3 +1239,43 @@ bool PlotSymbolToSVG( LIB_SYMBOL& aDrawSymbol, LIB_SYMBOL& aFieldsSymbol, int aU
     plotter->EndPlot();
     return true;
 }
+
+
+bool PlotSymbolToPNG( LIB_SYMBOL& aDrawSymbol, LIB_SYMBOL& aFieldsSymbol, int aUnit, int aBodyStyle, const BOX2I& aBBox,
+                      SCH_RENDER_SETTINGS& aRenderSettings, int aDPI, const wxString& aFileName )
+{
+    const int    dpi = std::clamp( aDPI, MIN_PNG_DPI, MAX_PNG_DPI );
+    const double widthMils = schIUScale.IUToMils( aBBox.GetWidth() );
+    const double heightMils = schIUScale.IUToMils( aBBox.GetHeight() );
+
+    PNG_PLOTTER plotter;
+    plotter.SetPixelSize( std::max( 1, KiROUND( widthMils * dpi / 1000.0 ) ),
+                          std::max( 1, KiROUND( heightMils * dpi / 1000.0 ) ) );
+    plotter.SetResolution( dpi );
+    plotter.SetAntialias( true );
+    plotter.SetRenderSettings( &aRenderSettings );
+    plotter.SetColorMode( true );
+
+    // The resolution must be set first: the viewport converts through it.  The offset puts the
+    // bounding box's corner at the image origin.
+    plotter.SetViewport( aBBox.GetOrigin(), schIUScale.IU_PER_MILS / 10, 1.0, false );
+    plotter.SetCreator( wxT( "Eeschema-PNG" ) );
+
+    if( !plotter.OpenFile( aFileName ) )
+        return false;
+
+    LOCALE_IO     toggle;
+    SCH_PLOT_OPTS plotOpts;
+
+    plotter.StartPlot( wxS( "1" ) );
+    plotter.SetColor( aRenderSettings.GetLayerColor( LAYER_SCHEMATIC_BACKGROUND ) );
+    plotter.Rect( aBBox.GetOrigin(), aBBox.GetEnd(), FILL_T::FILLED_SHAPE, 1.0, 0 );
+
+    constexpr bool background = true;
+    aDrawSymbol.Plot( &plotter, background, plotOpts, aUnit, aBodyStyle, VECTOR2I( 0, 0 ), false );
+    aDrawSymbol.Plot( &plotter, !background, plotOpts, aUnit, aBodyStyle, VECTOR2I( 0, 0 ), false );
+    aFieldsSymbol.PlotFields( &plotter, !background, plotOpts, aUnit, aBodyStyle, VECTOR2I( 0, 0 ), false );
+
+    plotter.EndPlot();
+    return true;
+}

@@ -25,6 +25,7 @@
 #include <api/api_handler_editor.h>
 #include <api/common/commands/editor_commands.pb.h>
 #include <api/common/commands/project_commands.pb.h>
+#include <api/schematic/schematic_commands.pb.h>
 #include <api/symbol_editor_context.h>
 
 using google::protobuf::Empty;
@@ -96,6 +97,12 @@ private:
 
     HANDLER_RESULT<commands::GetItemsResponse> handleGetItemsById(
             const HANDLER_CONTEXT<commands::GetItemsById>& aCtx );
+
+    HANDLER_RESULT<Empty> handleSetLibrarySymbolProperties(
+            const HANDLER_CONTEXT<kiapi::schematic::commands::SetLibrarySymbolProperties>& aCtx );
+
+    HANDLER_RESULT<kiapi::schematic::commands::RenderLibrarySymbolResponse> handleRenderLibrarySymbol(
+            const HANDLER_CONTEXT<kiapi::schematic::commands::RenderLibrarySymbol>& aCtx );
 
     std::shared_ptr<SYMBOL_EDITOR_CONTEXT> m_context;
     static std::set<KICAD_T>               s_allowedTypes;

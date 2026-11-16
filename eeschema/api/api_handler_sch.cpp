@@ -51,7 +51,11 @@
 #include <richio.h>
 #include <sch_io/kicad_sexpr/sch_io_kicad_sexpr.h>
 
+#include <default_values.h>
+#include <frame_type.h>
 #include <lib_symbol.h>
+#include <lib_symbol_library_manager.h>
+#include <symbol_edit_frame.h>
 #include <sch_label.h>
 #include <sch_line.h>
 #include <sch_pin.h>
@@ -215,6 +219,8 @@ API_HANDLER_SCH::API_HANDLER_SCH( std::shared_ptr<SCH_CONTEXT> aContext,
     registerHandler<UndoLastChange, UndoRedoResponse>( &API_HANDLER_SCH::handleUndoLastChange );
     registerHandler<RedoLastChange, UndoRedoResponse>( &API_HANDLER_SCH::handleRedoLastChange );
     registerHandler<GetSymbolPins, SymbolPinsResponse>( &API_HANDLER_SCH::handleGetSymbolPins );
+    registerHandler<NewLibrarySymbol, LibrarySymbolResponse>( &API_HANDLER_SCH::handleNewLibrarySymbol );
+    registerHandler<EditLibrarySymbol, LibrarySymbolResponse>( &API_HANDLER_SCH::handleEditLibrarySymbol );
 }
 
 
@@ -4205,4 +4211,173 @@ HANDLER_RESULT<kiapi::schematic::commands::SymbolPinsResponse> API_HANDLER_SCH::
     }
 
     return response;
+}
+
+
+HANDLER_RESULT<SYMBOL_EDIT_FRAME*> API_HANDLER_SCH::openSymbolEditor()
+{
+    if( std::optional<ApiResponseStatus> headless = checkForHeadless( "The Symbol Editor" ) )
+        return tl::unexpected( *headless );
+
+    if( std::optional<ApiResponseStatus> busy = checkForBusy() )
+        return tl::unexpected( *busy );
+
+    SYMBOL_EDIT_FRAME* editor =
+            static_cast<SYMBOL_EDIT_FRAME*>( frame()->Kiway().Player( FRAME_SCH_SYMBOL_EDITOR, true ) );
+
+    if( !editor )
+        return tl::unexpected( apiError( ApiStatusCode::AS_UNHANDLED, "the Symbol Editor could not be opened" ) );
+
+    if( editor->Kiway().GetBlockingDialog() || !editor->ToolStackIsEmpty() )
+    {
+        return tl::unexpected( apiError( ApiStatusCode::AS_BUSY,
+                                         "the Symbol Editor is busy with a dialog or an interactive tool" ) );
+    }
+
+    // Switching symbols would ask what to do with these edits, which no API client can answer
+    if( editor->GetCurSymbol() && editor->IsSymbolFromSchematic() && editor->GetScreen()->IsContentModified() )
+    {
+        return tl::unexpected( apiError( ApiStatusCode::AS_BUSY,
+                                         "the Symbol Editor holds unsaved edits to a schematic symbol" ) );
+    }
+
+    return editor;
+}
+
+
+HANDLER_RESULT<kiapi::schematic::commands::LibrarySymbolResponse>
+API_HANDLER_SCH::showLibrarySymbol( SYMBOL_EDIT_FRAME* aEditor, const wxString& aLibrary, const wxString& aName )
+{
+    aEditor->LoadSymbol( aName, aLibrary, 1 );
+    aEditor->Show( true );
+    aEditor->Raise();
+
+    LIB_SYMBOL* loaded = aEditor->GetCurSymbol();
+
+    if( !loaded || loaded->GetLibId().GetUniStringLibItemName() != aName )
+    {
+        return tl::unexpected( apiError( ApiStatusCode::AS_BAD_REQUEST,
+                                         fmt::format( "could not open {}:{} in the Symbol Editor",
+                                                      aLibrary.ToStdString(), aName.ToStdString() ) ) );
+    }
+
+    kiapi::schematic::commands::LibrarySymbolResponse response;
+    types::DocumentSpecifier* doc = response.mutable_document();
+    doc->set_type( DocumentType::DOCTYPE_SYMBOL );
+    doc->mutable_lib_id()->set_library_nickname( aLibrary.ToUTF8() );
+    doc->mutable_lib_id()->set_entry_name( aName.ToUTF8() );
+
+    if( !project().IsNullProject() )
+    {
+        doc->mutable_project()->set_name( project().GetProjectName().ToUTF8() );
+        doc->mutable_project()->set_path( project().GetProjectPath().ToUTF8() );
+    }
+
+    return response;
+}
+
+
+HANDLER_RESULT<kiapi::schematic::commands::LibrarySymbolResponse> API_HANDLER_SCH::handleNewLibrarySymbol(
+        const HANDLER_CONTEXT<kiapi::schematic::commands::NewLibrarySymbol>& aCtx )
+{
+    const kiapi::schematic::commands::NewLibrarySymbol& request = aCtx.Request;
+    const wxString library = wxString::FromUTF8( request.library_nickname() );
+    const wxString name = wxString::FromUTF8( request.name() );
+    const wxString parent = wxString::FromUTF8( request.inherit_from() );
+
+    if( library.IsEmpty() || name.IsEmpty() )
+        return tl::unexpected( apiError( ApiStatusCode::AS_BAD_REQUEST, "library_nickname and name are required" ) );
+
+    if( name.find_first_of( wxS( ":/\\" ) ) != wxString::npos )
+        return tl::unexpected( apiError( ApiStatusCode::AS_BAD_REQUEST, "symbol names cannot contain : / or \\" ) );
+
+    HANDLER_RESULT<SYMBOL_EDIT_FRAME*> editor = openSymbolEditor();
+
+    if( !editor )
+        return tl::unexpected( editor.error() );
+
+    // Pick up libraries added since the editor last looked
+    ( *editor )->SyncLibraries( false );
+    LIB_SYMBOL_LIBRARY_MANAGER& libMgr = ( *editor )->GetLibManager();
+
+    if( !libMgr.LibraryExists( library ) )
+    {
+        return tl::unexpected( apiError( ApiStatusCode::AS_BAD_REQUEST,
+                                         fmt::format( "symbol library '{}' is not in the library tables",
+                                                      request.library_nickname() ) ) );
+    }
+
+    if( libMgr.IsLibraryReadOnly( library ) )
+    {
+        return tl::unexpected( apiError( ApiStatusCode::AS_BAD_REQUEST,
+                                         fmt::format( "symbol library '{}' is read-only",
+                                                      request.library_nickname() ) ) );
+    }
+
+    if( libMgr.SymbolNameInUse( name, library ) && !request.replace_existing() )
+    {
+        return tl::unexpected( apiError( ApiStatusCode::AS_BAD_REQUEST,
+                                         fmt::format( "'{}' already exists in '{}'", request.name(),
+                                                      request.library_nickname() ) ) );
+    }
+
+    if( !parent.IsEmpty() && !libMgr.SymbolExists( parent, library ) )
+    {
+        return tl::unexpected( apiError( ApiStatusCode::AS_BAD_REQUEST,
+                                         fmt::format( "'{}' to inherit from is not in '{}'", request.inherit_from(),
+                                                      request.library_nickname() ) ) );
+    }
+
+    NEW_SYMBOL_PROPERTIES props;
+    props.name = name;
+    props.parentSymbolName = parent;
+    props.reference = request.reference_prefix().empty() ? wxString( wxS( "U" ) )
+                                                         : wxString::FromUTF8( request.reference_prefix() );
+    props.unitCount = std::max( 1, request.unit_count() );
+    props.pinNameInside = !request.pin_names_outside();
+    props.pinTextPosition = schIUScale.MilsToIU( DEFAULT_PIN_NAME_OFFSET );
+    props.powerSymbol = request.power_symbol();
+    props.showPinNumber = !request.hide_pin_numbers();
+    props.showPinName = !request.hide_pin_names();
+    props.unitsInterchangeable = false;
+    props.includeInBom = !request.exclude_from_bom();
+    props.includeOnBoard = !request.exclude_from_board();
+    props.alternateBodyStyle = false;
+    props.keepFootprint = true;
+    props.keepDatasheet = true;
+    props.transferUserFields = true;
+    props.keepContentUserFields = true;
+
+    if( !libMgr.CreateNewSymbol( library, props ) )
+    {
+        return tl::unexpected( apiError( ApiStatusCode::AS_BAD_REQUEST,
+                                         fmt::format( "could not create '{}' in '{}'", request.name(),
+                                                      request.library_nickname() ) ) );
+    }
+
+    ( *editor )->SyncLibraries( false );
+    return showLibrarySymbol( *editor, library, name );
+}
+
+
+HANDLER_RESULT<kiapi::schematic::commands::LibrarySymbolResponse> API_HANDLER_SCH::handleEditLibrarySymbol(
+        const HANDLER_CONTEXT<kiapi::schematic::commands::EditLibrarySymbol>& aCtx )
+{
+    const wxString library = wxString::FromUTF8( aCtx.Request.id().library_nickname() );
+    const wxString name = wxString::FromUTF8( aCtx.Request.id().entry_name() );
+
+    HANDLER_RESULT<SYMBOL_EDIT_FRAME*> editor = openSymbolEditor();
+
+    if( !editor )
+        return tl::unexpected( editor.error() );
+
+    // Checked first: the editor reports a missing symbol in a modal dialog
+    if( !( *editor )->GetLibManager().SymbolExists( name, library ) )
+    {
+        return tl::unexpected( apiError( ApiStatusCode::AS_BAD_REQUEST,
+                                         fmt::format( "symbol {}:{} not found", aCtx.Request.id().library_nickname(),
+                                                      aCtx.Request.id().entry_name() ) ) );
+    }
+
+    return showLibrarySymbol( *editor, library, name );
 }

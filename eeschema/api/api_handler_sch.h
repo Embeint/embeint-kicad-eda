@@ -43,6 +43,7 @@ using google::protobuf::Empty;
 class SCH_EDIT_FRAME;
 class SCH_ITEM;
 class SCH_SHEET;
+class SYMBOL_EDIT_FRAME;
 
 
 class API_HANDLER_SCH : public API_HANDLER_EDITOR
@@ -227,6 +228,19 @@ private:
 
     HANDLER_RESULT<kiapi::schematic::commands::SymbolPinsResponse> handleGetSymbolPins(
             const HANDLER_CONTEXT<kiapi::schematic::commands::GetSymbolPins>& aCtx );
+
+    HANDLER_RESULT<kiapi::schematic::commands::LibrarySymbolResponse> handleNewLibrarySymbol(
+            const HANDLER_CONTEXT<kiapi::schematic::commands::NewLibrarySymbol>& aCtx );
+
+    HANDLER_RESULT<kiapi::schematic::commands::LibrarySymbolResponse> handleEditLibrarySymbol(
+            const HANDLER_CONTEXT<kiapi::schematic::commands::EditLibrarySymbol>& aCtx );
+
+    /// Opens (creating if needed) the Symbol Editor, or explains why it cannot take a command now.
+    HANDLER_RESULT<SYMBOL_EDIT_FRAME*> openSymbolEditor();
+
+    /// Loads @a aName from @a aLibrary in @a aEditor, shows it, and describes the open document.
+    HANDLER_RESULT<kiapi::schematic::commands::LibrarySymbolResponse>
+    showLibrarySymbol( SYMBOL_EDIT_FRAME* aEditor, const wxString& aLibrary, const wxString& aName );
 
     /// Validates the document and editor state for a request that reads or edits one sheet,
     /// returning the sheet path the document names (or the current sheet if it names none).

@@ -273,3 +273,114 @@ message SymbolPinsResponse
 {
   repeated PlacedSymbolPins symbols = 1;
 }
+
+// Creates a symbol in a writable symbol library and opens it in the Symbol Editor (opening the
+// editor if needed).  The symbol stays unsaved until SaveDocument on its DOCTYPE_SYMBOL document.
+// Returns LibrarySymbolResponse
+// Since: 11.0
+message NewLibrarySymbol
+{
+  string library_nickname = 1;
+  string name = 2;
+
+  // Defaults to "U"
+  string reference_prefix = 3;
+
+  // Defaults to 1
+  int32 unit_count = 4;
+
+  // If set, the new symbol derives from this symbol in the same library
+  string inherit_from = 5;
+
+  bool power_symbol = 6;
+  bool hide_pin_numbers = 7;
+  bool hide_pin_names = 8;
+
+  // Place pin names outside the body, next to the numbers, instead of inside it
+  bool pin_names_outside = 9;
+
+  bool exclude_from_bom = 10;
+  bool exclude_from_board = 11;
+
+  // Replace a symbol of the same name instead of refusing
+  bool replace_existing = 12;
+}
+
+// Opens an existing library symbol in the Symbol Editor (opening the editor if needed).
+// Returns LibrarySymbolResponse
+// Since: 11.0
+message EditLibrarySymbol
+{
+  kiapi.common.types.LibraryIdentifier id = 1;
+}
+
+message LibrarySymbolResponse
+{
+  // A DOCTYPE_SYMBOL document addressing the symbol now open in the Symbol Editor
+  kiapi.common.types.DocumentSpecifier document = 1;
+}
+
+message SymbolUserField
+{
+  string name = 1;
+  string value = 2;
+  bool visible = 3;
+}
+
+// Sets properties of the symbol open in the Symbol Editor as one undo step.  Unset fields are left
+// unchanged.  Returns Empty
+// Since: 11.0
+message SetLibrarySymbolProperties
+{
+  kiapi.common.types.DocumentSpecifier document = 1;
+
+  optional string value = 2;
+  optional string footprint = 3;
+  optional string datasheet = 4;
+  optional string description = 5;
+  optional string keywords = 6;
+  optional string reference_prefix = 7;
+
+  // Replaces the footprint filters when set_footprint_filters is true
+  repeated string footprint_filters = 8;
+  bool set_footprint_filters = 9;
+
+  // Added, or updated when a user field of that name exists
+  repeated SymbolUserField user_fields = 10;
+  repeated string remove_user_fields = 11;
+
+  optional bool show_pin_numbers = 12;
+  optional bool show_pin_names = 13;
+  optional bool exclude_from_bom = 14;
+  optional bool exclude_from_board = 15;
+  optional bool exclude_from_sim = 16;
+  optional bool power_symbol = 17;
+
+  // Put the reference above the body's top-left corner and the value below its bottom-left, with
+  // hidden fields under the value, clear of pins along the top and bottom
+  bool place_fields_around_body = 18;
+}
+
+// Renders the symbol open in the Symbol Editor, including unsaved changes.
+// Returns RenderLibrarySymbolResponse
+// Since: 11.0
+message RenderLibrarySymbol
+{
+  kiapi.common.types.DocumentSpecifier document = 1;
+
+  // Defaults to the unit and body style shown in the editor
+  int32 unit = 2;
+  int32 body_style = 3;
+
+  // PNG resolution; defaults to 600
+  int32 dpi = 4;
+
+  // Render SVG instead of PNG
+  bool svg = 5;
+}
+
+message RenderLibrarySymbolResponse
+{
+  bytes image = 1;
+  string mime_type = 2;
+}

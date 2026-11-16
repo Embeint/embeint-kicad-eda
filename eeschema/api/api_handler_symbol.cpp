@@ -30,7 +30,9 @@
 #include <sch_bitmap.h>
 #include <sch_commit.h>
 #include <sch_field.h>
+#include <sch_painter.h>
 #include <sch_pin.h>
+#include <sch_plotter.h>
 #include <sch_screen.h>
 #include <sch_shape.h>
 #include <sch_table.h>
@@ -39,6 +41,7 @@
 #include <symbol_edit_frame.h>
 #include <wildcards_and_files_ext.h>
 
+#include <wx/ffile.h>
 #include <wx/filename.h>
 
 using namespace kiapi::common::commands;
@@ -71,6 +74,11 @@ API_HANDLER_SYMBOL::API_HANDLER_SYMBOL( std::shared_ptr<SYMBOL_EDITOR_CONTEXT> a
 
     registerHandler<GetItems, GetItemsResponse>( &API_HANDLER_SYMBOL::handleGetItems );
     registerHandler<GetItemsById, GetItemsResponse>( &API_HANDLER_SYMBOL::handleGetItemsById );
+    registerHandler<kiapi::schematic::commands::SetLibrarySymbolProperties, Empty>(
+            &API_HANDLER_SYMBOL::handleSetLibrarySymbolProperties );
+    registerHandler<kiapi::schematic::commands::RenderLibrarySymbol,
+                    kiapi::schematic::commands::RenderLibrarySymbolResponse>(
+            &API_HANDLER_SYMBOL::handleRenderLibrarySymbol );
 }
 
 
@@ -720,6 +728,253 @@ void API_HANDLER_SYMBOL::deleteItemsInternal( std::map<KIID, ItemDeletionStatus>
 
     if( !m_activeClients.contains( aClientName ) )
         pushCurrentCommit( aClientName, _( "Deleted items via API" ) );
+}
+
+
+HANDLER_RESULT<Empty> API_HANDLER_SYMBOL::handleSetLibrarySymbolProperties(
+        const HANDLER_CONTEXT<kiapi::schematic::commands::SetLibrarySymbolProperties>& aCtx )
+{
+    const kiapi::schematic::commands::SetLibrarySymbolProperties& request = aCtx.Request;
+
+    if( HANDLER_RESULT<bool> documentValidation = validateDocument( request.document() ); !documentValidation )
+        return tl::unexpected( documentValidation.error() );
+
+    if( std::optional<ApiResponseStatus> busy = checkForBusy() )
+        return tl::unexpected( *busy );
+
+    LIB_SYMBOL* libSymbol = symbol();
+
+    if( !libSymbol )
+    {
+        ApiResponseStatus e;
+        e.set_status( ApiStatusCode::AS_BAD_REQUEST );
+        e.set_error_message( "no symbol is open" );
+        return tl::unexpected( e );
+    }
+
+    for( const kiapi::schematic::commands::SymbolUserField& field : request.user_fields() )
+    {
+        wxString name = wxString::FromUTF8( field.name() );
+        SCH_FIELD* existing = libSymbol->GetField( name );
+
+        if( name.IsEmpty() || ( existing && existing->IsMandatory() ) )
+        {
+            ApiResponseStatus e;
+            e.set_status( ApiStatusCode::AS_BAD_REQUEST );
+            e.set_error_message( fmt::format( "'{}' is not a valid user field name; set mandatory fields "
+                                              "through their own properties", field.name() ) );
+            return tl::unexpected( e );
+        }
+    }
+
+    SCH_SCREEN* screen = context()->GetScreen();
+    SCH_COMMIT* commit = static_cast<SCH_COMMIT*>( getCurrentCommit( aCtx.ClientName ) );
+    commit->Modify( libSymbol, screen );
+
+    auto setText =
+            []( SCH_FIELD& aField, const std::string& aText )
+            {
+                aField.SetText( wxString::FromUTF8( aText ) );
+            };
+
+    if( request.has_value() )
+        setText( libSymbol->GetValueField(), request.value() );
+
+    if( request.has_footprint() )
+        setText( libSymbol->GetFootprintField(), request.footprint() );
+
+    if( request.has_datasheet() )
+        setText( libSymbol->GetDatasheetField(), request.datasheet() );
+
+    if( request.has_description() )
+        setText( libSymbol->GetDescriptionField(), request.description() );
+
+    if( request.has_reference_prefix() )
+        setText( libSymbol->GetReferenceField(), request.reference_prefix() );
+
+    if( request.has_keywords() )
+        libSymbol->SetKeyWords( wxString::FromUTF8( request.keywords() ) );
+
+    if( request.set_footprint_filters() )
+    {
+        wxArrayString filters;
+
+        for( const std::string& filter : request.footprint_filters() )
+            filters.Add( wxString::FromUTF8( filter ) );
+
+        libSymbol->SetFPFilters( filters );
+    }
+
+    if( request.has_show_pin_numbers() )
+        libSymbol->SetShowPinNumbers( request.show_pin_numbers() );
+
+    if( request.has_show_pin_names() )
+        libSymbol->SetShowPinNames( request.show_pin_names() );
+
+    if( request.has_exclude_from_bom() )
+        libSymbol->SetExcludedFromBOM( request.exclude_from_bom() );
+
+    if( request.has_exclude_from_board() )
+        libSymbol->SetExcludedFromBoard( request.exclude_from_board() );
+
+    if( request.has_exclude_from_sim() )
+        libSymbol->SetExcludedFromSim( request.exclude_from_sim() );
+
+    if( request.has_power_symbol() )
+    {
+        if( request.power_symbol() )
+            libSymbol->SetGlobalPower();
+        else
+            libSymbol->SetNormal();
+    }
+
+    for( const std::string& name : request.remove_user_fields() )
+    {
+        SCH_FIELD* field = libSymbol->GetField( wxString::FromUTF8( name ) );
+
+        if( field && !field->IsMandatory() )
+        {
+            // The canvas holds a pointer to every drawn item
+            if( frame() && frame()->GetCanvas() )
+                frame()->GetCanvas()->GetView()->Remove( field );
+
+            libSymbol->RemoveField( field );
+        }
+    }
+
+    // New user fields stack below the value field, like the properties dialog adds them
+    VECTOR2I nextPosition = libSymbol->GetValueField().GetPosition();
+
+    for( const kiapi::schematic::commands::SymbolUserField& userField : request.user_fields() )
+    {
+        wxString   name = wxString::FromUTF8( userField.name() );
+        SCH_FIELD* field = libSymbol->GetField( name );
+
+        if( !field )
+        {
+            field = new SCH_FIELD( libSymbol, FIELD_T::USER, name );
+            nextPosition.y += schIUScale.MilsToIU( 100 );
+            field->SetPosition( nextPosition );
+            libSymbol->AddField( field );
+
+            if( frame() && frame()->GetCanvas() )
+                frame()->GetCanvas()->GetView()->Add( field );
+        }
+
+        field->SetText( wxString::FromUTF8( userField.value() ) );
+        field->SetVisible( userField.visible() );
+    }
+
+    if( request.place_fields_around_body() )
+    {
+        BOX2I body = libSymbol->GetBodyBoundingBox( 1, 1, false, false );
+
+        if( body.GetWidth() > 0 || body.GetHeight() > 0 )
+        {
+            // Left-aligned at the body's left edge, above and below the pin ends so pins on any
+            // side stay clear of the text
+            const BOX2I withPins = libSymbol->GetBodyBoundingBox( 1, 1, true, false );
+            const int   step = schIUScale.MilsToIU( 100 );
+            const int   x = body.GetLeft();
+            int         y = withPins.GetBottom() + 2 * step;
+
+            libSymbol->GetReferenceField().SetPosition( VECTOR2I( x, withPins.GetTop() - step / 2 ) );
+            libSymbol->GetValueField().SetPosition( VECTOR2I( x, withPins.GetBottom() + step / 2 ) );
+
+            for( SCH_FIELD* field : { &libSymbol->GetReferenceField(), &libSymbol->GetValueField(),
+                                      &libSymbol->GetFootprintField(), &libSymbol->GetDatasheetField(),
+                                      &libSymbol->GetDescriptionField() } )
+            {
+                field->SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
+
+                if( !field->IsVisible() )
+                {
+                    field->SetPosition( VECTOR2I( x, y ) );
+                    y += step;
+                }
+            }
+        }
+    }
+
+    if( !m_activeClients.contains( aCtx.ClientName ) )
+        pushCurrentCommit( aCtx.ClientName, _( "Edited symbol properties via API" ) );
+
+    if( frame() )
+    {
+        frame()->RebuildView();
+        frame()->UpdateSymbolMsgPanelInfo();
+    }
+
+    return Empty();
+}
+
+
+HANDLER_RESULT<kiapi::schematic::commands::RenderLibrarySymbolResponse> API_HANDLER_SYMBOL::handleRenderLibrarySymbol(
+        const HANDLER_CONTEXT<kiapi::schematic::commands::RenderLibrarySymbol>& aCtx )
+{
+    const kiapi::schematic::commands::RenderLibrarySymbol& request = aCtx.Request;
+
+    if( HANDLER_RESULT<bool> documentValidation = validateDocument( request.document() ); !documentValidation )
+        return tl::unexpected( documentValidation.error() );
+
+    LIB_SYMBOL* libSymbol = symbol();
+
+    if( !libSymbol || !frame() )
+    {
+        ApiResponseStatus e;
+        e.set_status( ApiStatusCode::AS_BAD_REQUEST );
+        e.set_error_message( "rendering needs a symbol open in the Symbol Editor window" );
+        return tl::unexpected( e );
+    }
+
+    const int unit = request.unit() > 0 ? request.unit() : std::max( 1, frame()->GetUnit() );
+    const int bodyStyle = request.body_style() > 0 ? request.body_style() : std::max( 1, frame()->GetBodyStyle() );
+
+    SCH_RENDER_SETTINGS renderSettings;
+    renderSettings.LoadColors( frame()->GetColorSettings() );
+    renderSettings.SetDefaultPenWidth( frame()->GetRenderSettings()->GetDefaultPenWidth() );
+
+    BOX2I bbox = GetSymbolPlotBBox( *libSymbol, unit, bodyStyle, false );
+    bbox.Inflate( schIUScale.MilsToIU( 100 ) );
+
+    wxString path = wxFileName::CreateTempFileName( wxS( "kicad-symbol-render" ) );
+    wxRemoveFile( path );
+    path += request.svg() ? wxS( ".svg" ) : wxS( ".png" );
+
+    bool ok = request.svg() ? PlotSymbolToSVG( *libSymbol, *libSymbol, unit, bodyStyle, bbox, renderSettings,
+                                               false, path )
+                            : PlotSymbolToPNG( *libSymbol, *libSymbol, unit, bodyStyle, bbox, renderSettings,
+                                               request.dpi() > 0 ? request.dpi() : 600, path );
+
+    std::string bytes;
+
+    if( ok )
+    {
+        if( wxFFile file( path, wxS( "rb" ) ); file.IsOpened() )
+        {
+            bytes.resize( file.Length() );
+            ok = file.Read( bytes.data(), bytes.size() ) == bytes.size();
+        }
+        else
+        {
+            ok = false;
+        }
+    }
+
+    wxRemoveFile( path );
+
+    if( !ok || bytes.empty() )
+    {
+        ApiResponseStatus e;
+        e.set_status( ApiStatusCode::AS_UNKNOWN );
+        e.set_error_message( "the symbol could not be rendered" );
+        return tl::unexpected( e );
+    }
+
+    kiapi::schematic::commands::RenderLibrarySymbolResponse response;
+    response.set_image( std::move( bytes ) );
+    response.set_mime_type( request.svg() ? "image/svg+xml" : "image/png" );
+    return response;
 }
 
 

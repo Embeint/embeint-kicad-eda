@@ -238,4 +238,14 @@ bool PlotSymbolToSVG( LIB_SYMBOL& aDrawSymbol, LIB_SYMBOL& aFieldsSymbol, int aU
                       SCH_RENDER_SETTINGS& aRenderSettings, bool aBlackAndWhite, const wxString& aFileName,
                       REPORTER* aReporter = nullptr );
 
+
+/**
+ * Plot a single symbol variant (unit and body style) to a PNG file, sized to  aBBox at  aDPI
+ * on the schematic background color.  Arguments match PlotSymbolToSVG().
+ *
+ * @return true when the file was written, false on error.
+ */
+bool PlotSymbolToPNG( LIB_SYMBOL& aDrawSymbol, LIB_SYMBOL& aFieldsSymbol, int aUnit, int aBodyStyle, const BOX2I& aBBox,
+                      SCH_RENDER_SETTINGS& aRenderSettings, int aDPI, const wxString& aFileName );
+
 #endif
