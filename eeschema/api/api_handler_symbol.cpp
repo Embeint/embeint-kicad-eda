@@ -592,6 +592,12 @@ HANDLER_RESULT<types::ItemRequestStatus> API_HANDLER_SYMBOL::handleCreateUpdateI
 
         SCH_ITEM* newItem = static_cast<SCH_ITEM*>( created.get() );
 
+        // Schematic graphics default to the notes layer; symbol graphics belong on the device
+        // layer (body color and line style), as the symbol editor's drawing tools and the
+        // library loader put them
+        if( newItem->Type() == SCH_SHAPE_T || newItem->Type() == SCH_TEXT_T || newItem->Type() == SCH_TEXTBOX_T )
+            newItem->SetLayer( LAYER_DEVICE );
+
         if( newItem->Type() == SCH_FIELD_T && static_cast<SCH_FIELD*>( newItem )->IsMandatory() )
         {
             status.set_code( ItemStatusCode::ISC_INVALID_DATA );
@@ -957,16 +963,28 @@ HANDLER_RESULT<kiapi::schematic::commands::RenderLibrarySymbolResponse> API_HAND
     renderSettings.LoadColors( frame()->GetColorSettings() );
     renderSettings.SetDefaultPenWidth( frame()->GetRenderSettings()->GetDefaultPenWidth() );
 
-    BOX2I bbox = GetSymbolPlotBBox( *libSymbol, unit, bodyStyle, false );
+    // A derived symbol's graphics and pins live in its parent: draw the flattened symbol
+    std::unique_ptr<LIB_SYMBOL> flattened;
+    LIB_SYMBOL*                 drawSymbol = libSymbol;
+
+    if( libSymbol->IsDerived() )
+    {
+        flattened = libSymbol->Flatten();
+
+        if( flattened )
+            drawSymbol = flattened.get();
+    }
+
+    BOX2I bbox = GetSymbolPlotBBox( *drawSymbol, unit, bodyStyle, false );
     bbox.Inflate( schIUScale.MilsToIU( 100 ) );
 
     wxString path = wxFileName::CreateTempFileName( wxS( "kicad-symbol-render" ) );
     wxRemoveFile( path );
     path += request.svg() ? wxS( ".svg" ) : wxS( ".png" );
 
-    bool ok = request.svg() ? PlotSymbolToSVG( *libSymbol, *libSymbol, unit, bodyStyle, bbox, renderSettings,
+    bool ok = request.svg() ? PlotSymbolToSVG( *drawSymbol, *drawSymbol, unit, bodyStyle, bbox, renderSettings,
                                                false, path )
-                            : PlotSymbolToPNG( *libSymbol, *libSymbol, unit, bodyStyle, bbox, renderSettings,
+                            : PlotSymbolToPNG( *drawSymbol, *drawSymbol, unit, bodyStyle, bbox, renderSettings,
                                                request.dpi() > 0 ? request.dpi() : 600, path );
 
     std::string bytes;

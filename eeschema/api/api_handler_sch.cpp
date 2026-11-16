@@ -4321,7 +4321,8 @@ HANDLER_RESULT<kiapi::schematic::commands::LibrarySymbolResponse> API_HANDLER_SC
                                                       request.library_nickname() ) ) );
     }
 
-    if( !parent.IsEmpty() && !libMgr.SymbolExists( parent, library ) )
+    if( !parent.IsEmpty() && !libMgr.SymbolExists( parent, library )
+        && !PROJECT_SCH::SymbolLibAdapter( &project() )->LoadSymbol( library, parent ) )
     {
         return tl::unexpected( apiError( ApiStatusCode::AS_BAD_REQUEST,
                                          fmt::format( "'{}' to inherit from is not in '{}'", request.inherit_from(),
@@ -4371,8 +4372,10 @@ HANDLER_RESULT<kiapi::schematic::commands::LibrarySymbolResponse> API_HANDLER_SC
     if( !editor )
         return tl::unexpected( editor.error() );
 
-    // Checked first: the editor reports a missing symbol in a modal dialog
-    if( !( *editor )->GetLibManager().SymbolExists( name, library ) )
+    // Checked first: the editor reports a missing symbol in a modal dialog.  The library manager
+    // only consults its buffers once a library has any, so ask the library itself too.
+    if( !( *editor )->GetLibManager().SymbolExists( name, library )
+        && !PROJECT_SCH::SymbolLibAdapter( &project() )->LoadSymbol( library, name ) )
     {
         return tl::unexpected( apiError( ApiStatusCode::AS_BAD_REQUEST,
                                          fmt::format( "symbol {}:{} not found", aCtx.Request.id().library_nickname(),
