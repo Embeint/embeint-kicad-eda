@@ -36,6 +36,12 @@ protected:
 
     std::vector<wxString> getItemNames( LIBRARY_MANAGER_ADAPTER& aAdapter,
                                         const wxString& aNickname ) const override;
+
+    wxString pluginTypeForUri( const wxString& aUri ) const override;
+
+    /// Matches names first, then keywords and descriptions, as the symbol chooser does.
+    int scoreSearchMatch( LIBRARY_MANAGER_ADAPTER& aAdapter, const wxString& aNickname, const wxString& aItemName,
+                          const std::vector<wxString>& aTerms ) const override;
 };
 
 #endif //KICAD_API_HANDLER_SCH_LIBRARIES_H

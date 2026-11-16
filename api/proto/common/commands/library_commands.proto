@@ -72,6 +72,9 @@ message AddLibraryTableEntry
 
   // Which table to modify.  LTS_BOTH is invalid here.
   kiapi.common.types.LibraryTableScope scope = 2;
+
+  // If true and entry.uri names a file that does not exist, create an empty library there
+  bool create_library = 3;
 }
 
 // Modifies an existing row, matched by entry.nickname (and scope).
@@ -203,8 +206,12 @@ message SearchLibraries
 // Since: 11.0
 message SearchLibrariesResponse
 {
-  // The identifiers of matching content
+  // The identifiers of matching content, best matches first
   repeated kiapi.common.types.LibraryIdentifier items = 1;
+
+  // Libraries that were not searched because they are still loading; a background load is started
+  // for them, so repeating the search later covers them
+  int32 libraries_loading = 2;
 }
 
 // Since: 11.0

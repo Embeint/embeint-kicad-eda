@@ -23,6 +23,7 @@
 
 #include <functional>
 #include <map>
+#include <optional>
 #include <vector>
 
 #include <api/api_handler.h>
@@ -77,6 +78,34 @@ protected:
 
     HANDLER_RESULT<kiapi::common::commands::GetItemsResponse>
     handleGetItemsFromLibrary( const HANDLER_CONTEXT<kiapi::common::commands::GetItemsFromLibrary>& aCtx );
+
+    HANDLER_RESULT<kiapi::common::commands::LibraryTableResponse>
+    handleGetLibraryTable( const HANDLER_CONTEXT<kiapi::common::commands::GetLibraryTable>& aCtx );
+
+    HANDLER_RESULT<kiapi::common::types::LibraryCommandStatus>
+    handleAddLibraryTableEntry( const HANDLER_CONTEXT<kiapi::common::commands::AddLibraryTableEntry>& aCtx );
+
+    HANDLER_RESULT<kiapi::common::types::LibraryCommandStatus>
+    handleUpdateLibraryTableEntry( const HANDLER_CONTEXT<kiapi::common::commands::UpdateLibraryTableEntry>& aCtx );
+
+    HANDLER_RESULT<kiapi::common::types::LibraryCommandStatus>
+    handleDeleteLibraryTableEntry( const HANDLER_CONTEXT<kiapi::common::commands::DeleteLibraryTableEntry>& aCtx );
+
+    HANDLER_RESULT<kiapi::common::commands::SearchLibrariesResponse>
+    handleSearchLibraries( const HANDLER_CONTEXT<kiapi::common::commands::SearchLibraries>& aCtx );
+
+    /// Saves @a aTable and reloads this type's tables of @a aScope; returns an error message on failure.
+    std::optional<wxString> saveAndReloadTable( LIBRARY_TABLE& aTable, LIBRARY_TABLE_SCOPE aScope );
+
+    /// The plugin type string a new table row for @a aUri should use.
+    virtual wxString pluginTypeForUri( const wxString& aUri ) const { return wxS( "KiCad" ); }
+
+    /**
+     * Scores how well one library item matches every search term (all lower-case), or returns 0.
+     * The base implementation matches item names; subclasses may also search other text.
+     */
+    virtual int scoreSearchMatch( LIBRARY_MANAGER_ADAPTER& aAdapter, const wxString& aNickname,
+                                  const wxString& aItemName, const std::vector<wxString>& aTerms ) const;
 
     virtual bool packLibraryItem( const LIB_ID& aId, google::protobuf::Any& aOutput ) const
     {

@@ -25,7 +25,10 @@
 
 #include <api/api_enums.h>
 #include <api/api_utils.h>
+#include <common.h>
 #include <libraries/library_manager.h>
+#include <wx/filename.h>
+#include <wx/tokenzr.h>
 #include <kiway.h>
 #include <pgm_base.h>
 #include <settings/settings_manager.h>
@@ -50,6 +53,14 @@ API_HANDLER_LIBRARIES::API_HANDLER_LIBRARIES( LIBRARY_TABLE_TYPE aType ) :
             &API_HANDLER_LIBRARIES::handleGetLibraryStatuses );
     registerHandler<ReloadLibrary, LibraryCommandStatus>( &API_HANDLER_LIBRARIES::handleReloadLibrary );
     registerHandler<GetItemsFromLibrary, GetItemsResponse>( &API_HANDLER_LIBRARIES::handleGetItemsFromLibrary );
+    registerHandler<GetLibraryTable, LibraryTableResponse>( &API_HANDLER_LIBRARIES::handleGetLibraryTable );
+    registerHandler<AddLibraryTableEntry, LibraryCommandStatus>(
+            &API_HANDLER_LIBRARIES::handleAddLibraryTableEntry );
+    registerHandler<UpdateLibraryTableEntry, LibraryCommandStatus>(
+            &API_HANDLER_LIBRARIES::handleUpdateLibraryTableEntry );
+    registerHandler<DeleteLibraryTableEntry, LibraryCommandStatus>(
+            &API_HANDLER_LIBRARIES::handleDeleteLibraryTableEntry );
+    registerHandler<SearchLibraries, SearchLibrariesResponse>( &API_HANDLER_LIBRARIES::handleSearchLibraries );
 
     // Only the design-block instance registers LoadAllLibraries: it is the dispatcher that
     // lazily loads the schematic and PCB kifaces and forwards to their per-type loads.  If
@@ -495,5 +506,380 @@ API_HANDLER_LIBRARIES::handleGetItemsFromLibrary( const HANDLER_CONTEXT<GetItems
     }
 
     response.set_status( kiapi::common::types::ItemRequestStatus::IRS_OK );
+    return response;
+}
+
+
+namespace
+{
+LibraryCommandStatus libraryStatus( LibraryCommandStatus::Code aCode, const wxString& aMessage = wxEmptyString )
+{
+    LibraryCommandStatus status;
+    status.set_code( aCode );
+
+    if( !aMessage.IsEmpty() )
+        status.set_error_message( aMessage.ToUTF8() );
+
+    return status;
+}
+
+
+ApiResponseStatus unhandled()
+{
+    ApiResponseStatus e;
+    e.set_status( ApiStatusCode::AS_UNHANDLED );
+    return e;
+}
+
+
+ApiResponseStatus badRequest( const std::string& aMessage )
+{
+    ApiResponseStatus e;
+    e.set_status( ApiStatusCode::AS_BAD_REQUEST );
+    e.set_error_message( aMessage );
+    return e;
+}
+
+
+/// The single table a mutation addresses; LTS_BOTH and LTS_UNKNOWN are refused.
+std::optional<LIBRARY_TABLE_SCOPE> singleScope( LibraryTableScope aScope )
+{
+    if( aScope == LibraryTableScope::LTS_GLOBAL )
+        return LIBRARY_TABLE_SCOPE::GLOBAL;
+
+    if( aScope == LibraryTableScope::LTS_PROJECT )
+        return LIBRARY_TABLE_SCOPE::PROJECT;
+
+    return std::nullopt;
+}
+
+
+void applyEntry( LIBRARY_TABLE_ROW& aRow, const kiapi::common::types::LibraryTableEntry& aEntry )
+{
+    aRow.SetURI( wxString::FromUTF8( aEntry.uri() ) );
+    aRow.SetDescription( wxString::FromUTF8( aEntry.description() ) );
+
+    std::map<std::string, UTF8> options;
+
+    for( const auto& [key, value] : aEntry.options() )
+        options[key] = UTF8( value );
+
+    aRow.SetOptions( LIBRARY_TABLE::FormatOptions( &options ) );
+    aRow.SetDisabled( aEntry.disabled() );
+    aRow.SetHidden( aEntry.hidden() );
+}
+} // namespace
+
+
+std::optional<wxString> API_HANDLER_LIBRARIES::saveAndReloadTable( LIBRARY_TABLE& aTable, LIBRARY_TABLE_SCOPE aScope )
+{
+    if( LIBRARY_RESULT<void> saved = aTable.Save(); !saved )
+        return saved.error().message;
+
+    Pgm().GetLibraryManager().ReloadTables( aScope, { m_type } );
+    return std::nullopt;
+}
+
+
+HANDLER_RESULT<LibraryTableResponse>
+API_HANDLER_LIBRARIES::handleGetLibraryTable( const HANDLER_CONTEXT<GetLibraryTable>& aCtx )
+{
+    if( aCtx.Request.type() != ToProtoEnum<LIBRARY_TABLE_TYPE, LibraryType>( m_type ) )
+        return tl::unexpected( unhandled() );
+
+    LIBRARY_TABLE_SCOPE scope = LIBRARY_TABLE_SCOPE::BOTH;
+
+    if( std::optional<LIBRARY_TABLE_SCOPE> single = singleScope( aCtx.Request.scope() ) )
+        scope = *single;
+
+    LIBRARY_MANAGER& manager = Pgm().GetLibraryManager();
+    PROJECT&         project = Pgm().GetSettingsManager().Prj();
+    LibraryTableResponse response;
+
+    if( scope != LIBRARY_TABLE_SCOPE::BOTH )
+    {
+        if( std::optional<LIBRARY_TABLE*> table = manager.Table( m_type, scope ) )
+        {
+            kiapi::common::types::LibraryTable* info = response.mutable_table();
+            info->set_path( ( *table )->Path().ToUTF8() );
+            info->set_scope( aCtx.Request.scope() );
+            info->set_valid( ( *table )->IsOk() );
+
+            if( !( *table )->IsOk() )
+                info->set_error_message( ( *table )->ErrorDescription().ToUTF8() );
+        }
+    }
+
+    for( const LIBRARY_TABLE_ROW* row : manager.Rows( m_type, scope ) )
+    {
+        kiapi::common::types::LibraryTableEntry* entry = response.add_rows();
+        packTableEntry( *entry, m_type, *row );
+
+        if( aCtx.Request.substituted() )
+            entry->set_uri( ExpandEnvVarSubstitutions( row->URI(), &project ).ToUTF8() );
+    }
+
+    return response;
+}
+
+
+HANDLER_RESULT<LibraryCommandStatus>
+API_HANDLER_LIBRARIES::handleAddLibraryTableEntry( const HANDLER_CONTEXT<AddLibraryTableEntry>& aCtx )
+{
+    const kiapi::common::types::LibraryTableEntry& entry = aCtx.Request.entry();
+
+    if( entry.type() != ToProtoEnum<LIBRARY_TABLE_TYPE, LibraryType>( m_type ) )
+        return tl::unexpected( unhandled() );
+
+    std::optional<LIBRARY_TABLE_SCOPE> scope = singleScope( aCtx.Request.scope() );
+
+    if( !scope )
+        return tl::unexpected( badRequest( "scope must be LTS_GLOBAL or LTS_PROJECT" ) );
+
+    const wxString nickname = wxString::FromUTF8( entry.nickname() );
+
+    if( nickname.IsEmpty() || entry.uri().empty() )
+        return tl::unexpected( badRequest( "a library entry needs a nickname and a uri" ) );
+
+    LIBRARY_MANAGER&              manager = Pgm().GetLibraryManager();
+    std::optional<LIBRARY_TABLE*> table = manager.Table( m_type, *scope );
+
+    if( !table )
+        return libraryStatus( LibraryCommandStatus::LCS_NOT_FOUND, _( "That library table is not available" ) );
+
+    if( ( *table )->HasRow( nickname ) )
+    {
+        return libraryStatus( LibraryCommandStatus::LCS_ALREADY_EXISTS,
+                              wxString::Format( _( "Library '%s' is already in the table" ), nickname ) );
+    }
+
+    if( ( *table )->IsReadOnly() )
+        return libraryStatus( LibraryCommandStatus::LCS_READ_ONLY, ( *table )->Path() );
+
+    PROJECT&       project = Pgm().GetSettingsManager().Prj();
+    const wxString expanded = ExpandEnvVarSubstitutions( wxString::FromUTF8( entry.uri() ), &project );
+
+    LIBRARY_TABLE_ROW& row = ( *table )->InsertRow();
+    row.SetNickname( nickname );
+    applyEntry( row, entry );
+    row.SetType( pluginTypeForUri( expanded ) );
+
+    if( std::optional<wxString> error = saveAndReloadTable( **table, *scope ) )
+    {
+        std::erase_if( ( *table )->Rows(),
+                       [&]( const LIBRARY_TABLE_ROW& aRow )
+                       {
+                           return aRow.Nickname() == nickname;
+                       } );
+
+        return libraryStatus( LibraryCommandStatus::LCS_ERROR, *error );
+    }
+
+    LIBRARY_MANAGER_ADAPTER* adapter = adapterForProject( project );
+
+    if( aCtx.Request.create_library() && adapter && !wxFileName::Exists( expanded ) )
+    {
+        if( !adapter->CreateLibrary( nickname ) )
+        {
+            return libraryStatus( LibraryCommandStatus::LCS_ERROR,
+                                  wxString::Format( _( "Added '%s', but could not create %s" ), nickname,
+                                                    expanded ) );
+        }
+    }
+
+    if( adapter )
+        adapter->LoadLibraryEntry( nickname );
+
+    return libraryStatus( LibraryCommandStatus::LCS_OK );
+}
+
+
+HANDLER_RESULT<LibraryCommandStatus>
+API_HANDLER_LIBRARIES::handleUpdateLibraryTableEntry( const HANDLER_CONTEXT<UpdateLibraryTableEntry>& aCtx )
+{
+    const kiapi::common::types::LibraryTableEntry& entry = aCtx.Request.entry();
+
+    if( entry.type() != ToProtoEnum<LIBRARY_TABLE_TYPE, LibraryType>( m_type ) )
+        return tl::unexpected( unhandled() );
+
+    std::optional<LIBRARY_TABLE_SCOPE> scope = singleScope( aCtx.Request.scope() );
+
+    if( !scope )
+        return tl::unexpected( badRequest( "scope must be LTS_GLOBAL or LTS_PROJECT" ) );
+
+    if( entry.uri().empty() )
+        return tl::unexpected( badRequest( "a library entry needs a uri" ) );
+
+    const wxString                nickname = wxString::FromUTF8( entry.nickname() );
+    std::optional<LIBRARY_TABLE*> table = Pgm().GetLibraryManager().Table( m_type, *scope );
+    std::optional<LIBRARY_TABLE_ROW*> row;
+
+    if( table )
+        row = ( *table )->Row( nickname );
+
+    if( !row )
+    {
+        return libraryStatus( LibraryCommandStatus::LCS_NOT_FOUND,
+                              wxString::Format( _( "Library '%s' not found" ), nickname ) );
+    }
+
+    if( ( *table )->IsReadOnly() )
+        return libraryStatus( LibraryCommandStatus::LCS_READ_ONLY, ( *table )->Path() );
+
+    PROJECT& project = Pgm().GetSettingsManager().Prj();
+    applyEntry( **row, entry );
+    ( *row )->SetType( pluginTypeForUri( ExpandEnvVarSubstitutions( ( *row )->URI(), &project ) ) );
+
+    if( std::optional<wxString> error = saveAndReloadTable( **table, *scope ) )
+        return libraryStatus( LibraryCommandStatus::LCS_ERROR, *error );
+
+    return libraryStatus( LibraryCommandStatus::LCS_OK );
+}
+
+
+HANDLER_RESULT<LibraryCommandStatus>
+API_HANDLER_LIBRARIES::handleDeleteLibraryTableEntry( const HANDLER_CONTEXT<DeleteLibraryTableEntry>& aCtx )
+{
+    if( aCtx.Request.type() != ToProtoEnum<LIBRARY_TABLE_TYPE, LibraryType>( m_type ) )
+        return tl::unexpected( unhandled() );
+
+    std::optional<LIBRARY_TABLE_SCOPE> scope = singleScope( aCtx.Request.scope() );
+
+    if( !scope )
+        return tl::unexpected( badRequest( "scope must be LTS_GLOBAL or LTS_PROJECT" ) );
+
+    const wxString                nickname = wxString::FromUTF8( aCtx.Request.nickname() );
+    std::optional<LIBRARY_TABLE*> table = Pgm().GetLibraryManager().Table( m_type, *scope );
+
+    if( !table || !( *table )->HasRow( nickname ) )
+    {
+        return libraryStatus( LibraryCommandStatus::LCS_NOT_FOUND,
+                              wxString::Format( _( "Library '%s' not found" ), nickname ) );
+    }
+
+    if( ( *table )->IsReadOnly() )
+        return libraryStatus( LibraryCommandStatus::LCS_READ_ONLY, ( *table )->Path() );
+
+    // Only the table row goes; the library file itself is left alone
+    std::erase_if( ( *table )->Rows(),
+                   [&]( const LIBRARY_TABLE_ROW& aRow )
+                   {
+                       return aRow.Nickname() == nickname;
+                   } );
+
+    if( std::optional<wxString> error = saveAndReloadTable( **table, *scope ) )
+        return libraryStatus( LibraryCommandStatus::LCS_ERROR, *error );
+
+    return libraryStatus( LibraryCommandStatus::LCS_OK );
+}
+
+
+int API_HANDLER_LIBRARIES::scoreSearchMatch( LIBRARY_MANAGER_ADAPTER& aAdapter, const wxString& aNickname,
+                                             const wxString& aItemName, const std::vector<wxString>& aTerms ) const
+{
+    const wxString name = aItemName.Lower();
+    int            score = 0;
+
+    for( const wxString& term : aTerms )
+    {
+        if( term.Contains( '*' ) || term.Contains( '?' ) )
+        {
+            if( !name.Matches( term ) )
+                return 0;
+
+            score += 10;
+        }
+        else if( name == term )
+        {
+            score += 100;
+        }
+        else if( name.StartsWith( term ) )
+        {
+            score += 40;
+        }
+        else if( name.Contains( term ) )
+        {
+            score += 20;
+        }
+        else
+        {
+            return 0;
+        }
+    }
+
+    return score;
+}
+
+
+HANDLER_RESULT<SearchLibrariesResponse>
+API_HANDLER_LIBRARIES::handleSearchLibraries( const HANDLER_CONTEXT<SearchLibraries>& aCtx )
+{
+    if( aCtx.Request.type() != ToProtoEnum<LIBRARY_TABLE_TYPE, LibraryType>( m_type ) )
+        return tl::unexpected( unhandled() );
+
+    std::vector<wxString> terms;
+    wxStringTokenizer     tokenizer( wxString::FromUTF8( aCtx.Request.query() ).Lower(), wxS( " \t" ) );
+
+    while( tokenizer.HasMoreTokens() )
+        terms.push_back( tokenizer.GetNextToken() );
+
+    if( terms.empty() )
+        return tl::unexpected( badRequest( "the search query is empty" ) );
+
+    LIBRARY_MANAGER_ADAPTER* adapter = adapterForProject( Pgm().GetSettingsManager().Prj() );
+
+    if( !adapter )
+        return tl::unexpected( badRequest( "no library adapter is available for this library type" ) );
+
+    struct MATCH
+    {
+        int      score;
+        wxString nickname;
+        wxString name;
+    };
+
+    std::vector<MATCH> matches;
+    int                loading = 0;
+
+    for( const LIBRARY_TABLE_ROW* row : adapter->Rows() )
+    {
+        if( row->Disabled() )
+            continue;
+
+        // Asking an unloaded library for its names loads it on this (the UI) thread, which can
+        // take minutes across all libraries; search what is ready and let the rest load behind
+        if( !adapter->IsLibraryLoaded( row->Nickname() ) )
+        {
+            loading++;
+            continue;
+        }
+
+        for( const wxString& name : getItemNames( *adapter, row->Nickname() ) )
+        {
+            if( int score = scoreSearchMatch( *adapter, row->Nickname(), name, terms ) )
+                matches.push_back( { score, row->Nickname(), name } );
+        }
+    }
+
+    // Best first; ties keep library-table order
+    std::stable_sort( matches.begin(), matches.end(),
+                      []( const MATCH& aLeft, const MATCH& aRight )
+                      {
+                          return aLeft.score > aRight.score;
+                      } );
+
+    if( loading )
+        adapter->AsyncLoad();
+
+    SearchLibrariesResponse response;
+    response.set_libraries_loading( loading );
+
+    for( const MATCH& match : matches )
+    {
+        kiapi::common::types::LibraryIdentifier* id = response.add_items();
+        id->set_library_nickname( match.nickname.ToUTF8() );
+        id->set_entry_name( match.name.ToUTF8() );
+    }
+
     return response;
 }
