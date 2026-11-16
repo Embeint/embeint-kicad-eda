@@ -125,7 +125,16 @@ search commands KiCad declared but left unimplemented (`GetLibraryTable`, `Add`/
 `DeleteLibraryTableEntry`, `SearchLibraries`). Every editing command joins an open
 `BeginCommit`, so a batch is one undo step. Undo/redo need the GUI and refuse an open commit.
 
+## For agents
+
+Start with [AGENTS.md](AGENTS.md): branch policy, where each command lives, build and test
+commands, and the library conventions the tools follow.
+
 ## Setup (Windows + WSL Ubuntu)
+
+`scripts/setup_wsl.sh` does everything below in one go (and is safe to rerun after a pull);
+`scripts/rebuild.sh` rebuilds after C++ edits; `scripts/run_tests.sh [--live]` runs the tests.
+
 
 ```bash
 # in WSL, once

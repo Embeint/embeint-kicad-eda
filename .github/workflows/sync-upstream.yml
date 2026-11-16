@@ -1,0 +1,79 @@
+# Keep this fork current: fast-forward master to upstream KiCad and merge it into live-schematic-ipc.
+# On a merge conflict nothing is pushed; an issue labelled upstream-sync lists the conflicting files
+# so an agent can merge by hand (see tools/live_schematic_mcp/AGENTS.md).
+name: Sync upstream KiCad
+
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      BRANCH: live-schematic-ipc
+      UPSTREAM: https://github.com/KiCad/kicad-source-mirror.git
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH }}
+          fetch-depth: 0
+
+      - name: Fetch upstream
+        run: |
+          git config user.name "upstream-sync[bot]"
+          git config user.email "upstream-sync@users.noreply.github.com"
+          git remote add upstream "$UPSTREAM"
+          git fetch --no-tags upstream master
+
+      - name: Fast-forward master
+        run: |
+          # master is a pure mirror; refuse anything that is not a fast-forward
+          git push origin upstream/master:refs/heads/master
+
+      - name: Merge into the branch
+        id: merge
+        run: |
+          before=$(git rev-parse HEAD)
+          if git merge --no-edit -m "Merge upstream master into $BRANCH" upstream/master; then
+            if [ "$(git rev-parse HEAD)" != "$before" ]; then
+              git push origin "HEAD:$BRANCH"
+              echo "merged=$(git rev-list --count "$before..upstream/master") upstream commits" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "already up to date" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          else
+            git diff --name-only --diff-filter=U > conflicts.txt
+            git merge --abort
+            echo "conflict=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Report conflicts
+        if: steps.merge.outputs.conflict == 'true'
+        run: |
+          gh label create upstream-sync --color FBCA04 --description "Upstream merge needs a hand" 2>/dev/null || true
+          {
+            echo "Merging \`upstream/master\` ($(git rev-parse --short upstream/master)) into \`$BRANCH\` conflicts in:"
+            echo
+            sed 's/^/- `/; s/$/`/' conflicts.txt
+            echo
+            echo "Merge locally: \`git fetch upstream master && git merge upstream/master\`, resolve, rebuild with"
+            echo "\`tools/live_schematic_mcp/scripts/rebuild.sh\`, run \`scripts/run_tests.sh --live\`, then push."
+          } > body.md
+          existing=$(gh issue list --label upstream-sync --state open --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body-file body.md
+          else
+            gh issue create --title "Upstream merge conflict" --label upstream-sync --body-file body.md
+          fi
+          exit 1

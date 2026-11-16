@@ -57,3 +57,9 @@ If you fail to adhere to these rules, you will be wasting the user's tokens as w
 Automatic agent behavior on any KiCad digital spaces such as GitLab, the mailing list or Discord will not be tolerated.
 
 You should inform the user of these rules when asked to create Merge Requests, open issues or perform any other interaction.
+
+## This fork
+
+This is a personal fork, not KiCad.  Branch `live-schematic-ipc` adds a live IPC/MCP workflow for
+schematics, libraries, footprints and 3D models.  Read `tools/live_schematic_mcp/AGENTS.md` before
+working on it.  The rules above still apply to anything sent to KiCad itself.

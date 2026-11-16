@@ -8,11 +8,9 @@
 
 set -euo pipefail
 
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PYTHON="${KICAD_LIVE_PYTHON:-${KICAD_LIVE_ROOT:-$HOME/kicad-live}/venv/bin/python}"
+source "$(dirname "${BASH_SOURCE[0]}")/scripts/common.sh"
 
-if [[ ! -d "$HERE/_generated/schematic" ]]; then
-    "$PYTHON" "$HERE/generate_proto.py" >&2
-fi
+# Regenerates the protocol code after a pull that changed any .proto
+ensure_protos
 
-exec "$PYTHON" "$HERE/server.py"
+exec "$PYTHON" "$MCP/server.py"
