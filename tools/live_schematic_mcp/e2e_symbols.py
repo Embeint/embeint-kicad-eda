@@ -13,7 +13,7 @@ import sys
 import time
 import uuid
 
-from client import LiveSchematic, document, symbol_document
+from client import LiveSchematic, as_dict, document, sch, symbol_document
 
 
 def check(condition, message):
@@ -39,6 +39,10 @@ def main():
           f"search 'regulator 3.3' found {found['total']}: {found['results'][0]}")
     resistor = client.library_symbol("Device:R")
     check(len(resistor["pins"]) == 2 and resistor["reference"] == "R", "read Device:R with its two pins")
+    stock_doc = symbol_document(client.edit_symbol("Regulator_Linear:AP2112K-3.3"))
+    stock_png = client.symbol_render(stock_doc, dpi=600)
+    (out / "stock.png").write_bytes(stock_png)
+    check(stock_png[:4] == bytes([0x89]) + b"PNG", "opened and rendered a stock symbol in the Symbol Editor")
 
     tag = uuid.uuid4().hex[:6]
     nickname, path = f"mcp_test_{tag}", lib_dir / f"mcp_test_{tag}.kicad_sym"
@@ -89,6 +93,13 @@ def main():
         stored = client.library_symbol(lib_id)
         check(stored["description"] == "Test 3.3 V LDO regulator" and len(stored["pins"]) == 5,
               f"library now serves {lib_id} with its details")
+        def body_style(symbol_id):
+            for child in client.library_symbols([symbol_id])[0].items:
+                shape = sch.SchematicGraphicShape()
+                if child.item.Unpack(shape):
+                    return as_dict(shape.shape.attributes)
+        stock = body_style("Regulator_Linear:AP2112K-3.3")
+        check(body_style(lib_id) == stock, f"body outline and fill match stock symbols: {stock}")
         check(stored["fields"].get("Manufacturer") == "Test Semiconductor" and stored["fields"].get("MPN") == f"TR-{tag}",
               f"Manufacturer and MPN stored: {stored['fields']}")
         check(any(r["lib_id"] == lib_id for r in client.search_symbols("mcptest", limit=50)["results"]),

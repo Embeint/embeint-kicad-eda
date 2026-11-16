@@ -9,6 +9,7 @@ import pytest
 from client import (LiveSchematic, as_dict, base, document, editor, jobs,
                     parse_items, point, sch, sch_jobs, types)
 from client import commands as sch_cmds
+from client import enums
 
 
 def doc():
@@ -335,6 +336,11 @@ def test_symbol_add_pins_sends_body_and_pins_in_one_commit():
     sent[0].items[2].Unpack(pin)
     assert pin.number == "2" and pin.electrical_type == types.EPT_OUTPUT and pin.length.value_nm == 2540000
     assert pin.name_text_size.value_nm == pin.number_text_size.value_nm == 1270000
+    body = sch.SchematicGraphicShape()
+    sent[0].items[0].Unpack(body)
+    stroke = body.shape.attributes.stroke
+    assert stroke.width.value_nm == 254000 and stroke.style == enums.SLS_DEFAULT and not stroke.HasField("color")
+    assert body.shape.attributes.fill.fill_type == types.GFT_FILLED_WITH_BACKGROUND_BODY_COLOR
     assert [p["side"] for p in result["pins"]] == ["left", "right"]
 
 

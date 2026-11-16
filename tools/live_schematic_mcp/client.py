@@ -24,6 +24,7 @@ try:
     from common.commands import project_commands_pb2 as project
     from common.commands import variant_commands_pb2  # noqa: F401
     from common.types import base_types_pb2 as types
+    from common.types import enums_pb2 as enums
     from common.types import jobs_pb2 as jobs
     from common.types import library_types_pb2 as lib_types
     from common.types import project_settings_pb2  # noqa: F401
@@ -587,7 +588,9 @@ class LiveSchematic:
             body = sch.SchematicGraphicShape()
             body.shape.rectangle.top_left.CopyFrom(point(x1, y1))
             body.shape.rectangle.bottom_right.CopyFrom(point(x2, y2))
+            # Stock KiCad symbol body: 0.254 mm default-style outline, filled with the body color
             body.shape.attributes.stroke.width.value_nm = 254000
+            body.shape.attributes.stroke.style = enums.SLS_DEFAULT
             body.shape.attributes.fill.fill_type = types.GFT_FILLED_WITH_BACKGROUND_BODY_COLOR
             items.append(body)
         for pin in layout["pins"]:
