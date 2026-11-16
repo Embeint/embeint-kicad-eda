@@ -13,6 +13,8 @@ import uuid
 import pynng
 from google.protobuf import json_format
 
+from footprint_client import FootprintTools, footprint_document, library_kind  # noqa: F401
+
 sys.path.insert(0, str(Path(__file__).resolve().parent / "_generated"))
 try:
     from common import envelope_pb2 as envelope
@@ -144,7 +146,7 @@ OUTWARD = {sch.SPO_RIGHT: (-1, 0), sch.SPO_LEFT: (1, 0), sch.SPO_UP: (0, 1), sch
 SPIN_FOR = {(-1, 0): sch.SLSS_LEFT, (1, 0): sch.SLSS_RIGHT, (0, 1): sch.SLSS_BOTTOM, (0, -1): sch.SLSS_UP}
 
 
-class LiveSchematic:
+class LiveSchematic(FootprintTools):
     def __init__(self, socket_url=None, timeout_ms=15000):
         self.socket_url = socket_url or os.environ.get("KICAD_API_SOCKET")
         if not self.socket_url:
@@ -486,36 +488,43 @@ class LiveSchematic:
 
     # ---- Symbol libraries -------------------------------------------------------------------
 
-    def library_table(self, scope="both"):
-        request = library.GetLibraryTable(type=lib_types.LT_SYMBOL, scope=SCOPES[scope], substituted=True)
+    def library_table(self, scope="both", kind="symbol"):
+        if kind == "footprint":
+            self.open_footprint_editor()
+        request = library.GetLibraryTable(type=library_kind(kind), scope=SCOPES[scope], substituted=True)
         response = self.send(request, library.LibraryTableResponse)
         return [{"nickname": r.nickname, "path": r.uri, "scope": SCOPE_NAMES.get(r.scope, "?"),
                  "description": r.description, "writable": r.writable,
                  **({"disabled": True} if r.disabled else {})} for r in response.rows]
 
-    def add_library(self, nickname, path, scope="global", description="", create=True):
+    def add_library(self, nickname, path, scope="global", description="", create=True, kind="symbol"):
         if scope not in ("global", "project"):
             raise ValueError("scope must be global or project")
-        if create and not str(path).endswith(".kicad_sym"):
-            raise ValueError("A new symbol library file must end in .kicad_sym")
-        entry = lib_types.LibraryTableEntry(nickname=nickname, uri=str(path), type=lib_types.LT_SYMBOL,
+        suffix = ".kicad_sym" if kind == "symbol" else ".pretty"
+        if create and not str(path).rstrip("/").endswith(suffix):
+            raise ValueError(f"A new {kind} library must end in {suffix}")
+        if kind == "footprint":
+            self.open_footprint_editor()
+        entry = lib_types.LibraryTableEntry(nickname=nickname, uri=str(path).rstrip("/"), type=library_kind(kind),
                                             description=description)
         status = self.send(library.AddLibraryTableEntry(entry=entry, scope=SCOPES[scope], create_library=create),
                            lib_types.LibraryCommandStatus)
         return check_library_status(status, f"add library {nickname}")
 
-    def remove_library(self, nickname, scope="global"):
+    def remove_library(self, nickname, scope="global", kind="symbol"):
         """Remove a library from a table; its file is left on disk."""
-        request = library.DeleteLibraryTableEntry(type=lib_types.LT_SYMBOL, nickname=nickname, scope=SCOPES[scope])
+        if kind == "footprint":
+            self.open_footprint_editor()
+        request = library.DeleteLibraryTableEntry(type=library_kind(kind), nickname=nickname, scope=SCOPES[scope])
         return check_library_status(self.send(request, lib_types.LibraryCommandStatus), f"remove {nickname}")
 
-    def reload_library(self, nickname):
-        for row in self.library_table():
+    def reload_library(self, nickname, kind="symbol"):
+        for row in self.library_table(kind=kind):
             if row["nickname"] == nickname:
-                request = library.ReloadLibrary(type=lib_types.LT_SYMBOL, scope=SCOPES[row["scope"]],
+                request = library.ReloadLibrary(type=library_kind(kind), scope=SCOPES[row["scope"]],
                                                 nickname=[nickname])
                 return check_library_status(self.send(request, lib_types.LibraryCommandStatus), "reload")
-        raise ValueError(f"Library {nickname} is not in the symbol library tables")
+        raise ValueError(f"Library {nickname} is not in the {kind} library tables")
 
     def library_symbols(self, lib_ids):
         request = library.GetItemsFromLibrary(type=lib_types.LT_SYMBOL)

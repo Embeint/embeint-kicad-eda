@@ -5,6 +5,7 @@ from google.protobuf import empty_pb2
 from mcp.server.fastmcp import FastMCP, Image
 
 from client import LiveSchematic, as_dict, document, editor, parse_items, project
+from client import footprint_document as footprint_document_spec
 from client import symbol_document as symbol_document_spec
 
 mcp = FastMCP("KiCad Live Schematic")
@@ -254,7 +255,8 @@ def live_schematic_batch(document_spec: dict, steps: list[dict], description: st
     steps: [{"command": "CreateItems", "payload": {...}}, ...] using names from live_schematic_list_commands.
     Undo/redo and file/job commands are not allowed in a batch.
     """
-    spec = symbol_document_spec(document_spec) if document_spec.get("type") == "DOCTYPE_SYMBOL"         else document(document_spec)
+    kind = document_spec.get("type")
+    spec = any_editor_document(document_spec) if kind in ("DOCTYPE_SYMBOL", "DOCTYPE_FOOTPRINT")         else document(document_spec)
     return client.batch(spec, steps, description)
 
 
@@ -395,6 +397,150 @@ def live_symbol_delete_items(symbol_document: dict, ids: list[str]) -> dict:
 def live_symbol_save(symbol_document: dict) -> dict:
     """SAVE the open symbol into its library file, then reload the library so schematics can place it."""
     return client.symbol_save(symbol_document_spec(symbol_document))
+
+
+# ---- Footprint libraries, the Footprint Editor and embedded files -----------------------------
+
+@mcp.tool()
+def live_footprint_search(query: str, limit: int = 25) -> dict:
+    """Search footprint libraries by name (names encode the package, e.g. SOIC-8_3.9x4.9mm_P1.27mm).
+
+    Words must all match; * and ? are wildcards. Opens the Footprint Editor if needed.
+    """
+    return client.footprint_search(query, limit)
+
+
+@mcp.tool()
+def live_footprint_get(lib_id: str) -> dict:
+    """Read a library footprint (Library:Footprint): pads, description, keywords, mounting, datasheet, models."""
+    return client.library_footprint(lib_id)
+
+
+@mcp.tool()
+def live_footprint_libraries(scope: str = "both") -> list[dict]:
+    """List footprint libraries in the global and/or project table (scope: global | project | both)."""
+    return client.library_table(scope, kind="footprint")
+
+
+@mcp.tool()
+def live_footprint_create_library(nickname: str, path: str, scope: str = "global", description: str = "") -> dict:
+    """Create an empty .pretty footprint library at path and add it to the global or project table."""
+    return client.add_library(nickname, path, scope, description, create=True, kind="footprint")
+
+
+@mcp.tool()
+def live_footprint_register_library(nickname: str, path: str, scope: str = "global", description: str = "") -> dict:
+    """Add an existing .pretty footprint library to the global or project table."""
+    return client.add_library(nickname, path, scope, description, create=False, kind="footprint")
+
+
+@mcp.tool()
+def live_footprint_unregister_library(nickname: str, scope: str = "global") -> dict:
+    """Remove a footprint library from a table. The library folder is NOT deleted."""
+    return client.remove_library(nickname, scope, kind="footprint")
+
+
+@mcp.tool()
+def live_footprint_new(library: str, name: str, mounting: str = "smd", replace_existing: bool = False) -> dict:
+    """Start a new footprint in a writable library and show it in KiCad's Footprint Editor (unsaved).
+
+    mounting: smd | tht | unspecified. Returns the footprint document the other live_footprint_* tools
+    take. Nothing is written until live_footprint_save.
+    """
+    return client.new_footprint(library, name, mounting, replace_existing)
+
+
+@mcp.tool()
+def live_footprint_edit(lib_id: str) -> dict:
+    """Open an existing library footprint in the Footprint Editor and return its footprint document."""
+    return client.edit_footprint(lib_id)
+
+
+@mcp.tool()
+def live_footprint_generate(footprint_document: dict, package: str, params: dict, replace: bool = False) -> dict:
+    """Build pads, silkscreen, fabrication, courtyard and text from package dimensions (KLC style).
+
+    Prefer the datasheet's recommended land pattern. package and params (mm):
+    - soic/tssop/msop/ssop/gullwing: pins, pitch, body_width (across rows), body_length, then either
+      pad_length + pad_width + row_pitch (land pattern) or lead_span + lead_length + lead_width;
+      optional exposed_pad [w, h]
+    - qfn: pins_x (per top/bottom edge), pins_y (per side), pitch, body_x, body_y, terminal_length,
+      terminal_width (or pad_length/pad_width), optional exposed_pad [w, h]; dfn: same without pins_x
+    - sot: variant "23", "23-5", "23-6" or "223"
+    - chip: size "0402" | "0603" | "0805" | "1206" | "1210" | "2512", prefix "R"/"C"/"L"
+    - pin_header: pins_per_row, rows (1 or 2), pitch 2.54, drill 1.0, pad 1.7
+    Pin 1 is top-left, numbering counter-clockwise. replace=true clears existing items first.
+    """
+    return client.footprint_generate(footprint_document_spec(footprint_document), package, params, replace)
+
+
+@mcp.tool()
+def live_footprint_set_properties(footprint_document: dict, description: str | None = None,
+                                  keywords: str | None = None, mounting: str | None = None,
+                                  value: str | None = None, datasheet: str | None = None,
+                                  exclude_from_bom: bool | None = None,
+                                  exclude_from_position_files: bool | None = None) -> dict:
+    """Fill in the open footprint's details as one undo step. datasheet is a link (URL), not embedded."""
+    return client.footprint_set_properties(footprint_document_spec(footprint_document), description, keywords,
+                                           mounting, value, datasheet, exclude_from_bom,
+                                           exclude_from_position_files)
+
+
+@mcp.tool()
+def live_footprint_attach_step(footprint_document: dict, step_path: str, offset_mm: list[float] | None = None,
+                               rotation_deg: list[float] | None = None) -> dict:
+    """EMBED a STEP/WRL model in the footprint and make it the 3D model (kicad-embed:// link).
+
+    step_path must be absolute and readable by KiCad (a WSL path for this build). The model travels
+    inside the footprint, so the library needs no separate 3D folder.
+    """
+    return client.footprint_attach_step(footprint_document_spec(footprint_document), step_path,
+                                        tuple(offset_mm or (0, 0, 0)), tuple(rotation_deg or (0, 0, 0)))
+
+
+@mcp.tool()
+def live_embedded_files(document_spec: dict) -> list[dict]:
+    """List files embedded in an open footprint or library symbol (name, type, kicad-embed:// uri, size)."""
+    return client.embedded_files(any_editor_document(document_spec))
+
+
+@mcp.tool()
+def live_embed_file(document_spec: dict, path: str, overwrite: bool = False) -> dict:
+    """Embed any file KiCad can read into an open footprint or library symbol; returns its kicad-embed:// uri.
+
+    Datasheets are normally linked in the Datasheet field instead of embedded.
+    """
+    return client.embed_file(any_editor_document(document_spec), path, overwrite)
+
+
+@mcp.tool()
+def live_remove_embedded_file(document_spec: dict, name: str) -> dict:
+    """Remove an embedded file from an open footprint or library symbol."""
+    return client.remove_embedded_file(any_editor_document(document_spec), name)
+
+
+@mcp.tool()
+def live_footprint_view(footprint_document: dict, dpi: int = 1500) -> Image:
+    """See the open footprint (copper, paste, fab, courtyard, silkscreen), including unsaved changes."""
+    return Image(data=client.footprint_render(footprint_document_spec(footprint_document), dpi), format="png")
+
+
+@mcp.tool()
+def live_footprint_summary(footprint_document: dict) -> dict:
+    """List the open footprint's pads, graphics per layer and texts."""
+    return client.footprint_summary(footprint_document_spec(footprint_document))
+
+
+@mcp.tool()
+def live_footprint_save(footprint_document: dict) -> dict:
+    """SAVE the open footprint into its library and reload the library so symbols and boards can use it."""
+    return client.footprint_save(footprint_document_spec(footprint_document))
+
+
+def any_editor_document(spec):
+    if spec.get("type") == "DOCTYPE_FOOTPRINT":
+        return footprint_document_spec(spec)
+    return symbol_document_spec(spec)
 
 
 @mcp.tool()

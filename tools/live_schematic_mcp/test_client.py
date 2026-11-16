@@ -394,3 +394,107 @@ def test_server_exposes_valid_tool_schemas():
     names = {tool.name for tool in tools}
     assert {"live_schematic_view", "live_schematic_create_items", "live_schematic_hierarchy"} <= names
     assert all(tool.inputSchema.get("type") == "object" for tool in tools)
+
+
+# ---- Footprints -------------------------------------------------------------------------------
+
+FOOTPRINT_CASES = [
+    ("soic", dict(pins=8, pitch=1.27, body_width=3.9, body_length=4.9, pad_length=1.95, pad_width=0.6,
+                  row_pitch=4.95)),
+    ("soic", dict(pins=14, pitch=1.27, body_width=3.9, body_length=8.65, lead_span=6.0, lead_length=0.835,
+                  lead_width=0.41)),
+    ("qfn", dict(pins_x=4, pins_y=4, pitch=0.5, body_x=3.0, body_y=3.0, terminal_length=0.4,
+                 terminal_width=0.25, exposed_pad=(1.7, 1.7))),
+    ("dfn", dict(pins_y=4, pitch=0.65, body_x=3.0, body_y=3.0, terminal_length=0.4, terminal_width=0.3)),
+    ("sot", dict(variant="23")), ("sot", dict(variant="23-5")), ("sot", dict(variant="223")),
+    ("chip", dict(size="0603")), ("pin_header", dict(pins_per_row=4, rows=2)),
+]
+
+
+def _box(pad):
+    (x, y), (w, h) = pad["position"], pad["size"]
+    return x - w / 2, y - h / 2, x + w / 2, y + h / 2
+
+
+def _segment_gap(segment, box):
+    """Shortest distance from an axis-aligned segment to a rectangle."""
+    (x1, y1), (x2, y2) = segment
+    bx1, by1, bx2, by2 = box
+    dx = max(bx1 - max(x1, x2), min(x1, x2) - bx2, 0)
+    dy = max(by1 - max(y1, y2), min(y1, y2) - by2, 0)
+    return (dx * dx + dy * dy) ** 0.5
+
+
+@pytest.mark.parametrize("package,params", FOOTPRINT_CASES)
+def test_generated_footprints_follow_klc(package, params):
+    from footprint_gen import SILK_PAD_CLEARANCE, SILK_WIDTH, generate
+    shape = generate(package, **params)
+    pads = shape["pads"]
+    numbers = [p["number"] for p in pads]
+    assert numbers == [str(n) for n in range(1, len(pads) + 1)], "pads are numbered 1..n"
+    cx1, cy1, cx2, cy2 = shape["courtyard"]
+    for value in shape["courtyard"]:
+        assert abs(value * 100 - round(value * 100)) < 1e-6, "courtyard on the 0.01 mm grid"
+    clearance = 0.5 if package == "pin_header" else 0.25
+    bx1, by1, bx2, by2 = shape["body"]
+    for x1, y1, x2, y2 in [_box(p) for p in pads] + [(bx1, by1, bx2, by2)]:
+        assert cx1 <= x1 - clearance + 1e-6 and cy1 <= y1 - clearance + 1e-6
+        assert cx2 >= x2 + clearance - 1e-6 and cy2 >= y2 + clearance - 1e-6
+    for segment in shape["silk_lines"]:
+        for pad in pads:
+            assert _segment_gap(segment, _box(pad)) >= SILK_PAD_CLEARANCE + SILK_WIDTH / 2 - 1e-6, \
+                f"silk {segment} too close to pad {pad['number']}"
+    if shape["pin1_marker"]:
+        for pad in pads:
+            x1, y1, x2, y2 = _box(pad)
+            assert all(not (x1 < x < x2 and y1 < y < y2) for x, y in shape["pin1_marker"]), "marker off copper"
+    for a, b in zip(pads, pads[1:]):
+        if a["type"] == b["type"] == "smd":
+            ax1, ay1, ax2, ay2 = _box(a)
+            bx1_, by1_, bx2_, by2_ = _box(b)
+            assert ax2 <= bx1_ or bx2_ <= ax1 or ay2 <= by1_ or by2_ <= ay1, "pads do not overlap"
+
+
+def test_soic8_land_pattern_matches_stock_footprint():
+    """Package_SO:SOIC-8_3.9x4.9mm_P1.27mm: pads 1.95 x 0.6 at x = +/-2.475, pin 1 top left, CCW."""
+    from footprint_gen import generate
+    shape = generate("soic", pins=8, pitch=1.27, body_width=3.9, body_length=4.9, pad_length=1.95,
+                     pad_width=0.6, row_pitch=4.95)
+    at = {p["number"]: p["position"] for p in shape["pads"]}
+    assert at["1"] == (-2.475, -1.905) and at["4"] == (-2.475, 1.905)
+    assert at["5"] == (2.475, 1.905) and at["8"] == (2.475, -1.905)
+    assert all(p["size"] == (1.95, 0.6) for p in shape["pads"])
+
+
+def test_pad_messages_use_klc_layers_and_corners():
+    from footprint_client import ALL_COPPER, bt, make_pad
+    smd = make_pad({"number": "1", "type": "smd", "shape": "roundrect", "position": (1, 2), "size": (1.95, 0.6)})
+    assert list(smd.pad_stack.layers) == [bt.BL_F_Cu, bt.BL_F_Paste, bt.BL_F_Mask] and smd.type == bt.PT_SMD
+    assert abs(smd.pad_stack.copper_layers[0].corner_rounding_ratio - 0.25) < 1e-9
+    big = make_pad({"number": "9", "type": "smd", "shape": "roundrect", "position": (0, 0), "size": (3, 3)})
+    assert abs(big.pad_stack.copper_layers[0].corner_rounding_ratio - 0.25 / 3) < 1e-9, "radius capped at 0.25 mm"
+    tht = make_pad({"number": "1", "type": "pth", "shape": "rect", "position": (0, 0), "size": (1.7, 1.7),
+                    "drill": 1.0})
+    assert tht.type == bt.PT_PTH and set(ALL_COPPER) <= set(tht.pad_stack.layers)
+    assert tht.pad_stack.drill.diameter.x_nm == 1_000_000
+
+
+def test_attach_step_embeds_then_links_the_model():
+    sent = []
+    def reply(request, response_type):
+        sent.append(request)
+        if type(request).__name__ == "EmbedFileFromPath":
+            response = response_type()
+            response.file.name, response.file.uri = "part.step", "kicad-embed://part.step"
+            return response
+        return response_type()
+    client = FakeClient(reply)
+    doc_ = types.DocumentSpecifier(type=types.DOCTYPE_FOOTPRINT,
+                                   lib_id=types.LibraryIdentifier(library_nickname="fp", entry_name="X"))
+    result = client.footprint_attach_step(doc_, "/tmp/part.step", rotation=(0, 0, 90))
+    assert result == {"embedded": "part.step", "model": "kicad-embed://part.step"}
+    props = next(r for r in sent if type(r).__name__ == "SetLibraryFootprintProperties")
+    assert props.set_models and props.models[0].filename == "kicad-embed://part.step"
+    assert props.models[0].scale.x_nm == 1 and props.models[0].rotation.z_nm == 90
+    with pytest.raises(ValueError):
+        client.footprint_attach_step(doc_, "/tmp/datasheet.pdf")

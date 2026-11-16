@@ -10,7 +10,7 @@
 # Environment overrides:
 #   KICAD_LIVE_ROOT     build root (default ~/kicad-live, expects install/ and deps/ inside)
 #   KICAD_LIBRARY_ROOT  KiCad library share dir (default: the Windows KiCad 10.0 install via /mnt/c)
-#   KICAD_LIVE_COPY_SYMBOLS=0  use symbol libraries in place instead of a local copy
+#   KICAD_LIVE_COPY_SYMBOLS=0  use symbol and footprint libraries in place instead of local copies
 
 set -euo pipefail
 
@@ -58,19 +58,24 @@ fi
 # Copies from /mnt/c can arrive read-only, which stops libraries being added to the global tables
 chmod u+w "$CONFIG_DIR"/*-lib-table
 
-# Reading ~220 symbol libraries over /mnt/c takes minutes; keep a local copy (refreshed when the
-# source changes) so library loads and searches are fast. Footprints load on demand and stay put.
+# Reading the ~220 symbol and ~155 footprint libraries over /mnt/c takes minutes; keep local copies
+# (refreshed when the source changes) so library loads and searches are fast. 3D models stay put.
 SYMBOLS="$LIBS/symbols"
-if [[ "$LIBS" == /mnt/* && -d "$LIBS/symbols" && "${KICAD_LIVE_COPY_SYMBOLS:-1}" == 1 ]]; then
+FOOTPRINTS="$LIBS/footprints"
+if [[ "$LIBS" == /mnt/* && "${KICAD_LIVE_COPY_SYMBOLS:-1}" == 1 ]]; then
+    for kind in symbols footprints; do
+        [[ -d "$LIBS/$kind" ]] || continue
+        mkdir -p "$ROOT/share/$kind"
+        rsync -a --delete "$LIBS/$kind/" "$ROOT/share/$kind/"
+    done
     SYMBOLS="$ROOT/share/symbols"
-    mkdir -p "$SYMBOLS"
-    rsync -a --delete "$LIBS/symbols/" "$SYMBOLS/"
+    FOOTPRINTS="$ROOT/share/footprints"
 fi
 
 export KICAD_CONFIG_HOME="$CONFIG_HOME"
 for ver in 10 11; do
     export "KICAD${ver}_SYMBOL_DIR=$SYMBOLS"
-    export "KICAD${ver}_FOOTPRINT_DIR=$LIBS/footprints"
+    export "KICAD${ver}_FOOTPRINT_DIR=$FOOTPRINTS"
     export "KICAD${ver}_3DMODEL_DIR=$LIBS/3dmodels"
     export "KICAD${ver}_TEMPLATE_DIR=$LIBS/template"
 done

@@ -61,6 +61,30 @@ spacing) before the signals, so an LDO gets VIN over EN and VOUT over ADJ. The d
 the value at the body's bottom right. Pass sides with `arrange="as_given"` to follow a specific
 datasheet pinout exactly.
 
+### Footprints, 3D models and embedded files
+
+| Tool | Purpose |
+| --- | --- |
+| `live_footprint_search` / `live_footprint_get` | Find footprints by name; read pads, attributes, datasheet and 3D models |
+| `live_footprint_libraries` / `_create_library` / `_register_library` / `_unregister_library` | Footprint library tables (global or project); new `.pretty` libraries |
+| `live_footprint_new` / `live_footprint_edit` | Start or open a footprint in the Footprint Editor (shown live, unsaved) |
+| `live_footprint_generate` | KLC-style footprint from datasheet dimensions: SOIC/TSSOP/MSOP, QFN/DFN (with exposed pad), SOT-23/223, chip 0402-2512, pin headers |
+| `live_footprint_set_properties` | Description, keywords, SMD/THT, value, datasheet link, BOM/position exclusions |
+| `live_footprint_attach_step` | Embed a STEP/WRL model in the footprint and use it as the 3D model (`kicad-embed://`) |
+| `live_embedded_files` / `live_embed_file` / `live_remove_embedded_file` | Files embedded in an open footprint or library symbol |
+| `live_footprint_view` / `live_footprint_summary` | PNG of the unsaved footprint; its pads, graphics and texts |
+| `live_footprint_save` | Write the footprint to its library and reload it, ready to link from a symbol's Footprint field |
+
+Generated footprints follow the KiCad Library Conventions: pads from the datasheet land pattern
+(or IPC-7351 nominal fillets from the lead dimensions), roundrect pads at 25 % (radius at most
+0.25 mm), 0.12 mm silkscreen kept 0.2 mm from copper with a pin-1 marker, a 0.10 mm fabrication
+outline with a chamfered pin-1 corner and `${REFERENCE}`, and a 0.05 mm courtyard 0.25 mm outside
+(0.5 mm for connectors) on a 0.01 mm grid. Datasheets are linked in the Datasheet field, not
+embedded; STEP models are embedded so a library carries its own 3D models.
+
+The Footprint Editor lives in pcbnew; the footprint tools ask the schematic editor to open it
+(`OpenFootprintEditor`), which loads pcbnew's code into the running process.
+
 Hierarchy: create a `SheetSymbol` (with `pins`) on the parent, read its path from
 `live_schematic_hierarchy`, then target the child sheet with that `sheet_path` to add matching
 `HierarchicalLabel`s.
@@ -68,7 +92,9 @@ Hierarchy: create a `SheetSymbol` (with `pins`) on the parent, read its path fro
 KiCad commands this fork adds for the tools above (`api/proto/schematic/schematic_commands.proto`):
 `AnnotateSchematic`, `UpdateSymbolsFromLibrary`, `AutoplaceFields`, `TransformItems`,
 `UndoLastChange` / `RedoLastChange`, `GetSymbolPins`, `NewLibrarySymbol`, `EditLibrarySymbol`,
-`SetLibrarySymbolProperties` and `RenderLibrarySymbol`; it also implements the library table and
+`SetLibrarySymbolProperties`, `RenderLibrarySymbol`, `OpenFootprintEditor`, `NewLibraryFootprint`,
+`EditLibraryFootprint`, `SetLibraryFootprintProperties`, `RenderLibraryFootprint` and
+`EmbedFileFromPath` / `GetEmbeddedFileList` / `RemoveEmbeddedFile`; it also implements the library table and
 search commands KiCad declared but left unimplemented (`GetLibraryTable`, `Add`/`Update`/
 `DeleteLibraryTableEntry`, `SearchLibraries`). Every editing command joins an open
 `BeginCommit`, so a batch is one undo step. Undo/redo need the GUI and refuse an open commit.
@@ -104,4 +130,5 @@ claude mcp add kicad-live -- wsl.exe -d Ubuntu -- bash /mnt/c/<fork>/tools/live_
 ~/kicad-live/venv/bin/python e2e_smoke.py out/             # against a running editor; never saves
 ~/kicad-live/venv/bin/python e2e_features.py out/          # annotate, wiring, move, undo, ERC, batch, export
 ~/kicad-live/venv/bin/python e2e_symbols.py out/           # search, build, save, register and place a symbol
+~/kicad-live/venv/bin/python e2e_footprints.py out/        # generate a footprint, embed its STEP, link it from a symbol
 ```

@@ -12,6 +12,7 @@ from google.protobuf import descriptor_pool, empty_pb2, json_format, symbol_data
 C = "kiapi.common.commands."
 S = "kiapi.schematic.commands."
 J = "kiapi.schematic.jobs."
+B = "kiapi.board.commands."
 T = "kiapi.common.types."
 EMPTY = "google.protobuf.Empty"
 
@@ -88,6 +89,15 @@ COMMANDS = {
     S + "EditLibrarySymbol": (S + "LibrarySymbolResponse", "view"),
     S + "SetLibrarySymbolProperties": (EMPTY, "edit"),
     S + "RenderLibrarySymbol": (S + "RenderLibrarySymbolResponse", "read"),
+    # Footprint Editor and embedded files
+    S + "OpenFootprintEditor": (EMPTY, "view"),
+    B + "NewLibraryFootprint": (B + "LibraryFootprintResponse", "view"),
+    B + "EditLibraryFootprint": (B + "LibraryFootprintResponse", "view"),
+    B + "SetLibraryFootprintProperties": (EMPTY, "edit"),
+    B + "RenderLibraryFootprint": (B + "RenderLibraryFootprintResponse", "read"),
+    C + "EmbedFileFromPath": (C + "EmbedFileFromPathResponse", "edit"),
+    C + "GetEmbeddedFileList": (C + "EmbeddedFileListResponse", "read"),
+    C + "RemoveEmbeddedFile": (EMPTY, "edit"),
     # Exports (from the unsaved model)
     J + "RunSchematicJobExportSvg": (T + "RunJobResponse", "job"),
     J + "RunSchematicJobExportPdf": (T + "RunJobResponse", "job"),
