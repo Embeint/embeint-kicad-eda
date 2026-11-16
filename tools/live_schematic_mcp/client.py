@@ -94,6 +94,8 @@ def item_id(packed):
     return None
 
 
+MANUFACTURER_FIELD, MPN_FIELD = "Manufacturer", "MPN"
+
 SCOPES = {"global": lib_types.LTS_GLOBAL, "project": lib_types.LTS_PROJECT, "both": lib_types.LTS_BOTH}
 SCOPE_NAMES = {lib_types.LTS_GLOBAL: "global", lib_types.LTS_PROJECT: "project"}
 
@@ -107,9 +109,12 @@ def check_library_status(status, action):
 
 def summarize_symbol(symbol):
     """The parts of a library symbol an agent needs, without its graphics."""
-    pins = []
+    pins, user_fields = [], {}
     for child in symbol.items:
-        pin = sch.SchematicPin()
+        pin, field = sch.SchematicPin(), sch.SchematicField()
+        if child.item.Unpack(field) and field.name:
+            user_fields[field.name] = field.text.text
+            continue
         if child.item.Unpack(pin):
             entry = {"number": pin.number, "name": pin.name, "type": types.ElectricalPinType.Name(pin.electrical_type),
                      "position_mm": mm(pin.position), "orientation": sch.SchematicPinOrientation.Name(pin.orientation)}
@@ -118,7 +123,7 @@ def summarize_symbol(symbol):
             pins.append(entry)
     fields = {name: getattr(symbol, f"{name}_field").text.text
               for name in ("reference", "value", "footprint", "datasheet", "description")}
-    return {"lib_id": lib_id_text(symbol.id), **fields, "keywords": symbol.keywords,
+    return {"lib_id": lib_id_text(symbol.id), **fields, "fields": user_fields, "keywords": symbol.keywords,
             "footprint_filters": list(symbol.footprint_filters), "units": symbol.unit_count or 1,
             "type": sch.SchematicSymbolType.Name(symbol.type),
             "pins": sorted(pins, key=lambda p: (len(p["number"]), p["number"]))}
@@ -546,14 +551,18 @@ class LiveSchematic:
 
     def new_symbol(self, library_nickname, name, reference_prefix="U", unit_count=1, inherit_from="",
                    power_symbol=False, pin_names_outside=False, hide_pin_numbers=False, hide_pin_names=False,
-                   exclude_from_bom=False, exclude_from_board=False, replace_existing=False):
+                   exclude_from_bom=False, exclude_from_board=False, replace_existing=False,
+                   manufacturer=None, mpn=None):
         request = commands.NewLibrarySymbol(
             library_nickname=library_nickname, name=name, reference_prefix=reference_prefix,
             unit_count=unit_count, inherit_from=inherit_from, power_symbol=power_symbol,
             pin_names_outside=pin_names_outside, hide_pin_numbers=hide_pin_numbers,
             hide_pin_names=hide_pin_names, exclude_from_bom=exclude_from_bom,
             exclude_from_board=exclude_from_board, replace_existing=replace_existing)
-        return as_dict(self.send(request, commands.LibrarySymbolResponse).document)
+        document_spec = self.send(request, commands.LibrarySymbolResponse).document
+        # Every new symbol carries sourcing fields, hidden, ready to fill in
+        self.symbol_set_properties(document_spec, manufacturer=manufacturer or "", mpn=mpn or "")
+        return as_dict(document_spec)
 
     def edit_symbol(self, lib_id):
         request = commands.EditLibrarySymbol(id=lib_identifier(lib_id))
@@ -563,10 +572,10 @@ class LiveSchematic:
         response = self.send(editor.GetItems(header=types.ItemHeader(document=doc)), editor.GetItemsResponse)
         return response
 
-    def symbol_add_pins(self, doc, pins, draw_body=True, replace=False):
+    def symbol_add_pins(self, doc, pins, draw_body=True, replace=False, arrange="auto", group_gap=2):
         """Add pins (and a body rectangle) laid out around a box, as one undo step."""
         from symbol_layout import layout_box
-        layout = layout_box(pins)
+        layout = layout_box(pins, arrange=arrange, group_gap=group_gap)
         items = []
         if replace:
             existing = [i for i in self.symbol_items(doc).items
@@ -616,7 +625,7 @@ class LiveSchematic:
                               keywords=None, reference_prefix=None, footprint_filters=None, user_fields=None,
                               remove_user_fields=None, show_pin_numbers=None, show_pin_names=None,
                               exclude_from_bom=None, exclude_from_board=None, exclude_from_sim=None,
-                              power_symbol=None, place_fields_around_body=False):
+                              power_symbol=None, place_fields_around_body=False, manufacturer=None, mpn=None):
         request = commands.SetLibrarySymbolProperties(document=doc, place_fields_around_body=place_fields_around_body)
         for name, setting in (("value", value), ("footprint", footprint), ("datasheet", datasheet),
                               ("description", description), ("keywords", keywords),
@@ -629,7 +638,9 @@ class LiveSchematic:
         if footprint_filters is not None:
             request.set_footprint_filters = True
             request.footprint_filters.extend(footprint_filters)
-        for field in user_fields or []:
+        sourcing = [{"name": name, "value": setting, "visible": False}
+                    for name, setting in ((MANUFACTURER_FIELD, manufacturer), (MPN_FIELD, mpn)) if setting is not None]
+        for field in sourcing + list(user_fields or []):
             request.user_fields.add(name=field["name"], value=str(field.get("value", "")),
                                     visible=bool(field.get("visible", False)))
         request.remove_user_fields.extend(remove_user_fields or [])

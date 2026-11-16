@@ -54,6 +54,13 @@ Typical flow: search first; if nothing fits, `live_symbol_create_library` (once)
 `live_symbol_add_pins`, `live_symbol_set_properties`, check with `live_symbol_view`, `live_symbol_save`,
 then place it. Pins of multi-unit symbols cannot be assigned to units yet.
 
+Defaults: new symbols get hidden `Manufacturer` and `MPN` fields. Pins follow datasheet convention:
+supplies and control inputs on the left, outputs and feedback (ADJ, FB, PG) on the right, grounds
+at the bottom. Supplies come first on each side, with two empty rows (7.62 mm, a resistor's pin
+spacing) before the signals, so an LDO gets VIN over EN and VOUT over ADJ. The designator sits above
+the value at the body's bottom right. Pass sides with `arrange="as_given"` to follow a specific
+datasheet pinout exactly.
+
 Hierarchy: create a `SheetSymbol` (with `pins`) on the parent, read its path from
 `live_schematic_hierarchy`, then target the child sheet with that `sheet_path` to add matching
 `HierarchicalLabel`s.

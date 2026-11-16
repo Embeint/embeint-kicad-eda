@@ -249,26 +249,48 @@ def test_transform_maps_rotation_and_reports_dragged_items():
 
 def test_box_layout_keeps_pins_on_grid_and_outside_the_body():
     from symbol_layout import layout_box
-    pins = [{"number": "1", "name": "VIN", "type": "power_in"},
-            {"number": "2", "name": "GND", "type": "power_in"},
-            {"number": "3", "name": "VOUT", "type": "power_out"},
+    pins = [{"number": "1", "name": "GND", "type": "power_in"},
+            {"number": "2", "name": "VOUT", "type": "power_out"},
+            {"number": "3", "name": "VIN", "type": "power_in"},
             {"number": "4", "name": "EN", "type": "input"},
-            {"number": "5", "name": "ADJ", "type": "passive", "side": "left"}]
+            {"number": "5", "name": "ADJ", "type": "passive"}]
     layout = layout_box(pins)
     x1, y1, x2, y2 = layout["body"]
-    sides = {p["number"]: p for p in layout["pins"]}
-    assert sides["1"]["side"] == "top" and sides["2"]["side"] == "bottom" and sides["3"]["side"] == "right"
-    for pin in layout["pins"]:
-        x, y = pin["position"]
+    pin = {p["name"]: p for p in layout["pins"]}
+    for item in layout["pins"]:
+        x, y = item["position"]
         assert abs(x / 2.54 - round(x / 2.54)) < 1e-6 and abs(y / 2.54 - round(y / 2.54)) < 1e-6
-        assert not (x1 < x < x2 and y1 < y < y2), f"pin {pin['number']} sits inside the body"
-    assert sides["4"]["position"][1] < sides["5"]["position"][1], "left pins keep their order top-down"
-    assert sides["4"]["orientation"] == "SPO_RIGHT" and sides["1"]["orientation"] == "SPO_DOWN"
-    # Top/bottom names run down the middle and must clear the side pins' inward-reading names
-    from symbol_layout import CHAR_WIDTH
-    side_label = max(len("EN"), len("ADJ"), len("VOUT")) * CHAR_WIDTH
-    for number in ("1", "2"):
-        assert abs(sides[number]["position"][0]) + 1.27 <= x2 - side_label
+        assert not (x1 < x < x2 and y1 < y < y2), f"pin {item['number']} sits inside the body"
+    assert pin["GND"]["side"] == "bottom" and pin["GND"]["orientation"] == "SPO_UP"
+    assert pin["VIN"]["orientation"] == "SPO_RIGHT"
+
+
+def test_ldo_layout_follows_datasheet_convention():
+    """VIN then EN on the left, VOUT then ADJ on the right, a resistor's length apart."""
+    from symbol_layout import layout_box
+    pins = [{"number": "1", "name": "GND", "type": "power_in"}, {"number": "2", "name": "VOUT", "type": "power_out"},
+            {"number": "3", "name": "VIN", "type": "power_in"}, {"number": "4", "name": "EN", "type": "input"},
+            {"number": "5", "name": "ADJ", "type": "passive"}]
+    pin = {p["name"]: p for p in layout_box(pins)["pins"]}
+    assert (pin["VIN"]["side"], pin["EN"]["side"]) == ("left", "left")
+    assert (pin["VOUT"]["side"], pin["ADJ"]["side"]) == ("right", "right")
+    assert round(pin["EN"]["position"][1] - pin["VIN"]["position"][1], 4) == 7.62
+    assert round(pin["ADJ"]["position"][1] - pin["VOUT"]["position"][1], 4) == 7.62
+    assert pin["VIN"]["position"][1] == pin["VOUT"]["position"][1], "input and output share the top row"
+    tight = {p["name"]: p for p in layout_box(pins, group_gap=0)["pins"]}
+    assert round(tight["EN"]["position"][1] - tight["VIN"]["position"][1], 4) == 2.54
+    exact = {p["name"]: p for p in layout_box(
+        [{"number": "4", "name": "EN", "type": "input", "side": "left"},
+         {"number": "3", "name": "VIN", "type": "power_in", "side": "left"}], arrange="as_given")["pins"]}
+    assert exact["EN"]["position"][1] < exact["VIN"]["position"][1], "as_given keeps the caller's order"
+
+
+@pytest.mark.parametrize("name,side", [("~{SHDN}", "left"), ("FB", "right"), ("PGND", "bottom"),
+                                       ("PG", "right"), ("VCC", "left")])
+def test_default_sides_by_pin_role(name, side):
+    from symbol_layout import default_side
+    kind = "power_in" if name in ("PGND", "VCC") else "input"
+    assert default_side({"name": name, "type": kind}) == side
 
 
 def test_box_layout_centres_even_pin_counts_on_grid():

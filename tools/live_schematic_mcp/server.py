@@ -308,15 +308,16 @@ def live_symbol_unregister_library(nickname: str, scope: str = "global") -> dict
 def live_symbol_new(library: str, name: str, reference_prefix: str = "U", unit_count: int = 1,
                     inherit_from: str = "", power_symbol: bool = False, pin_names_outside: bool = False,
                     exclude_from_bom: bool = False, exclude_from_board: bool = False,
-                    replace_existing: bool = False) -> dict:
+                    replace_existing: bool = False, manufacturer: str = "", mpn: str = "") -> dict:
     """Start a new symbol in a writable library and show it in KiCad's Symbol Editor (unsaved).
 
-    Returns the symbol document the other live_symbol_* tools take. inherit_from derives from another
-    symbol in the same library. Nothing is written until live_symbol_save.
+    Returns the symbol document the other live_symbol_* tools take. The symbol always gets hidden
+    Manufacturer and MPN fields (filled from these arguments when given). inherit_from derives from
+    another symbol in the same library. Nothing is written until live_symbol_save.
     """
     return client.new_symbol(library, name, reference_prefix, unit_count, inherit_from, power_symbol,
                              pin_names_outside, False, False, exclude_from_bom, exclude_from_board,
-                             replace_existing)
+                             replace_existing, manufacturer, mpn)
 
 
 @mcp.tool()
@@ -327,17 +328,22 @@ def live_symbol_edit(lib_id: str) -> dict:
 
 @mcp.tool()
 def live_symbol_add_pins(symbol_document: dict, pins: list[dict], draw_body: bool = True,
-                         replace: bool = False) -> dict:
-    """Lay out pins around a rectangular body on the 2.54 mm grid, as one undo step.
+                         replace: bool = False, arrange: str = "auto", group_gap: int = 2) -> dict:
+    """Lay out pins around a rectangular body on the 2.54 mm grid, as one undo step, datasheet-style.
 
-    pins: [{"number": "1", "name": "VIN", "type": "power_in", "side": "top"}, ...]. type is one of
-    input, output, bidirectional, tri_state, passive, free, unspecified, power_in, power_out,
-    open_collector, open_emitter, no_connect. side (left/right/top/bottom) defaults by type: power
-    inputs top (grounds bottom), outputs right, others left. Order within a side is kept; {"gap": true,
-    "side": "left"} leaves a space. Optional "shape" (SPS_INVERTED, SPS_CLOCK, ...) and "hidden".
-    replace=true first removes existing pins and shapes.
+    pins: [{"number": "1", "name": "VIN", "type": "power_in"}, ...]. type is one of input, output,
+    bidirectional, tri_state, passive, free, unspecified, power_in, power_out, open_collector,
+    open_emitter, no_connect. side (left/right/top/bottom) is optional; by default supplies and
+    control inputs (EN, SHDN, ...) go left, outputs and feedback (VOUT, ADJ, FB, PG) go right,
+    grounds bottom. arrange="auto" lists supplies first on each side, then signals, with group_gap
+    empty rows between (2 rows = 7.62 mm, room for a pull-up or feedback resistor): an LDO gets VIN
+    then EN on the left, VOUT then ADJ on the right. Follow the datasheet pinout when it differs:
+    give sides, and arrange="as_given" with {"gap": true, "side": "left"} rows for exact spacing.
+    Optional per pin: "shape" (SPS_INVERTED, SPS_CLOCK, ...), "hidden". replace=true first removes
+    existing pins and shapes. The designator and value are placed at the body's bottom right.
     """
-    return client.symbol_add_pins(symbol_document_spec(symbol_document), pins, draw_body, replace)
+    return client.symbol_add_pins(symbol_document_spec(symbol_document), pins, draw_body, replace, arrange,
+                                  group_gap)
 
 
 @mcp.tool()
@@ -349,16 +355,19 @@ def live_symbol_set_properties(symbol_document: dict, value: str | None = None, 
                                remove_user_fields: list[str] | None = None,
                                show_pin_numbers: bool | None = None, show_pin_names: bool | None = None,
                                exclude_from_bom: bool | None = None, exclude_from_board: bool | None = None,
-                               exclude_from_sim: bool | None = None) -> dict:
+                               exclude_from_sim: bool | None = None, manufacturer: str | None = None,
+                               mpn: str | None = None) -> dict:
     """Fill in the open symbol's details as one undo step; omitted settings are unchanged.
 
-    footprint is Library:Footprint. footprint_filters are globs like "SOIC*3.9x4.9mm*".
-    user_fields: [{"name": "MPN", "value": "LM1117-3.3", "visible": false}] adds or updates fields.
+    footprint is Library:Footprint. footprint_filters are globs like "SOT?223*". manufacturer and mpn
+    set the hidden Manufacturer and MPN fields. user_fields: [{"name": "Distributor PN", "value": "...",
+    "visible": false}] adds or updates any other field.
     """
     return client.symbol_set_properties(
         symbol_document_spec(symbol_document), value, footprint, datasheet, description, keywords,
         reference_prefix, footprint_filters, user_fields, remove_user_fields, show_pin_numbers,
-        show_pin_names, exclude_from_bom, exclude_from_board, exclude_from_sim)
+        show_pin_names, exclude_from_bom, exclude_from_board, exclude_from_sim, None, False,
+        manufacturer, mpn)
 
 
 @mcp.tool()

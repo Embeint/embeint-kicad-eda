@@ -47,7 +47,7 @@ def main():
     check(any(r["nickname"] == nickname and r["scope"] == "global" for r in client.library_table("global")),
           "library is in the global table")
     try:
-        doc_dict = client.new_symbol(nickname, "TESTREG", reference_prefix="U")
+        doc_dict = client.new_symbol(nickname, "TESTREG", reference_prefix="U", manufacturer="Test Semiconductor")
         doc = symbol_document(doc_dict)
         check(doc.lib_id.entry_name == "TESTREG", f"new symbol open in the Symbol Editor: {doc_dict['lib_id']}")
         try:
@@ -66,12 +66,16 @@ def main():
         summary = client.symbol_summary(doc)
         check(sorted(p["number"] for p in summary["pins"]) == ["1", "2", "3", "4", "5"]
               and len(summary["graphic_shape_ids"]) == 1, f"5 pins and a body added: {laid_out['body_mm']}")
+        at = {p["name"]: p["position_mm"] for p in summary["pins"]}
+        check(at["VIN"][0] < 0 < at["VOUT"][0] and at["EN"][0] < 0 < at["ADJ"][0],
+              "VIN/EN on the left, VOUT/ADJ on the right")
+        check(round(at["EN"][1] - at["VIN"][1], 2) == 7.62 and round(at["ADJ"][1] - at["VOUT"][1], 2) == 7.62,
+              "EN and ADJ sit a resistor's length (7.62 mm) below VIN and VOUT")
 
         client.symbol_set_properties(
             doc, value="TESTREG", footprint="Package_TO_SOT_SMD:SOT-223-3_TabPin2",
             datasheet="https://example.com/testreg.pdf", description="Test 3.3 V LDO regulator",
-            keywords="ldo regulator mcptest", footprint_filters=["SOT?223*"],
-            user_fields=[{"name": "MPN", "value": f"TR-{tag}", "visible": False}])
+            keywords="ldo regulator mcptest", footprint_filters=["SOT?223*"], mpn=f"TR-{tag}")
         png = client.symbol_render(doc, dpi=600)
         check(png.startswith(b"\x89PNG"), f"rendered the unsaved symbol ({len(png)} bytes)")
         (out / "symbol.png").write_bytes(png)
@@ -85,6 +89,8 @@ def main():
         stored = client.library_symbol(lib_id)
         check(stored["description"] == "Test 3.3 V LDO regulator" and len(stored["pins"]) == 5,
               f"library now serves {lib_id} with its details")
+        check(stored["fields"].get("Manufacturer") == "Test Semiconductor" and stored["fields"].get("MPN") == f"TR-{tag}",
+              f"Manufacturer and MPN stored: {stored['fields']}")
         check(any(r["lib_id"] == lib_id for r in client.search_symbols("mcptest", limit=50)["results"]),
               "keyword search finds the new symbol")
 

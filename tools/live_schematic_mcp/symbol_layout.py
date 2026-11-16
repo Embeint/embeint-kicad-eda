@@ -27,24 +27,60 @@ def _round_up(value, step):
     return math.ceil(round(value / step, 6)) * step
 
 
-def default_side(pin):
-    """Power inputs on top, grounds at the bottom, outputs right, everything else left."""
+GROUND_NAMES = {"GND", "VSS", "AGND", "DGND", "PGND", "SGND", "GNDA", "GNDD", "EP", "PAD", "EPAD", "0V"}
+CONTROL_NAMES = {"EN", "ENABLE", "SHDN", "SD", "ON", "OFF", "CE", "INH", "UVLO", "SS", "TR", "SYNC", "MODE",
+                 "RUN", "STBY", "STANDBY"}
+FEEDBACK_NAMES = {"FB", "ADJ", "SENSE", "SNS", "VSENSE", "VFB", "BYP", "BYPASS", "NR", "PG", "PGOOD", "FLAG"}
+
+
+def _base_name(pin):
+    """Upper-case name without inversion marks, so ~{SHDN} and /EN classify like SHDN and EN."""
     name = str(pin.get("name", "")).upper()
+    for mark in ("~{", "}", "/", "~", "#", "!"):
+        name = name.replace(mark, "")
+    return name
+
+
+def is_ground(pin):
+    name = _base_name(pin)
+    return pin.get("type", "passive") in ("power_in", "passive") and (name in GROUND_NAMES or name.startswith("GND"))
+
+
+def default_side(pin):
+    """Datasheet-style placement: supplies and control inputs left, outputs and feedback right,
+    grounds at the bottom. LDOs come out as VIN/EN on the left and VOUT/ADJ on the right."""
+    name = _base_name(pin)
     kind = pin.get("type", "passive")
-    if kind == "power_in":
-        return "bottom" if name in {"GND", "VSS", "AGND", "DGND", "PGND", "GNDA", "GNDD", "EP", "PAD"} else "top"
-    if kind in ("output", "power_out", "open_collector", "open_emitter", "tri_state"):
+    if is_ground(pin):
+        return "bottom"
+    if name in FEEDBACK_NAMES or kind in ("output", "power_out", "open_collector", "open_emitter", "tri_state"):
         return "right"
     return "left"
 
 
-def layout_box(pins, pin_length=PIN_LENGTH):
+def group_rank(pin):
+    """Supplies first on each side, then signals, then no-connects."""
+    if pin.get("type") in ("power_in", "power_out") and not is_ground(pin):
+        return 0
+    if pin.get("type") == "no_connect" or _base_name(pin) in {"NC", "DNC"}:
+        return 2
+    return 1
+
+
+def layout_box(pins, pin_length=PIN_LENGTH, arrange="auto", group_gap=2):
     """Return {'body': (x1, y1, x2, y2), 'pins': [...]} for pins around a centred rectangle.
 
-    Each pin is {"number", "name", "type", "side"}; side defaults by type (see default_side).
-    Pins on each side keep their given order: top-to-bottom on the left/right, left-to-right on
-    the top/bottom. Gaps can be inserted with {"gap": true}.
+    Each pin is {"number", "name", "type", "side"}; side defaults datasheet-style (see default_side).
+    With arrange="auto", each left/right side lists supply pins first, then signals, then
+    no-connects, leaving group_gap empty rows between groups.  Two rows put EN 7.62 mm below VIN
+    and ADJ 7.62 mm below VOUT, a resistor's pin spacing, so a pull-up or feedback divider drops
+    straight in.  Within a group the given order is kept.  arrange="as_given" keeps the exact
+    order; {"gap": true, "side": ...} inserts an empty row either way.
     """
+    if arrange not in ("auto", "as_given"):
+        raise ValueError("arrange must be auto or as_given")
+    if not 0 <= group_gap <= 6:
+        raise ValueError("group_gap must be between 0 and 6 rows")
     if not pins:
         raise ValueError("A symbol needs at least one pin")
     by_side = {side: [] for side in SIDES}
@@ -66,6 +102,19 @@ def layout_box(pins, pin_length=PIN_LENGTH):
         if side not in SIDES:
             raise ValueError(f"Pin {number}: side must be one of {SIDES}")
         by_side[side].append({**pin, "number": number, "type": kind, "side": side})
+
+    if arrange == "auto":
+        for side in ("left", "right"):
+            entries = by_side[side]
+            if None in entries:  # explicit gaps: the caller is arranging this side
+                continue
+            ordered = sorted(entries, key=group_rank)
+            arranged = []
+            for pin in ordered:
+                if arranged and group_rank(pin) != group_rank(arranged[-1]):
+                    arranged.extend([None] * group_gap)
+                arranged.append(pin)
+            by_side[side] = arranged
 
     def label_width(side):
         names = [len(str(p.get("name", ""))) for p in by_side[side] if p]
