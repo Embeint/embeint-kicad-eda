@@ -577,6 +577,12 @@ std::optional<wxString> API_HANDLER_LIBRARIES::saveAndReloadTable( LIBRARY_TABLE
         return saved.error().message;
 
     Pgm().GetLibraryManager().ReloadTables( aScope, { m_type } );
+
+    // Reloading a table drops every loaded library of its type.  Load them again in the background,
+    // as the library table dialog does through PreloadLibraries
+    if( LIBRARY_MANAGER_ADAPTER* adapter = adapterForProject( Pgm().GetSettingsManager().Prj() ) )
+        adapter->AsyncLoad();
+
     return std::nullopt;
 }
 

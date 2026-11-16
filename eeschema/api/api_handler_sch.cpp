@@ -110,6 +110,28 @@ std::set<KICAD_T> API_HANDLER_SCH::s_allowedTypes = {
 };
 
 
+/**
+ * Loads a library symbol, first loading its library if it is not loaded yet.  Background preloads
+ * are restarted whenever a library table changes, and a command must not fail just because the
+ * preload has not reached the library it needs.
+ */
+static LIB_SYMBOL* loadLibrarySymbol( SYMBOL_LIBRARY_ADAPTER* aAdapter, const LIB_ID& aId )
+{
+    if( !aAdapter )
+        return nullptr;
+
+    LIB_SYMBOL* symbol = aAdapter->LoadSymbol( aId );
+
+    if( !symbol && aAdapter->HasLibrary( aId.GetUniStringLibNickname(), true ) )
+    {
+        aAdapter->LoadLibraryEntry( aId.GetUniStringLibNickname() );
+        symbol = aAdapter->LoadSymbol( aId );
+    }
+
+    return symbol;
+}
+
+
 HANDLER_RESULT<types::RunJobResponse> ExecuteSchematicJob( KIWAY* aKiway, JOB& aJob )
 {
     types::RunJobResponse response;
@@ -3237,7 +3259,7 @@ HANDLER_RESULT<PlaceFromLibraryResponse> API_HANDLER_SCH::handlePlaceSymbolFromL
     }
 
     SYMBOL_LIBRARY_ADAPTER* adapter = PROJECT_SCH::SymbolLibAdapter( &project() );
-    LIB_SYMBOL* libSymbol = adapter->LoadSymbol( libId );
+    LIB_SYMBOL* libSymbol = loadLibrarySymbol( adapter, libId );
 
     if( !libSymbol )
     {
@@ -3681,7 +3703,7 @@ API_HANDLER_SCH::handleUpdateSymbolsFromLibrary(
 
         try
         {
-            libSymbol = adapter->LoadSymbol( libId );
+            libSymbol = loadLibrarySymbol( adapter, libId );
         }
         catch( const IO_ERROR& error )
         {
@@ -4345,7 +4367,7 @@ HANDLER_RESULT<kiapi::schematic::commands::LibrarySymbolResponse> API_HANDLER_SC
     }
 
     if( !parent.IsEmpty() && !libMgr.SymbolExists( parent, library )
-        && !PROJECT_SCH::SymbolLibAdapter( &project() )->LoadSymbol( library, parent ) )
+        && !loadLibrarySymbol( PROJECT_SCH::SymbolLibAdapter( &project() ), LIB_ID( library, parent ) ) )
     {
         return tl::unexpected( apiError( ApiStatusCode::AS_BAD_REQUEST,
                                          fmt::format( "'{}' to inherit from is not in '{}'", request.inherit_from(),
@@ -4398,7 +4420,7 @@ HANDLER_RESULT<kiapi::schematic::commands::LibrarySymbolResponse> API_HANDLER_SC
     // Checked first: the editor reports a missing symbol in a modal dialog.  The library manager
     // only consults its buffers once a library has any, so ask the library itself too.
     if( !( *editor )->GetLibManager().SymbolExists( name, library )
-        && !PROJECT_SCH::SymbolLibAdapter( &project() )->LoadSymbol( library, name ) )
+        && !loadLibrarySymbol( PROJECT_SCH::SymbolLibAdapter( &project() ), LIB_ID( library, name ) ) )
     {
         return tl::unexpected( apiError( ApiStatusCode::AS_BAD_REQUEST,
                                          fmt::format( "symbol {}:{} not found", aCtx.Request.id().library_nickname(),
