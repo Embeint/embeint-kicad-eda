@@ -100,6 +100,161 @@ def live_schematic_save(document_spec: dict) -> dict:
 
 
 @mcp.tool()
+def live_schematic_annotate(document_spec: dict, scope: str = "all", symbols: list[str] | None = None,
+                            order: str = "x", numbering: str = "first_free", reset_existing: bool = False,
+                            recursive: bool = True, start_number: int = 0) -> dict:
+    """Annotate reference designators as one undo step, without saving.
+
+    scope: all | sheet (the document's sheet, plus subsheets if recursive) | symbols (UUID list).
+    order: x | y | unsorted. numbering: first_free | sheet_x100 | sheet_x1000.
+    reset_existing renumbers already-annotated symbols too. Returns old -> new references.
+    """
+    return client.annotate(document(document_spec), scope, symbols or [], order, numbering,
+                           reset_existing, recursive, start_number)
+
+
+@mcp.tool()
+def live_schematic_update_from_library(document_spec: dict, symbols: list[str] | None = None,
+                                       new_lib_id: str | None = None, reset_field_text: bool = False,
+                                       reset_field_visibility: bool = False,
+                                       reset_field_positions: bool = False,
+                                       remove_extra_fields: bool = False) -> dict:
+    """Reload symbols from their library, or change them to new_lib_id (Library:Symbol), as one undo step.
+
+    symbols are UUIDs; omit to update every symbol on the document's sheet. References are kept.
+    reset_field_text resets value/footprint/datasheet/description to the library's (not power values).
+    """
+    return client.update_from_library(document(document_spec), symbols or [], new_lib_id, reset_field_text,
+                                      reset_field_visibility, reset_field_positions, remove_extra_fields)
+
+
+@mcp.tool()
+def live_schematic_autoplace_fields(document_spec: dict, ids: list[str] | None = None) -> dict:
+    """Re-run KiCad field autoplacement on symbols, sheets and labels (all on the sheet if ids omitted)."""
+    return client.autoplace(document(document_spec), ids or [])
+
+
+@mcp.tool()
+def live_schematic_move(document_spec: dict, ids: list[str], dx_mm: float = 0, dy_mm: float = 0,
+                        rotation: int = 0, mirror_horizontally: bool = False, mirror_vertically: bool = False,
+                        drag_wires: bool = True) -> dict:
+    """Move, rotate (degrees counter-clockwise: 0/90/180/270) and/or mirror items on one sheet in one undo step.
+
+    One item turns about its own position; several turn about their shared centre. With drag_wires, wire
+    and bus ends, labels, junctions and no-connects attached to the items' pins follow them; a horizontal or
+    vertical wire stays square by gaining a bend. Positive dy is down.
+    """
+    return client.transform(document(document_spec), ids, dx_mm, dy_mm, rotation, mirror_horizontally,
+                            mirror_vertically, drag_wires)
+
+
+@mcp.tool()
+def live_schematic_undo(document_spec: dict, redo: bool = False) -> dict:
+    """Undo (or redo) the editor's most recent change, including the user's own edits. Not while a batch is open."""
+    return client.undo(document(document_spec), redo)
+
+
+@mcp.tool()
+def live_schematic_symbol_pins(document_spec: dict, symbols: list[str] | None = None) -> list[dict]:
+    """List placed pins with absolute connection points (mm) and current net, for symbols on one sheet.
+
+    orientation is the direction from the connection point toward the body; wires leave the other way.
+    """
+    return client.symbol_pins(document(document_spec), symbols or [])
+
+
+@mcp.tool()
+def live_schematic_connect_pins(document_spec: dict, from_reference: str, from_pin: str,
+                                to_reference: str, to_pin: str) -> dict:
+    """Wire two pins on one sheet with an orthogonal one- or two-segment wire, as one undo step.
+
+    Pins are given by reference designator and pin number or name (e.g. R1, 2). Check the view afterwards:
+    the route does not avoid other symbols.
+    """
+    return client.connect_pins(document(document_spec), from_reference, from_pin, to_reference, to_pin)
+
+
+@mcp.tool()
+def live_schematic_connect_pin_to_net(document_spec: dict, reference: str, pin: str, net: str,
+                                      label: str = "local", stub_mm: float = 2.54) -> dict:
+    """Attach a pin to a named net: a short wire leaving the pin plus a local/global/hierarchical label."""
+    return client.connect_pin_to_net(document(document_spec), reference, pin, net, label, stub_mm)
+
+
+@mcp.tool()
+def live_schematic_netlist(document_spec: dict) -> dict:
+    """Read live connectivity: each net with its pins as REF.PIN, plus item counts. Includes unsaved edits."""
+    doc = document(document_spec)
+    nets, pin_nets = client.netlist(doc)
+    labels = {}
+    for symbol in client.symbol_pins(doc, with_nets=False):
+        for pin in symbol["pins"]:
+            labels[pin["id"]] = f'{symbol["reference"]}.{pin["number"]}'
+    return {name: {"pins": sorted({labels[i] for _, i in members if i in labels}), "items": len(members)}
+            for name, members in sorted(nets.items())}
+
+
+@mcp.tool()
+def live_schematic_erc(document_spec: dict) -> dict:
+    """Run KiCad's electrical rules check on the live (unsaved) schematic and return the violations."""
+    return client.erc(document(document_spec))
+
+
+@mcp.tool()
+def live_schematic_select(document_spec: dict, ids: list[str], add: bool = False) -> dict:
+    """Select items in the editor so the user can see them (replaces the selection unless add=true)."""
+    return client.select(document(document_spec), ids, add)
+
+
+@mcp.tool()
+def live_schematic_highlight_nets(document_spec: dict, nets: list[str]) -> dict:
+    """Highlight nets in the editor by name (an empty list clears the highlight)."""
+    return client.highlight_nets(document(document_spec), nets)
+
+
+@mcp.tool()
+def live_schematic_export(document_spec: dict, kind: str, output_path: str) -> dict:
+    """Export the unsaved schematic as svg, pdf, dxf, ps, netlist or bom to a path KiCad can write."""
+    return client.export(document(document_spec), kind, output_path)
+
+
+@mcp.tool()
+def live_schematic_list_commands() -> list[dict]:
+    """List every KiCad schematic IPC command, its kind (read/edit/view/file/job) and reply type."""
+    from commands import COMMANDS
+    return [{"command": name.rsplit(".", 1)[-1], "full_name": name, "kind": kind, "returns": reply}
+            for name, (reply, kind) in COMMANDS.items()]
+
+
+@mcp.tool()
+def live_schematic_describe_command(command: str) -> dict:
+    """Show the fields of a command from live_schematic_list_commands, for use with execute or batch."""
+    from commands import describe
+    return describe(command)
+
+
+@mcp.tool()
+def live_schematic_execute(command: str, payload: dict | None = None) -> dict:
+    """Run any KiCad schematic IPC command by name with a protobuf-JSON payload.
+
+    Prefer the typed tools. Most commands need a document (or header.document) from
+    live_schematic_documents. File-kind commands (SaveDocument, RevertDocument, ...) change or discard
+    files: run them only when the user asks. An edit command is not retried if the reply is lost.
+    """
+    return client.execute(command, payload)
+
+
+@mcp.tool()
+def live_schematic_batch(document_spec: dict, steps: list[dict], description: str = "MCP: batch") -> dict:
+    """Run several read/edit/view commands as ONE undo step; if any step fails, all are rolled back.
+
+    steps: [{"command": "CreateItems", "payload": {...}}, ...] using names from live_schematic_list_commands.
+    Undo/redo and file/job commands are not allowed in a batch.
+    """
+    return client.batch(document(document_spec), steps, description)
+
+
+@mcp.tool()
 def live_schematic_item_schema(type_name: str) -> dict:
     """Describe a schematic protobuf item and nested fields, including enum choices.
 

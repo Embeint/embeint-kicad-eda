@@ -19,10 +19,29 @@ Requires this development build (10.99 / KiCad 11). Released KiCad 10.x has no s
 | `live_schematic_focus` | Switch the editor to a sheet and zoom to items |
 | `live_schematic_item_schema` | Field reference for item types (SheetSymbol, SheetPin, ...) |
 | `live_schematic_save` | Explicit save, only when asked |
+| `live_schematic_annotate` | Number references (all / one sheet / listed symbols; by X or Y; first free or sheet x100/x1000) |
+| `live_schematic_update_from_library` | Reload symbols from their library, or swap them to another `Library:Symbol` |
+| `live_schematic_autoplace_fields` | Re-run field autoplacement on symbols, sheets and labels |
+| `live_schematic_move` | Move / rotate / mirror items; attached wires follow and stay square |
+| `live_schematic_undo` | Undo or redo the editor's last change |
+| `live_schematic_symbol_pins` | Placed pins with absolute positions, drawn direction and current net |
+| `live_schematic_connect_pins` | Orthogonal wire between two pins (`R1`,`2` to `U1`,`VCC`) |
+| `live_schematic_connect_pin_to_net` | Stub wire plus local/global/hierarchical label on a pin |
+| `live_schematic_netlist` | Live nets with their `REF.PIN` members |
+| `live_schematic_erc` | Electrical rules check of the unsaved design |
+| `live_schematic_select` / `_highlight_nets` | Show items or nets to the user in the editor |
+| `live_schematic_export` | SVG, PDF, DXF, PS, netlist or BOM from the unsaved design |
+| `live_schematic_list_commands` / `_describe_command` / `_execute` | Every IPC command KiCad registers, by name |
+| `live_schematic_batch` | Several commands as one undo step, all rolled back if any fails |
 
 Hierarchy: create a `SheetSymbol` (with `pins`) on the parent, read its path from
 `live_schematic_hierarchy`, then target the child sheet with that `sheet_path` to add matching
 `HierarchicalLabel`s.
+
+KiCad commands this fork adds for the tools above (`api/proto/schematic/schematic_commands.proto`):
+`AnnotateSchematic`, `UpdateSymbolsFromLibrary`, `AutoplaceFields`, `TransformItems`,
+`UndoLastChange` / `RedoLastChange` and `GetSymbolPins`. Every editing command joins an open
+`BeginCommit`, so a batch is one undo step. Undo/redo need the GUI and refuse an open commit.
 
 ## Setup (Windows + WSL Ubuntu)
 
@@ -53,4 +72,5 @@ claude mcp add kicad-live -- wsl.exe -d Ubuntu -- bash /mnt/c/<fork>/tools/live_
 ```bash
 ~/kicad-live/venv/bin/python -m pytest test_client.py      # protocol contracts, no KiCad needed
 ~/kicad-live/venv/bin/python e2e_smoke.py out/             # against a running editor; never saves
+~/kicad-live/venv/bin/python e2e_features.py out/          # annotate, wiring, move, undo, ERC, batch, export
 ```

@@ -8,6 +8,7 @@ import pytest
 
 from client import (LiveSchematic, as_dict, base, document, editor, jobs,
                     parse_items, point, sch, sch_jobs, types)
+from client import commands as sch_cmds
 
 
 def doc():
@@ -148,6 +149,102 @@ def test_place_symbol_commits_and_returns_compact_summary():
     assert [type(r).__name__ for r in client.requests] == ["BeginCommit", "PlaceSymbolFromLibrary",
                                                            "EndCommit"]
     assert client.requests[-1].action == editor.CMA_COMMIT
+
+
+def test_every_registered_command_resolves_to_real_messages():
+    import commands
+    for name, (reply, kind) in commands.COMMANDS.items():
+        assert commands.message_class(name)().DESCRIPTOR.full_name == name
+        assert commands.message_class(reply)().DESCRIPTOR.full_name == reply
+        assert kind in {"read", "edit", "view", "file", "job"}
+    assert commands.resolve("TransformItems").endswith("schematic.commands.TransformItems")
+    with pytest.raises(ValueError):
+        commands.resolve("NoSuchCommand")
+
+
+def pins_reply(*pins):
+    response = sch_cmds.SymbolPinsResponse()
+    for reference, number, x, y, orientation in pins:
+        symbol = response.symbols.add(reference=reference, unit=1)
+        symbol.symbol.value = str(uuid.uuid4())
+        symbol.pins.add(id=types.KIID(value=str(uuid.uuid4())), number=number, position=point(x, y),
+                        orientation=orientation)
+    return response
+
+
+def test_connect_pins_routes_orthogonally_from_the_first_pin_axis():
+    created = []
+    def reply(request, response_type):
+        if isinstance(request, sch_cmds.GetSymbolPins):
+            return pins_reply(("R1", "2", 10, 10, sch.SPO_LEFT), ("R2", "1", 30, 25, sch.SPO_RIGHT))
+        created.extend(request.items)
+        response = editor.CreateItemsResponse(status=types.IRS_OK)
+        for item in request.items:
+            response.created_items.add(status=editor.ItemStatus(code=editor.ISC_OK), item=item)
+        return response
+    result = FakeClient(reply).connect_pins(doc(), "R1", "2", "R2", "1")
+    assert result["path_mm"] == [[10.0, 10.0], [30.0, 10.0], [30.0, 25.0]]
+    assert len(created) == 2
+
+
+def test_connect_pin_to_net_leaves_away_from_the_body():
+    created = []
+    def reply(request, response_type):
+        if isinstance(request, sch_cmds.GetSymbolPins):
+            # SPO_RIGHT: the pin runs right from its end toward the body, so the wire leaves leftward
+            return pins_reply(("U1", "3", 50, 40, sch.SPO_RIGHT))
+        created.extend(request.items)
+        response = editor.CreateItemsResponse(status=types.IRS_OK)
+        for item in request.items:
+            response.created_items.add(status=editor.ItemStatus(code=editor.ISC_OK), item=item)
+        return response
+    result = FakeClient(reply).connect_pin_to_net(doc(), "U1", "3", "VCC", stub_mm=5)
+    assert result["label_position_mm"] == [45.0, 40.0]
+    label = sch.LocalLabel()
+    assert created[1].Unpack(label) and label.text.text == "VCC" and label.spin_style == sch.SLSS_LEFT
+
+
+def test_batch_drops_everything_when_a_step_is_rejected():
+    def reply(request, response_type):
+        response = editor.CreateItemsResponse(status=types.IRS_OK)
+        response.created_items.add(status=editor.ItemStatus(code=editor.ISC_INVALID_DATA,
+                                                            error_message="bad wire"))
+        return response
+    client = FakeClient(reply)
+    packed = {"@type": "type.googleapis.com/kiapi.schematic.types.SchematicLine"}
+    steps = [{"command": "CreateItems", "payload": {"items": [packed]}}]
+    with pytest.raises(RuntimeError, match="bad wire"):
+        client.batch(doc(), steps)
+    assert client.requests[-1].action == editor.CMA_DROP
+
+
+def test_batch_refuses_undo_and_file_commands_before_starting():
+    client = FakeClient(lambda *_: pytest.fail("nothing should be sent"))
+    for command in ("UndoLastChange", "SaveDocument", "RunSchematicJobExportPdf"):
+        with pytest.raises(ValueError, match="cannot run inside a batch"):
+            client.batch(doc(), [{"command": command, "payload": {}}])
+    assert client.requests == []
+
+
+def test_undo_is_sent_outside_any_commit():
+    client = FakeClient(lambda request, _: sch_cmds.UndoRedoResponse(performed=True, undo_count=2))
+    assert client.undo(doc())["performed"] is True
+    assert [type(r).__name__ for r in client.requests] == ["UndoLastChange"]
+
+
+def test_transform_maps_rotation_and_reports_dragged_items():
+    def reply(request, response_type):
+        assert request.rotation == sch_cmds.IR_CCW_90 and request.drag_wires
+        assert request.translation == point(2.54, 0)
+        response = sch_cmds.TransformItemsResponse()
+        response.dragged_items.add(value="w1")
+        return response
+    client = FakeClient(reply)
+    result = client.transform(doc(), [str(uuid.uuid4())], dx=2.54, rotation=90)
+    assert result == {"moved": 1, "dragged": ["w1"]}
+    assert client.requests[-1].action == editor.CMA_COMMIT
+    with pytest.raises(ValueError):
+        client.transform(doc(), [str(uuid.uuid4())], rotation=45)
 
 
 def test_installed_kicad10_is_rejected_clearly():
