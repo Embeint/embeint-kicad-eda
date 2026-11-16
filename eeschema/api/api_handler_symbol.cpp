@@ -877,19 +877,27 @@ HANDLER_RESULT<Empty> API_HANDLER_SYMBOL::handleSetLibrarySymbolProperties(
 
         if( body.GetWidth() > 0 || body.GetHeight() > 0 )
         {
-            // Designator above value at the body's bottom right, right-aligned to its right edge.
-            // They sit just under the body unless that would cross a pin on the bottom edge, in
-            // which case they drop below the pin ends.
+            // Designator above value at the body's bottom right.  Both are left-aligned on one
+            // x, so their first letters line up, chosen so the longer text ends at the body's
+            // right edge.  They sit just under the body unless that would cross a pin on the
+            // bottom edge, in which case they drop below the pin ends.
             const int  step = schIUScale.MilsToIU( 100 );
-            const int  x = body.GetRight();
             SCH_FIELD& reference = libSymbol->GetReferenceField();
             SCH_FIELD& value = libSymbol->GetValueField();
+
+            reference.SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
+            value.SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
+
+            // Snapped to the 50 mil grid: x rounds left so the text stays within the body's
+            // width, the top rounds down the page so it stays clear of what is above
+            const int grid = schIUScale.MilsToIU( 50 );
+            const int widest = std::max( reference.GetBoundingBox().GetWidth(), value.GetBoundingBox().GetWidth() );
+            const int x = static_cast<int>( std::floor( double( body.GetRight() - widest ) / grid ) ) * grid;
 
             auto placeAt =
                     [&]( int aTop )
                     {
-                        reference.SetHorizJustify( GR_TEXT_H_ALIGN_RIGHT );
-                        value.SetHorizJustify( GR_TEXT_H_ALIGN_RIGHT );
+                        aTop = static_cast<int>( std::ceil( double( aTop ) / grid ) ) * grid;
                         reference.SetPosition( VECTOR2I( x, aTop ) );
                         value.SetPosition( VECTOR2I( x, aTop + step ) );
                     };
@@ -901,7 +909,7 @@ HANDLER_RESULT<Empty> API_HANDLER_SYMBOL::handleSetLibrarySymbolProperties(
 
             for( SCH_PIN* pin : libSymbol->GetGraphicalPins() )
             {
-                if( pin->GetBoundingBox().Intersects( text ) )
+                if( pin->IsVisible() && pin->GetBoundingBox().Intersects( text ) )
                 {
                     placeAt( libSymbol->GetBodyBoundingBox( 1, 1, true, false ).GetBottom() + step / 2 );
                     break;
@@ -918,7 +926,7 @@ HANDLER_RESULT<Empty> API_HANDLER_SYMBOL::handleSetLibrarySymbolProperties(
                 if( field == &reference || field == &value || field->IsVisible() )
                     continue;
 
-                field->SetHorizJustify( GR_TEXT_H_ALIGN_RIGHT );
+                field->SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
                 field->SetPosition( VECTOR2I( x, y ) );
                 y += step;
             }
@@ -962,6 +970,10 @@ HANDLER_RESULT<kiapi::schematic::commands::RenderLibrarySymbolResponse> API_HAND
     SCH_RENDER_SETTINGS renderSettings;
     renderSettings.LoadColors( frame()->GetColorSettings() );
     renderSettings.SetDefaultPenWidth( frame()->GetRenderSettings()->GetDefaultPenWidth() );
+
+    // Show the symbol as a schematic will: hidden pins and fields stay hidden
+    renderSettings.m_ShowHiddenPins = false;
+    renderSettings.m_ShowHiddenFields = false;
 
     // A derived symbol's graphics and pins live in its parent: draw the flattened symbol
     std::unique_ptr<LIB_SYMBOL> flattened;

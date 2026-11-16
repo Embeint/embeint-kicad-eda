@@ -356,8 +356,9 @@ message SetLibrarySymbolProperties
   optional bool exclude_from_sim = 16;
   optional bool power_symbol = 17;
 
-  // Put the designator above the value at the body's bottom right (right-aligned, clear of any
-  // bottom pins), with hidden fields stacked under the value
+  // Put the designator above the value at the body's bottom right, left-aligned on one x so their
+  // first letters line up and the longer ends at the body's right edge, clear of any bottom pins;
+  // hidden fields stack under the value
   bool place_fields_around_body = 18;
 }
 
