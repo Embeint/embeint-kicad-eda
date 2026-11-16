@@ -563,10 +563,31 @@ void FOOTPRINT::SerializeDefinition( kiapi::board::types::Footprint* aOutput ) c
 
     kiapi::common::PackLibId( aOutput->mutable_id(), GetFPID() );
     // anchor?
-    aOutput->mutable_attributes()->set_description( GetLibDescription().ToUTF8() );
-    aOutput->mutable_attributes()->set_keywords( GetKeywords().ToUTF8() );
+    types::FootprintAttributes* attrs = aOutput->mutable_attributes();
+    attrs->set_description( GetLibDescription().ToUTF8() );
+    attrs->set_keywords( GetKeywords().ToUTF8() );
 
-    // TODO: serialize library mandatory fields
+    // A library footprint carries its own mandatory fields and attributes; without them a client
+    // reading a library cannot see a footprint's datasheet, value or mounting style
+    GetField( FIELD_T::REFERENCE )->Serialize( *aOutput->mutable_reference_field() );
+    GetField( FIELD_T::VALUE )->Serialize( *aOutput->mutable_value_field() );
+    GetField( FIELD_T::DATASHEET )->Serialize( *aOutput->mutable_datasheet_field() );
+    GetField( FIELD_T::DESCRIPTION )->Serialize( *aOutput->mutable_description_field() );
+
+    attrs->set_not_in_schematic( IsBoardOnly() );
+    attrs->set_exclude_from_position_files( IsExcludedFromPosFiles() );
+    attrs->set_exclude_from_bill_of_materials( IsExcludedFromBOM() );
+    attrs->set_exclude_from_simulation( IsExcludedFromSim() );
+    attrs->set_exempt_from_courtyard_requirement( AllowMissingCourtyard() );
+    attrs->set_do_not_populate( IsDNP() );
+    attrs->set_allow_soldermask_bridges( AllowSolderMaskBridges() );
+
+    if( m_attributes & FP_THROUGH_HOLE )
+        attrs->set_mounting_style( types::FootprintMountingStyle::FMS_THROUGH_HOLE );
+    else if( m_attributes & FP_SMD )
+        attrs->set_mounting_style( types::FootprintMountingStyle::FMS_SMD );
+    else
+        attrs->set_mounting_style( types::FootprintMountingStyle::FMS_UNSPECIFIED );
 
     for( const wxString& group : GetNetTiePadGroups() )
     {
