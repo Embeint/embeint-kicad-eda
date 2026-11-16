@@ -286,6 +286,25 @@ def test_ldo_layout_follows_datasheet_convention():
     assert exact["EN"]["position"][1] < exact["VIN"]["position"][1], "as_given keeps the caller's order"
 
 
+def test_nc_pins_are_hidden_no_connects_that_take_no_row():
+    from symbol_layout import layout_box
+    base = [{"number": "1", "name": "GND", "type": "power_in"}, {"number": "2", "name": "VOUT", "type": "power_out"},
+            {"number": "3", "name": "VIN", "type": "power_in"}, {"number": "4", "name": "EN", "type": "input"},
+            {"number": "5", "name": "ADJ", "type": "passive"}]
+    plain = layout_box(base)
+    with_nc = layout_box(base + [{"number": "6", "name": "NC", "type": "passive"}])
+    assert with_nc["body"] == plain["body"], "a hidden NC pin must not grow the body"
+    nc = next(p for p in with_nc["pins"] if p["number"] == "6")
+    assert nc["type"] == "no_connect" and nc["electrical_type"] == "EPT_NO_CONNECT" and nc["hidden"]
+    x1, y1, x2, y2 = with_nc["body"]
+    x, y = nc["position"]
+    assert x1 < x < x2 and y1 < y < y2, "hidden pins sit inside the body"
+    taken = {p["position"][1] for p in with_nc["pins"] if p["side"] == "right"}
+    assert y not in taken, "a hidden pin uses a row no visible right-side pin uses"
+    shown = layout_box(base + [{"number": "6", "name": "NC", "hidden": False}])
+    assert next(p for p in shown["pins"] if p["number"] == "6")["side"] in ("left", "right")
+
+
 @pytest.mark.parametrize("name,side", [("~{SHDN}", "left"), ("FB", "right"), ("PGND", "bottom"),
                                        ("PG", "right"), ("VCC", "left")])
 def test_default_sides_by_pin_role(name, side):

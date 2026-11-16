@@ -339,8 +339,11 @@ def live_symbol_add_pins(symbol_document: dict, pins: list[dict], draw_body: boo
     empty rows between (2 rows = 7.62 mm, room for a pull-up or feedback resistor): an LDO gets VIN
     then EN on the left, VOUT then ADJ on the right. Follow the datasheet pinout when it differs:
     give sides, and arrange="as_given" with {"gap": true, "side": "left"} rows for exact spacing.
-    Optional per pin: "shape" (SPS_INVERTED, SPS_CLOCK, ...), "hidden". replace=true first removes
-    existing pins and shapes. The designator and value are placed at the body's bottom right.
+    NC pins (name NC/DNC or type no_connect) become hidden no-connect pins inside the body, as stock
+    symbols do, and take no row; pass "hidden": false to show one. Keep our spacing even where a
+    stock symbol is more cramped. Optional per pin: "shape" (SPS_INVERTED, SPS_CLOCK, ...), "hidden".
+    replace=true first removes existing pins and shapes. The designator sits above the value at the
+    body's bottom right, their first letters aligned.
     """
     return client.symbol_add_pins(symbol_document_spec(symbol_document), pins, draw_body, replace, arrange,
                                   group_gap)

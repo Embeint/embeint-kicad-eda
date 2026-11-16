@@ -58,11 +58,18 @@ def default_side(pin):
     return "left"
 
 
+NO_CONNECT_NAMES = {"NC", "DNC", "N.C.", "N/C", "NIC"}
+
+
+def is_no_connect(pin):
+    return pin.get("type") == "no_connect" or _base_name(pin) in NO_CONNECT_NAMES
+
+
 def group_rank(pin):
     """Supplies first on each side, then signals, then no-connects."""
     if pin.get("type") in ("power_in", "power_out") and not is_ground(pin):
         return 0
-    if pin.get("type") == "no_connect" or _base_name(pin) in {"NC", "DNC"}:
+    if is_no_connect(pin):
         return 2
     return 1
 
@@ -75,7 +82,8 @@ def layout_box(pins, pin_length=PIN_LENGTH, arrange="auto", group_gap=2):
     no-connects, leaving group_gap empty rows between groups.  Two rows put EN 7.62 mm below VIN
     and ADJ 7.62 mm below VOUT, a resistor's pin spacing, so a pull-up or feedback divider drops
     straight in.  Within a group the given order is kept.  arrange="as_given" keeps the exact
-    order; {"gap": true, "side": ...} inserts an empty row either way.
+    order; {"gap": true, "side": ...} inserts an empty row either way.  NC pins (named NC/DNC or
+    typed no_connect) become hidden no-connect pins inside the body unless given "hidden": false.
     """
     if arrange not in ("auto", "as_given"):
         raise ValueError("arrange must be auto or as_given")
@@ -84,6 +92,7 @@ def layout_box(pins, pin_length=PIN_LENGTH, arrange="auto", group_gap=2):
     if not pins:
         raise ValueError("A symbol needs at least one pin")
     by_side = {side: [] for side in SIDES}
+    hidden = []
     numbers = set()
     for pin in pins:
         if pin.get("gap"):
@@ -98,6 +107,13 @@ def layout_box(pins, pin_length=PIN_LENGTH, arrange="auto", group_gap=2):
         kind = pin.get("type", "passive")
         if kind not in ELECTRICAL_TYPES:
             raise ValueError(f"Pin {number}: type must be one of {sorted(ELECTRICAL_TYPES)}")
+        if is_no_connect({**pin, "type": kind}):
+            # As stock symbols do: an NC pin is a no-connect pin, and hidden unless asked otherwise.
+            # Hidden pins take no row, so they neither spread the layout nor leave a gap.
+            kind = "no_connect"
+            if pin.get("hidden", True):
+                hidden.append({**pin, "number": number, "type": kind, "side": "hidden", "hidden": True})
+                continue
         side = pin.get("side") or default_side(pin)
         if side not in SIDES:
             raise ValueError(f"Pin {number}: side must be one of {SIDES}")
@@ -157,9 +173,25 @@ def layout_box(pins, pin_length=PIN_LENGTH, arrange="auto", group_gap=2):
         if pin:
             placed.append({**pin, "position": (x, y2 + pin_length)})
 
+    # Hidden pins sit inside the body in rows no visible side pin uses (the gaps between groups
+    # first), just inside an edge and pointing inward, so their names, shown greyed in the symbol
+    # editor, cannot land on another pin's label.  Right side first, then left.
+    total_rows = max(1, round(height / GRID) - 1)
+    slots = []
+    for side, edge_x, orientation in (("right", x2 - GRID, "SPO_LEFT"), ("left", x1 + GRID, "SPO_RIGHT")):
+        used = {index for index, entry in enumerate(by_side[side]) if entry}
+        slots += [(edge_x, y1 + GRID * (row + 1), orientation) for row in range(total_rows) if row not in used]
+    for index, pin in enumerate(hidden):
+        if index < len(slots):
+            x, y, orientation = slots[index]
+        else:  # more hidden pins than free rows: stack them in further columns
+            column, row = divmod(index - len(slots), total_rows)
+            x, y, orientation = x2 - GRID * (column + 2), y1 + GRID * (row + 1), "SPO_LEFT"
+        placed.append({**pin, "position": (x, y), "orientation": orientation, "length": 0})
+
     for pin in placed:
         pin["position"] = tuple(round(v, 4) for v in pin["position"])
-        pin["orientation"] = ORIENTATION[pin["side"]]
+        pin.setdefault("orientation", ORIENTATION.get(pin["side"]))
         pin["electrical_type"] = ELECTRICAL_TYPES[pin["type"]]
-        pin["length"] = pin_length
+        pin.setdefault("length", pin_length)
     return {"body": tuple(round(v, 4) for v in (x1, y1, x2, y2)), "pins": placed}

@@ -65,11 +65,14 @@ def main():
                 {"number": "2", "name": "VOUT", "type": "power_out"},
                 {"number": "3", "name": "VIN", "type": "power_in"},
                 {"number": "4", "name": "EN", "type": "input"},
-                {"number": "5", "name": "ADJ", "type": "passive"}]
+                {"number": "5", "name": "ADJ", "type": "passive"},
+                {"number": "6", "name": "NC", "type": "passive"}]
         laid_out = client.symbol_add_pins(doc, pins)
         summary = client.symbol_summary(doc)
-        check(sorted(p["number"] for p in summary["pins"]) == ["1", "2", "3", "4", "5"]
-              and len(summary["graphic_shape_ids"]) == 1, f"5 pins and a body added: {laid_out['body_mm']}")
+        nc = next(p for p in summary["pins"] if p["number"] == "6")
+        check(nc.get("hidden") and nc["type"] == "EPT_NO_CONNECT", "NC pin is a hidden no-connect pin")
+        check(sorted(p["number"] for p in summary["pins"]) == ["1", "2", "3", "4", "5", "6"]
+              and len(summary["graphic_shape_ids"]) == 1, f"6 pins and a body added: {laid_out['body_mm']}")
         at = {p["name"]: p["position_mm"] for p in summary["pins"]}
         check(at["VIN"][0] < 0 < at["VOUT"][0] and at["EN"][0] < 0 < at["ADJ"][0],
               "VIN/EN on the left, VOUT/ADJ on the right")
@@ -91,7 +94,7 @@ def main():
 
         lib_id = f"{nickname}:TESTREG"
         stored = client.library_symbol(lib_id)
-        check(stored["description"] == "Test 3.3 V LDO regulator" and len(stored["pins"]) == 5,
+        check(stored["description"] == "Test 3.3 V LDO regulator" and len(stored["pins"]) == 6,
               f"library now serves {lib_id} with its details")
         def body_style(symbol_id):
             for child in client.library_symbols([symbol_id])[0].items:
@@ -100,6 +103,10 @@ def main():
                     return as_dict(shape.shape.attributes)
         stock = body_style("Regulator_Linear:AP2112K-3.3")
         check(body_style(lib_id) == stock, f"body outline and fill match stock symbols: {stock}")
+        ref_at, value_at = stored["field_placement"]["reference"], stored["field_placement"]["value"]
+        check(ref_at["position_mm"][0] == value_at["position_mm"][0] and ref_at["align"] == value_at["align"] == "HA_LEFT"
+              and ref_at["position_mm"][1] < value_at["position_mm"][1],
+              f"designator above value, first letters aligned: {stored['field_placement']}")
         check(stored["fields"].get("Manufacturer") == "Test Semiconductor" and stored["fields"].get("MPN") == f"TR-{tag}",
               f"Manufacturer and MPN stored: {stored['fields']}")
         check(any(r["lib_id"] == lib_id for r in client.search_symbols("mcptest", limit=50)["results"]),
@@ -108,7 +115,7 @@ def main():
         placed = client.place_symbol(root, lib_id, 120, 120)
         check(placed["reference"].startswith("U"), f"placed {lib_id} in the schematic as {placed['reference']}")
         pins_live = client.symbol_pins(root, [placed["id"]], with_nets=False)[0]["pins"]
-        check(len(pins_live) == 5, "placed symbol has all 5 pins in the schematic")
+        check(len(pins_live) == 6, "placed symbol has all 6 pins in the schematic")
         (out / "symbol_placed.png").write_bytes(client.render(root, dpi=100))
     finally:
         client.remove_library(nickname, scope="global")

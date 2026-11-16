@@ -119,12 +119,20 @@ def summarize_symbol(symbol):
         if child.item.Unpack(pin):
             entry = {"number": pin.number, "name": pin.name, "type": types.ElectricalPinType.Name(pin.electrical_type),
                      "position_mm": mm(pin.position), "orientation": sch.SchematicPinOrientation.Name(pin.orientation)}
+            if not pin.visible:
+                entry["hidden"] = True
             if child.HasField("unit"):
                 entry["unit"] = child.unit.unit
             pins.append(entry)
     fields = {name: getattr(symbol, f"{name}_field").text.text
               for name in ("reference", "value", "footprint", "datasheet", "description")}
-    return {"lib_id": lib_id_text(symbol.id), **fields, "fields": user_fields, "keywords": symbol.keywords,
+    placement = {}
+    for name in ("reference", "value"):
+        text = getattr(symbol, f"{name}_field").text
+        placement[name] = {"position_mm": mm(text.position),
+                           "align": as_dict(text).get("attributes", {}).get("horizontal_alignment")}
+    return {"lib_id": lib_id_text(symbol.id), **fields, "fields": user_fields, "field_placement": placement,
+            "keywords": symbol.keywords,
             "footprint_filters": list(symbol.footprint_filters), "units": symbol.unit_count or 1,
             "type": sch.SchematicSymbolType.Name(symbol.type),
             "pins": sorted(pins, key=lambda p: (len(p["number"]), p["number"]))}
@@ -629,7 +637,9 @@ class LiveSchematic:
                               remove_user_fields=None, show_pin_numbers=None, show_pin_names=None,
                               exclude_from_bom=None, exclude_from_board=None, exclude_from_sim=None,
                               power_symbol=None, place_fields_around_body=False, manufacturer=None, mpn=None):
-        request = commands.SetLibrarySymbolProperties(document=doc, place_fields_around_body=place_fields_around_body)
+        # Designator/value alignment depends on their text, so re-place them when it changes
+        place = place_fields_around_body or value is not None or reference_prefix is not None
+        request = commands.SetLibrarySymbolProperties(document=doc, place_fields_around_body=place)
         for name, setting in (("value", value), ("footprint", footprint), ("datasheet", datasheet),
                               ("description", description), ("keywords", keywords),
                               ("reference_prefix", reference_prefix), ("show_pin_numbers", show_pin_numbers),
@@ -664,7 +674,8 @@ class LiveSchematic:
             if packed.Unpack(pin):
                 pins.append({"number": pin.number, "name": pin.name, "position_mm": mm(pin.position),
                              "type": types.ElectricalPinType.Name(pin.electrical_type),
-                             "orientation": sch.SchematicPinOrientation.Name(pin.orientation), "id": pin.id.value})
+                             "orientation": sch.SchematicPinOrientation.Name(pin.orientation), "id": pin.id.value,
+                             **({} if pin.visible else {"hidden": True})})
             elif packed.TypeName().endswith(".SchematicGraphicShape"):
                 shapes.append(item_id(packed))
         return {"lib_id": lib_id_text(doc.lib_id), "pins": pins, "graphic_shape_ids": shapes}
