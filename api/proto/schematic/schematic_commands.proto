@@ -385,3 +385,10 @@ message RenderLibrarySymbolResponse
   bytes image = 1;
   string mime_type = 2;
 }
+
+// Opens (creating if needed) and shows the Footprint Editor from the schematic editor, so that
+// footprint library commands can reach it.  Returns Empty
+// Since: 11.0
+message OpenFootprintEditor
+{
+}

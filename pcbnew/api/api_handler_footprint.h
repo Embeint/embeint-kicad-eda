@@ -54,6 +54,29 @@ private:
     HANDLER_RESULT<commands::GetItemsResponse> handleGetItems(
             const HANDLER_CONTEXT<commands::GetItems>& aCtx );
 
+    HANDLER_RESULT<kiapi::board::commands::LibraryFootprintResponse> handleNewLibraryFootprint(
+            const HANDLER_CONTEXT<kiapi::board::commands::NewLibraryFootprint>& aCtx );
+
+    HANDLER_RESULT<kiapi::board::commands::LibraryFootprintResponse> handleEditLibraryFootprint(
+            const HANDLER_CONTEXT<kiapi::board::commands::EditLibraryFootprint>& aCtx );
+
+    HANDLER_RESULT<Empty> handleSetLibraryFootprintProperties(
+            const HANDLER_CONTEXT<kiapi::board::commands::SetLibraryFootprintProperties>& aCtx );
+
+    HANDLER_RESULT<kiapi::board::commands::RenderLibraryFootprintResponse> handleRenderLibraryFootprint(
+            const HANDLER_CONTEXT<kiapi::board::commands::RenderLibraryFootprint>& aCtx );
+
+    HANDLER_RESULT<commands::EmbedFileFromPathResponse> handleEmbedFileFromPath(
+            const HANDLER_CONTEXT<commands::EmbedFileFromPath>& aCtx );
+
+    HANDLER_RESULT<commands::EmbeddedFileListResponse> handleGetEmbeddedFileList(
+            const HANDLER_CONTEXT<commands::GetEmbeddedFileList>& aCtx );
+
+    HANDLER_RESULT<Empty> handleRemoveEmbeddedFile( const HANDLER_CONTEXT<commands::RemoveEmbeddedFile>& aCtx );
+
+    /// Describes the footprint now open in the editor as a DOCTYPE_FOOTPRINT document.
+    kiapi::board::commands::LibraryFootprintResponse openFootprintDocument( const LIB_ID& aId ) const;
+
 protected:
     kiapi::common::types::DocumentType thisDocumentType() const override
     {

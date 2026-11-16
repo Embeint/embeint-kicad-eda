@@ -30,6 +30,8 @@
 #include <sch_bitmap.h>
 #include <sch_commit.h>
 #include <sch_field.h>
+#include <api/api_enums.h>
+#include <embedded_files.h>
 #include <sch_painter.h>
 #include <sch_pin.h>
 #include <sch_plotter.h>
@@ -79,6 +81,9 @@ API_HANDLER_SYMBOL::API_HANDLER_SYMBOL( std::shared_ptr<SYMBOL_EDITOR_CONTEXT> a
     registerHandler<kiapi::schematic::commands::RenderLibrarySymbol,
                     kiapi::schematic::commands::RenderLibrarySymbolResponse>(
             &API_HANDLER_SYMBOL::handleRenderLibrarySymbol );
+    registerHandler<EmbedFileFromPath, EmbedFileFromPathResponse>( &API_HANDLER_SYMBOL::handleEmbedFileFromPath );
+    registerHandler<GetEmbeddedFileList, EmbeddedFileListResponse>( &API_HANDLER_SYMBOL::handleGetEmbeddedFileList );
+    registerHandler<RemoveEmbeddedFile, Empty>( &API_HANDLER_SYMBOL::handleRemoveEmbeddedFile );
 }
 
 
@@ -1028,6 +1033,134 @@ HANDLER_RESULT<kiapi::schematic::commands::RenderLibrarySymbolResponse> API_HAND
     response.set_image( std::move( bytes ) );
     response.set_mime_type( request.svg() ? "image/svg+xml" : "image/png" );
     return response;
+}
+
+
+namespace
+{
+ApiResponseStatus symbolApiError( ApiStatusCode aCode, const std::string& aMessage )
+{
+    ApiResponseStatus e;
+    e.set_status( aCode );
+    e.set_error_message( aMessage );
+    return e;
+}
+
+
+void packSymbolEmbeddedFile( EmbeddedFileInfo& aOut, const EMBEDDED_FILES::EMBEDDED_FILE& aFile )
+{
+    aOut.set_name( aFile.name.ToUTF8() );
+    aOut.set_type( ToProtoEnum<EMBEDDED_FILES::EMBEDDED_FILE::FILE_TYPE, kiapi::common::types::EmbeddedFileType>(
+            aFile.type ) );
+    aOut.set_uri( aFile.GetLink().ToUTF8() );
+    aOut.set_stored_size( static_cast<int64_t>( aFile.compressedEncodedData.size() ) );
+}
+} // namespace
+
+
+HANDLER_RESULT<LIB_SYMBOL*> API_HANDLER_SYMBOL::openSymbolFor( const DocumentSpecifier& aDocument )
+{
+    if( HANDLER_RESULT<bool> documentValidation = validateDocument( aDocument ); !documentValidation )
+        return tl::unexpected( documentValidation.error() );
+
+    if( std::optional<ApiResponseStatus> busy = checkForBusy() )
+        return tl::unexpected( *busy );
+
+    if( LIB_SYMBOL* libSymbol = symbol() )
+        return libSymbol;
+
+    return tl::unexpected( symbolApiError( ApiStatusCode::AS_BAD_REQUEST, "no symbol is open" ) );
+}
+
+
+HANDLER_RESULT<EmbedFileFromPathResponse> API_HANDLER_SYMBOL::handleEmbedFileFromPath(
+        const HANDLER_CONTEXT<EmbedFileFromPath>& aCtx )
+{
+    HANDLER_RESULT<LIB_SYMBOL*> found = openSymbolFor( aCtx.Request.document() );
+
+    if( !found )
+        return tl::unexpected( found.error() );
+
+    wxFileName path( wxString::FromUTF8( aCtx.Request.path() ) );
+
+    if( !path.IsAbsolute() || !path.FileExists() )
+    {
+        return tl::unexpected( symbolApiError( ApiStatusCode::AS_BAD_REQUEST,
+                                               fmt::format( "'{}' is not an absolute path to a file KiCad can read",
+                                                            aCtx.Request.path() ) ) );
+    }
+
+    EMBEDDED_FILES* files = ( *found )->GetEmbeddedFiles();
+
+    if( files->HasFile( path.GetFullName() ) && !aCtx.Request.overwrite() )
+    {
+        return tl::unexpected( symbolApiError( ApiStatusCode::AS_BAD_REQUEST,
+                                               fmt::format( "a file named '{}' is already embedded",
+                                                            path.GetFullName().ToStdString() ) ) );
+    }
+
+    SCH_COMMIT* commit = static_cast<SCH_COMMIT*>( getCurrentCommit( aCtx.ClientName ) );
+    commit->Modify( *found, context()->GetScreen() );
+
+    EMBEDDED_FILES::EMBEDDED_FILE* file = files->AddFile( path, aCtx.Request.overwrite() );
+
+    if( !file )
+    {
+        return tl::unexpected( symbolApiError( ApiStatusCode::AS_UNKNOWN,
+                                               fmt::format( "could not embed '{}'", aCtx.Request.path() ) ) );
+    }
+
+    EmbedFileFromPathResponse response;
+    packSymbolEmbeddedFile( *response.mutable_file(), *file );
+
+    if( !m_activeClients.contains( aCtx.ClientName ) )
+        pushCurrentCommit( aCtx.ClientName, _( "Embedded a file via API" ) );
+
+    return response;
+}
+
+
+HANDLER_RESULT<EmbeddedFileListResponse> API_HANDLER_SYMBOL::handleGetEmbeddedFileList(
+        const HANDLER_CONTEXT<GetEmbeddedFileList>& aCtx )
+{
+    HANDLER_RESULT<LIB_SYMBOL*> found = openSymbolFor( aCtx.Request.document() );
+
+    if( !found )
+        return tl::unexpected( found.error() );
+
+    EmbeddedFileListResponse response;
+
+    for( const auto& [name, file] : ( *found )->GetEmbeddedFiles()->EmbeddedFileMap() )
+        packSymbolEmbeddedFile( *response.add_files(), *file );
+
+    return response;
+}
+
+
+HANDLER_RESULT<Empty> API_HANDLER_SYMBOL::handleRemoveEmbeddedFile( const HANDLER_CONTEXT<RemoveEmbeddedFile>& aCtx )
+{
+    HANDLER_RESULT<LIB_SYMBOL*> found = openSymbolFor( aCtx.Request.document() );
+
+    if( !found )
+        return tl::unexpected( found.error() );
+
+    const wxString  name = wxString::FromUTF8( aCtx.Request.name() );
+    EMBEDDED_FILES* files = ( *found )->GetEmbeddedFiles();
+
+    if( !files->HasFile( name ) )
+    {
+        return tl::unexpected( symbolApiError( ApiStatusCode::AS_BAD_REQUEST,
+                                               fmt::format( "no embedded file named '{}'", aCtx.Request.name() ) ) );
+    }
+
+    SCH_COMMIT* commit = static_cast<SCH_COMMIT*>( getCurrentCommit( aCtx.ClientName ) );
+    commit->Modify( *found, context()->GetScreen() );
+    files->RemoveFile( name );
+
+    if( !m_activeClients.contains( aCtx.ClientName ) )
+        pushCurrentCommit( aCtx.ClientName, _( "Removed an embedded file via API" ) );
+
+    return Empty();
 }
 
 

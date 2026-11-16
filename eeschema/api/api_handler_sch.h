@@ -235,6 +235,9 @@ private:
     HANDLER_RESULT<kiapi::schematic::commands::LibrarySymbolResponse> handleEditLibrarySymbol(
             const HANDLER_CONTEXT<kiapi::schematic::commands::EditLibrarySymbol>& aCtx );
 
+    HANDLER_RESULT<Empty> handleOpenFootprintEditor(
+            const HANDLER_CONTEXT<kiapi::schematic::commands::OpenFootprintEditor>& aCtx );
+
     /// Opens (creating if needed) the Symbol Editor, or explains why it cannot take a command now.
     HANDLER_RESULT<SYMBOL_EDIT_FRAME*> openSymbolEditor();
 

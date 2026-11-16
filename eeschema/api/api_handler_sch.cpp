@@ -221,6 +221,7 @@ API_HANDLER_SCH::API_HANDLER_SCH( std::shared_ptr<SCH_CONTEXT> aContext,
     registerHandler<GetSymbolPins, SymbolPinsResponse>( &API_HANDLER_SCH::handleGetSymbolPins );
     registerHandler<NewLibrarySymbol, LibrarySymbolResponse>( &API_HANDLER_SCH::handleNewLibrarySymbol );
     registerHandler<EditLibrarySymbol, LibrarySymbolResponse>( &API_HANDLER_SCH::handleEditLibrarySymbol );
+    registerHandler<OpenFootprintEditor, Empty>( &API_HANDLER_SCH::handleOpenFootprintEditor );
 }
 
 
@@ -4211,6 +4212,28 @@ HANDLER_RESULT<kiapi::schematic::commands::SymbolPinsResponse> API_HANDLER_SCH::
     }
 
     return response;
+}
+
+
+HANDLER_RESULT<Empty> API_HANDLER_SCH::handleOpenFootprintEditor(
+        const HANDLER_CONTEXT<kiapi::schematic::commands::OpenFootprintEditor>& aCtx )
+{
+    if( std::optional<ApiResponseStatus> headless = checkForHeadless( "The Footprint Editor" ) )
+        return tl::unexpected( *headless );
+
+    if( std::optional<ApiResponseStatus> busy = checkForBusy() )
+        return tl::unexpected( *busy );
+
+    // The editor lives in the PCB kiface, which KIWAY loads on demand; once created it registers
+    // its own API handler for the footprint commands
+    KIWAY_PLAYER* editor = frame()->Kiway().Player( FRAME_FOOTPRINT_EDITOR, true );
+
+    if( !editor )
+        return tl::unexpected( apiError( ApiStatusCode::AS_UNHANDLED, "the Footprint Editor could not be opened" ) );
+
+    editor->Show( true );
+    editor->Raise();
+    return Empty();
 }
 
 

@@ -28,6 +28,7 @@ package kiapi.common.commands;
 import "google/protobuf/any.proto";
 import "common/types/base_types.proto";
 import "common/types/enums.proto";
+import "common/types/embedded_files.proto";
 
 // Refreshes the given frame, if that frame is open
 message RefreshEditor
@@ -500,4 +501,55 @@ message ParseAndCreateItemsFromString
   kiapi.common.types.DocumentSpecifier document = 1;
 
   string contents = 2;
+}
+
+/*
+ * Embedded files of an open document (a footprint or a library symbol)
+ */
+
+// Embeds a file KiCad can read from disk, compressing it as the editor does.  The type follows the
+// extension (STEP/WRL models, PDF datasheets, fonts, worksheets).  Reference it as uri, e.g. as a
+// footprint's 3D model filename.  Returns EmbedFileFromPathResponse
+// Since: 11.0
+message EmbedFileFromPath
+{
+  kiapi.common.types.DocumentSpecifier document = 1;
+  string path = 2;
+  // Replace an embedded file of the same name instead of refusing
+  bool overwrite = 3;
+}
+
+message EmbeddedFileInfo
+{
+  string name = 1;
+  kiapi.common.types.EmbeddedFileType type = 2;
+  // A kicad-embed:// link to the file
+  string uri = 3;
+  // Size of the stored (compressed, encoded) data in bytes
+  int64 stored_size = 4;
+}
+
+message EmbedFileFromPathResponse
+{
+  EmbeddedFileInfo file = 1;
+}
+
+// Returns EmbeddedFileListResponse
+// Since: 11.0
+message GetEmbeddedFileList
+{
+  kiapi.common.types.DocumentSpecifier document = 1;
+}
+
+message EmbeddedFileListResponse
+{
+  repeated EmbeddedFileInfo files = 1;
+}
+
+// Removes an embedded file by name.  Returns Empty
+// Since: 11.0
+message RemoveEmbeddedFile
+{
+  kiapi.common.types.DocumentSpecifier document = 1;
+  string name = 2;
 }

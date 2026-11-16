@@ -688,3 +688,77 @@ message InteractiveMoveItems
 
   repeated kiapi.common.types.KIID items = 2;
 }
+
+/*
+ * Footprint Editor: building library footprints
+ */
+
+// Creates a footprint in a writable footprint library and opens it in the Footprint Editor, which
+// must already be open (see OpenFootprintEditor).  The footprint stays unsaved until SaveDocument
+// on its DOCTYPE_FOOTPRINT document.  Returns LibraryFootprintResponse
+// Since: 11.0
+message NewLibraryFootprint
+{
+  string library_nickname = 1;
+  string name = 2;
+  kiapi.board.types.FootprintMountingStyle mounting_style = 3;
+  // Replace a footprint of the same name when saved instead of refusing
+  bool replace_existing = 4;
+}
+
+// Opens an existing library footprint in the Footprint Editor.  Returns LibraryFootprintResponse
+// Since: 11.0
+message EditLibraryFootprint
+{
+  kiapi.common.types.LibraryIdentifier id = 1;
+}
+
+message LibraryFootprintResponse
+{
+  // A DOCTYPE_FOOTPRINT document addressing the footprint now open in the Footprint Editor
+  kiapi.common.types.DocumentSpecifier document = 1;
+}
+
+// Sets properties of the footprint open in the Footprint Editor as one undo step.  Unset fields are
+// left unchanged.  Returns Empty
+// Since: 11.0
+message SetLibraryFootprintProperties
+{
+  kiapi.common.types.DocumentSpecifier document = 1;
+
+  optional string description = 2;
+  optional string keywords = 3;
+  optional kiapi.board.types.FootprintMountingStyle mounting_style = 4;
+  optional bool exclude_from_bill_of_materials = 5;
+  optional bool exclude_from_position_files = 6;
+  optional bool exclude_from_simulation = 7;
+  optional bool not_in_schematic = 8;
+  optional bool allow_soldermask_bridges = 9;
+  optional bool exempt_from_courtyard_requirement = 10;
+  optional string value = 11;
+  optional string datasheet = 12;
+
+  // Replaces the 3D models when set_models is true
+  repeated kiapi.board.types.Footprint3DModel models = 13;
+  bool set_models = 14;
+}
+
+// Renders the footprint open in the Footprint Editor, including unsaved changes, in the editor's
+// layer colors.  Returns RenderLibraryFootprintResponse
+// Since: 11.0
+message RenderLibraryFootprint
+{
+  kiapi.common.types.DocumentSpecifier document = 1;
+
+  // Layers to draw, bottom first; defaults to copper, fabrication, courtyard and silkscreen
+  repeated kiapi.board.types.BoardLayer layers = 2;
+
+  // Defaults to 600
+  int32 dpi = 3;
+}
+
+message RenderLibraryFootprintResponse
+{
+  bytes image = 1;
+  string mime_type = 2;
+}

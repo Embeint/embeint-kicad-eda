@@ -104,6 +104,17 @@ private:
     HANDLER_RESULT<kiapi::schematic::commands::RenderLibrarySymbolResponse> handleRenderLibrarySymbol(
             const HANDLER_CONTEXT<kiapi::schematic::commands::RenderLibrarySymbol>& aCtx );
 
+    HANDLER_RESULT<commands::EmbedFileFromPathResponse> handleEmbedFileFromPath(
+            const HANDLER_CONTEXT<commands::EmbedFileFromPath>& aCtx );
+
+    HANDLER_RESULT<commands::EmbeddedFileListResponse> handleGetEmbeddedFileList(
+            const HANDLER_CONTEXT<commands::GetEmbeddedFileList>& aCtx );
+
+    HANDLER_RESULT<Empty> handleRemoveEmbeddedFile( const HANDLER_CONTEXT<commands::RemoveEmbeddedFile>& aCtx );
+
+    /// Validates the document and returns the open symbol, or why there is none.
+    HANDLER_RESULT<LIB_SYMBOL*> openSymbolFor( const DocumentSpecifier& aDocument );
+
     std::shared_ptr<SYMBOL_EDITOR_CONTEXT> m_context;
     static std::set<KICAD_T>               s_allowedTypes;
 };

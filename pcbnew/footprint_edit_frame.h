@@ -299,6 +299,10 @@ public:
     /// Return the LIB_ID of the part being edited.
     LIB_ID GetLoadedFPID() const;
 
+    /// True when opening another footprint would not prompt to save the active one: the active
+    /// board is owned by a tab, or holds no unsaved changes.
+    bool CanOpenFootprintWithoutPrompt() const { return activeBoardOwnedByTab() || !IsContentModified(); }
+
     /// Return the LIB_ID of the part selected in the footprint tree, or the loaded part if
     /// there is no selection in the tree.
     LIB_ID GetTargetFPID() const;
