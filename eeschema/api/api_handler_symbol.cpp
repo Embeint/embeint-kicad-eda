@@ -871,27 +871,50 @@ HANDLER_RESULT<Empty> API_HANDLER_SYMBOL::handleSetLibrarySymbolProperties(
 
         if( body.GetWidth() > 0 || body.GetHeight() > 0 )
         {
-            // Left-aligned at the body's left edge, above and below the pin ends so pins on any
-            // side stay clear of the text
-            const BOX2I withPins = libSymbol->GetBodyBoundingBox( 1, 1, true, false );
-            const int   step = schIUScale.MilsToIU( 100 );
-            const int   x = body.GetLeft();
-            int         y = withPins.GetBottom() + 2 * step;
+            // Designator above value at the body's bottom right, right-aligned to its right edge.
+            // They sit just under the body unless that would cross a pin on the bottom edge, in
+            // which case they drop below the pin ends.
+            const int  step = schIUScale.MilsToIU( 100 );
+            const int  x = body.GetRight();
+            SCH_FIELD& reference = libSymbol->GetReferenceField();
+            SCH_FIELD& value = libSymbol->GetValueField();
 
-            libSymbol->GetReferenceField().SetPosition( VECTOR2I( x, withPins.GetTop() - step / 2 ) );
-            libSymbol->GetValueField().SetPosition( VECTOR2I( x, withPins.GetBottom() + step / 2 ) );
+            auto placeAt =
+                    [&]( int aTop )
+                    {
+                        reference.SetHorizJustify( GR_TEXT_H_ALIGN_RIGHT );
+                        value.SetHorizJustify( GR_TEXT_H_ALIGN_RIGHT );
+                        reference.SetPosition( VECTOR2I( x, aTop ) );
+                        value.SetPosition( VECTOR2I( x, aTop + step ) );
+                    };
 
-            for( SCH_FIELD* field : { &libSymbol->GetReferenceField(), &libSymbol->GetValueField(),
-                                      &libSymbol->GetFootprintField(), &libSymbol->GetDatasheetField(),
-                                      &libSymbol->GetDescriptionField() } )
+            placeAt( body.GetBottom() + step / 2 );
+
+            BOX2I text = reference.GetBoundingBox();
+            text.Merge( value.GetBoundingBox() );
+
+            for( SCH_PIN* pin : libSymbol->GetGraphicalPins() )
             {
-                field->SetHorizJustify( GR_TEXT_H_ALIGN_LEFT );
-
-                if( !field->IsVisible() )
+                if( pin->GetBoundingBox().Intersects( text ) )
                 {
-                    field->SetPosition( VECTOR2I( x, y ) );
-                    y += step;
+                    placeAt( libSymbol->GetBodyBoundingBox( 1, 1, true, false ).GetBottom() + step / 2 );
+                    break;
                 }
+            }
+
+            // Hidden fields (footprint, datasheet, manufacturer, ...) stack under the value
+            int y = value.GetPosition().y + step;
+            std::vector<SCH_FIELD*> fields;
+            libSymbol->GetFields( fields );
+
+            for( SCH_FIELD* field : fields )
+            {
+                if( field == &reference || field == &value || field->IsVisible() )
+                    continue;
+
+                field->SetHorizJustify( GR_TEXT_H_ALIGN_RIGHT );
+                field->SetPosition( VECTOR2I( x, y ) );
+                y += step;
             }
         }
     }
