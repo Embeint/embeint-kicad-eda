@@ -80,3 +80,196 @@ message PlaceSymbolFromLibrary
   // depending on the user's current auto-annotation preference.
   optional string reference = 6;
 }
+
+enum AnnotationScope
+{
+  ANS_UNKNOWN = 0;
+  // Every symbol in the schematic
+  ANS_ALL = 1;
+  // Symbols on the sheet given by document.sheet_path (and its subsheets if recursive is set)
+  ANS_SHEET = 2;
+  // Only the symbols listed in AnnotateSchematic.symbols
+  ANS_SYMBOLS = 3;
+}
+
+enum AnnotationOrder
+{
+  AO_UNKNOWN = 0;
+  AO_BY_X_POSITION = 1;
+  AO_BY_Y_POSITION = 2;
+  AO_UNSORTED = 3;
+}
+
+enum AnnotationNumbering
+{
+  AN_UNKNOWN = 0;
+  // First free number, starting at start_number
+  AN_FIRST_FREE = 1;
+  // First free number starting at sheet number * 100
+  AN_SHEET_X_100 = 2;
+  // First free number starting at sheet number * 1000
+  AN_SHEET_X_1000 = 3;
+}
+
+// Annotates symbols as one undo step.  Returns AnnotateSchematicResponse
+// Since: 11.0
+message AnnotateSchematic
+{
+  kiapi.common.types.DocumentSpecifier document = 1;
+  AnnotationScope scope = 2;
+  repeated kiapi.common.types.KIID symbols = 3;
+  AnnotationOrder order = 4;
+  AnnotationNumbering numbering = 5;
+  // Renumber every symbol in scope instead of only unannotated ones
+  bool reset_existing = 6;
+  // For ANS_SHEET, also annotate symbols in subsheets
+  bool recursive = 7;
+  // For AN_FIRST_FREE, references start after this number (0 gives R1, R2, ...); negative means 0
+  int32 start_number = 8;
+}
+
+message ReferenceChange
+{
+  kiapi.common.types.KIID symbol = 1;
+  kiapi.common.types.SheetPath path = 2;
+  string old_reference = 3;
+  string new_reference = 4;
+}
+
+message AnnotateSchematicResponse
+{
+  repeated ReferenceChange changes = 1;
+}
+
+// Reloads symbols from their library, or changes them to another library symbol, as one undo step.
+// Returns UpdateSymbolsFromLibraryResponse
+// Since: 11.0
+message UpdateSymbolsFromLibrary
+{
+  kiapi.common.types.DocumentSpecifier document = 1;
+  // Symbols to update.  If empty, every symbol on the sheet given by document.sheet_path.
+  repeated kiapi.common.types.KIID symbols = 2;
+  // If set, change the symbols to this library symbol instead of reloading their own
+  optional kiapi.common.types.LibraryIdentifier new_lib_id = 3;
+  // Reset value, footprint, datasheet and description text to the library values
+  bool reset_field_text = 4;
+  // Reset field visibility to the library values
+  bool reset_field_visibility = 5;
+  // Re-run field autoplacement on symbols with autoplaced fields
+  bool reset_field_positions = 6;
+  // Remove user fields that are not in the library symbol
+  bool remove_extra_fields = 7;
+}
+
+message SymbolUpdateStatus
+{
+  kiapi.common.types.KIID symbol = 1;
+  kiapi.common.types.LibraryIdentifier lib_id = 2;
+  bool updated = 3;
+  string error_message = 4;
+}
+
+message UpdateSymbolsFromLibraryResponse
+{
+  repeated SymbolUpdateStatus symbols = 1;
+}
+
+// Re-runs field autoplacement on symbols, sheets and labels as one undo step.  Returns Empty
+// Since: 11.0
+message AutoplaceFields
+{
+  kiapi.common.types.DocumentSpecifier document = 1;
+  repeated kiapi.common.types.KIID items = 2;
+}
+
+enum ItemRotation
+{
+  IR_NONE = 0;
+  IR_CCW_90 = 1;
+  IR_180 = 2;
+  IR_CW_90 = 3;
+}
+
+// Moves, rotates and/or mirrors items on one sheet as one undo step.  Rotation and mirroring are
+// about the item's position for a single item, otherwise about the centre of the items' bounding
+// box rounded to the 1.27 mm grid; the translation is applied afterwards.  When drag_wires is set, wire and
+// bus endpoints, labels and no-connects that sat on a connection point of a transformed item follow
+// it.  A horizontal or vertical wire with one end dragged stays square: it keeps its direction to a
+// corner and a new segment runs to the moved end.  Returns TransformItemsResponse
+// Since: 11.0
+message TransformItems
+{
+  kiapi.common.types.DocumentSpecifier document = 1;
+  repeated kiapi.common.types.KIID items = 2;
+  kiapi.common.types.Vector2 translation = 3;
+  ItemRotation rotation = 4;
+  // Mirror left-to-right
+  bool mirror_horizontally = 5;
+  // Mirror top-to-bottom
+  bool mirror_vertically = 6;
+  bool drag_wires = 7;
+}
+
+message TransformItemsResponse
+{
+  // Items that moved because they were attached to a transformed item, and any bend segments added
+  repeated kiapi.common.types.KIID dragged_items = 1;
+}
+
+// Undoes the editor's most recent change.  Returns UndoRedoResponse
+// Since: 11.0
+message UndoLastChange
+{
+  kiapi.common.types.DocumentSpecifier document = 1;
+}
+
+// Redoes the most recently undone change.  Returns UndoRedoResponse
+// Since: 11.0
+message RedoLastChange
+{
+  kiapi.common.types.DocumentSpecifier document = 1;
+}
+
+message UndoRedoResponse
+{
+  bool performed = 1;
+  int32 undo_count = 2;
+  int32 redo_count = 3;
+}
+
+// Returns the placed pins of symbols with their absolute connection points.  Pin ids match the
+// items reported by GetSchematicNetlist, which gives each pin's net.  Returns SymbolPinsResponse
+// Since: 11.0
+message GetSymbolPins
+{
+  kiapi.common.types.DocumentSpecifier document = 1;
+  // If empty, every symbol on the sheet given by document.sheet_path
+  repeated kiapi.common.types.KIID symbols = 2;
+}
+
+message PlacedPin
+{
+  kiapi.common.types.KIID id = 1;
+  string number = 2;
+  string name = 3;
+  // Absolute schematic position of the pin's connection point
+  kiapi.common.types.Vector2 position = 4;
+  // Direction the pin points from its connection point toward the symbol body, as drawn
+  kiapi.schematic.types.SchematicPinOrientation orientation = 5;
+  kiapi.common.types.ElectricalPinType electrical_type = 6;
+  bool visible = 7;
+}
+
+message PlacedSymbolPins
+{
+  kiapi.common.types.KIID symbol = 1;
+  string reference = 2;
+  kiapi.common.types.LibraryIdentifier lib_id = 3;
+  int32 unit = 4;
+  repeated PlacedPin pins = 5;
+}
+
+message SymbolPinsResponse
+{
+  repeated PlacedSymbolPins symbols = 1;
+}

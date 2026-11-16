@@ -203,6 +203,40 @@ private:
 
     HANDLER_RESULT<kiapi::common::commands::PlaceFromLibraryResponse> handlePlaceSymbolFromLibrary(
             const HANDLER_CONTEXT<kiapi::schematic::commands::PlaceSymbolFromLibrary>& aCtx );
+    HANDLER_RESULT<kiapi::schematic::commands::AnnotateSchematicResponse> handleAnnotateSchematic(
+            const HANDLER_CONTEXT<kiapi::schematic::commands::AnnotateSchematic>& aCtx );
+
+    HANDLER_RESULT<kiapi::schematic::commands::UpdateSymbolsFromLibraryResponse>
+    handleUpdateSymbolsFromLibrary(
+            const HANDLER_CONTEXT<kiapi::schematic::commands::UpdateSymbolsFromLibrary>& aCtx );
+
+    HANDLER_RESULT<Empty> handleAutoplaceFields(
+            const HANDLER_CONTEXT<kiapi::schematic::commands::AutoplaceFields>& aCtx );
+
+    HANDLER_RESULT<kiapi::schematic::commands::TransformItemsResponse> handleTransformItems(
+            const HANDLER_CONTEXT<kiapi::schematic::commands::TransformItems>& aCtx );
+
+    HANDLER_RESULT<kiapi::schematic::commands::UndoRedoResponse> handleUndoLastChange(
+            const HANDLER_CONTEXT<kiapi::schematic::commands::UndoLastChange>& aCtx );
+
+    HANDLER_RESULT<kiapi::schematic::commands::UndoRedoResponse> handleRedoLastChange(
+            const HANDLER_CONTEXT<kiapi::schematic::commands::RedoLastChange>& aCtx );
+
+    HANDLER_RESULT<kiapi::schematic::commands::UndoRedoResponse> undoOrRedo(
+            const DocumentSpecifier& aDocument, bool aRedo );
+
+    HANDLER_RESULT<kiapi::schematic::commands::SymbolPinsResponse> handleGetSymbolPins(
+            const HANDLER_CONTEXT<kiapi::schematic::commands::GetSymbolPins>& aCtx );
+
+    /// Validates the document and editor state for a request that reads or edits one sheet,
+    /// returning the sheet path the document names (or the current sheet if it names none).
+    HANDLER_RESULT<SCH_SHEET_PATH> prepareSheetRequest( const DocumentSpecifier& aDocument );
+
+    /// Resolves unique item IDs to top-level items, optionally requiring a type set and screen.
+    HANDLER_RESULT<std::vector<std::pair<SCH_ITEM*, SCH_SHEET_PATH>>> resolveSchItems(
+            const google::protobuf::RepeatedPtrField<types::KIID>& aIds,
+            const std::set<KICAD_T>& aTypes, const SCH_SCREEN* aRequiredScreen = nullptr ) const;
+
     HANDLER_RESULT<kiapi::common::tasks::StartTaskResponse> handleStartErcTask(
             const HANDLER_CONTEXT<kiapi::schematic::tasks::StartErcTask>& aCtx );
 

@@ -51,7 +51,11 @@
 #include <richio.h>
 #include <sch_io/kicad_sexpr/sch_io_kicad_sexpr.h>
 
+#include <lib_symbol.h>
 #include <sch_label.h>
+#include <sch_line.h>
+#include <sch_pin.h>
+#include <sch_reference_list.h>
 #include <sch_screen.h>
 #include <sch_sheet.h>
 #include <sch_sheet_path.h>
@@ -201,6 +205,16 @@ API_HANDLER_SCH::API_HANDLER_SCH( std::shared_ptr<SCH_CONTEXT> aContext,
             &API_HANDLER_SCH::handleExpandTextVariables );
     registerHandler<PlaceSymbolFromLibrary, PlaceFromLibraryResponse>(
             &API_HANDLER_SCH::handlePlaceSymbolFromLibrary );
+    registerHandler<AnnotateSchematic, AnnotateSchematicResponse>(
+            &API_HANDLER_SCH::handleAnnotateSchematic );
+    registerHandler<UpdateSymbolsFromLibrary, UpdateSymbolsFromLibraryResponse>(
+            &API_HANDLER_SCH::handleUpdateSymbolsFromLibrary );
+    registerHandler<kiapi::schematic::commands::AutoplaceFields, Empty>(
+            &API_HANDLER_SCH::handleAutoplaceFields );
+    registerHandler<TransformItems, TransformItemsResponse>( &API_HANDLER_SCH::handleTransformItems );
+    registerHandler<UndoLastChange, UndoRedoResponse>( &API_HANDLER_SCH::handleUndoLastChange );
+    registerHandler<RedoLastChange, UndoRedoResponse>( &API_HANDLER_SCH::handleRedoLastChange );
+    registerHandler<GetSymbolPins, SymbolPinsResponse>( &API_HANDLER_SCH::handleGetSymbolPins );
 }
 
 
@@ -3333,6 +3347,860 @@ HANDLER_RESULT<PlaceFromLibraryResponse> API_HANDLER_SCH::handlePlaceSymbolFromL
 
     if( PackSymbol( &packed, placed, targetPath, schematic() ) )
         response.mutable_item()->PackFrom( packed );
+
+    return response;
+}
+
+
+namespace
+{
+ApiResponseStatus apiError( ApiStatusCode aCode, const std::string& aMessage )
+{
+    ApiResponseStatus e;
+    e.set_status( aCode );
+    e.set_error_message( aMessage );
+    return e;
+}
+
+
+// VECTOR2I's own ordering compares lengths, which would merge distinct points
+struct POINT_LESS
+{
+    bool operator()( const VECTOR2I& aLeft, const VECTOR2I& aRight ) const
+    {
+        return aLeft.x < aRight.x || ( aLeft.x == aRight.x && aLeft.y < aRight.y );
+    }
+};
+
+
+const std::set<KICAD_T> s_fieldOwnerTypes = { SCH_SYMBOL_T, SCH_SHEET_T, SCH_LABEL_T, SCH_GLOBAL_LABEL_T,
+                                              SCH_HIER_LABEL_T, SCH_DIRECTIVE_LABEL_T };
+} // namespace
+
+
+HANDLER_RESULT<SCH_SHEET_PATH> API_HANDLER_SCH::prepareSheetRequest( const DocumentSpecifier& aDocument )
+{
+    if( HANDLER_RESULT<bool> documentValidation = validateDocument( aDocument ); !documentValidation )
+        return tl::unexpected( documentValidation.error() );
+
+    if( std::optional<ApiResponseStatus> busy = checkForBusy() )
+        return tl::unexpected( *busy );
+
+    SCH_SHEET_LIST hierarchy = schematic()->Hierarchy();
+
+    if( aDocument.has_sheet_path() )
+    {
+        KIID_PATH path = UnpackSheetPath( aDocument.sheet_path() );
+
+        if( std::optional<SCH_SHEET_PATH> sheet = hierarchy.GetSheetPathByKIIDPath( path ) )
+            return *sheet;
+
+        return tl::unexpected( apiError( ApiStatusCode::AS_BAD_REQUEST,
+                                         fmt::format( "the requested sheet path {} is not valid for this schematic",
+                                                      path.AsString().ToStdString() ) ) );
+    }
+
+    if( std::optional<SCH_SHEET_PATH> current = m_context->GetCurrentSheet() )
+        return *current;
+
+    if( hierarchy.empty() )
+        return tl::unexpected( apiError( ApiStatusCode::AS_BAD_REQUEST, "the schematic has no sheets" ) );
+
+    return *hierarchy.begin();
+}
+
+
+HANDLER_RESULT<std::vector<std::pair<SCH_ITEM*, SCH_SHEET_PATH>>> API_HANDLER_SCH::resolveSchItems(
+        const google::protobuf::RepeatedPtrField<types::KIID>& aIds, const std::set<KICAD_T>& aTypes,
+        const SCH_SCREEN* aRequiredScreen ) const
+{
+    std::vector<std::pair<SCH_ITEM*, SCH_SHEET_PATH>> items;
+    std::set<KIID>                                    seen;
+
+    for( const types::KIID& id : aIds )
+    {
+        KIID kiid( id.value() );
+
+        if( !seen.insert( kiid ).second )
+            continue;
+
+        SCH_SHEET_PATH           path;
+        std::optional<SCH_ITEM*> item = getItemById( kiid, &path );
+
+        if( !item )
+        {
+            return tl::unexpected( apiError( ApiStatusCode::AS_BAD_REQUEST,
+                                             fmt::format( "item {} does not exist", id.value() ) ) );
+        }
+
+        if( !aTypes.contains( ( *item )->Type() ) )
+        {
+            return tl::unexpected( apiError( ApiStatusCode::AS_BAD_REQUEST,
+                                             fmt::format( "item {} is a {}, which this command does not accept",
+                                                          id.value(), ( *item )->GetClass().ToStdString() ) ) );
+        }
+
+        if( aRequiredScreen && path.LastScreen() != aRequiredScreen )
+        {
+            return tl::unexpected( apiError( ApiStatusCode::AS_BAD_REQUEST,
+                                             fmt::format( "item {} is not on the requested sheet", id.value() ) ) );
+        }
+
+        items.emplace_back( *item, path );
+    }
+
+    return items;
+}
+
+
+HANDLER_RESULT<kiapi::schematic::commands::AnnotateSchematicResponse> API_HANDLER_SCH::handleAnnotateSchematic(
+        const HANDLER_CONTEXT<kiapi::schematic::commands::AnnotateSchematic>& aCtx )
+{
+    using namespace kiapi::schematic::commands;
+    const AnnotateSchematic& request = aCtx.Request;
+
+    HANDLER_RESULT<SCH_SHEET_PATH> target = prepareSheetRequest( request.document() );
+
+    if( !target )
+        return tl::unexpected( target.error() );
+
+    SCH_SHEET_LIST               hierarchy = schematic()->Hierarchy();
+    SCH_REFERENCE_LIST           references;
+    SCH_MULTI_UNIT_REFERENCE_MAP locked;
+    ANNOTATE_SCOPE_T             scope = ANNOTATE_ALL;
+
+    auto addPath =
+            [&]( const SCH_SHEET_PATH& aPath )
+            {
+                aPath.GetSymbols( references, SYMBOL_FILTER_NON_POWER );
+
+                SCH_MULTI_UNIT_REFERENCE_MAP pathUnits;
+                aPath.GetMultiUnitSymbols( pathUnits, SYMBOL_FILTER_NON_POWER );
+
+                for( auto& [ref, list] : pathUnits )
+                {
+                    for( unsigned ii = 0; ii < list.GetCount(); ++ii )
+                        locked[ref].AddItem( list[ii] );
+                }
+            };
+
+    switch( request.scope() )
+    {
+    case ANS_UNKNOWN:
+    case ANS_ALL:
+        for( const SCH_SHEET_PATH& path : hierarchy )
+            addPath( path );
+
+        break;
+
+    case ANS_SHEET:
+        scope = ANNOTATE_CURRENT_SHEET;
+
+        for( const SCH_SHEET_PATH& path : hierarchy )
+        {
+            if( path == *target || ( request.recursive() && path.IsContainedWithin( *target ) ) )
+                addPath( path );
+        }
+
+        break;
+
+    case ANS_SYMBOLS:
+    {
+        scope = ANNOTATE_SELECTION;
+
+        if( request.symbols().empty() )
+            return tl::unexpected( apiError( ApiStatusCode::AS_BAD_REQUEST, "ANS_SYMBOLS requires symbols" ) );
+
+        auto symbols = resolveSchItems( request.symbols(), { SCH_SYMBOL_T } );
+
+        if( !symbols )
+            return tl::unexpected( symbols.error() );
+
+        for( auto& [item, path] : *symbols )
+        {
+            SCH_SYMBOL* symbol = static_cast<SCH_SYMBOL*>( item );
+            path.AppendSymbol( references, symbol, SYMBOL_FILTER_NON_POWER );
+            path.AppendMultiUnitSymbol( locked, symbol, SYMBOL_FILTER_NON_POWER );
+        }
+
+        break;
+    }
+
+    default:
+        return tl::unexpected( apiError( ApiStatusCode::AS_BAD_REQUEST, "unknown annotation scope" ) );
+    }
+
+    ANNOTATE_ORDER_T order = SORT_BY_X_POSITION;
+
+    if( request.order() == AO_BY_Y_POSITION )
+        order = SORT_BY_Y_POSITION;
+    else if( request.order() == AO_UNSORTED )
+        order = UNSORTED;
+
+    ANNOTATE_ALGO_T algo = INCREMENTAL_BY_REF;
+
+    if( request.numbering() == AN_SHEET_X_100 )
+        algo = SHEET_NUMBER_X_100;
+    else if( request.numbering() == AN_SHEET_X_1000 )
+        algo = SHEET_NUMBER_X_1000;
+
+    if( std::optional<std::pair<SCH_SHEET_PATH, SCH_SHEET_PATH>> collision =
+                FindRefSuffixCollision( references, *schematic() ) )
+    {
+        return tl::unexpected( apiError(
+                ApiStatusCode::AS_BAD_REQUEST,
+                fmt::format( "sheets {} and {} use the same reference suffix; give each sheet a distinct "
+                             "suffix before annotating",
+                             collision->second.PathHumanReadable( false, true ).ToStdString(),
+                             collision->first.PathHumanReadable( false, true ).ToStdString() ) ) );
+    }
+
+    std::vector<std::tuple<SCH_SYMBOL*, SCH_SHEET_PATH, wxString>> before;
+
+    for( unsigned ii = 0; ii < references.GetCount(); ++ii )
+    {
+        SCH_REFERENCE& ref = references[ii];
+        before.emplace_back( ref.GetSymbol(), ref.GetSheetPath(), ref.GetSymbol()->GetRef( &ref.GetSheetPath() ) );
+    }
+
+    if( SCH_EDIT_FRAME* editFrame = frame() )
+        editFrame->SetSheetNumberAndCount();
+    else
+        schematic()->SetSheetNumberAndCount();
+
+    SCH_COMMIT* commit = static_cast<SCH_COMMIT*>( getCurrentCommit( aCtx.ClientName ) );
+
+    AnnotateReferences( references, std::move( locked ), *schematic(), scope, order, algo,
+                        std::max( 0, request.start_number() ), request.reset_existing(),
+                        [&]( SCH_REFERENCE& aRef )
+                        {
+                            commit->Modify( aRef.GetSymbol(), aRef.GetSheetPath().LastScreen() );
+                        } );
+
+    if( SCH_EDIT_FRAME* editFrame = frame() )
+        editFrame->GetCurrentSheet().UpdateAllScreenReferences();
+    else
+        target->UpdateAllScreenReferences();
+
+    AnnotateSchematicResponse response;
+
+    for( auto& [symbol, path, oldRef] : before )
+    {
+        wxString newRef = symbol->GetRef( &path );
+
+        if( newRef == oldRef )
+            continue;
+
+        ReferenceChange* change = response.add_changes();
+        change->mutable_symbol()->set_value( symbol->m_Uuid.AsStdString() );
+        PackSheetPath( *change->mutable_path(), path.Path() );
+        change->set_old_reference( oldRef.ToUTF8() );
+        change->set_new_reference( newRef.ToUTF8() );
+    }
+
+    if( !m_activeClients.contains( aCtx.ClientName ) )
+        pushCurrentCommit( aCtx.ClientName, _( "Annotated symbols via API" ) );
+
+    return response;
+}
+
+
+HANDLER_RESULT<kiapi::schematic::commands::UpdateSymbolsFromLibraryResponse>
+API_HANDLER_SCH::handleUpdateSymbolsFromLibrary(
+        const HANDLER_CONTEXT<kiapi::schematic::commands::UpdateSymbolsFromLibrary>& aCtx )
+{
+    using namespace kiapi::schematic::commands;
+    const UpdateSymbolsFromLibrary& request = aCtx.Request;
+
+    HANDLER_RESULT<SCH_SHEET_PATH> target = prepareSheetRequest( request.document() );
+
+    if( !target )
+        return tl::unexpected( target.error() );
+
+    std::optional<LIB_ID> newLibId;
+
+    if( request.has_new_lib_id() )
+    {
+        newLibId = UnpackLibId( request.new_lib_id() );
+
+        if( !newLibId->IsValid() )
+        {
+            return tl::unexpected( apiError( ApiStatusCode::AS_BAD_REQUEST,
+                                             "new_lib_id must specify both a library nickname and an entry name" ) );
+        }
+    }
+
+    std::vector<std::pair<SCH_SYMBOL*, SCH_SCREEN*>> candidates;
+
+    if( request.symbols().empty() )
+    {
+        for( SCH_ITEM* item : target->LastScreen()->Items().OfType( SCH_SYMBOL_T ) )
+            candidates.emplace_back( static_cast<SCH_SYMBOL*>( item ), target->LastScreen() );
+    }
+    else
+    {
+        auto symbols = resolveSchItems( request.symbols(), { SCH_SYMBOL_T } );
+
+        if( !symbols )
+            return tl::unexpected( symbols.error() );
+
+        for( auto& [item, path] : *symbols )
+            candidates.emplace_back( static_cast<SCH_SYMBOL*>( item ), path.LastScreen() );
+    }
+
+    UpdateSymbolsFromLibraryResponse response;
+    SYMBOL_LIBRARY_ADAPTER*          adapter = PROJECT_SCH::SymbolLibAdapter( &project() );
+
+    struct PENDING
+    {
+        SCH_SYMBOL*                 symbol;
+        SCH_SCREEN*                 screen;
+        LIB_ID                      libId;
+        std::unique_ptr<LIB_SYMBOL> flattened;
+    };
+
+    std::vector<PENDING> pending;
+
+    for( auto& [symbol, screen] : candidates )
+    {
+        LIB_ID              libId = newLibId.value_or( symbol->GetLibId() );
+        SymbolUpdateStatus* status = response.add_symbols();
+        status->mutable_symbol()->set_value( symbol->m_Uuid.AsStdString() );
+        PackLibId( status->mutable_lib_id(), libId );
+
+        LIB_SYMBOL* libSymbol = nullptr;
+
+        try
+        {
+            libSymbol = adapter->LoadSymbol( libId );
+        }
+        catch( const IO_ERROR& error )
+        {
+            status->set_error_message( error.What().ToStdString() );
+            continue;
+        }
+
+        if( !libSymbol )
+        {
+            status->set_error_message( fmt::format( "symbol '{}' not found", libId.Format().wx_str() ) );
+            continue;
+        }
+
+        std::unique_ptr<LIB_SYMBOL> flattened = libSymbol->Flatten();
+
+        if( flattened->GetUnitCount() < symbol->GetUnit() )
+        {
+            status->set_error_message( "the library symbol has too few units" );
+            continue;
+        }
+
+        status->set_updated( true );
+        pending.push_back( { symbol, screen, libId, std::move( flattened ) } );
+    }
+
+    if( pending.empty() )
+        return response;
+
+    SCH_COMMIT*    commit = static_cast<SCH_COMMIT*>( getCurrentCommit( aCtx.ClientName ) );
+    SCH_SHEET_LIST hierarchy = schematic()->Hierarchy();
+
+    // Take the symbols off their screens before their library symbol changes, so the screen's
+    // library cache does not keep the old definition (as the Change Symbols dialog does)
+    for( PENDING& entry : pending )
+    {
+        entry.screen->Remove( entry.symbol );
+        commit->Modified( entry.symbol, static_cast<SCH_SYMBOL*>( entry.symbol->Clone() ), entry.screen );
+    }
+
+    for( PENDING& entry : pending )
+    {
+        SCH_SYMBOL* symbol = entry.symbol;
+        SCH_SCREEN* screen = entry.screen;
+
+        if( entry.libId != symbol->GetLibId() )
+            symbol->SetLibId( entry.libId );
+
+        PIN_MAP_SET                       savedPinMaps;
+        std::vector<ASSOCIATED_FOOTPRINT> savedAssociations;
+        const bool                        hadLibSymbol = symbol->GetLibSymbolRef() != nullptr;
+
+        if( hadLibSymbol )
+        {
+            savedPinMaps = symbol->GetLibSymbolRef()->GetPinMaps();
+            savedAssociations = symbol->GetLibSymbolRef()->GetAssociatedFootprints();
+        }
+
+        symbol->SetLibSymbol( entry.flattened.release() );
+        screen->IncludeVariantSymbols( *symbol, true );
+
+        LIB_SYMBOL* libSymbol = symbol->GetLibSymbolRef().get();
+
+        // Pin maps are edited per schematic, so they survive a reload
+        if( hadLibSymbol )
+        {
+            libSymbol->SetPinMaps( savedPinMaps );
+            libSymbol->SetAssociatedFootprints( savedAssociations );
+        }
+
+        for( int ii = (int) symbol->GetFields().size() - 1; ii >= 0; ii-- )
+        {
+            SCH_FIELD& field = symbol->GetFields()[ii];
+
+            if( field.GetId() == FIELD_T::REFERENCE )
+                continue;
+
+            wxString   name = field.GetName();
+            SCH_FIELD* libField = field.IsMandatory() ? libSymbol->GetField( field.GetId() )
+                                                      : libSymbol->GetField( name );
+
+            if( libField )
+            {
+                field.SetPrivate( libField->IsPrivate() );
+
+                if( request.reset_field_text() )
+                {
+                    if( field.GetId() == FIELD_T::VALUE )
+                    {
+                        // A power symbol's value names its net
+                        if( !symbol->IsPower() )
+                            symbol->SetValueFieldText( UnescapeString( libField->GetText() ) );
+                    }
+                    else
+                    {
+                        field.SetText( libField->GetText() );
+                    }
+                }
+
+                if( request.reset_field_visibility() )
+                    field.SetVisible( libField->IsVisible() );
+            }
+            else if( !field.IsMandatory() && request.remove_extra_fields() )
+            {
+                symbol->RemoveField( name );
+            }
+        }
+
+        std::vector<SCH_FIELD*> libFields;
+        libSymbol->GetFields( libFields );
+
+        for( SCH_FIELD* libField : libFields )
+        {
+            if( libField->IsMandatory() || symbol->GetField( libField->GetName() ) )
+                continue;
+
+            SCH_FIELD* field = symbol->AddField( SCH_FIELD( symbol, FIELD_T::USER, libField->GetName() ) );
+            field->SetAttributes( *libField );
+            field->SetVisible( libField->IsVisible() );
+            field->SetText( libField->GetText() );
+            field->SetTextPos( symbol->GetPosition() + libField->GetTextPos() );
+            field->SetPrivate( libField->IsPrivate() );
+        }
+
+        symbol->SetSchSymbolLibraryName( wxEmptyString );
+        screen->Append( symbol );
+
+        AUTOPLACE_ALGO autoplaced = symbol->GetFieldsAutoplaced();
+
+        if( request.reset_field_positions() && ( autoplaced == AUTOPLACE_AUTO || autoplaced == AUTOPLACE_MANUAL ) )
+            symbol->AutoplaceFields( screen, autoplaced );
+
+        // Drop alternates the new library symbol no longer has
+        for( const SCH_SHEET_PATH& instance : hierarchy.FindAllSheetsForScreen( screen ) )
+        {
+            for( SCH_PIN* pin : symbol->GetPins( &instance ) )
+            {
+                wxString alt = pin->GetAlt();
+
+                if( !alt.IsEmpty() && ( alt == pin->GetBaseName() || !pin->GetAlternates().contains( alt ) ) )
+                    pin->SetAlt( wxEmptyString );
+            }
+        }
+
+        symbol->SetConnectivityDirty();
+    }
+
+    if( !m_activeClients.contains( aCtx.ClientName ) )
+        pushCurrentCommit( aCtx.ClientName, _( "Updated symbols from library via API" ) );
+
+    return response;
+}
+
+
+HANDLER_RESULT<Empty> API_HANDLER_SCH::handleAutoplaceFields(
+        const HANDLER_CONTEXT<kiapi::schematic::commands::AutoplaceFields>& aCtx )
+{
+    HANDLER_RESULT<SCH_SHEET_PATH> target = prepareSheetRequest( aCtx.Request.document() );
+
+    if( !target )
+        return tl::unexpected( target.error() );
+
+    std::vector<std::pair<SCH_ITEM*, SCH_SCREEN*>> items;
+
+    if( aCtx.Request.items().empty() )
+    {
+        for( SCH_ITEM* item : target->LastScreen()->Items() )
+        {
+            if( s_fieldOwnerTypes.contains( item->Type() ) )
+                items.emplace_back( item, target->LastScreen() );
+        }
+    }
+    else
+    {
+        auto resolved = resolveSchItems( aCtx.Request.items(), s_fieldOwnerTypes );
+
+        if( !resolved )
+            return tl::unexpected( resolved.error() );
+
+        for( auto& [item, path] : *resolved )
+            items.emplace_back( item, path.LastScreen() );
+    }
+
+    SCH_COMMIT* commit = static_cast<SCH_COMMIT*>( getCurrentCommit( aCtx.ClientName ) );
+
+    for( auto& [item, screen] : items )
+    {
+        commit->Modify( item, screen );
+        item->SetFieldsAutoplaced( AUTOPLACE_AUTO );
+        item->AutoplaceFields( screen, AUTOPLACE_AUTO );
+    }
+
+    if( !m_activeClients.contains( aCtx.ClientName ) )
+        pushCurrentCommit( aCtx.ClientName, _( "Autoplaced fields via API" ) );
+
+    return Empty();
+}
+
+
+HANDLER_RESULT<kiapi::schematic::commands::TransformItemsResponse> API_HANDLER_SCH::handleTransformItems(
+        const HANDLER_CONTEXT<kiapi::schematic::commands::TransformItems>& aCtx )
+{
+    using namespace kiapi::schematic::commands;
+    const TransformItems& request = aCtx.Request;
+
+    HANDLER_RESULT<SCH_SHEET_PATH> target = prepareSheetRequest( request.document() );
+
+    if( !target )
+        return tl::unexpected( target.error() );
+
+    if( request.items().empty() )
+        return tl::unexpected( apiError( ApiStatusCode::AS_BAD_REQUEST, "no items to transform" ) );
+
+    SCH_SCREEN* screen = target->LastScreen();
+    auto        resolved = resolveSchItems( request.items(), s_allowedTypes, screen );
+
+    if( !resolved )
+        return tl::unexpected( resolved.error() );
+
+    std::vector<SCH_ITEM*> items;
+
+    for( auto& [item, path] : *resolved )
+        items.push_back( item );
+
+    VECTOR2I center = items.front()->GetPosition();
+
+    if( items.size() > 1 )
+    {
+        BOX2I bbox = items.front()->GetBoundingBox();
+
+        for( SCH_ITEM* item : items )
+            bbox.Merge( item->GetBoundingBox() );
+
+        const int grid = schIUScale.mmToIU( 1.27 );
+        center = VECTOR2I( KiROUND( (double) bbox.GetCenter().x / grid ) * grid,
+                           KiROUND( (double) bbox.GetCenter().y / grid ) * grid );
+    }
+
+    const VECTOR2I                             delta = UnpackVector2( request.translation(), schIUScale );
+    std::map<SCH_ITEM*, std::vector<VECTOR2I>> oldPoints;
+
+    if( request.drag_wires() )
+    {
+        for( SCH_ITEM* item : items )
+            oldPoints[item] = item->GetConnectionPoints();
+    }
+
+    SCH_COMMIT* commit = static_cast<SCH_COMMIT*>( getCurrentCommit( aCtx.ClientName ) );
+
+    for( SCH_ITEM* item : items )
+    {
+        commit->Modify( item, screen );
+
+        switch( request.rotation() )
+        {
+        case IR_CCW_90:
+            item->Rotate( center, true );
+            break;
+
+        case IR_180:
+            item->Rotate( center, true );
+            item->Rotate( center, true );
+            break;
+
+        case IR_CW_90:
+            item->Rotate( center, false );
+            break;
+
+        default:
+            break;
+        }
+
+        if( request.mirror_horizontally() )
+            item->MirrorHorizontally( center.x );
+
+        if( request.mirror_vertically() )
+            item->MirrorVertically( center.y );
+
+        item->Move( delta );
+
+        if( item->IsConnectable() )
+            item->SetConnectivityDirty();
+    }
+
+    TransformItemsResponse response;
+
+    if( request.drag_wires() )
+    {
+        // Each transformed connection point, from where it was to where it is now
+        std::map<VECTOR2I, VECTOR2I, POINT_LESS> moved;
+
+        for( auto& [item, before] : oldPoints )
+        {
+            std::vector<VECTOR2I> after = item->GetConnectionPoints();
+
+            if( after.size() != before.size() )
+                continue;
+
+            for( size_t ii = 0; ii < before.size(); ++ii )
+            {
+                if( before[ii] != after[ii] )
+                    moved.emplace( before[ii], after[ii] );
+            }
+        }
+
+        std::set<SCH_ITEM*>    transformed( items.begin(), items.end() );
+        std::vector<SCH_ITEM*> attached;
+
+        for( SCH_ITEM* item : screen->Items() )
+        {
+            if( transformed.contains( item ) )
+                continue;
+
+            switch( item->Type() )
+            {
+            case SCH_LINE_T:
+            {
+                SCH_LINE* line = static_cast<SCH_LINE*>( item );
+
+                if( ( line->IsWire() || line->IsBus() )
+                    && ( moved.contains( line->GetStartPoint() ) || moved.contains( line->GetEndPoint() ) ) )
+                {
+                    attached.push_back( item );
+                }
+
+                break;
+            }
+
+            case SCH_LABEL_T:
+            case SCH_GLOBAL_LABEL_T:
+            case SCH_HIER_LABEL_T:
+            case SCH_DIRECTIVE_LABEL_T:
+            case SCH_NO_CONNECT_T:
+            case SCH_JUNCTION_T:
+                if( moved.contains( item->GetPosition() ) )
+                    attached.push_back( item );
+
+                break;
+
+            default:
+                break;
+            }
+        }
+
+        // Change geometry only after the walk, since it re-indexes the screen's items
+        for( SCH_ITEM* item : attached )
+        {
+            commit->Modify( item, screen );
+
+            if( item->Type() == SCH_LINE_T )
+            {
+                SCH_LINE*      line = static_cast<SCH_LINE*>( item );
+                const VECTOR2I start = line->GetStartPoint();
+                const VECTOR2I end = line->GetEndPoint();
+                auto           startIt = moved.find( start );
+                auto           endIt = moved.find( end );
+
+                if( startIt != moved.end() && endIt != moved.end() )
+                {
+                    line->SetStartPoint( startIt->second );
+                    line->SetEndPoint( endIt->second );
+                }
+                else
+                {
+                    // One end follows the item.  Keep a horizontal or vertical wire square, as
+                    // the drag tool does: it keeps its direction up to a corner, and a new segment
+                    // runs from there to the moved end.
+                    const bool     startMoves = startIt != moved.end();
+                    const VECTOR2I fixed = startMoves ? end : start;
+                    const VECTOR2I target = startMoves ? startIt->second : endIt->second;
+                    const bool     horizontal = start.y == end.y && start.x != end.x;
+                    const bool     vertical = start.x == end.x && start.y != end.y;
+                    VECTOR2I       corner = target;
+
+                    if( horizontal )
+                        corner = VECTOR2I( target.x, fixed.y );
+                    else if( vertical )
+                        corner = VECTOR2I( fixed.x, target.y );
+
+                    if( corner == target || corner == fixed )
+                    {
+                        // Already square (or the original run vanishes): one straight segment
+                        if( startMoves )
+                            line->SetStartPoint( target );
+                        else
+                            line->SetEndPoint( target );
+                    }
+                    else
+                    {
+                        if( startMoves )
+                            line->SetStartPoint( corner );
+                        else
+                            line->SetEndPoint( corner );
+
+                        SCH_LINE* bend = static_cast<SCH_LINE*>( line->Duplicate( true, commit ) );
+                        bend->SetStartPoint( corner );
+                        bend->SetEndPoint( target );
+                        bend->SetConnectivityDirty();
+                        commit->Add( bend, screen );
+                        response.add_dragged_items()->set_value( bend->m_Uuid.AsStdString() );
+                    }
+                }
+            }
+            else
+            {
+                item->Move( moved.at( item->GetPosition() ) - item->GetPosition() );
+            }
+
+            item->SetConnectivityDirty();
+            response.add_dragged_items()->set_value( item->m_Uuid.AsStdString() );
+        }
+    }
+
+    if( !m_activeClients.contains( aCtx.ClientName ) )
+        pushCurrentCommit( aCtx.ClientName, _( "Transformed items via API" ) );
+
+    return response;
+}
+
+
+HANDLER_RESULT<kiapi::schematic::commands::UndoRedoResponse>
+API_HANDLER_SCH::undoOrRedo( const DocumentSpecifier& aDocument, bool aRedo )
+{
+    if( std::optional<ApiResponseStatus> headless =
+                checkForHeadless( aRedo ? "RedoLastChange" : "UndoLastChange" ) )
+    {
+        return tl::unexpected( *headless );
+    }
+
+    if( HANDLER_RESULT<bool> documentValidation = validateDocument( aDocument ); !documentValidation )
+        return tl::unexpected( documentValidation.error() );
+
+    if( std::optional<ApiResponseStatus> busy = checkForBusy() )
+        return tl::unexpected( *busy );
+
+    // An open commit would be pushed on top of the restored state
+    if( !m_activeClients.empty() )
+        return tl::unexpected( apiError( ApiStatusCode::AS_BUSY, "cannot undo or redo while an API commit is open" ) );
+
+    SCH_EDIT_FRAME* editFrame = frame();
+    auto            count = [&]()
+                            {
+                                return aRedo ? editFrame->GetRedoCommandCount()
+                                             : editFrame->GetUndoCommandCount();
+                            };
+    const int       before = count();
+
+    if( before > 0 )
+        toolManager()->RunAction( aRedo ? ACTIONS::redo : ACTIONS::undo );
+
+    kiapi::schematic::commands::UndoRedoResponse response;
+    response.set_performed( count() < before );
+    response.set_undo_count( editFrame->GetUndoCommandCount() );
+    response.set_redo_count( editFrame->GetRedoCommandCount() );
+    return response;
+}
+
+
+HANDLER_RESULT<kiapi::schematic::commands::UndoRedoResponse> API_HANDLER_SCH::handleUndoLastChange(
+        const HANDLER_CONTEXT<kiapi::schematic::commands::UndoLastChange>& aCtx )
+{
+    return undoOrRedo( aCtx.Request.document(), false );
+}
+
+
+HANDLER_RESULT<kiapi::schematic::commands::UndoRedoResponse> API_HANDLER_SCH::handleRedoLastChange(
+        const HANDLER_CONTEXT<kiapi::schematic::commands::RedoLastChange>& aCtx )
+{
+    return undoOrRedo( aCtx.Request.document(), true );
+}
+
+
+HANDLER_RESULT<kiapi::schematic::commands::SymbolPinsResponse> API_HANDLER_SCH::handleGetSymbolPins(
+        const HANDLER_CONTEXT<kiapi::schematic::commands::GetSymbolPins>& aCtx )
+{
+    using namespace kiapi::schematic::commands;
+    using kiapi::schematic::types::SchematicPinOrientation;
+
+    HANDLER_RESULT<SCH_SHEET_PATH> target = prepareSheetRequest( aCtx.Request.document() );
+
+    if( !target )
+        return tl::unexpected( target.error() );
+
+    std::vector<std::pair<SCH_SYMBOL*, SCH_SHEET_PATH>> symbols;
+
+    if( aCtx.Request.symbols().empty() )
+    {
+        for( SCH_ITEM* item : target->LastScreen()->Items().OfType( SCH_SYMBOL_T ) )
+            symbols.emplace_back( static_cast<SCH_SYMBOL*>( item ), *target );
+    }
+    else
+    {
+        auto resolved = resolveSchItems( aCtx.Request.symbols(), { SCH_SYMBOL_T } );
+
+        if( !resolved )
+            return tl::unexpected( resolved.error() );
+
+        for( auto& [item, path] : *resolved )
+        {
+            // A reused sheet's symbol is reported on the requested instance when it is on that screen
+            SCH_SHEET_PATH instance = path.LastScreen() == target->LastScreen() ? *target : path;
+            symbols.emplace_back( static_cast<SCH_SYMBOL*>( item ), instance );
+        }
+    }
+
+    SymbolPinsResponse response;
+
+    for( auto& [symbol, path] : symbols )
+    {
+        PlacedSymbolPins* out = response.add_symbols();
+        out->mutable_symbol()->set_value( symbol->m_Uuid.AsStdString() );
+        out->set_reference( symbol->GetRef( &path, true ).ToUTF8() );
+        PackLibId( out->mutable_lib_id(), symbol->GetLibId() );
+        out->set_unit( symbol->GetUnit() );
+
+        for( SCH_PIN* pin : symbol->GetPins( &path ) )
+        {
+            PlacedPin* placed = out->add_pins();
+            placed->mutable_id()->set_value( pin->m_Uuid.AsStdString() );
+            placed->set_number( pin->GetNumber().ToUTF8() );
+            placed->set_name( pin->GetShownName().ToUTF8() );
+            PackVector2( *placed->mutable_position(), pin->GetPosition(), schIUScale );
+            placed->set_orientation( ToProtoEnum<PIN_ORIENTATION, SchematicPinOrientation>(
+                    pin->PinDrawOrient( symbol->GetTransform() ) ) );
+            placed->set_electrical_type(
+                    ToProtoEnum<ELECTRICAL_PINTYPE, types::ElectricalPinType>( pin->GetType() ) );
+            placed->set_visible( pin->IsVisible() );
+        }
+    }
 
     return response;
 }
