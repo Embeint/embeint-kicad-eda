@@ -97,6 +97,9 @@ private:
     HANDLER_RESULT<google::protobuf::Empty> handleSetEmbeddedFiles(
             const HANDLER_CONTEXT<SetEmbeddedFiles>& aCtx );
 
+    HANDLER_RESULT<BoardStackupResponse> handleUpdateBoardStackup(
+            const HANDLER_CONTEXT<UpdateBoardStackup>& aCtx );
+
     HANDLER_RESULT<types::Vector2> handleGetBoardOrigin(
             const HANDLER_CONTEXT<GetBoardOrigin>& aCtx );
 
@@ -241,6 +244,8 @@ protected:
     std::optional<PAGE_INFO> getPageSettings( const DocumentSpecifier& aDocument ) override;
 
     bool setPageSettings( const DocumentSpecifier& aDocument, const PAGE_INFO& aPageInfo ) override;
+
+    HANDLER_RESULT<PAGE_LAYOUT_INPUT> getPageLayoutInput( const DocumentSpecifier& aDocument ) override;
 
     wxString getDrawingSheetFileName() override;
 

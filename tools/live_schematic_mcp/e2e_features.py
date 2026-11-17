@@ -14,7 +14,8 @@ import random
 import sys
 import tempfile
 
-from client import LiveSchematic, as_dict, document, kiid, sch
+from client import LiveSchematic, as_dict, document, kiid, point, sch, types
+from e2e_guard import test_document
 
 
 def wires(client, doc):
@@ -37,7 +38,7 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     client = LiveSchematic()
     listing = client.documents()
-    root = document(listing["documents"][0])
+    root = test_document(client)
     project_dir = Path(root.project.path)
     on_disk = {p: sha256(p.read_bytes()).hexdigest() for p in project_dir.glob("*.kicad_sch")}
 
@@ -134,6 +135,37 @@ def main():
 
     (out / "features.png").write_bytes(client.render(root, dpi=100))
     print("rendered", out / "features.png")
+
+    # Page layout: the drawing area, title block and items that break out of them
+    page = client.page_layout(root)
+    area, block = page["drawing_area_mm"], page["title_block_mm"]
+    check(page["page_size_mm"][0] > page["page_size_mm"][1] and area and block
+          and area[0] < block[0] < block[2] <= area[2] + 0.01 and block[3] <= area[3] + 0.01,
+          f"page {page['paper']} {page['page_size_mm']}: drawing area {area}, title block {block}")
+    original = {"size": page["paper"], "orientation": page["orientation"], **page["title_block"]}
+    margin = (page["page_size_mm"][0] - 2, page["page_size_mm"][1] - 2)        # outside the border
+    corner = ((block[0] + block[2]) / 2, (block[1] + block[3]) / 2)            # in the title block
+    strays = [sch.SchematicText(id=kiid(), text=types.Text(text="OUTSIDE", position=point(*margin))),
+              sch.SchematicText(id=kiid(), text=types.Text(text="IN TITLE", position=point(*corner)))]
+    client.mutate(root, strays)
+    flagged = {p["id"]: p for p in client.page_layout(root)["problems"]}
+    check(flagged.get(strays[0].id.value, {}).get("outside_drawing_area")
+          and flagged.get(strays[1].id.value, {}).get("overlaps_title_block"),
+          "items outside the border and in the title block are reported")
+    framed, bare = client.render(root, dpi=100, frame=True), client.render(root, dpi=100, frame=False)
+    (out / "page_framed.png").write_bytes(framed)
+    check(framed != bare, "view(frame=True) draws the drawing sheet; frame=False leaves it out")
+    client.delete(root, [s.id.value for s in strays])
+
+    a3 = client.set_page(root, size="A3", title="live-demo - Root", revision="T1", comments=["MCP page test"])
+    check(a3["paper"] == "A3" and abs(a3["page_size_mm"][0] - 420) < 0.5
+          and a3["title_block"]["title"] == "live-demo - Root" and a3["title_block"]["comments"] == ["MCP page test"],
+          f"set the page to A3 {a3['page_size_mm']} and filled the title block")
+    restored = client.set_page(root, size=original["size"], orientation=original["orientation"],
+                               title=original["title"], revision=original["revision"],
+                               comments=original["comments"])
+    check(restored["paper"] == original["size"] and restored["title_block"]["title"] == original["title"],
+          f"restored the page to {original['size']}")
 
     unchanged = {p: sha256(p.read_bytes()).hexdigest() for p in project_dir.glob("*.kicad_sch")}
     check(unchanged == on_disk, "nothing written to the schematic files")

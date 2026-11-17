@@ -216,27 +216,6 @@ message TransformItemsResponse
   repeated kiapi.common.types.KIID dragged_items = 1;
 }
 
-// Undoes the editor's most recent change.  Returns UndoRedoResponse
-// Since: 11.0
-message UndoLastChange
-{
-  kiapi.common.types.DocumentSpecifier document = 1;
-}
-
-// Redoes the most recently undone change.  Returns UndoRedoResponse
-// Since: 11.0
-message RedoLastChange
-{
-  kiapi.common.types.DocumentSpecifier document = 1;
-}
-
-message UndoRedoResponse
-{
-  bool performed = 1;
-  int32 undo_count = 2;
-  int32 redo_count = 3;
-}
-
 // Returns the placed pins of symbols with their absolute connection points.  Pin ids match the
 // items reported by GetSchematicNetlist, which gives each pin's net.  Returns SymbolPinsResponse
 // Since: 11.0

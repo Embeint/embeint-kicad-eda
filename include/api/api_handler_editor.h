@@ -27,6 +27,9 @@
 #include <commit.h>
 #include <google/protobuf/empty.pb.h>
 #include <kiid.h>
+#include <math/box2.h>
+#include <memory>
+#include <vector>
 #include <page_info.h>
 
 using namespace kiapi::common;
@@ -34,7 +37,9 @@ using kiapi::common::types::DocumentSpecifier;
 using kiapi::common::types::ItemRequestStatus;
 using kiapi::common::commands::ItemDeletionStatus;
 
+class DS_DRAW_ITEM_LIST;
 class EDA_BASE_FRAME;
+class EDA_DRAW_FRAME;
 class TITLE_BLOCK;
 
 /**
@@ -94,6 +99,52 @@ protected:
 
     HANDLER_RESULT<types::PageSettings> handleSetPageSettings(
             const HANDLER_CONTEXT<commands::SetPageSettings>& aCtx );
+
+    HANDLER_RESULT<commands::UndoRedoResponse> handleUndoLastChange(
+            const HANDLER_CONTEXT<commands::UndoLastChange>& aCtx );
+
+    HANDLER_RESULT<commands::UndoRedoResponse> handleRedoLastChange(
+            const HANDLER_CONTEXT<commands::RedoLastChange>& aCtx );
+
+    HANDLER_RESULT<commands::UndoRedoResponse> undoOrRedo( const DocumentSpecifier& aDocument, bool aRedo );
+
+    HANDLER_RESULT<commands::PageLayoutResponse> handleGetPageLayout(
+            const HANDLER_CONTEXT<commands::GetPageLayout>& aCtx );
+
+    HANDLER_RESULT<commands::GridSettings> handleGetGridSettings(
+            const HANDLER_CONTEXT<commands::GetGridSettings>& aCtx );
+
+    HANDLER_RESULT<commands::GridSettings> handleSetGridSettings(
+            const HANDLER_CONTEXT<commands::SetGridSettings>& aCtx );
+
+    /// The frame as a drawing frame, or an error for headless handlers and non-drawing frames
+    HANDLER_RESULT<EDA_DRAW_FRAME*> drawFrame( const std::string& aCommandName ) const;
+
+    commands::GridSettings packGridSettings( EDA_DRAW_FRAME* aFrame ) const;
+
+    /// One item of a document, for the page layout check
+    struct PAGE_LAYOUT_ITEM
+    {
+        KIID        id;
+        std::string type;
+        wxString    name;
+        BOX2I       box;
+    };
+
+    /// What an editor provides for GetPageLayout: its page, its drawing sheet laid out the way
+    /// the editor draws it, and the bounding box of every item on the page
+    struct PAGE_LAYOUT_INPUT
+    {
+        PAGE_INFO                          page;
+        std::shared_ptr<DS_DRAW_ITEM_LIST> drawing;
+        std::vector<PAGE_LAYOUT_ITEM>      items;
+        std::optional<BOX2I>               boardOutline;
+    };
+
+    /**
+     * Override in editors that draw a drawing sheet (schematic, board).  The default refuses.
+     */
+    virtual HANDLER_RESULT<PAGE_LAYOUT_INPUT> getPageLayoutInput( const DocumentSpecifier& aDocument );
 
     /**
      * Override this to create an appropriate COMMIT subclass for the frame in question

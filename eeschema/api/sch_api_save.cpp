@@ -41,6 +41,19 @@
 namespace SCH_API_SAVE
 {
 
+namespace
+{
+/// Why the last save failed: the file and KiCad's reason, for the API reply
+wxString s_lastError;
+}
+
+
+wxString LastError()
+{
+    return s_lastError;
+}
+
+
 bool SaveSheetToFile( SCH_SHEET* aSheet, SCHEMATIC& aSchematic, const wxString& aPath )
 {
     wxCHECK( aSheet, false );
@@ -55,7 +68,10 @@ bool SaveSheetToFile( SCH_SHEET* aSheet, SCHEMATIC& aSchematic, const wxString& 
         return false;
 
     if( schematicFileName.FileExists() && !schematicFileName.IsFileWritable() )
+    {
+        s_lastError = wxString::Format( wxS( "'%s' is not writable" ), schematicFileName.GetFullPath() );
         return false;
+    }
 
     if( schematicFileName.FileExists() )
         KIPLATFORM::IO::MakeWriteable( schematicFileName.GetFullPath() );
@@ -75,6 +91,7 @@ bool SaveSheetToFile( SCH_SHEET* aSheet, SCHEMATIC& aSchematic, const wxString& 
     catch( const IO_ERROR& ioe )
     {
         wxLogTrace( wxS( "KI_TRACE_API" ), wxS( "SaveSheetToFile failed: %s" ), ioe.What() );
+        s_lastError = ioe.What();
         return false;
     }
 }
@@ -144,10 +161,11 @@ bool saveScreens( SCHEMATIC& aSchematic )
         else
             screen->SetVirtualPageNumber( 0 );
 
-        success &= SaveSheetToFile( screens.GetSheet( i ), aSchematic, fileName.GetFullPath() );
-
-        if( success )
+        // Each sheet that saved is clean, even after another one failed
+        if( SaveSheetToFile( screens.GetSheet( i ), aSchematic, fileName.GetFullPath() ) )
             screen->SetContentModified( false );
+        else
+            success = false;
     }
 
     return success;
@@ -173,6 +191,8 @@ void UpdateProjectFile( SCHEMATIC& aSchematic, PROJECT& aProject )
 
 bool SaveSchematic( SCHEMATIC& aSchematic, PROJECT& aProject )
 {
+    s_lastError.clear();
+
     if( !saveScreens( aSchematic ) )
         return false;
 

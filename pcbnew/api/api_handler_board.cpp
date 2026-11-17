@@ -96,6 +96,8 @@ API_HANDLER_BOARD::API_HANDLER_BOARD( std::shared_ptr<BOARD_CONTEXT> aContext,
 
     registerHandler<InteractiveMoveItems, Empty>( &API_HANDLER_BOARD::handleInteractiveMoveItems );
     registerHandler<FlipItems, FlipItemsResponse>( &API_HANDLER_BOARD::handleFlipItems );
+    registerHandler<TransformBoardItems, TransformBoardItemsResponse>(
+            &API_HANDLER_BOARD::handleTransformBoardItems );
 
     registerHandler<SaveDocumentToString, SavedDocumentResponse>(
             &API_HANDLER_BOARD::handleSaveDocumentToString );
@@ -1468,6 +1470,105 @@ HANDLER_RESULT<FlipItemsResponse> API_HANDLER_BOARD::handleFlipItems(
 
     if( anyModified && !m_activeClients.count( aCtx.ClientName ) )
         pushCurrentCommit( aCtx.ClientName, _( "Flipped items via API" ) );
+
+    return response;
+}
+
+
+HANDLER_RESULT<TransformBoardItemsResponse> API_HANDLER_BOARD::handleTransformBoardItems(
+        const HANDLER_CONTEXT<TransformBoardItems>& aCtx )
+{
+    auto containerResult = validateItemHeaderDocument( aCtx.Request.header() );
+
+    if( !containerResult && containerResult.error().status() == ApiStatusCode::AS_UNHANDLED )
+    {
+        ApiResponseStatus e;
+        e.set_status( ApiStatusCode::AS_UNHANDLED );
+        return tl::unexpected( e );
+    }
+    else if( !containerResult )
+    {
+        return tl::unexpected( containerResult.error() );
+    }
+
+    if( std::optional<ApiResponseStatus> busy = checkForBusy() )
+        return tl::unexpected( *busy );
+
+    const TransformBoardItems& request = aCtx.Request;
+
+    TransformBoardItemsResponse response;
+    response.mutable_header()->CopyFrom( request.header() );
+
+    BOARD_COMMIT* commit = static_cast<BOARD_COMMIT*>( getCurrentCommit( aCtx.ClientName ) );
+    bool          anyModified = false;
+
+    for( const types::KIID& id : request.items() )
+    {
+        ItemFlipResult*            result = response.add_items();
+        std::optional<BOARD_ITEM*> optItem = getItemById( KIID( id.value() ) );
+
+        if( !optItem )
+        {
+            result->mutable_status()->set_code( ItemStatusCode::ISC_NONEXISTENT );
+            result->mutable_status()->set_error_message(
+                    fmt::format( "an item with UUID {} does not exist", id.value() ) );
+            continue;
+        }
+
+        BOARD_ITEM* item = *optItem;
+        FOOTPRINT*  footprint = item->Type() == PCB_FOOTPRINT_T ? static_cast<FOOTPRINT*>( item ) : nullptr;
+
+        if( request.has_orientation() && !footprint )
+        {
+            result->mutable_status()->set_code( ItemStatusCode::ISC_INVALID_TYPE );
+            result->mutable_status()->set_error_message( "orientation applies to footprints only" );
+            continue;
+        }
+
+        commit->Modify( item, nullptr, RECURSE_MODE::RECURSE );
+
+        if( request.has_flip() )
+        {
+            item->Flip( item->GetPosition(),
+                        FromProtoEnum<FLIP_DIRECTION, BoardFlipDirection>( request.flip() ) );
+        }
+
+        if( request.has_orientation() )
+        {
+            footprint->SetOrientation( EDA_ANGLE( request.orientation().value_degrees(), DEGREES_T ) );
+        }
+        else if( request.has_rotation() && request.rotation().value_degrees() != 0.0 )
+        {
+            VECTOR2I centre = request.has_rotation_center() ? UnpackVector2( request.rotation_center() )
+                                                            : item->GetPosition();
+            item->Rotate( centre, EDA_ANGLE( request.rotation().value_degrees(), DEGREES_T ) );
+        }
+
+        if( request.has_position() )
+            item->Move( UnpackVector2( request.position() ) - item->GetPosition() );
+        else if( request.has_translation() )
+            item->Move( UnpackVector2( request.translation() ) );
+
+        if( request.has_locked() )
+            item->SetLocked( request.locked() );
+
+        item->Normalize();
+
+        if( footprint )
+            footprint->InvalidateComponentClassCache();
+
+        anyModified = true;
+
+        google::protobuf::Any itemBuf;
+        item->Serialize( itemBuf );
+        *result->mutable_item() = std::move( itemBuf );
+        result->mutable_status()->set_code( ItemStatusCode::ISC_OK );
+    }
+
+    response.set_status( ItemRequestStatus::IRS_OK );
+
+    if( anyModified && !m_activeClients.count( aCtx.ClientName ) )
+        pushCurrentCommit( aCtx.ClientName, _( "Transformed items via API" ) );
 
     return response;
 }

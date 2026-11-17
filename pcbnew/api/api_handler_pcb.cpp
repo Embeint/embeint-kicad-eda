@@ -26,6 +26,7 @@
 
 #include <common.h>
 #include <fmt.h>
+#include <fmt/ranges.h>
 #include <api/api_handler_pcb.h>
 #include <api/api_pcb_utils.h>
 #include <api/api_enums.h>
@@ -38,6 +39,8 @@
 #include <board_commit.h>
 #include <board_connected_item.h>
 #include <board_design_settings.h>
+#include <board_stackup_manager/board_stackup.h>
+#include <board_stackup_manager/stackup_predefined_prms.h>
 #include <core/kicad_algo.h>
 #include <footprint.h>
 #include <footprint_library_adapter.h>
@@ -45,6 +48,9 @@
 #include <netinfo.h>
 #include <pad.h>
 #include <pcb_draw_panel_gal.h>
+#include <pcb_dimension.h>
+#include <pcb_table.h>
+#include <drawing_sheet/ds_draw_item.h>
 #include <pcb_edit_frame.h>
 #include <pcb_group.h>
 #include <pcb_reference_image.h>
@@ -143,6 +149,7 @@ API_HANDLER_PCB::API_HANDLER_PCB( std::shared_ptr<PCB_CONTEXT> aContext, PCB_EDI
     registerHandler<GetEmbeddedFiles, common::types::EmbeddedFiles>( &API_HANDLER_PCB::handleGetEmbeddedFiles );
     registerHandler<AddEmbeddedFiles, Empty>( &API_HANDLER_PCB::handleAddEmbeddedFiles );
     registerHandler<SetEmbeddedFiles, Empty>( &API_HANDLER_PCB::handleSetEmbeddedFiles );
+    registerHandler<UpdateBoardStackup, BoardStackupResponse>( &API_HANDLER_PCB::handleUpdateBoardStackup );
     registerHandler<GetBoardOrigin, types::Vector2>( &API_HANDLER_PCB::handleGetBoardOrigin );
     registerHandler<SetBoardOrigin, Empty>( &API_HANDLER_PCB::handleSetBoardOrigin );
     registerHandler<GetBoardLayerName, BoardLayerNameResponse>( &API_HANDLER_PCB::handleGetBoardLayerName );
@@ -690,6 +697,240 @@ HANDLER_RESULT<BoardEnabledLayersResponse> API_HANDLER_PCB::handleSetBoardEnable
     response.set_copper_layer_count( copperLayerCount );
     board::PackLayerSet( *response.mutable_layers(), enabled );
 
+    return response;
+}
+
+
+HANDLER_RESULT<BoardStackupResponse> API_HANDLER_PCB::handleUpdateBoardStackup(
+        const HANDLER_CONTEXT<UpdateBoardStackup>& aCtx )
+{
+    using namespace kiapi::board;
+
+    if( HANDLER_RESULT<bool> documentValidation = validateDocument( aCtx.Request.board() ); !documentValidation )
+        return tl::unexpected( documentValidation.error() );
+
+    if( std::optional<ApiResponseStatus> busy = checkForBusy() )
+        return tl::unexpected( *busy );
+
+    auto fail = []( const std::string& aMessage )
+    {
+        ApiResponseStatus e;
+        e.set_status( ApiStatusCode::AS_BAD_REQUEST );
+        e.set_error_message( aMessage );
+        return tl::unexpected( e );
+    };
+
+    const BoardStackup&    request = aCtx.Request.stackup();
+    BOARD*                 brd = board();
+    BOARD_DESIGN_SETTINGS& bds = brd->GetDesignSettings();
+
+    int copperCount = 0;
+
+    for( const BoardStackupLayer& layer : request.layers() )
+    {
+        if( layer.type() == BoardStackupLayerType::BSLT_COPPER )
+            copperCount++;
+    }
+
+    const int previousCount = brd->GetCopperLayerCount();
+
+    if( copperCount == 0 )
+        copperCount = previousCount;
+
+    if( copperCount < 2 || copperCount % 2 != 0 || copperCount > MAX_CU_LAYERS )
+        return fail( "the stackup needs an even number of copper layers, at least 2" );
+
+    if( copperCount != previousCount )
+    {
+        LSET newCopper = LSET::AllCuMask( copperCount );
+        std::vector<std::string> occupied;
+
+        for( PCB_LAYER_ID layer : LSET::AllCuMask( previousCount ) )
+        {
+            if( !newCopper[layer] && brd->HasItemsOnLayer( layer ) )
+                occupied.push_back( brd->GetLayerName( layer ).ToStdString() );
+        }
+
+        if( !occupied.empty() )
+        {
+            return fail( fmt::format( "removing copper layers that still have items: {}; move or delete them first",
+                                      fmt::join( occupied, ", " ) ) );
+        }
+
+        LSET enabled = brd->GetEnabledLayers();
+        enabled &= ~LSET::AllCuMask();
+        enabled |= newCopper;
+        brd->SetEnabledLayers( enabled );
+        brd->SetVisibleLayers( brd->GetVisibleLayers() | newCopper );
+    }
+
+    BOARD_STACKUP stackup;
+
+    if( copperCount == previousCount )
+        stackup = brd->GetStackupOrDefault();
+    else
+        stackup.BuildDefaultStackupList( &bds, copperCount );
+
+    auto findLayer = [&]( PCB_LAYER_ID aLayer, BoardStackupLayerType aType ) -> const BoardStackupLayer*
+    {
+        for( const BoardStackupLayer& layer : request.layers() )
+        {
+            if( layer.type() == aType && FromProtoEnum<PCB_LAYER_ID>( layer.layer() ) == aLayer )
+                return &layer;
+        }
+
+        return nullptr;
+    };
+
+    std::vector<const BoardStackupLayer*> dielectrics;
+
+    for( const BoardStackupLayer& layer : request.layers() )
+    {
+        if( layer.type() == BoardStackupLayerType::BSLT_DIELECTRIC )
+            dielectrics.push_back( &layer );
+    }
+
+    auto setColor = [&]( BOARD_STACKUP_ITEM* aItem, const BoardStackupLayer& aLayer )
+    {
+        if( aLayer.has_color() )
+            aItem->SetColor( kiapi::common::UnpackColor( aLayer.color() ).ToHexString() );
+    };
+
+    size_t dielectricIndex = 0;
+
+    for( BOARD_STACKUP_ITEM* item : stackup.GetList() )
+    {
+        switch( item->GetType() )
+        {
+        case BS_ITEM_TYPE_COPPER:
+            if( const BoardStackupLayer* layer = findLayer( item->GetBrdLayerId(), BoardStackupLayerType::BSLT_COPPER ) )
+            {
+                if( layer->thickness().value_nm() > 0 )
+                    item->SetThickness( static_cast<int>( layer->thickness().value_nm() ) );
+            }
+
+            break;
+
+        case BS_ITEM_TYPE_DIELECTRIC:
+        {
+            if( dielectricIndex >= dielectrics.size() )
+            {
+                dielectricIndex++;
+                break;
+            }
+
+            const BoardStackupLayer& layer = *dielectrics[dielectricIndex++];
+
+            if( layer.has_dielectric() )
+            {
+                const BoardStackupDielectricLayer& dielectric = layer.dielectric();
+
+                if( dielectric.type() == BoardStackupDielectricType::BSDT_CORE )
+                    item->SetTypeName( KEY_CORE );
+                else if( dielectric.type() == BoardStackupDielectricType::BSDT_PREPREG )
+                    item->SetTypeName( KEY_PREPREG );
+
+                for( int sub = 0; sub < dielectric.layer_size(); ++sub )
+                {
+                    if( sub >= item->GetSublayersCount() )
+                        item->AddDielectricPrms( sub );
+
+                    const BoardStackupDielectricProperties& props = dielectric.layer( sub );
+
+                    if( props.epsilon_r() > 0 )
+                        item->SetEpsilonR( props.epsilon_r(), sub );
+
+                    if( props.loss_tangent() > 0 )
+                        item->SetLossTangent( props.loss_tangent(), sub );
+
+                    if( !props.material_name().empty() )
+                        item->SetMaterial( wxString::FromUTF8( props.material_name() ), sub );
+
+                    if( props.thickness().value_nm() > 0 )
+                        item->SetThickness( static_cast<int>( props.thickness().value_nm() ), sub );
+
+                    item->SetThicknessLocked( props.thickness_locked(), sub );
+
+                    if( props.has_spec_frequency() )
+                        item->SetSpecFreq( props.spec_frequency(), sub );
+                }
+            }
+            else if( layer.thickness().value_nm() > 0 )
+            {
+                item->SetThickness( static_cast<int>( layer.thickness().value_nm() ) );
+            }
+
+            setColor( item, layer );
+            break;
+        }
+
+        case BS_ITEM_TYPE_SOLDERMASK:
+            if( const BoardStackupLayer* layer = findLayer( item->GetBrdLayerId(), BoardStackupLayerType::BSLT_SOLDERMASK ) )
+            {
+                if( layer->has_soldermask() )
+                {
+                    const BoardStackupSoldermaskLayer& mask = layer->soldermask();
+
+                    if( mask.thickness().value_nm() > 0 )
+                        item->SetThickness( static_cast<int>( mask.thickness().value_nm() ) );
+
+                    if( mask.epsilon_r() > 0 )
+                        item->SetEpsilonR( mask.epsilon_r() );
+
+                    if( mask.loss_tangent() > 0 )
+                        item->SetLossTangent( mask.loss_tangent() );
+
+                    if( !mask.material_name().empty() )
+                        item->SetMaterial( wxString::FromUTF8( mask.material_name() ) );
+                }
+
+                setColor( item, *layer );
+            }
+
+            break;
+
+        case BS_ITEM_TYPE_SILKSCREEN:
+            if( const BoardStackupLayer* layer = findLayer( item->GetBrdLayerId(), BoardStackupLayerType::BSLT_SILKSCREEN ) )
+            {
+                if( layer->has_silkscreen() && !layer->silkscreen().material_name().empty() )
+                    item->SetMaterial( wxString::FromUTF8( layer->silkscreen().material_name() ) );
+
+                setColor( item, *layer );
+            }
+
+            break;
+
+        default:
+            break;
+        }
+    }
+
+    if( request.has_finish() && !request.finish().type_name().empty() )
+        stackup.m_FinishType = wxString::FromUTF8( request.finish().type_name() );
+
+    if( request.has_impedance() )
+        stackup.m_HasDielectricConstrains = request.impedance().is_controlled();
+
+    if( request.has_edge() )
+    {
+        if( request.edge().has_plating() )
+            stackup.m_EdgePlating = request.edge().plating().has_edge_plating();
+
+        if( request.edge().has_connector() )
+        {
+            stackup.m_EdgeConnectorConstraints =
+                    FromProtoEnum<BS_EDGE_CONNECTOR_CONSTRAINTS>( request.edge().connector().type() );
+        }
+    }
+
+    bds.GetStackupDescriptor() = stackup;
+    bds.m_HasStackup = true;   // otherwise the board keeps reporting a default stackup
+    bds.SetBoardThickness( stackup.BuildBoardThicknessFromStackup() );
+
+    onModified();
+
+    BoardStackupResponse response;
+    board::PackBoardStackup( *brd, *response.mutable_stackup() );
     return response;
 }
 
@@ -1441,8 +1682,109 @@ std::optional<PAGE_INFO> API_HANDLER_PCB::getPageSettings( const DocumentSpecifi
 
 bool API_HANDLER_PCB::setPageSettings( const DocumentSpecifier& aDocument, const PAGE_INFO& aPageInfo )
 {
-    context()->GetBoard()->SetPageSettings( aPageInfo );
+    // The editor also rebuilds the drawing sheet it shows for the new page
+    if( frame() )
+        frame()->SetPageSettings( aPageInfo );
+    else
+        context()->GetBoard()->SetPageSettings( aPageInfo );
+
     return true;
+}
+
+
+HANDLER_RESULT<API_HANDLER_EDITOR::PAGE_LAYOUT_INPUT>
+API_HANDLER_PCB::getPageLayoutInput( const DocumentSpecifier& aDocument )
+{
+    BOARD* brd = board();
+
+    if( !brd )
+    {
+        ApiResponseStatus e;
+        e.set_status( ApiStatusCode::AS_BAD_REQUEST );
+        e.set_error_message( "no board is open" );
+        return tl::unexpected( e );
+    }
+
+    PAGE_LAYOUT_INPUT input;
+    input.page = brd->GetPageSettings();
+
+    // Lay out the board's drawing sheet the way the editor draws it (one page, first-page items)
+    input.drawing = std::make_shared<DS_DRAW_ITEM_LIST>( pcbIUScale, FOR_ERC_DRC );
+    DS_DRAW_ITEM_LIST& drawing = *input.drawing;
+    drawing.SetPageNumber( wxS( "1" ) );
+    drawing.SetSheetCount( 1 );
+    drawing.SetIsFirstPage( true );
+    drawing.SetFileName( brd->GetFileName() );
+    drawing.SetVariantName( brd->GetCurrentVariant() );
+    drawing.SetVariantDesc( brd->GetVariantDescription( brd->GetCurrentVariant() ) );
+    drawing.SetSheetLayer( wxS( "dummyLayer" ) );
+    drawing.SetProject( brd->GetProject() );
+    drawing.SetProperties( &brd->GetProperties() );
+
+    if( frame() )
+    {
+        drawing.SetSheetName( frame()->GetScreenDesc() );
+        drawing.SetSheetPath( frame()->GetFullScreenDesc() );
+    }
+
+    drawing.BuildDrawItemsList( input.page, brd->GetTitleBlock() );
+
+    auto netName = []( BOARD_CONNECTED_ITEM* aItem ) -> wxString
+    {
+        return aItem->GetNetCode() > 0 ? aItem->GetNetname() : wxString();
+    };
+
+    for( FOOTPRINT* fp : brd->Footprints() )
+        input.items.push_back( { fp->m_Uuid, "Footprint", fp->GetReference(), fp->GetBoundingBox( true ) } );
+
+    for( PCB_TRACK* track : brd->Tracks() )
+    {
+        const char* type = track->Type() == PCB_VIA_T ? "Via" : track->Type() == PCB_ARC_T ? "Arc" : "Track";
+        input.items.push_back( { track->m_Uuid, type, netName( track ), track->GetBoundingBox() } );
+    }
+
+    for( ZONE* zone : brd->Zones() )
+    {
+        wxString name = zone->GetIsRuleArea() ? zone->GetZoneName() : netName( zone );
+        input.items.push_back( { zone->m_Uuid, zone->GetIsRuleArea() ? "Rule area" : "Zone", name,
+                                 zone->GetBoundingBox() } );
+    }
+
+    for( BOARD_ITEM* item : brd->Drawings() )
+    {
+        std::string type;
+        wxString    name = brd->GetLayerName( item->GetLayer() );
+
+        switch( item->Type() )
+        {
+        case PCB_SHAPE_T:           type = "Shape";     break;
+        case PCB_TEXT_T:
+            type = "Text";
+            name = static_cast<PCB_TEXT*>( item )->GetText().BeforeFirst( '\n' );
+            break;
+        case PCB_TEXTBOX_T:
+            type = "Text box";
+            name = static_cast<PCB_TEXTBOX*>( item )->GetText().BeforeFirst( '\n' );
+            break;
+        case PCB_TABLE_T:           type = "Table";     break;
+        case PCB_REFERENCE_IMAGE_T: type = "Image";     break;
+        case PCB_DIM_ALIGNED_T:
+        case PCB_DIM_ORTHOGONAL_T:
+        case PCB_DIM_LEADER_T:
+        case PCB_DIM_CENTER_T:
+        case PCB_DIM_RADIAL_T:      type = "Dimension"; break;
+        default:                    type = item->GetClass().ToStdString(); break;
+        }
+
+        input.items.push_back( { item->m_Uuid, type, name, item->GetBoundingBox() } );
+    }
+
+    BOX2I outline = brd->GetBoardEdgesBoundingBox();
+
+    if( outline.GetWidth() > 0 && outline.GetHeight() > 0 )
+        input.boardOutline = outline;
+
+    return input;
 }
 
 

@@ -13,6 +13,8 @@ import uuid
 import pynng
 from google.protobuf import json_format
 
+from board_client import BoardTools, board_document  # noqa: F401
+from board_design import BoardDesignTools
 from footprint_client import FootprintTools, footprint_document, library_kind  # noqa: F401
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "_generated"))
@@ -146,7 +148,7 @@ OUTWARD = {sch.SPO_RIGHT: (-1, 0), sch.SPO_LEFT: (1, 0), sch.SPO_UP: (0, 1), sch
 SPIN_FOR = {(-1, 0): sch.SLSS_LEFT, (1, 0): sch.SLSS_RIGHT, (0, 1): sch.SLSS_BOTTOM, (0, -1): sch.SLSS_UP}
 
 
-class LiveSchematic(FootprintTools):
+class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
     def __init__(self, socket_url=None, timeout_ms=15000):
         self.socket_url = socket_url or os.environ.get("KICAD_API_SOCKET")
         if not self.socket_url:
@@ -187,9 +189,21 @@ class LiveSchematic(FootprintTools):
         # These handlers first shipped on the 10.99 development branch for KiCad 11.
         if (version.version.major, version.version.minor) < (10, 99):
             raise RuntimeError("Live schematic editing requires this KiCad development build (10.99/11+)")
-        opened = self.send(editor.GetOpenDocuments(type=types.DOCTYPE_SCHEMATIC),
-                           editor.GetOpenDocumentsResponse)
+        try:
+            opened = self.send(editor.GetOpenDocuments(type=types.DOCTYPE_SCHEMATIC),
+                               editor.GetOpenDocumentsResponse)
+        except RuntimeError as error:
+            # The project manager answers with no editor open; live_schematic_open opens one
+            if "AS_UNHANDLED" not in str(error):
+                raise
+            opened = editor.GetOpenDocumentsResponse()
         return {"version": as_dict(version.version), "documents": as_dict(opened).get("documents", [])}
+
+    def open_schematic(self, path=None):
+        """Open the project's schematic in the running KiCad (project manager mode)."""
+        request = project.OpenDocument(type=types.DOCTYPE_SCHEMATIC, path=str(path or ""))
+        self.send(request, project.OpenDocumentResponse)
+        return self.documents()
 
     def hierarchy(self, doc):
         return self.send(commands.GetSchematicHierarchy(document=doc), commands.SchematicHierarchyResponse)
@@ -220,14 +234,15 @@ class LiveSchematic(FootprintTools):
                 self.send(editor.EndCommit(header=header, id=started.id, action=editor.CMA_COMMIT,
                                            message=description), editor.EndCommitResponse)
 
-    def mutate(self, doc, items, update=False):
+    def mutate(self, doc, items, update=False, description=None):
         if not items or len(items) > 200:
-            raise ValueError("Supply between 1 and 200 schematic items")
+            raise ValueError("Supply between 1 and 200 items")
         request = (editor.UpdateItems if update else editor.CreateItems)(header=types.ItemHeader(document=doc))
         for item in items:
             request.items.add().Pack(item)
         response_type = editor.UpdateItemsResponse if update else editor.CreateItemsResponse
-        with self.transaction(doc, "MCP: update schematic items" if update else "MCP: create schematic items"):
+        description = description or ("MCP: update items" if update else "MCP: create items")
+        with self.transaction(doc, description):
             response = self.send(request, response_type)
             results = response.updated_items if update else response.created_items
             if response.status != types.IRS_OK or len(results) != len(items):
@@ -244,7 +259,7 @@ class LiveSchematic(FootprintTools):
         request = editor.DeleteItems(header=types.ItemHeader(document=doc))
         for value in ids:
             request.item_ids.add(value=str(uuid.UUID(value)))
-        with self.transaction(doc, "MCP: delete schematic items"):
+        with self.transaction(doc, "MCP: delete items"):
             response = self.send(request, editor.DeleteItemsResponse)
             if (response.status != types.IRS_OK or len(response.deleted_items) != len(ids)
                     or any(r.status != editor.IDS_OK for r in response.deleted_items)):
@@ -318,8 +333,8 @@ class LiveSchematic(FootprintTools):
 
     def undo(self, doc, redo=False):
         """Undo/redo are refused while any commit is open, so they never run in a transaction."""
-        request = (commands.RedoLastChange if redo else commands.UndoLastChange)(document=doc)
-        return as_dict(self.send(request, commands.UndoRedoResponse))
+        request = (editor.RedoLastChange if redo else editor.UndoLastChange)(document=doc)
+        return as_dict(self.send(request, editor.UndoRedoResponse))
 
     def netlist(self, doc):
         """Nets as {name: [{sheet, id}]} plus a pin lookup {(sheet, pin id): net}."""
@@ -695,6 +710,67 @@ class LiveSchematic(FootprintTools):
         self.reload_library(doc.lib_id.library_nickname)
         return {"saved": f"{doc.lib_id.library_nickname}:{doc.lib_id.entry_name}"}
 
+    # ---- Page, drawing sheet and title block -------------------------------------------------
+
+    def page_layout(self, doc):
+        """Page size, drawing area, title block box and fields, and items outside the frame (mm)."""
+        layout = self.send(editor.GetPageLayout(document=doc), editor.PageLayoutResponse)
+        settings = self.send(editor.GetPageSettings(document=doc), types.PageSettings)
+        block = self.send(editor.GetTitleBlockInfo(document=doc), types.TitleBlockInfo)
+        problems = [{"id": p.id.value, "type": p.type, "name": p.name, "box_mm": box_mm(p.box),
+                     **({"outside_drawing_area": True} if p.outside_drawing_area else {}),
+                     **({"overlaps_title_block": True} if p.overlaps_title_block else {})}
+                    for p in layout.problems]
+        return {
+            "paper": types.PageSize.Name(settings.page_size).removeprefix("PS_"),
+            "orientation": types.PageOrientation.Name(settings.orientation).removeprefix("PO_").lower(),
+            "page_size_mm": [round(v, 1) for v in mm(layout.page_size)],
+            "drawing_area_mm": box_mm(layout.drawing_area),
+            "title_block_mm": box_mm(layout.title_block),
+            "content_mm": box_mm(layout.content),
+            **({"board_outline_mm": box_mm(layout.board_outline)} if box_mm(layout.board_outline) else {}),
+            "items": layout.item_count,
+            "fits": not problems,
+            "problems": problems,
+            "title_block": title_block_dict(block),
+            **({"drawing_sheet": settings.drawing_sheet} if settings.drawing_sheet else {}),
+        }
+
+    def set_page(self, doc, size=None, orientation=None, user_size_mm=None, title=None, date=None,
+                 revision=None, company=None, comments=None):
+        """Change the sheet's paper and/or title block; omitted settings are kept.  date="today" works."""
+        if size is not None or orientation is not None or user_size_mm is not None:
+            settings = self.send(editor.GetPageSettings(document=doc), types.PageSettings)
+            if size is not None:
+                key = size.upper().replace("-", "_").replace(" ", "_").removeprefix("US_")
+                if key not in PAGE_SIZES:
+                    raise ValueError(f"size must be one of {sorted(PAGE_SIZES)}")
+                settings.page_size = PAGE_SIZES[key]
+            if user_size_mm is not None:
+                settings.page_size = types.PS_USER
+                settings.user_page_size.CopyFrom(point(*user_size_mm))
+            if orientation is not None:
+                if orientation not in ORIENTATIONS:
+                    raise ValueError("orientation must be landscape or portrait")
+                settings.orientation = ORIENTATIONS[orientation]
+            self.send(editor.SetPageSettings(document=doc, page_settings=settings), types.PageSettings)
+        values = {"title": title, "date": date, "revision": revision, "company": company}
+        if any(v is not None for v in values.values()) or comments is not None:
+            block = self.send(editor.GetTitleBlockInfo(document=doc), types.TitleBlockInfo)
+            if values["date"] == "today":
+                import datetime
+                values["date"] = datetime.date.today().isoformat()
+            for name, value in values.items():
+                if value is not None:
+                    setattr(block, name, value)
+            if comments is not None:
+                if len(comments) > 9:
+                    raise ValueError("a title block has at most 9 comments")
+                for n in range(1, 10):
+                    setattr(block, f"comment{n}", comments[n - 1] if n <= len(comments) else "")
+            self.send(editor.SetTitleBlockInfo(document=doc, title_block=block), empty())
+        return self.page_layout(doc)
+
     def place_symbol(self, doc, lib_id, x, y, reference=None, rotation=0):
         if rotation not in (0, 90, 180, 270):
             raise ValueError("rotation must be 0, 90, 180, or 270 degrees")
@@ -721,8 +797,12 @@ class LiveSchematic(FootprintTools):
             "unit": placed.unit.unit,
         }
 
-    def render(self, doc, dpi=100):
-        """The GUI job handler plots the live model; only the output PNG touches disk."""
+    def render(self, doc, dpi=100, frame=True):
+        """The GUI job handler plots the live model; only the output PNG touches disk.
+
+        The image is always the whole page.  frame=True draws the drawing sheet (border and title
+        block) too, so content that runs past the border or into the title block is visible.
+        """
         if not 72 <= dpi <= 200:
             raise ValueError("Preview DPI must be between 72 and 200")
         with self.lock, tempfile.TemporaryDirectory(prefix="kicad-live-preview-") as directory:
@@ -731,7 +811,7 @@ class LiveSchematic(FootprintTools):
             request.job_settings.document.CopyFrom(doc)
             request.job_settings.output_path = str(target)
             request.plot_settings.sheet_mode = sch_jobs.SJSM_SINGLE_SHEET
-            request.plot_settings.plot_drawing_sheet = False
+            request.plot_settings.plot_drawing_sheet = frame
             response = self.send(request, jobs.RunJobResponse)
             if response.status != jobs.JS_SUCCESS or not target.is_file():
                 raise RuntimeError(f"Live rendering failed: {as_dict(response)}")
@@ -756,6 +836,30 @@ def check_item_statuses(index, command, response):
     if hasattr(response, "status") and isinstance(response.status, int) and command.endswith("Items") \
             and response.status != types.IRS_OK:
         raise RuntimeError(f"step {index} ({command}) returned {types.ItemRequestStatus.Name(response.status)}")
+
+
+PAGE_SIZES = {"A5": types.PS_A5, "A4": types.PS_A4, "A3": types.PS_A3, "A2": types.PS_A2, "A1": types.PS_A1,
+              "A0": types.PS_A0, "ANSI_A": types.PS_ANSI_A, "ANSI_B": types.PS_ANSI_B, "ANSI_C": types.PS_ANSI_C,
+              "ANSI_D": types.PS_ANSI_D, "ANSI_E": types.PS_ANSI_E, "LETTER": types.PS_US_LETTER,
+              "LEGAL": types.PS_US_LEGAL, "LEDGER": types.PS_US_LEDGER, "USER": types.PS_USER}
+ORIENTATIONS = {"landscape": types.PO_LANDSCAPE, "portrait": types.PO_PORTRAIT}
+TITLE_FIELDS = ("title", "date", "revision", "company")
+
+
+def box_mm(box):
+    """A Box2 as [x1, y1, x2, y2] in mm, or None for an empty box."""
+    if not box.HasField("size") or (box.size.x_nm == 0 and box.size.y_nm == 0):
+        return None
+    x, y = box.position.x_nm / 1e6, box.position.y_nm / 1e6
+    return [round(x, 3), round(y, 3), round(x + box.size.x_nm / 1e6, 3), round(y + box.size.y_nm / 1e6, 3)]
+
+
+def title_block_dict(block):
+    fields = {name: getattr(block, name) for name in TITLE_FIELDS}
+    fields["comments"] = [getattr(block, f"comment{n}") for n in range(1, 10)]
+    while fields["comments"] and not fields["comments"][-1]:
+        fields["comments"].pop()
+    return fields
 
 
 def parse_items(values):

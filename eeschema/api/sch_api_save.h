@@ -38,6 +38,9 @@ void UpdateProjectFile( SCHEMATIC& aSchematic, PROJECT& aProject );
 /// Save every screen in the hierarchy to its current path, then update the project file.
 bool SaveSchematic( SCHEMATIC& aSchematic, PROJECT& aProject );
 
+/// The file and reason behind the last failed SaveSchematic() or SaveSheetToFile(), if any.
+wxString LastError();
+
 /**
  * Save the root schematic to @a aFileName without changing the open document.
  *

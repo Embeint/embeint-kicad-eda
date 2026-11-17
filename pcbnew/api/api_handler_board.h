@@ -153,6 +153,9 @@ private:
     HANDLER_RESULT<FlipItemsResponse> handleFlipItems(
             const HANDLER_CONTEXT<FlipItems>& aCtx );
 
+    HANDLER_RESULT<TransformBoardItemsResponse> handleTransformBoardItems(
+            const HANDLER_CONTEXT<TransformBoardItems>& aCtx );
+
     HANDLER_RESULT<commands::SavedDocumentResponse> handleSaveDocumentToString(
             const HANDLER_CONTEXT<commands::SaveDocumentToString>& aCtx );
 

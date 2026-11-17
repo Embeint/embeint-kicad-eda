@@ -553,3 +553,144 @@ message RemoveEmbeddedFile
   kiapi.common.types.DocumentSpecifier document = 1;
   string name = 2;
 }
+
+// Undoes the editor's most recent change.  Works in every editor (schematic, symbol, PCB and
+// footprint).  Refused while an API commit is open.  Returns UndoRedoResponse
+// Since: 11.0
+message UndoLastChange
+{
+  kiapi.common.types.DocumentSpecifier document = 1;
+}
+
+// Redoes the most recently undone change.  Returns UndoRedoResponse
+// Since: 11.0
+message RedoLastChange
+{
+  kiapi.common.types.DocumentSpecifier document = 1;
+}
+
+message UndoRedoResponse
+{
+  bool performed = 1;
+  int32 undo_count = 2;
+  int32 redo_count = 3;
+}
+
+// Reports how a schematic sheet or a board sits on its page: the page size, the drawing area
+// inside the drawing sheet's border, the title block, the extent of everything on the page
+// (fields and text included) and each item that crosses the border or overlaps the title block.
+// The drawing area and title block are measured from the document's own drawing sheet (default
+// or custom), so the check follows A4, A3 or any other page size.  Returns PageLayoutResponse
+// Since: 11.0
+message GetPageLayout
+{
+  kiapi.common.types.DocumentSpecifier document = 1;
+}
+
+message PageLayoutItem
+{
+  kiapi.common.types.KIID id = 1;
+
+  // Item type, e.g. "Symbol", "Wire", "Footprint", "Track", "Zone"
+  string type = 2;
+
+  // Reference, label, net or text, to identify the item in a report
+  string name = 3;
+
+  // Bounding box including visible fields and text
+  kiapi.common.types.Box2 box = 4;
+
+  // Part of the box lies outside the drawing area
+  bool outside_drawing_area = 5;
+
+  // The box intersects the title block
+  bool overlaps_title_block = 6;
+}
+
+message PageLayoutResponse
+{
+  kiapi.common.types.Vector2 page_size = 1;
+
+  // Inside the drawing sheet's border (the innermost page-sized rectangle, else the margins)
+  kiapi.common.types.Box2 drawing_area = 2;
+
+  // Union of the drawing sheet items anchored to the bottom-right corner; empty if none
+  kiapi.common.types.Box2 title_block = 3;
+
+  // Union of every item's bounding box; empty for an empty page
+  kiapi.common.types.Box2 content = 4;
+
+  // Items that cross the drawing area or overlap the title block
+  repeated PageLayoutItem problems = 5;
+
+  // Number of items checked
+  int32 item_count = 6;
+
+  // Boards only: the bounding box of the board outline (Edge.Cuts); empty without an outline
+  kiapi.common.types.Box2 board_outline = 7;
+}
+
+enum GridStyle
+{
+  GST_UNKNOWN     = 0;
+  GST_DOTS        = 1;
+  GST_LINES       = 2;
+  GST_SMALL_CROSS = 3;
+}
+
+enum GridSnapping
+{
+  GSN_UNKNOWN   = 0;
+  GSN_ALWAYS    = 1;  // snap to the grid whether or not it is shown
+  GSN_WITH_GRID = 2;  // snap only while the grid is shown
+  GSN_NEVER     = 3;
+}
+
+message GridPreset
+{
+  string name = 1;
+  kiapi.common.types.Vector2 size = 2;
+}
+
+// The editor's drawing grid.  Returns GridSettings
+// Since: 11.0
+message GetGridSettings
+{
+  kiapi.common.types.DocumentSpecifier document = 1;
+}
+
+message GridSettings
+{
+  // The current grid
+  kiapi.common.types.Vector2 size = 1;
+
+  // Index of the current grid in presets
+  int32 preset_index = 2;
+
+  // The grids offered in the editor's grid list
+  repeated GridPreset presets = 3;
+
+  bool visible = 4;
+  GridStyle style = 5;
+  GridSnapping snapping = 6;
+
+  // Where the grid starts (a board's grid origin, set with SetBoardOrigin; zero elsewhere)
+  kiapi.common.types.Vector2 origin = 7;
+}
+
+// Changes the editor's drawing grid.  Fields left unset are kept.  Returns GridSettings
+// Since: 11.0
+message SetGridSettings
+{
+  kiapi.common.types.DocumentSpecifier document = 1;
+
+  // Makes this the current grid: picks the preset of this size, adding one if there is none
+  optional kiapi.common.types.Vector2 size = 2;
+
+  // Makes the preset at this index the current grid (ignored when size is set)
+  optional int32 preset_index = 3;
+
+  optional bool visible = 4;
+  optional GridStyle style = 5;
+  optional GridSnapping snapping = 6;
+}

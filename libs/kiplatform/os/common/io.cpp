@@ -40,6 +40,9 @@
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#if defined( __linux__ )
+#include <sys/vfs.h>
+#endif
 #endif
 
 
@@ -158,6 +161,18 @@ bool KIPLATFORM::IO::FlushDirectory( const wxString& aDirPath )
 
     int rc = fsync( fd );
     int err = errno;
+
+#if defined( __linux__ )
+    // WSL reaches Windows drives through 9p (drvfs).  A network drive there fails a directory
+    // fsync with EIO even though the rename has reached the share, which would fail every save;
+    // as for NFS above, the file's own fsync is what matters.
+    constexpr long V9FS_MAGIC = 0x01021997;
+    struct statfs  fs;
+
+    if( rc != 0 && fstatfs( fd, &fs ) == 0 && static_cast<long>( fs.f_type ) == V9FS_MAGIC )
+        rc = 0;
+#endif
+
     close( fd );
 
     return rc == 0 || err == EINVAL;

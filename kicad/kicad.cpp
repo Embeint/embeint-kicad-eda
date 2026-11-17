@@ -31,7 +31,10 @@
 #include <wx/msgdlg.h>
 #include <wx/cmdline.h>
 
+#include <api/api_handler_common.h>
 #include <api/api_server.h>
+#include <kiway_player.h>
+#include <project.h>
 #include <common.h>
 #include <env_vars.h>
 #include <file_history.h>
@@ -92,6 +95,110 @@ KIFACE_BASE& Kiface()
 
 
 static PGM_KICAD program;
+
+
+/**
+ * Opens the project, or the open project's schematic or board, for an API OpenDocument request.
+ * The editors open in this process, so their API handlers serve the same socket.  A board or
+ * schematic that does not exist yet is created, without asking.
+ */
+static HANDLER_RESULT<kiapi::common::commands::OpenDocumentResponse>
+openDocumentInManager( KICAD_MANAGER_FRAME* aFrame, const kiapi::common::commands::OpenDocument& aRequest )
+{
+    using namespace kiapi::common;
+
+    auto fail = []( ApiStatusCode aCode, const wxString& aMessage )
+    {
+        ApiResponseStatus e;
+        e.set_status( aCode );
+        e.set_error_message( aMessage.ToStdString() );
+        return tl::unexpected( e );
+    };
+
+    if( !aFrame )
+        return fail( ApiStatusCode::AS_NOT_READY, wxS( "the project manager is not open" ) );
+
+    const wxString path = wxString::FromUTF8( aRequest.path() );
+    commands::OpenDocumentResponse response;
+    types::DocumentSpecifier* document = response.mutable_document();
+
+    auto setProject = [&]()
+    {
+        document->mutable_project()->set_name( aFrame->Prj().GetProjectName().ToUTF8() );
+        document->mutable_project()->set_path( aFrame->Prj().GetProjectPath().ToUTF8() );
+    };
+
+    if( aRequest.type() == types::DOCTYPE_PROJECT )
+    {
+        wxFileName project( path );
+        project.MakeAbsolute();
+
+        if( !project.FileExists() )
+            return fail( ApiStatusCode::AS_BAD_REQUEST, wxString::Format( wxS( "'%s' does not exist" ), path ) );
+
+        if( !aFrame->LoadProject( project ) )
+            return fail( ApiStatusCode::AS_BAD_REQUEST, wxString::Format( wxS( "could not open '%s'" ), path ) );
+
+        document->set_type( types::DOCTYPE_PROJECT );
+        setProject();
+        return response;
+    }
+
+    if( aRequest.type() != types::DOCTYPE_PCB && aRequest.type() != types::DOCTYPE_SCHEMATIC )
+    {
+        return fail( ApiStatusCode::AS_UNIMPLEMENTED,
+                     wxS( "the project manager opens projects, schematics and boards" ) );
+    }
+
+    if( !aFrame->IsProjectActive() )
+        return fail( ApiStatusCode::AS_BAD_REQUEST, wxS( "open a project first" ) );
+
+    const bool pcb = aRequest.type() == types::DOCTYPE_PCB;
+    wxFileName file( path.IsEmpty() ? ( pcb ? aFrame->PcbFileName() : aFrame->SchFileName() ) : path );
+    file.MakeAbsolute( aFrame->Prj().GetProjectPath() );
+
+    wxFileName project( aFrame->Prj().GetProjectFullName() );
+
+    if( file.GetPath() != project.GetPath() || file.GetName() != project.GetName() )
+    {
+        return fail( ApiStatusCode::AS_BAD_REQUEST,
+                     wxString::Format( wxS( "'%s' is not the open project's %s; open its project first" ),
+                                       file.GetFullPath(), pcb ? wxS( "board" ) : wxS( "schematic" ) ) );
+    }
+
+    KIWAY_PLAYER* player = aFrame->Kiway().Player( pcb ? FRAME_PCB_EDITOR : FRAME_SCH, true );
+
+    if( !player )
+        return fail( ApiStatusCode::AS_BAD_REQUEST, wxS( "could not start the editor" ) );
+
+    if( !player->IsVisible() )   // A hidden frame might not have the document loaded
+    {
+        const int ctl = file.FileExists() ? 0 : KICTL_CREATE;
+
+        if( !player->OpenProjectFiles( { file.GetFullPath() }, ctl ) )
+        {
+            player->Destroy();
+            return fail( ApiStatusCode::AS_BAD_REQUEST,
+                         wxString::Format( wxS( "could not open '%s'" ), file.GetFullPath() ) );
+        }
+
+        player->Show( true );
+    }
+
+    if( player->IsIconized() )
+        player->Iconize( false );
+
+    player->Raise();
+
+    document->set_type( aRequest.type() );
+
+    if( pcb )
+        document->set_board_filename( file.GetFullName().ToUTF8() );
+
+    setProject();
+    return response;
+}
+
 
 PGM_KICAD& PgmTop()
 {
@@ -307,6 +414,17 @@ bool PGM_KICAD::OnPgmInit()
 
         STARTWIZARD startWizard;
         startWizard.CheckAndRun( frame );
+
+        if( m_api_common_handler )
+        {
+            wxWeakRef<KICAD_MANAGER_FRAME> weakFrame( managerFrame );
+
+            m_api_common_handler->SetOpenDocumentHandler(
+                    [weakFrame]( const kiapi::common::commands::OpenDocument& aRequest )
+                    {
+                        return openDocumentInManager( weakFrame.get(), aRequest );
+                    } );
+        }
     }
     else
     {

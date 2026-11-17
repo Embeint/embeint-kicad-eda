@@ -2,8 +2,8 @@
 
 This fork (`Karl-VonRichter/kicad-source-mirror`, branch **`live-schematic-ipc`**, the default
 branch) extends KiCad's IPC API so an MCP server can drive a running KiCad live: schematics,
-symbol libraries and the Symbol Editor, footprint libraries and the Footprint Editor, embedded
-files and 3D models.  Nothing here goes upstream; KiCad does not accept AI-generated merge
+symbol libraries and the Symbol Editor, footprint libraries and the Footprint Editor, the PCB
+editor, embedded files and 3D models.  Nothing here goes upstream; KiCad does not accept AI-generated merge
 requests (see the root `AGENTS.md`).
 
 ## Branches
@@ -21,15 +21,21 @@ requests (see the root `AGENTS.md`).
 
 | What | Where |
 | --- | --- |
-| MCP server (Python, 75 tools) | `tools/live_schematic_mcp/server.py` |
+| MCP server (Python, 110 tools) | `tools/live_schematic_mcp/server.py` |
 | Client: schematics, symbols, libraries | `tools/live_schematic_mcp/client.py` |
 | Client: footprints, embedded files, 3D | `tools/live_schematic_mcp/footprint_client.py` |
+| Client: PCB editor | `tools/live_schematic_mcp/board_client.py` |
+| Client: rules, net classes, stackup, RF, checks, routing | `tools/live_schematic_mcp/board_design.py` |
+| Router (shapely grid A*, no KiCad calls) / impedance maths | `board_router.py`, `board_rf.py` |
 | Symbol pin layout / footprint generator / SolidCraft plans | `symbol_layout.py`, `footprint_gen.py`, `model_handoff.py` |
 | Generic command registry (execute/batch) | `tools/live_schematic_mcp/commands.py` |
 | Protocol additions | `api/proto/schematic/schematic_commands.proto`, `api/proto/board/board_commands.proto`, `api/proto/common/commands/{editor,library}_commands.proto` |
 | Schematic editor commands | `eeschema/api/api_handler_sch.cpp` |
 | Symbol Editor commands | `eeschema/api/api_handler_symbol.cpp` |
 | Footprint Editor commands | `pcbnew/api/api_handler_footprint.cpp` |
+| PCB editor commands | `pcbnew/api/api_handler_pcb.cpp`, `pcbnew/api/api_handler_board.cpp` |
+| Commands every editor shares (undo/redo, page check, grid, title block) | `common/api/api_handler_editor.cpp` |
+| Opening the schematic/board from the project manager | `openDocumentInManager` in `kicad/kicad.cpp` |
 | Library tables and search | `common/api/api_handler_libraries.cpp`, `eeschema/api/api_handler_sch_libraries.cpp` |
 
 `git log --oneline master..live-schematic-ipc` lists every change with a full explanation.
@@ -38,7 +44,7 @@ requests (see the root `AGENTS.md`).
 
 ```bash
 tools/live_schematic_mcp/scripts/setup_wsl.sh      # once, and after pulls that change C++ (idempotent)
-tools/live_schematic_mcp/run_kicad_wsl.sh          # start the dev eeschema (background it)
+tools/live_schematic_mcp/run_kicad_wsl.sh          # start the dev KiCad with live-demo (background it)
 tools/live_schematic_mcp/scripts/wait_ready.sh     # wait for the API
 tools/live_schematic_mcp/scripts/run_tests.sh      # unit tests, no KiCad needed
 tools/live_schematic_mcp/scripts/run_tests.sh --live   # plus end-to-end tests against the editor
@@ -64,6 +70,20 @@ repository; building from `/mnt/c` is far slower.  Register the MCP server with
 - Shell scripts must keep LF line endings (`.gitattributes` enforces it; Windows editors do not).
 - After a table edit KiCad drops all loaded libraries; code that loads a symbol must cope
   (`loadLibrarySymbol`).
+- **End-to-end tests edit the open schematic.**  `e2e_guard.test_document` limits them to the
+  `live-demo` test project (or `KICAD_LIVE_TEST_PROJECT`); never point them at a real design.
+- **Check the page, not just the drawing.**  `live_schematic_view` and `live_pcb_view` render the
+  whole page with the drawing sheet (border and title block) by default (`frame=False` hides it);
+  `live_schematic_page` and `live_pcb_page` report the same as numbers: the drawing area, the title
+  block and every item outside the border or in the title block (`fits`).  Content placed only
+  against the view without the frame can run into the title block unnoticed.
+- **One KiCad process for schematic and PCB.**  The PCB editor only joins the API when KiCad runs
+  as the project manager (`run_kicad_wsl.sh project.kicad_pro`, the default with no argument);
+  the MCP then opens the editors with `live_schematic_open` / `live_pcb_open`.  Starting
+  `eeschema` on a `.kicad_sch` gives the schematic, symbol and footprint tools only.
+- **Commands every editor shares go in `API_HANDLER_EDITOR`** (undo/redo, `GetPageLayout`, grid,
+  title block, page settings): one implementation, dispatched by document type.  An editor adds
+  what is specific to it through a virtual hook (e.g. `getPageLayoutInput`).
 
 ## The user's library conventions
 
@@ -76,3 +96,27 @@ repository; building from `/mnt/c` is far slower.  Register the MCP server with
   0.25 mm out on a 0.01 mm grid).
 - Datasheets are **linked** in the Datasheet field; STEP models are **embedded** in the footprint
   (`kicad-embed://`).  SolidCraft builds missing models (`live_footprint_model_plan`).
+- Schematics: organise every sheet into logical blocks (dashed box + title per function).  Wire
+  parts pin-to-pin inside a block (Manhattan, junctions at T-joins, never wires on top of each
+  other); join blocks with short net labels instead of long wires.  No stub + label on every pin.
+  Cross-sheet signals use hierarchical labels and sheet pins, never global labels; rails and GND
+  are power symbols at the part.  Drive enables straight from the controlling MCU signal.  Keep
+  each block's notes inside its box and check the rendered view for overlaps before saving.
+- Pages: choose A4 or A3 (landscape) to fit the sheet with margin; keep everything inside the
+  drawing area and clear of the title block (`live_schematic_page` must report `fits: true`).
+  Title block (Embeint style, `live_schematic_set_page`): title `<project> - <sheet name>`, the
+  date, the revision, company `Embeint Pty Ltd`, and a one-line description in Comment1.
+- Boards: the same page rules (`live_pcb_page` must report `fits: true`) and Embeint title block
+  (`live_pcb_set_page`); draw the outline inside the drawing area, clear of the title block.
+  Footprints come from the schematic (`live_pcb_update_from_schematic`), not placed by hand.
+  Check `live_pcb_drc` and the rendered view before saving.  (Origin and grid conventions for
+  boards are not settled yet: ask before choosing them.)
+- Board setup before routing: stackup (`live_pcb_set_stackup`), design rules
+  (`live_pcb_design_rules`, custom rules in `live_pcb_custom_rules`), net classes with the default
+  track width, clearance and via size (`live_pcb_netclasses`), RF/antenna nets (`live_pcb_rf_net`)
+  and keepouts (`live_pcb_add_keepout`, e.g. around an antenna).
+- Routing: `live_pcb_route` / `live_pcb_route_net` route around other copper, keepouts and the
+  edge and are checked by KiCad's DRC (undone if they break a rule).  Never draw tracks that cross
+  or crowd other nets; `live_pcb_add_tracks` refuses such a path.  Route RF feeds first, on one
+  layer without vias, then critical nets, then the rest; leave pour-connected nets (GND) to zones.
+  Finish with `live_pcb_check` (clearance, silkscreen, courtyard, connectivity) clean.

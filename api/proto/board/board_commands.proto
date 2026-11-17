@@ -47,8 +47,12 @@ message BoardStackupResponse
   kiapi.board.BoardStackup stackup = 1;
 }
 
-// Changes the stackup for the given board according to the contents of the message (**not yet implemented**)
-// WARNING: any existing content on layers that are removed by this call is deleted.  This operation cannot be undone.
+// Changes the stackup: the copper layer count (from the number of copper layers given), and for the
+// layers given, copper thickness, dielectric type (core/prepreg), sublayers (material, epsilon_r,
+// loss tangent, thickness), soldermask and silkscreen material, thickness and colour, the finish,
+// impedance control and edge settings.  Dielectrics are matched in order from the top; other
+// layers by board layer.  Values left at zero (or empty) keep the current ones.  Refused when it
+// would remove a copper layer that still has items on it.  Not an undo step.
 // Returns BoardStackupResponse with the updated stackup, in normalized form
 message UpdateBoardStackup
 {
@@ -621,6 +625,47 @@ message FlipItemsResponse
   kiapi.common.types.ItemRequestStatus status = 2;
 
   repeated ItemFlipResult flipped_items = 3;
+}
+
+// Moves, rotates, flips and locks board items in place, as the editor's own tools do: a footprint's
+// pads, graphics and fields move with it.  (UpdateItems rebuilds a footprint from the message, so
+// it cannot move one.)  Each item is flipped first (about its own position), then rotated, then
+// moved.  Joins an open commit.  Returns TransformBoardItemsResponse
+// Since: 11.0
+message TransformBoardItems
+{
+  kiapi.common.types.ItemHeader header = 1;
+
+  repeated kiapi.common.types.KIID items = 2;
+
+  // Moves each item by this much (ignored when position is set)
+  kiapi.common.types.Vector2 translation = 3;
+
+  // Moves each item so its position (a footprint's origin) is here
+  optional kiapi.common.types.Vector2 position = 4;
+
+  // Rotates counter-clockwise by this much: about rotation_center if set, else each item about its
+  // own position (ignored when orientation is set)
+  optional kiapi.common.types.Angle rotation = 5;
+
+  optional kiapi.common.types.Vector2 rotation_center = 6;
+
+  // Footprints: turns each to this orientation about its own position
+  optional kiapi.common.types.Angle orientation = 7;
+
+  // Flips each item about its own position (a footprint changes side)
+  optional BoardFlipDirection flip = 8;
+
+  optional bool locked = 9;
+}
+
+message TransformBoardItemsResponse
+{
+  kiapi.common.types.ItemHeader header = 1;
+
+  kiapi.common.types.ItemRequestStatus status = 2;
+
+  repeated ItemFlipResult items = 3;
 }
 
 // Requests placement of a footprint on a board

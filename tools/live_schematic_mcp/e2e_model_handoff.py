@@ -16,6 +16,7 @@ import sys
 import uuid
 
 from client import LiveSchematic, document, footprint_document
+from e2e_guard import test_document
 from model_handoff import to_wsl
 from solidcraft_stdio import SolidCraftMcp
 
@@ -36,7 +37,7 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     lib_dir.mkdir(parents=True, exist_ok=True)
     client = LiveSchematic(timeout_ms=60000)
-    document(client.documents()["documents"][0])
+    test_document(client)
 
     tag = uuid.uuid4().hex[:6]
     fp_lib, fp_path = f"mcp_3d_{tag}", lib_dir / f"mcp_3d_{tag}.pretty"

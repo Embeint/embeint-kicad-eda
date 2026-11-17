@@ -17,6 +17,7 @@ import time
 import uuid
 
 from client import LiveSchematic, document, footprint_document, symbol_document
+from e2e_guard import test_document
 
 STOCK = "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
 STEP = "/mnt/c/Program Files/KiCad/10.0/share/kicad/3dmodels/Package_SO.3dshapes/SOIC-8_3.9x4.9mm_P1.27mm.step"
@@ -36,7 +37,7 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     lib_dir.mkdir(parents=True, exist_ok=True)
     client = LiveSchematic(timeout_ms=60000)
-    root = document(client.documents()["documents"][0])
+    root = test_document(client)
 
     for _ in range(120):  # footprint libraries load in the background once the editor opens
         found = client.footprint_search("SOIC-8_3.9x4.9mm_P1.27mm")

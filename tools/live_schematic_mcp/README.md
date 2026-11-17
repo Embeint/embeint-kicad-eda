@@ -1,8 +1,9 @@
-# Live schematic MCP
+# Live KiCad MCP
 
-An MCP server that edits the schematic **open in KiCad** through the IPC API: no file edits,
-no save/reload. Changes appear in the editor immediately, each tool call is one undo step, and
-`live_schematic_view` returns a PNG KiCad renders from the in-memory (unsaved) design.
+An MCP server that edits the schematic and board **open in KiCad** through the IPC API: no file
+edits, no save/reload. Changes appear in the editor immediately, each tool call is one undo step,
+and `live_schematic_view` / `live_pcb_view` return PNGs KiCad renders from the in-memory (unsaved)
+design.
 
 Requires this development build (10.99 / KiCad 11). Released KiCad 10.x has no schematic IPC.
 
@@ -11,11 +12,14 @@ Requires this development build (10.99 / KiCad 11). Released KiCad 10.x has no s
 | Tool | Purpose |
 | --- | --- |
 | `live_schematic_documents` | Open schematic + KiCad version; returns the document spec other tools take |
+| `live_schematic_open` | Open the project's schematic when KiCad runs as the project manager |
 | `live_schematic_hierarchy` | Live sheet tree, including unsaved sheets, with UUID sheet paths |
 | `live_schematic_items` | Items on one sheet (protobuf JSON, nanometers) |
 | `live_schematic_create_items` / `_update_items` / `_delete_items` | Batched edits, one undo step, rolled back on any rejection |
 | `live_schematic_place_symbol` | Place `Library:Symbol` at mm coordinates |
-| `live_schematic_view` | PNG snapshot of a sheet's current unsaved state |
+| `live_schematic_view` | PNG of the whole page in its current unsaved state, with the drawing sheet (border, title block) unless `frame=false` |
+| `live_schematic_page` | Paper and orientation, drawing area, title block box and fields (mm), and items outside the border or in the title block |
+| `live_schematic_set_page` | Set the paper (A4, A3, ...), orientation and title block fields |
 | `live_schematic_focus` | Switch the editor to a sheet and zoom to items |
 | `live_schematic_item_schema` | Field reference for item types (SheetSymbol, SheetPin, ...) |
 | `live_schematic_save` | Explicit save, only when asked |
@@ -24,6 +28,7 @@ Requires this development build (10.99 / KiCad 11). Released KiCad 10.x has no s
 | `live_schematic_autoplace_fields` | Re-run field autoplacement on symbols, sheets and labels |
 | `live_schematic_move` | Move / rotate / mirror items; attached wires follow and stay square |
 | `live_schematic_undo` | Undo or redo the editor's last change |
+| `live_editor_grid` | Read or set any editor's grid (size, presets, visibility, style, snapping) |
 | `live_schematic_symbol_pins` | Placed pins with absolute positions, drawn direction and current net |
 | `live_schematic_connect_pins` | Orthogonal wire between two pins (`R1`,`2` to `U1`,`VCC`) |
 | `live_schematic_connect_pin_to_net` | Stub wire plus local/global/hierarchical label on a pin |
@@ -111,18 +116,57 @@ claude mcp add solidcraft -- solidcraft-cli mcp --allow-path C:\Users\<you>\kica
 The Footprint Editor lives in pcbnew; the footprint tools ask the schematic editor to open it
 (`OpenFootprintEditor`), which loads pcbnew's code into the running process.
 
+### PCB editor
+
+KiCad must run as the project manager (`run_kicad_wsl.sh project.kicad_pro`, the default), which
+hosts the schematic and PCB editors in one process; `live_pcb_open` opens the project's board
+(creating it if needed) and returns the board document the other tools take.
+
+| Tool | Purpose |
+| --- | --- |
+| `live_pcb_open` / `live_pcb_documents` | Open the project's board in the PCB editor; list open boards |
+| `live_pcb_summary` / `live_pcb_footprints` / `live_pcb_nets` | Outline, layer count, item counts, footprints (with pads and nets), nets and net classes |
+| `live_pcb_update_from_schematic` | Update PCB from Schematic using the schematic's live netlist (dry run available) |
+| `live_pcb_place_footprint` / `live_pcb_move` | Place a library footprint; move, rotate, flip and lock footprints by reference |
+| `live_pcb_route` / `live_pcb_route_net` | Routes around other nets' copper (with net class clearances), keepouts (also inside footprints) and the board edge, changing layer through vias if allowed; checked by KiCad's DRC and undone if a rule breaks |
+| `live_pcb_check_path` / `live_pcb_add_tracks` / `live_pcb_add_via` | Test a proposed track for conflicts; draw tracks (refused if they cross or crowd other nets); vias (net class sizes by default) |
+| `live_pcb_outline` | Board outline on Edge.Cuts: rectangle, rounded rectangle or polygon |
+| `live_pcb_add_zone` / `live_pcb_add_keepout` / `live_pcb_refill_zones` | Copper pours that follow the outline; keepouts by points or around a footprint (antennas); refill |
+| `live_pcb_add_graphics` | Lines, arcs, rectangles, circles, polygons and text on any layer |
+| `live_pcb_items` / `_create_items` / `_update_items` / `_delete_items` / `_item_schema` | Raw board items (protobuf JSON), one undo step per call |
+| `live_pcb_delete_routing` | Rip up tracks and vias by net and/or layer |
+| `live_pcb_view` / `live_pcb_view_3d` | PNG of chosen layers on the page with the drawing sheet; KiCad's 3D render |
+| `live_pcb_page` / `live_pcb_set_page` | Page check (drawing area, title block, board outline, items outside the border); paper and title block |
+| `live_pcb_origins` | Read or set the grid origin and the drill/place origin |
+| `live_pcb_layers` | Copper layer count (through the stackup, refused if a removed layer has items), visible and active layers |
+| `live_pcb_stackup` / `live_pcb_set_stackup` | Read or change the stackup: layer count, copper and dielectric thickness, core/prepreg, epsilon_r, loss tangent, board thickness, colours, finish |
+| `live_pcb_design_rules` / `live_pcb_custom_rules` | Built-in constraints, predefined track widths and via sizes, DRC severities; custom `.kicad_dru` rules |
+| `live_pcb_netclasses` | Default track width, clearance and via size per net class, and net assignments |
+| `live_pcb_impedance_width` / `live_pcb_rf_net` | Controlled-impedance width (microstrip, CPWG) from the stackup; RF/antenna net class, assignment and isolation rule |
+| `live_pcb_drc` / `live_pcb_check` | Design rules check; the same grouped as clearance, keepout, silkscreen, courtyard, connectivity, manufacturing, schematic |
+| `live_pcb_select` / `live_pcb_focus` / `live_pcb_undo` | Show footprints or items in the editor; undo and redo |
+| `live_pcb_export` | Gerbers, drill, position, STEP, PDF, SVG, DXF, IPC-2581, IPC-D-356, ODB++, DSN and more from the live board |
+| `live_pcb_save` | Explicit save, only when asked |
+
+`live_schematic_execute` and `live_schematic_batch` also take every board command (see
+`live_schematic_list_commands`); a batch on a board document is one undo step.
+
 Hierarchy: create a `SheetSymbol` (with `pins`) on the parent, read its path from
 `live_schematic_hierarchy`, then target the child sheet with that `sheet_path` to add matching
 `HierarchicalLabel`s.
 
 KiCad commands this fork adds for the tools above (`api/proto/schematic/schematic_commands.proto`):
 `AnnotateSchematic`, `UpdateSymbolsFromLibrary`, `AutoplaceFields`, `TransformItems`,
-`UndoLastChange` / `RedoLastChange`, `GetSymbolPins`, `NewLibrarySymbol`, `EditLibrarySymbol`,
+`GetSymbolPins`, `NewLibrarySymbol`, `EditLibrarySymbol`,
 `SetLibrarySymbolProperties`, `RenderLibrarySymbol`, `OpenFootprintEditor`, `NewLibraryFootprint`,
 `EditLibraryFootprint`, `SetLibraryFootprintProperties`, `RenderLibraryFootprint` and
 `EmbedFileFromPath` / `GetEmbeddedFileList` / `RemoveEmbeddedFile`; it also implements the library table and
 search commands KiCad declared but left unimplemented (`GetLibraryTable`, `Add`/`Update`/
-`DeleteLibraryTableEntry`, `SearchLibraries`). Every editing command joins an open
+`DeleteLibraryTableEntry`, `SearchLibraries`). Every editor (schematic, symbol, PCB, footprint)
+shares `UndoLastChange` / `RedoLastChange`, `GetPageLayout` and `GetGridSettings` /
+`SetGridSettings` (`api/proto/common/commands/editor_commands.proto`), and the project manager
+answers `OpenDocument` for the project's schematic and board. For boards it adds `TransformBoardItems` (move, rotate, flip and lock in place) and implements
+`UpdateBoardStackup`, which KiCad declares but leaves unimplemented. Every editing command joins an open
 `BeginCommit`, so a batch is one undo step. Undo/redo need the GUI and refuse an open commit.
 
 ## For agents
@@ -146,7 +190,7 @@ cmake -S <source> -B ~/kicad-live/build -G Ninja -DCMAKE_BUILD_TYPE=Release \
       -DKICAD_BUILD_QA_TESTS=OFF -DCMAKE_INSTALL_PREFIX=$HOME/kicad-live/install
 ninja -C ~/kicad-live/build && ninja -C ~/kicad-live/build install
 
-./run_kicad_wsl.sh            # isolated config, IPC server enabled, opens a demo project
+./run_kicad_wsl.sh            # isolated config, IPC server enabled, project manager with a demo project
 ```
 
 `run_kicad_wsl.sh` keeps its settings in `~/kicad-live/config` and reuses the symbol and
@@ -166,5 +210,7 @@ claude mcp add kicad-live -- wsl.exe -d Ubuntu -- bash /mnt/c/<fork>/tools/live_
 ~/kicad-live/venv/bin/python e2e_features.py out/          # annotate, wiring, move, undo, ERC, batch, export
 ~/kicad-live/venv/bin/python e2e_symbols.py out/           # search, build, save, register and place a symbol
 ~/kicad-live/venv/bin/python e2e_footprints.py out/        # generate a footprint, embed its STEP, link it from a symbol
+~/kicad-live/venv/bin/python e2e_pcb.py out/               # board page, grid, origins, outline, footprints, routing, zones, DRC, exports
+~/kicad-live/venv/bin/python e2e_design.py out/            # stackup, impedance, rules, custom rules, net classes, keepouts, routing around copper, checks
 SOLIDCRAFT_CLI=/path/to/solidcraft-cli ~/kicad-live/venv/bin/python e2e_model_handoff.py out/     # SolidCraft builds the STEP; KiCad embeds and renders it
 ```

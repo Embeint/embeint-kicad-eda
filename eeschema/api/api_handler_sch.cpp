@@ -24,6 +24,7 @@
 #include <api/api_utils.h>
 #include <api/api_server.h>
 #include <api/cross_probe_client.h>
+#include <api/sch_api_save.h>
 #include <api/sch_context.h>
 #include <fmt.h>
 #include <fmt/ranges.h>
@@ -76,6 +77,9 @@
 #include <wildcards_and_files_ext.h>
 #include <wx/filename.h>
 
+#include <drawing_sheet/ds_data_item.h>
+#include <drawing_sheet/ds_data_model.h>
+#include <drawing_sheet/ds_draw_item.h>
 #include <api/common/commands/library_commands.pb.h>
 #include <api/common/types/base_types.pb.h>
 #include <libraries/symbol_library_adapter.h>
@@ -238,8 +242,6 @@ API_HANDLER_SCH::API_HANDLER_SCH( std::shared_ptr<SCH_CONTEXT> aContext,
     registerHandler<kiapi::schematic::commands::AutoplaceFields, Empty>(
             &API_HANDLER_SCH::handleAutoplaceFields );
     registerHandler<TransformItems, TransformItemsResponse>( &API_HANDLER_SCH::handleTransformItems );
-    registerHandler<UndoLastChange, UndoRedoResponse>( &API_HANDLER_SCH::handleUndoLastChange );
-    registerHandler<RedoLastChange, UndoRedoResponse>( &API_HANDLER_SCH::handleRedoLastChange );
     registerHandler<GetSymbolPins, SymbolPinsResponse>( &API_HANDLER_SCH::handleGetSymbolPins );
     registerHandler<NewLibrarySymbol, LibrarySymbolResponse>( &API_HANDLER_SCH::handleNewLibrarySymbol );
     registerHandler<EditLibrarySymbol, LibrarySymbolResponse>( &API_HANDLER_SCH::handleEditLibrarySymbol );
@@ -400,9 +402,11 @@ HANDLER_RESULT<google::protobuf::Empty> API_HANDLER_SCH::handleSaveDocument( con
 
     if( !context()->SaveSchematic() )
     {
+        const wxString reason = SCH_API_SAVE::LastError();
         ApiResponseStatus e;
         e.set_status( ApiStatusCode::AS_BAD_REQUEST );
-        e.set_error_message( "failed to save schematic" );
+        e.set_error_message( reason.IsEmpty() ? std::string( "failed to save schematic" )
+                                              : "failed to save schematic: " + reason.ToStdString() );
         return tl::unexpected( e );
     }
 
@@ -4140,58 +4144,6 @@ HANDLER_RESULT<kiapi::schematic::commands::TransformItemsResponse> API_HANDLER_S
 }
 
 
-HANDLER_RESULT<kiapi::schematic::commands::UndoRedoResponse>
-API_HANDLER_SCH::undoOrRedo( const DocumentSpecifier& aDocument, bool aRedo )
-{
-    if( std::optional<ApiResponseStatus> headless =
-                checkForHeadless( aRedo ? "RedoLastChange" : "UndoLastChange" ) )
-    {
-        return tl::unexpected( *headless );
-    }
-
-    if( HANDLER_RESULT<bool> documentValidation = validateDocument( aDocument ); !documentValidation )
-        return tl::unexpected( documentValidation.error() );
-
-    if( std::optional<ApiResponseStatus> busy = checkForBusy() )
-        return tl::unexpected( *busy );
-
-    // An open commit would be pushed on top of the restored state
-    if( !m_activeClients.empty() )
-        return tl::unexpected( apiError( ApiStatusCode::AS_BUSY, "cannot undo or redo while an API commit is open" ) );
-
-    SCH_EDIT_FRAME* editFrame = frame();
-    auto            count = [&]()
-                            {
-                                return aRedo ? editFrame->GetRedoCommandCount()
-                                             : editFrame->GetUndoCommandCount();
-                            };
-    const int       before = count();
-
-    if( before > 0 )
-        toolManager()->RunAction( aRedo ? ACTIONS::redo : ACTIONS::undo );
-
-    kiapi::schematic::commands::UndoRedoResponse response;
-    response.set_performed( count() < before );
-    response.set_undo_count( editFrame->GetUndoCommandCount() );
-    response.set_redo_count( editFrame->GetRedoCommandCount() );
-    return response;
-}
-
-
-HANDLER_RESULT<kiapi::schematic::commands::UndoRedoResponse> API_HANDLER_SCH::handleUndoLastChange(
-        const HANDLER_CONTEXT<kiapi::schematic::commands::UndoLastChange>& aCtx )
-{
-    return undoOrRedo( aCtx.Request.document(), false );
-}
-
-
-HANDLER_RESULT<kiapi::schematic::commands::UndoRedoResponse> API_HANDLER_SCH::handleRedoLastChange(
-        const HANDLER_CONTEXT<kiapi::schematic::commands::RedoLastChange>& aCtx )
-{
-    return undoOrRedo( aCtx.Request.document(), true );
-}
-
-
 HANDLER_RESULT<kiapi::schematic::commands::SymbolPinsResponse> API_HANDLER_SCH::handleGetSymbolPins(
         const HANDLER_CONTEXT<kiapi::schematic::commands::GetSymbolPins>& aCtx )
 {
@@ -4273,6 +4225,71 @@ HANDLER_RESULT<Empty> API_HANDLER_SCH::handleOpenFootprintEditor(
     editor->Show( true );
     editor->Raise();
     return Empty();
+}
+
+
+HANDLER_RESULT<API_HANDLER_EDITOR::PAGE_LAYOUT_INPUT>
+API_HANDLER_SCH::getPageLayoutInput( const DocumentSpecifier& aDocument )
+{
+    HANDLER_RESULT<SCH_SHEET_PATH> target = prepareSheetRequest( aDocument );
+
+    if( !target )
+        return tl::unexpected( target.error() );
+
+    SCH_SCREEN* screen = target->LastScreen();
+
+    if( !screen )
+        return tl::unexpected( apiError( ApiStatusCode::AS_BAD_REQUEST, "the sheet has no screen" ) );
+
+    PAGE_LAYOUT_INPUT input;
+    input.page = screen->GetPageSettings();
+
+    // Lay out the sheet's own drawing sheet (default or custom) the way the editor draws it
+    input.drawing = std::make_shared<DS_DRAW_ITEM_LIST>( schIUScale, FOR_ERC_DRC );
+    DS_DRAW_ITEM_LIST& drawing = *input.drawing;
+    drawing.SetPageNumber( target->GetPageNumber() );
+    drawing.SetSheetCount( schematic()->Hierarchy().size() );
+    drawing.SetFileName( screen->GetFileName() );
+    drawing.SetSheetName( target->Last()->GetName() );
+    drawing.SetSheetPath( target->PathHumanReadable() );
+    drawing.SetIsFirstPage( target->GetVirtualPageNumber() == 1 );
+    drawing.SetVariantName( schematic()->GetCurrentVariant() );
+    drawing.SetVariantDesc( schematic()->GetVariantDescription( schematic()->GetCurrentVariant() ) );
+    drawing.SetSheetLayer( wxS( "dummyLayer" ) );
+    drawing.SetProject( &schematic()->Project() );
+    drawing.BuildDrawItemsList( input.page, screen->GetTitleBlock() );
+
+    auto describe = [&]( SCH_ITEM* aItem ) -> std::pair<std::string, wxString>
+    {
+        switch( aItem->Type() )
+        {
+        case SCH_SYMBOL_T:
+            return { "Symbol", static_cast<SCH_SYMBOL*>( aItem )->GetRef( &*target, false ) };
+        case SCH_SHEET_T: return { "Sheet", static_cast<SCH_SHEET*>( aItem )->GetName() };
+        case SCH_LABEL_T: return { "Label", static_cast<SCH_TEXT*>( aItem )->GetText() };
+        case SCH_GLOBAL_LABEL_T: return { "Global label", static_cast<SCH_TEXT*>( aItem )->GetText() };
+        case SCH_HIER_LABEL_T: return { "Hierarchical label", static_cast<SCH_TEXT*>( aItem )->GetText() };
+        case SCH_DIRECTIVE_LABEL_T: return { "Directive label", static_cast<SCH_TEXT*>( aItem )->GetText() };
+        case SCH_TEXT_T: return { "Text", static_cast<SCH_TEXT*>( aItem )->GetText().BeforeFirst( '\n' ) };
+        case SCH_LINE_T:
+        {
+            SCH_LINE* line = static_cast<SCH_LINE*>( aItem );
+            return { line->IsWire() ? "Wire" : line->IsBus() ? "Bus" : "Line", wxEmptyString };
+        }
+        case SCH_JUNCTION_T: return { "Junction", wxEmptyString };
+        case SCH_NO_CONNECT_T: return { "No-connect", wxEmptyString };
+        case SCH_SHAPE_T: return { "Shape", wxEmptyString };
+        default: return { aItem->GetClass().ToStdString(), wxEmptyString };
+        }
+    };
+
+    for( SCH_ITEM* item : screen->Items() )
+    {
+        auto [type, name] = describe( item );
+        input.items.push_back( { item->m_Uuid, type, name, item->GetBoundingBox() } );
+    }
+
+    return input;
 }
 
 

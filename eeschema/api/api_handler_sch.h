@@ -88,6 +88,8 @@ protected:
 
     std::optional<PAGE_INFO> getPageSettings( const DocumentSpecifier& aDocument ) override;
 
+    HANDLER_RESULT<PAGE_LAYOUT_INPUT> getPageLayoutInput( const DocumentSpecifier& aDocument ) override;
+
     bool setPageSettings( const DocumentSpecifier& aDocument, const PAGE_INFO& aPageInfo ) override;
 
     wxString getDrawingSheetFileName() override;
@@ -217,15 +219,6 @@ private:
     HANDLER_RESULT<kiapi::schematic::commands::TransformItemsResponse> handleTransformItems(
             const HANDLER_CONTEXT<kiapi::schematic::commands::TransformItems>& aCtx );
 
-    HANDLER_RESULT<kiapi::schematic::commands::UndoRedoResponse> handleUndoLastChange(
-            const HANDLER_CONTEXT<kiapi::schematic::commands::UndoLastChange>& aCtx );
-
-    HANDLER_RESULT<kiapi::schematic::commands::UndoRedoResponse> handleRedoLastChange(
-            const HANDLER_CONTEXT<kiapi::schematic::commands::RedoLastChange>& aCtx );
-
-    HANDLER_RESULT<kiapi::schematic::commands::UndoRedoResponse> undoOrRedo(
-            const DocumentSpecifier& aDocument, bool aRedo );
-
     HANDLER_RESULT<kiapi::schematic::commands::SymbolPinsResponse> handleGetSymbolPins(
             const HANDLER_CONTEXT<kiapi::schematic::commands::GetSymbolPins>& aCtx );
 
@@ -237,6 +230,7 @@ private:
 
     HANDLER_RESULT<Empty> handleOpenFootprintEditor(
             const HANDLER_CONTEXT<kiapi::schematic::commands::OpenFootprintEditor>& aCtx );
+
 
     /// Opens (creating if needed) the Symbol Editor, or explains why it cannot take a command now.
     HANDLER_RESULT<SYMBOL_EDIT_FRAME*> openSymbolEditor();

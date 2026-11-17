@@ -14,6 +14,7 @@ import time
 import uuid
 
 from client import LiveSchematic, as_dict, document, sch, symbol_document
+from e2e_guard import test_document
 
 
 def check(condition, message):
@@ -28,7 +29,7 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     lib_dir.mkdir(parents=True, exist_ok=True)
     client = LiveSchematic()
-    root = document(client.documents()["documents"][0])
+    root = test_document(client)
 
     for _ in range(120):  # libraries load in the background after startup
         found = client.search_symbols("regulator 3.3", limit=5)

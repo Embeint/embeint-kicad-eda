@@ -22,9 +22,22 @@
 
 #include <api/api_enums.h>
 #include <api/api_utils.h>
+#include <class_draw_panel_gal.h>
+#include <drawing_sheet/ds_data_item.h>
+#include <drawing_sheet/ds_data_model.h>
+#include <drawing_sheet/ds_draw_item.h>
 #include <eda_base_frame.h>
+#include <eda_draw_frame.h>
 #include <eda_item.h>
+#include <eda_units.h>
+#include <gal/gal_display_options.h>
+#include <gal_display_options_common.h>
+#include <settings/app_settings.h>
+#include <settings/grid_settings.h>
 #include <title_block.h>
+#include <tool/actions.h>
+#include <tool/common_tools.h>
+#include <tool/tool_manager.h>
 #include <wx/wx.h>
 
 using namespace kiapi::common::commands;
@@ -44,6 +57,11 @@ API_HANDLER_EDITOR::API_HANDLER_EDITOR( EDA_BASE_FRAME* aFrame ) :
             &API_HANDLER_EDITOR::handleGetDocumentModifiedState );
     registerHandler<GetTitleBlockInfo, types::TitleBlockInfo>( &API_HANDLER_EDITOR::handleGetTitleBlockInfo );
     registerHandler<SetTitleBlockInfo, google::protobuf::Empty>( &API_HANDLER_EDITOR::handleSetTitleBlockInfo );
+    registerHandler<UndoLastChange, UndoRedoResponse>( &API_HANDLER_EDITOR::handleUndoLastChange );
+    registerHandler<RedoLastChange, UndoRedoResponse>( &API_HANDLER_EDITOR::handleRedoLastChange );
+    registerHandler<GetPageLayout, PageLayoutResponse>( &API_HANDLER_EDITOR::handleGetPageLayout );
+    registerHandler<GetGridSettings, GridSettings>( &API_HANDLER_EDITOR::handleGetGridSettings );
+    registerHandler<SetGridSettings, GridSettings>( &API_HANDLER_EDITOR::handleSetGridSettings );
 }
 
 
@@ -622,4 +640,392 @@ HANDLER_RESULT<types::PageSettings> API_HANDLER_EDITOR::handleSetPageSettings(
     response.set_drawing_sheet( getDrawingSheetFileName().ToUTF8() );
 
     return response;
+}
+
+
+static ApiResponseStatus editorError( ApiStatusCode aCode, const std::string& aMessage )
+{
+    ApiResponseStatus e;
+    e.set_status( aCode );
+    e.set_error_message( aMessage );
+    return e;
+}
+
+
+HANDLER_RESULT<EDA_DRAW_FRAME*> API_HANDLER_EDITOR::drawFrame( const std::string& aCommandName ) const
+{
+    EDA_DRAW_FRAME* frame = dynamic_cast<EDA_DRAW_FRAME*>( m_frame );
+
+    if( !frame || !frame->GetToolManager() )
+    {
+        return tl::unexpected( editorError( ApiStatusCode::AS_UNIMPLEMENTED,
+                                            fmt::format( "{} needs an open editor window", aCommandName ) ) );
+    }
+
+    return frame;
+}
+
+
+HANDLER_RESULT<UndoRedoResponse> API_HANDLER_EDITOR::undoOrRedo( const DocumentSpecifier& aDocument, bool aRedo )
+{
+    if( HANDLER_RESULT<bool> documentValidation = validateDocument( aDocument ); !documentValidation )
+        return tl::unexpected( documentValidation.error() );
+
+    HANDLER_RESULT<EDA_DRAW_FRAME*> frame = drawFrame( aRedo ? "RedoLastChange" : "UndoLastChange" );
+
+    if( !frame )
+        return tl::unexpected( frame.error() );
+
+    if( std::optional<ApiResponseStatus> busy = checkForBusy() )
+        return tl::unexpected( *busy );
+
+    // An open commit would be pushed on top of the restored state
+    if( !m_activeClients.empty() || !m_commits.empty() )
+    {
+        return tl::unexpected( editorError( ApiStatusCode::AS_BUSY,
+                                            "cannot undo or redo while an API commit is open" ) );
+    }
+
+    EDA_DRAW_FRAME* editFrame = *frame;
+    auto            count = [&]()
+                            {
+                                return aRedo ? editFrame->GetRedoCommandCount()
+                                             : editFrame->GetUndoCommandCount();
+                            };
+    const int       before = count();
+
+    if( before > 0 )
+        editFrame->GetToolManager()->RunAction( aRedo ? ACTIONS::redo : ACTIONS::undo );
+
+    UndoRedoResponse response;
+    response.set_performed( count() < before );
+    response.set_undo_count( editFrame->GetUndoCommandCount() );
+    response.set_redo_count( editFrame->GetRedoCommandCount() );
+    return response;
+}
+
+
+HANDLER_RESULT<UndoRedoResponse> API_HANDLER_EDITOR::handleUndoLastChange(
+        const HANDLER_CONTEXT<UndoLastChange>& aCtx )
+{
+    return undoOrRedo( aCtx.Request.document(), false );
+}
+
+
+HANDLER_RESULT<UndoRedoResponse> API_HANDLER_EDITOR::handleRedoLastChange(
+        const HANDLER_CONTEXT<RedoLastChange>& aCtx )
+{
+    return undoOrRedo( aCtx.Request.document(), true );
+}
+
+
+HANDLER_RESULT<API_HANDLER_EDITOR::PAGE_LAYOUT_INPUT>
+API_HANDLER_EDITOR::getPageLayoutInput( const DocumentSpecifier& aDocument )
+{
+    return tl::unexpected( editorError( ApiStatusCode::AS_BAD_REQUEST, "this editor has no page layout" ) );
+}
+
+
+HANDLER_RESULT<PageLayoutResponse> API_HANDLER_EDITOR::handleGetPageLayout(
+        const HANDLER_CONTEXT<GetPageLayout>& aCtx )
+{
+    if( HANDLER_RESULT<bool> documentValidation = validateDocument( aCtx.Request.document() ); !documentValidation )
+        return tl::unexpected( documentValidation.error() );
+
+    HANDLER_RESULT<PAGE_LAYOUT_INPUT> input = getPageLayoutInput( aCtx.Request.document() );
+
+    if( !input )
+        return tl::unexpected( input.error() );
+
+    const EDA_IU_SCALE& scale = getIuScale();
+    const VECTOR2I      pageSize = input->page.GetSizeIU( scale.IU_PER_MILS );
+
+    // Drawing area: the innermost rectangle spanning the page from the top-left to the
+    // bottom-right corner (the inner border line).  Title block: everything anchored to the
+    // bottom-right corner that is smaller than half the page.
+    std::optional<BOX2I> drawingArea;
+    std::optional<BOX2I> titleBlock;
+
+    if( input->drawing )
+    {
+        DS_DRAW_ITEM_LIST& drawing = *input->drawing;
+
+        for( DS_DRAW_ITEM_BASE* item = drawing.GetFirst(); item; item = drawing.GetNext() )
+        {
+            DS_DATA_ITEM* peer = item->GetPeer();
+
+            if( !peer )
+                continue;
+
+            if( auto* rect = dynamic_cast<DS_DRAW_ITEM_RECT*>( item );
+                rect && peer->m_Pos.m_Anchor == LT_CORNER && peer->m_End.m_Anchor == RB_CORNER )
+            {
+                BOX2I box( rect->GetStart(), rect->GetEnd() - rect->GetStart() );
+                box.Normalize();
+
+                if( !drawingArea || box.GetArea() < drawingArea->GetArea() )
+                    drawingArea = box;
+
+                continue;
+            }
+
+            if( peer->m_Pos.m_Anchor != RB_CORNER )
+                continue;
+
+            if( ( peer->GetType() == DS_DATA_ITEM::DS_SEGMENT || peer->GetType() == DS_DATA_ITEM::DS_RECT )
+                && peer->m_End.m_Anchor != RB_CORNER )
+            {
+                continue;
+            }
+
+            BOX2I box = item->GetBoundingBox();
+            box.Normalize();
+
+            if( box.GetWidth() >= pageSize.x / 2 || box.GetHeight() >= pageSize.y / 2 )
+                continue;
+
+            if( titleBlock )
+                titleBlock->Merge( box );
+            else
+                titleBlock = box;
+        }
+    }
+
+    if( !drawingArea )
+    {
+        DS_DATA_MODEL& model = DS_DATA_MODEL::GetTheInstance();
+        const int      left = scale.mmToIU( model.GetLeftMargin() );
+        const int      top = scale.mmToIU( model.GetTopMargin() );
+        const int      right = scale.mmToIU( model.GetRightMargin() );
+        const int      bottom = scale.mmToIU( model.GetBottomMargin() );
+        drawingArea = BOX2I( VECTOR2I( left, top ),
+                             VECTOR2I( pageSize.x - left - right, pageSize.y - top - bottom ) );
+    }
+
+    PageLayoutResponse response;
+    PackVector2( *response.mutable_page_size(), pageSize, scale );
+    PackBox2( *response.mutable_drawing_area(), *drawingArea, scale );
+
+    if( titleBlock )
+        PackBox2( *response.mutable_title_block(), *titleBlock, scale );
+
+    if( input->boardOutline )
+        PackBox2( *response.mutable_board_outline(), *input->boardOutline, scale );
+
+    std::optional<BOX2I> content;
+
+    for( const PAGE_LAYOUT_ITEM& item : input->items )
+    {
+        BOX2I box = item.box;
+        box.Normalize();
+
+        if( content )
+            content->Merge( box );
+        else
+            content = box;
+
+        const bool outside = !drawingArea->Contains( box );
+        const bool overlaps = titleBlock && box.Intersects( *titleBlock );
+
+        if( !outside && !overlaps )
+            continue;
+
+        PageLayoutItem* problem = response.add_problems();
+        problem->mutable_id()->set_value( item.id.AsStdString() );
+        problem->set_type( item.type );
+        problem->set_name( item.name.ToUTF8() );
+        PackBox2( *problem->mutable_box(), box, scale );
+        problem->set_outside_drawing_area( outside );
+        problem->set_overlaps_title_block( overlaps );
+    }
+
+    if( content )
+        PackBox2( *response.mutable_content(), *content, scale );
+
+    response.set_item_count( static_cast<int>( input->items.size() ) );
+    return response;
+}
+
+
+static GridStyle packGridStyle( KIGFX::GRID_STYLE aStyle )
+{
+    switch( aStyle )
+    {
+    case KIGFX::GRID_STYLE::DOTS:        return GridStyle::GST_DOTS;
+    case KIGFX::GRID_STYLE::LINES:       return GridStyle::GST_LINES;
+    case KIGFX::GRID_STYLE::SMALL_CROSS: return GridStyle::GST_SMALL_CROSS;
+    }
+
+    return GridStyle::GST_UNKNOWN;
+}
+
+
+static GridSnapping packGridSnapping( KIGFX::GRID_SNAPPING aSnapping )
+{
+    switch( aSnapping )
+    {
+    case KIGFX::GRID_SNAPPING::ALWAYS:    return GridSnapping::GSN_ALWAYS;
+    case KIGFX::GRID_SNAPPING::WITH_GRID: return GridSnapping::GSN_WITH_GRID;
+    case KIGFX::GRID_SNAPPING::NEVER:     return GridSnapping::GSN_NEVER;
+    }
+
+    return GridSnapping::GSN_UNKNOWN;
+}
+
+
+GridSettings API_HANDLER_EDITOR::packGridSettings( EDA_DRAW_FRAME* aFrame ) const
+{
+    const EDA_IU_SCALE&   scale = getIuScale();
+    GRID_SETTINGS&        grid = aFrame->GetWindowSettings( aFrame->config() )->grid;
+    COMMON_TOOLS*         tools = aFrame->GetToolManager()->GetTool<COMMON_TOOLS>();
+    std::vector<VECTOR2I> sizes = tools ? tools->Grids() : std::vector<VECTOR2I>();
+
+    GridSettings response;
+
+    for( size_t ii = 0; ii < grid.grids.size(); ++ii )
+    {
+        GridPreset* preset = response.add_presets();
+        preset->set_name( grid.grids[ii].name.ToUTF8() );
+
+        VECTOR2D fromText = grid.grids[ii].ToDouble( scale );
+        VECTOR2I size = ii < sizes.size() ? sizes[ii] : VECTOR2I( KiROUND( fromText.x ), KiROUND( fromText.y ) );
+        PackVector2( *preset->mutable_size(), size, scale );
+    }
+
+    const int index = std::clamp( grid.last_size_idx, 0, std::max( 0, response.presets_size() - 1 ) );
+    response.set_preset_index( index );
+
+    if( index < response.presets_size() )
+        *response.mutable_size() = response.presets( index ).size();
+
+    response.set_visible( grid.show );
+    response.set_style( packGridStyle( grid.style ) );
+    response.set_snapping( packGridSnapping( grid.snap ) );
+    PackVector2( *response.mutable_origin(), aFrame->GetGridOrigin(), scale );
+    return response;
+}
+
+
+HANDLER_RESULT<GridSettings> API_HANDLER_EDITOR::handleGetGridSettings(
+        const HANDLER_CONTEXT<GetGridSettings>& aCtx )
+{
+    if( HANDLER_RESULT<bool> documentValidation = validateDocument( aCtx.Request.document() ); !documentValidation )
+        return tl::unexpected( documentValidation.error() );
+
+    HANDLER_RESULT<EDA_DRAW_FRAME*> frame = drawFrame( "GetGridSettings" );
+
+    if( !frame )
+        return tl::unexpected( frame.error() );
+
+    return packGridSettings( *frame );
+}
+
+
+HANDLER_RESULT<GridSettings> API_HANDLER_EDITOR::handleSetGridSettings(
+        const HANDLER_CONTEXT<SetGridSettings>& aCtx )
+{
+    if( HANDLER_RESULT<bool> documentValidation = validateDocument( aCtx.Request.document() ); !documentValidation )
+        return tl::unexpected( documentValidation.error() );
+
+    HANDLER_RESULT<EDA_DRAW_FRAME*> frameResult = drawFrame( "SetGridSettings" );
+
+    if( !frameResult )
+        return tl::unexpected( frameResult.error() );
+
+    if( std::optional<ApiResponseStatus> busy = checkForBusy() )
+        return tl::unexpected( *busy );
+
+    EDA_DRAW_FRAME*     frame = *frameResult;
+    const EDA_IU_SCALE& scale = getIuScale();
+    WINDOW_SETTINGS*    window = frame->GetWindowSettings( frame->config() );
+    GRID_SETTINGS&      grid = window->grid;
+    COMMON_TOOLS*       tools = frame->GetToolManager()->GetTool<COMMON_TOOLS>();
+    const auto&         request = aCtx.Request;
+
+    if( !tools )
+        return tl::unexpected( editorError( ApiStatusCode::AS_UNIMPLEMENTED, "this editor has no grid tools" ) );
+
+    std::optional<int> index;
+
+    if( request.has_size() )
+    {
+        const VECTOR2I size = UnpackVector2( request.size(), scale );
+
+        if( size.x <= 0 || size.y <= 0 )
+            return tl::unexpected( editorError( ApiStatusCode::AS_BAD_REQUEST, "the grid size must be positive" ) );
+
+        std::vector<VECTOR2I> sizes = tools->Grids();
+
+        for( size_t ii = 0; ii < sizes.size(); ++ii )
+        {
+            if( std::abs( sizes[ii].x - size.x ) <= 1 && std::abs( sizes[ii].y - size.y ) <= 1 )
+            {
+                index = static_cast<int>( ii );
+                break;
+            }
+        }
+
+        if( !index )
+        {
+            auto text = [&]( int aValue )
+                        {
+                            return EDA_UNIT_UTILS::UI::StringFromValue( scale, EDA_UNITS::MM, aValue, true );
+                        };
+
+            grid.grids.push_back( GRID{ wxEmptyString, text( size.x ), text( size.y ) } );
+            index = static_cast<int>( grid.grids.size() ) - 1;
+
+            // Rebuilds the tool's grid list from the settings
+            tools->Reset( TOOL_BASE::MODEL_RELOAD );
+        }
+    }
+    else if( request.has_preset_index() )
+    {
+        if( request.preset_index() < 0 || request.preset_index() >= static_cast<int>( grid.grids.size() ) )
+        {
+            return tl::unexpected( editorError( ApiStatusCode::AS_BAD_REQUEST,
+                                                fmt::format( "preset_index must be 0 to {}",
+                                                             grid.grids.size() - 1 ) ) );
+        }
+
+        index = request.preset_index();
+    }
+
+    if( request.has_style() )
+    {
+        switch( request.style() )
+        {
+        case GridStyle::GST_DOTS:        grid.style = KIGFX::GRID_STYLE::DOTS;        break;
+        case GridStyle::GST_LINES:       grid.style = KIGFX::GRID_STYLE::LINES;       break;
+        case GridStyle::GST_SMALL_CROSS: grid.style = KIGFX::GRID_STYLE::SMALL_CROSS; break;
+        default: return tl::unexpected( editorError( ApiStatusCode::AS_BAD_REQUEST, "unknown grid style" ) );
+        }
+    }
+
+    if( request.has_snapping() )
+    {
+        switch( request.snapping() )
+        {
+        case GridSnapping::GSN_ALWAYS:    grid.snap = KIGFX::GRID_SNAPPING::ALWAYS;    break;
+        case GridSnapping::GSN_WITH_GRID: grid.snap = KIGFX::GRID_SNAPPING::WITH_GRID; break;
+        case GridSnapping::GSN_NEVER:     grid.snap = KIGFX::GRID_SNAPPING::NEVER;     break;
+        default: return tl::unexpected( editorError( ApiStatusCode::AS_BAD_REQUEST, "unknown grid snapping" ) );
+        }
+    }
+
+    if( request.has_style() || request.has_snapping() )
+        frame->GetGalDisplayOptions().ReadWindowSettings( *window );
+
+    if( index )
+        tools->GridPreset( *index, false );
+
+    if( request.has_visible() )
+        frame->SetGridVisibility( request.visible() );
+
+    frame->UpdateGridSelectBox();
+
+    if( frame->GetCanvas() )
+        frame->GetCanvas()->Refresh();
+
+    return packGridSettings( frame );
 }

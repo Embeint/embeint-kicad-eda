@@ -13,6 +13,7 @@ import sys
 import uuid
 
 from client import LiveSchematic, as_dict, document, point, sch, types
+from e2e_guard import test_document
 
 
 def kiid():
@@ -38,7 +39,7 @@ def main():
     print("KiCad", listing["version"].get("full_version", listing["version"]))
     if not listing["documents"]:
         raise SystemExit("No schematic open in the development KiCad")
-    root = document(listing["documents"][0])
+    root = test_document(client)
     project_dir = Path(root.project.path)
     on_disk = {p: sha256(p.read_bytes()).hexdigest() for p in project_dir.glob("*.kicad_sch")}
 

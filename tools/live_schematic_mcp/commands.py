@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Every schematic IPC command the editor registers, for the generic execute/batch tools.
+"""Every IPC command the schematic and PCB editors register, for the generic execute/batch tools.
 
 Kinds: "read" never changes anything; "edit" changes the design (one undo step each, or part of a
 batch's single step); "view" changes only the editor's selection, view or highlighting; "file"
 touches files on disk or discards unsaved state; "job" writes an export.  Mirrors the
-registerHandler calls in eeschema/api/api_handler_sch.cpp and common/api/api_handler_editor.cpp.
+registerHandler calls in eeschema/api/api_handler_sch.cpp, pcbnew/api/api_handler_pcb.cpp,
+pcbnew/api/api_handler_board.cpp and common/api/api_handler_editor.cpp.
 """
 
 from google.protobuf import descriptor_pool, empty_pb2, json_format, symbol_database  # noqa: F401
@@ -13,6 +14,7 @@ C = "kiapi.common.commands."
 S = "kiapi.schematic.commands."
 J = "kiapi.schematic.jobs."
 B = "kiapi.board.commands."
+BJ = "kiapi.board.jobs."
 T = "kiapi.common.types."
 EMPTY = "google.protobuf.Empty"
 
@@ -38,12 +40,13 @@ COMMANDS = {
     S + "UpdateSymbolsFromLibrary": (S + "UpdateSymbolsFromLibraryResponse", "edit"),
     S + "AutoplaceFields": (EMPTY, "edit"),
     S + "TransformItems": (S + "TransformItemsResponse", "edit"),
-    S + "UndoLastChange": (S + "UndoRedoResponse", "edit"),
-    S + "RedoLastChange": (S + "UndoRedoResponse", "edit"),
+    C + "UndoLastChange": (C + "UndoRedoResponse", "edit"),
+    C + "RedoLastChange": (C + "UndoRedoResponse", "edit"),
     # Structure and connectivity
     S + "GetSchematicHierarchy": (S + "SchematicHierarchyResponse", "read"),
     S + "GetSchematicNetlist": (S + "SchematicNetlistResponse", "read"),
     S + "GetSymbolPins": (S + "SymbolPinsResponse", "read"),
+    C + "GetPageLayout": (C + "PageLayoutResponse", "read"),
     "kiapi.schematic.tasks.StartErcTask": ("kiapi.common.tasks.StartTaskResponse", "read"),
     "kiapi.schematic.tasks.GetErcTaskResult": ("kiapi.schematic.tasks.ErcTaskResult", "read"),
     "kiapi.common.tasks.GetTaskStatus": ("kiapi.common.tasks.TaskStatusResponse", "read"),
@@ -60,12 +63,16 @@ COMMANDS = {
     C + "GetPageSettings": (T + "PageSettings", "read"),
     C + "SetPageSettings": (T + "PageSettings", "edit"),
     C + "GetTitleBlockInfo": (T + "TitleBlockInfo", "read"),
+    C + "GetGridSettings": (C + "GridSettings", "read"),
+    C + "SetGridSettings": (C + "GridSettings", "view"),
     C + "SetTitleBlockInfo": (EMPTY, "edit"),
     C + "ExpandTextVariables": (C + "ExpandTextVariablesResponse", "read"),
     C + "GetTextVariables": ("kiapi.common.project.TextVariables", "read"),
     C + "SetTextVariables": (EMPTY, "edit"),
     C + "GetNetClasses": (C + "NetClassesResponse", "read"),
     C + "GetNetClassAssignments": (C + "NetClassAssignmentsResponse", "read"),
+    C + "SetNetClasses": (EMPTY, "edit"),
+    C + "SetNetClassAssignments": (EMPTY, "edit"),
     # Design variants
     C + "GetVariants": (C + "VariantsResponse", "read"),
     C + "GetCurrentVariant": (C + "CurrentVariantResponse", "read"),
@@ -106,12 +113,62 @@ COMMANDS = {
     J + "RunSchematicJobExportPng": (T + "RunJobResponse", "job"),
     J + "RunSchematicJobExportNetlist": (T + "RunJobResponse", "job"),
     J + "RunSchematicJobExportBOM": (T + "RunJobResponse", "job"),
+    # Opening documents (project manager mode)
+    "kiapi.common.commands.OpenDocument": (C + "OpenDocumentResponse", "file"),
+    # PCB editor: board structure, connectivity and rules
+    B + "GetBoardStackup": (B + "BoardStackupResponse", "read"),
+    B + "UpdateBoardStackup": (B + "BoardStackupResponse", "edit"),
+    B + "GetBoardEnabledLayers": (B + "BoardEnabledLayersResponse", "read"),
+    B + "SetBoardEnabledLayers": (B + "BoardEnabledLayersResponse", "edit"),
+    B + "GetGraphicsDefaults": (B + "GraphicsDefaultsResponse", "read"),
+    B + "GetBoardOrigin": (T + "Vector2", "read"),
+    B + "SetBoardOrigin": (EMPTY, "edit"),
+    B + "GetBoardLayerName": (B + "BoardLayerNameResponse", "read"),
+    B + "GetBoardLayerByName": (B + "BoardLayerResponse", "read"),
+    B + "GetNets": (B + "NetsResponse", "read"),
+    B + "GetConnectedItems": (C + "GetItemsResponse", "read"),
+    B + "GetItemsByNet": (C + "GetItemsResponse", "read"),
+    B + "GetItemsByNetClass": (C + "GetItemsResponse", "read"),
+    B + "GetNetClassForNets": (B + "NetClassForNetsResponse", "read"),
+    B + "GetBoardDesignRules": (B + "BoardDesignRulesResponse", "read"),
+    B + "SetBoardDesignRules": (B + "BoardDesignRulesResponse", "edit"),
+    B + "GetCustomDesignRules": (B + "CustomRulesResponse", "read"),
+    B + "SetCustomDesignRules": (B + "CustomRulesResponse", "edit"),
+    C + "GetBoundingBox": (C + "GetBoundingBoxResponse", "read"),
+    B + "GetBoardBoundingBox": (B + "BoardBoundingBoxResponse", "read"),
+    B + "GetPadShapeAsPolygon": (B + "PadShapeAsPolygonResponse", "read"),
+    B + "CheckPadstackPresenceOnLayers": (B + "PadstackPresenceResponse", "read"),
+    # PCB editor: editing
+    B + "PlaceFootprintFromLibrary": (C + "PlaceFromLibraryResponse", "edit"),
+    B + "FlipItems": (B + "FlipItemsResponse", "edit"),
+    B + "TransformBoardItems": (B + "TransformBoardItemsResponse", "edit"),
+    B + "RefillZones": (EMPTY, "edit"),
+    B + "ImportNetlist": (B + "ImportNetlistResponse", "edit"),
+    B + "ImportSpecctraSession": (B + "ImportSpecctraSessionResponse", "edit"),
+    B + "SetBoardPlotSettings": (EMPTY, "edit"),
+    B + "GetBoardPlotSettings": (B + "BoardPlotSettingsResponse", "read"),
+    C + "RunAction": (C + "RunActionResponse", "edit"),
+    "kiapi.board.tasks.StartDrcTask": ("kiapi.common.tasks.StartTaskResponse", "read"),
+    "kiapi.board.tasks.GetDrcTaskResult": ("kiapi.board.tasks.DrcTaskResult", "read"),
+    "kiapi.board.tasks.StartRefillZonesTask": ("kiapi.common.tasks.StartTaskResponse", "edit"),
+    # PCB editor: view
+    B + "GetVisibleLayers": (B + "BoardLayers", "read"),
+    B + "SetVisibleLayers": (EMPTY, "view"),
+    B + "GetActiveLayer": (B + "BoardLayerResponse", "read"),
+    B + "SetActiveLayer": (EMPTY, "view"),
+    B + "GetBoardEditorAppearanceSettings": (B + "BoardEditorAppearanceSettings", "read"),
+    B + "SetBoardEditorAppearanceSettings": (EMPTY, "view"),
+    B + "InteractiveMoveItems": (EMPTY, "view"),
+    # PCB exports (from the unsaved board)
+    **{BJ + f"RunBoardJobExport{kind}": (T + "RunJobResponse", "job")
+       for kind in ("3D", "Render", "Svg", "Dxf", "Pdf", "Ps", "Png", "Gerbers", "Drill", "Position",
+                    "SpecctraDsn", "Gencad", "Ipc2581", "IpcD356", "ODB", "Stats", "Idf")},
 }
 
 # Commands that may run inside a batch's commit.  Undo/redo refuse an open commit, and file
 # operations must not be rolled back half-way.
 BATCHABLE_KINDS = {"read", "edit", "view"}
-NOT_BATCHABLE = {S + "UndoLastChange", S + "RedoLastChange"}
+NOT_BATCHABLE = {C + "UndoLastChange", C + "RedoLastChange", B + "InteractiveMoveItems"}
 
 
 def resolve(name):
@@ -119,7 +176,9 @@ def resolve(name):
     if name in COMMANDS:
         return name
     matches = [full for full in COMMANDS if full.rsplit(".", 1)[-1] == name]
-    if len(matches) != 1:
+    if len(matches) > 1:
+        raise ValueError(f"{name!r} is ambiguous; use one of {matches}")
+    if not matches:
         raise ValueError(f"Unknown command {name!r}; use live_schematic_list_commands")
     return matches[0]
 

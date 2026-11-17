@@ -4,11 +4,13 @@
 from google.protobuf import empty_pb2
 from mcp.server.fastmcp import FastMCP, Image
 
+from board_client import parse_board_items
 from client import LiveSchematic, as_dict, document, editor, parse_items, project
+from client import board_document as board_document_spec
 from client import footprint_document as footprint_document_spec
 from client import symbol_document as symbol_document_spec
 
-mcp = FastMCP("KiCad Live Schematic")
+mcp = FastMCP("KiCad Live")
 client = LiveSchematic()
 
 
@@ -16,6 +18,13 @@ client = LiveSchematic()
 def live_schematic_documents() -> dict:
     """List open live schematic documents and KiCad version. Requires development KiCad 10.99/11+."""
     return client.documents()
+
+
+@mcp.tool()
+def live_schematic_open(path: str | None = None) -> dict:
+    """Open the project's schematic in the running KiCad when it runs as the project manager (path defaults
+    to <project>.kicad_sch). Returns the open schematic documents, like live_schematic_documents."""
+    return client.open_schematic(path)
 
 
 @mcp.tool()
@@ -76,12 +85,38 @@ def live_schematic_place_symbol(document_spec: dict, lib_id: str, x_mm: float, y
 
 
 @mcp.tool()
-def live_schematic_view(document_spec: dict, dpi: int = 100) -> Image:
+def live_schematic_view(document_spec: dict, dpi: int = 100, frame: bool = True) -> Image:
     """See an open sheet's current unsaved contents rendered by KiCad. Does not save/reload the design.
 
-    Returns a PNG image for visual inspection after edits. This is an on-demand snapshot, not video.
+    Returns the whole page as a PNG. frame=True (default) draws the drawing sheet: border and title
+    block, so content running past the border or into the title block shows. frame=False leaves them
+    out. Use live_schematic_page for the same check as numbers.
     """
-    return Image(data=client.render(document(document_spec), dpi), format="png")
+    return Image(data=client.render(document(document_spec), dpi, frame), format="png")
+
+
+@mcp.tool()
+def live_schematic_page(document_spec: dict) -> dict:
+    """The sheet's page: paper (A4, A3, ...) and orientation, page size, the drawing area inside the
+    border, the title block box and its fields, the extent of the content, all in mm, and every item
+    that crosses the border or overlaps the title block (fits=false). Check this before saving.
+    """
+    return client.page_layout(document(document_spec))
+
+
+@mcp.tool()
+def live_schematic_set_page(document_spec: dict, size: str | None = None, orientation: str | None = None,
+                            title: str | None = None, date: str | None = None, revision: str | None = None,
+                            company: str | None = None, comments: list[str] | None = None) -> dict:
+    """Set the sheet's paper and title block; omitted settings are kept. Not an undo step.
+
+    size: A5, A4, A3, A2, A1, A0, ANSI_A..ANSI_E, LETTER, LEGAL, LEDGER. orientation: landscape |
+    portrait. date may be "today". comments fill Comment1..9 in order. Follow the project's
+    title-block convention (see AGENTS.md). Returns the new page layout, so check `fits`: a smaller
+    page can leave content outside the border.
+    """
+    return client.set_page(document(document_spec), size, orientation, None, title, date, revision, company,
+                           comments)
 
 
 @mcp.tool()
@@ -222,7 +257,8 @@ def live_schematic_export(document_spec: dict, kind: str, output_path: str) -> d
 
 @mcp.tool()
 def live_schematic_list_commands() -> list[dict]:
-    """List every KiCad schematic IPC command, its kind (read/edit/view/file/job) and reply type."""
+    """List every KiCad IPC command these tools know (schematic, PCB, libraries), its kind
+    (read/edit/view/file/job) and reply type."""
     from commands import COMMANDS
     return [{"command": name.rsplit(".", 1)[-1], "full_name": name, "kind": kind, "returns": reply}
             for name, (reply, kind) in COMMANDS.items()]
@@ -237,7 +273,7 @@ def live_schematic_describe_command(command: str) -> dict:
 
 @mcp.tool()
 def live_schematic_execute(command: str, payload: dict | None = None) -> dict:
-    """Run any KiCad schematic IPC command by name with a protobuf-JSON payload.
+    """Run any KiCad IPC command (schematic or PCB) by name with a protobuf-JSON payload.
 
     Prefer the typed tools. Most commands need a document (or header.document) from
     live_schematic_documents. File-kind commands (SaveDocument, RevertDocument, ...) change or discard
@@ -250,13 +286,18 @@ def live_schematic_execute(command: str, payload: dict | None = None) -> dict:
 def live_schematic_batch(document_spec: dict, steps: list[dict], description: str = "MCP: batch") -> dict:
     """Run several read/edit/view commands as ONE undo step; if any step fails, all are rolled back.
 
-    document_spec is a schematic document, or a symbol document to batch Symbol Editor edits.
+    document_spec is a schematic, board (DOCTYPE_PCB), symbol or footprint document.
 
     steps: [{"command": "CreateItems", "payload": {...}}, ...] using names from live_schematic_list_commands.
     Undo/redo and file/job commands are not allowed in a batch.
     """
     kind = document_spec.get("type")
-    spec = any_editor_document(document_spec) if kind in ("DOCTYPE_SYMBOL", "DOCTYPE_FOOTPRINT")         else document(document_spec)
+    if kind == "DOCTYPE_PCB":
+        spec = board_document_spec(document_spec)
+    elif kind in ("DOCTYPE_SYMBOL", "DOCTYPE_FOOTPRINT"):
+        spec = any_editor_document(document_spec)
+    else:
+        spec = document(document_spec)
     return client.batch(spec, steps, description)
 
 
@@ -574,6 +615,507 @@ def live_footprint_check_model(lib_id: str, source_path: str | None = None) -> d
     footprint's model, does it match source_path byte for byte) and the solid count KiCad exports when it
     loads the footprint in a separate process (0 means the model did not load)."""
     return client.footprint_check_model(lib_id, source_path)
+
+
+# ---- PCB editor (live board, unsaved until live_pcb_save) ---------------------------------------
+
+def board(spec):
+    return board_document_spec(spec)
+
+
+@mcp.tool()
+def live_pcb_open(path: str | None = None) -> dict:
+    """Open the project's board in the PCB editor of the running KiCad (created if it does not exist yet)
+    and return its board document for the other live_pcb_* tools.
+
+    path defaults to <project>.kicad_pcb. Needs KiCad started as the project manager with the project
+    (run_kicad_wsl.sh project.kicad_pro), so schematic and PCB editors share one live session.
+    """
+    return client.open_board(path)
+
+
+@mcp.tool()
+def live_pcb_documents() -> list[dict]:
+    """List boards open in the PCB editor (board documents for the live_pcb_* tools)."""
+    return client.boards()
+
+
+@mcp.tool()
+def live_pcb_summary(board_document: dict) -> dict:
+    """Overview of the live board: outline size, copper layer count, item counts, nets, unsaved state, and
+    every footprint (reference, value, lib_id, position mm, rotation, side)."""
+    return client.board_summary(board(board_document))
+
+
+@mcp.tool()
+def live_pcb_footprints(board_document: dict, references: list[str] | None = None,
+                        pads: bool = False) -> list[dict]:
+    """Footprints on the board (all, or the given references); pads=true adds each pad's number, net,
+    absolute position, size, shape and drill (mm)."""
+    return client.board_footprints(board(board_document), references, pads)
+
+
+@mcp.tool()
+def live_pcb_nets(board_document: dict) -> list[dict]:
+    """Nets on the board with their net class."""
+    return client.board_nets(board(board_document))
+
+
+@mcp.tool()
+def live_pcb_items(board_document: dict, kinds: list[str]) -> list[dict]:
+    """Board items as protobuf JSON (positions in nanometres) for live_pcb_update_items.
+
+    kinds: footprints, pads, tracks, arcs, vias, zones, shapes, texts, textboxes, dimensions, groups,
+    tables, images. Footprints include their full definition; prefer live_pcb_footprints to read them.
+    """
+    from client import as_dict
+    return [as_dict(item) for item in client.board_items(board(board_document), kinds)]
+
+
+@mcp.tool()
+def live_pcb_create_items(board_document: dict, items: list[dict]) -> dict:
+    """Create up to 200 board items (protobuf JSON, @type kiapi.board.types.*, nanometres) as one undo step.
+
+    Prefer the typed tools (tracks, vias, zones, outline, graphics). Use live_pcb_item_schema for fields.
+    """
+    return client.mutate(board(board_document), parse_board_items(items), description="MCP: create board items")
+
+
+@mcp.tool()
+def live_pcb_update_items(board_document: dict, items: list[dict]) -> dict:
+    """Replace board items with complete items from live_pcb_items (same ids), as one undo step."""
+    return client.mutate(board(board_document), parse_board_items(items), update=True,
+                         description="MCP: update board items")
+
+
+@mcp.tool()
+def live_pcb_delete_items(board_document: dict, ids: list[str]) -> dict:
+    """Delete board items by UUID as one undo step."""
+    return client.delete(board(board_document), ids)
+
+
+@mcp.tool()
+def live_pcb_delete_routing(board_document: dict, net: str | None = None, layer: str | None = None,
+                            kinds: list[str] | None = None) -> dict:
+    """Rip up tracks, arcs and vias (and zones if listed in kinds) by net and/or layer, one undo step per
+    200 items. kinds defaults to tracks, arcs and vias. With neither net nor layer, removes ALL of them."""
+    return client.board_delete_where(board(board_document), kinds or ["tracks", "arcs", "vias"], net, layer)
+
+
+@mcp.tool()
+def live_pcb_item_schema(type_name: str) -> dict:
+    """Describe a board protobuf type and its fields (Track, Via, Arc, Zone, BoardGraphicShape, BoardText,
+    FootprintInstance, Pad, ...), including enum choices."""
+    from google.protobuf import descriptor_pool
+    if not type_name.startswith("kiapi."):
+        type_name = "kiapi.board.types." + type_name
+    if not type_name.startswith(("kiapi.board.", "kiapi.common.types.")):
+        raise ValueError("Only KiCad board/common types are available")
+    descriptor = descriptor_pool.Default().FindMessageTypeByName(type_name)
+    return {"type": descriptor.full_name, "fields": [
+        {"name": field.name, "repeated": field.is_repeated,
+         "message": field.message_type.full_name if field.message_type else None,
+         "enum": [v.name for v in field.enum_type.values] if field.enum_type else None,
+         "scalar_type": field.type}
+        for field in descriptor.fields
+    ]}
+
+
+@mcp.tool()
+def live_pcb_update_from_schematic(board_document: dict, schematic_document: dict, dry_run: bool = False,
+                                   delete_extra_footprints: bool = False, update_footprints: bool = True,
+                                   match: str = "uuid") -> dict:
+    """Update PCB from Schematic: apply the open schematic's live netlist (unsaved edits included) to the
+    board: adds new footprints, updates footprints, values and nets. dry_run reports without changing.
+
+    match: uuid (normal) | reference. New footprints arrive stacked; place them with live_pcb_move.
+    """
+    return client.board_update_from_schematic(board(board_document), document(schematic_document), dry_run,
+                                              delete_extra_footprints, update_footprints, match)
+
+
+@mcp.tool()
+def live_pcb_place_footprint(board_document: dict, lib_id: str, x_mm: float, y_mm: float, rotation: float = 0,
+                             side: str = "front", reference: str | None = None, value: str | None = None,
+                             locked: bool = False) -> dict:
+    """Place a library footprint (Library:Footprint) on the board, one undo step. Normally footprints come
+    from the schematic (live_pcb_update_from_schematic); use this for mounting holes, fiducials, logos."""
+    return client.board_place_footprint(board(board_document), lib_id, x_mm, y_mm, rotation, side, reference,
+                                        value, locked)
+
+
+@mcp.tool()
+def live_pcb_move(board_document: dict, moves: list[dict]) -> dict:
+    """Move, rotate, flip and lock footprints by reference, all as one undo step.
+
+    moves: [{"reference": "U1", "x_mm": 20, "y_mm": 15, "rotation": 90, "side": "back", "locked": true}]
+    Positions are the footprint origin, absolute in mm (Y down), rotation in degrees counter-clockwise.
+    "relative": true makes x_mm/y_mm/rotation offsets. Omitted values are kept.
+    """
+    return client.board_move_footprints(board(board_document), moves)
+
+
+@mcp.tool()
+def live_pcb_add_tracks(board_document: dict, points: list[list[float]], layer: str = "F.Cu",
+                        width_mm: float | None = None, net: str | None = None, check: bool = True) -> dict:
+    """Draw a chain of track segments through points [[x, y], ...] (mm) on one copper layer, one undo step.
+
+    width_mm defaults to the net class track width. Give the net so DRC and zones see the connection.
+    check (default) first tests the path against other nets' copper (with their clearances), keepouts
+    and the board edge, and refuses a path that would overlap or crowd them; prefer live_pcb_route.
+    """
+    spec = board(board_document)
+    if check:
+        width = client._width_for(spec, net, width_mm)
+        found = client.board_clear_path(spec, net or "", points, layer, width)
+        if not found["clear"]:
+            raise ValueError(f"the path conflicts with other copper: {found['conflicts'][:5]} "
+                             "(use live_pcb_route to find a clear way, or check=false to draw it anyway)")
+    return client.board_add_tracks(spec, points, layer, width_mm, net)
+
+
+@mcp.tool()
+def live_pcb_route(board_document: dict, from_reference: str, from_pad: str, to_reference: str, to_pad: str,
+                   layers: list[str] | None = None, width_mm: float | None = None, vias: bool = True,
+                   grid_mm: float = 0.1, verify: bool = True, avoid: bool = True) -> dict:
+    """Route a track between two pads (e.g. U1 pad 3 to R2 pad 1), as one undo step, without overlapping
+    anything: it goes around other nets' pads, tracks, vias and copper shapes (keeping each net class
+    clearance and the board minimum), keepout areas (including those inside footprints, e.g. antenna
+    keepouts) and the board edge clearance, with 45-degree corners.  vias=true lets it change layer
+    (net class via size); layers limits the layers it may use.  Width defaults to the net class.
+    verify (default) runs KiCad's DRC on the new copper and undoes the route if it breaks a rule.
+    grid_mm is the search step (finer for dense parts).  avoid=false draws a plain dog-leg instead.
+    """
+    spec = board(board_document)
+    if not avoid:
+        return client.board_route(spec, from_reference, from_pad, to_reference, to_pad,
+                                  layers[0] if layers else None, width_mm, avoid=False)
+    return client.board_route_avoiding(spec, from_reference, from_pad, to_reference, to_pad, layers, width_mm,
+                                       vias, grid=grid_mm, verify=verify)
+
+
+@mcp.tool()
+def live_pcb_route_net(board_document: dict, net: str, layers: list[str] | None = None,
+                       width_mm: float | None = None, vias: bool = True, grid_mm: float = 0.1,
+                       verify: bool = True) -> dict:
+    """Route a whole net: join every group of its pads that is not yet connected (shortest joins first),
+    each leg around other copper, keepouts and the board edge like live_pcb_route, all as one undo step,
+    then check with KiCad's DRC (undone if it breaks a rule).  Route critical nets (RF, power, clocks)
+    first, then the rest; leave nets that a pour connects (GND) to the zone."""
+    return client.board_route_net(board(board_document), net, layers, width_mm, vias, grid=grid_mm, verify=verify)
+
+
+@mcp.tool()
+def live_pcb_check_path(board_document: dict, points: list[list[float]], layer: str = "F.Cu",
+                        width_mm: float = 0.25, net: str = "") -> dict:
+    """Would a track along points [[x, y], ...] (mm) on this layer keep clear of other nets' copper (with
+    clearances), keepouts and the board edge? Lists each conflict and the gap it leaves."""
+    return client.board_clear_path(board(board_document), net, points, layer, width_mm)
+
+
+@mcp.tool()
+def live_pcb_add_via(board_document: dict, x_mm: float, y_mm: float, net: str | None = None,
+                     size_mm: float | None = None, drill_mm: float | None = None) -> dict:
+    """Add a through via (size and drill default to the net class), one undo step."""
+    return client.board_add_via(board(board_document), x_mm, y_mm, net, size_mm, drill_mm)
+
+
+@mcp.tool()
+def live_pcb_outline(board_document: dict, width_mm: float = 0, height_mm: float = 0, x_mm: float = 0,
+                     y_mm: float = 0, corner_radius_mm: float = 0, points: list[list[float]] | None = None,
+                     replace: bool = True) -> dict:
+    """Draw the board outline on Edge.Cuts: a rectangle from (x, y) of width x height with optional
+    rounded corners, or a polygon through points. replace=true removes the old outline. One undo step.
+
+    Place the board inside the page's drawing area, clear of the title block (see live_pcb_page).
+    """
+    return client.board_outline(board(board_document), width_mm, height_mm, x_mm, y_mm, corner_radius_mm,
+                                replace=replace, points=points)
+
+
+@mcp.tool()
+def live_pcb_add_zone(board_document: dict, net: str, layers: list[str] | None = None,
+                      points: list[list[float]] | None = None, name: str = "", priority: int = 0,
+                      clearance_mm: float = 0.2, min_width_mm: float = 0.25, connection: str = "thermal",
+                      inset_mm: float = 0.0, fill: bool = True) -> dict:
+    """Add a copper pour for a net (e.g. GND on F.Cu and B.Cu), following the board outline unless points
+    are given, then fill zones. connection: thermal | solid | pth_thermal | none. One undo step."""
+    return client.board_add_zone(board(board_document), net, layers or ["F.Cu"], points, name, priority,
+                                 clearance_mm, min_width_mm, connection, inset_mm, fill)
+
+
+@mcp.tool()
+def live_pcb_add_keepout(board_document: dict, points: list[list[float]] | None = None,
+                         around_reference: str | None = None, margin_mm: float = 1.0,
+                         layers: list[str] | None = None, name: str = "", tracks: bool = True, vias: bool = True,
+                         pads: bool = False, copper: bool = True, footprints: bool = False) -> dict:
+    """Add a keepout (rule area), one undo step: through points (mm), or around a footprint
+    (around_reference, its courtyard plus margin_mm), e.g. the clear area under and around a chip
+    antenna or module antenna.  layers default to every copper layer.  tracks/vias/pads/copper (pours)/
+    footprints choose what is kept out.  live_pcb_route and live_pcb_route_net stay out of it."""
+    spec = board(board_document)
+    if around_reference:
+        return client.board_footprint_keepout(spec, around_reference, margin_mm, layers, tracks, vias, pads, copper,
+                                              footprints)
+    if not points:
+        raise ValueError("give points or around_reference")
+    names = layers or client.board_copper_layers(spec)
+    return client.board_add_keepout(spec, points, names, name, tracks, vias, pads, copper, footprints)
+
+
+@mcp.tool()
+def live_pcb_add_graphics(board_document: dict, shapes: list[dict]) -> dict:
+    """Add lines, arcs, rectangles, circles, polygons and text on any layer (mm), one undo step.
+
+    shapes: [{"kind": "line", "start": [x, y], "end": [x, y], "layer": "F.SilkS", "width": 0.12},
+             {"kind": "arc", "start", "mid", "end"}, {"kind": "rect", "box": [x1, y1, x2, y2], "filled"},
+             {"kind": "circle", "center", "radius"}, {"kind": "polygon", "points": [[x, y], ...]},
+             {"kind": "text", "text": "REV A", "position": [x, y], "size": 1.0, "rotation": 0}]
+    Text on B.* layers is mirrored automatically.
+    """
+    return client.board_add_graphics(board(board_document), shapes)
+
+
+@mcp.tool()
+def live_pcb_refill_zones(board_document: dict) -> dict:
+    """Refill every zone on the board (after moving footprints or tracks)."""
+    return client.board_refill(board(board_document))
+
+
+@mcp.tool()
+def live_pcb_drc(board_document: dict, schematic_parity: bool = True) -> dict:
+    """Run KiCad's design rules check on the live board: violations by type (clearance, unconnected items,
+    courtyard overlap, silk, ...) with positions in mm. schematic_parity also checks against the schematic."""
+    return client.board_drc(board(board_document), parity=schematic_parity)
+
+
+@mcp.tool()
+def live_pcb_undo(board_document: dict, redo: bool = False) -> dict:
+    """Undo (or redo) the PCB editor's most recent change, including the user's own edits."""
+    return client.undo(board(board_document), redo)
+
+
+@mcp.tool()
+def live_pcb_save(board_document: dict) -> dict:
+    """SAVE the board to disk. Use only when the user wants to keep the edits."""
+    return client.board_save(board(board_document))
+
+
+@mcp.tool()
+def live_pcb_view(board_document: dict, layers: list[str] | None = None, dpi: int = 100,
+                  frame: bool = True) -> Image:
+    """See the live board (unsaved edits included) rendered by KiCad on its page.
+
+    layers default to F.Cu, B.Cu, F.SilkS, B.SilkS, Edge.Cuts, F.Fab; pass e.g. ["F.Cu", "Edge.Cuts"] to
+    look at one side. frame=true (default) draws the drawing sheet: border and title block, so a board
+    or text past the border or in the title block shows. Use live_pcb_page for the same check as numbers.
+    """
+    return Image(data=client.board_render(board(board_document), layers, dpi, frame), format="png")
+
+
+@mcp.tool()
+def live_pcb_view_3d(board_document: dict, side: str = "top", zoom: float = 1.0, quality: str = "basic",
+                     width: int = 1200, height: int = 900) -> Image:
+    """KiCad's 3D render of the live board with its component models. side: top | bottom | front | back |
+    left | right. quality: basic (fast) | high (ray traced, slow)."""
+    return Image(data=client.board_render_3d(board(board_document), side, width, height, zoom, quality),
+                 format="png")
+
+
+@mcp.tool()
+def live_pcb_page(board_document: dict) -> dict:
+    """The board's page: paper and orientation, the drawing area inside the border, the title block box and
+    its fields, the board outline and the extent of everything, all in mm, and every item that crosses
+    the border or overlaps the title block (fits=false). Check this before saving."""
+    return client.page_layout(board(board_document))
+
+
+@mcp.tool()
+def live_pcb_set_page(board_document: dict, size: str | None = None, orientation: str | None = None,
+                      title: str | None = None, date: str | None = None, revision: str | None = None,
+                      company: str | None = None, comments: list[str] | None = None) -> dict:
+    """Set the board's paper and title block (the drawing block at the bottom right); omitted settings are
+    kept. size: A5..A0, ANSI_A..ANSI_E, LETTER, LEGAL, LEDGER. orientation: landscape | portrait.
+    date may be "today". comments fill Comment1..9. Follow the title-block convention in AGENTS.md.
+    Returns the page layout, so check `fits`."""
+    return client.set_page(board(board_document), size, orientation, None, title, date, revision, company,
+                           comments)
+
+
+@mcp.tool()
+def live_pcb_origins(board_document: dict, grid_origin_mm: list[float] | None = None,
+                     drill_origin_mm: list[float] | None = None) -> dict:
+    """Read, and optionally set, the board's two origins (mm): the grid origin (where the grid starts and
+    user coordinates count from) and the drill/place origin (used by drill and position files)."""
+    return client.board_origins(board(board_document), grid_origin_mm, drill_origin_mm)
+
+
+@mcp.tool()
+def live_editor_grid(document_spec: dict, size_mm: float | list[float] | None = None,
+                     preset_index: int | None = None, visible: bool | None = None, style: str | None = None,
+                     snapping: str | None = None) -> dict:
+    """Read, and optionally change, an editor's drawing grid: board, schematic, symbol or footprint document.
+
+    size_mm (one value, or [x, y]) picks the grid preset of that size, adding one if there is none, e.g.
+    0.5 or 0.1 on boards, 1.27 (50 mil) on schematics. style: dots | lines | small_cross. snapping:
+    always | with_grid | never. Returns the grid, its presets and (boards) the grid origin.
+    """
+    kind = document_spec.get("type")
+    if kind == "DOCTYPE_PCB":
+        spec = board(document_spec)
+    elif kind in ("DOCTYPE_SYMBOL", "DOCTYPE_FOOTPRINT"):
+        spec = any_editor_document(document_spec)
+    else:
+        spec = document(document_spec)
+    return client.editor_grid(spec, size_mm, preset_index, visible, style, snapping)
+
+
+@mcp.tool()
+def live_pcb_layers(board_document: dict, copper_layers: int | None = None, visible: list[str] | None = None,
+                    active: str | None = None) -> dict:
+    """Read, and optionally set, the copper layer count (2, 4, 6, ...), the layers shown in the editor and the
+    active layer. Returns enabled, visible and active layers."""
+    return client.board_layers(board(board_document), copper_layers, None, visible, active)
+
+
+@mcp.tool()
+def live_pcb_design_rules(board_document: dict, min_clearance: float | None = None,
+                          min_track_width: float | None = None, min_via_diameter: float | None = None,
+                          min_drill: float | None = None, min_annular_ring: float | None = None,
+                          copper_edge_clearance: float | None = None, hole_clearance: float | None = None,
+                          hole_to_hole: float | None = None, silk_clearance: float | None = None,
+                          min_silk_text_height: float | None = None, min_silk_text_thickness: float | None = None,
+                          min_connection_width: float | None = None, min_microvia_diameter: float | None = None,
+                          min_microvia_drill: float | None = None, track_widths_mm: list[float] | None = None,
+                          via_sizes_mm: list[list[float]] | None = None,
+                          severities: dict | None = None) -> dict:
+    """Read, and optionally set, the board's built-in design rules (Board Setup > Constraints), in mm:
+    minimum clearance, track width, via diameter, drill, annular ring, copper-to-edge, hole clearance,
+    hole-to-hole, silkscreen clearance and text size.  track_widths_mm and via_sizes_mm ([[diameter,
+    drill], ...]) are the predefined sizes offered while routing.  severities sets DRC checks to error,
+    warning or ignore, e.g. {"silk_clearance": "error", "silk_mask_clearance": "error"}.  Omitted
+    values are kept.  Defaults per net come from live_pcb_netclasses; special cases from
+    live_pcb_custom_rules."""
+    return client.board_rules(board(board_document), track_widths_mm, via_sizes_mm, severities,
+                              min_clearance=min_clearance, min_track_width=min_track_width,
+                              min_via_diameter=min_via_diameter, min_drill=min_drill,
+                              min_annular_ring=min_annular_ring, copper_edge_clearance=copper_edge_clearance,
+                              hole_clearance=hole_clearance, hole_to_hole=hole_to_hole,
+                              silk_clearance=silk_clearance, min_silk_text_height=min_silk_text_height,
+                              min_silk_text_thickness=min_silk_text_thickness,
+                              min_connection_width=min_connection_width,
+                              min_microvia_diameter=min_microvia_diameter, min_microvia_drill=min_microvia_drill)
+
+
+@mcp.tool()
+def live_pcb_custom_rules(board_document: dict, action: str = "get", rules: list[dict] | None = None,
+                          names: list[str] | None = None) -> dict:
+    """Custom design rules (Board Setup > Custom Rules, the .kicad_dru file).  action: get | add (replaces
+    rules of the same name) | remove (names) | set (replaces all).  Each rule:
+      {"name": "RF clearance", "condition": "A.NetClass == 'RF'",
+       "constraints": [{"type": "clearance", "min": 0.5}], "layer": "outer", "severity": "error"}
+    Constraint types: clearance, track_width, via_diameter, hole_size, hole_clearance, edge_clearance,
+    silk_clearance, courtyard_clearance, annular_width, length, skew, diff_pair_gap, via_count,
+    connection_width, physical_clearance, ... with min/opt/max in mm; disallow with items (through_vias,
+    micro_vias, blind_vias, buried_vias, tracks, pads, zones, texts, graphics, holes, footprints);
+    assertion with expression.  Conditions use KiCad's rule language (A.NetName, A.NetClass,
+    A.insideArea('name'), A.Reference, ...).  KiCad checks the rules and reports errors."""
+    return client.board_custom_rules(board(board_document), action, rules, names)
+
+
+@mcp.tool()
+def live_pcb_netclasses(board_document: dict, classes: list[dict] | None = None, assign: dict | None = None,
+                        patterns: dict | None = None) -> dict:
+    """Net classes: the default track width, clearance (spacing) and via size per group of nets.
+    classes: [{"name": "Default", "track_width": 0.2, "clearance": 0.15, "via_diameter": 0.6,
+    "via_drill": 0.3}, {"name": "Power", "track_width": 0.5}] in mm (created if new; "Default" is the
+    board default).  assign {net: class} and patterns {"/USB_D*": "USB90"} put nets in classes.  The
+    routing tools use these widths, clearances and via sizes.  Returns every class and assignment."""
+    return client.board_netclasses(board(board_document), classes, assign, patterns)
+
+
+@mcp.tool()
+def live_pcb_stackup(board_document: dict) -> dict:
+    """The board's physical stackup top to bottom (mm): copper, dielectrics (core/prepreg, epsilon_r, loss
+    tangent, material), soldermask and silkscreen, board thickness, finish, impedance control."""
+    return client.board_stackup_layers(board(board_document))
+
+
+@mcp.tool()
+def live_pcb_set_stackup(board_document: dict, copper_layers: int | None = None,
+                         copper_thickness_mm: float | dict | None = None, dielectrics: list[dict] | None = None,
+                         board_thickness_mm: float | None = None, soldermask_color: str | None = None,
+                         silkscreen_color: str | None = None, finish: str | None = None,
+                         impedance_controlled: bool | None = None) -> dict:
+    """Change the stackup (Board Setup > Physical Stackup).  copper_layers: 2, 4, 6, ... (refused if a
+    removed layer still has items).  copper_thickness_mm: one value (0.035 = 1 oz) or {"F.Cu": 0.035}.
+    dielectrics top to bottom, one fewer than the copper layers: [{"type": "prepreg", "thickness": 0.2,
+    "epsilon_r": 4.4, "loss_tangent": 0.02, "material": "FR4"}, {"type": "core", ...}, ...].
+    board_thickness_mm scales the dielectrics to reach it.  Colours as "#RRGGBB" (soldermask, silk).
+    finish e.g. "ENIG", "HAL lead-free".  Not an undo step; check with live_pcb_stackup."""
+    return client.board_set_stackup(board(board_document), copper_layers, copper_thickness_mm, dielectrics,
+                                    board_thickness_mm, soldermask_color, silkscreen_color, finish,
+                                    impedance_controlled)
+
+
+@mcp.tool()
+def live_pcb_impedance_width(board_document: dict, impedance_ohm: float = 50.0, layer: str = "F.Cu",
+                             structure: str = "microstrip", gap_mm: float | None = None,
+                             reference_layer: str | None = None) -> dict:
+    """Track width for a controlled impedance (e.g. 50 ohm antenna feed, 90 ohm USB pair half) on this
+    board's stackup: microstrip (outer layer over the next copper plane) or cpwg (grounded coplanar
+    waveguide, with gap_mm to the side ground pour).  Reports the dielectric height and epsilon_r used."""
+    return client.board_impedance_width(board(board_document), impedance_ohm, layer, structure, gap_mm,
+                                        reference_layer)
+
+
+@mcp.tool()
+def live_pcb_rf_net(board_document: dict, nets: list[str], netclass: str = "RF", impedance_ohm: float = 50.0,
+                    width_mm: float | None = None, structure: str = "microstrip", gap_mm: float | None = None,
+                    clearance_mm: float | None = None, layer: str = "F.Cu",
+                    keep_others_away_mm: float | None = None) -> dict:
+    """Set up RF / antenna nets for routing: a net class with the impedance-controlled width (computed from
+    the stackup unless width_mm is given) and clearance (the CPWG gap, else 3x the width), assigned to
+    the nets, and optionally a custom rule keeping every other net keep_others_away_mm away.  Then add
+    a keepout around the antenna (live_pcb_add_keepout around_reference), route the feed first
+    (live_pcb_route or live_pcb_route_net, layers=[the RF layer], vias=false), and pour ground."""
+    return client.board_rf_net(board(board_document), nets, netclass, impedance_ohm, width_mm, structure, gap_mm,
+                               clearance_mm, layer, keep_others_away=keep_others_away_mm)
+
+
+@mcp.tool()
+def live_pcb_check(board_document: dict, categories: list[str] | None = None, schematic_parity: bool = False) -> dict:
+    """Design rules check grouped by what it is about, with positions (mm) and the items involved:
+    clearance (overlapping or too-close copper, shorts, crossing tracks, holes, board edge), keepout,
+    silkscreen (silk over pads or mask openings, silk overlapping silk, silk off the board edge, text
+    too small, mirrored text), courtyard (overlapping footprints, missing courtyards), connectivity
+    (unrouted, dangling, isolated copper), manufacturing (track width, annular ring, drill, via size,
+    soldermask bridges) and schematic (with schematic_parity).  categories limits the report."""
+    return client.board_check(board(board_document), categories, schematic_parity)
+
+
+@mcp.tool()
+def live_pcb_select(board_document: dict, references: list[str] | None = None, ids: list[str] | None = None,
+                    add: bool = False) -> dict:
+    """Select footprints (by reference) or items (by UUID) in the PCB editor so the user sees them."""
+    return client.board_select(board(board_document), ids, references, add)
+
+
+@mcp.tool()
+def live_pcb_focus(board_document: dict, references: list[str] | None = None,
+                   ids: list[str] | None = None) -> dict:
+    """Zoom the PCB editor to footprints (by reference) or items (by UUID)."""
+    return client.board_focus(board(board_document), ids, references)
+
+
+@mcp.tool()
+def live_pcb_export(board_document: dict, kind: str, output_path: str) -> dict:
+    """Export from the live board (unsaved edits included) to a folder or file KiCad can write.
+
+    kind: gerbers | drill | position | step | pdf | svg | dxf | ipc2581 | ipcd356 | odb | stats | dsn |
+    gencad | idf. Gerbers and drill take an output folder.
+    """
+    return client.board_export(board(board_document), kind, output_path)
 
 
 def any_editor_document(spec):

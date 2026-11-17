@@ -3,7 +3,8 @@
 #
 #   scripts/run_tests.sh           unit tests (no KiCad needed)
 #   scripts/run_tests.sh --live    also the end-to-end tests against a running development KiCad
-#                                  (start it with run_kicad_wsl.sh).  The SolidCraft handoff test
+#                                  (start it with run_kicad_wsl.sh: the project manager with the
+#                                  live-demo project, which e2e_pcb needs).  The SolidCraft handoff test
 #                                  runs when SOLIDCRAFT_CLI points at solidcraft-cli.
 #
 # The live tests never save the open schematic; library tests use scratch libraries in
@@ -23,7 +24,7 @@ out="${KICAD_LIVE_TEST_OUTPUT:-$ROOT/test-output}"
 mkdir -p "$out"
 tests=(e2e_symbols e2e_footprints)
 [[ -n "${SOLIDCRAFT_CLI:-}" ]] && tests+=(e2e_model_handoff)
-tests+=(e2e_smoke e2e_features)
+tests+=(e2e_smoke e2e_features e2e_pcb e2e_design)
 failed=0
 for test in "${tests[@]}"; do
     echo "--- $test"

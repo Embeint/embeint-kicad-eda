@@ -4,8 +4,12 @@
 # Launch the development KiCad build (10.99) under WSLg with the IPC API server enabled.
 # Uses an isolated configuration directory so it never touches an installed KiCad's settings.
 #
-#   run_kicad_wsl.sh [file.kicad_sch | project.kicad_pro]
-#       default: creates ~/kicad-live/projects/live-demo and opens its schematic
+#   run_kicad_wsl.sh [project.kicad_pro | file.kicad_sch]
+#       default: creates ~/kicad-live/projects/live-demo and opens it in the project manager
+#
+# A project opens KiCad's project manager, which hosts the schematic AND PCB editors in one process
+# on one API socket; the MCP opens the editors (live_schematic_open, live_pcb_open).  A .kicad_sch
+# opens the schematic editor on its own: schematic, symbol and footprint tools work, PCB tools don't.
 #
 # Environment overrides:
 #   KICAD_LIVE_ROOT     build root (default ~/kicad-live, expects install/ and deps/ inside)
@@ -91,7 +95,7 @@ TARGET="${1:-}"
 if [[ -z "$TARGET" ]]; then
     DEMO="$ROOT/projects/live-demo"
     PROJECT="$DEMO/live-demo.kicad_pro"
-    TARGET="$DEMO/live-demo.kicad_sch"
+    TARGET="$PROJECT"
     if [[ ! -f "$PROJECT" ]]; then
         mkdir -p "$DEMO"
         printf '{\n  "meta": { "filename": "live-demo.kicad_pro", "version": 3 }\n}\n' > "$PROJECT"
@@ -107,7 +111,7 @@ EOF
 fi
 
 # A schematic opens straight in the schematic editor (which hosts its own API server);
-# a project opens the project manager.
+# a project opens the project manager (schematic and PCB editors, one API server).
 case "$TARGET" in
     *.kicad_sch) exec "$INSTALL/bin/eeschema" "$TARGET" ;;
     *)           exec "$INSTALL/bin/kicad" "$TARGET" ;;
