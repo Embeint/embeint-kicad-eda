@@ -22,6 +22,16 @@ import diagnose
 import instance_discovery as discovery
 
 
+def test_native_windows_reports_transport_scope_without_discovery(monkeypatch):
+    monkeypatch.setattr(diagnose.sys, "platform", "win32")
+    monkeypatch.setattr(diagnose, "discover_instances", lambda *_: pytest.fail("Windows discovery"))
+    report = diagnose.diagnose(probe=True)
+    assert report["runtime"]["protocols"]["state"] == "ready"
+    assert report["discovery"]["selection"] == "unsupported_platform"
+    assert report["probe"]["state"] == "unsupported_platform"
+    assert report["connection_attempted"] is False
+
+
 @pytest.fixture
 def isolated(monkeypatch, socket_tmp_path):
     monkeypatch.delenv("KICAD_API_SOCKET", raising=False)

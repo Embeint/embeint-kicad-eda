@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import sys
 
+import pytest
 from jsonschema.validators import validator_for
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -13,7 +14,20 @@ from pydantic import AnyUrl
 
 from commands import COMMANDS, message_class
 import server
+import client
 from support import CAPABILITIES_URI, local_capabilities
+
+
+@pytest.mark.parametrize("url", [r"ipc://C:\Temp\kicad\api.sock", "ipc:///"])
+def test_unsupported_default_path_allows_offline_startup_but_never_dials(monkeypatch, url):
+    monkeypatch.delenv("KICAD_API_SOCKET", raising=False)
+    monkeypatch.setattr(client.sys, "platform", "win32")
+    monkeypatch.setattr(client, "default_socket_url", lambda: url)
+    monkeypatch.setattr(client.pynng, "Req0", lambda **_: pytest.fail("unsupported IPC dialed"))
+    live = client.LiveSchematic()
+    with pytest.raises(client.DiscoveryError) as error:
+        live.send(client.base.GetVersion(), client.base.GetVersionResponse)
+    assert error.value.code == "invalid_socket"
 
 
 def test_local_capabilities_never_contact_the_editor(monkeypatch):
@@ -53,13 +67,14 @@ def test_registered_tool_and_command_schemas_are_valid():
     assert original["schema_sha256"] != changed["schema_sha256"]
 
 
-def test_stdio_initialization_discovery_tools_and_resource_without_kicad():
+@pytest.mark.parametrize("socket_url", [None, "ipc:///nonexistent-embeint-mcp-test/api.sock"])
+def test_stdio_initialization_discovery_tools_and_resource_without_kicad(socket_url):
     async def exercise_protocol():
         parameters = StdioServerParameters(
             command=sys.executable,
             args=[str(Path(server.__file__).resolve())],
-            # A missing socket makes accidental reliance on an open editor fail.
-            env={"KICAD_API_SOCKET": "ipc:///nonexistent-embeint-mcp-test/api.sock"},
+            # Offline calls work with default discovery or a missing explicit socket.
+            env={} if socket_url is None else {"KICAD_API_SOCKET": socket_url},
         )
         async with stdio_client(parameters) as (reader, writer):
             async with ClientSession(reader, writer) as session:

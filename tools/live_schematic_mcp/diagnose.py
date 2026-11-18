@@ -17,7 +17,7 @@ def runtime_status():
     source = here.parents[1] / "api" / "proto"
     expected = [here / "_generated" / path.relative_to(source).with_name(path.stem + "_pb2.py")
                 for path in sorted(source.rglob("*.proto"))]
-    missing = [str(path.relative_to(here)) for path in expected if not path.is_file()]
+    missing = [path.relative_to(here).as_posix() for path in expected if not path.is_file()]
     dependencies = {}
     dependency_actions = {}
     for name in ("google.protobuf", "pynng", "mcp.server.fastmcp", "shapely", "numpy"):
@@ -156,6 +156,15 @@ def diagnose(*, probe=False, socket_url=None, timeout_ms=500):
               "capability_limit": "Only listed read-only requests are probed. No mutation support "
               "or negotiated capability set is inferred from an application version.",
               "runtime": runtime_status()}
+    if sys.platform == "win32":
+        report["discovery"] = {
+            "selection": "unsupported_platform",
+            "action": "Run the MCP server inside the same WSL distro as the development KiCad; "
+                      "native Windows editor IPC is not supported by this adapter.",
+        }
+        if probe:
+            report["probe"] = {"state": "unsupported_platform"}
+        return _redact(report, secrets)
     try:
         inventory = discover_instances(socket_url)
         report["discovery"] = inventory

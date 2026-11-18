@@ -32,7 +32,7 @@ def local_socket_path(url):
         raise DiscoveryError("invalid_socket", "Use an absolute local ipc:///path socket URL in "
                              "KICAD_API_SOCKET; network transports are not supported.")
     path = Path(url[len("ipc://"):])
-    if str(path) == "/":
+    if url == "ipc:///":
         raise DiscoveryError("invalid_socket", "The IPC URL must name a socket file.")
     return path
 

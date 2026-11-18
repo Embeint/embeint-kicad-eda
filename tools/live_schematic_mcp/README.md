@@ -20,6 +20,14 @@ not assert that every operation is supported by the running editor or document.
 The unit suite also exercises the real MCP stdio initialize/discover/call/resource
 protocol, and the `MCP contracts` GitHub workflow runs these checks on pull requests.
 
+The editor transport and instance diagnostics currently target local Unix filesystem
+IPC. On Windows, launch the server through `wsl.exe` in the same distro as the
+development KiCad. Native Windows Python can serve the offline MCP capability and
+schema tools; this does not establish native Windows KiCad/IPC support. Windows
+drive paths and network transports are rejected before sending editor requests.
+Offline tests that create Unix socket peers are skipped on Windows and must also
+run inside WSL.
+
 Atomic batches accept only item edits that participate in the current commit.
 Settings, file operations, editor replacement and asynchronous work are excluded.
 Omitted command document targets inherit the batch document; explicit targets must
