@@ -157,7 +157,10 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
         self._socket_selected = explicit_socket or sys.platform != "linux"
         if not self.socket_url:
             self.socket_url = default_socket_url()
-        local_socket_path(self.socket_url)
+        # Offline MCP discovery must also start on hosts whose default temp path
+        # is outside the supported local Unix IPC contract (for example Windows).
+        if explicit_socket:
+            local_socket_path(self.socket_url)
         self.token = os.environ.get("KICAD_API_TOKEN", "") if explicit_socket else ""
         self.client_name = "kicad.live-schematic-mcp-" + str(uuid.uuid4())
         self.timeout_ms = timeout_ms
@@ -170,6 +173,7 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
             if not self._socket_selected:
                 self.socket_url = select_socket(check_liveness=True)
                 self._socket_selected = True
+            local_socket_path(self.socket_url)
             if self._received_reply and socket_reachability(self.socket_url) == "not_listening":
                 raise DiscoveryError("instance_unavailable", "Selected KiCad instance is unavailable; "
                                      "no command was sent. Run diagnose.py --probe and restart MCP "
