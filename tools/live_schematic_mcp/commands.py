@@ -121,6 +121,8 @@ COMMANDS = {
     B + "GetBoardEnabledLayers": (B + "BoardEnabledLayersResponse", "read"),
     B + "SetBoardEnabledLayers": (B + "BoardEnabledLayersResponse", "edit"),
     B + "GetGraphicsDefaults": (B + "GraphicsDefaultsResponse", "read"),
+    # Stored board payloads, not the symbol/footprint EmbeddedFileListResponse metadata.
+    B + "GetEmbeddedFiles": (T + "EmbeddedFiles", "read"),
     B + "GetBoardOrigin": (T + "Vector2", "read"),
     B + "SetBoardOrigin": (EMPTY, "edit"),
     B + "GetBoardLayerName": (B + "BoardLayerNameResponse", "read"),

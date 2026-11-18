@@ -852,8 +852,9 @@ def check_item_statuses(index, command, response, request=None):
             # Only item-result messages have ItemStatus; GetItems contains protobuf Any items.
             if hasattr(result, "status") and hasattr(result.status, "code") \
                     and result.status.code != editor.ISC_OK:
+                status = editor.ItemStatusCode.DESCRIPTOR.values_by_number.get(result.status.code)
                 raise RuntimeError(f"step {index} ({command}) rejected an item, batch rolled back: "
-                                   f"{result.status.error_message or editor.ItemStatusCode.Name(result.status.code)}")
+                                   f"{result.status.error_message or (status.name if status else result.status.code)}")
     for result in getattr(response, "deleted_items", ()):
         if result.status != editor.IDS_OK:
             raise RuntimeError(f"step {index} ({command}) could not delete {result.id.value}, batch rolled back")
@@ -861,9 +862,13 @@ def check_item_statuses(index, command, response, request=None):
         if hasattr(result, "updated") and not result.updated:
             raise RuntimeError(f"step {index} ({command}) rejected a symbol, batch rolled back: "
                                f"{result.error_message or 'symbol was not updated'}")
-    if hasattr(response, "status") and isinstance(response.status, int) and command.endswith("Items") \
+    # Check the response contract, not the command suffix: parsed creation also returns
+    # CreateItemsResponse, despite its command ending in "String".
+    status_field = response.DESCRIPTOR.fields_by_name.get("status")
+    if status_field and status_field.enum_type == types.ItemRequestStatus.DESCRIPTOR \
             and response.status != types.IRS_OK:
-        raise RuntimeError(f"step {index} ({command}) returned {types.ItemRequestStatus.Name(response.status)}")
+        status = types.ItemRequestStatus.DESCRIPTOR.values_by_number.get(response.status)
+        raise RuntimeError(f"step {index} ({command}) returned {status.name if status else response.status}")
     if request is not None:
         result_fields = {"CreateItems": ("items", "created_items"),
                          "UpdateItems": ("items", "updated_items"),
