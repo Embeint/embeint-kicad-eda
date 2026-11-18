@@ -16,6 +16,7 @@ from google.protobuf import json_format
 from board_client import BoardTools, board_document  # noqa: F401
 from board_design import BoardDesignTools
 from footprint_client import FootprintTools, footprint_document, library_kind  # noqa: F401
+from instance_discovery import default_socket_url, local_socket_path, select_socket
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "_generated"))
 try:
@@ -151,10 +152,10 @@ SPIN_FOR = {(-1, 0): sch.SLSS_LEFT, (1, 0): sch.SLSS_RIGHT, (0, 1): sch.SLSS_BOT
 class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
     def __init__(self, socket_url=None, timeout_ms=15000):
         self.socket_url = socket_url or os.environ.get("KICAD_API_SOCKET")
+        self._socket_selected = bool(self.socket_url) or sys.platform != "linux"
         if not self.socket_url:
-            self.socket_url = "ipc://" + str(Path(tempfile.gettempdir()) / "kicad" / "api.sock")
-        if not self.socket_url.startswith("ipc://"):
-            raise ValueError("KICAD_API_SOCKET must be a local ipc:// socket URL")
+            self.socket_url = default_socket_url()
+        local_socket_path(self.socket_url)
         self.token = os.environ.get("KICAD_API_TOKEN", "")
         self.client_name = "kicad.live-schematic-mcp-" + str(uuid.uuid4())
         self.timeout_ms = timeout_ms
@@ -163,11 +164,15 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
     def send(self, command, response_type):
         """Never retry mutations: a timeout may follow a successfully applied edit."""
         with self.lock:
+            if not self._socket_selected:
+                self.socket_url = select_socket()
+                self._socket_selected = True
             request = envelope.ApiRequest()
             request.header.client_name = self.client_name
             request.header.kicad_token = self.token
             request.message.Pack(command)
-            with pynng.Req0(send_timeout=self.timeout_ms, recv_timeout=self.timeout_ms) as conn:
+            with pynng.Req0(send_timeout=self.timeout_ms, recv_timeout=self.timeout_ms,
+                            resend_time=self.timeout_ms * 2) as conn:
                 conn.dial(self.socket_url, block=False)
                 conn.send(request.SerializeToString())
                 raw = conn.recv()
