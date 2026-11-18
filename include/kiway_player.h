@@ -65,6 +65,7 @@ public:
 #define KICTL_CREATE            (1<<2)   ///< caller thinks requested project files may not exist.
 #define KICTL_IMPORT_LIB        (1<<3)   ///< import all footprints into a project library.
 #define KICTL_REVERT            (1<<4)   ///< reverting to a previously-saved (KiCad) file.
+#define KICTL_NONINTERACTIVE    (1<<5)   ///< new editor only: refuse loads requiring user decisions.
 
     /**
      * Open a project or set of files given by @a aFileList.

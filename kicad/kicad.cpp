@@ -214,7 +214,7 @@ openDocumentInManager( KICAD_MANAGER_FRAME* aFrame, const kiapi::common::command
         if( !player )
             return fail( ApiStatusCode::AS_BAD_REQUEST, wxS( "could not start the editor" ) );
 
-        const int ctl = KICTL_KICAD_ONLY | ( file.FileExists() ? 0 : KICTL_CREATE );
+        const int ctl = KICTL_KICAD_ONLY | KICTL_NONINTERACTIVE | ( file.FileExists() ? 0 : KICTL_CREATE );
 
         if( !player->OpenProjectFiles( { file.GetFullPath() }, ctl ) )
         {
