@@ -52,6 +52,10 @@ must be new; rename earlier evidence before rerunning rather than overwriting it
 `open_cases.py` tries malformed and future-version schematic/PCB files, plus a
 missing hierarchical sheet. Every rejection must return an IPC error and the
 manager must answer a subsequent read. A timeout alone is not a successful check.
+The modern future-schematic fixture includes `generator_version`, which triggers
+the parser's version check. Each case records its input hash, a bounded read after
+the open attempt, and whether the schematic/PCB files remained unchanged, including
+when the open timed out. A compatible future-header-only PCB is expected to open.
 
 `run.py` runs the existing symbol, footprint, hierarchy, edit/rollback, PCB and
 design-rule checks. Its STEP embedding input is the repository's TO-252 test model;
@@ -63,6 +67,9 @@ findings; their presence is not silently converted into electrical/manufacturing
 sign-off. It explicitly saves, restarts the application, and compares hierarchy,
 item contents, net membership and saved-file hashes. Set `KICAD_MCP_EXECUTABLE` to
 the frozen server to run its stdio edit/undo check through the packaged runtime.
+The direct native launcher adds the installed prefix's private library directory.
+Persistence comparison treats footprint definition items as an unordered
+collection while retaining their IDs, geometry, fields and duplicate counts.
 
 ## Freeze and check MCP
 
