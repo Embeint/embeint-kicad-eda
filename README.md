@@ -1,4 +1,103 @@
-# KiCad README
+# Embeint KiCad
+
+Embeint KiCad is an Embeint-maintained fork of KiCad for AI-assisted electronic
+design. The project aims to make schematic generation and PCB workflows native,
+live and inspectable, with first-class Model Context Protocol (MCP) support and a
+long-term path to shared Rust engines and WebAssembly applications.
+
+This is an independent project built on KiCad. It is not an official KiCad release
+and is not endorsed by the KiCad project. KiCad and its contributors provide the
+underlying editors, electrical engines and file formats; their attribution and
+licenses remain in this repository.
+
+## Project goals
+
+- **AI schematic generation:** create and refine hierarchical schematics through
+  the live editor, using real symbols, pins, wires and connectivity. Generated
+  designs must be readable, reviewable and checked with KiCad's electrical rules.
+- **First-class MCP support:** provide a supported, bundled interface for assistants
+  to discover capabilities, inspect the open design and perform explicit, undoable
+  edits. Keep the design engine usable across model providers and assistant clients.
+- **A dependable desktop application:** package reproducible builds, isolate
+  development configuration, test save/reopen behavior and publish clear
+  compatibility information before calling a build a supported release.
+- **Shared Rust systems:** replace bounded components incrementally behind stable
+  interfaces, starting with deterministic layout and design operations. Validate
+  each replacement against the existing implementation and native KiCad checks.
+- **WebAssembly and browser workflows:** reuse portable Rust components for browser
+  viewing and layout previews, then develop interactive editing. Desktop KiCad
+  initially remains responsible for native electrical checks and manufacturing
+  exports.
+- **KiCad compatibility and maintenance:** preserve familiar project and library
+  workflows, track upstream changes and qualify updates before promoting releases.
+
+## Current status
+
+This is a development fork. It already includes C++ IPC extensions and a Python
+MCP server for live schematic, PCB, symbol and footprint editing; hierarchy and
+connectivity inspection; rendering; ERC/DRC; and explicit saves and exports.
+Supported item-edit batches use KiCad commits and undo. Some settings operations
+have separate limitations, documented by their tools.
+
+The current source identifies as the **10.99 development line**. Compatibility with
+KiCad 10.0.6, particularly saving files that 10.0.6 can reopen, has not been qualified.
+Use copies of production designs when evaluating the fork.
+
+Bundled installers, a Rust MCP runtime, shared Rust engines and a browser editor are
+**planned work**. The current MCP server runs in Python; this repository does not
+yet provide an entirely Rust application or a browser-only KiCad replacement.
+
+## Roadmap
+
+1. Establish the Embeint distribution, project identity and release process.
+2. Deliver a repeatable desktop schematic-generation workflow with bundled MCP,
+   hierarchical fixtures, connectivity checks, undo and save/reopen validation.
+3. Port a bounded schematic-layout component to Rust and validate native/WASM parity.
+4. Migrate MCP tools to a bundled native executable while preserving their contracts.
+5. Deliver browser previews and then interactive editing using the shared components.
+
+See the [engineering roadmap](tools/live_schematic_mcp/EMBEINT_FORK_ROADMAP.md) for
+architecture, delivery gates, compatibility requirements and planning assumptions.
+
+## Build and use the development version
+
+The documented development environment is Windows with WSL Ubuntu. Building KiCad
+requires substantial native dependencies; the setup script reports missing system
+packages. See the [live MCP setup guide](tools/live_schematic_mcp/README.md) for
+prerequisites, client registration and tool reference.
+
+From the repository root in WSL:
+
+```bash
+tools/live_schematic_mcp/scripts/setup_wsl.sh
+tools/live_schematic_mcp/run_kicad_wsl.sh
+```
+
+Run the launcher in a separate terminal while testing. Use the disposable
+`live-demo` project, which is the launcher's default, for live tests:
+
+```bash
+tools/live_schematic_mcp/scripts/run_tests.sh
+tools/live_schematic_mcp/scripts/run_tests.sh --live
+```
+
+The live tests edit the open test document. Do not point them at a production
+project. The [agent and developer guide](tools/live_schematic_mcp/AGENTS.md) explains
+the code structure, test guard and editor integration requirements.
+
+## Contributing and licensing
+
+Contributions to this fork belong in this repository. Read
+[CONTRIBUTING.md](CONTRIBUTING.md) for Embeint's development and AI-assistance
+guidelines. Upstream KiCad has its own contribution policies, which apply to work
+submitted to upstream KiCad.
+
+The combined KiCad distribution is licensed under **GPLv3 or later**, with component
+licenses detailed in [LICENSE.README](LICENSE.README). See [LICENSE](LICENSE),
+[AUTHORS.txt](AUTHORS.txt) and the existing source notices for terms and attribution.
+Keep corresponding source available for distributed builds.
+
+## Upstream KiCad reference
 
 For specific documentation about [building KiCad](https://dev-docs.kicad.org/en/build/), policies
 and guidelines, and source code documentation see the

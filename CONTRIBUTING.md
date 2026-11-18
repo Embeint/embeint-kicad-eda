@@ -1,3 +1,35 @@
+# Contributing to Embeint KiCad
+
+Embeint KiCad accepts contributions through this fork's GitHub pull requests.
+Discuss substantial changes in this repository before implementation and keep each
+pull request focused on a reviewable problem. The project goals and current status
+are in [README.md](README.md); the staged engineering plan is in the
+[roadmap](tools/live_schematic_mcp/EMBEINT_FORK_ROADMAP.md).
+
+AI-assisted contributions are welcome here. Authors remain responsible for
+correctness, licensing, testing and reviewing the generated work. Describe what
+changed, how it was validated and any limitations. Include an `Assisted-by:` trailer
+in commits that used an assistant, and a developer sign-off. Never include design
+files, credentials or customer information without authorization to publish them.
+
+Preserve KiCad's existing code conventions and GPLv3-or-later licensing. See
+[AGENTS.md](AGENTS.md) and the
+[live editor developer guide](tools/live_schematic_mcp/AGENTS.md) for integration
+rules, including UI-thread handling, transactions, explicit saves and safe test
+projects. Run checks appropriate to the change; edits to editor behavior need live
+integration checks as well as unit tests.
+
+The product branch is `main`. `live-schematic-ipc` is the development integration
+branch for upstream updates, and `master` is an upstream mirror. Make focused topic
+branches and target the appropriate branch. Do not force-push shared history.
+Automatic upstream merges are not release qualification.
+
+## Contributing to upstream KiCad
+
+The following upstream guide is retained for reference. It applies to submissions
+to the KiCad project, whose policies differ from this fork's. A contribution to
+Embeint KiCad is not automatically eligible for upstream submission. Do not forward
+AI-generated issues, comments or merge requests to upstream KiCad.
 
 ## Joining the development team
 

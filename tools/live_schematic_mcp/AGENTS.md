@@ -1,7 +1,8 @@
 # Agent guide: live KiCad over IPC (this fork)
 
-This fork (`Karl-VonRichter/kicad-source-mirror`, branch **`live-schematic-ipc`**, the default
-branch) extends KiCad's IPC API so an MCP server can drive a running KiCad live: schematics,
+Embeint KiCad builds on the work from `Karl-VonRichter/kicad-source-mirror`. The product
+branch is **`main`**; **`live-schematic-ipc`** is the development integration branch.
+This fork extends KiCad's IPC API so an MCP server can drive a running KiCad live: schematics,
 symbol libraries and the Symbol Editor, footprint libraries and the Footprint Editor, the PCB
 editor, embedded files and 3D models.  Nothing here goes upstream; KiCad does not accept AI-generated merge
 requests (see the root `AGENTS.md`).
@@ -9,6 +10,8 @@ requests (see the root `AGENTS.md`).
 ## Branches
 
 - `master` mirrors upstream KiCad (`KiCad/kicad-source-mirror`).  Never commit to it.
+- `main` is the Embeint product branch. Promote changes after validation; the
+  upstream-sync workflow does not update it. See the root README and CONTRIBUTING guide.
 - `live-schematic-ipc` is upstream master plus this work.  A scheduled workflow
   (`.github/workflows/sync-upstream.yml`) fast-forwards `master` daily and merges it into this
   branch; on conflicts it opens an issue labelled `upstream-sync` and leaves the branch alone.

@@ -1,6 +1,7 @@
 # Keep this fork current: fast-forward master to upstream KiCad and merge it into live-schematic-ipc.
 # On a merge conflict nothing is pushed; an issue labelled upstream-sync lists the conflicting files
 # so an agent can merge by hand (see tools/live_schematic_mcp/AGENTS.md).
+# The Embeint product branch (main) is promoted separately after validation.
 name: Sync upstream KiCad
 
 on:

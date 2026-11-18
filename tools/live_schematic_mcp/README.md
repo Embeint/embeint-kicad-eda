@@ -7,6 +7,9 @@ design.
 
 Requires this development build (10.99 / KiCad 11). Released KiCad 10.x has no schematic IPC.
 
+The proposed path to an Embeint distribution with bundled MCP, shared Rust components
+and a browser client is in [Embeint fork roadmap](EMBEINT_FORK_ROADMAP.md).
+
 ## Tools
 
 | Tool | Purpose |

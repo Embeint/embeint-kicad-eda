@@ -1,5 +1,24 @@
 # Instructions for Agents
 
+## Embeint KiCad scope
+
+This is the Embeint-maintained KiCad fork. AI-assisted local development, commits,
+and authorized publication to this fork are permitted. Follow the user's required
+commit format and include an `Assisted-by:` trailer on assisted commits. Read
+`CONTRIBUTING.md` and `tools/live_schematic_mcp/AGENTS.md` before working on it.
+
+The upstream policy below is retained for interactions with the KiCad project;
+its restrictions on generated commit messages, issues and merge requests apply
+to upstream submissions, not Embeint's own development. Do not send material to
+upstream KiCad on the user's behalf. The code style, generated-file restrictions
+and license requirements below also apply within this fork.
+
+`main` is the Embeint product branch. `live-schematic-ipc` receives development
+integration updates; `master` is an upstream mirror. Do not commit to `master`,
+force-push shared branches, or treat automatically merged upstream code as tested.
+
+## Upstream KiCad policy
+
 KiCad allows for responsible AI agent code assistance in development, however AI agent interaction outside local development is forbidden.
 The proceeding rules are guidelines for your actions in assisting an user working on KiCad.
 
@@ -60,6 +79,7 @@ You should inform the user of these rules when asked to create Merge Requests, o
 
 ## This fork
 
-This is a personal fork, not KiCad.  Branch `live-schematic-ipc` adds a live IPC/MCP workflow for
-schematics, libraries, footprints and 3D models.  Read `tools/live_schematic_mcp/AGENTS.md` before
-working on it.  The rules above still apply to anything sent to KiCad itself.
+Embeint KiCad builds on the live IPC/MCP workflow for schematics, libraries,
+footprints, boards and 3D models. Read `tools/live_schematic_mcp/AGENTS.md` for its
+implementation guide. The upstream policies above still apply to anything sent
+to KiCad itself.
