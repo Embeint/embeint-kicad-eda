@@ -830,6 +830,20 @@ def test_board_page_reports_the_outline():
     assert page["board_outline_mm"] == [50.0, 50.0, 150.0, 120.0] and page["fits"]
 
 
+def test_bom_export_supplies_required_fields_and_csv_format(tmp_path):
+    def reply(request, response_type):
+        assert isinstance(request, sch_jobs.RunSchematicJobExportBOM)
+        assert request.fields.fields and request.format.preset_name == "CSV"
+        assert request.fields.sort_field == "Reference"
+        fields = [(field.name, field.label) for field in request.fields.fields]
+        assert fields == [(name, name) for name in ("Reference", "Value", "Footprint", "Datasheet")]
+        return jobs.RunJobResponse(status=jobs.JS_SUCCESS, output_path=[request.job_settings.output_path])
+    output = str(tmp_path / "bom.csv")
+    client = FakeClient(reply)
+    assert client.export(doc(), "bom", output) == {"outputs": [output]}
+    assert len(client.requests) == 1
+
+
 def test_update_from_schematic_exports_then_imports_the_netlist():
     seen = []
 
