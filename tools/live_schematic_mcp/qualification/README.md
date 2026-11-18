@@ -103,7 +103,7 @@ After native and MCP validation, run in the Linux build environment:
 /qualification/venv/bin/python \
     /qualification/src/tools/live_schematic_mcp/qualification/package_linux.py \
     /opt/embeint-kicad /new/output/mcp /new/output/embeint-kicad.deb \
-    --version '10.99.0~dev+REVISION'
+    --version '10.99.0~dev+REVISION' --native-provenance /new/output/native.json
 ```
 
 The `.deb` installs the native prefix in `/opt/embeint-kicad` and provides
@@ -115,8 +115,21 @@ disabled IPC server, are preserved. Both launchers use the same user-owned IPC
 namespace. A native Windows transport or macOS application installer is not
 provided by this Linux package.
 
+The required native provenance JSON has `source_revision`, `application_version`,
+`source_archive` (`filename` and `sha256`), `build`, `platform`, and `files_sha256`
+(paths relative to the native install). Include the exact patched-source blobs,
+configure identity, compiler and libc/distro in the corresponding fields. The
+packager checks at least the manager, CLI and both editor hashes against the
+actual payload and retains this identity separately from the frozen MCP metadata
+in `distribution.json`. Preserve the referenced source archive with the package.
+Desktop and frozen-interpreter dependencies are scanned separately: bundled C++
+runtime libraries in MCP do not satisfy the desktop launcher's search path.
+
 Put only `embeint-kicad.deb` in a new build context, then build
-`Dockerfile.runtime` with that context. Start the resulting image with
+`Dockerfile.runtime` with that context. Its default Ubuntu version is 24.04;
+set `--build-arg UBUNTU_VERSION=26.04` for a build using Ubuntu 26.04. Match the
+builder's distro/libc; these packages do not promise cross-distro portability.
+Start the resulting image with
 `--network none` and no mounts. From outside that container, run:
 
 ```sh
@@ -131,6 +144,16 @@ checks first launch, symbol placement, wiring, undo/redo and explicit save/resta
 reopen. The application container has no development checkout or MCP virtual
 environment. Keep the corresponding source archive and all required component
 notices with distributed builds; these scripts do not publish a release.
+
+When no Docker daemon is available, `check_install.py ROOT OUTPUT --runtime bwrap`
+accepts a separately prepared Ubuntu root with the `.deb` and its dependencies
+installed. Preparation may use network access; the driver forces a new network
+and PID namespace for every runtime process. It exposes only that root read-only
+and its disposable home/tmp/run directories writable, uses UID 1000, and rejects a
+system Python executable. No development checkout or outside socket is mounted.
+The test driver and its Python interpreter remain outside the runtime. This is
+Bubblewrap evidence and does not qualify Docker. Prepare a fresh root matching
+the build distro; do not supply the host root or reuse a customer application root.
 
 After collecting final evidence and artifacts, stop/remove the disposable build
 and runtime containers and remove their source/build/dependency volumes. Keep

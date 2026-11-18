@@ -21,6 +21,7 @@ ROOT = Path("/qualification")
 MCP = ROOT / "src/tools/live_schematic_mcp"
 INSTALL = Path("/opt/embeint-kicad")
 sys.path.insert(0, str(MCP))
+from qualification.persistence import persisted_schematic_item
 
 
 def write_json(path, value):
@@ -121,7 +122,7 @@ def snapshot(client):
             spec.sheet_path.CopyFrom(node.path)
             key = "/".join(i.value for i in node.path.path)
             result["schematics"][key] = sorted(
-                (as_dict(item) for item in client.items(spec).items),
+                (persisted_schematic_item(as_dict(item)) for item in client.items(spec).items),
                 key=lambda item: json.dumps(item, sort_keys=True))
             visit(node.children)
 
