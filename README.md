@@ -5,6 +5,8 @@ design. The project aims to make schematic generation and PCB workflows native,
 live and inspectable, with first-class Model Context Protocol (MCP) support and a
 long-term path to shared Rust engines and WebAssembly applications.
 
+Source and contributions: [Embeint/embeint-kicad-eda](https://github.com/Embeint/embeint-kicad-eda).
+
 This is an independent project built on KiCad. It is not an official KiCad release
 and is not endorsed by the KiCad project. KiCad and its contributors provide the
 underlying editors, electrical engines and file formats; their attribution and
@@ -71,6 +73,13 @@ From the repository root in WSL:
 ```bash
 tools/live_schematic_mcp/scripts/setup_wsl.sh
 tools/live_schematic_mcp/run_kicad_wsl.sh
+```
+
+For a new checkout, clone the Embeint product branch first:
+
+```bash
+git clone --branch main https://github.com/Embeint/embeint-kicad-eda.git
+cd embeint-kicad-eda
 ```
 
 Run the launcher in a separate terminal while testing. Use the disposable

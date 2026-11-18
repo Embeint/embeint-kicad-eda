@@ -1,6 +1,6 @@
 # Embeint KiCad fork: native MCP, Rust and WebAssembly
 
-Status: proposed engineering direction, 2026-11-18. This document records the
+Status: project engineering direction, 2026-11-18. This document records the
 architecture and delivery gates; it does not implement a new distribution or Rust
 runtime. Estimates below are planning ranges, not measured delivery commitments.
 
@@ -174,9 +174,11 @@ known-good rollback version.
 
 The combined KiCad distribution is governed by GPLv3-or-later, as described in
 `LICENSE.README`. Supply the corresponding source and notices for distributed
-builds, including compatible Rust additions and dependencies. Embeint branding and
-the repository destination need to be chosen before public distribution. Keep this
-fork's work local to its own development and contribution channels.
+builds, including compatible Rust additions and dependencies. The project is named
+Embeint KiCad and is maintained at
+[Embeint/embeint-kicad-eda](https://github.com/Embeint/embeint-kicad-eda). Application
+branding and distribution packaging remain implementation work. Keep this fork's
+work within its own development and contribution channels.
 
 ## Effort and first implementation slice
 
