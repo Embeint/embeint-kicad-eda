@@ -3,6 +3,7 @@
 
 from contextlib import contextmanager
 import socket
+import threading
 
 import pytest
 
@@ -132,7 +133,7 @@ def test_client_pins_selection_and_does_not_retry_timeout(monkeypatch):
     assert len(selected) == len(sent) == 1
     assert dialed == ["ipc:///chosen-once.sock"]
     assert live.socket_url == dialed[0]
-    assert options[0]["resend_time"] > options[0]["recv_timeout"]
+    assert options[0]["resend_time"] == -1
 
 
 def test_explicit_client_never_discovers(monkeypatch):
@@ -141,3 +142,39 @@ def test_explicit_client_never_discovers(monkeypatch):
     monkeypatch.setattr(client, "select_socket", reject)
     live = client.LiveSchematic("ipc:///explicit.sock")
     assert live._socket_selected
+
+
+def test_mutation_is_not_replayed_when_peer_disconnects_and_rebinds(isolated_environment):
+    url = "ipc://" + str(isolated_environment / "api.sock")
+    requests, errors = [], []
+    original = client.pynng.Rep0(listen=url, recv_timeout=2000)
+    def disconnect_and_rebind():
+        try:
+            requests.append(original.recv())
+            original.close()  # Simulate applying the request and losing the reply.
+            with client.pynng.Rep0(listen=url, recv_timeout=700) as replacement:
+                try:
+                    repeated = replacement.recv()
+                except client.pynng.Timeout:
+                    return
+                requests.append(repeated)
+                from google.protobuf import empty_pb2
+                reply = client.envelope.ApiResponse()
+                reply.status.status = client.envelope.AS_OK
+                reply.message.Pack(empty_pb2.Empty())
+                replacement.send(reply.SerializeToString())
+        except Exception as error:
+            errors.append(error)
+    thread = threading.Thread(target=disconnect_and_rebind)
+    thread.start()
+    try:
+        from google.protobuf import empty_pb2
+        live = client.LiveSchematic(url, timeout_ms=1200)
+        with pytest.raises(client.pynng.NNGException):
+            live.send(client.project.SaveDocument(), empty_pb2.Empty)
+    finally:
+        thread.join(timeout=4)
+        original.close()
+    assert not thread.is_alive()
+    assert not errors
+    assert len(requests) == 1

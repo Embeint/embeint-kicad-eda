@@ -89,9 +89,9 @@ def _probe_instance(url, timeout_ms, token, secrets):
         request.header.kicad_token = pinned_token
         request.message.Pack(command)
         try:
-            # The resend interval exceeds the timeout: even diagnostic reads are sent once.
+            # NNG_DURATION_INFINITE disables resends, including after a peer disconnects.
             with pynng.Req0(send_timeout=timeout_ms, recv_timeout=timeout_ms,
-                            resend_time=timeout_ms * 2) as conn:
+                            resend_time=-1) as conn:
                 conn.dial(url, block=False)
                 conn.send(request.SerializeToString())
                 raw = conn.recv()
