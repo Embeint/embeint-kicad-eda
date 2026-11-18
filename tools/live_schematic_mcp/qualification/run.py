@@ -21,7 +21,7 @@ ROOT = Path("/qualification")
 MCP = ROOT / "src/tools/live_schematic_mcp"
 INSTALL = Path("/opt/embeint-kicad")
 sys.path.insert(0, str(MCP))
-from qualification.persistence import persisted_schematic_item
+from qualification.persistence import persisted_schematic_item, persisted_board_items
 
 
 def write_json(path, value):
@@ -137,9 +137,9 @@ def snapshot(client):
     ], key=lambda net: net["name"])
     for value in client.boards():
         spec = board_document(value)
-        result["boards"][spec.board_filename] = sorted(
+        result["boards"][spec.board_filename] = persisted_board_items(
             (as_dict(item) for item in client.board_items(spec, list(ITEM_TYPES))),
-            key=lambda item: json.dumps(item, sort_keys=True))
+            spec.board_filename)
     return result
 
 
@@ -181,11 +181,13 @@ def roundtrip_fixture(client):
     pins = client.symbol_pins(child, with_nets=False)[0]["pins"]
     pin = next(p for p in pins if p["number"] == "1")
     client.mutate(child, [sch.HierarchicalLabel(id=kiid(), position=point(*pin["position_mm"]),
-                                              text=types.Text(text="VIN"), shape=sch.SLSH_INPUT)])
+                                              text=types.Text(text="VIN"), shape=sch.SLSH_INPUT,
+                                              fields_autoplaced=True)])
     for spec, reference, number in ((root, "R1", "1"), (child, "R3", "2")):
         pin = next(p for symbol in client.symbol_pins(spec, with_nets=False)
                    if symbol["reference"] == reference for p in symbol["pins"] if p["number"] == number)
-        client.mutate(spec, [sch.NoConnectMarker(id=kiid(), position=point(*pin["position_mm"]))])
+        client.mutate(spec, [sch.NoConnectMarker(id=kiid(), position=point(*pin["position_mm"]),
+                                                size=types.Distance(value_nm=1219200))])
     client.netlist(root)
     root_net = next(p for s in client.symbol_pins(root) if s["reference"] == "R2"
                     for p in s["pins"] if p["number"] == "1")["net"]
