@@ -1,0 +1,182 @@
+{
+  "date_utc": "2026-11-18",
+  "release_qualified": false,
+  "canonical_base": "https://github.com/Embeint/embeint-kicad-eda.git embeint/main",
+  "native_base_revision": "d880b3be5dbf30003e4b0069262417d0278bf528",
+  "native_version": "10.99.0-qualification-d880-loader-patch-dirty",
+  "native_patch_blobs": {
+    "eeschema/files-io.cpp": "7c78ed6ea49723ec268d6e7a2c6768285adb033b",
+    "include/kiway_player.h": "652b8a568a8cc698a449b32c24926595e962609a",
+    "kicad/kicad.cpp": "fd8108323cd676ac84ab6505bd375eb13c5000df",
+    "pcbnew/files.cpp": "77fc7922307a9797b5a4eb705b140b36dbc5157c"
+  },
+  "corresponding_native_source_commit": "a7ac63022402eff3d7c23ab89e3041a02cbe2270",
+  "local_cherry_pick_native_commit": "e7a041e5bbd818adac618c34beda7c68f5a402de",
+  "version_stamp_note": "Binaries were built before publication of a7ac630; retain their d880 plus exact patch identity.",
+  "mcp_source_revision": "c8d507086afbbf1d8b50e8405dfe8b5ffc81ed72",
+  "mcp_revision_source": "caller-supplied archive revision; inspect source checksums",
+  "parent_packaging_commit": "ee4826b8f895c7849027d9b452dbf8f2e62dcf20",
+  "helper_fix_commit": "f4a064f5c455a733e02944365876c33f87890c94",
+  "schema_sha256": "0dfe9020f6c9377221971c6a7194761d18ee05398165570fcd25eb4f22b2c8cd",
+  "tool_count": 111,
+  "command_count": 145,
+  "platform": {
+    "builder": "Ubuntu 26.04.1 x86_64 WSL2",
+    "compiler": "GCC 15.2.0",
+    "libc": "2.43",
+    "runtime": "Ubuntu 26.04.1, software rendering/Xvfb, Bubblewrap UID 1000",
+    "native_windows": "Unqualified; configure stopped at missing glslangValidator; this adapter does not support native Windows editor IPC"
+  },
+  "checks": {
+    "pristine_native_baseline": "Guarded full live workflows, exports and persistence passed after recorded fixture/BOM corrections; five invalid loads exposed modal hangs",
+    "supplied_native_patch": "Full guarded workflows passed; five invalid loads reject promptly and remain responsive; compatible future-header PCB accepted; all fixture files unchanged",
+    "frozen_mcp": "check_package.py passed",
+    "installed_distribution": {
+      "result": "passed",
+      "schema_sha256": "0dfe9020f6c9377221971c6a7194761d18ee05398165570fcd25eb4f22b2c8cd",
+      "version": {
+        "major": 10,
+        "minor": 99,
+        "full_version": "10.99.0-qualification-d880-loader-patch-dirty"
+      },
+      "checks": [
+        "install",
+        "first_launch",
+        "stdio",
+        "place_symbols",
+        "connect_pins",
+        "undo_redo",
+        "save_restart_reopen",
+        "connectivity"
+      ],
+      "network": "none",
+      "runtime": "bwrap",
+      "host_source_mounted": false,
+      "system_python_present": false
+    },
+    "offline_wsl": "243 passed",
+    "offline_windows": "200 passed, 43 platform skips",
+    "shared_helper_followup": "9 focused tests per platform and another fresh installed-runtime run passed",
+    "installed_native_files_match": 897,
+    "baseline_and_patched_binaries_preserved": true,
+    "parent_hierarchical_helper": {
+      "result": "passed",
+      "checks": [
+        "parent hierarchical fixture",
+        "three-footprint real transfer",
+        "shared full-item snapshot before/after restart",
+        "nets and file hashes"
+      ],
+      "hierarchical_net": "/Power/VIN",
+      "transfer": {
+        "new_footprints": 3,
+        "errors": 0,
+        "warnings": 0
+      },
+      "erc_findings": 10,
+      "drc_findings": 3,
+      "saved_file_sha256": {
+        "live-demo.kicad_sch": "b5100c0cdf9d30b4296c788a807243013752c592524a49ba017b08080ed7e8c4",
+        "power.kicad_sch": "ad78eb007982c1926b09d275f939a4f6b878946e51fd0ce726d32db47aff2703",
+        "live-demo.kicad_pcb": "b6f4749d8d4d78534c554e4f9c32c772146a4e2df8b860661ccaeda5f649a5df"
+      }
+    }
+  },
+  "installation_caveats": [
+    "Docker clients were present but the daemon was stopped; no Docker/runtime service was started. This is Bubblewrap evidence, not Docker evidence.",
+    "Initial single-user namespace dpkg configuration failed at DBus group ownership. Completed dpkg --configure -a using WSL root inside a filesystem/PID/network-confined Bubblewrap namespace exposing only the disposable root. Host packages and services were not changed. Final dpkg --audit was empty.",
+    "Runtime tests used a read-only prepared root plus writable disposable home/tmp/run, isolated network/PID namespaces, UID 1000, and no checkout, outside IPC socket or system Python executable.",
+    "A first strict persistence comparison differed only in non-persisted embedded library-graphic UUIDs. Shared normalization ignores exactly those IDs; placed IDs, geometry, fields, nets and disk hashes remain checked.",
+    "The first retry encountered an owned stale Xvfb lock; subsequent attempts use separate scratch temporary directories. Original logs and fixtures are retained.",
+    "Staged CLI inventory emitted missing-schema messages because the final /opt prefix was not globally installed. Installed native CLI/about and live runtime checks succeeded at the real prefix inside the disposable root.",
+    "Package dependency constraints require the matching Ubuntu 26.04/glibc 2.43 environment; cross-distro portability is not claimed.",
+    "Additional native helper comparison exposed default no-connect size/label placement, a redundant library ID override, and the unpersisted board-root container UUID. Fixture defaults are explicit. Shared normalization preserves effective symbol IDs, placed IDs, pad parents, geometry, fields and nets; negative tests protect these checks.",
+    "An initial temporary parent-helper harness retained a cached instance token after restart; the API rejected it. A fresh client and then a wholly fresh fixture completed the full hierarchy/board snapshot proof. No mutation was retried after an unknown outcome."
+  ],
+  "native_staged_core_sha256": {
+    "bin/_eeschema.kiface": "77c270bea3b9b582fde76cd9de4eee333bad637b5f5594199a5d3a2629effc5f",
+    "bin/_pcbnew.kiface": "aa9d3fedf7017f8dcd0ec8b8005a51baf2fff41df44ab62a29185f23aedab49c",
+    "bin/kicad": "f313b0e7b2be3989b336d834658fbbdbb4a40ab9850f42dee64ca47ebdb34359",
+    "bin/kicad-cli": "f7b77db7cf81f3d662ced7ee6ede358b60ad8fb8488fc334af2165c721eab3ab",
+    "lib/libkiapi.so.10.99.0": "90666767292d2b5f213a9f8f940625bbb9f7fa6fc839fe11c5cfd6830337b50b",
+    "lib/libkicommon.so.10.99.0": "506bb1dd51767bdf80e620670a931a5d0fd8c912d80b88653f98b5d982e0c1a1",
+    "lib/libkigal.so.10.99.0": "d35895294fd8fdf9ab93e7ea04684be4a1651f5f146af7f1478851d10a5967b1"
+  },
+  "native_baseline_binary_sha256": {
+    "kicad": "b6f1ba7145967d3896a4cb4b031843f1cbd0db3786080485fe1df1c0e8a01a52",
+    "kicad-cli": "f7b77db7cf81f3d662ced7ee6ede358b60ad8fb8488fc334af2165c721eab3ab",
+    "_eeschema.kiface": "62e5a9324090b5fc6f710fe9e79cf30c2c16db25b11c9f31e01758de14a9c0ed",
+    "_pcbnew.kiface": "9a089f0609777e756b1fb96c80cb3d1a2da8382d67e11a8648364e6cecbc7ea1"
+  },
+  "native_patched_binary_sha256": {
+    "kicad": "f313b0e7b2be3989b336d834658fbbdbb4a40ab9850f42dee64ca47ebdb34359",
+    "kicad-cli": "f7b77db7cf81f3d662ced7ee6ede358b60ad8fb8488fc334af2165c721eab3ab",
+    "_eeschema.kiface": "77c270bea3b9b582fde76cd9de4eee333bad637b5f5594199a5d3a2629effc5f",
+    "_pcbnew.kiface": "aa9d3fedf7017f8dcd0ec8b8005a51baf2fff41df44ab62a29185f23aedab49c"
+  },
+  "frozen_executable_sha256": "3a1061a6f31e97488460bf9465b30d0ec455333ffcb68c9498e5d2abf3747368",
+  "artifacts": {
+    "check-package.json": {
+      "size": 376,
+      "sha256": "2e1e84f466c1916ed01b2fd2e74acb2f93aa7d45d0afd5e36807994186b71ce2"
+    },
+    "embeint-kicad_10.99.0~dev+d880.loader1_amd64.deb": {
+      "size": 186623664,
+      "sha256": "680c52652f9430a96c25b793322f7aa58f2d58e5f0ac2e6b65c7a1844cdb99be"
+    },
+    "installed-workflow.json": {
+      "size": 514,
+      "sha256": "28dc5e2bf2e25de123c27b39873daad4c20e6c0ac2cf20941545bd31937a175c"
+    },
+    "mcp-frozen-c8d507-linux-x86_64.tar.gz": {
+      "size": 44644920,
+      "sha256": "82b9562c8e72980e67b537bbc11aee86f9d1fe3d23b513a3050657e3f6468424"
+    },
+    "mcp-source-c8d507086a.tar.gz": {
+      "size": 319595435,
+      "sha256": "1533df36dff561db5fdccfe544f7a4fa8a0442e705b8d04f07e88f14ae4df50c"
+    },
+    "native-provenance.json": {
+      "size": 134341,
+      "sha256": "a1dd90cea9653f42b29e4fe8848c4f601d5ba0e09305201a49c1683ba1d55706"
+    },
+    "native-source-d880-supplied-loader.tar.gz": {
+      "size": 367491101,
+      "sha256": "60c2e8b89fcd96b904ea3f7c20e586932e873ed1e3b2a29038f6541db4c742cb"
+    },
+    "package-CMakeCache.txt": {
+      "size": 120548,
+      "sha256": "cae36e93e3a385f84405f821d8947d327c036b9ef7edcec3e3260d37608e4bec"
+    },
+    "packaging-helpers-f4a064.patch": {
+      "size": 32066,
+      "sha256": "0345757f69db5cc3c85c3b8a13cc63b1181cbd01f65d547c6ec90249897579a5"
+    },
+    "runtime-base.json": {
+      "size": 302,
+      "sha256": "21b2c46f40dee0c9789bc7c97920690dcad6aeb5ffb0e9f75d6de73a976e2a7f"
+    },
+    "runtime-receipt.json": {
+      "size": 5152,
+      "sha256": "047df560ad9d4f525038402c19e3c486b497370d85cab713d84ca5612c081ca4"
+    },
+    "ubuntu-base-26.04.1-base-amd64.tar.gz": {
+      "size": 34931253,
+      "sha256": "a496a960472ce474a59590b8987d3a1135d3cbef1991f3b1abe8cacfea8bf85a"
+    },
+    "roundtrip-helpers-followup.patch": {
+      "size": 7036,
+      "sha256": "3da7ba209953bcb0c312cbfe470e617dd77ef8ef7e57baa88e5751a2e9a870b6"
+    }
+  },
+  "raw_evidence_windows": ".qualification/evidence plus .qualification/*.log and *.command.json",
+  "raw_evidence_wsl": "/home/karlvonrichter/embeint-qualification/d880-windows-wsl/logs",
+  "artifacts_wsl": "/home/karlvonrichter/embeint-qualification/d880-windows-wsl/artifacts",
+  "remaining_gates": [
+    "Native Windows fork build, editor IPC and installer/runtime packaging",
+    "WSLg/native Windows GUI behavior",
+    "Independent parent ARM64 build/qualification",
+    "Release and cross-platform product qualification"
+  ],
+  "roundtrip_helper_commit": "fd30573096730bb5264c98d9865db5826e437ac0"
+}
