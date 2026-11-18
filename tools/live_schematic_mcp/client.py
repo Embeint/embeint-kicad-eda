@@ -16,7 +16,8 @@ from google.protobuf import json_format
 from board_client import BoardTools, board_document  # noqa: F401
 from board_design import BoardDesignTools
 from footprint_client import FootprintTools, footprint_document, library_kind  # noqa: F401
-from instance_discovery import default_socket_url, local_socket_path, select_socket
+from instance_discovery import (DiscoveryError, default_socket_url, local_socket_path,
+                                select_socket, socket_reachability)
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "_generated"))
 try:
@@ -160,6 +161,7 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
         self.token = os.environ.get("KICAD_API_TOKEN", "") if explicit_socket else ""
         self.client_name = "kicad.live-schematic-mcp-" + str(uuid.uuid4())
         self.timeout_ms = timeout_ms
+        self._received_reply = False
         self.lock = threading.RLock()
 
     def send(self, command, response_type):
@@ -168,6 +170,10 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
             if not self._socket_selected:
                 self.socket_url = select_socket(check_liveness=True)
                 self._socket_selected = True
+            if self._received_reply and socket_reachability(self.socket_url) == "not_listening":
+                raise DiscoveryError("instance_unavailable", "Selected KiCad instance is unavailable; "
+                                     "no command was sent. Run diagnose.py --probe and restart MCP "
+                                     "with the intended KICAD_API_SOCKET. Instance identity remains pinned.")
             request = envelope.ApiRequest()
             request.header.client_name = self.client_name
             request.header.kicad_token = self.token
@@ -175,15 +181,9 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
             # NNG_DURATION_INFINITE disables both timer and disconnect-triggered resends.
             with pynng.Req0(send_timeout=self.timeout_ms, recv_timeout=self.timeout_ms,
                             resend_time=-1) as conn:
-                # A dead pinned endpoint should fail before send, not wait for a
-                # reconnect timeout. Never switch instances or clear their token.
-                try:
-                    conn.dial(self.socket_url, block=True)
-                except pynng.NNGException as error:
-                    error.add_note("Selected KiCad instance is unavailable; no command was sent. "
-                                   "Run diagnose.py --probe and restart MCP with the intended "
-                                   "KICAD_API_SOCKET. Instance selection remains pinned.")
-                    raise
+                # Synchronous NNG negotiation has its own timeout, which can exceed
+                # the request deadline when a peer is stopped before its handshake.
+                conn.dial(self.socket_url, block=False)
                 conn.send(request.SerializeToString())
                 raw = conn.recv()
             reply = envelope.ApiResponse.FromString(raw)
@@ -195,6 +195,7 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
             response = response_type()
             if not reply.message.Unpack(response):
                 raise RuntimeError(f"Unexpected reply to {command.DESCRIPTOR.full_name}")
+            self._received_reply = True
             if not self.token:
                 self.token = reply.header.kicad_token
             return response

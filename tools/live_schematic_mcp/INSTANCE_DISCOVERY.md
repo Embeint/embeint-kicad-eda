@@ -67,9 +67,11 @@ handling guards subsequent requests after an initial successful reply. The clien
 does not switch endpoints or retry a mutation after failure. NNG request resends
 are disabled with `NNG_DURATION_INFINITE` (`resend_time=-1`), including on disconnect.
 See the [NNG request protocol implementation](https://github.com/nanomsg/nng/blob/v1.8.0/src/sp/protocol/reqrep0/req.c#L221-L246).
-Connection establishment is synchronous, so a dead pinned endpoint fails before
-sending rather than waiting through the request timeout. Its error includes recovery
-instructions. A restarted application can have a different token or project; the
+After a successful reply, a request-free local listener check detects a dead pinned
+endpoint before sending; its error includes recovery instructions. NNG negotiation
+itself remains asynchronous so a peer that accepts connections without completing
+its handshake still respects the configured send/receive timeouts. A restarted
+application can have a different token or project; the
 client deliberately does not silently switch endpoints, clear identity or replay
 an operation. Restart MCP with an explicit endpoint after identifying the intended
 project. Non-Linux automatic discovery is

@@ -2,7 +2,10 @@
 """Offline socket-selection contracts; no KiCad processes are used."""
 
 from contextlib import contextmanager
+from pathlib import Path
 import socket
+import subprocess
+import sys
 import threading
 
 import pytest
@@ -122,7 +125,7 @@ def test_client_pins_selection_and_does_not_retry_timeout(monkeypatch):
         def __exit__(self, *_args):
             pass
         def dial(self, url, **kwargs):
-            assert kwargs == {"block": True}
+            assert kwargs == {"block": False}
             dialed.append(url)
         def send(self, raw):
             sent.append(raw)
@@ -180,10 +183,30 @@ def test_dead_pinned_socket_fails_before_send_without_switching(isolated_environ
     from google.protobuf import empty_pb2
     url = "ipc://" + str(isolated_environment / "api.sock")
     live = client.LiveSchematic(url, timeout_ms=15000)
-    with pytest.raises(client.pynng.NNGException) as caught:
+    live._received_reply = True  # A previously responsive instance has exited.
+    with pytest.raises(discovery.DiscoveryError, match="no command was sent"):
         live.send(client.project.SaveDocument(), empty_pb2.Empty)
     assert live.socket_url == url
-    assert any("no command was sent" in note for note in caught.value.__notes__)
+
+
+def test_peer_without_nng_handshake_respects_request_timeout(isolated_environment):
+    path = isolated_environment / 'api.sock'
+    with socket.socket(socket.AF_UNIX) as peer:
+        peer.bind(str(path))
+        peer.listen()  # Accepts a kernel connection but never negotiates NNG.
+        code = '''from client import LiveSchematic, base
+import pynng, sys
+try:
+    LiveSchematic(sys.argv[1], timeout_ms=100).send(base.GetVersion(), base.GetVersionResponse)
+except pynng.Timeout:
+    print("request timed out")
+else:
+    raise AssertionError("inert listener responded")
+'''
+        result = subprocess.run([sys.executable, '-c', code, 'ipc://' + str(path)],
+                                cwd=Path(client.__file__).parent, capture_output=True,
+                                text=True, timeout=5, check=True)
+    assert result.stdout.strip() == 'request timed out'
 
 
 def test_explicit_client_never_discovers(monkeypatch):
