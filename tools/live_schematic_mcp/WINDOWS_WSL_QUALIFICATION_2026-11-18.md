@@ -8,7 +8,8 @@ The initial clean HEAD was `d880b3be5dbf30003e4b0069262417d0278bf528`.
 The canonical base is `https://github.com/Embeint/embeint-kicad-eda.git`,
 `embeint/main`; `origin` remains the older personal mirror. The platform fix is
 `cd4b155fda959c3f2861ce24225fd18af6f0b2f0`, pushed on
-`embeint/mcp-wsl-windows-qualification` without a PR.
+`embeint/mcp-wsl-windows-qualification`, initially without a PR. The branch is now
+published as [Embeint PR #5](https://github.com/Embeint/embeint-kicad-eda/pull/5).
 The separate setup dependency fix is
 `da7cc8260d62fec2c86162e7ebe404c390a1c820` on the same branch.
 The live-discovered BOM helper correction is
@@ -316,6 +317,41 @@ notices and the standalone frozen archive retains them. Source/helper patches an
 the configure cache are retained alongside the binaries. The retained files can
 be transferred through T3 file attachments or an existing desktop file-transfer
 channel; no upload or new connection was started for this task.
+
+## PR review follow-up
+
+Claude Opus 5.5 reviewed PR #5 at `973e8fa808d052f18ac1493378934816d444e1ac`
+and reported no blocking native-loader regression. Three packaging/launcher
+findings were corrected in source with regression coverage:
+
+- Frozen source identity accepts Git metadata only when its top-level directory
+  is the actual source root. An archive nested inside another checkout requires
+  its own explicit revision and cannot inherit the enclosing repository's HEAD.
+- Native provenance rejects unrecorded regular files in a staged install. Library
+  symlink aliases must resolve to hashed files within the install; their exact
+  destinations are added to metadata for future packages. Revalidation of the
+  preserved stage matched all 897 hashed regular files and four normal library
+  aliases. The earlier manifest omitted these aliases; its original bytes and
+  artifact hashes remain unchanged.
+- Malformed JSON or invalid settings object shapes produce a warning and leave
+  the settings unchanged while allowing the desktop launcher to continue to
+  KiCad. Recovery of those preferences belongs to the application.
+
+Follow-up offline suites passed 248 tests on WSL and 204 with 44 platform skips
+on Windows (the added skip covers Linux install symlinks). Actual Git discovery
+inside a nested archive and the `--configure-desktop` subprocess exit/file
+preservation checks passed on both platforms. Logs and XML receipts are retained
+as `.qualification/evidence/pr5-review-*`. No native binary, frozen executable,
+source archive or .deb was rebuilt or relabeled for these helper corrections;
+the retained c8d507 frozen artifact does not contain the new settings recovery.
+
+The native evidence used bounded temporary drivers recorded in `.qualification/`,
+including drivers importing the committed roundtrip fixture/snapshot functions.
+The complete Docker-gated native entry points, Dockerfiles, `stdio_edit_check`
+and the `KICAD_MCP_EXECUTABLE` edit/undo path were not exercised as complete
+committed workflows. Failed-open preservation checks cover schematic/PCB files,
+not project preferences or local history. Bus-migration, unreadable-file and
+existing-lock refusal paths remain additional native test cases.
 
 ## Remaining gates
 

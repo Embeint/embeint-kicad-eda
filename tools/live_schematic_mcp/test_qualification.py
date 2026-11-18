@@ -12,6 +12,38 @@ from qualification.packaged_main import configure_desktop, run_stdio
 from qualification.package_linux import native_provenance, private_shlibs_entry
 
 
+def test_freeze_identity_uses_only_the_source_repository(monkeypatch, tmp_path):
+    from pathlib import Path
+    from qualification import package_mcp
+
+    source = tmp_path / "archive/tools/live_schematic_mcp"
+    source.mkdir(parents=True)
+    monkeypatch.setattr(package_mcp, "MCP", source)
+    revision = "a" * 40
+    calls = []
+
+    def git(command, **kwargs):
+        calls.append(command[1:])
+        assert Path(kwargs["cwd"]) == source
+        if command[1:] == ["rev-parse", "--show-toplevel"]:
+            return SimpleNamespace(returncode=0, stdout=str(repository) + "\n")
+        assert command[1:] == ["rev-parse", "HEAD"]
+        return SimpleNamespace(returncode=0, stdout=revision + "\n")
+
+    monkeypatch.setattr(package_mcp.subprocess, "run", git)
+    monkeypatch.setattr(package_mcp.subprocess, "check_output", lambda *args, **kwargs: b"")
+    repository = tmp_path  # Git discovered outside the extracted source root.
+    with pytest.raises(ValueError, match="source archive requires"):
+        package_mcp.source_identity(None)
+    assert package_mcp.source_identity("b" * 40) == (
+        "b" * 40, None, "caller-supplied archive revision; inspect source checksums")
+    assert all(command == ["rev-parse", "--show-toplevel"] for command in calls)
+    repository = source.parents[1]
+    assert package_mcp.source_identity(None) == (revision, False, "git")
+    with pytest.raises(ValueError, match="differs from Git HEAD"):
+        package_mcp.source_identity("b" * 40)
+
+
 def test_bundled_numpy_openblas_uses_dpkg_unstable_soname_mapping():
     assert private_shlibs_entry("libscipy_openblas64_-4b78795a.so") == "libscipy_openblas64_ 4b78795a embeint-kicad"
     assert private_shlibs_entry("libkiapi.so.10.99.0") == "libkiapi 10.99.0 embeint-kicad"
@@ -72,7 +104,8 @@ def test_board_persistence_retains_placed_ids_pad_parents_and_geometry():
         persisted_board_items(after,"test.kicad_pcb")
 
 
-def test_native_provenance_refuses_missing_or_mismatched_payload_identity(tmp_path):
+@pytest.fixture
+def native_payload(tmp_path):
     from hashlib import sha256
     import json
 
@@ -89,7 +122,19 @@ def test_native_provenance_refuses_missing_or_mismatched_payload_identity(tmp_pa
             "files_sha256": hashes}
     manifest = tmp_path / "native.json"
     manifest.write_text(json.dumps(info))
+    return install, manifest, info
+
+
+def test_native_provenance_refuses_missing_or_mismatched_payload_identity(native_payload):
+    import json
+
+    install, manifest, info = native_payload
     assert native_provenance(install, manifest) == info
+    leftover = install / "bin/stale-helper"
+    leftover.write_bytes(b"left over from an earlier staged install")
+    with pytest.raises(ValueError, match="unrecorded=.*bin/stale-helper"):
+        native_provenance(install, manifest)
+    leftover.unlink()
     (install / "bin/kicad").write_bytes(b"other binary")
     with pytest.raises(ValueError, match="does not match provenance"):
         native_provenance(install, manifest)
@@ -97,6 +142,25 @@ def test_native_provenance_refuses_missing_or_mismatched_payload_identity(tmp_pa
     manifest.write_text(json.dumps(info))
     with pytest.raises(ValueError, match="core executable hashes"):
         native_provenance(install, manifest)
+
+
+def test_native_provenance_records_only_aliases_to_hashed_payload_files(native_payload, tmp_path):
+    import os
+
+    if os.name != "posix":
+        pytest.skip("staged Linux library symlinks require Unix")
+    install, manifest, info = native_payload
+    alias = install / "bin/kicad-alias"
+    alias.symlink_to("kicad")
+    assert native_provenance(install, manifest) == {**info, "symlinks": {"bin/kicad-alias": "kicad"}}
+    alias.unlink()
+    for target in (tmp_path / "outside", install / "missing"):
+        target.write_bytes(b"not a recorded payload file")
+        alias.symlink_to(target)
+        with pytest.raises(ValueError, match="requires a recorded file target"):
+            native_provenance(install, manifest)
+        alias.unlink()
+        target.unlink()
 
 
 def test_installed_open_failure_is_not_replayed_and_owned_app_is_stopped(monkeypatch):
@@ -185,16 +249,16 @@ def test_packaged_initialization_preserves_preferences_and_library_tables(tmp_pa
     assert library.read_text() == "user-maintained table\n"
 
 
-def test_packaged_initialization_refuses_invalid_settings_without_replacing_them(tmp_path):
-    import json
-
+@pytest.mark.parametrize("contents", ["invalid json\n", "[]", '{"api": null}',
+                                      '{"do_not_show_again": false}'])
+def test_packaged_initialization_warns_without_blocking_or_replacing_invalid_settings(tmp_path, capsys, contents):
     config = tmp_path / "10.99"
     config.mkdir()
     settings = config / "kicad_common.json"
-    settings.write_text("invalid json\n")
-    with pytest.raises(json.JSONDecodeError):
-        configure_desktop(tmp_path)
-    assert settings.read_text() == "invalid json\n"
+    settings.write_text(contents)
+    configure_desktop(tmp_path)
+    assert settings.read_text() == contents
+    assert "Warning: leaving" in capsys.readouterr().err
     assert not (config / "sym-lib-table").exists()
 
 

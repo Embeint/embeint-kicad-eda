@@ -178,5 +178,51 @@
     "Independent parent ARM64 build/qualification",
     "Release and cross-platform product qualification"
   ],
-  "roundtrip_helper_commit": "fd30573096730bb5264c98d9865db5826e437ac0"
+  "roundtrip_helper_commit": "fd30573096730bb5264c98d9865db5826e437ac0",
+  "post_review": {
+    "pr": "https://github.com/Embeint/embeint-kicad-eda/pull/5",
+    "reviewer": "Claude Opus 5.5",
+    "reviewed_head": "973e8fa808d052f18ac1493378934816d444e1ac",
+    "findings": [
+      "Git identity from enclosing checkout",
+      "Unrecorded staged regular files",
+      "Malformed settings block desktop startup"
+    ],
+    "source_fixes": "Applied with regression coverage; artifacts not rebuilt or relabeled",
+    "helper_source_sha256": {
+      "qualification/package_mcp.py": "061bc219278f7db86d8164b9bd29b868f50e4f4f624ae318c009ec433d23496d",
+      "qualification/package_linux.py": "679e0756fdc2a04b3276606df81562da48c6a45c86a798d7f65c31d3bbbc1f1d",
+      "qualification/packaged_main.py": "cfd1c77036653b418f3870c1f7c685bd2e23a6c00f58253c6da8da6daea8170d",
+      "test_qualification.py": "3460897693adf47bd826b7235d5a3ae61731cf751f7a9c2ffb1ee454ffb6fe1b"
+    },
+    "tests": {
+      "wsl": {
+        "passed": 248,
+        "skipped": 0
+      },
+      "windows": {
+        "passed": 204,
+        "skipped": 44
+      }
+    },
+    "actual_subprocess_and_staged_checks": {
+      "real_git_nested_archive": "passed",
+      "malformed_config_command_exit_and_preservation": "passed",
+      "unchanged_staged_native_payload_files": 897,
+      "verified_native_symlink_aliases": {
+        "lib/libkiapi.so": "libkiapi.so.10.99.0",
+        "lib/libkigal.so": "libkigal.so.10.99.0",
+        "lib/libkicad_3dsg.so": "libkicad_3dsg.so.2.0.0",
+        "lib/libkicommon.so": "libkicommon.so.10.99.0"
+      }
+    },
+    "retained_logs": ".qualification/evidence/pr5-review-*",
+    "artifact_caveat": "Retained c8d507 frozen MCP and .deb do not include the new settings recovery; original artifact hashes unchanged",
+    "remaining_test_gaps": [
+      "Complete Docker-gated committed native workflows and Dockerfiles",
+      "stdio_edit_check and KICAD_MCP_EXECUTABLE edit/undo path",
+      "Project preferences and local-history preservation after failed open",
+      "Bus migration, unreadable files and existing locks"
+    ]
+  }
 }
