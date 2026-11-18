@@ -489,10 +489,14 @@ bool PCB_EDIT_FRAME::ReloadFromDisk()
 
 bool PCB_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, int aCtl )
 {
+    const bool nonInteractive = aCtl & KICTL_NONINTERACTIVE;
+
     // This is for python:
     if( aFileSet.size() != 1 )
     {
-        DisplayError( this, wxString::Format( "Pcbnew:%s() takes a single filename", __func__ ) );
+        if( !nonInteractive )
+            DisplayError( this, wxString::Format( "Pcbnew:%s() takes a single filename", __func__ ) );
+
         return false;
     }
 
@@ -506,10 +510,28 @@ bool PCB_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
     // We insist on caller sending us an absolute path, if it does not, we say it's a bug.
     wxASSERT_MSG( wx_filename.IsAbsolute(), wxT( "Path is not absolute!" ) );
 
+    if( nonInteractive )
+    {
+        wxFileName projectFile( fullFileName );
+        projectFile.SetExt( FILEEXT::ProjectFileExtension );
+        const auto autosaves = Kiway().LocalHistory().FindStaleAutosaveFiles(
+                wx_filename.GetPath(), { FILEEXT::KiCadPcbFileExtension } );
+
+        if( !projectFile.SameAs( wxFileName( Prj().GetProjectFullName() ) ) || IsContentModified()
+            || ( wx_filename.FileExists() && !wxFileName::IsFileReadable( fullFileName ) )
+            || !autosaves.empty() )
+        {
+            return false;
+        }
+    }
+
     std::unique_ptr<LOCKFILE> lock = std::make_unique<LOCKFILE>( fullFileName );
 
     if( !lock->Valid() )
     {
+        if( nonInteractive )
+            return false;
+
         // If project-level lock override was already granted, silently override this file's lock
         if( Prj().IsLockOverrideGranted() )
         {
@@ -529,7 +551,7 @@ bool PCB_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
         }
     }
 
-    if( !CloseFootprintFieldsTableDialog() )
+    if( !nonInteractive && !CloseFootprintFieldsTableDialog() )
         return false;
 
     if( IsContentModified() )
@@ -554,6 +576,9 @@ bool PCB_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
     // If its a non-existent PCB and caller thinks it exists
     if( is_new && !( aCtl & KICTL_CREATE ) )
     {
+        if( nonInteractive )
+            return false;
+
         // notify user that fullFileName does not exist, ask if user wants to create it.
         msg.Printf( _( "PCB '%s' does not exist. Do you wish to create it?" ), fullFileName );
 
@@ -568,7 +593,14 @@ bool PCB_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
     if( KISTATUSBAR* statusBar = dynamic_cast<KISTATUSBAR*>( GetStatusBar() ) )
         statusBar->ClearWarningMessages( "load" );
 
-    WX_PROGRESS_REPORTER progressReporter( this, is_new ? _( "Create PCB" ) : _( "Load PCB" ), 1, PR_CAN_ABORT );
+    std::unique_ptr<WX_PROGRESS_REPORTER> progressReporter;
+
+    if( !nonInteractive )
+    {
+        progressReporter = std::make_unique<WX_PROGRESS_REPORTER>(
+                this, is_new ? _( "Create PCB" ) : _( "Load PCB" ), 1, PR_CAN_ABORT );
+    }
+
     WX_STRING_REPORTER loadReporter;
     LOAD_INFO_REPORTER_SCOPE loadReporterScope( &loadReporter );
 
@@ -580,10 +612,14 @@ bool PCB_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
     if( !is_new )
         pluginType = PCB_IO_MGR::FindPluginTypeFromBoardPath( fullFileName, aCtl );
 
-    if( pluginType == PCB_IO_MGR::FILE_TYPE_NONE )
+    if( pluginType == PCB_IO_MGR::FILE_TYPE_NONE || ( nonInteractive && pluginType != PCB_IO_MGR::KICAD_SEXP ) )
     {
-        progressReporter.Hide();
-        DisplayErrorMessage( this, _( "File format is not supported" ), wxEmptyString );
+        if( progressReporter )
+            progressReporter->Hide();
+
+        if( !nonInteractive )
+            DisplayErrorMessage( this, _( "File format is not supported" ), wxEmptyString );
+
         return false;
     }
 
@@ -629,7 +665,7 @@ bool PCB_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
 
     // Crash-recovery: when zip-format autosave is active, look for autosave files newer than
     // the saved board and offer to recover them before the load happens.
-    if( !is_new )
+    if( !is_new && !nonInteractive )
         CheckForAutosaveFiles( wx_filename.GetPath(), { FILEEXT::KiCadPcbFileExtension } );
 
     // custom rules the importer derived, saved with the board once its name is known
@@ -669,7 +705,7 @@ bool PCB_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
 #endif
             BOARD_LOADER::OPTIONS loaderOptions;
             loaderOptions.properties = &props;
-            loaderOptions.progress_reporter = &progressReporter;
+            loaderOptions.progress_reporter = progressReporter.get();
             loaderOptions.reporter = config()->m_System.show_import_issues
                                                 ? static_cast<REPORTER*>( &loadReporter )
                                                 : static_cast<REPORTER*>( &NULL_REPORTER::GetInstance() );
@@ -727,6 +763,9 @@ bool PCB_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
                         aPlugin.SetQueryUserCallback(
                                 [&]( wxString aTitle, int aIcon, wxString aMessage, wxString aAction ) -> bool
                                 {
+                                    if( nonInteractive )
+                                        return false;
+
                                     KIDIALOG dlg( nullptr, aMessage, aTitle, wxOK | wxCANCEL | aIcon );
 
                                     if( !aAction.IsEmpty() )
@@ -762,8 +801,10 @@ bool PCB_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
         catch( const FUTURE_FORMAT_ERROR& ffe )
         {
             msg.Printf( _( "Error loading PCB '%s'." ), fullFileName );
-            progressReporter.Hide();
-            DisplayErrorMessage( this, msg, ffe.Problem() );
+            if( progressReporter )
+                progressReporter->Hide();
+            if( !nonInteractive )
+                DisplayErrorMessage( this, msg, ffe.Problem() );
 
             failedLoad = true;
         }
@@ -775,16 +816,20 @@ bool PCB_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
         catch( const IO_ERROR& ioe )
         {
             msg.Printf( _( "Error loading PCB '%s'." ), fullFileName );
-            progressReporter.Hide();
-            DisplayErrorMessage( this, msg, ioe.What() );
+            if( progressReporter )
+                progressReporter->Hide();
+            if( !nonInteractive )
+                DisplayErrorMessage( this, msg, ioe.What() );
 
             failedLoad = true;
         }
         catch( const std::bad_alloc& )
         {
             msg.Printf( _( "Memory exhausted loading PCB '%s'" ), fullFileName );
-            progressReporter.Hide();
-            DisplayErrorMessage( this, msg, wxEmptyString );
+            if( progressReporter )
+                progressReporter->Hide();
+            if( !nonInteractive )
+                DisplayErrorMessage( this, msg, wxEmptyString );
 
             failedLoad = true;
         }
@@ -813,12 +858,15 @@ bool PCB_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
         Raise();
 
         // Skip (possibly expensive) connectivity build here; we build it below after load
-        progressReporter.AddPhases( 1 );
-        progressReporter.AdvancePhase( _( "Finalizing board" ) );
-        progressReporter.KeepRefreshing();
+        if( progressReporter )
+            progressReporter->AddPhases( 1 );
+        if( progressReporter )
+            progressReporter->AdvancePhase( _( "Finalizing board" ) );
+        if( progressReporter )
+            progressReporter->KeepRefreshing();
 
         PROF_TIMER postLoadTimer;
-        SetBoard( loadedBoard, false, &progressReporter );
+        SetBoard( loadedBoard, false, progressReporter.get() );
         wxLogTrace( traceAllegroPerf, wxT( "Post-load SetBoard: %.3f ms" ),
                     postLoadTimer.msecs( true ) );
 
@@ -834,7 +882,7 @@ bool PCB_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
                 // Do not show the inferred edge clearance warning dialog when loading third
                 // party boards.  For some reason the dialog completely hangs all of KiCad and
                 // the imported board cannot be saved.
-                int edgeClearance = inferLegacyEdgeClearance( loadedBoard, !converted );
+                int edgeClearance = inferLegacyEdgeClearance( loadedBoard, !converted && !nonInteractive );
                 loadedBoard->GetDesignSettings().m_CopperEdgeClearance = edgeClearance;
             }
 
@@ -868,19 +916,22 @@ bool PCB_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
         wxLogTrace( traceAllegroPerf, wxT( "Post-load BuildListOfNets: %.3f ms" ),
                     postLoadTimer.msecs( true ) );
 
-        progressReporter.KeepRefreshing();
+        if( progressReporter )
+            progressReporter->KeepRefreshing();
 
         m_toolManager->RunAction( PCB_ACTIONS::repairBoard, true);
         wxLogTrace( traceAllegroPerf, wxT( "Post-load repairBoard: %.3f ms" ),
                     postLoadTimer.msecs( true ) );
 
-        progressReporter.KeepRefreshing();
+        if( progressReporter )
+            progressReporter->KeepRefreshing();
 
         m_toolManager->RunAction( PCB_ACTIONS::rehatchShapes );
         wxLogTrace( traceAllegroPerf, wxT( "Post-load rehatchShapes: %.3f ms" ),
                     postLoadTimer.msecs( true ) );
 
-        progressReporter.KeepRefreshing();
+        if( progressReporter )
+            progressReporter->KeepRefreshing();
 
         if( loadedBoard->IsModified() )
             OnModify();
@@ -939,7 +990,7 @@ bool PCB_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
 
     // Rebuild list of nets (full ratsnest rebuild)
     PROF_TIMER connectivityTimer;
-    GetBoard()->BuildConnectivity( &progressReporter );
+    GetBoard()->BuildConnectivity( progressReporter.get() );
     wxLogTrace( traceAllegroPerf, wxT( "Post-load BuildConnectivity: %.3f ms" ),
                 connectivityTimer.msecs( true ) );
 
