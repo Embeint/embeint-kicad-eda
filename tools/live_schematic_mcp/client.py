@@ -171,8 +171,9 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
             request.header.client_name = self.client_name
             request.header.kicad_token = self.token
             request.message.Pack(command)
+            # NNG_DURATION_INFINITE disables both timer and disconnect-triggered resends.
             with pynng.Req0(send_timeout=self.timeout_ms, recv_timeout=self.timeout_ms,
-                            resend_time=self.timeout_ms * 2) as conn:
+                            resend_time=-1) as conn:
                 conn.dial(self.socket_url, block=False)
                 conn.send(request.SerializeToString())
                 raw = conn.recv()

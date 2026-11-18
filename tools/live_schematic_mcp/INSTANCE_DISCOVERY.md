@@ -58,8 +58,10 @@ directory requires explicit selection. If no candidates exist, the existing
 
 The first selected endpoint stays pinned for that client. Existing instance-token
 handling guards subsequent requests after an initial successful reply. The client
-does not switch endpoints or retry a mutation after failure. Its NNG request resend
-interval exceeds the receive timeout, including for custom timeouts. Restart the
+does not switch endpoints or retry a mutation after failure. NNG request resends
+are disabled with `NNG_DURATION_INFINITE` (`resend_time=-1`), including on disconnect.
+See the [NNG request protocol implementation](https://github.com/nanomsg/nng/blob/v1.8.0/src/sp/protocol/reqrep0/req.c#L221-L246).
+Restart the
 MCP with an explicit endpoint to change instances. Non-Linux automatic discovery is
 not enabled by this slice; the prior default path behavior is retained there.
 
@@ -104,7 +106,8 @@ opt-in reports claim a negotiated capability set or mutation support.
 ## Validation boundaries
 
 `test_instance_discovery.py` covers deterministic discovery, explicit overrides,
-stale/non-socket entries, ambiguity, deferred selection and no mutation retries.
+stale/non-socket entries, ambiguity, deferred selection and no mutation retries,
+including a peer that disconnects and rebinds the same endpoint after receiving a request.
 `test_diagnostics.py` uses disposable local NNG peers with generated protobuf
 envelopes to model two projects, stale endpoints, version/command differences,
 token pinning, malformed responses and runtime failures. It also exercises the
