@@ -19,10 +19,10 @@ def socket_file(path):
 
 
 @pytest.fixture(autouse=True)
-def isolated_environment(monkeypatch, tmp_path):
+def isolated_environment(monkeypatch, socket_tmp_path):
     monkeypatch.delenv("KICAD_API_SOCKET", raising=False)
     monkeypatch.delenv("KICAD_API_TOKEN", raising=False)
-    root = tmp_path / "kicad"
+    root = socket_tmp_path / "kicad"
     root.mkdir()
     monkeypatch.setattr(discovery, "default_socket_url", lambda: "ipc://" + str(root / "api.sock"))
     return root
