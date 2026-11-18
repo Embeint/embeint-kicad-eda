@@ -131,7 +131,8 @@ def test_new_version_does_not_imply_missing_command_support(isolated, status):
         report = diagnose.diagnose(probe=True)
     commands = report["discovery"]["candidates"][0]["probe"]["commands"]
     assert commands[0]["response"]["version"]["major"] == 99
-    assert all(command["support"] == "unsupported" for command in commands[1:])
+    expected = "editor_not_open_or_unsupported" if status == envelope.AS_UNHANDLED else "unsupported"
+    assert all(command["support"] == expected for command in commands[1:])
     assert "DO NOT PRINT" not in json.dumps(report)
     assert "private-token" not in json.dumps(report)
 

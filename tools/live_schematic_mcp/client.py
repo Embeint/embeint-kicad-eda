@@ -152,11 +152,12 @@ SPIN_FOR = {(-1, 0): sch.SLSS_LEFT, (1, 0): sch.SLSS_RIGHT, (0, 1): sch.SLSS_BOT
 class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
     def __init__(self, socket_url=None, timeout_ms=15000):
         self.socket_url = socket_url or os.environ.get("KICAD_API_SOCKET")
-        self._socket_selected = bool(self.socket_url) or sys.platform != "linux"
+        explicit_socket = bool(self.socket_url)
+        self._socket_selected = explicit_socket or sys.platform != "linux"
         if not self.socket_url:
             self.socket_url = default_socket_url()
         local_socket_path(self.socket_url)
-        self.token = os.environ.get("KICAD_API_TOKEN", "")
+        self.token = os.environ.get("KICAD_API_TOKEN", "") if explicit_socket else ""
         self.client_name = "kicad.live-schematic-mcp-" + str(uuid.uuid4())
         self.timeout_ms = timeout_ms
         self.lock = threading.RLock()
@@ -165,7 +166,7 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
         """Never retry mutations: a timeout may follow a successfully applied edit."""
         with self.lock:
             if not self._socket_selected:
-                self.socket_url = select_socket()
+                self.socket_url = select_socket(check_liveness=True)
                 self._socket_selected = True
             request = envelope.ApiRequest()
             request.header.client_name = self.client_name
@@ -174,7 +175,15 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
             # NNG_DURATION_INFINITE disables both timer and disconnect-triggered resends.
             with pynng.Req0(send_timeout=self.timeout_ms, recv_timeout=self.timeout_ms,
                             resend_time=-1) as conn:
-                conn.dial(self.socket_url, block=False)
+                # A dead pinned endpoint should fail before send, not wait for a
+                # reconnect timeout. Never switch instances or clear their token.
+                try:
+                    conn.dial(self.socket_url, block=True)
+                except pynng.NNGException as error:
+                    error.add_note("Selected KiCad instance is unavailable; no command was sent. "
+                                   "Run diagnose.py --probe and restart MCP with the intended "
+                                   "KICAD_API_SOCKET. Instance selection remains pinned.")
+                    raise
                 conn.send(request.SerializeToString())
                 raw = conn.recv()
             reply = envelope.ApiResponse.FromString(raw)

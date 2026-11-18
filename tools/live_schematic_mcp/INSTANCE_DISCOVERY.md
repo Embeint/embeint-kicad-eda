@@ -45,13 +45,19 @@ other directories, inspect process command lines, read logs or open designs.
 Custom C++ socket overrides require explicit selection.
 
 An explicit constructor socket or `KICAD_API_SOCKET` always takes precedence and
-bypasses discovery. URLs must be absolute local `ipc:///path` filesystem endpoints;
+bypasses discovery. `KICAD_API_TOKEN` is used only with such an explicit endpoint;
+automatic selection obtains and pins the responding instance's token. URLs must be
+absolute local `ipc:///path` filesystem endpoints;
 TCP, WebSocket, relative and query-bearing URLs are rejected without echoing them.
 
 Without explicit selection, the Linux adapter waits until the first editor request
 to inspect the socket directory. A single socket candidate (standard or PID name)
-can be selected. Multiple socket candidates are ambiguous, **even if one may be
-stale**, and no editor request is sent. Regular files and symlink entries are not
+can be selected. Multiple candidates are reported as ambiguous by offline inventory.
+Immediately before the first editor request, automatic selection checks local stream
+connections without sending any NNG or application request bytes. Refused listeners
+and paths that disappeared are excluded; timeouts, permission errors and unknown
+conditions remain candidates. Multiple remaining candidates require explicit selection.
+Stale socket files are preserved. Regular files and symlink entries are not
 automatic socket candidates; unreadable entries prevent selection. A symlink socket
 directory requires explicit selection. If no candidates exist, the existing
 `api.sock` default remains in effect and a later request can time out normally.
@@ -61,8 +67,12 @@ handling guards subsequent requests after an initial successful reply. The clien
 does not switch endpoints or retry a mutation after failure. NNG request resends
 are disabled with `NNG_DURATION_INFINITE` (`resend_time=-1`), including on disconnect.
 See the [NNG request protocol implementation](https://github.com/nanomsg/nng/blob/v1.8.0/src/sp/protocol/reqrep0/req.c#L221-L246).
-Restart the
-MCP with an explicit endpoint to change instances. Non-Linux automatic discovery is
+Connection establishment is synchronous, so a dead pinned endpoint fails before
+sending rather than waiting through the request timeout. Its error includes recovery
+instructions. A restarted application can have a different token or project; the
+client deliberately does not silently switch endpoints, clear identity or replay
+an operation. Restart MCP with an explicit endpoint after identifying the intended
+project. Non-Linux automatic discovery is
 not enabled by this slice; the prior default path behavior is retained there.
 
 ## Opt-in read-only probes
@@ -83,7 +93,8 @@ may have no document handler; this is not proof that a project is absent. Versio
 informational: even an old version's successful read is recorded, and a new version
 with missing handlers is reported as unsupported for those requests.
 
-`AS_UNHANDLED` and `AS_UNIMPLEMENTED` mean unsupported for the attempted request.
+`AS_UNHANDLED` means the editor may be closed or the request unsupported; diagnostics
+report `editor_not_open_or_unsupported`. Only `AS_UNIMPLEMENTED` is labelled unsupported.
 Busy/not-ready/token errors remain unverified. Malformed envelopes and wrong reply
 types report incompatible responses. An unresponsive socket is **possibly** stale,
 busy or inaccessible; timeouts do not prove staleness. Inspect the intended instance,

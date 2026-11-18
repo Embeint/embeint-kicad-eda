@@ -126,8 +126,8 @@ def _probe_instance(url, timeout_ms, token, secrets):
             break
         entry["status"] = envelope.ApiStatusCode.Name(status)
         if status != envelope.AS_OK:
-            entry["support"] = ("unsupported" if status in (envelope.AS_UNHANDLED,
-                                 envelope.AS_UNIMPLEMENTED) else "unverified")
+            entry["support"] = ("editor_not_open_or_unsupported" if status == envelope.AS_UNHANDLED
+                                else "unsupported" if status == envelope.AS_UNIMPLEMENTED else "unverified")
             entry["action"] = "Check the Embeint build and open editor; version alone cannot establish support."
             if status not in (envelope.AS_UNHANDLED, envelope.AS_UNIMPLEMENTED):
                 break

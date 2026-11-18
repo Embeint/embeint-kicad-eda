@@ -7,9 +7,11 @@ contents or application data are modified here.
 """
 
 import os
+import errno
 from pathlib import Path
 import re
 import stat
+import socket
 import tempfile
 
 
@@ -87,8 +89,35 @@ def discover_instances(socket_url=None, *, directory=None):
     return {"selection": selection, "selected_socket": selected, "candidates": candidates}
 
 
-def select_socket(socket_url=None, *, directory=None):
+def socket_reachability(url):
+    """Check a local listener without sending NNG or application request bytes.
+
+    Only refusal or a vanished path proves the candidate cannot receive a request.
+    Permission failures, timeouts and other errors remain ambiguous.
+    """
+    path = local_socket_path(url)
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as peer:
+            peer.settimeout(0.1)
+            peer.connect(str(path))
+        return "connectable"
+    except OSError as error:
+        if error.errno in (errno.ECONNREFUSED, errno.ENOENT):
+            return "not_listening"
+        return "unknown"
+
+
+def select_socket(socket_url=None, *, directory=None, check_liveness=False):
     inventory = discover_instances(socket_url, directory=directory)
+    # Online selection happens only immediately before an editor request. Offline
+    # inventory and explicit selection never connect or clean up socket files.
+    if check_liveness and inventory["selection"] not in {"explicit", "unavailable"}:
+        sockets = [entry["socket_url"] for entry in inventory["candidates"]
+                   if entry["kind"] == "socket"]
+        usable = [url for url in sockets if socket_reachability(url) != "not_listening"]
+        if sockets:
+            inventory["selected_socket"] = usable[0] if len(usable) == 1 else None
+            inventory["selection"] = "ambiguous" if len(usable) > 1 else "unavailable"
     if inventory["selected_socket"] is None:
         raise DiscoveryError(inventory["selection"],
                              "KiCad socket selection is " + inventory["selection"] + ". "

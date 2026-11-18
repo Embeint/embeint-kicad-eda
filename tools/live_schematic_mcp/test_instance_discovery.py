@@ -100,6 +100,7 @@ def test_client_selects_lazily_and_never_sends_an_ambiguous_mutation(monkeypatch
     def reject_connection(**_kwargs):
         raise AssertionError("no connection should be opened")
     monkeypatch.setattr(client.pynng, "Req0", reject_connection)
+    monkeypatch.setattr(discovery, "socket_reachability", lambda _url: "connectable")
     with socket_file(isolated_environment / "api.sock"), socket_file(isolated_environment / "api-2.sock"):
         live = client.LiveSchematic()  # Constructor/MCP startup remains offline.
         with pytest.raises(discovery.DiscoveryError, match="ambiguous"):
@@ -109,7 +110,8 @@ def test_client_selects_lazily_and_never_sends_an_ambiguous_mutation(monkeypatch
 def test_client_pins_selection_and_does_not_retry_timeout(monkeypatch):
     monkeypatch.setattr(client.sys, "platform", "linux")
     selected, sent, dialed, options = [], [], [], []
-    def select():
+    def select(**kwargs):
+        assert kwargs == {"check_liveness": True}
         selected.append(True)
         return "ipc:///chosen-once.sock"
     class Connection:
@@ -119,7 +121,8 @@ def test_client_pins_selection_and_does_not_retry_timeout(monkeypatch):
             return self
         def __exit__(self, *_args):
             pass
-        def dial(self, url, **_kwargs):
+        def dial(self, url, **kwargs):
+            assert kwargs == {"block": True}
             dialed.append(url)
         def send(self, raw):
             sent.append(raw)
@@ -136,12 +139,65 @@ def test_client_pins_selection_and_does_not_retry_timeout(monkeypatch):
     assert options[0]["resend_time"] == -1
 
 
+def test_online_selection_ignores_refused_listener_without_removing_it(isolated_environment):
+    root = isolated_environment
+    stale = root / "api-999.sock"
+    with socket_file(stale):
+        pass
+    with socket.socket(socket.AF_UNIX) as listener:
+        listener.bind(str(root / "api.sock"))
+        listener.listen()
+        # Filesystem-only inspection remains offline and conservative.
+        assert discovery.discover_instances()["selection"] == "ambiguous"
+        assert discovery.select_socket(check_liveness=True) == "ipc://" + str(root / "api.sock")
+        connection, _ = listener.accept()
+        with connection:
+            assert connection.recv(1) == b""  # No NNG or application request bytes.
+    assert stale.exists()
+
+
+def test_uncertain_listener_never_resolves_ambiguity(monkeypatch, isolated_environment):
+    root = isolated_environment
+    with socket_file(root / "api.sock"), socket_file(root / "api-2.sock"):
+        monkeypatch.setattr(discovery, "socket_reachability", lambda _url: "unknown")
+        with pytest.raises(discovery.DiscoveryError, match="ambiguous"):
+            discovery.select_socket(check_liveness=True)
+
+
+def test_unreadable_candidate_prevents_online_selection(monkeypatch, isolated_environment):
+    root = isolated_environment
+    with socket_file(root / "api.sock"), socket_file(root / "api-2.sock"):
+        original = discovery.socket_entry
+        def entry(url):
+            return {"socket_url": url, "kind": "unavailable"} if url.endswith('api-2.sock') else original(url)
+        monkeypatch.setattr(discovery, "socket_entry", entry)
+        monkeypatch.setattr(discovery, "socket_reachability", lambda _url: pytest.fail("must remain uncertain"))
+        with pytest.raises(discovery.DiscoveryError, match="unavailable"):
+            discovery.select_socket(check_liveness=True)
+
+
+def test_dead_pinned_socket_fails_before_send_without_switching(isolated_environment):
+    from google.protobuf import empty_pb2
+    url = "ipc://" + str(isolated_environment / "api.sock")
+    live = client.LiveSchematic(url, timeout_ms=15000)
+    with pytest.raises(client.pynng.NNGException) as caught:
+        live.send(client.project.SaveDocument(), empty_pb2.Empty)
+    assert live.socket_url == url
+    assert any("no command was sent" in note for note in caught.value.__notes__)
+
+
 def test_explicit_client_never_discovers(monkeypatch):
     def reject():
         raise AssertionError("explicit selection must not scan")
     monkeypatch.setattr(client, "select_socket", reject)
     live = client.LiveSchematic("ipc:///explicit.sock")
     assert live._socket_selected
+
+
+def test_environment_token_is_bound_only_to_an_explicit_endpoint(monkeypatch):
+    monkeypatch.setenv("KICAD_API_TOKEN", "configured-instance-token")
+    assert client.LiveSchematic().token == ""
+    assert client.LiveSchematic("ipc:///explicit.sock").token == "configured-instance-token"
 
 
 def test_mutation_is_not_replayed_when_peer_disconnects_and_rebinds(isolated_environment):
