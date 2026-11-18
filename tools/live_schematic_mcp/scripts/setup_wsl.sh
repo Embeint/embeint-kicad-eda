@@ -13,11 +13,12 @@
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
-PACKAGES=(build-essential cmake ninja-build gettext swig python3-dev python3-venv libwxgtk3.2-dev
+PACKAGES=(build-essential cmake ninja-build glslang-tools spirv-tools gettext swig python3-dev
+          python3-venv libwxgtk3.2-dev
           libwxgtk-webview3.2-dev libglm-dev libglew-dev libcairo2-dev libboost-all-dev unixodbc-dev
           libharfbuzz-dev libfontconfig-dev libwayland-dev libgtk-3-dev libssl-dev libpixman-1-dev
           libxml2-dev libsqlite3-dev libeigen3-dev libgit2-dev libsecret-1-dev libzstd-dev
-          protobuf-compiler libprotobuf-dev libabsl-dev libcurl4-openssl-dev libspnav-dev
+          protobuf-compiler libprotobuf-dev libabsl-dev libnng-dev libcurl4-openssl-dev libspnav-dev
           libngspice0-dev libocct-data-exchange-dev libocct-visualization-dev rsync)
 
 missing=()
