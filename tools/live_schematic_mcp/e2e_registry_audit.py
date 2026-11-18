@@ -50,7 +50,7 @@ def main():
     assert batch["steps"][0]["result"] == result
 
     for bad in ({}, {"type": "DOCTYPE_SCHEMATIC"},
-                {**as_dict(target), "board_filename": "p12-not-open.kicad_pcb"}):
+                {**as_dict(target), "board_filename": "p12-not-open-" + target.board_filename}):
         try:
             client.execute("GetEmbeddedFiles", {"board": bad})
         except RuntimeError as error:

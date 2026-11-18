@@ -203,3 +203,41 @@ def test_live_audit_refuses_customer_board_without_opening_another_editor(monkey
     monkeypatch.setattr(e2e_registry_audit, "LiveSchematic", CustomerSession)
     with pytest.raises(SystemExit, match="REFUSED"):
         e2e_registry_audit.main()
+
+
+def test_live_audit_handles_fixture_named_like_old_negative_target(monkeypatch, tmp_path, capsys):
+    import e2e_registry_audit
+    monkeypatch.setenv("KICAD_P12_ISOLATED", "1")
+    monkeypatch.setenv("KICAD_API_SOCKET", "ipc:///unused-isolated-test-socket")
+    monkeypatch.setenv("KICAD_LIVE_TEST_PROJECT", "live-demo")
+    monkeypatch.delenv("KICAD_P12_EXPECT_FILE", raising=False)
+    target = board_doc()
+    target.project.name = "live-demo"
+    target.project.path = str(tmp_path)
+    target.board_filename = "p12-not-open.kicad_pcb"
+    board_file = tmp_path / target.board_filename
+    board_file.write_bytes(b"synthetic disposable fixture")
+    rejected_filenames = []
+
+    def reply(request, response_type):
+        if request.DESCRIPTOR.name == "GetEmbeddedFiles":
+            if request.board.type != types.DOCTYPE_PCB:
+                raise RuntimeError("AS_UNHANDLED: wrong type")
+            if request.board.board_filename != target.board_filename:
+                rejected_filenames.append(request.board.board_filename)
+                raise RuntimeError("AS_BAD_REQUEST: board is not open")
+            return embedded.EmbeddedFiles()
+        if isinstance(request, editor.SaveDocumentToString):
+            return editor.SavedDocumentResponse(document=target, contents="synthetic live board")
+        return response_type()
+
+    class FixtureClient(FakeClient):
+        def boards(self):
+            return [as_dict(target)]
+
+    client = FixtureClient(reply)
+    monkeypatch.setattr(e2e_registry_audit, "LiveSchematic", lambda: client)
+    e2e_registry_audit.main()
+    assert len(rejected_filenames) == 1
+    assert "ok: embedded read" in capsys.readouterr().out
+    assert board_file.read_bytes() == b"synthetic disposable fixture"
