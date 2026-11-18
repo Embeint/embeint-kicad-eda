@@ -186,7 +186,14 @@ def test_context_override_cannot_promote_a_stub_to_supported(audited):
         validate(audited, data=data)
 
 
-def test_matrix_derives_separately_reviewed_adapter_additions_without_promoting_decisions(audited, monkeypatch):
+def test_new_adapter_for_deferred_operation_requires_explicit_exposure_reason(audited):
+    request = "kiapi.common.commands.OpenLibraryItem"
+    commands = {**COMMANDS, request: ("google.protobuf.Empty", "view")}
+    with pytest.raises(coverage.CoverageError, match="Unexplained generic adapter exposure"):
+        validate(audited, commands=commands)
+
+
+def test_matrix_derives_adapter_additions_only_with_explicit_exposure_reason(audited, monkeypatch):
     def reject_network(*_args, **_kwargs):
         raise AssertionError("Matrix must remain offline")
 
@@ -194,7 +201,11 @@ def test_matrix_derives_separately_reviewed_adapter_additions_without_promoting_
     monkeypatch.setattr(coverage, "audit_native", lambda *_args: (audited[1], audited[2]))
     request = "kiapi.common.commands.OpenLibraryItem"
     commands = {**COMMANDS, request: ("google.protobuf.Empty", "view")}
-    matrix = coverage.build_matrix(commands=commands)
+    data = deepcopy(audited[3])
+    for key, entry in data["operations"].items():
+        if key.endswith('/' + request):
+            entry["adapter_exposure"] = "Synthetic adapter review; desktop inclusion is still deferred."
+    matrix = coverage.build_matrix(data=data, commands=commands)
     rows = [r for r in matrix["operations"] if r["request"] == request]
     assert {row["surface"] for row in rows} == {"symbol", "footprint"}
     assert all(row["decision"] == "deferred" for row in rows)
@@ -202,7 +213,7 @@ def test_matrix_derives_separately_reviewed_adapter_additions_without_promoting_
     assert matrix["editor_connection_attempted"] is False
     assert matrix["live_support_verified"] is False
     assert all(row["live_support_verified"] is False for row in matrix["operations"])
-    assert coverage.build_matrix(commands=commands) == matrix
+    assert coverage.build_matrix(data=data, commands=commands) == matrix
     assert json.loads(json.dumps(matrix)) == matrix
     rendered = coverage.markdown_matrix(matrix)
     assert "No generic adapter" in rendered

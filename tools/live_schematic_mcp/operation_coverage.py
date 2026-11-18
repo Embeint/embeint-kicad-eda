@@ -242,11 +242,19 @@ def validate_decisions(native, parents, data, commands, tools):
                     if path.parent == HERE and path.is_file() else set())
             if not separator or name not in evidence_functions[filename]:
                 errors.append(f"Stale offline evidence {reference}: {key}")
-        # A separately reviewed adapter addition is reflected automatically. It does not
-        # promote a deferred native decision or confer undo/live qualification.
         if registration.request in commands:
             if commands[registration.request][0] != registration.response:
                 errors.append(f"Adapter response differs from native response: {key}")
+            for surface, definition in data["surfaces"].items():
+                owners = {owner for handler in definition["handlers"]
+                          for owner in lineage(handler, parents)}
+                if registration.owner not in owners:
+                    continue
+                contextual = {**entry, **entry.get("surface_overrides", {}).get(surface, {})}
+                reason = contextual.get("adapter_exposure", "")
+                if contextual["decision"] != "supported" and not (
+                        isinstance(reason, str) and reason.strip()):
+                    errors.append(f"Unexplained generic adapter exposure for {surface}: {key}")
     if errors:
         raise CoverageError("\n".join(errors))
 
@@ -325,7 +333,9 @@ def markdown_matrix(matrix):
                        f"{row['decision']} / {row['implementation']}", mapping,
                        f"{row['document']} / {row['registration_condition']}",
                        row["disk_effects"], row["undo"],
-                       row["notes"] + "; offline tests: " + (", ".join(row["offline_tests"]) or "none recorded")]
+                       row["notes"] + ("; adapter exposure: " + row["adapter_exposure"]
+                                       if row.get("adapter_exposure") else "")
+                       + "; offline tests: " + (", ".join(row["offline_tests"]) or "none recorded")]
             lines.append("| " + " | ".join(cell(column) for column in columns) + " |")
         lines.append("")
     return "\n".join(lines)

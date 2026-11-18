@@ -168,7 +168,8 @@
       "undo": "unknown",
       "typed_tools": [],
       "offline_tests": [],
-      "notes": "Requires GUI/tool interaction or invokes an arbitrary action. Generic presence does not make this a deterministic headless operation."
+      "notes": "Requires GUI/tool interaction or invokes an arbitrary action. Generic presence does not make this a deterministic headless operation.",
+      "adapter_exposure": "Legacy generic GUI move retained for compatibility; this requires interactive completion and is excluded from batches."
     },
     "API_HANDLER_BOARD/kiapi.board.commands.SetActiveLayer": {
       "decision": "supported",
@@ -327,7 +328,8 @@
       "undo": "unknown",
       "typed_tools": [],
       "offline_tests": [],
-      "notes": "Requires GUI/tool interaction or invokes an arbitrary action. Generic presence does not make this a deterministic headless operation."
+      "notes": "Requires GUI/tool interaction or invokes an arbitrary action. Generic presence does not make this a deterministic headless operation.",
+      "adapter_exposure": "Legacy generic action dispatcher retained for compatibility; arbitrary GUI actions have no unattended or transactional contract."
     },
     "API_HANDLER_BOARD/kiapi.common.commands.SaveDocumentToString": {
       "decision": "supported",
@@ -686,12 +688,14 @@
         "symbol": {
           "decision": "deferred",
           "implementation": "conditional",
-          "notes": "Inherited registration exists, but default title-block/page-layout hook rejects this editor. No supported document implementation."
+          "notes": "Inherited registration exists, but default title-block/page-layout hook rejects this editor. No supported document implementation.",
+          "adapter_exposure": "Shared generic mapping retained for schematic/PCB contexts; this library-editor virtual hook rejects the request."
         },
         "footprint": {
           "decision": "deferred",
           "implementation": "conditional",
-          "notes": "Inherited registration exists, but default title-block/page-layout hook rejects this editor. No supported document implementation."
+          "notes": "Inherited registration exists, but default title-block/page-layout hook rejects this editor. No supported document implementation.",
+          "adapter_exposure": "Shared generic mapping retained for schematic/PCB contexts; this library-editor virtual hook rejects the request."
         }
       }
     },
@@ -714,12 +718,14 @@
         "symbol": {
           "decision": "deferred",
           "implementation": "conditional",
-          "notes": "Inherited registration exists, but default title-block/page-layout hook rejects this editor. No supported document implementation."
+          "notes": "Inherited registration exists, but default title-block/page-layout hook rejects this editor. No supported document implementation.",
+          "adapter_exposure": "Shared generic mapping retained for schematic/PCB contexts; this library-editor virtual hook rejects the request."
         },
         "footprint": {
           "decision": "deferred",
           "implementation": "conditional",
-          "notes": "Inherited registration exists, but default title-block/page-layout hook rejects this editor. No supported document implementation."
+          "notes": "Inherited registration exists, but default title-block/page-layout hook rejects this editor. No supported document implementation.",
+          "adapter_exposure": "Shared generic mapping retained for schematic/PCB contexts; this library-editor virtual hook rejects the request."
         }
       }
     },
@@ -782,12 +788,14 @@
         "symbol": {
           "decision": "deferred",
           "implementation": "conditional",
-          "notes": "Inherited registration exists, but default title-block/page-layout hook rejects this editor. No supported document implementation."
+          "notes": "Inherited registration exists, but default title-block/page-layout hook rejects this editor. No supported document implementation.",
+          "adapter_exposure": "Shared generic mapping retained for schematic/PCB contexts; this library-editor virtual hook rejects the request."
         },
         "footprint": {
           "decision": "deferred",
           "implementation": "conditional",
-          "notes": "Inherited registration exists, but default title-block/page-layout hook rejects this editor. No supported document implementation."
+          "notes": "Inherited registration exists, but default title-block/page-layout hook rejects this editor. No supported document implementation.",
+          "adapter_exposure": "Shared generic mapping retained for schematic/PCB contexts; this library-editor virtual hook rejects the request."
         }
       }
     },
@@ -960,7 +968,8 @@
       "undo": "none",
       "typed_tools": [],
       "offline_tests": [],
-      "notes": "Registered and generic adapter available, but destructive unsaved-state replacement is deferred from qualified support."
+      "notes": "Registered and generic adapter available, but destructive unsaved-state replacement is deferred from qualified support.",
+      "adapter_exposure": "Legacy generic file operation retained for compatibility; it discards unsaved state and is outside the qualified desktop workflow."
     },
     "API_HANDLER_FOOTPRINT/kiapi.common.commands.SaveCopyOfDocument": {
       "decision": "supported",
@@ -1228,15 +1237,15 @@
       "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
     },
     "API_HANDLER_PCB/kiapi.board.commands.GetEmbeddedFiles": {
-      "decision": "deferred",
+      "decision": "supported",
       "implementation": "implemented",
-      "document": "board: matching document/project identity for this surface.",
+      "document": "DOCTYPE_PCB with the open board basename. Native code does not validate project name/path; explicitly select the intended instance.",
       "registration_condition": "Unconditional in owning constructor.",
-      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "disk_effects": "Standalone stored-payload read: no save, extraction, commit or model mutation.",
       "undo": "not_applicable",
       "typed_tools": [],
       "offline_tests": [],
-      "notes": "Native PCB embedded-file path exists; adapter inclusion and validation are a separate review. No live qualification."
+      "notes": "Audited native serialization path selected for standalone adapter inclusion (PR #2). Generic mapping appears when that independent registry change is present. Batch inclusion is deferred after an older upstream build dirtied an empty commit. No matching-fork live qualification."
     },
     "API_HANDLER_PCB/kiapi.board.commands.GetItemsByNet": {
       "decision": "supported",
@@ -1880,7 +1889,8 @@
       "undo": "none",
       "typed_tools": [],
       "offline_tests": [],
-      "notes": "Registered and generic adapter available, but destructive unsaved-state replacement is deferred from qualified support."
+      "notes": "Registered and generic adapter available, but destructive unsaved-state replacement is deferred from qualified support.",
+      "adapter_exposure": "Legacy generic file operation retained for compatibility; it discards unsaved state and is outside the qualified desktop workflow."
     },
     "API_HANDLER_PCB/kiapi.common.commands.SaveCopyOfDocument": {
       "decision": "supported",
@@ -1915,7 +1925,8 @@
       "undo": "none",
       "typed_tools": [],
       "offline_tests": [],
-      "notes": "Returns AS_UNIMPLEMENTED when a GUI frame is present; implemented for headless context only. Generic presence does not establish desktop support."
+      "notes": "Returns AS_UNIMPLEMENTED when a GUI frame is present; implemented for headless context only. Generic presence does not establish desktop support.",
+      "adapter_exposure": "Legacy generic mapping retained for other contexts; this GUI handler rejects the request. Presence does not promise support on this surface."
     },
     "API_HANDLER_PCB/kiapi.common.commands.SetCurrentVariant": {
       "decision": "supported",
@@ -2188,7 +2199,8 @@
       "undo": "none",
       "typed_tools": [],
       "offline_tests": [],
-      "notes": "Registered and generic adapter available, but destructive unsaved-state replacement is deferred from qualified support."
+      "notes": "Registered and generic adapter available, but destructive unsaved-state replacement is deferred from qualified support.",
+      "adapter_exposure": "Legacy generic file operation retained for compatibility; it discards unsaved state and is outside the qualified desktop workflow."
     },
     "API_HANDLER_SCH/kiapi.common.commands.SaveCopyOfDocument": {
       "decision": "supported",
@@ -2223,7 +2235,8 @@
       "undo": "none",
       "typed_tools": [],
       "offline_tests": [],
-      "notes": "Returns AS_UNIMPLEMENTED when Pgm().IsGUI(); implemented for headless context only. Generic presence does not establish desktop support."
+      "notes": "Returns AS_UNIMPLEMENTED when Pgm().IsGUI(); implemented for headless context only. Generic presence does not establish desktop support.",
+      "adapter_exposure": "Legacy generic mapping retained for other contexts; this GUI handler rejects the request. Presence does not promise support on this surface."
     },
     "API_HANDLER_SCH/kiapi.common.commands.SaveDocumentToString": {
       "decision": "supported",
@@ -2656,7 +2669,8 @@
       "undo": "none",
       "typed_tools": [],
       "offline_tests": [],
-      "notes": "Registered and generic adapter available, but destructive unsaved-state replacement is deferred from qualified support."
+      "notes": "Registered and generic adapter available, but destructive unsaved-state replacement is deferred from qualified support.",
+      "adapter_exposure": "Legacy generic file operation retained for compatibility; it discards unsaved state and is outside the qualified desktop workflow."
     },
     "API_HANDLER_SYMBOL/kiapi.common.commands.SaveCopyOfDocument": {
       "decision": "supported",
