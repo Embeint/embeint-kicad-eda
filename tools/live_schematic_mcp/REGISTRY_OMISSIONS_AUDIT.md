@@ -139,14 +139,28 @@ or missing explicit isolation. The full offline suite additionally exercises rea
 MCP stdio discovery and schema validation. None of these runs native C++.
 
 [`e2e_registry_audit.py`](e2e_registry_audit.py) is a manually invoked, guarded
-read-only check, pending an isolated native app. It never launches/replaces an app
+read-only check. It never launches/replaces an app
 or opens documents. Start a separate config/socket with a disposable board already
 open, then set `KICAD_P12_ISOLATED=1`, `KICAD_API_SOCKET`, and
 `KICAD_LIVE_TEST_PROJECT` before invoking it. `KICAD_P12_EXPECT_FILE` requires a
 known embedded fixture name; without populated files it reports that coverage as
-pending. It checks repeated/batched reads, missing/wrong type/filename failures,
+pending. It checks repeated reads, batch refusal, missing/wrong type/filename failures,
 unchanged live serialization/modified state, and unchanged board disk hash, and
 prints the native version. Run separately from the shared live runner; do not aim
 it at an existing user session. Application build revision and schema fingerprint
-must accompany eventual live results. No native build, live execution, undo,
-mutation save/reopen or cross-project identity qualification is claimed here.
+must accompany live results.
+
+On 2026-11-18 the final standalone contract passed against upstream Linux ARM64
+KiCad `10.99.0-unknown-4fe1ca2060~190~ubuntu24.04.1` in a network-disabled Ubuntu
+24.04 container under Xvfb. The adapter was combined validation revision
+`c6e511abf1863ec6dfa33939674aaaec61d54696` (including PRs #2, #3 and #4); its schema
+SHA-256 was `0dfe9020f6c9377221971c6a7194761d18ee05398165570fcd25eb4f22b2c8cd`.
+The disposable board copied `qa/data/pcbnew/api_kitchen_sink.kicad_pcb` and returned
+`icon_pcbnew_48.png`, 1672 stored bytes, with native hash
+`3BD716F21242DA650CEA9D846C9AE7F1`. Repeated reads, invalid-target rejection,
+pre-commit batch refusal, unchanged serialization and `DMS_UNMODIFIED`, and disk
+hash invariance passed. An actual MCP stdio session also read the native payload.
+
+These are upstream-binary results for this bounded read, not a native build of the
+fork. Matching-fork batch behavior, large payload collections, undo, mutation
+save/reopen and cross-project identity remain unqualified.
