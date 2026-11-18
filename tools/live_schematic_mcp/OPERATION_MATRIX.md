@@ -40,7 +40,7 @@ snapshot of the registry stale.
 | Decision | Meaning in this inventory |
 | --- | --- |
 | `supported` | Selected for the adapter-facing desktop scope, with a native implementation path. Source evidence is sufficient for this inclusion decision; it does **not** establish tested native/live behavior, undo correctness or release support. Consult the implementation and evidence columns. |
-| `deferred` | Explicitly excluded from the qualified desktop scope pending implementation, adapter review or a safe workflow contract. A generic mapping can still exist and is shown honestly. |
+| `deferred` | Explicitly excluded from the qualified desktop scope pending implementation, adapter review or a safe workflow contract. Any existing generic mapping requires an explicit `adapter_exposure` explanation for that context. |
 | `internal` | Client transaction ownership (`BeginCommit`/`EndCommit`) or debug/test use (`InjectDrcError`), rather than an ordinary user operation. |
 | `interactive` | Requires GUI interaction or invokes arbitrary actions; generic registry presence does not establish an unattended contract. |
 
@@ -100,8 +100,9 @@ Concrete source-derived limits captured in the decisions include:
   generic registry's `edit` kind. Library table edits also write immediately.
 - `RevertDocument` discards unsaved state. Opening library items/replacing editor
   content needs separate unsaved-state and prompt qualification. Native PCB
-  embedded-file operations are recorded as deferred, even if another reviewed
-  change later adds generic adapters.
+  embedded-file mutations remain deferred. The audited standalone PCB embedded-file
+  read is selected for inclusion; its independent adapter is supplied by PR #2.
+  Batch use remains deferred until matching-build qualification passes.
 - `RunAction` and `InteractiveMoveItems` are interactive. Debug DRC injection is
   internal. They are not silently counted as unattended supported commands.
 - Library-item rendering requires a GUI frame and writes/removes temporary image
@@ -133,8 +134,10 @@ synthetic tests, static code traces and actual native/live evidence.
 The check rejects missing/stale decisions, duplicate keys/registrations, missing
 handler implementations, unknown handler ancestry/surfaces, invalid decision
 fields, stale typed-tool/test references and native/adapter response mismatches.
-New generic registry entries are reflected without changing existing native
-decisions; they do not promote deferred operations or confer live support.
+A generic adapter for a non-supported contextual decision also fails unless that
+context has an explicit `adapter_exposure` reason. Legacy interactive, destructive
+and unsupported-context mappings have visible explanations; these are exceptions,
+not runtime safety enforcement or automatic promotion to supported status.
 
 This is a conservative source scanner, not a C++ compiler: unrecognized
 `registerHandler<...>` syntax and ambiguous protobuf name suffixes fail closed
