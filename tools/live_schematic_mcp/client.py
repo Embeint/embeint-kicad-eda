@@ -487,6 +487,11 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
         request = classes[kind]()
         if kind == "netlist":
             request.format = sch_jobs.SNF_KICAD_SEXPR
+        elif kind == "bom":
+            request.format.preset_name = "CSV"
+            request.fields.sort_field = "Reference"
+            for name in ("Reference", "Value", "Footprint", "Datasheet"):
+                request.fields.fields.add(name=name, label=name)
         request.job_settings.document.CopyFrom(doc)
         request.job_settings.output_path = str(output_path)
         response = self.send(request, jobs.RunJobResponse)
