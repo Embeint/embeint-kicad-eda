@@ -34,6 +34,8 @@
 #include <api/api_handler_common.h>
 #include <api/api_server.h>
 #include <kiway_player.h>
+#include <local_history.h>
+#include <lockfile.h>
 #include <project.h>
 #include <common.h>
 #include <env_vars.h>
@@ -98,9 +100,10 @@ static PGM_KICAD program;
 
 
 /**
- * Opens the project, or the open project's schematic or board, for an API OpenDocument request.
+ * Opens the active project's schematic or board for an API OpenDocument request.
  * The editors open in this process, so their API handlers serve the same socket.  A board or
- * schematic that does not exist yet is created, without asking.
+ * schematic that does not exist yet is created, without asking. Project switches and known
+ * interactive load conflicts are refused so an API request cannot close unsaved editors.
  */
 static HANDLER_RESULT<kiapi::common::commands::OpenDocumentResponse>
 openDocumentInManager( KICAD_MANAGER_FRAME* aFrame, const kiapi::common::commands::OpenDocument& aRequest )
@@ -118,6 +121,9 @@ openDocumentInManager( KICAD_MANAGER_FRAME* aFrame, const kiapi::common::command
     if( !aFrame )
         return fail( ApiStatusCode::AS_NOT_READY, wxS( "the project manager is not open" ) );
 
+    if( !aFrame->CanAcceptApiCommands() || aFrame->Kiway().GetBlockingDialog() )
+        return fail( ApiStatusCode::AS_BUSY, wxS( "the project manager is busy with a dialog" ) );
+
     const wxString path = wxString::FromUTF8( aRequest.path() );
     commands::OpenDocumentResponse response;
     types::DocumentSpecifier* document = response.mutable_document();
@@ -130,14 +136,22 @@ openDocumentInManager( KICAD_MANAGER_FRAME* aFrame, const kiapi::common::command
 
     if( aRequest.type() == types::DOCTYPE_PROJECT )
     {
-        wxFileName project( path );
+        // LoadProject closes the current editors and can display save, lock and recovery
+        // dialogs. Resolving those decisions belongs to the user, not the API client.
+        if( !aFrame->IsProjectActive() )
+        {
+            return fail( ApiStatusCode::AS_UNIMPLEMENTED,
+                         wxS( "open the project in the project manager before using the API" ) );
+        }
+
+        wxFileName project( path.IsEmpty() ? aFrame->Prj().GetProjectFullName() : path );
         project.MakeAbsolute();
 
-        if( !project.FileExists() )
-            return fail( ApiStatusCode::AS_BAD_REQUEST, wxString::Format( wxS( "'%s' does not exist" ), path ) );
-
-        if( !aFrame->LoadProject( project ) )
-            return fail( ApiStatusCode::AS_BAD_REQUEST, wxString::Format( wxS( "could not open '%s'" ), path ) );
+        if( !project.SameAs( wxFileName( aFrame->Prj().GetProjectFullName() ) ) )
+        {
+            return fail( ApiStatusCode::AS_UNIMPLEMENTED,
+                         wxS( "switch projects in the project manager before using the API" ) );
+        }
 
         document->set_type( types::DOCTYPE_PROJECT );
         setProject();
@@ -154,26 +168,53 @@ openDocumentInManager( KICAD_MANAGER_FRAME* aFrame, const kiapi::common::command
         return fail( ApiStatusCode::AS_BAD_REQUEST, wxS( "open a project first" ) );
 
     const bool pcb = aRequest.type() == types::DOCTYPE_PCB;
+    const wxString extension = pcb ? FILEEXT::KiCadPcbFileExtension : FILEEXT::KiCadSchematicFileExtension;
     wxFileName file( path.IsEmpty() ? ( pcb ? aFrame->PcbFileName() : aFrame->SchFileName() ) : path );
     file.MakeAbsolute( aFrame->Prj().GetProjectPath() );
 
     wxFileName project( aFrame->Prj().GetProjectFullName() );
+    project.SetExt( extension );
 
-    if( file.GetPath() != project.GetPath() || file.GetName() != project.GetName() )
+    if( !file.SameAs( project ) )
     {
         return fail( ApiStatusCode::AS_BAD_REQUEST,
                      wxString::Format( wxS( "'%s' is not the open project's %s; open its project first" ),
                                        file.GetFullPath(), pcb ? wxS( "board" ) : wxS( "schematic" ) ) );
     }
 
-    KIWAY_PLAYER* player = aFrame->Kiway().Player( pcb ? FRAME_PCB_EDITOR : FRAME_SCH, true );
+    const FRAME_T frameType = pcb ? FRAME_PCB_EDITOR : FRAME_SCH;
+    KIWAY_PLAYER* player = aFrame->Kiway().Player( frameType, false );
 
-    if( !player )
-        return fail( ApiStatusCode::AS_BAD_REQUEST, wxS( "could not start the editor" ) );
-
-    if( !player->IsVisible() )   // A hidden frame might not have the document loaded
+    if( player )
     {
-        const int ctl = file.FileExists() ? 0 : KICTL_CREATE;
+        // Visibility is not evidence that a hidden editor is empty. Reloading it could ask
+        // to save changes or overwrite its unsaved state; never destroy an existing player.
+        if( !player->IsVisible() || !player->CanAcceptApiCommands() )
+        {
+            return fail( ApiStatusCode::AS_BUSY,
+                         wxS( "the editor is hidden or busy; open it in the project manager first" ) );
+        }
+    }
+    else
+    {
+        if( !LOCKFILE::Inspect( file.GetFullPath() ).Valid() )
+        {
+            return fail( ApiStatusCode::AS_BUSY,
+                         wxS( "the document is locked; resolve the lock in the project manager first" ) );
+        }
+
+        if( !aFrame->Kiway().LocalHistory().FindStaleAutosaveFiles( file.GetPath(), { extension } ).empty() )
+        {
+            return fail( ApiStatusCode::AS_BUSY,
+                         wxS( "autosave recovery is pending; open the document manually first" ) );
+        }
+
+        player = aFrame->Kiway().Player( frameType, true );
+
+        if( !player )
+            return fail( ApiStatusCode::AS_BAD_REQUEST, wxS( "could not start the editor" ) );
+
+        const int ctl = KICTL_KICAD_ONLY | ( file.FileExists() ? 0 : KICTL_CREATE );
 
         if( !player->OpenProjectFiles( { file.GetFullPath() }, ctl ) )
         {

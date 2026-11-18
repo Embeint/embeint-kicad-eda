@@ -13,10 +13,10 @@
 
 set -uo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
-ensure_protos
+ensure_protos || exit 1
 cd "$MCP"
 
-"$PYTHON" -m pytest -q -p no:cacheprovider test_client.py || exit 1
+"$PYTHON" -m pytest -q -p no:cacheprovider test_*.py || exit 1
 [[ "${1:-}" == "--live" ]] || exit 0
 
 "$SCRIPTS/wait_ready.sh" >/dev/null || exit 1

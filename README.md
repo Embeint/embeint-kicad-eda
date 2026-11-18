@@ -60,6 +60,8 @@ yet provide an entirely Rust application or a browser-only KiCad replacement.
 
 See the [engineering roadmap](tools/live_schematic_mcp/EMBEINT_FORK_ROADMAP.md) for
 architecture, delivery gates, compatibility requirements and planning assumptions.
+The immediate priority is [complete, qualified MCP support](tools/live_schematic_mcp/MCP_SUPPORT_PLAN.md)
+for the desktop workflows before Rust or WebAssembly migration.
 
 ## Build and use the development version
 

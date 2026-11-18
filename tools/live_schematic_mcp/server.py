@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """MCP companion for the schematic IPC API in this KiCad development checkout."""
 
+import json
+
 from google.protobuf import empty_pb2
 from mcp.server.fastmcp import FastMCP, Image
 
@@ -9,9 +11,27 @@ from client import LiveSchematic, as_dict, document, editor, parse_items, projec
 from client import board_document as board_document_spec
 from client import footprint_document as footprint_document_spec
 from client import symbol_document as symbol_document_spec
+from support import CAPABILITIES_URI, local_capabilities
 
 mcp = FastMCP("KiCad Live")
 client = LiveSchematic()
+
+
+@mcp.tool()
+async def live_mcp_capabilities() -> dict:
+    """Inspect local MCP tools and command schemas without connecting to KiCad.
+
+    This inventory describes the loaded adapter, not negotiated support in a live
+    editor. Document availability, command support and undo behavior still depend
+    on the connected KiCad version and editor.
+    """
+    return local_capabilities(await mcp.list_tools())
+
+
+@mcp.resource(CAPABILITIES_URI, name="Embeint MCP capabilities", mime_type="application/json")
+async def local_capability_resource() -> str:
+    """Offline tool/command schema inventory, also available as live_mcp_capabilities."""
+    return json.dumps(await live_mcp_capabilities(), sort_keys=True)
 
 
 @mcp.tool()
@@ -284,12 +304,15 @@ def live_schematic_execute(command: str, payload: dict | None = None) -> dict:
 
 @mcp.tool()
 def live_schematic_batch(document_spec: dict, steps: list[dict], description: str = "MCP: batch") -> dict:
-    """Run several read/edit/view commands as ONE undo step; if any step fails, all are rolled back.
+    """Run supported item edits as ONE undo step; failed steps roll back those item edits.
 
     document_spec is a schematic, board (DOCTYPE_PCB), symbol or footprint document.
 
     steps: [{"command": "CreateItems", "payload": {...}}, ...] using names from live_schematic_list_commands.
-    Undo/redo and file/job commands are not allowed in a batch.
+    Only edits marked batchable participate in rollback; settings, editor replacement,
+    asynchronous work, undo/redo and file/job commands are refused. Omitted document
+    targets inherit this batch's document; explicit targets must match it exactly.
+    Selection and zoom changes are not rolled back.
     """
     kind = document_spec.get("type")
     if kind == "DOCTYPE_PCB":
@@ -783,7 +806,8 @@ def live_pcb_route(board_document: dict, from_reference: str, from_pad: str, to_
     clearance and the board minimum), keepout areas (including those inside footprints, e.g. antenna
     keepouts) and the board edge clearance, with 45-degree corners.  vias=true lets it change layer
     (net class via size); layers limits the layers it may use.  Width defaults to the net class.
-    verify (default) runs KiCad's DRC on the new copper and undoes the route if it breaks a rule.
+    verify (default) checks clearance, keepout and manufacturing DRC findings for the new copper.
+    Rejected route UUIDs are removed in a separate undoable cleanup, preserving unrelated user edits.
     grid_mm is the search step (finer for dense parts).  avoid=false draws a plain dog-leg instead.
     """
     spec = board(board_document)
@@ -800,7 +824,8 @@ def live_pcb_route_net(board_document: dict, net: str, layers: list[str] | None 
                        verify: bool = True) -> dict:
     """Route a whole net: join every group of its pads that is not yet connected (shortest joins first),
     each leg around other copper, keepouts and the board edge like live_pcb_route, all as one undo step,
-    then check with KiCad's DRC (undone if it breaks a rule).  Route critical nets (RF, power, clocks)
+    then check clearance, keepout and manufacturing DRC findings. Rejected route UUIDs are removed
+    in a separate undoable cleanup, preserving unrelated user edits. Route critical nets (RF, power, clocks)
     first, then the rest; leave nets that a pour connects (GND) to the zone."""
     return client.board_route_net(board(board_document), net, layers, width_mm, vias, grid=grid_mm, verify=verify)
 

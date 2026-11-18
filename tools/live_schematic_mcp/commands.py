@@ -165,10 +165,21 @@ COMMANDS = {
                     "SpecctraDsn", "Gencad", "Ipc2581", "IpcD356", "ODB", "Stats", "Idf")},
 }
 
-# Commands that may run inside a batch's commit.  Undo/redo refuse an open commit, and file
-# operations must not be rolled back half-way.
+# Editing commands must explicitly participate in the editor's active commit. Settings,
+# arbitrary actions, editor replacement and asynchronous jobs cannot promise rollback.
+TRANSACTIONAL_COMMANDS = {
+    C + "CreateItems", C + "UpdateItems", C + "DeleteItems",
+    S + "PlaceSymbolFromLibrary", S + "AnnotateSchematic", S + "UpdateSymbolsFromLibrary",
+    S + "AutoplaceFields", S + "TransformItems", S + "SetLibrarySymbolProperties",
+    B + "TransformBoardItems", B + "SetLibraryFootprintProperties",
+}
+
+# Read/view operations may accompany a transaction, but UI selection and zoom are not undone.
 BATCHABLE_KINDS = {"read", "edit", "view"}
-NOT_BATCHABLE = {C + "UndoLastChange", C + "RedoLastChange", B + "InteractiveMoveItems"}
+NOT_BATCHABLE = {C + "UndoLastChange", C + "RedoLastChange", B + "InteractiveMoveItems",
+                 C + "ReloadLibrary", S + "NewLibrarySymbol", S + "EditLibrarySymbol",
+                 S + "OpenFootprintEditor", B + "NewLibraryFootprint", B + "EditLibraryFootprint",
+                 "kiapi.schematic.tasks.StartErcTask", "kiapi.board.tasks.StartDrcTask"}
 
 
 def resolve(name):
@@ -206,6 +217,8 @@ def describe(name):
     return {
         "command": full,
         "kind": kind,
+        "batchable": kind in BATCHABLE_KINDS and full not in NOT_BATCHABLE
+                     and (kind != "edit" or full in TRANSACTIONAL_COMMANDS),
         "returns": response_name,
         "fields": [{"name": f.name, "repeated": f.is_repeated,
                     "type": f.message_type.full_name if f.message_type

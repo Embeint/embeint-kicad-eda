@@ -24,7 +24,7 @@ requests (see the root `AGENTS.md`).
 
 | What | Where |
 | --- | --- |
-| MCP server (Python, 110 tools) | `tools/live_schematic_mcp/server.py` |
+| MCP server (Python; counts/schemas from `live_mcp_capabilities`) | `tools/live_schematic_mcp/server.py` |
 | Client: schematics, symbols, libraries | `tools/live_schematic_mcp/client.py` |
 | Client: footprints, embedded files, 3D | `tools/live_schematic_mcp/footprint_client.py` |
 | Client: PCB editor | `tools/live_schematic_mcp/board_client.py` |

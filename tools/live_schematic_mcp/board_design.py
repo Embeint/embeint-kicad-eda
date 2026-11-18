@@ -47,7 +47,8 @@ CHECK_CATEGORIES = {
                   "schematic_fields_parity", "footprint_filters", "lib_footprint_issues", "lib_footprint_mismatch",
                   "footprint_type_mismatch", "footprint"},
 }
-ROUTE_VIOLATIONS = CHECK_CATEGORIES["clearance"] | CHECK_CATEGORIES["keepout"]
+ROUTE_VIOLATIONS = (CHECK_CATEGORIES["clearance"] | CHECK_CATEGORIES["keepout"]
+                    | CHECK_CATEGORIES["manufacturing"])
 
 RULE_FIELDS = {  # MinimumConstraints field -> tool argument (mm)
     "min_clearance": "min_clearance", "min_track_width": "min_track_width",
@@ -302,11 +303,31 @@ class BoardDesignTools:
         return width, via
 
     def _verify(self, doc, new_ids):
-        """KiCad's DRC on the result: clearance, short, crossing and keepout violations of the new items."""
-        report = self.board_drc(doc, parity=False, refill=False)
+        """Check all route clearance, keepout and manufacturing findings for the new items."""
+        report = self.board_drc(doc, parity=False, refill=False, limit=None)
         new_ids = set(new_ids)
         bad = [v for v in report["violations"] if v["type"] in ROUTE_VIOLATIONS and new_ids & set(v["items"])]
         return bad
+
+    def _verify_route(self, doc, result):
+        """Reject only this route's UUIDs, never undo an intervening user's action."""
+        try:
+            bad = self._verify(doc, result["items"])
+        except Exception as error:
+            # An unfinished DRC task may still refer to these items. Do not delete or retry
+            # mutations while the validation outcome is unknown.
+            raise RuntimeError(f"Route remains in the editor; DRC verification failed: {error}. "
+                               f"Inspect route item UUIDs {result['items']} before continuing.") from error
+        if bad:
+            try:
+                self.delete(doc, result["items"])
+            except Exception as cleanup:
+                raise RuntimeError(f"Route rejected by DRC; cleanup unconfirmed: {cleanup}. "
+                                   f"Inspect route item UUIDs {result['items']} before continuing.") from cleanup
+            raise RuntimeError(f"Route removed: KiCad's DRC found {len(bad)} problem(s): "
+                               + "; ".join(v["description"] for v in bad[:5]))
+        result["drc_clean"] = True
+        result["drc_scope"] = "new route items: clearance, keepout and manufacturing"
 
     def board_route_avoiding(self, doc, from_ref, from_pad, to_ref, to_pad, layers=None, width=None, vias=True,
                              via_diameter=None, via_drill=None, grid=0.1, verify=True):
@@ -327,12 +348,7 @@ class BoardDesignTools:
                   "segments": [{"layer": n, "path_mm": [list(p) for p in pts]} for n, pts in found.segments],
                   "items": [i.id.value for i in items], "geometry_checked": found.checked}
         if verify:
-            bad = self._verify(doc, result["items"])
-            if bad:
-                self.undo(doc)
-                raise RuntimeError(f"route undone: KiCad's DRC found {len(bad)} problem(s): "
-                                   + "; ".join(v["description"] for v in bad[:5]))
-            result["drc_clean"] = True
+            self._verify_route(doc, result)
         return result
 
     def board_route_net(self, doc, net, layers=None, width=None, vias=True, via_diameter=None, via_drill=None,
@@ -372,12 +388,7 @@ class BoardDesignTools:
         self.mutate(doc, items, description=f"MCP: route net {net}")
         result = {"net": net, "width_mm": width, "legs": legs, "items": [i.id.value for i in items]}
         if verify:
-            bad = self._verify(doc, result["items"])
-            if bad:
-                self.undo(doc)
-                raise RuntimeError(f"net route undone: KiCad's DRC found {len(bad)} problem(s): "
-                                   + "; ".join(v["description"] for v in bad[:5]))
-            result["drc_clean"] = True
+            self._verify_route(doc, result)
         return result
 
     def _pad_label(self, doc, problem, pad_id):
