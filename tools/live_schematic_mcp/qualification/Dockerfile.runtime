@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Build with only embeint-kicad.deb in the context, then run with --network none.
+FROM ubuntu:24.04
+ENV DEBIAN_FRONTEND=noninteractive LIBGL_ALWAYS_SOFTWARE=1 DISPLAY=:99
+COPY embeint-kicad.deb /tmp/embeint-kicad.deb
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    /tmp/embeint-kicad.deb xvfb xauth libgl1-mesa-dri libglx-mesa0 \
+    && rm -rf /var/lib/apt/lists/* /tmp/embeint-kicad.deb
+RUN useradd --create-home --uid 1000 qualification
+USER qualification
+WORKDIR /home/qualification
+CMD ["sleep", "infinity"]

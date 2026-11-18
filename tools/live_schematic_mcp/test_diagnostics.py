@@ -280,6 +280,25 @@ def test_runtime_import_failure_is_actionable_and_not_echoed(monkeypatch, isolat
     assert "private-token" not in json.dumps(report)
 
 
+def test_bundled_runtime_checks_imports_without_requiring_a_checkout(monkeypatch):
+    monkeypatch.setattr(diagnose.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(diagnose, "__file__", "/nonexistent-embeint-package/diagnose.py")
+    report = diagnose.runtime_status()
+    assert report["protocols"] == {"state": "ready", "source": "bundled modules"}
+    original = diagnose.importlib.import_module
+
+    def broken(name):
+        if name == "client":
+            raise RuntimeError("private-token-runtime")
+        return original(name)
+
+    monkeypatch.setattr(diagnose.importlib, "import_module", broken)
+    report = diagnose.runtime_status()
+    assert report["protocols"]["state"] == "incompatible"
+    assert "Reinstall" in report["protocols"]["action"]
+    assert "private-token" not in json.dumps(report)
+
+
 def test_missing_native_library_has_a_specific_safe_action(monkeypatch, isolated):
     original = diagnose.importlib.import_module
     def missing_library(name):
