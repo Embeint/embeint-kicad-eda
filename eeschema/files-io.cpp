@@ -170,6 +170,8 @@ bool SCH_EDIT_FRAME::TopLevelSheetsChangedOnDisk()
 
 bool SCH_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, int aCtl )
 {
+    const bool nonInteractive = aCtl & KICTL_NONINTERACTIVE;
+
     // ensure the splash screen does not obscure any dialog at startup
     Pgm().HideSplash();
 
@@ -182,7 +184,10 @@ bool SCH_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
     if( aFileSet.size() != 1 )
     {
         msg.Printf( "Eeschema:%s() takes only a single filename.", __WXFUNCTION__ );
-        DisplayError( this, msg );
+
+        if( !nonInteractive )
+            DisplayError( this, msg );
+
         return false;
     }
 
@@ -192,8 +197,31 @@ bool SCH_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
     // We insist on caller sending us an absolute path, if it does not, we say it's a bug.
     wxASSERT_MSG( wx_filename.IsAbsolute(), wxS( "Path is not absolute!" ) );
 
+    if( nonInteractive )
+    {
+        wxFileName projectFile( fullFileName );
+        projectFile.SetExt( FILEEXT::ProjectFileExtension );
+        const auto autosaves = Kiway().LocalHistory().FindStaleAutosaveFiles(
+                wx_filename.GetPath(), { FILEEXT::KiCadSchematicFileExtension } );
+
+        // IPC opens a fresh frame in the manager's current project.  Never turn this
+        // path into an import, a project switch or a decision about unsaved work.
+        if( !projectFile.SameAs( wxFileName( Prj().GetProjectFullName() ) ) || IsContentModified()
+            || Kiway().Player( FRAME_SIMULATOR, false )
+            || ( wx_filename.FileExists() && !wxFileName::IsFileReadable( fullFileName ) )
+            || ( wx_filename.FileExists()
+                 && SCH_IO_MGR::GuessPluginTypeFromSchPath( fullFileName, aCtl ) != SCH_IO_MGR::SCH_KICAD )
+            || !autosaves.empty() )
+        {
+            return false;
+        }
+    }
+
     if( !LockFile( fullFileName ) )
     {
+        if( nonInteractive )
+            return false;
+
         // If project-level lock override was already granted, silently override this file's lock
         if( Prj().IsLockOverrideGranted() )
         {
@@ -211,7 +239,7 @@ bool SCH_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
         }
     }
 
-    if( !AskToSaveChanges() )
+    if( !nonInteractive && !AskToSaveChanges() )
         return false;
 
 #ifdef PROFILE
@@ -226,6 +254,9 @@ bool SCH_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
     // If its a non-existent schematic and caller thinks it exists
     if( is_new && !( aCtl & KICTL_CREATE ) )
     {
+        if( nonInteractive )
+            return false;
+
         // notify user that fullFileName does not exist, ask if user wants to create it.
         msg.Printf( _( "Schematic '%s' does not exist.  Do you wish to create it?" ), fullFileName );
 
@@ -250,8 +281,14 @@ bool SCH_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
     if( KISTATUSBAR* statusBar = dynamic_cast<KISTATUSBAR*>( GetStatusBar() ) )
         statusBar->ClearWarningMessages( "load" );
 
-    WX_PROGRESS_REPORTER progressReporter( this, is_new ? _( "Create Schematic" ) : _( "Load Schematic" ), 1,
-                                           PR_CAN_ABORT );
+    std::unique_ptr<WX_PROGRESS_REPORTER> progressReporter;
+
+    if( !nonInteractive )
+    {
+        progressReporter = std::make_unique<WX_PROGRESS_REPORTER>(
+                this, is_new ? _( "Create Schematic" ) : _( "Load Schematic" ), 1, PR_CAN_ABORT );
+    }
+
     WX_STRING_REPORTER loadReporter;
     LOAD_INFO_REPORTER_SCOPE loadReporterScope( &loadReporter );
 
@@ -284,13 +321,17 @@ bool SCH_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
 
     // Crash-recovery: when zip-format autosave is active, look for autosave files newer
     // than the saved schematic and offer to recover them before any sheet is loaded.
-    if( !is_new )
+    if( !is_new && !nonInteractive )
         CheckForAutosaveFiles( wx_filename.GetPath(), { FILEEXT::KiCadSchematicFileExtension } );
 
     // Start a new schematic object now that we sorted out our project
     std::unique_ptr<SCHEMATIC> newSchematic = std::make_unique<SCHEMATIC>( &Prj() );
 
     SCH_IO_MGR::SCH_FILE_T schFileType = SCH_IO_MGR::GuessPluginTypeFromSchPath( fullFileName, aCtl );
+
+    // Recheck after taking the lock: the file may have changed since the IPC preflight.
+    if( nonInteractive && !is_new && schFileType != SCH_IO_MGR::SCH_KICAD )
+        return false;
 
     bool isNonKicadImport = schFileType != SCH_IO_MGR::SCH_KICAD
                             && schFileType != SCH_IO_MGR::SCH_LEGACY
@@ -302,7 +343,8 @@ bool SCH_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
     // for these formats.
     if( isNonKicadImport )
     {
-        progressReporter.Hide();
+        if( progressReporter )
+            progressReporter->Hide();
         return importFile( fullFileName, schFileType, nullptr );
     }
 
@@ -347,7 +389,7 @@ bool SCH_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
         GetScreen()->SetContentModified();
         GetScreen()->SetFileName( fullFileName );
 
-        if( schFileType == SCH_IO_MGR::SCH_FILE_T::SCH_FILE_UNKNOWN )
+        if( schFileType == SCH_IO_MGR::SCH_FILE_T::SCH_FILE_UNKNOWN && !nonInteractive )
         {
             if( aCtl & KICTL_KICAD_ONLY )
             {
@@ -360,7 +402,8 @@ bool SCH_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
                 msg.Printf( _( "'%s' is not a recognised schematic format." ), fullFileName );
             }
 
-            progressReporter.Hide();
+            if( progressReporter )
+                progressReporter->Hide();
             DisplayErrorMessage( this, msg );
         }
     }
@@ -370,7 +413,7 @@ bool SCH_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
 
         IO_RELEASER<SCH_IO> pi( SCH_IO_MGR::FindPlugin( schFileType ) );
 
-        pi->SetProgressReporter( &progressReporter );
+        pi->SetProgressReporter( progressReporter.get() );
 
         bool failedLoad = false;
 
@@ -387,6 +430,18 @@ bool SCH_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
                 if( !topLevelSheets.empty() )
                 {
                     std::vector<SCH_SHEET*> loadedSheets;
+
+                    if( nonInteractive )
+                    {
+                        for( const TOP_LEVEL_SHEET_INFO& sheetInfo : topLevelSheets )
+                        {
+                            const wxFileName sheetFile =
+                                    SCHEMATIC::TopLevelSheetFile( sheetInfo, Prj().GetProjectPath(), false );
+
+                            if( !sheetFile.FileExists() )
+                                THROW_IO_ERROR( _( "A top-level schematic sheet is missing." ) );
+                        }
+                    }
 
                     // Load each top-level sheet
                     for( const TOP_LEVEL_SHEET_INFO& sheetInfo : topLevelSheets )
@@ -463,17 +518,27 @@ bool SCH_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
 
             if( !pi->GetError().IsEmpty() )
             {
-                DisplayErrorMessage( this, _( "The entire schematic could not be loaded.  Errors "
-                                              "occurred attempting to load hierarchical sheets." ),
-                                     pi->GetError() );
+                if( nonInteractive )
+                {
+                    failedLoad = true;
+                }
+                else
+                {
+                    DisplayErrorMessage( this,
+                                         _( "The entire schematic could not be loaded.  Errors "
+                                            "occurred attempting to load hierarchical sheets." ),
+                                         pi->GetError() );
+                }
             }
         }
         catch( const FUTURE_FORMAT_ERROR& ffe )
         {
             newSchematic->CreateDefaultScreens();
             msg.Printf( _( "Error loading schematic '%s'." ), fullFileName );
-            progressReporter.Hide();
-            DisplayErrorMessage( this, msg, ffe.Problem() );
+            if( progressReporter )
+                progressReporter->Hide();
+            if( !nonInteractive )
+                DisplayErrorMessage( this, msg, ffe.Problem() );
 
             failedLoad = true;
         }
@@ -481,8 +546,10 @@ bool SCH_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
         {
             newSchematic->CreateDefaultScreens();
             msg.Printf( _( "Error loading schematic '%s'." ), fullFileName );
-            progressReporter.Hide();
-            DisplayErrorMessage( this, msg, ioe.What() );
+            if( progressReporter )
+                progressReporter->Hide();
+            if( !nonInteractive )
+                DisplayErrorMessage( this, msg, ioe.What() );
 
             failedLoad = true;
         }
@@ -490,8 +557,10 @@ bool SCH_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
         {
             newSchematic->CreateDefaultScreens();
             msg.Printf( _( "Memory exhausted loading schematic '%s'." ), fullFileName );
-            progressReporter.Hide();
-            DisplayErrorMessage( this, msg, wxEmptyString );
+            if( progressReporter )
+                progressReporter->Hide();
+            if( !nonInteractive )
+                DisplayErrorMessage( this, msg, wxEmptyString );
 
             failedLoad = true;
         }
@@ -538,10 +607,15 @@ bool SCH_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
         // fixed (modified).
         if( sheetList.IsModified() || repairedPageNumbers )
         {
-            DisplayInfoMessage( this, _( "An error was found when loading the schematic that has been "
-                                         "automatically fixed.  Please save the schematic to repair the "
-                                         "broken file or it may not be usable with other versions of "
-                                         "KiCad." ) );
+            const wxString warning = _( "An error was found when loading the schematic that has been "
+                                        "automatically fixed.  Please save the schematic to repair the "
+                                        "broken file or it may not be usable with other versions of "
+                                        "KiCad." );
+
+            if( nonInteractive )
+                m_infoBar->QueueShowMessage( warning, wxICON_WARNING );
+            else
+                DisplayInfoMessage( this, warning );
         }
 
         UpdateFileHistory( fullFileName );
@@ -793,10 +867,12 @@ bool SCH_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
 
         SCH_COMMIT dummy( this );
 
-        progressReporter.Report( _( "Updating connections..." ) );
-        progressReporter.KeepRefreshing();
+        if( progressReporter )
+            progressReporter->Report( _( "Updating connections..." ) );
+        if( progressReporter )
+            progressReporter->KeepRefreshing();
 
-        RecalculateConnections( &dummy, GLOBAL_CLEANUP, &progressReporter );
+        RecalculateConnections( &dummy, GLOBAL_CLEANUP, progressReporter.get() );
         dummy.Push( _( "Schematic Cleanup" ), SKIP_UNDO | SKIP_SET_DIRTY | SKIP_CONNECTIVITY | DELETE_REMOVED_ITEMS );
 
         // Migrate conflicting bus definitions, but only for files old enough to store them.
@@ -808,7 +884,11 @@ bool SCH_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
         if( DIALOG_MIGRATE_BUSES::ShouldPrompt(
                     schFileVersion, Schematic().ConnectionGraph()->GetBusesNeedingMigration().size() ) )
         {
-            progressReporter.Hide();
+            if( nonInteractive )
+                return false;
+
+            if( progressReporter )
+                progressReporter->Hide();
 
             // The rebuild below frees the subgraphs the dialog caches, and a progress update can
             // dispatch queued UI events into its still-bound handlers, so destroy the dialog first.
@@ -818,10 +898,11 @@ bool SCH_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
             }
 
             OnModify();
-            progressReporter.Show();
+            if( progressReporter )
+                progressReporter->Show();
 
             // Relabeling the conflicting buses changes connectivity, so rebuild it.
-            RecalculateConnections( &dummy, GLOBAL_CLEANUP, &progressReporter );
+            RecalculateConnections( &dummy, GLOBAL_CLEANUP, progressReporter.get() );
             dummy.Push( _( "Schematic Cleanup" ),
                         SKIP_UNDO | SKIP_SET_DIRTY | SKIP_CONNECTIVITY | DELETE_REMOVED_ITEMS );
         }
