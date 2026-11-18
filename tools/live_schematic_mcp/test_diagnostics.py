@@ -23,11 +23,11 @@ import instance_discovery as discovery
 
 
 @pytest.fixture
-def isolated(monkeypatch, tmp_path):
+def isolated(monkeypatch, socket_tmp_path):
     monkeypatch.delenv("KICAD_API_SOCKET", raising=False)
     monkeypatch.delenv("KICAD_API_TOKEN", raising=False)
     monkeypatch.setattr(diagnose.sys, "platform", "linux")
-    root = tmp_path / "kicad"
+    root = socket_tmp_path / "kicad"
     root.mkdir()
     monkeypatch.setattr(discovery, "default_socket_url", lambda: "ipc://" + str(root / "api.sock"))
     return root
@@ -285,8 +285,8 @@ def test_missing_native_library_has_a_specific_safe_action(monkeypatch, isolated
     assert "private-token" not in json.dumps(report)
 
 
-def test_stdio_startup_with_multiple_socket_candidates_and_no_kicad(tmp_path):
-    root = tmp_path / "kicad"
+def test_stdio_startup_with_multiple_socket_candidates_and_no_kicad(socket_tmp_path):
+    root = socket_tmp_path / "kicad"
     root.mkdir()
     with socket.socket(socket.AF_UNIX) as first, socket.socket(socket.AF_UNIX) as second:
         first.bind(str(root / "api.sock"))
@@ -295,7 +295,7 @@ def test_stdio_startup_with_multiple_socket_candidates_and_no_kicad(tmp_path):
             # No request is sent to either inert socket during startup or inventory.
             parameters = StdioServerParameters(command=sys.executable,
                 args=[str(Path(diagnose.__file__).with_name("server.py"))],
-                env={**os.environ, "TMPDIR": str(tmp_path), "KICAD_API_SOCKET": "",
+                env={**os.environ, "TMPDIR": str(socket_tmp_path), "KICAD_API_SOCKET": "",
                      "KICAD_API_TOKEN": ""})
             async with stdio_client(parameters) as (reader, writer):
                 async with ClientSession(reader, writer) as session:
