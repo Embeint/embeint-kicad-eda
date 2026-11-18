@@ -104,6 +104,28 @@ def test_board_persistence_retains_placed_ids_pad_parents_and_geometry():
         persisted_board_items(after,"test.kicad_pcb")
 
 
+def test_board_persistence_ignores_definition_order_but_retains_all_content():
+    import copy
+    from qualification.persistence import persisted_board_items
+
+    before = [{"@type": "type.googleapis.com/kiapi.board.types.FootprintInstance",
+               "id": {"value": "footprint"}, "parent": {"value": "board"},
+               "definition": {"items": [
+                   {"id": {"value": "text"}, "text": "R1"},
+                   {"id": {"value": "line"}, "position": {"x_nm": "10"}},
+                   {"model": "fixture.step"}]}}]
+    after = copy.deepcopy(before)
+    after[0]["definition"]["items"].reverse()
+    canonical = lambda items: persisted_board_items(items, "test.kicad_pcb")
+    assert canonical(before) == canonical(after)
+    assert before[0]["definition"]["items"][0]["id"]["value"] == "text"
+    after[0]["definition"]["items"][1]["position"]["x_nm"] = "11"
+    assert canonical(before) != canonical(after)
+    after[0]["definition"]["items"][1]["position"]["x_nm"] = "10"
+    after[0]["definition"]["items"].append({"model": "fixture.step"})
+    assert canonical(before) != canonical(after)
+
+
 @pytest.fixture
 def native_payload(tmp_path):
     from hashlib import sha256

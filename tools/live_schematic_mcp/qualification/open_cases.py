@@ -3,6 +3,7 @@
 
 import json
 import asyncio
+from hashlib import sha256
 import os
 from pathlib import Path
 import tempfile
@@ -36,7 +37,8 @@ def main():
               "schema_sha256": asyncio.run(server.live_mcp_capabilities())["schema_sha256"]}
     cases = [
         ("malformed-schematic", "kicad_sch", "(kicad_sch (version 20250114) (broken", False),
-        ("future-schematic", "kicad_sch", "(kicad_sch (version 99999999) (generator eeschema))", False),
+        # Modern schematic versions are checked when generator_version is read.
+        ("future-schematic", "kicad_sch", '(kicad_sch (version 99999999) (generator eeschema) (generator_version "999.0"))', False),
         ("missing-child", "kicad_sch", SCHEMATIC, False),
         ("malformed-board", "kicad_pcb", "(kicad_pcb (version 20250114) (broken", False),
         ("future-board", "kicad_pcb", "(kicad_pcb (version 99999999) (generator pcbnew) (unknown_future_construct))", False),
@@ -53,8 +55,10 @@ def main():
             (folder / "tmp").mkdir()
             env = {**os.environ, "TMPDIR": str(folder / "tmp"),
                    "KICAD_CONFIG_HOME": str(folder / "config"), "KICAD_API_TOKEN": ""}
-            proc = log = None
-            result = {"result": "failed", "expected_open": expect_open}
+            proc = log = manager = None
+            started = None
+            result = {"result": "failed", "expected_open": expect_open,
+                      "input_sha256": sha256(contents.encode()).hexdigest()}
             try:
                 proc, log, manager = start(project_dir, folder, output, env, name, open_editor=False)
                 report["application_version"] = as_dict(manager.send(base.GetVersion(), base.GetVersionResponse))
@@ -72,11 +76,26 @@ def main():
                 # A timeout alone cannot establish absence of a modal dialog. A
                 # subsequent read must still be serviced by the native UI thread.
                 client.send(base.GetVersion(), base.GetVersionResponse)
+                result["api_responsive"] = True
                 assert disk_hashes(project_dir) == before, "failed open changed document files"
                 result["result"] = "passed"
             except Exception as error:
                 result["error"] = f"{type(error).__name__}: {error}"
             finally:
+                if started is not None and "elapsed_seconds" not in result:
+                    result["elapsed_seconds"] = round(time.monotonic() - started, 3)
+                if manager is not None and not result.get("api_responsive"):
+                    try:
+                        probe = LiveSchematic(socket_url=manager.socket_url, timeout_ms=750)
+                        probe.send(base.GetVersion(), base.GetVersionResponse)
+                        result["api_responsive"] = True
+                    except Exception as error:
+                        result["api_responsive"] = False
+                        result["post_open_read_error"] = f"{type(error).__name__}: {error}"
+                result["files_unchanged"] = disk_hashes(project_dir) == before
+                if not result["files_unchanged"]:
+                    result["result"] = "failed"
+                    result["file_error"] = "open changed document files"
                 if proc is not None:
                     stop(proc, log)
                 results[name] = result

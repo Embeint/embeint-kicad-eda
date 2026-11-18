@@ -38,4 +38,9 @@ def persisted_board_items(items, filename):
         assert roots.isdisjoint(item.get("id", {}).get("value") for item in items), "board root points at an item"
         for item in footprints:
             item["parent"] = {"value": "board:" + filename}
+            # The board writer reorders footprint graphics and text. Keep all
+            # definition items and their fields, but compare that collection by content.
+            definition = item.get("definition", {})
+            if "items" in definition:
+                definition["items"].sort(key=lambda child: json.dumps(child, sort_keys=True))
     return sorted(items, key=lambda item: json.dumps(item, sort_keys=True))

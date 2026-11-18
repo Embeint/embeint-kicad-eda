@@ -65,8 +65,10 @@ def start(project, folder, output, env, label, open_editor=True):
     from client import LiveSchematic, base
 
     log = (output / f"{label}.app.log").open("w")
+    environment = {**env, "LD_LIBRARY_PATH": os.pathsep.join(
+        filter(None, (str(INSTALL / "lib"), env.get("LD_LIBRARY_PATH"))))}
     proc = subprocess.Popen([str(INSTALL / "bin/kicad"), str(project / "live-demo.kicad_pro")],
-                            env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+                            env=environment, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
     url = "ipc://" + str(folder / "tmp/kicad/api.sock")
     deadline = time.monotonic() + 60
     opening = False
