@@ -16,6 +16,7 @@ import sys
 import tempfile
 
 from client import LiveSchematic
+from board_client import bt
 from e2e_guard import test_board, test_document
 
 RESISTOR = "Resistor_SMD:R_0603_1608Metric"
@@ -95,6 +96,17 @@ def main():
     check(len(pads["R901"]["pads"]) == 2 and "size_mm" in pads["R901"]["pads"][0], "pads listed with sizes")
 
     # Routing, via, zone, graphics
+    # These manually placed fixture footprints have no schematic netlist. Give
+    # the routed pads real nets, as production Update PCB from Schematic does.
+    for reference, nets in (("R901", {"1": "E2E_B", "2": "E2E_A"}),
+                             ("R902", {"1": "E2E_A", "2": "E2E_B"})):
+        footprint = client.board_footprint(board, reference)
+        for packed in footprint.definition.items:
+            pad = bt.Pad()
+            if packed.Unpack(pad) and pad.number in nets:
+                pad.net.name = nets[pad.number]
+                packed.Pack(pad)
+        client.mutate(board, [footprint], update=True, description="e2e: pad nets")
     route = client.board_route(board, "R901", "2", "R902", "1", width=0.25)
     created += route["items"]
     check(route["drc_clean"] and route["segments"][0]["layer"] == "F.Cu",
