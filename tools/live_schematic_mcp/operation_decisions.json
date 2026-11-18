@@ -1,0 +1,2712 @@
+{
+  "matrix_version": 1,
+  "audited_base": "a3e9347feb96bf5a6c8c33d87211282b49969661",
+  "surfaces": {
+    "manager": {
+      "handlers": [
+        "API_HANDLER_COMMON",
+        "API_HANDLER_LIBRARIES"
+      ],
+      "document": "Open project manager session. Project operations use the loaded project; OpenDocument is restricted to its schematic or PCB.",
+      "registration_notes": "kicad/kicad.cpp constructs/registers COMMON and DESIGN_BLOCK LIBRARIES before frames. Only OpenDocument gets a desktop manager callback. Symbol/footprint library providers are lazy kiface registrations, not manager editor handlers."
+    },
+    "schematic": {
+      "handlers": [
+        "API_HANDLER_COMMON",
+        "API_HANDLER_LIBRARIES",
+        "API_HANDLER_SCH",
+        "API_HANDLER_SCH_LIBRARIES"
+      ],
+      "document": "DOCTYPE_SCHEMATIC with matching project, schematic filename and sheet path; use the document returned by GetOpenDocuments. Library/project commands have separate requirements.",
+      "registration_notes": "eeschema/sch_edit_frame.cpp registers SCH; standalone mode registers COMMON and DESIGN_BLOCK libraries. eeschema/eeschema.cpp registers SCH_LIBRARIES when its kiface loads. SCH inherits EDITOR. Shared common/library handlers belong to the session, not the document."
+    },
+    "pcb": {
+      "handlers": [
+        "API_HANDLER_COMMON",
+        "API_HANDLER_LIBRARIES",
+        "API_HANDLER_PCB",
+        "API_HANDLER_FP_LIBRARIES"
+      ],
+      "document": "DOCTYPE_PCB with matching project and board filename; use GetOpenDocuments. Library/project commands have separate requirements.",
+      "registration_notes": "pcbnew/pcb_edit_frame.cpp registers PCB; standalone mode registers COMMON and DESIGN_BLOCK libraries. pcbnew/pcbnew.cpp registers FP_LIBRARIES when its kiface loads. PCB inherits BOARD then EDITOR. Shared common/library handlers belong to the session."
+    },
+    "symbol": {
+      "handlers": [
+        "API_HANDLER_COMMON",
+        "API_HANDLER_LIBRARIES",
+        "API_HANDLER_SYMBOL",
+        "API_HANDLER_SCH_LIBRARIES"
+      ],
+      "document": "DOCTYPE_SYMBOL and loaded library identifier; new unsaved symbols may have an empty nickname. Identity validation is in api_handler_symbol.cpp. Library/project commands have separate requirements.",
+      "registration_notes": "eeschema/symbol_editor/symbol_edit_frame.cpp registers SYMBOL and standalone common/design-block handlers. Symbol libraries use the eeschema kiface SCH_LIBRARIES provider. SYMBOL inherits EDITOR; inherited registration does not imply supported title-block or page-layout hooks."
+    },
+    "footprint": {
+      "handlers": [
+        "API_HANDLER_COMMON",
+        "API_HANDLER_LIBRARIES",
+        "API_HANDLER_FOOTPRINT",
+        "API_HANDLER_FP_LIBRARIES"
+      ],
+      "document": "DOCTYPE_FOOTPRINT and loaded library identifier; new unsaved footprints may have an empty nickname. Identity validation is in api_handler_footprint.cpp. Library/project commands have separate requirements.",
+      "registration_notes": "pcbnew/footprint_edit_frame.cpp registers FOOTPRINT and standalone common/design-block handlers. Footprint libraries use pcbnew kiface FP_LIBRARIES. FOOTPRINT inherits BOARD then EDITOR, including PCB-shaped requests whose document must still identify the footprint."
+    }
+  },
+  "operations": {
+    "API_HANDLER_BOARD/kiapi.board.commands.CheckPadstackPresenceOnLayers": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_BOARD/kiapi.board.commands.FlipItems": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "header.document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Changes unsaved model; explicit SaveDocument is required for persistence.",
+      "undo": "editor_commit",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Uses editor commit path in native code. This does not promise adapter atomic-batch eligibility or live rollback qualification."
+    },
+    "API_HANDLER_BOARD/kiapi.board.commands.GetActiveLayer": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_layers"
+      ],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_BOARD/kiapi.board.commands.GetBoardBoundingBox": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_BOARD/kiapi.board.commands.GetBoardEnabledLayers": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_layers"
+      ],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_BOARD/kiapi.board.commands.GetBoardStackup": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_stackup"
+      ],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_BOARD/kiapi.board.commands.GetGraphicsDefaults": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_BOARD/kiapi.board.commands.GetPadShapeAsPolygon": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_BOARD/kiapi.board.commands.GetVisibleLayers": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_layers"
+      ],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_BOARD/kiapi.board.commands.InteractiveMoveItems": {
+      "decision": "interactive",
+      "implementation": "conditional",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Action-dependent; may change model, UI or files. Not a supported unattended disk/undo contract.",
+      "undo": "unknown",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Requires GUI/tool interaction or invokes an arbitrary action. Generic presence does not make this a deterministic headless operation."
+    },
+    "API_HANDLER_BOARD/kiapi.board.commands.SetActiveLayer": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Changes model/view/settings in memory; application settings may persist later. No explicit document save here.",
+      "undo": "none",
+      "typed_tools": [
+        "live_pcb_layers"
+      ],
+      "offline_tests": [],
+      "notes": "Direct settings/view mutation; outside editor commit rollback. Persistence follows explicit document saves or application settings lifecycle."
+    },
+    "API_HANDLER_BOARD/kiapi.board.commands.SetVisibleLayers": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Changes model/view/settings in memory; application settings may persist later. No explicit document save here.",
+      "undo": "none",
+      "typed_tools": [
+        "live_pcb_layers"
+      ],
+      "offline_tests": [],
+      "notes": "Direct settings/view mutation; outside editor commit rollback. Persistence follows explicit document saves or application settings lifecycle."
+    },
+    "API_HANDLER_BOARD/kiapi.board.commands.TransformBoardItems": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "header.document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Changes unsaved model; explicit SaveDocument is required for persistence.",
+      "undo": "editor_commit",
+      "typed_tools": [
+        "live_pcb_move"
+      ],
+      "offline_tests": [
+        "test_client.py::test_move_footprints_transforms_in_place_in_one_commit"
+      ],
+      "notes": "Uses editor commit path in native code. This does not promise adapter atomic-batch eligibility or live rollback qualification."
+    },
+    "API_HANDLER_BOARD/kiapi.common.commands.AddToSelection": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "header.document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_select"
+      ],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_BOARD/kiapi.common.commands.ClearSelection": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "header.document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_select"
+      ],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_BOARD/kiapi.common.commands.ExpandTextVariables": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_BOARD/kiapi.common.commands.FocusOnItems": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_focus"
+      ],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_BOARD/kiapi.common.commands.GetBoundingBox": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "header.document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_BOARD/kiapi.common.commands.GetItemsById": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "header.document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_BOARD/kiapi.common.commands.GetSelection": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "header.document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_select"
+      ],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_BOARD/kiapi.common.commands.ParseAndCreateItemsFromString": {
+      "decision": "deferred",
+      "implementation": "stub",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native body validates document/busy then returns an empty CreateItemsResponse; it does not parse or create items. Proto/registration is not implementation evidence."
+    },
+    "API_HANDLER_BOARD/kiapi.common.commands.RemoveFromSelection": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "header.document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_BOARD/kiapi.common.commands.RunAction": {
+      "decision": "interactive",
+      "implementation": "conditional",
+      "document": "No document specifier; request-specific identifiers or current session context.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Action-dependent; may change model, UI or files. Not a supported unattended disk/undo contract.",
+      "undo": "unknown",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Requires GUI/tool interaction or invokes an arbitrary action. Generic presence does not make this a deterministic headless operation."
+    },
+    "API_HANDLER_BOARD/kiapi.common.commands.SaveDocumentToString": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Serializes model/selection to response; no explicit persistent save.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Serialization handler exists; selection serialization requires a GUI selection. No native round-trip evidence recorded."
+    },
+    "API_HANDLER_BOARD/kiapi.common.commands.SaveSelectionToString": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "No document specifier; request-specific identifiers or current session context.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Serializes model/selection to response; no explicit persistent save.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Serialization handler exists; selection serialization requires a GUI selection. No native round-trip evidence recorded."
+    },
+    "API_HANDLER_COMMON/kiapi.common.commands.CloseAllDocuments": {
+      "decision": "deferred",
+      "implementation": "conditional",
+      "document": "No document specifier; request-specific identifiers or current session context.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Unknown outside desktop callback configuration; may discard/replace documents or create files. No supported desktop contract.",
+      "undo": "none",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Common callback dispatch only. Desktop manager does not install this callback; returns AS_UNIMPLEMENTED there. CLI/headless paths are outside this desktop matrix."
+    },
+    "API_HANDLER_COMMON/kiapi.common.commands.CloseDocument": {
+      "decision": "deferred",
+      "implementation": "conditional",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Unknown outside desktop callback configuration; may discard/replace documents or create files. No supported desktop contract.",
+      "undo": "none",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Common callback dispatch only. Desktop manager does not install this callback; returns AS_UNIMPLEMENTED there. CLI/headless paths are outside this desktop matrix."
+    },
+    "API_HANDLER_COMMON/kiapi.common.commands.CreateDocument": {
+      "decision": "deferred",
+      "implementation": "conditional",
+      "document": "No document specifier; request-specific identifiers or current session context.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Unknown outside desktop callback configuration; may discard/replace documents or create files. No supported desktop contract.",
+      "undo": "none",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Common callback dispatch only. Desktop manager does not install this callback; returns AS_UNIMPLEMENTED there. CLI/headless paths are outside this desktop matrix."
+    },
+    "API_HANDLER_COMMON/kiapi.common.commands.ExpandTextVariables": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: DOCTYPE_PROJECT; other document types return AS_UNHANDLED for editor dispatch.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_COMMON/kiapi.common.commands.GetKiCadBinaryPath": {
+      "decision": "deferred",
+      "implementation": "implemented",
+      "document": "No document specifier; request-specific identifiers or current session context.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native utility exists but has no curated adapter at the audited baseline. Deferred pending an explicit adapter contract and meaningful tests; no live qualification."
+    },
+    "API_HANDLER_COMMON/kiapi.common.commands.GetNetClassAssignments": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "project: loaded project identity; some netclass calls allow omitted identity for current project.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_netclasses"
+      ],
+      "offline_tests": [
+        "test_client.py::test_design_rules_and_netclasses_requests"
+      ],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_COMMON/kiapi.common.commands.GetNetClasses": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "project: loaded project identity; some netclass calls allow omitted identity for current project.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_netclasses"
+      ],
+      "offline_tests": [
+        "test_client.py::test_design_rules_and_netclasses_requests"
+      ],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_COMMON/kiapi.common.commands.GetPaths": {
+      "decision": "deferred",
+      "implementation": "implemented",
+      "document": "No document specifier; request-specific identifiers or current session context.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native utility exists but has no curated adapter at the audited baseline. Deferred pending an explicit adapter contract and meaningful tests; no live qualification."
+    },
+    "API_HANDLER_COMMON/kiapi.common.commands.GetPluginSettingsPath": {
+      "decision": "deferred",
+      "implementation": "implemented",
+      "document": "No document specifier; request-specific identifiers or current session context.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Ensures the base plugins settings directory exists; may create directories.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Deferred utility; a path query can have a disk side effect."
+    },
+    "API_HANDLER_COMMON/kiapi.common.commands.GetTextAsShapes": {
+      "decision": "deferred",
+      "implementation": "implemented",
+      "document": "No document specifier; request-specific identifiers or current session context.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native utility exists but has no curated adapter at the audited baseline. Deferred pending an explicit adapter contract and meaningful tests; no live qualification."
+    },
+    "API_HANDLER_COMMON/kiapi.common.commands.GetTextExtents": {
+      "decision": "deferred",
+      "implementation": "implemented",
+      "document": "No document specifier; request-specific identifiers or current session context.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native utility exists but has no curated adapter at the audited baseline. Deferred pending an explicit adapter contract and meaningful tests; no live qualification."
+    },
+    "API_HANDLER_COMMON/kiapi.common.commands.GetTextVariables": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: DOCTYPE_PROJECT with matching loaded project identity.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_COMMON/kiapi.common.commands.GetVersion": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "No document specifier; request-specific identifiers or current session context.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_schematic_documents"
+      ],
+      "offline_tests": [],
+      "notes": "Typed schematic document discovery checks native version; this is an adapter prerequisite, not capability negotiation."
+    },
+    "API_HANDLER_COMMON/kiapi.common.commands.OpenDocument": {
+      "decision": "supported",
+      "implementation": "conditional",
+      "document": "type=DOCTYPE_SCHEMATIC or DOCTYPE_PCB; path must be in the currently open manager project.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Opens existing project document; manager can create and save a missing board. No general arbitrary-file opening contract.",
+      "undo": "none",
+      "typed_tools": [
+        "live_schematic_open",
+        "live_pcb_open"
+      ],
+      "offline_tests": [],
+      "notes": "Desktop manager installs only OpenDocument callback. Standalone editor common handlers return AS_UNIMPLEMENTED; CLI/headless callbacks are separate."
+    },
+    "API_HANDLER_COMMON/kiapi.common.commands.Ping": {
+      "decision": "deferred",
+      "implementation": "implemented",
+      "document": "No document specifier; request-specific identifiers or current session context.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native utility exists but has no curated adapter at the audited baseline. Deferred pending an explicit adapter contract and meaningful tests; no live qualification."
+    },
+    "API_HANDLER_COMMON/kiapi.common.commands.SetNetClassAssignments": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "project: loaded project identity; some netclass calls allow omitted identity for current project.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Project net settings changed in memory; no explicit SaveProject here.",
+      "undo": "none",
+      "typed_tools": [
+        "live_pcb_netclasses"
+      ],
+      "offline_tests": [
+        "test_client.py::test_design_rules_and_netclasses_requests"
+      ],
+      "notes": "Not part of an editor commit; registered edit kind is not a rollback promise."
+    },
+    "API_HANDLER_COMMON/kiapi.common.commands.SetNetClasses": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "project: loaded project identity; some netclass calls allow omitted identity for current project.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Project net settings changed in memory; no explicit SaveProject here.",
+      "undo": "none",
+      "typed_tools": [
+        "live_pcb_netclasses"
+      ],
+      "offline_tests": [
+        "test_client.py::test_design_rules_and_netclasses_requests"
+      ],
+      "notes": "Not part of an editor commit; registered edit kind is not a rollback promise."
+    },
+    "API_HANDLER_COMMON/kiapi.common.commands.SetTextVariables": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: DOCTYPE_PROJECT with matching loaded project identity.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Immediately calls SaveProject; writes project text variables to disk.",
+      "undo": "none",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Project write despite generic edit kind; no editor commit undo."
+    },
+    "API_HANDLER_COMMON/kiapi.common.tasks.GetTaskStatus": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "No document specifier; request-specific identifiers or current session context.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_schematic_erc",
+        "live_pcb_drc"
+      ],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_EDITOR/kiapi.common.commands.BeginCommit": {
+      "decision": "internal",
+      "implementation": "implemented",
+      "document": "header.document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Commit history/model only; no explicit save.",
+      "undo": "editor_commit",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Client transaction ownership only; not a generic/user command. BeginCommit opens a client commit; EndCommit pushes or drops it."
+    },
+    "API_HANDLER_EDITOR/kiapi.common.commands.CreateItems": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "header.document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Changes unsaved model; explicit SaveDocument is required for persistence.",
+      "undo": "editor_commit",
+      "typed_tools": [
+        "live_schematic_create_items",
+        "live_pcb_create_items",
+        "live_symbol_add_pins",
+        "live_footprint_generate"
+      ],
+      "offline_tests": [
+        "test_client.py::test_success_commits_without_save"
+      ],
+      "notes": "Uses editor commit path in native code. This does not promise adapter atomic-batch eligibility or live rollback qualification."
+    },
+    "API_HANDLER_EDITOR/kiapi.common.commands.DeleteItems": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "header.document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Changes unsaved model; explicit SaveDocument is required for persistence.",
+      "undo": "editor_commit",
+      "typed_tools": [
+        "live_schematic_delete_items",
+        "live_pcb_delete_items",
+        "live_symbol_delete_items"
+      ],
+      "offline_tests": [
+        "test_review_regressions.py::test_missing_item_acknowledgement_drops_the_batch"
+      ],
+      "notes": "Uses editor commit path in native code. This does not promise adapter atomic-batch eligibility or live rollback qualification."
+    },
+    "API_HANDLER_EDITOR/kiapi.common.commands.EndCommit": {
+      "decision": "internal",
+      "implementation": "implemented",
+      "document": "header.document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Commit history/model only; no explicit save.",
+      "undo": "editor_commit",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Client transaction ownership only; not a generic/user command. BeginCommit opens a client commit; EndCommit pushes or drops it."
+    },
+    "API_HANDLER_EDITOR/kiapi.common.commands.GetDocumentModifiedState": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_EDITOR/kiapi.common.commands.GetGridSettings": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_editor_grid"
+      ],
+      "offline_tests": [
+        "test_client.py::test_grid_and_origins_requests"
+      ],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_EDITOR/kiapi.common.commands.GetPageLayout": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_schematic_page",
+        "live_pcb_page"
+      ],
+      "offline_tests": [
+        "test_client.py::test_page_layout_reports_mm_and_flags_items_outside_the_frame"
+      ],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified.",
+      "surface_overrides": {
+        "symbol": {
+          "decision": "deferred",
+          "implementation": "conditional",
+          "notes": "Inherited registration exists, but default title-block/page-layout hook rejects this editor. No supported document implementation."
+        },
+        "footprint": {
+          "decision": "deferred",
+          "implementation": "conditional",
+          "notes": "Inherited registration exists, but default title-block/page-layout hook rejects this editor. No supported document implementation."
+        }
+      }
+    },
+    "API_HANDLER_EDITOR/kiapi.common.commands.GetTitleBlockInfo": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_schematic_set_page",
+        "live_pcb_set_page"
+      ],
+      "offline_tests": [
+        "test_client.py::test_set_page_changes_only_what_is_given"
+      ],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified.",
+      "surface_overrides": {
+        "symbol": {
+          "decision": "deferred",
+          "implementation": "conditional",
+          "notes": "Inherited registration exists, but default title-block/page-layout hook rejects this editor. No supported document implementation."
+        },
+        "footprint": {
+          "decision": "deferred",
+          "implementation": "conditional",
+          "notes": "Inherited registration exists, but default title-block/page-layout hook rejects this editor. No supported document implementation."
+        }
+      }
+    },
+    "API_HANDLER_EDITOR/kiapi.common.commands.HitTest": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "header.document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_EDITOR/kiapi.common.commands.RedoLastChange": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "history",
+      "typed_tools": [
+        "live_schematic_undo",
+        "live_pcb_undo"
+      ],
+      "offline_tests": [],
+      "notes": "Consumes shared editor undo/redo history, including manual edits; outside the client transaction."
+    },
+    "API_HANDLER_EDITOR/kiapi.common.commands.SetGridSettings": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Changes model/view/settings in memory; application settings may persist later. No explicit document save here.",
+      "undo": "none",
+      "typed_tools": [
+        "live_editor_grid"
+      ],
+      "offline_tests": [
+        "test_client.py::test_grid_and_origins_requests"
+      ],
+      "notes": "Direct settings/view mutation; outside editor commit rollback. Persistence follows explicit document saves or application settings lifecycle."
+    },
+    "API_HANDLER_EDITOR/kiapi.common.commands.SetTitleBlockInfo": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Changes model/view/settings in memory; application settings may persist later. No explicit document save here.",
+      "undo": "none",
+      "typed_tools": [
+        "live_schematic_set_page",
+        "live_pcb_set_page"
+      ],
+      "offline_tests": [
+        "test_client.py::test_set_page_changes_only_what_is_given"
+      ],
+      "notes": "Direct settings/view mutation; outside editor commit rollback. Persistence follows explicit document saves or application settings lifecycle.",
+      "surface_overrides": {
+        "symbol": {
+          "decision": "deferred",
+          "implementation": "conditional",
+          "notes": "Inherited registration exists, but default title-block/page-layout hook rejects this editor. No supported document implementation."
+        },
+        "footprint": {
+          "decision": "deferred",
+          "implementation": "conditional",
+          "notes": "Inherited registration exists, but default title-block/page-layout hook rejects this editor. No supported document implementation."
+        }
+      }
+    },
+    "API_HANDLER_EDITOR/kiapi.common.commands.UndoLastChange": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "history",
+      "typed_tools": [
+        "live_schematic_undo",
+        "live_pcb_undo"
+      ],
+      "offline_tests": [
+        "test_client.py::test_undo_is_sent_outside_any_commit"
+      ],
+      "notes": "Consumes shared editor undo/redo history, including manual edits; outside the client transaction."
+    },
+    "API_HANDLER_EDITOR/kiapi.common.commands.UpdateItems": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "header.document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Changes unsaved model; explicit SaveDocument is required for persistence.",
+      "undo": "editor_commit",
+      "typed_tools": [
+        "live_schematic_update_items",
+        "live_pcb_update_items"
+      ],
+      "offline_tests": [
+        "test_review_regressions.py::test_missing_item_acknowledgement_drops_the_batch"
+      ],
+      "notes": "Uses editor commit path in native code. This does not promise adapter atomic-batch eligibility or live rollback qualification."
+    },
+    "API_HANDLER_FOOTPRINT/kiapi.board.commands.EditLibraryFootprint": {
+      "decision": "supported",
+      "implementation": "conditional",
+      "document": "No document specifier; request-specific identifiers or current session context.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Loads/creates in-memory editor state; no explicit library save. UI/config/cache side effects possible.",
+      "undo": "none",
+      "typed_tools": [
+        "live_footprint_edit"
+      ],
+      "offline_tests": [],
+      "notes": "Opens/replaces editor context; prompt/unsaved-state and mode guards matter. Not an atomic batch operation."
+    },
+    "API_HANDLER_FOOTPRINT/kiapi.board.commands.NewLibraryFootprint": {
+      "decision": "supported",
+      "implementation": "conditional",
+      "document": "No document specifier; request-specific identifiers or current session context.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Loads/creates in-memory editor state; no explicit library save. UI/config/cache side effects possible.",
+      "undo": "none",
+      "typed_tools": [
+        "live_footprint_new"
+      ],
+      "offline_tests": [],
+      "notes": "Opens/replaces editor context; prompt/unsaved-state and mode guards matter. Not an atomic batch operation."
+    },
+    "API_HANDLER_FOOTPRINT/kiapi.board.commands.RenderLibraryFootprint": {
+      "decision": "supported",
+      "implementation": "conditional",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Writes, reads and removes a temporary render file; returns image bytes. Does not save the source library.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_footprint_view"
+      ],
+      "offline_tests": [],
+      "notes": "Requires GUI editor frame and a loaded library item. Temporary rendering path exists; image correctness is not natively qualified here."
+    },
+    "API_HANDLER_FOOTPRINT/kiapi.board.commands.SetLibraryFootprintProperties": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Changes unsaved model; explicit SaveDocument is required for persistence.",
+      "undo": "editor_commit",
+      "typed_tools": [
+        "live_footprint_set_properties"
+      ],
+      "offline_tests": [],
+      "notes": "Uses editor commit path in native code. This does not promise adapter atomic-batch eligibility or live rollback qualification."
+    },
+    "API_HANDLER_FOOTPRINT/kiapi.common.commands.EmbedFileFromPath": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Reads input path and changes unsaved embedded-file model; explicit SaveDocument is required for persistence. Temporary/cache effects may occur.",
+      "undo": "editor_commit",
+      "typed_tools": [
+        "live_embed_file"
+      ],
+      "offline_tests": [
+        "test_client.py::test_attach_step_embeds_then_links_the_model"
+      ],
+      "notes": "Uses editor commit path in native code. This does not promise adapter atomic-batch eligibility or live rollback qualification."
+    },
+    "API_HANDLER_FOOTPRINT/kiapi.common.commands.GetEmbeddedFileList": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_embedded_files"
+      ],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_FOOTPRINT/kiapi.common.commands.GetItems": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "header.document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_footprint_summary"
+      ],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_FOOTPRINT/kiapi.common.commands.GetOpenDocuments": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "type filter must match this editor; no target document needed. Returns current open documents only.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_FOOTPRINT/kiapi.common.commands.OpenLibraryItem": {
+      "decision": "deferred",
+      "implementation": "conditional",
+      "document": "type and identifier: matching symbol/footprint library item; no existing document specifier.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "none",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Omitted generic path at baseline; opening can replace editor state. Review prompt/unsaved-state semantics before adapter inclusion."
+    },
+    "API_HANDLER_FOOTPRINT/kiapi.common.commands.RemoveEmbeddedFile": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Changes unsaved model; explicit SaveDocument is required for persistence.",
+      "undo": "editor_commit",
+      "typed_tools": [
+        "live_remove_embedded_file"
+      ],
+      "offline_tests": [],
+      "notes": "Uses editor commit path in native code. This does not promise adapter atomic-batch eligibility or live rollback qualification."
+    },
+    "API_HANDLER_FOOTPRINT/kiapi.common.commands.RevertDocument": {
+      "decision": "deferred",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Reads saved content and discards unsaved model state; not an undoable edit.",
+      "undo": "none",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Registered and generic adapter available, but destructive unsaved-state replacement is deferred from qualified support."
+    },
+    "API_HANDLER_FOOTPRINT/kiapi.common.commands.SaveCopyOfDocument": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Explicit persistent document/library write; options may include project/copy files. No undo for disk writes.",
+      "undo": "none",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native save path; overwrite rules and format/save-reopen compatibility require disposable native qualification."
+    },
+    "API_HANDLER_FOOTPRINT/kiapi.common.commands.SaveDocument": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Explicit persistent document/library write; options may include project/copy files. No undo for disk writes.",
+      "undo": "none",
+      "typed_tools": [
+        "live_footprint_save"
+      ],
+      "offline_tests": [],
+      "notes": "Native save path; overwrite rules and format/save-reopen compatibility require disposable native qualification."
+    },
+    "API_HANDLER_LIBRARIES/kiapi.common.commands.AddLibraryTableEntry": {
+      "decision": "supported",
+      "implementation": "conditional",
+      "document": "Library type/scope/nickname and current project adapter; no open editor document required. Provider availability is conditional.",
+      "registration_condition": "Base constructor; SYMBOL/FOOTPRINT subclasses inherit all except design-block-only LoadAllLibraries.",
+      "disk_effects": "Immediately saves global/project library table; Add may create a library when requested. Delete removes table entry, not library contents.",
+      "undo": "none",
+      "typed_tools": [
+        "live_symbol_create_library",
+        "live_symbol_register_library",
+        "live_footprint_create_library",
+        "live_footprint_register_library"
+      ],
+      "offline_tests": [],
+      "notes": "Persistent library-table operation, outside editor undo; reload invalidates loaded library caches."
+    },
+    "API_HANDLER_LIBRARIES/kiapi.common.commands.DeleteLibraryTableEntry": {
+      "decision": "supported",
+      "implementation": "conditional",
+      "document": "Library type/scope/nickname and current project adapter; no open editor document required. Provider availability is conditional.",
+      "registration_condition": "Base constructor; SYMBOL/FOOTPRINT subclasses inherit all except design-block-only LoadAllLibraries.",
+      "disk_effects": "Immediately saves global/project library table; Add may create a library when requested. Delete removes table entry, not library contents.",
+      "undo": "none",
+      "typed_tools": [
+        "live_symbol_unregister_library",
+        "live_footprint_unregister_library"
+      ],
+      "offline_tests": [],
+      "notes": "Persistent library-table operation, outside editor undo; reload invalidates loaded library caches."
+    },
+    "API_HANDLER_LIBRARIES/kiapi.common.commands.GetItemsFromLibrary": {
+      "decision": "supported",
+      "implementation": "conditional",
+      "document": "Library type/scope/nickname and current project adapter; no open editor document required. Provider availability is conditional.",
+      "registration_condition": "Base constructor; SYMBOL/FOOTPRINT subclasses inherit all except design-block-only LoadAllLibraries.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_symbol_get",
+        "live_footprint_get"
+      ],
+      "offline_tests": [],
+      "notes": "Dispatches by requested library type; providers depend on loaded kifaces. Search covers loaded libraries, not guaranteed complete results."
+    },
+    "API_HANDLER_LIBRARIES/kiapi.common.commands.GetLibraryItems": {
+      "decision": "supported",
+      "implementation": "conditional",
+      "document": "Library type/scope/nickname and current project adapter; no open editor document required. Provider availability is conditional.",
+      "registration_condition": "Base constructor; SYMBOL/FOOTPRINT subclasses inherit all except design-block-only LoadAllLibraries.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Dispatches by requested library type; providers depend on loaded kifaces. Search covers loaded libraries, not guaranteed complete results."
+    },
+    "API_HANDLER_LIBRARIES/kiapi.common.commands.GetLibraryStatuses": {
+      "decision": "supported",
+      "implementation": "conditional",
+      "document": "Library type/scope/nickname and current project adapter; no open editor document required. Provider availability is conditional.",
+      "registration_condition": "Base constructor; SYMBOL/FOOTPRINT subclasses inherit all except design-block-only LoadAllLibraries.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Dispatches by requested library type; providers depend on loaded kifaces. Search covers loaded libraries, not guaranteed complete results."
+    },
+    "API_HANDLER_LIBRARIES/kiapi.common.commands.GetLibraryTable": {
+      "decision": "supported",
+      "implementation": "conditional",
+      "document": "Library type/scope/nickname and current project adapter; no open editor document required. Provider availability is conditional.",
+      "registration_condition": "Base constructor; SYMBOL/FOOTPRINT subclasses inherit all except design-block-only LoadAllLibraries.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_symbol_libraries",
+        "live_footprint_libraries"
+      ],
+      "offline_tests": [],
+      "notes": "Dispatches by requested library type; providers depend on loaded kifaces. Search covers loaded libraries, not guaranteed complete results."
+    },
+    "API_HANDLER_LIBRARIES/kiapi.common.commands.LoadAllLibraries": {
+      "decision": "deferred",
+      "implementation": "conditional",
+      "document": "Library type/scope/nickname and current project adapter; no open editor document required. Provider availability is conditional.",
+      "registration_condition": "Only when aType == LIBRARY_TABLE_TYPE::DESIGN_BLOCK; dispatches loads to kifaces.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Returns AS_UNIMPLEMENTED in GUI mode. Only design-block dispatcher registers this bulk-load command; headless library loading and adapter inclusion need separate review."
+    },
+    "API_HANDLER_LIBRARIES/kiapi.common.commands.ReloadLibrary": {
+      "decision": "supported",
+      "implementation": "conditional",
+      "document": "Library type/scope/nickname and current project adapter; no open editor document required. Provider availability is conditional.",
+      "registration_condition": "Base constructor; SYMBOL/FOOTPRINT subclasses inherit all except design-block-only LoadAllLibraries.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_symbol_save",
+        "live_footprint_save"
+      ],
+      "offline_tests": [],
+      "notes": "Dispatches by requested library type; providers depend on loaded kifaces. Search covers loaded libraries, not guaranteed complete results."
+    },
+    "API_HANDLER_LIBRARIES/kiapi.common.commands.SearchLibraries": {
+      "decision": "supported",
+      "implementation": "conditional",
+      "document": "Library type/scope/nickname and current project adapter; no open editor document required. Provider availability is conditional.",
+      "registration_condition": "Base constructor; SYMBOL/FOOTPRINT subclasses inherit all except design-block-only LoadAllLibraries.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_symbol_search",
+        "live_footprint_search"
+      ],
+      "offline_tests": [],
+      "notes": "Dispatches by requested library type; providers depend on loaded kifaces. Search covers loaded libraries, not guaranteed complete results."
+    },
+    "API_HANDLER_LIBRARIES/kiapi.common.commands.UpdateLibraryTableEntry": {
+      "decision": "supported",
+      "implementation": "conditional",
+      "document": "Library type/scope/nickname and current project adapter; no open editor document required. Provider availability is conditional.",
+      "registration_condition": "Base constructor; SYMBOL/FOOTPRINT subclasses inherit all except design-block-only LoadAllLibraries.",
+      "disk_effects": "Immediately saves global/project library table; Add may create a library when requested. Delete removes table entry, not library contents.",
+      "undo": "none",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Persistent library-table operation, outside editor undo; reload invalidates loaded library caches."
+    },
+    "API_HANDLER_PCB/kiapi.board.commands.AddEmbeddedFiles": {
+      "decision": "deferred",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Direct unsaved board embedded-file mutation; no editor commit or explicit board save.",
+      "undo": "none",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native PCB embedded-file path exists; adapter inclusion and validation are a separate review. No live qualification."
+    },
+    "API_HANDLER_PCB/kiapi.board.commands.GetBoardDesignRules": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_design_rules"
+      ],
+      "offline_tests": [
+        "test_client.py::test_design_rules_and_netclasses_requests"
+      ],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.commands.GetBoardEditorAppearanceSettings": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "No document specifier; request-specific identifiers or current session context.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.commands.GetBoardLayerByName": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.commands.GetBoardLayerName": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.commands.GetBoardOrigin": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_origins"
+      ],
+      "offline_tests": [
+        "test_client.py::test_grid_and_origins_requests"
+      ],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.commands.GetBoardPlotSettings": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.commands.GetConnectedItems": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "header.document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.commands.GetCustomDesignRules": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_custom_rules"
+      ],
+      "offline_tests": [
+        "test_client.py::test_custom_rules_add_replaces_by_name_and_reports_errors"
+      ],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.commands.GetEmbeddedFiles": {
+      "decision": "deferred",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native PCB embedded-file path exists; adapter inclusion and validation are a separate review. No live qualification."
+    },
+    "API_HANDLER_PCB/kiapi.board.commands.GetItemsByNet": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "header.document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.commands.GetItemsByNetClass": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "header.document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.commands.GetNetClassForNets": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "No document specifier; request-specific identifiers or current session context.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.commands.GetNets": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_nets"
+      ],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.commands.ImportNetlist": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Changes board model in memory; import reads a netlist file. No explicit board save.",
+      "undo": "unknown",
+      "typed_tools": [
+        "live_pcb_update_from_schematic"
+      ],
+      "offline_tests": [
+        "test_client.py::test_update_from_schematic_exports_then_imports_the_netlist"
+      ],
+      "notes": "Uses zone-fill task/tool or netlist updater, outside client commit ownership. Batch rollback not promised; native undo behavior unqualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.commands.ImportSpecctraSession": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Reads Specctra session file and changes unsaved board model.",
+      "undo": "editor_commit",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native session import uses current commit; adapter batch eligibility is separately curated and does not follow from this row."
+    },
+    "API_HANDLER_PCB/kiapi.board.commands.InjectDrcError": {
+      "decision": "internal",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Adds a debug marker to unsaved model; no explicit board save.",
+      "undo": "editor_commit",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Debug/test DRC marker injection only; intentionally separate from user validation commands."
+    },
+    "API_HANDLER_PCB/kiapi.board.commands.PlaceFootprintFromLibrary": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "header.document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Changes unsaved model; explicit SaveDocument is required for persistence.",
+      "undo": "editor_commit",
+      "typed_tools": [
+        "live_pcb_place_footprint"
+      ],
+      "offline_tests": [],
+      "notes": "Uses editor commit path in native code. This does not promise adapter atomic-batch eligibility or live rollback qualification."
+    },
+    "API_HANDLER_PCB/kiapi.board.commands.RefillZones": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Changes board model in memory; import reads a netlist file. No explicit board save.",
+      "undo": "standalone",
+      "typed_tools": [
+        "live_pcb_refill_zones"
+      ],
+      "offline_tests": [],
+      "notes": "Uses zone-fill task/tool or netlist updater, outside client commit ownership. Batch rollback not promised; native undo behavior unqualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.commands.SetBoardDesignRules": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Changes model/view/settings in memory; application settings may persist later. No explicit document save here.",
+      "undo": "none",
+      "typed_tools": [
+        "live_pcb_design_rules"
+      ],
+      "offline_tests": [
+        "test_client.py::test_design_rules_and_netclasses_requests"
+      ],
+      "notes": "Direct settings/view mutation; outside editor commit rollback. Persistence follows explicit document saves or application settings lifecycle."
+    },
+    "API_HANDLER_PCB/kiapi.board.commands.SetBoardEditorAppearanceSettings": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "No document specifier; request-specific identifiers or current session context.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Changes model/view/settings in memory; application settings may persist later. No explicit document save here.",
+      "undo": "none",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Direct settings/view mutation; outside editor commit rollback. Persistence follows explicit document saves or application settings lifecycle."
+    },
+    "API_HANDLER_PCB/kiapi.board.commands.SetBoardEnabledLayers": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Changes model/view/settings in memory; application settings may persist later. No explicit document save here.",
+      "undo": "none",
+      "typed_tools": [
+        "live_pcb_layers"
+      ],
+      "offline_tests": [],
+      "notes": "Direct settings/view mutation; outside editor commit rollback. Persistence follows explicit document saves or application settings lifecycle."
+    },
+    "API_HANDLER_PCB/kiapi.board.commands.SetBoardOrigin": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Changes model/view/settings in memory; application settings may persist later. No explicit document save here.",
+      "undo": "none",
+      "typed_tools": [
+        "live_pcb_origins"
+      ],
+      "offline_tests": [
+        "test_client.py::test_grid_and_origins_requests"
+      ],
+      "notes": "Direct settings/view mutation; outside editor commit rollback. Persistence follows explicit document saves or application settings lifecycle."
+    },
+    "API_HANDLER_PCB/kiapi.board.commands.SetBoardPlotSettings": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Changes model/view/settings in memory; application settings may persist later. No explicit document save here.",
+      "undo": "none",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Direct settings/view mutation; outside editor commit rollback. Persistence follows explicit document saves or application settings lifecycle."
+    },
+    "API_HANDLER_PCB/kiapi.board.commands.SetCustomDesignRules": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Immediately writes the project .kicad_dru file after parser validation.",
+      "undo": "none",
+      "typed_tools": [
+        "live_pcb_custom_rules"
+      ],
+      "offline_tests": [
+        "test_client.py::test_custom_rules_add_replaces_by_name_and_reports_errors"
+      ],
+      "notes": "Disk write despite generic edit kind; no editor commit undo. Native disk behavior is code-derived."
+    },
+    "API_HANDLER_PCB/kiapi.board.commands.SetEmbeddedFiles": {
+      "decision": "deferred",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Direct unsaved board embedded-file mutation; no editor commit or explicit board save.",
+      "undo": "none",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native PCB embedded-file path exists; adapter inclusion and validation are a separate review. No live qualification."
+    },
+    "API_HANDLER_PCB/kiapi.board.commands.UpdateBoardStackup": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Changes model/view/settings in memory; application settings may persist later. No explicit document save here.",
+      "undo": "none",
+      "typed_tools": [
+        "live_pcb_set_stackup"
+      ],
+      "offline_tests": [
+        "test_client.py::test_stackup_request_and_thickness_scaling"
+      ],
+      "notes": "Direct settings/view mutation; outside editor commit rollback. Persistence follows explicit document saves or application settings lifecycle."
+    },
+    "API_HANDLER_PCB/kiapi.board.jobs.RunBoardJobExport3D": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "job_settings.document: matching open schematic or board identity, including project and sheet path when applicable. job_settings.output_path selects export destination.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Writes requested export output(s); may use temporary files; does not save the source document.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_export"
+      ],
+      "offline_tests": [
+        "test_client.py::test_board_exports_and_3d_render_build_their_jobs"
+      ],
+      "notes": "Native export job path from current model; format/output determinism and save/reopen not qualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.jobs.RunBoardJobExportDrill": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "job_settings.document: matching open schematic or board identity, including project and sheet path when applicable. job_settings.output_path selects export destination.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Writes requested export output(s); may use temporary files; does not save the source document.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_export"
+      ],
+      "offline_tests": [
+        "test_client.py::test_board_exports_and_3d_render_build_their_jobs"
+      ],
+      "notes": "Native export job path from current model; format/output determinism and save/reopen not qualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.jobs.RunBoardJobExportDxf": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "job_settings.document: matching open schematic or board identity, including project and sheet path when applicable. job_settings.output_path selects export destination.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Writes requested export output(s); may use temporary files; does not save the source document.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_export"
+      ],
+      "offline_tests": [
+        "test_client.py::test_board_exports_and_3d_render_build_their_jobs"
+      ],
+      "notes": "Native export job path from current model; format/output determinism and save/reopen not qualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.jobs.RunBoardJobExportGencad": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "job_settings.document: matching open schematic or board identity, including project and sheet path when applicable. job_settings.output_path selects export destination.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Writes requested export output(s); may use temporary files; does not save the source document.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_export"
+      ],
+      "offline_tests": [
+        "test_client.py::test_board_exports_and_3d_render_build_their_jobs"
+      ],
+      "notes": "Native export job path from current model; format/output determinism and save/reopen not qualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.jobs.RunBoardJobExportGerbers": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "job_settings.document: matching open schematic or board identity, including project and sheet path when applicable. job_settings.output_path selects export destination.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Writes requested export output(s); may use temporary files; does not save the source document.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_export"
+      ],
+      "offline_tests": [
+        "test_client.py::test_board_exports_and_3d_render_build_their_jobs"
+      ],
+      "notes": "Native export job path from current model; format/output determinism and save/reopen not qualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.jobs.RunBoardJobExportIdf": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "job_settings.document: matching open schematic or board identity, including project and sheet path when applicable. job_settings.output_path selects export destination.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Writes requested export output(s); may use temporary files; does not save the source document.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_export"
+      ],
+      "offline_tests": [
+        "test_client.py::test_board_exports_and_3d_render_build_their_jobs"
+      ],
+      "notes": "Native export job path from current model; format/output determinism and save/reopen not qualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.jobs.RunBoardJobExportIpc2581": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "job_settings.document: matching open schematic or board identity, including project and sheet path when applicable. job_settings.output_path selects export destination.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Writes requested export output(s); may use temporary files; does not save the source document.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_export"
+      ],
+      "offline_tests": [
+        "test_client.py::test_board_exports_and_3d_render_build_their_jobs"
+      ],
+      "notes": "Native export job path from current model; format/output determinism and save/reopen not qualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.jobs.RunBoardJobExportIpcD356": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "job_settings.document: matching open schematic or board identity, including project and sheet path when applicable. job_settings.output_path selects export destination.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Writes requested export output(s); may use temporary files; does not save the source document.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_export"
+      ],
+      "offline_tests": [
+        "test_client.py::test_board_exports_and_3d_render_build_their_jobs"
+      ],
+      "notes": "Native export job path from current model; format/output determinism and save/reopen not qualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.jobs.RunBoardJobExportODB": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "job_settings.document: matching open schematic or board identity, including project and sheet path when applicable. job_settings.output_path selects export destination.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Writes requested export output(s); may use temporary files; does not save the source document.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_export"
+      ],
+      "offline_tests": [
+        "test_client.py::test_board_exports_and_3d_render_build_their_jobs"
+      ],
+      "notes": "Native export job path from current model; format/output determinism and save/reopen not qualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.jobs.RunBoardJobExportPdf": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "job_settings.document: matching open schematic or board identity, including project and sheet path when applicable. job_settings.output_path selects export destination.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Writes requested export output(s); may use temporary files; does not save the source document.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_export"
+      ],
+      "offline_tests": [
+        "test_client.py::test_board_exports_and_3d_render_build_their_jobs"
+      ],
+      "notes": "Native export job path from current model; format/output determinism and save/reopen not qualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.jobs.RunBoardJobExportPng": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "job_settings.document: matching open schematic or board identity, including project and sheet path when applicable. job_settings.output_path selects export destination.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Writes requested export output(s); may use temporary files; does not save the source document.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_view"
+      ],
+      "offline_tests": [
+        "test_client.py::test_board_view_plots_layers_on_the_page"
+      ],
+      "notes": "Native export job path from current model; format/output determinism and save/reopen not qualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.jobs.RunBoardJobExportPosition": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "job_settings.document: matching open schematic or board identity, including project and sheet path when applicable. job_settings.output_path selects export destination.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Writes requested export output(s); may use temporary files; does not save the source document.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_export"
+      ],
+      "offline_tests": [
+        "test_client.py::test_board_exports_and_3d_render_build_their_jobs"
+      ],
+      "notes": "Native export job path from current model; format/output determinism and save/reopen not qualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.jobs.RunBoardJobExportPs": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "job_settings.document: matching open schematic or board identity, including project and sheet path when applicable. job_settings.output_path selects export destination.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Writes requested export output(s); may use temporary files; does not save the source document.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native export job path from current model; format/output determinism and save/reopen not qualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.jobs.RunBoardJobExportRender": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "job_settings.document: matching open schematic or board identity, including project and sheet path when applicable. job_settings.output_path selects export destination.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Writes requested export output(s); may use temporary files; does not save the source document.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_view_3d"
+      ],
+      "offline_tests": [
+        "test_client.py::test_board_exports_and_3d_render_build_their_jobs"
+      ],
+      "notes": "Native export job path from current model; format/output determinism and save/reopen not qualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.jobs.RunBoardJobExportSpecctraDsn": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "job_settings.document: matching open schematic or board identity, including project and sheet path when applicable. job_settings.output_path selects export destination.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Writes requested export output(s); may use temporary files; does not save the source document.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_export"
+      ],
+      "offline_tests": [
+        "test_client.py::test_board_exports_and_3d_render_build_their_jobs"
+      ],
+      "notes": "Native export job path from current model; format/output determinism and save/reopen not qualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.jobs.RunBoardJobExportStats": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "job_settings.document: matching open schematic or board identity, including project and sheet path when applicable. job_settings.output_path selects export destination.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Writes requested export output(s); may use temporary files; does not save the source document.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_export"
+      ],
+      "offline_tests": [
+        "test_client.py::test_board_exports_and_3d_render_build_their_jobs"
+      ],
+      "notes": "Native export job path from current model; format/output determinism and save/reopen not qualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.jobs.RunBoardJobExportSvg": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "job_settings.document: matching open schematic or board identity, including project and sheet path when applicable. job_settings.output_path selects export destination.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Writes requested export output(s); may use temporary files; does not save the source document.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_export"
+      ],
+      "offline_tests": [
+        "test_client.py::test_board_exports_and_3d_render_build_their_jobs"
+      ],
+      "notes": "Native export job path from current model; format/output determinism and save/reopen not qualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.tasks.GetDrcTaskResult": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "No document specifier; request-specific identifiers or current session context.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_drc"
+      ],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_PCB/kiapi.board.tasks.StartDrcTask": {
+      "decision": "supported",
+      "implementation": "conditional",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_drc"
+      ],
+      "offline_tests": [],
+      "notes": "Starts asynchronous native validation task; poll task status then result. May update transient markers/cache; not an atomic batch operation."
+    },
+    "API_HANDLER_PCB/kiapi.board.tasks.StartRefillZonesTask": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "board: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Changes board model in memory; import reads a netlist file. No explicit board save.",
+      "undo": "standalone",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Uses zone-fill task/tool or netlist updater, outside client commit ownership. Batch rollback not promised; native undo behavior unqualified."
+    },
+    "API_HANDLER_PCB/kiapi.common.commands.AddVariant": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Mutates variant model in memory; no explicit persistent save.",
+      "undo": "none",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Schematic GUI uses variant proxy undo outside client commit; PCB path directly mutates variants with no commit. Headless behavior is not qualified."
+    },
+    "API_HANDLER_PCB/kiapi.common.commands.CopyVariant": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Mutates variant model in memory; no explicit persistent save.",
+      "undo": "none",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Schematic GUI uses variant proxy undo outside client commit; PCB path directly mutates variants with no commit. Headless behavior is not qualified."
+    },
+    "API_HANDLER_PCB/kiapi.common.commands.CrossProbeAnnounce": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "No document specifier; request-specific identifiers or current session context.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_PCB/kiapi.common.commands.DeleteVariant": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Mutates variant model in memory; no explicit persistent save.",
+      "undo": "none",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Schematic GUI uses variant proxy undo outside client commit; PCB path directly mutates variants with no commit. Headless behavior is not qualified."
+    },
+    "API_HANDLER_PCB/kiapi.common.commands.GetCurrentVariant": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_PCB/kiapi.common.commands.GetItems": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "header.document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_items",
+        "live_pcb_summary"
+      ],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_PCB/kiapi.common.commands.GetOpenDocuments": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "type filter must match this editor; no target document needed. Returns current open documents only.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_documents"
+      ],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_PCB/kiapi.common.commands.GetPageSettings": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_pcb_set_page"
+      ],
+      "offline_tests": [
+        "test_client.py::test_set_page_changes_only_what_is_given"
+      ],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_PCB/kiapi.common.commands.GetVariants": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_PCB/kiapi.common.commands.HighlightNets": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "No document specifier; request-specific identifiers or current session context.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_PCB/kiapi.common.commands.RenameVariant": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Mutates variant model in memory; no explicit persistent save.",
+      "undo": "none",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Schematic GUI uses variant proxy undo outside client commit; PCB path directly mutates variants with no commit. Headless behavior is not qualified."
+    },
+    "API_HANDLER_PCB/kiapi.common.commands.RevertDocument": {
+      "decision": "deferred",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Reads saved content and discards unsaved model state; not an undoable edit.",
+      "undo": "none",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Registered and generic adapter available, but destructive unsaved-state replacement is deferred from qualified support."
+    },
+    "API_HANDLER_PCB/kiapi.common.commands.SaveCopyOfDocument": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Explicit persistent document/library write; options may include project/copy files. No undo for disk writes.",
+      "undo": "none",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native save path; overwrite rules and format/save-reopen compatibility require disposable native qualification."
+    },
+    "API_HANDLER_PCB/kiapi.common.commands.SaveDocument": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Explicit persistent document/library write; options may include project/copy files. No undo for disk writes.",
+      "undo": "none",
+      "typed_tools": [
+        "live_pcb_save"
+      ],
+      "offline_tests": [],
+      "notes": "Native save path; overwrite rules and format/save-reopen compatibility require disposable native qualification."
+    },
+    "API_HANDLER_PCB/kiapi.common.commands.SaveDocumentAs": {
+      "decision": "deferred",
+      "implementation": "conditional",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Explicit persistent document/library write; options may include project/copy files. No undo for disk writes.",
+      "undo": "none",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Returns AS_UNIMPLEMENTED when a GUI frame is present; implemented for headless context only. Generic presence does not establish desktop support."
+    },
+    "API_HANDLER_PCB/kiapi.common.commands.SetCurrentVariant": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "none",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Changes active variant/view context directly; not an editor commit."
+    },
+    "API_HANDLER_PCB/kiapi.common.commands.SetPageSettings": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Changes model/view/settings in memory; application settings may persist later. No explicit document save here.",
+      "undo": "none",
+      "typed_tools": [
+        "live_pcb_set_page"
+      ],
+      "offline_tests": [
+        "test_client.py::test_set_page_changes_only_what_is_given"
+      ],
+      "notes": "Direct settings/view mutation; outside editor commit rollback. Persistence follows explicit document saves or application settings lifecycle."
+    },
+    "API_HANDLER_PCB/kiapi.common.commands.SetVariantDescription": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Mutates variant model in memory; no explicit persistent save.",
+      "undo": "none",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Schematic GUI uses variant proxy undo outside client commit; PCB path directly mutates variants with no commit. Headless behavior is not qualified."
+    },
+    "API_HANDLER_PCB/kiapi.common.commands.SyncSelection": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "No document specifier; request-specific identifiers or current session context.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_SCH/kiapi.common.commands.AddToSelection": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "header.document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_schematic_select"
+      ],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_SCH/kiapi.common.commands.AddVariant": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Mutates variant model in memory; no explicit persistent save.",
+      "undo": "standalone",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Schematic GUI uses variant proxy undo outside client commit; PCB path directly mutates variants with no commit. Headless behavior is not qualified."
+    },
+    "API_HANDLER_SCH/kiapi.common.commands.ClearSelection": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "header.document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_schematic_select"
+      ],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_SCH/kiapi.common.commands.CopyVariant": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Mutates variant model in memory; no explicit persistent save.",
+      "undo": "standalone",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Schematic GUI uses variant proxy undo outside client commit; PCB path directly mutates variants with no commit. Headless behavior is not qualified."
+    },
+    "API_HANDLER_SCH/kiapi.common.commands.CrossProbeAnnounce": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "No document specifier; request-specific identifiers or current session context.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_SCH/kiapi.common.commands.DeleteVariant": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Mutates variant model in memory; no explicit persistent save.",
+      "undo": "standalone",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Schematic GUI uses variant proxy undo outside client commit; PCB path directly mutates variants with no commit. Headless behavior is not qualified."
+    },
+    "API_HANDLER_SCH/kiapi.common.commands.ExpandTextVariables": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_SCH/kiapi.common.commands.FocusOnItems": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_schematic_focus"
+      ],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_SCH/kiapi.common.commands.GetCurrentVariant": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_SCH/kiapi.common.commands.GetItems": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "header.document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_schematic_items"
+      ],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_SCH/kiapi.common.commands.GetItemsById": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "header.document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_SCH/kiapi.common.commands.GetOpenDocuments": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "type filter must match this editor; no target document needed. Returns current open documents only.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_schematic_documents"
+      ],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_SCH/kiapi.common.commands.GetPageSettings": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_schematic_set_page"
+      ],
+      "offline_tests": [
+        "test_client.py::test_set_page_changes_only_what_is_given"
+      ],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_SCH/kiapi.common.commands.GetSelection": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "header.document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_SCH/kiapi.common.commands.GetVariants": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_SCH/kiapi.common.commands.HighlightNets": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "No document specifier; request-specific identifiers or current session context.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_schematic_highlight_nets"
+      ],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_SCH/kiapi.common.commands.RemoveFromSelection": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "header.document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_SCH/kiapi.common.commands.RenameVariant": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Mutates variant model in memory; no explicit persistent save.",
+      "undo": "standalone",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Schematic GUI uses variant proxy undo outside client commit; PCB path directly mutates variants with no commit. Headless behavior is not qualified."
+    },
+    "API_HANDLER_SCH/kiapi.common.commands.RevertDocument": {
+      "decision": "deferred",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Reads saved content and discards unsaved model state; not an undoable edit.",
+      "undo": "none",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Registered and generic adapter available, but destructive unsaved-state replacement is deferred from qualified support."
+    },
+    "API_HANDLER_SCH/kiapi.common.commands.SaveCopyOfDocument": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Explicit persistent document/library write; options may include project/copy files. No undo for disk writes.",
+      "undo": "none",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native save path; overwrite rules and format/save-reopen compatibility require disposable native qualification."
+    },
+    "API_HANDLER_SCH/kiapi.common.commands.SaveDocument": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Explicit persistent document/library write; options may include project/copy files. No undo for disk writes.",
+      "undo": "none",
+      "typed_tools": [
+        "live_schematic_save"
+      ],
+      "offline_tests": [],
+      "notes": "Native save path; overwrite rules and format/save-reopen compatibility require disposable native qualification."
+    },
+    "API_HANDLER_SCH/kiapi.common.commands.SaveDocumentAs": {
+      "decision": "deferred",
+      "implementation": "conditional",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Explicit persistent document/library write; options may include project/copy files. No undo for disk writes.",
+      "undo": "none",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Returns AS_UNIMPLEMENTED when Pgm().IsGUI(); implemented for headless context only. Generic presence does not establish desktop support."
+    },
+    "API_HANDLER_SCH/kiapi.common.commands.SaveDocumentToString": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Serializes model/selection to response; no explicit persistent save.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Serialization handler exists; selection serialization requires a GUI selection. No native round-trip evidence recorded."
+    },
+    "API_HANDLER_SCH/kiapi.common.commands.SaveSelectionToString": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "No document specifier; request-specific identifiers or current session context.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Serializes model/selection to response; no explicit persistent save.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Serialization handler exists; selection serialization requires a GUI selection. No native round-trip evidence recorded."
+    },
+    "API_HANDLER_SCH/kiapi.common.commands.SetCurrentVariant": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "none",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Changes active variant/view context directly; not an editor commit."
+    },
+    "API_HANDLER_SCH/kiapi.common.commands.SetPageSettings": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Changes model/view/settings in memory; application settings may persist later. No explicit document save here.",
+      "undo": "none",
+      "typed_tools": [
+        "live_schematic_set_page"
+      ],
+      "offline_tests": [
+        "test_client.py::test_set_page_changes_only_what_is_given"
+      ],
+      "notes": "Direct settings/view mutation; outside editor commit rollback. Persistence follows explicit document saves or application settings lifecycle."
+    },
+    "API_HANDLER_SCH/kiapi.common.commands.SetVariantDescription": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Mutates variant model in memory; no explicit persistent save.",
+      "undo": "standalone",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Schematic GUI uses variant proxy undo outside client commit; PCB path directly mutates variants with no commit. Headless behavior is not qualified."
+    },
+    "API_HANDLER_SCH/kiapi.common.commands.SyncSelection": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "No document specifier; request-specific identifiers or current session context.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_SCH/kiapi.schematic.commands.AnnotateSchematic": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Changes unsaved model; explicit SaveDocument is required for persistence.",
+      "undo": "editor_commit",
+      "typed_tools": [
+        "live_schematic_annotate"
+      ],
+      "offline_tests": [],
+      "notes": "Uses editor commit path in native code. This does not promise adapter atomic-batch eligibility or live rollback qualification."
+    },
+    "API_HANDLER_SCH/kiapi.schematic.commands.AutoplaceFields": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Changes unsaved model; explicit SaveDocument is required for persistence.",
+      "undo": "editor_commit",
+      "typed_tools": [
+        "live_schematic_autoplace_fields"
+      ],
+      "offline_tests": [],
+      "notes": "Uses editor commit path in native code. This does not promise adapter atomic-batch eligibility or live rollback qualification."
+    },
+    "API_HANDLER_SCH/kiapi.schematic.commands.EditLibrarySymbol": {
+      "decision": "supported",
+      "implementation": "conditional",
+      "document": "No document specifier; request-specific identifiers or current session context.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Loads/creates in-memory editor state; no explicit library save. UI/config/cache side effects possible.",
+      "undo": "none",
+      "typed_tools": [
+        "live_symbol_edit"
+      ],
+      "offline_tests": [],
+      "notes": "Opens/replaces editor context; prompt/unsaved-state and mode guards matter. Not an atomic batch operation."
+    },
+    "API_HANDLER_SCH/kiapi.schematic.commands.GetSchematicHierarchy": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_schematic_hierarchy"
+      ],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_SCH/kiapi.schematic.commands.GetSchematicNetlist": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_schematic_netlist"
+      ],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_SCH/kiapi.schematic.commands.GetSymbolPins": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_schematic_symbol_pins"
+      ],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_SCH/kiapi.schematic.commands.NewLibrarySymbol": {
+      "decision": "supported",
+      "implementation": "conditional",
+      "document": "No document specifier; request-specific identifiers or current session context.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Loads/creates in-memory editor state; no explicit library save. UI/config/cache side effects possible.",
+      "undo": "none",
+      "typed_tools": [
+        "live_symbol_new"
+      ],
+      "offline_tests": [],
+      "notes": "Opens/replaces editor context; prompt/unsaved-state and mode guards matter. Not an atomic batch operation."
+    },
+    "API_HANDLER_SCH/kiapi.schematic.commands.OpenFootprintEditor": {
+      "decision": "supported",
+      "implementation": "conditional",
+      "document": "No document specifier; request-specific identifiers or current session context.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Loads/creates in-memory editor state; no explicit library save. UI/config/cache side effects possible.",
+      "undo": "none",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Opens/replaces editor context; prompt/unsaved-state and mode guards matter. Not an atomic batch operation."
+    },
+    "API_HANDLER_SCH/kiapi.schematic.commands.PlaceSymbolFromLibrary": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "header.document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Changes unsaved model; explicit SaveDocument is required for persistence.",
+      "undo": "editor_commit",
+      "typed_tools": [
+        "live_schematic_place_symbol"
+      ],
+      "offline_tests": [
+        "test_client.py::test_place_symbol_commits_and_returns_compact_summary"
+      ],
+      "notes": "Uses editor commit path in native code. This does not promise adapter atomic-batch eligibility or live rollback qualification."
+    },
+    "API_HANDLER_SCH/kiapi.schematic.commands.TransformItems": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Changes unsaved model; explicit SaveDocument is required for persistence.",
+      "undo": "editor_commit",
+      "typed_tools": [
+        "live_schematic_move"
+      ],
+      "offline_tests": [
+        "test_client.py::test_transform_maps_rotation_and_reports_dragged_items"
+      ],
+      "notes": "Uses editor commit path in native code. This does not promise adapter atomic-batch eligibility or live rollback qualification."
+    },
+    "API_HANDLER_SCH/kiapi.schematic.commands.UpdateSymbolsFromLibrary": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Changes unsaved model; explicit SaveDocument is required for persistence.",
+      "undo": "editor_commit",
+      "typed_tools": [
+        "live_schematic_update_from_library"
+      ],
+      "offline_tests": [],
+      "notes": "Uses editor commit path in native code. This does not promise adapter atomic-batch eligibility or live rollback qualification."
+    },
+    "API_HANDLER_SCH/kiapi.schematic.jobs.RunSchematicJobExportBOM": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "job_settings.document: matching open schematic or board identity, including project and sheet path when applicable. job_settings.output_path selects export destination.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Writes requested export output(s); may use temporary files; does not save the source document.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_schematic_export"
+      ],
+      "offline_tests": [],
+      "notes": "Native export job path from current model; format/output determinism and save/reopen not qualified."
+    },
+    "API_HANDLER_SCH/kiapi.schematic.jobs.RunSchematicJobExportDxf": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "job_settings.document: matching open schematic or board identity, including project and sheet path when applicable. job_settings.output_path selects export destination.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Writes requested export output(s); may use temporary files; does not save the source document.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_schematic_export"
+      ],
+      "offline_tests": [],
+      "notes": "Native export job path from current model; format/output determinism and save/reopen not qualified."
+    },
+    "API_HANDLER_SCH/kiapi.schematic.jobs.RunSchematicJobExportNetlist": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "job_settings.document: matching open schematic or board identity, including project and sheet path when applicable. job_settings.output_path selects export destination.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Writes requested export output(s); may use temporary files; does not save the source document.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_schematic_export",
+        "live_pcb_update_from_schematic"
+      ],
+      "offline_tests": [],
+      "notes": "Native export job path from current model; format/output determinism and save/reopen not qualified."
+    },
+    "API_HANDLER_SCH/kiapi.schematic.jobs.RunSchematicJobExportPdf": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "job_settings.document: matching open schematic or board identity, including project and sheet path when applicable. job_settings.output_path selects export destination.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Writes requested export output(s); may use temporary files; does not save the source document.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_schematic_export"
+      ],
+      "offline_tests": [],
+      "notes": "Native export job path from current model; format/output determinism and save/reopen not qualified."
+    },
+    "API_HANDLER_SCH/kiapi.schematic.jobs.RunSchematicJobExportPng": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "job_settings.document: matching open schematic or board identity, including project and sheet path when applicable. job_settings.output_path selects export destination.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Writes requested export output(s); may use temporary files; does not save the source document.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_schematic_view"
+      ],
+      "offline_tests": [
+        "test_client.py::test_render_targets_live_sheet_and_only_writes_temporary_image"
+      ],
+      "notes": "Native export job path from current model; format/output determinism and save/reopen not qualified."
+    },
+    "API_HANDLER_SCH/kiapi.schematic.jobs.RunSchematicJobExportPs": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "job_settings.document: matching open schematic or board identity, including project and sheet path when applicable. job_settings.output_path selects export destination.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Writes requested export output(s); may use temporary files; does not save the source document.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_schematic_export"
+      ],
+      "offline_tests": [],
+      "notes": "Native export job path from current model; format/output determinism and save/reopen not qualified."
+    },
+    "API_HANDLER_SCH/kiapi.schematic.jobs.RunSchematicJobExportSvg": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "job_settings.document: matching open schematic or board identity, including project and sheet path when applicable. job_settings.output_path selects export destination.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Writes requested export output(s); may use temporary files; does not save the source document.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_schematic_export"
+      ],
+      "offline_tests": [],
+      "notes": "Native export job path from current model; format/output determinism and save/reopen not qualified."
+    },
+    "API_HANDLER_SCH/kiapi.schematic.tasks.GetErcTaskResult": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "No document specifier; request-specific identifiers or current session context.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_schematic_erc"
+      ],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_SCH/kiapi.schematic.tasks.StartErcTask": {
+      "decision": "supported",
+      "implementation": "conditional",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_schematic_erc"
+      ],
+      "offline_tests": [],
+      "notes": "Starts asynchronous native validation task; poll task status then result. May update transient markers/cache; not an atomic batch operation."
+    },
+    "API_HANDLER_SYMBOL/kiapi.common.commands.EmbedFileFromPath": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Reads input path and changes unsaved embedded-file model; explicit SaveDocument is required for persistence. Temporary/cache effects may occur.",
+      "undo": "editor_commit",
+      "typed_tools": [
+        "live_embed_file"
+      ],
+      "offline_tests": [
+        "test_client.py::test_attach_step_embeds_then_links_the_model"
+      ],
+      "notes": "Uses editor commit path in native code. This does not promise adapter atomic-batch eligibility or live rollback qualification."
+    },
+    "API_HANDLER_SYMBOL/kiapi.common.commands.GetEmbeddedFileList": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_embedded_files"
+      ],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_SYMBOL/kiapi.common.commands.GetItems": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "header.document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_symbol_summary"
+      ],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_SYMBOL/kiapi.common.commands.GetItemsById": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "header.document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_SYMBOL/kiapi.common.commands.GetOpenDocuments": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "type filter must match this editor; no target document needed. Returns current open documents only.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "not_applicable",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_SYMBOL/kiapi.common.commands.OpenLibraryItem": {
+      "decision": "deferred",
+      "implementation": "conditional",
+      "document": "type and identifier: matching symbol/footprint library item; no existing document specifier.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "No explicit persistent write in this handler; reads/cache or UI effects may occur.",
+      "undo": "none",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Omitted generic path at baseline; opening can replace editor state. Review prompt/unsaved-state semantics before adapter inclusion."
+    },
+    "API_HANDLER_SYMBOL/kiapi.common.commands.RemoveEmbeddedFile": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Changes unsaved model; explicit SaveDocument is required for persistence.",
+      "undo": "editor_commit",
+      "typed_tools": [
+        "live_remove_embedded_file"
+      ],
+      "offline_tests": [],
+      "notes": "Uses editor commit path in native code. This does not promise adapter atomic-batch eligibility or live rollback qualification."
+    },
+    "API_HANDLER_SYMBOL/kiapi.common.commands.RevertDocument": {
+      "decision": "deferred",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Reads saved content and discards unsaved model state; not an undoable edit.",
+      "undo": "none",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Registered and generic adapter available, but destructive unsaved-state replacement is deferred from qualified support."
+    },
+    "API_HANDLER_SYMBOL/kiapi.common.commands.SaveCopyOfDocument": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Explicit persistent document/library write; options may include project/copy files. No undo for disk writes.",
+      "undo": "none",
+      "typed_tools": [],
+      "offline_tests": [],
+      "notes": "Native save path; overwrite rules and format/save-reopen compatibility require disposable native qualification."
+    },
+    "API_HANDLER_SYMBOL/kiapi.common.commands.SaveDocument": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Explicit persistent document/library write; options may include project/copy files. No undo for disk writes.",
+      "undo": "none",
+      "typed_tools": [
+        "live_symbol_save"
+      ],
+      "offline_tests": [],
+      "notes": "Native save path; overwrite rules and format/save-reopen compatibility require disposable native qualification."
+    },
+    "API_HANDLER_SYMBOL/kiapi.schematic.commands.RenderLibrarySymbol": {
+      "decision": "supported",
+      "implementation": "conditional",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Writes, reads and removes a temporary render file; returns image bytes. Does not save the source library.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_symbol_view"
+      ],
+      "offline_tests": [],
+      "notes": "Requires GUI editor frame and a loaded library item. Temporary rendering path exists; image correctness is not natively qualified here."
+    },
+    "API_HANDLER_SYMBOL/kiapi.schematic.commands.SetLibrarySymbolProperties": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "Changes unsaved model; explicit SaveDocument is required for persistence.",
+      "undo": "editor_commit",
+      "typed_tools": [
+        "live_symbol_set_properties"
+      ],
+      "offline_tests": [],
+      "notes": "Uses editor commit path in native code. This does not promise adapter atomic-batch eligibility or live rollback qualification."
+    }
+  }
+}
