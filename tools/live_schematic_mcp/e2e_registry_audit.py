@@ -46,8 +46,13 @@ def main():
     if expected:
         assert expected in {file.name for file in files.files}, "expected embedded fixture not returned"
     assert client.execute("GetEmbeddedFiles", payload)["result"] == result
-    batch = client.batch(target, [{"command": "GetEmbeddedFiles"}])
-    assert batch["steps"][0]["result"] == result
+    assert snapshot(client, target) == before, "standalone read changed live contents or modified state"
+    try:
+        client.batch(target, [{"command": "GetEmbeddedFiles"}])
+    except ValueError as error:
+        assert "cannot run inside a batch" in str(error)
+    else:
+        raise AssertionError("unqualified embedded read batch was accepted")
 
     for bad in ({}, {"type": "DOCTYPE_SCHEMATIC"},
                 {**as_dict(target), "board_filename": "p12-not-open-" + target.board_filename}):
@@ -62,7 +67,7 @@ def main():
     assert snapshot(client, target) == before, "read changed live contents or modified state"
     assert sha256(board_file.read_bytes()).hexdigest() == on_disk, "read changed the board on disk"
     version = as_dict(client.send(base.GetVersion(), base.GetVersionResponse))
-    print(f"ok: embedded read, batch, targeting, live-state and disk invariance; version={version}")
+    print(f"ok: embedded read, batch refusal, targeting, live-state and disk invariance; version={version}")
     print(f"embedded files returned: {len(files.files)}")
     if not files.files:
         print("pending: populated embedded-file fixture coverage (empty board only)")

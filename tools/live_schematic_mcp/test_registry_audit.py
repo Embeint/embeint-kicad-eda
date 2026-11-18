@@ -8,7 +8,7 @@ from google.protobuf.empty_pb2 import Empty
 import pytest
 
 import commands
-from client import LiveSchematic, as_dict, check_item_statuses, editor, envelope, types
+from client import LiveSchematic, as_dict, bind_batch_document, check_item_statuses, editor, envelope, types
 from common.types import embedded_files_pb2 as embedded
 from test_client import FakeClient, board_doc
 
@@ -22,7 +22,7 @@ def test_embedded_read_schema_and_exact_target():
     assert response_type is embedded.EmbeddedFiles
     assert kind == "read"
     schema = commands.describe(full)
-    assert schema["batchable"] is True
+    assert schema["batchable"] is False
     assert schema["returns"] == "kiapi.common.types.EmbeddedFiles"
     assert schema["fields"] == [{"name": "board", "repeated": False,
                                  "type": "kiapi.common.types.DocumentSpecifier"}]
@@ -54,7 +54,7 @@ def test_embedded_execute_preserves_opaque_payload_and_never_opens_commit(popula
     assert [request.DESCRIPTOR.name for request in client.requests] == ["GetEmbeddedFiles"]
 
 
-def test_embedded_batch_binds_missing_target_without_claiming_a_read_is_undoable():
+def test_embedded_batch_is_rejected_before_opening_an_empty_commit():
     target = board_doc()
 
     def reply(request, response_type):
@@ -62,10 +62,9 @@ def test_embedded_batch_binds_missing_target_without_claiming_a_read_is_undoable
         return embedded.EmbeddedFiles()
 
     client = FakeClient(reply)
-    assert client.batch(target, [{"command": "GetEmbeddedFiles"}])["committed"]
-    assert [request.DESCRIPTOR.name for request in client.requests] == [
-        "BeginCommit", "GetEmbeddedFiles", "EndCommit"]
-    assert client.requests[-1].action == editor.CMA_COMMIT
+    with pytest.raises(ValueError, match="cannot run inside a batch"):
+        client.batch(target, [{"command": "GetEmbeddedFiles"}])
+    assert client.requests == []
     assert commands.B + "GetEmbeddedFiles" not in commands.TRANSACTIONAL_COMMANDS
 
 
@@ -82,10 +81,9 @@ def test_embedded_batch_rejects_different_target_before_contact(change):
         other.project.path = "/other/"
     else:
         other.type = types.DOCTYPE_SCHEMATIC
-    client = FakeClient(lambda *_: pytest.fail("must reject before contacting KiCad"))
+    _, request, _, _ = commands.build_request("GetEmbeddedFiles", {"board": as_dict(other)})
     with pytest.raises(ValueError, match="document exactly"):
-        client.batch(target, [{"command": "GetEmbeddedFiles", "payload": {"board": as_dict(other)}}])
-    assert client.requests == []
+        bind_batch_document(request, target)
 
 
 @pytest.mark.parametrize("name", [
