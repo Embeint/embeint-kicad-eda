@@ -130,5 +130,19 @@ integration evidence. Existing offline tests remain part of the required suite:
 KICAD_LIVE_PYTHON=/path/to/python bash tools/live_schematic_mcp/scripts/run_tests.sh
 ```
 
-Native Linux/WSL application builds, real two-project sessions, installation,
-disconnect reconciliation and platform qualification remain separate release gates.
+On 2026-11-18, combined adapter revision
+`c6e511abf1863ec6dfa33939674aaaec61d54696` passed a real two-project run with upstream
+KiCad `10.99.0-unknown-4fe1ca2060~190~ubuntu24.04.1`, Linux ARM64, Ubuntu 24.04 and
+Xvfb in a network-disabled container. Each application used separate disposable
+projects/configuration. Diagnostics identified both projects; automatic selection
+refused two live listeners. After killing the second application's process group,
+its stale socket was preserved and reported unresponsive. A fresh automatic client
+excluded that refused listener and selected the first project, while a client
+already pinned to the dead instance failed without switching projects. The same
+run exercised native embedded-file reads through actual MCP stdio. Its schema
+SHA-256 was `0dfe9020f6c9377221971c6a7194761d18ee05398165570fcd25eb4f22b2c8cd`.
+
+That is bounded upstream-binary evidence, not an Embeint native build or WSL
+certification. Matching-fork builds, installation, application-restart/token
+reconciliation, disconnects during real mutations and broader platform qualification
+remain separate release gates.
