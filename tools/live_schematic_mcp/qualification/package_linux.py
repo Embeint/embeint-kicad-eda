@@ -121,7 +121,9 @@ def main():
         parser.error(str(error))
     arch = subprocess.check_output(["dpkg", "--print-architecture"], text=True).strip()
     output.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="embeint-deb-", dir=output.parent) as temp:
+    # Stage on the Linux temporary filesystem: an output directory may be a
+    # host-shared mount that cannot preserve the frozen runtime's symlinks.
+    with tempfile.TemporaryDirectory(prefix="embeint-deb-") as temp:
         stage = Path(temp)
         prefix = stage / "opt/embeint-kicad"
         shutil.copytree(args.install, prefix, symlinks=True)

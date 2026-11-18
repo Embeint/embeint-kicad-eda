@@ -7,7 +7,7 @@ COPY embeint-kicad.deb /tmp/embeint-kicad.deb
 RUN apt-get update && apt-get install -y --no-install-recommends \
     /tmp/embeint-kicad.deb xvfb xauth libgl1-mesa-dri libglx-mesa0 \
     && rm -rf /var/lib/apt/lists/* /tmp/embeint-kicad.deb
-RUN useradd --create-home --uid 1000 qualification
+RUN useradd --create-home qualification
 USER qualification
 WORKDIR /home/qualification
 CMD ["sleep", "infinity"]

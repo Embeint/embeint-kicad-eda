@@ -1,0 +1,1034 @@
+{
+  "qualification": "bounded development build; not release qualification",
+  "recorded_utc": "2026-11-18T20:53:55.456433+00:00",
+  "raw_evidence_directory": "/Users/karl/.t3/scratch/embeint-kicad-native-qualification-2026-11-19/linux/evidence",
+  "native": {
+    "application_version": "10.99.0-unknown, release build",
+    "build": {
+      "CMakeCache_sha256": "df398f166d43250c5979d1c2c05b6d97cfa7d9d411405097c566e753ab2581d7",
+      "container_ram_bytes": 1677721600,
+      "jobs": 1,
+      "linker": "lld",
+      "note": "CLI about output says release build as a CMake profile; this is not product release qualification. Compile logs, cache and version header are retained.",
+      "optimization": "Release -O1 -DNDEBUG",
+      "permitted_swap_bytes": 1073741824
+    },
+    "compiled_loader_objects": {
+      "eeschema/files-io.cpp": {
+        "mtime_ns": 1795031348887501687,
+        "object": "eeschema/CMakeFiles/eeschema_kiface_objects.dir/files-io.cpp.o",
+        "sha256": "41f8ea8370c83a96912753fb9bfc6b6a19e9461168a54502609f56b2fdd9e91e"
+      },
+      "kicad/kicad.cpp": {
+        "mtime_ns": 1795034175404503035,
+        "object": "kicad/CMakeFiles/kicad.dir/kicad.cpp.o",
+        "sha256": "597061fd5a6357399a696b649e0987548066d2ad77477a1fd8d1a2ef0152e8c2"
+      },
+      "pcbnew/files.cpp": {
+        "mtime_ns": 1795033292207502613,
+        "object": "pcbnew/CMakeFiles/pcbnew_kiface_objects.dir/files.cpp.o",
+        "sha256": "40810018ffc30310481eef99efede2edc330f4dea22097bed1cdf1099975e70b"
+      }
+    },
+    "files_sha256": {
+      "bin/_cvpcb.kiface": "14abb5bb5632f995a8233bd881f907d72d3eb6f760da5c295b036b0c4fa1e57f",
+      "bin/_eeschema.kiface": "bd5773c48f2a2724d504bafc82d87babf80e8b691addef2fe27d194ac28f974b",
+      "bin/_gerbview.kiface": "1027aac5786f74a2425a487d61b4662b32a129061d6d48ffccdba84e963985f5",
+      "bin/_pcb_calculator.kiface": "a23c46624c791a4f52571bcd127aa3743e36780afe9c0601bcb5090aa1563038",
+      "bin/_pcbnew.kiface": "88eaa4f7662df99586f8b2d172244e110aeea88a56741c9594e48b4e4e0d53a1",
+      "bin/_pl_editor.kiface": "4e1af5ad2f691cdc15dd4d0e37edcdd49acbf565c1fa9ad70fac55ae08f6b737",
+      "bin/eeschema": "0a1bb83286e71708cac7b2db924b18d823dafc5b44af463894894355e4300547",
+      "bin/gerbview": "f0f813a4e994af95d8043e2b486dd36549230ad7d7436af635109796255d2265",
+      "bin/kicad": "03a393a5d1ab71ab920f1ad93172e0e971dbadd713ec7495577622ffbb43dc5b",
+      "bin/kicad-cli": "ed52e02c70e57e0f96876bbb63c779111359dc0890c8195836b9a4fe1b7892e8",
+      "bin/pcb_calculator": "7030a8f59113edd1f101b86ed6e6ac6ddc11f2a76801a042cc5e4db313bdce17",
+      "bin/pcbnew": "a06626270f5eae3bd9565d716d0566f581491bc5dfc334d62d00822d93342251",
+      "bin/pl_editor": "79b10e095fe4861cb464a8b353367199cb596306f8a302a4c74772cc9f128eaf",
+      "lib/kicad/plugins/3d/libs3d_plugin_idf.so": "83d2cf75d035e17db1c46bb1461f82c83e3827ffcf3e3d5423c647807fc7a8c0",
+      "lib/kicad/plugins/3d/libs3d_plugin_oce.so": "0f0ad89b4605228e7e97b5aeb7f4988ef804e52841606940e8b46d52f1ad4243",
+      "lib/kicad/plugins/3d/libs3d_plugin_vrml.so": "6328a5c9b4629f7fef0187df765e006f0661fe20e93696b9f3b5b8e1f05aeea1",
+      "lib/libkiapi.so.10.99.0": "7f2357bb508c10f69dd83471df40c4fad8bc7822ec9d9fb33a20ea2d8c86bd01",
+      "lib/libkicad_3d_import.so": "a2752f341ac39097642fe2f29e0a5d38c41bf8addaa15487a94b093a4ee9927d",
+      "lib/libkicad_3dsg.so.2.0.0": "e5df09380feb1a7593078add98b299c28d6737588d0ccd9d9422a78273626af9",
+      "lib/libkicommon.so.10.99.0": "66166173075bbc7562b3a56f04485557e3045b60b506f528fb78812703599bf1",
+      "lib/libkigal.so.10.99.0": "ebfd1819d38763b07c1d16105ea722a54d23325105923debc6190b36bd17306e",
+      "share/applications/org.kicad.eeschema.desktop": "d1160dc99a156037f0f7f84c433960973ddc50c7726d1f52fdf76ee09e7dac9d",
+      "share/applications/org.kicad.gerbview.desktop": "882d678ae1f4a9f54a71fd5027522856b9c9247b37de4cdec2f28a29f9e3bac5",
+      "share/applications/org.kicad.kicad.desktop": "c3e55e5341544f5a6e3103eafab479906f686fc92f5e14ed0527940655c95c0b",
+      "share/applications/org.kicad.pcbcalculator.desktop": "0ec4c4f49890f41061bee52029b8d8304617dfa1172cd4e8f798a8ebb98f8d7e",
+      "share/applications/org.kicad.pcbnew.desktop": "bf7c46049b17cab913ed5d02d79785d5f80a1206b4c6954978112c2951807bda",
+      "share/bash-completion/completions/kicad-cli": "0eebba84859bc810b7ecd8828c91723dd796eb4a2d49fb515ccc274253173580",
+      "share/icons/hicolor/128x128/apps/eeschema.png": "59828e851bd373d5546be8fb03b87753707b371707ec104eb65a9fa3d17fb4d5",
+      "share/icons/hicolor/128x128/apps/gerbview.png": "487770afa9f544d419743a5ee34e8feba48909ce438289175a3ebae652c5cec3",
+      "share/icons/hicolor/128x128/apps/kicad.png": "375a4486619c52f8d710d5ad33b2c4f53a9bc102e31aa9cdaf7e37beb2ce08cb",
+      "share/icons/hicolor/128x128/apps/pcbcalculator.png": "6b955b0082affd4fc75ca173eef631e718151b7cd10c2c4113c30232953b5047",
+      "share/icons/hicolor/128x128/apps/pcbnew.png": "f67b580efde8d52e59bd716adbf1b015521b4da75745be53cb1821d19e6d8445",
+      "share/icons/hicolor/128x128/mimetypes/application-x-kicad-footprint.png": "6140763b3a614f8094096b0d53a7b346a7d71dee9e1ebcc897505a292a54e526",
+      "share/icons/hicolor/128x128/mimetypes/application-x-kicad-pcb.png": "c114dc6f94eaf58208d67722a29ba61a38bcf4fb3d3edf88f0cc0abaad44322b",
+      "share/icons/hicolor/128x128/mimetypes/application-x-kicad-project.png": "855fae3907cf46b7805b8ea442d88d10b555c1ecee0a9910ef1ce933224d4c06",
+      "share/icons/hicolor/128x128/mimetypes/application-x-kicad-schematic.png": "5b194fd0f7a524cffd39ce9f92a5239c76a7c2eee057065e09b0b79f65f48091",
+      "share/icons/hicolor/128x128/mimetypes/application-x-kicad-symbol.png": "372b3382db7d51e2717cfc3dd20ef2da92e81f869a1a344c5fe3d443627752d0",
+      "share/icons/hicolor/128x128/mimetypes/application-x-kicad-worksheet.png": "f0c6c445ba495f3d30a7fb879eed501aa8dce3ba75a2350854521adc7273496d",
+      "share/icons/hicolor/16x16/apps/eeschema.png": "07b8d8048481bee0d354d0923897eb7a0967878b50c4d0e4ba6210ac23153d27",
+      "share/icons/hicolor/16x16/apps/gerbview.png": "9440b0519b399dbbbba7d33d45264c5095dc87a2ff1495ad8f28cd6ceaffc82c",
+      "share/icons/hicolor/16x16/apps/kicad.png": "50204a3742251a207a138f63e021744b3bf94c27b7b1fbf4bd0991e17def8bad",
+      "share/icons/hicolor/16x16/apps/pcbcalculator.png": "9a72401c504c475a107e87d6d13067eb0077bd39bc3442860e6a6e2b44808050",
+      "share/icons/hicolor/16x16/apps/pcbnew.png": "3a864e8f3e7db24db6078cf5ce1aed9bc93599d5a8fd2363435b494a01ccfd0a",
+      "share/icons/hicolor/16x16/mimetypes/application-x-kicad-footprint.png": "7cc522349b181f84172f9045ee3c2f86c23bf407ad5e97bc10e12bc65843148f",
+      "share/icons/hicolor/16x16/mimetypes/application-x-kicad-pcb.png": "0d05a3fc7092d4eb3af076565b2bfa11c93ecaa83a0f0890e2d980f75d6068d5",
+      "share/icons/hicolor/16x16/mimetypes/application-x-kicad-project.png": "67c2d6146d46f493a9c7320eb530b305ddeb7e55d000675b4c27d4b13caeef1d",
+      "share/icons/hicolor/16x16/mimetypes/application-x-kicad-schematic.png": "59847cac66189bdbeccbb38235819ef5665239607aea5444469701605676bcef",
+      "share/icons/hicolor/16x16/mimetypes/application-x-kicad-symbol.png": "8d705f9915bba665630e0822283b4b1569c74d63d848c483072c760bd229b58c",
+      "share/icons/hicolor/16x16/mimetypes/application-x-kicad-worksheet.png": "3ea4b95460bc3c55edae3e08fc90d0cd8f47ab38129079b1672e6c331ca5a0b6",
+      "share/icons/hicolor/24x24/apps/eeschema.png": "f58a1204b2b3046ba5d35c3d71c13b80280fa2f9a99dfe2107f1d0162301c3b0",
+      "share/icons/hicolor/24x24/apps/gerbview.png": "13b18112bce58a7ab62d24edb2033a1e29eef53a355ad0130ee1859c3aa0453b",
+      "share/icons/hicolor/24x24/apps/kicad.png": "c75ff1b8e852d897756b3a9ddb6f72729713a4122fe9811109079930912dc518",
+      "share/icons/hicolor/24x24/apps/pcbcalculator.png": "d377f9b534725b66fe2a080c816beac74c229d6237206ad537da163a659782fe",
+      "share/icons/hicolor/24x24/apps/pcbnew.png": "1870cca2b2a40902b877c483f8eeb18e3475a3c2b8068acd13a49c577f6f2ab9",
+      "share/icons/hicolor/24x24/mimetypes/application-x-kicad-footprint.png": "bff30cb25e5a98d75a01b410d6a20a4d385a017a7839a3e017e1cea4ef1f70a3",
+      "share/icons/hicolor/24x24/mimetypes/application-x-kicad-pcb.png": "8b5b49717e529a14c67f81df7217a184e4215910efa32d62b3252e43e6c73e33",
+      "share/icons/hicolor/24x24/mimetypes/application-x-kicad-project.png": "6b5d40e96fdbf363210117e9a815f2eb3bd2f2ae86b8e563659b81fe0fc6c645",
+      "share/icons/hicolor/24x24/mimetypes/application-x-kicad-schematic.png": "6a34f95b677533364686c3fefc467c5b338dd54bb8d80511733123885353b13d",
+      "share/icons/hicolor/24x24/mimetypes/application-x-kicad-symbol.png": "30830f9af30d7a2d98382aede0207ce3575c217352be82535ebb37992863c51d",
+      "share/icons/hicolor/24x24/mimetypes/application-x-kicad-worksheet.png": "2da58c97648873868bc80eec87000cdcc268fc436f71eb76f41c357678ab3b80",
+      "share/icons/hicolor/32x32/apps/eeschema.png": "07abb102900bf91c6cb5d122773c240724a6bae2fcb9a32e9ea00a81396adad8",
+      "share/icons/hicolor/32x32/apps/gerbview.png": "2f874dd14d960f212809b815c5e1183659296ebf44b92f8e807eb6697e1c1d1d",
+      "share/icons/hicolor/32x32/apps/kicad.png": "15c5b0792154207e839a67c018d341e9647d758d6b4749b8fd1607d1a71f4821",
+      "share/icons/hicolor/32x32/apps/pcbcalculator.png": "0958116946c335924eb3d1ba7c3c785356b7d19237c58aa0c7510ff5eb9a1033",
+      "share/icons/hicolor/32x32/apps/pcbnew.png": "920dc18257d9d99556fcb914f8343811e091b754b9769231e4adb61747bc54a5",
+      "share/icons/hicolor/32x32/mimetypes/application-x-kicad-footprint.png": "d9fb43a1fb342a0eb54cf2ef8f9115eba6cf5155361bdcc5e34f7c0475f54997",
+      "share/icons/hicolor/32x32/mimetypes/application-x-kicad-pcb.png": "967b5ec9e9a5df987543325382bc57a3b52394b3f199ed796214f9b94111f112",
+      "share/icons/hicolor/32x32/mimetypes/application-x-kicad-project.png": "855dad96379788038ba2b101341b7daae01c1cb44b1ccbf264075c87db9bc8f2",
+      "share/icons/hicolor/32x32/mimetypes/application-x-kicad-schematic.png": "1bc27d3a4333bbc0289b9b14f331b92a119e780a9015e68c1dc754931584f4ba",
+      "share/icons/hicolor/32x32/mimetypes/application-x-kicad-symbol.png": "085dc418a85fb58dc7c6b3d5489766f4659e628ac7a1e416edbb4da920bb71ea",
+      "share/icons/hicolor/32x32/mimetypes/application-x-kicad-worksheet.png": "b9704614b1367d84b9813e195e243730090a4f0ef51708ef2180c25f17567219",
+      "share/icons/hicolor/48x48/apps/eeschema.png": "4b888e89fb183547534625cf6eec5099e4e24ec653f08583a75307296a02c7fd",
+      "share/icons/hicolor/48x48/apps/gerbview.png": "34bf60a8e4adb5403805f7fe5ddadaf1fd7d4cbcee8ed35351fcaf82f0fef724",
+      "share/icons/hicolor/48x48/apps/kicad.png": "c4f1de49d049e8f51fed4bc27971e38a6623a2d72487eb0678e28f60a914730b",
+      "share/icons/hicolor/48x48/apps/pcbcalculator.png": "33e67c435df428c5e8b92b5583ae0c926809d2d606d39b50cc60016e730f91d0",
+      "share/icons/hicolor/48x48/apps/pcbnew.png": "44343187680561324ad9877b29333ba2a7bb2f70ba54105687abd15af06e0485",
+      "share/icons/hicolor/48x48/mimetypes/application-x-kicad-footprint.png": "b74ed63ba8be2c910a436fa00b17eb63ef3dd97b764b9001b993bb8431f69fde",
+      "share/icons/hicolor/48x48/mimetypes/application-x-kicad-pcb.png": "ec8a10d02070bd5a31e7c2c952e7fd7513278ba184e4eaac68a95989ce95ebe3",
+      "share/icons/hicolor/48x48/mimetypes/application-x-kicad-project.png": "7ab19eca12227db7e2001f8fa5e934b819915d74faa4208ebbfbff8482f48cea",
+      "share/icons/hicolor/48x48/mimetypes/application-x-kicad-schematic.png": "b79b2c537915dd9e2678673c833e42ea43f78e08d4199ab0c2541777eb8921ec",
+      "share/icons/hicolor/48x48/mimetypes/application-x-kicad-symbol.png": "9254b17fde0eb24bdedca53aceaf48ffdac25f201f918ea26ad98818d3fa6873",
+      "share/icons/hicolor/48x48/mimetypes/application-x-kicad-worksheet.png": "713a14ea189598ad8bcb5a2c1d5ed4b34a734fd2d6e588065d450473df9f143f",
+      "share/icons/hicolor/64x64/apps/eeschema.png": "873a8e9c79437312244d513a0e2dd6cc594515981c62ad54e9c16f82484fdcff",
+      "share/icons/hicolor/64x64/apps/gerbview.png": "c8afb0942804c996bd79e1984c36a072e5dc8584cccc0685fcae2bfad849ae45",
+      "share/icons/hicolor/64x64/apps/kicad.png": "c092d621b56a0456381f5f43acda6bec229a5a1e6ad071e5b309f669655d9164",
+      "share/icons/hicolor/64x64/apps/pcbcalculator.png": "3df1e705e5cbf8a3d0e28ba7376df8a89b030abfb2d2b4bc3ab9119f7f37e67e",
+      "share/icons/hicolor/64x64/apps/pcbnew.png": "23f23f492f1c02984d00c04e75628b26db00c28f459bada5a6bbb42ecc3f65e8",
+      "share/icons/hicolor/64x64/mimetypes/application-x-kicad-footprint.png": "2ddeb59416faeceb52bf0ef8c80bd69e1a5ee6c4a20247c91d705d52da2bcae7",
+      "share/icons/hicolor/64x64/mimetypes/application-x-kicad-pcb.png": "ad69cf92a94cf8e618f0160ccdde53f4f218503324bcb9f81d405256af875209",
+      "share/icons/hicolor/64x64/mimetypes/application-x-kicad-project.png": "4d8e48a2ebd3dc0863cbc004f95f78ea7353c2f5c0b14b51f40ec162690b0ae1",
+      "share/icons/hicolor/64x64/mimetypes/application-x-kicad-schematic.png": "0465c583a13d448c3b427bdad76e69240f62c0cf66c3793a4e260eab43d5a05a",
+      "share/icons/hicolor/64x64/mimetypes/application-x-kicad-symbol.png": "600cc138062c1b4c3d51d5699bb94832de69968f4f101c5b456f29ad31e990fe",
+      "share/icons/hicolor/64x64/mimetypes/application-x-kicad-worksheet.png": "a970f66b72af89a97fd2665aed1e7782e27cce37a5eaaea42a2f9c6c5ba440c8",
+      "share/icons/hicolor/scalable/apps/eeschema.svg": "639db5a8169f7f041ca06fbf305c7ae05f304ef5e060ea71d5668d732e302b43",
+      "share/icons/hicolor/scalable/apps/gerbview.svg": "5363d193a75d2d82bbe7181f000e7c8dac9753a717908c399c130f4b68e8d921",
+      "share/icons/hicolor/scalable/apps/kicad.svg": "c2cba660eb4b1a896a945e582f0115c492e0427a15a219ead939a87078046681",
+      "share/icons/hicolor/scalable/apps/pcbcalculator.svg": "971840457d32b788aab178cc3e1072f834b637bcf2f6e1f37e59b9c9b5c02cab",
+      "share/icons/hicolor/scalable/apps/pcbnew.svg": "8a505b6cdda09af5afd55686307b10220683dbe08b17ee46a31500c423dc734e",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-footprint-16.svg": "85b0c55277c5d59a31a13df09da9908c88ba49de9f15d7b7476fbaae51e331bf",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-footprint-24.svg": "1ffe05224bee3ed6344c7835c0c658918b4c15d115d7bd786b61e60a8c33e14e",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-footprint-32.svg": "e26f349e249f7e520c781534e45329be6e44fa2565931bb0933b2852570fb652",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-footprint-48.svg": "89047fc17301eb438d2473a2df475245575b13e5f4b8920e0227b5d46a3ad528",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-footprint-64.svg": "d0935234786bc03c0eb9b975392e8a834b2b21586859521ab83c518767a2aa8d",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-footprint.svg": "a9cdda5b285c6879a585b51cb40f7850fd7505d6ecc32531fee0498f572141b4",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-pcb-16.svg": "22fd2c46741bc97ba66dedee67bee55b45fc6930cc2ce70d054c5f5a8518cd83",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-pcb-24.svg": "844c76f4d135d7705e67994f8027f745cb67e848afedf16db62d46d516e28f14",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-pcb-32.svg": "3e4c89ad5591b8da9af8293bd2783e85c055de5c00debf3ef6a1622f13ece235",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-pcb-48.svg": "7b20af1eda0acd0d274fc05858be0c7d9f1d9e23d142d32a5ecaf234d90130a0",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-pcb-64.svg": "73fb6bd58c20962f247b76a0eb213abdfd66364ec58ac6daac5fef9e47bf39de",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-pcb.svg": "764c97e4947dee65a65b5ec28fa5c7bca0cc82f8b85db99d817ab1a2b67a7d17",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-project-16.svg": "0bdd4a06a2f815a1fcc96c2c95ba83d7f59e0508fadebb6e8b326b0a8105f195",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-project-24.svg": "c3bed176f8c9cf139fa08f577da3acc0b0e0939ce22a1703abbadffd526febe7",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-project-32.svg": "f8cf292c78fdbe789a2775d0caf37160331a53760910830e5badc47a63828b9b",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-project-48.svg": "85025825e45f5dec7b993b4974d93a1c70c7e5d05a2a5bda5216d91493f2f791",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-project-64.svg": "35f2fbc642ec2736fc431396c6c37c4f554ee2e08a4d22bdc2ba662bf84c14dc",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-project.svg": "49bed9b5bcbcf2278ce05aea02e542f73cd909f41f92ab7889110d9c1d1e7265",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-schematic-16.svg": "fc354f25288fa318240b5b01157c4b7837389d190c236f9e7bd8dfd19f9fcbb8",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-schematic-24.svg": "545f0901b55e7d41294fb592bc5c1a03ed3716c7eae5dbf217f6ca6a833d1ebf",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-schematic-32.svg": "08e615b60f6004eec240c119306db7a6e993f366ffa4e2b847cfcff7e5ad9a5e",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-schematic-48.svg": "ff97b7223c04352289b9295b9c7f037e571aef5a9f1d22d78c87012489c7cbdc",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-schematic-64.svg": "502de7d73ab35449700ec2996337b86919fe4b984d1ce8cc4560a0479c5a83d1",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-schematic.svg": "449f1aadee474721003992c2cd5f5fd3cba075ac49ec630fe853abe7760bf728",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-symbol-16.svg": "54aeeca3af98c6fc481af8bc1a850a10ef2f03cccc4bb6e72ea01278374d06a8",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-symbol-24.svg": "a0495b2c9e3e1c097cdc60d8c67fc10a89ccf8babbc00c26c9eadcbc94d22224",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-symbol-32.svg": "da9118f091ebbfb57bbe858c9bc131013d66a6a78f8a44013c4fa49c2aee6f5d",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-symbol-48.svg": "23c5180f0fc83454bfe144a0bfe9c1cf37ab7fbe23cb1182ce32e51cc4c8d0e2",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-symbol-64.svg": "093e0ad01d416261bb2fef4b9d541fa2c969b40481bdda3181fcd2186fcf566b",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-symbol.svg": "6451fa3e1d571521cfaa7368868f97e848b4931fccfeb65b40d4a41ff49942d5",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-worksheet-16.svg": "0b7f2212524aba78e18817a7ecc0bdcba83594adacbf38b87beaaf0830f10f15",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-worksheet-24.svg": "804d42ce63ff16bd4bf741613bcd32cd3e87ca1b258b25a69429b41e731cbd2e",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-worksheet-32.svg": "32c26887d9135922764ddd21ca10df7b7923a5ff1bd73e1f3acb79782168e1c1",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-worksheet-48.svg": "2cf0077d5822678e6b808a64ce0a2011feb5df08c8558b352c4f6246d99b480f",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-worksheet-64.svg": "17032db99da24e7ff8aa0e5e00ed0551bacc189b4516f2d3f195ba6ac574cc5f",
+      "share/icons/hicolor/scalable/mimetypes/application-x-kicad-worksheet.svg": "88d9366a02f2570a6343276477a9924caaf9af8854156ab3b4a0e3d942458bcb",
+      "share/kicad/libwmf/fonts/Carlito-Bold.ttf": "bb5d20f79b82599ec72983597437373a80f2d2085fa91fc144fd74e876a594db",
+      "share/kicad/libwmf/fonts/Carlito-Regular.ttf": "f6418f708baede9789daef5d458c0f53d2a888af9820e8062934e504fedc6595",
+      "share/kicad/libwmf/fonts/KiCadOrCADElephant-Black.ttf": "e805a12f9526743b20da44a949f654d1907ae8b43ecfacc77a6c111b1dc1f4f5",
+      "share/kicad/libwmf/fonts/LICENSE": "44951bcce8b3541cc85a0503956381baa7860c507c456f5c9d927cb3c6322f75",
+      "share/kicad/libwmf/fonts/LICENSE-Carlito.txt": "eec0a1be41ac3d940e93915dbc73572ba105be2b3e49ce459250b384ca2e8572",
+      "share/kicad/libwmf/fonts/LICENSE-KiCadOrCADElephant.txt": "d9fa308aff80d1d19cc5636cac47bac94087822314c219adf94792792db6dde0",
+      "share/kicad/libwmf/fonts/LICENSE-SourceSans.txt": "187146d84388c637745f5d7598fe54f10477c5bcf101ba55f71edbbd0fde7123",
+      "share/kicad/libwmf/fonts/NimbusMonoPS-Bold.afm": "1d9f9ad40ac1763eaecacdd8c7ca091fae54e6f0418146b0d5d5441c19598dfe",
+      "share/kicad/libwmf/fonts/NimbusMonoPS-Bold.t1": "63e2c80d0e6983c68dd986f7044944e9f58463f8bb118c21fb4372c298906b18",
+      "share/kicad/libwmf/fonts/NimbusMonoPS-BoldItalic.afm": "212fcf75b839ecb1ba75c260d8373cc21a45ea9b3ea0c4e593b45d954bab75d7",
+      "share/kicad/libwmf/fonts/NimbusMonoPS-BoldItalic.t1": "f9006fd0749c906fe51a570bb246883e0af127eff2ca13cdbd250db3e5a1cec9",
+      "share/kicad/libwmf/fonts/NimbusMonoPS-Italic.afm": "db7ef8596964939991612bdc764aa79bd66f9f01c60da020ca24aaf4fae5960e",
+      "share/kicad/libwmf/fonts/NimbusMonoPS-Italic.t1": "0db4cd31b146794a931de48ca15f8bad3252ad744deb651a582f75af4c7ae8df",
+      "share/kicad/libwmf/fonts/NimbusMonoPS-Regular.afm": "9e924a1613db3c20837f308af9595c96c27ee1be1c2054d4140dddd4ab9df59d",
+      "share/kicad/libwmf/fonts/NimbusMonoPS-Regular.t1": "b1c0f23ba9732ee495ea52658684dc36064d3c439ac81b7dfcf922e790e5160f",
+      "share/kicad/libwmf/fonts/NimbusRoman-Bold.afm": "c0297ae3c7e862f978468af94e0372dc4109ea642e163243f81f9e87161a687c",
+      "share/kicad/libwmf/fonts/NimbusRoman-Bold.t1": "4d31149fe14fb8fb9f84f8c6171eb90a654b6f7c4db8213a6e501b32e712e290",
+      "share/kicad/libwmf/fonts/NimbusRoman-BoldItalic.afm": "2c10df752037ab9568492b1981c4132f2e38effff875ed2fd7b8ee816da80756",
+      "share/kicad/libwmf/fonts/NimbusRoman-BoldItalic.t1": "4a305bcf1950e2db6bb03ed68715a74930d00d630661d6e0c03375b3cc983888",
+      "share/kicad/libwmf/fonts/NimbusRoman-Italic.afm": "1787d941bf5d085bcfee14a2e635bd41a146c78510a644fbf7362ff8d4948e96",
+      "share/kicad/libwmf/fonts/NimbusRoman-Italic.t1": "0c5cc5161c325440ed7a9de00869535e8f10f0eeccf1e65dbcd2c387ffbc1eb4",
+      "share/kicad/libwmf/fonts/NimbusRoman-Regular.afm": "e476212c416039aa9805f20d945e2b3a522be5de15125cb566d257482379ccd9",
+      "share/kicad/libwmf/fonts/NimbusRoman-Regular.t1": "cd63681b669f41d2b1cc828a6e26eeeee668ae3f9144f6ae2c1bad971fc146f2",
+      "share/kicad/libwmf/fonts/NimbusSans-Bold.afm": "a8ae3eb69d98409b8242c81cc09a2438799b93eb18f5a04b3c43a3ee7ba5fa5c",
+      "share/kicad/libwmf/fonts/NimbusSans-Bold.t1": "ebf5ba685a44a194cc61ba3e34a1bf4718980871e5b72304ba9633411c7d6391",
+      "share/kicad/libwmf/fonts/NimbusSans-BoldItalic.afm": "e3fa2478c56cc864aefaf02d3794b04f2d55750f37b38dbe4cf0b7ed6ff377ad",
+      "share/kicad/libwmf/fonts/NimbusSans-BoldItalic.t1": "74df6934c2b4fe514c5d4a46f4c1b8c610d5111858699507e751214e9f0e61dc",
+      "share/kicad/libwmf/fonts/NimbusSans-Italic.afm": "3244ada933a4678ecca71574274ec45a4485792d91987f1fd05a040888854431",
+      "share/kicad/libwmf/fonts/NimbusSans-Italic.t1": "578119f948a32217ce8153c7964e063215b4c2af068d5f7dea8da765893826d8",
+      "share/kicad/libwmf/fonts/NimbusSans-Regular.afm": "ed4ead49b4d090c80c1d4a8d771879153a41af262d331168dd2635508634cfa1",
+      "share/kicad/libwmf/fonts/NimbusSans-Regular.t1": "779a9c820bbe8b470d36e77bcf949eef7bf1b889184274ba0f51da4c8c883cfa",
+      "share/kicad/libwmf/fonts/SourceSans3-Regular.otf": "08df266400933d3178d081a45f94a08814c3e55b4b7dd2e0ff69cb1329f13ab6",
+      "share/kicad/libwmf/fonts/SourceSans3-Semibold.otf": "36f1cd2c344aa3109e64429bce41a41e4b2b923beb2db19b8dbf9bb56f05a4f9",
+      "share/kicad/libwmf/fonts/SourceSansPro-Regular.ttf": "4c3749a7496356db5c7bc2e9899ac5075581519918e885c323e0321a3cafec06",
+      "share/kicad/libwmf/fonts/SourceSansPro-Semibold.ttf": "a65d8ed0f6cfae68c62f720196f1e73fc740410ac31b39e75598abd116064016",
+      "share/kicad/libwmf/fonts/StandardSymbolsPS.afm": "f5874fdf1377f6d2d3c99c97996320f380122cfba35b6f963f7b42c4c812868d",
+      "share/kicad/libwmf/fonts/StandardSymbolsPS.t1": "b2f78d6ad103708a4483f75087c6ecb71753e9210170c14462b37ef05a3f957a",
+      "share/kicad/plugins/README-bom.txt": "a37c08569a25de6dbc2f4c9f956828a2a0266f37f2a70a04681516ffb3bf45d4",
+      "share/kicad/plugins/bom_csv_grouped_by_value.py": "5ff34e84bf6764b6df88737f14b03c54c7177b8ae4ed97c08f536a3760e146e4",
+      "share/kicad/plugins/bom_csv_grouped_by_value_with_fp.py": "09d43cebc436dbb88619a282e07cb0659467c05fa7cc12f1030dd2b0678b7a94",
+      "share/kicad/plugins/bom_csv_grouped_extra.py": "e7e2af1ff801b78fcc246e98293a2b17fcc9ad7bbd851f75e2229297c7ef87fb",
+      "share/kicad/plugins/bom_csv_sorted_by_ref.py": "dbc8e9b0e424b3236f00948a78839fec2e6c5b4fbd2b35aa43e55dd66c9806c2",
+      "share/kicad/plugins/bom_html_grouped_by_value.py": "7eb0fcd71101f29bc534825ead1acad5c44011702e2990b176b9d2bb53188ead",
+      "share/kicad/plugins/bom_html_with_advanced_grouping.py": "bcec1eca6fa667bb628c3f4df8b41f3bb8c4f5997cf83d773915ae31fef1d8ea",
+      "share/kicad/plugins/bom_txt_sorted_by_ref.py": "f91f124264b95031c034b754a0c8981618be0905d660a3203ab78b652e49f80d",
+      "share/kicad/plugins/kicad_netlist_reader.py": "08240acdf7d9e9dffe511095e0770e71109429e64c8fec2ce375ae53fd523c6a",
+      "share/kicad/plugins/kicad_utils.py": "9c727e91af5dd16d2d85dc8ba73976636227a807aad5e016571aecc7d54c1eed",
+      "share/kicad/resources/images.tar.gz": "1b9e0db0a22198b87c368bf9da7b36d052623e5bb59eacd4bc40dc9a879b8b00",
+      "share/kicad/schemas/api.v1.schema.json": "730416e7434223c824e98a00dc918da104cf0ea0c260ad6e19addbeba3ec5f11",
+      "share/kicad/schemas/kicad-remote-provider-metadata-v1.schema.json": "93de6f03e24bfb26a7087d7a0c5f61adf0983b32ee49d66866aad75983319c00",
+      "share/kicad/schemas/kicad-remote-symbol-manifest-v1.schema.json": "0b9150518fbc8d2b9b61ce7e16e1bc787584d33acb16e73b474ce9e74c6e6a15",
+      "share/kicad/schemas/pcm.v1.schema.json": "ed07f48d3dceb3af723bba347c6b90d3fc74228b3d73bcb8954850c39f8d9015",
+      "share/kicad/schemas/pcm.v2.schema.json": "693506bc17d3736fc42769f82df9a970e23834db58ac5b506607541b75cc7865",
+      "share/kicad/template/kicad.kicad_pro": "15a17e27a30b0284403a4c96c3b73578ded4be8722e3db25d13fda196e81de87",
+      "share/metainfo/org.kicad.kicad.metainfo.xml": "c1506c1153e996b534d5d7526522d8fb332788c1b293574c0f07377ffbb16667",
+      "share/mime/packages/kicad-gerbers.xml": "744e57edffa7bf00c28a5cea545e4b3819cc133bb0c4994b70cef71e28b6b1fb",
+      "share/mime/packages/kicad-kicad.xml": "2e73bd6fc20053bfd89ca11fb2b6f4786db8184f7e6a5f679fbb026cd1004ef6",
+      "share/zsh/site-functions/_kicad-cli": "d29c06d6be91ca6d469b7211458cb712a001e57f914e5ddcf33720270b3c6129"
+    },
+    "native_patch_blobs": {
+      "eeschema/files-io.cpp": "7c78ed6ea49723ec268d6e7a2c6768285adb033b",
+      "include/kiway_player.h": "652b8a568a8cc698a449b32c24926595e962609a",
+      "kicad/kicad.cpp": "fd8108323cd676ac84ab6505bd375eb13c5000df",
+      "pcbnew/files.cpp": "77fc7922307a9797b5a4eb705b140b36dbc5157c"
+    },
+    "platform": {
+      "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+      "uname": "Linux b7109d9b5a31 6.18.37-0-virt #1-Alpine SMP PREEMPT_DYNAMIC 2026-06-29 10:52:25 aarch64 aarch64 aarch64 GNU/Linux"
+    },
+    "release_qualified": false,
+    "source_archive": {
+      "filename": "embeint-kicad-b47c4fd-source.tar.gz",
+      "format": "Git archive tar.gz, prefix embeint-kicad/",
+      "sha256": "d70b7b20389a1d85b7afecd391741a3e351bd14363e14ae9ddbbb6388ed2e17c",
+      "size": 318226288,
+      "source_revision": "b47c4fd2ce7cdc9dd071ac7b79da3875e36f6fc6"
+    },
+    "source_revision": "b47c4fd2ce7cdc9dd071ac7b79da3875e36f6fc6",
+    "source_scope": "Native tracked source matches b47c4fd2. Exact four loader blobs match WSL-qualified patch. Frozen MCP retains its separate recorded build identity.",
+    "version_commit": "b47c4fd2ce7cdc9dd071ac7b79da3875e36f6fc6",
+    "version_plain": "10.99.0"
+  },
+  "build_caveats": [
+    "KICAD_BUILD_QA_TESTS=OFF; no native C++ QA suite claimed.",
+    "Release -O1 -DNDEBUG; Sentry, demos and i18n disabled.",
+    "Initial baseline OOM and invalid timestamp-only rebuild are retained separately and excluded from patch qualification."
+  ],
+  "baseline": {
+    "source_revision": "d880b3be5dbf30003e4b0069262417d0278bf528",
+    "build_install": "passed",
+    "offline_python_tests": {
+      "passed": 235,
+      "skipped": 1
+    },
+    "open_cases": {
+      "compatible-future-board": {
+        "api_responsive": true,
+        "elapsed_seconds": 0.732,
+        "expected_open": true,
+        "files_unchanged": true,
+        "input_sha256": "5953bafa909eef344a2d6464f02b3a2ba4b48ec4240a5d4ccdf132c4876189a6",
+        "result": "passed"
+      },
+      "future-board": {
+        "api_responsive": false,
+        "elapsed_seconds": 2.002,
+        "error": "Timeout: Timed out",
+        "expected_open": false,
+        "files_unchanged": true,
+        "input_sha256": "f08e50dd9f1e30deca6af9b0c9d9e69afa3de7173aae846ae92afd9ead6e50a4",
+        "post_open_read_error": "Timeout: Timed out",
+        "result": "failed"
+      },
+      "future-schematic": {
+        "api_responsive": false,
+        "elapsed_seconds": 2.008,
+        "error": "Timeout: Timed out",
+        "expected_open": false,
+        "files_unchanged": true,
+        "input_sha256": "b5a9a040ce100e123c69f04e77ffe3e8715ef6a317876301d9f13d859935249f",
+        "post_open_read_error": "Timeout: Timed out",
+        "result": "failed"
+      },
+      "malformed-board": {
+        "api_responsive": false,
+        "elapsed_seconds": 2.067,
+        "error": "Timeout: Timed out",
+        "expected_open": false,
+        "files_unchanged": true,
+        "input_sha256": "f054bde7ce62ff6f812a32eeabbac43e8da758cbb4c4f99163c436c8e9f01b06",
+        "post_open_read_error": "Timeout: Timed out",
+        "result": "failed"
+      },
+      "malformed-schematic": {
+        "api_responsive": false,
+        "elapsed_seconds": 2.035,
+        "error": "Timeout: Timed out",
+        "expected_open": false,
+        "files_unchanged": true,
+        "input_sha256": "318660db151d0cf7bc09480ff749b5c66879735a4485d20e6d08078f6d96461e",
+        "post_open_read_error": "Timeout: Timed out",
+        "result": "failed"
+      },
+      "missing-child": {
+        "api_responsive": false,
+        "elapsed_seconds": 2.001,
+        "error": "Timeout: Timed out",
+        "expected_open": false,
+        "files_unchanged": true,
+        "input_sha256": "1390ac805ff70f8527af9b60ef75ae51b4772a510873c4228b8ee8ebf6b42196",
+        "post_open_read_error": "Timeout: Timed out",
+        "result": "failed"
+      }
+    },
+    "live_result": "passed",
+    "payload_manifest_sha256": "97eb826656292af37068e523338d31a0384d45603c6de9e51ef31d54ca30ae4d"
+  },
+  "patched_open_cases": {
+    "application_version": {
+      "version": {
+        "full_version": "10.99.0-unknown",
+        "major": 10,
+        "minor": 99
+      }
+    },
+    "cases": {
+      "compatible-future-board": {
+        "api_responsive": true,
+        "elapsed_seconds": 0.281,
+        "expected_open": true,
+        "files_unchanged": true,
+        "input_sha256": "5953bafa909eef344a2d6464f02b3a2ba4b48ec4240a5d4ccdf132c4876189a6",
+        "result": "passed"
+      },
+      "future-board": {
+        "api_responsive": true,
+        "elapsed_seconds": 0.312,
+        "expected_open": false,
+        "files_unchanged": true,
+        "input_sha256": "f08e50dd9f1e30deca6af9b0c9d9e69afa3de7173aae846ae92afd9ead6e50a4",
+        "result": "passed"
+      },
+      "future-schematic": {
+        "api_responsive": true,
+        "elapsed_seconds": 0.202,
+        "expected_open": false,
+        "files_unchanged": true,
+        "input_sha256": "b5a9a040ce100e123c69f04e77ffe3e8715ef6a317876301d9f13d859935249f",
+        "result": "passed"
+      },
+      "malformed-board": {
+        "api_responsive": true,
+        "elapsed_seconds": 0.317,
+        "expected_open": false,
+        "files_unchanged": true,
+        "input_sha256": "f054bde7ce62ff6f812a32eeabbac43e8da758cbb4c4f99163c436c8e9f01b06",
+        "result": "passed"
+      },
+      "malformed-schematic": {
+        "api_responsive": true,
+        "elapsed_seconds": 0.339,
+        "expected_open": false,
+        "files_unchanged": true,
+        "input_sha256": "318660db151d0cf7bc09480ff749b5c66879735a4485d20e6d08078f6d96461e",
+        "result": "passed"
+      },
+      "missing-child": {
+        "api_responsive": true,
+        "elapsed_seconds": 0.229,
+        "expected_open": false,
+        "files_unchanged": true,
+        "input_sha256": "1390ac805ff70f8527af9b60ef75ae51b4772a510873c4228b8ee8ebf6b42196",
+        "result": "passed"
+      }
+    },
+    "schema_sha256": "0dfe9020f6c9377221971c6a7194761d18ee05398165570fcd25eb4f22b2c8cd",
+    "source_revision": "b47c4fd2ce7cdc9dd071ac7b79da3875e36f6fc6"
+  },
+  "patched_live": {
+    "result": "passed",
+    "schema_sha256": "0dfe9020f6c9377221971c6a7194761d18ee05398165570fcd25eb4f22b2c8cd",
+    "checks": {
+      "e2e_design": {
+        "exit_code": 0
+      },
+      "e2e_features": {
+        "exit_code": 0
+      },
+      "e2e_footprints": {
+        "exit_code": 0
+      },
+      "e2e_pcb": {
+        "exit_code": 0
+      },
+      "e2e_smoke": {
+        "exit_code": 0
+      },
+      "e2e_symbols": {
+        "exit_code": 0
+      },
+      "explicit_save_restart_reopen": "passed",
+      "mcp_stdio_edit_undo": {
+        "checks": [
+          "initialize",
+          "documents",
+          "create_text",
+          "undo",
+          "exact_item_restore"
+        ],
+        "result": "passed",
+        "runtime": "packaged"
+      },
+      "hierarchical_roundtrip_fixture": {
+        "hierarchical_net": "/Power/VIN",
+        "schematic_to_board": {
+          "dry_run": false,
+          "errors": 0,
+          "new_footprints": 3,
+          "report": "Processing symbol 'R1:Resistor_SMD:R_0603_1608Metric'.\nAdded R1 (footprint 'Resistor_SMD:R_0603_1608Metric').\nChanged REF** reference designator to R1.\nChanged R1 value from R_0603_1608Metric to R.\nUpdated R1 symbol association from  to /a43ed13f-ca03-4bf3-875c-e310aada384f.\nUpdated R1 fields.\nUpdated R1 sheetname to '/'.\nUpdated R1 sheetfile to 'live-demo.kicad_sch'.\nUpdated R1 footprint filters to 'R_*'.\nAdd net unconnected-(R1-Pad1).\nConnected R1 pin 1 to unconnected-(R1-Pad1).\nAdd net Net-(R1-Pad2).\nConnected R1 pin 2 to Net-(R1-Pad2).\nUpdated R1 unit metadata.\nProcessing symbol 'R2:Resistor_SMD:R_0603_1608Metric'.\nAdded R2 (footprint 'Resistor_SMD:R_0603_1608Metric').\nChanged REF** reference designator to R2.\nChanged R2 value from R_0603_1608Metric to R.\nUpdated R2 symbol association from  to /85ef4a4a-ba60-4c24-97a6-cee76e161143.\nUpdated R2 fields.\nUpdated R2 sheetname to '/'.\nUpdated R2 sheetfile to 'live-demo.kicad_sch'.\nUpdated R2 footprint filters to 'R_*'.\nConnected R2 pin 2 to Net-(R1-Pad2).\nAdd net /Power/VIN.\nConnected R2 pin 1 to /Power/VIN.\nUpdated R2 unit metadata.\nProcessing symbol 'R3:Resistor_SMD:R_0603_1608Metric'.\nAdded R3 (footprint 'Resistor_SMD:R_0603_1608Metric').\nChanged REF** reference designator to R3.\nChanged R3 value from R_0603_1608Metric to R.\nUpdated R3 symbol association from  to /cfcdb3b0-e81d-4c1e-bcc5-af478f022cdb/1c431f27-4c53-4577-8c92-61553325fb07.\nUpdated R3 fields.\nUpdated R3 sheetname to '/Power/'.\nUpdated R3 sheetfile to 'power.kicad_sch'.\nUpdated R3 footprint filters to 'R_*'.\nAdd net unconnected-(R3-Pad2).\nConnected R3 pin 2 to unconnected-(R3-Pad2).\nConnected R3 pin 1 to /Power/VIN.\nUpdated R3 unit metadata.\n\n\nTotal warnings: 0, errors: 0.\n",
+          "warnings": 0
+        }
+      },
+      "fixture_findings": {
+        "erc": 10,
+        "drc": 3
+      }
+    },
+    "report_sha256": "d33c938af54ca05216a914737d2735e275c071ac99cb392189998b60f886e3d1"
+  },
+  "frozen_mcp": {
+    "build_info": {
+      "command_count": 145,
+      "dependencies": {
+        "PyJWT": "2.15.1",
+        "Pygments": "2.21.0",
+        "altgraph": "0.17.5",
+        "annotated-types": "0.8.0",
+        "anyio": "4.16.0",
+        "attrs": "26.1.0",
+        "certifi": "2026.10.23",
+        "cffi": "2.1.1",
+        "click": "8.5.1",
+        "cryptography": "50.0.2",
+        "grpcio": "1.85.3",
+        "grpcio-tools": "1.85.3",
+        "h11": "0.16.0",
+        "httpcore": "1.0.9",
+        "httpx": "0.28.1",
+        "httpx-sse": "0.4.3",
+        "idna": "3.20",
+        "iniconfig": "2.3.1",
+        "jsonschema": "4.26.0",
+        "jsonschema-specifications": "2025.9.1",
+        "mcp": "1.30.0",
+        "numpy": "2.5.5",
+        "packaging": "26.3",
+        "pip": "24.0",
+        "pluggy": "1.7.0",
+        "protobuf": "7.36.2",
+        "pycparser": "3.12",
+        "pydantic": "2.14.3",
+        "pydantic-settings": "2.16.3",
+        "pydantic_core": "2.50.4",
+        "pyinstaller": "6.22.3",
+        "pyinstaller-hooks-contrib": "2026.10",
+        "pynng": "0.9.0",
+        "pytest": "9.2.0",
+        "python-dotenv": "1.2.4",
+        "python-multipart": "0.0.34",
+        "referencing": "0.37.0",
+        "rpds-py": "2026.9.1",
+        "setuptools": "84.2.1",
+        "shapely": "2.2.0",
+        "sniffio": "1.3.1",
+        "sse-starlette": "3.7.0",
+        "starlette": "1.10.0",
+        "typing-inspection": "0.4.5",
+        "typing_extensions": "4.16.0",
+        "uvicorn": "0.54.0"
+      },
+      "protocol_source_sha256": {
+        "api/proto/board/board.proto": "851f1ad337ff596dd33f6acf712b620db4199ba22958f303348d125af4137a12",
+        "api/proto/board/board_commands.proto": "f5804312880620eeb0a446ad80611a5ca4ec94335c11d35ddf7491b606370af7",
+        "api/proto/board/board_jobs.proto": "336b88f85eef64e2760b6b54b4cd8210486966dc5106d05cffb86e6d7d19f8e5",
+        "api/proto/board/board_rules.proto": "facc2677c6732f8fb87273d75971a76abfee71d0d7f240df7b5fcaf8f59cbee8",
+        "api/proto/board/board_tasks.proto": "cbdeeec6ddbe583f6f488d1e5b2fa83e21a3e15cc953f856ad0f6ffbafa80c35",
+        "api/proto/board/board_types.proto": "3bd143898fa8c51853da84987221a78409a88bee08f4de6d5f55dc1ba006d5e3",
+        "api/proto/common/commands/base_commands.proto": "bbc9b0a23e8bc9b88a3b0d02614c374ab67dfe8b83608fbb024b1b977e136b9f",
+        "api/proto/common/commands/cross_probe_commands.proto": "c5fabf87cdc6e83b3339cf141be1dbf209d82bafbbfbea4349b34350f4e7d823",
+        "api/proto/common/commands/editor_commands.proto": "5a9aedff07c852c72aefb39930f5e5ef2961c5e822529f18ffd4b6642a55bb1d",
+        "api/proto/common/commands/library_commands.proto": "56485f1d6cfdcdc150034466ad6befb21d567509ffa12379493386755b13e9be",
+        "api/proto/common/commands/project_commands.proto": "460eb392f2a6b42e18097814c88d29ac16471a3d02ebd385c259535c522e2b18",
+        "api/proto/common/commands/variant_commands.proto": "8eba68a867126f789d6299a3cb9f28403b6a71d5cb5c5831b3170e914746e264",
+        "api/proto/common/envelope.proto": "089706f1da7d9a3a9f2782faa048f5fa293128b5d768df28b4cc62a8012d6a24",
+        "api/proto/common/tasks.proto": "cdf0fe656d55ef889dffc7986a1ca4bfa4ab439b93eed45ad3e3db005eeeab79",
+        "api/proto/common/types/base_types.proto": "fee7e4d9715201329bd650cc64c5f3cb0016f5c6a477318e7931ad62818a7dba",
+        "api/proto/common/types/embedded_files.proto": "595d9c2a2be963709f8302a7cce877f0756bc71da6736b0cfb91e8d02d606868",
+        "api/proto/common/types/enums.proto": "ee9609322450bddf2b581be5e291a26c4a5efcdee3fd0bcbfee2f0e9b832fce9",
+        "api/proto/common/types/jobs.proto": "1d6ecf1c0d543196c2ed072b0481d2d1e4e9b8d44460b0513daa7650f2e0ce4d",
+        "api/proto/common/types/library_types.proto": "33e4bc816159d215e117a81a7fd63c41de5519b122717d465e439d2605795634",
+        "api/proto/common/types/project_settings.proto": "1096383d66405768c667a21625539bf6ba39f4e40896fdc35bb7dbbc75b11360",
+        "api/proto/common/types/variants.proto": "d94c3de12c5f161d4f23719de75d6be41a76506d7eff26c61bc9f675bd7e8ed9",
+        "api/proto/common/types/wizards.proto": "d1d5e7919283f8e4bdea4632c172bc06ad4ff4949d2105d1fb03f1fd6ffff9d3",
+        "api/proto/schematic/schematic_commands.proto": "486cdf75cc3c04d5f44788993370207fcf139f5b2548791efde554f7fd323b79",
+        "api/proto/schematic/schematic_jobs.proto": "0d615967dbe4e9a14ecf279127f4f844325130cfa8f2d4068d313258b4c41674",
+        "api/proto/schematic/schematic_rules.proto": "e4630b17b5d0f5f2b7817535acbb5dae98a52ba511c6f35b929ab9b64b2b9d1c",
+        "api/proto/schematic/schematic_tasks.proto": "e160f91213a764ce04a15ed6d658f128f08d88510b4f913bc5834d8cb9d7041b",
+        "api/proto/schematic/schematic_types.proto": "6dde2c911d84fbedf3785b6aa7efb04b8c61ab9b4c00900032e81a0be9a10ec8"
+      },
+      "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+      "revision_source": "caller-supplied archive revision; inspect source checksums",
+      "schema_sha256": "0dfe9020f6c9377221971c6a7194761d18ee05398165570fcd25eb4f22b2c8cd",
+      "source_dirty": null,
+      "source_revision": "d880b3be5dbf30003e4b0069262417d0278bf528",
+      "source_sha256": {
+        "board_client.py": "67649e772f9aee0ec00009458b0a6f726154f1b62681c307887d7117643c081b",
+        "board_design.py": "27a14178553320ff8cb4306f1ccb1f827a353cb56139cee1fced099cc69d212f",
+        "board_rf.py": "2156c26eaa6e0fab1c7387d2be19dac630a2ceb1f592d673650079cec700b034",
+        "board_router.py": "89849d9e105f261e715fea26f1beb11499c46f6b8fde14cb511ef3586c2abd5a",
+        "client.py": "b98eb1ee89578e50381c45c5a06feb8cfa99b67d0496a33e6f4364e14d4bae69",
+        "commands.py": "290532e3a78140f4785e823a49ff8744037713fd01b2c2d674a80fa38732d9bb",
+        "conftest.py": "08ddb4c5a6f484a3d50eb947fa2bad6c5c3f03fb750c35a01cde30c179523bd9",
+        "diagnose.py": "c3926a059eb903b4460cddbb1c0312069adb2fecaf87a9891ce8881400cd870c",
+        "footprint_client.py": "594a21bb4539204bf926f8917137cc05587e7e35370bbd1b9ede9c206ca0709d",
+        "footprint_gen.py": "2e0b6231e93e21996bb539c8433ac988fd105d28fafe92f72b4635879f44966d",
+        "generate_proto.py": "0717f4408be823af862a616e825053411bbc165b04900eaab4d56589289cb040",
+        "instance_discovery.py": "6590070fe2f0a37fb52fa38ed29b580e051c5d176419f96a1770c9f596aa08de",
+        "model_handoff.py": "be8746a9476133d6061a912b3b7f036ac21f4858cd501895f334fedb74052f98",
+        "operation_coverage.py": "f9fd594e732da7cc01605f5f59211d47aeab1aff0fcc74eff8ffbe1fd241ff90",
+        "qualification/packaged_main.py": "474480b3dda6672f04c822156944bda613ea7fc35a75e5442f3091a653aafe7d",
+        "server.py": "ecb7a112c4bb1f3a7d4de1e24cde8074962eb2a7e7b76198fbbf0e0ad8687b9b",
+        "solidcraft_stdio.py": "a90a9497f8bffc992618e5eef878df46d59133b957421b9a595ff5f339f05984",
+        "support.py": "88cedf0724b7794760480dfdcdc58bf4cb93ecb427c730d52c4a5d23e5ed2f94",
+        "symbol_layout.py": "8cf3350f77e9d781ced1e8099fb877ed27d6a22a6bb25f74f5ecbf5636f95303"
+      },
+      "tool_count": 111
+    },
+    "receipt": {
+      "files": {
+        "embeint-kicad-mcp": "bd71d113c609d146c2721d658114e2ed48aee6d154a5a62a814ce3ede855057c",
+        "build-info.json": "8e0c1f604c813c0e11e676d5b201c588c418dbff0eb5cd7938233150e1dce7ec"
+      },
+      "schema_sha256": "0dfe9020f6c9377221971c6a7194761d18ee05398165570fcd25eb4f22b2c8cd",
+      "clean_smoke_report": "/Users/karl/.t3/scratch/embeint-kicad-native-qualification-2026-11-19/linux/evidence/mcp-clean-bomfix.json",
+      "source_input_comparison": "/Users/karl/.t3/scratch/embeint-kicad-native-qualification-2026-11-19/linux/evidence/mcp-bomfix-source-match.json"
+    },
+    "source_comparison": {
+      "result": "runtime sources match; one recorded test-only input differs",
+      "built_revision_label": "d880b3be5dbf30003e4b0069262417d0278bf528",
+      "revision_source": "caller-supplied archive revision; inspect source checksums",
+      "source_dirty": null,
+      "adapter_file_count": 19,
+      "protocol_file_count": 27,
+      "mismatches": [
+        "conftest.py"
+      ],
+      "note": "The19 recorded Python inputs include conftest.py (pytest setup, not a frozen runtime import). Its exact older input is retained beside this report. All other recorded adapter inputs and all27proto inputs match source commit a7ac6302. Bundle label and original build-info.json remain unchanged.",
+      "test_only_differences": [
+        "conftest.py"
+      ],
+      "runtime_input_match": true,
+      "all_recorded_inputs_match": false,
+      "matching_source_commit": "a7ac63022402eff3d7c23ab89e3041a02cbe2270"
+    },
+    "clean_runtime_report": {
+      "result": "passed",
+      "image_id": "sha256:9771360a0050368e35354c39f333e5e65c94ce7453675ea3f4e49322aef8cd21",
+      "network": "none",
+      "mounts": [],
+      "system_python": "absent",
+      "checkout": "absent",
+      "schema_sha256": "0dfe9020f6c9377221971c6a7194761d18ee05398165570fcd25eb4f22b2c8cd",
+      "tool_count": 111,
+      "command_count": 145,
+      "checks": [
+        "offline_diagnostics",
+        "clean_eof",
+        "initialize",
+        "tools",
+        "capabilities",
+        "resource",
+        "describe",
+        "invalid_arguments",
+        "unknown_tool",
+        "clean_stdio_shutdown"
+      ],
+      "editor_contacted": false
+    },
+    "b47_source_comparison": {
+      "commit": "b47c4fd2ce7cdc9dd071ac7b79da3875e36f6fc6",
+      "recorded_python_count": 19,
+      "protocol_count": 27,
+      "differences": [
+        "tools/live_schematic_mcp/conftest.py"
+      ],
+      "runtime_and_proto_match": true,
+      "original_recorded_test_input": "mcp-bomfix-input-conftest.py"
+    }
+  },
+  "installed_runtime": {
+    "workflow": {
+      "result": "passed",
+      "schema_sha256": "0dfe9020f6c9377221971c6a7194761d18ee05398165570fcd25eb4f22b2c8cd",
+      "version": {
+        "major": 10,
+        "minor": 99,
+        "full_version": "10.99.0-unknown"
+      },
+      "checks": [
+        "install",
+        "first_launch",
+        "stdio",
+        "place_symbols",
+        "connect_pins",
+        "undo_redo",
+        "save_restart_reopen",
+        "connectivity"
+      ],
+      "network": "none",
+      "runtime": "docker",
+      "host_source_mounted": false,
+      "system_python_present": false
+    },
+    "payload_verification": {
+      "result": "passed",
+      "utc": "2026-11-18T20:51:58.916310+00:00",
+      "native_files_exact": 192,
+      "native_manifest_exact": true,
+      "mcp_manifest_exact": true,
+      "dpkg_audit_empty": true,
+      "packaging_script_sha256": "78f5b1560a8d641b229e4061ce357cf1c27c4735fb67bfeff09441d590425904"
+    },
+    "image_id": "sha256:f717a3c364bbb5ccafb8c24f002d10359d77eaff81ff16e1b2809381b091cc89",
+    "user": "qualification",
+    "uid": 1001,
+    "network": "none",
+    "mounts": [],
+    "ram_bytes": 2516582400,
+    "memory_plus_swap_bytes": 3590324224,
+    "memory_events": "max0,oom0,oom_kill0",
+    "initial_attempt": "1400MiB cap hit629491 memory.max events and connect_pins timed out without OOM. Preserved; no mutation replay. Fresh2400MiB container passed.",
+    "image_setup_fix": "Allocate an unused qualification UID; Ubuntu base already owns1000.",
+    "packaging_fix": "Stage on Linux temporary filesystem; host-shared output staging failed copying valid GEOS symlink.",
+    "driver_sha256": "8fa39debfe1dee9c356e979caeff9521242f546ac0c4522684a9c1f8adfcb85b"
+  },
+  "artifacts": {
+    "deb": {
+      "filename": "embeint-kicad_10.99.0~dev+b47c4fd.loader1_arm64.deb",
+      "bytes": 89867048,
+      "sha256": "b782755ab2c48cba91d67686ef471d79cc0a33ce5fa1dda25e2249f4e06645b5"
+    },
+    "native_source": {
+      "filename": "embeint-kicad-b47c4fd-source.tar.gz",
+      "sha256": "d70b7b20389a1d85b7afecd391741a3e351bd14363e14ae9ddbbb6388ed2e17c",
+      "size": 318226288,
+      "source_revision": "b47c4fd2ce7cdc9dd071ac7b79da3875e36f6fc6",
+      "format": "Git archive tar.gz, prefix embeint-kicad/"
+    },
+    "notices": {
+      "filename": "embeint-kicad-arm64-notices.tar.gz",
+      "bytes": 292926,
+      "sha256": "5edd4b953b93cbe992078ac287dc449a9099fcf09a298d2a51da229fa5075a96"
+    },
+    "notices_inventory": {
+      "filename": "arm64-notices-inventory.json",
+      "bytes": 23106,
+      "sha256": "2443ff546e4dfd9d2c71d9dbce3dd01c32edeb7a06e139dab860ea03780a796d"
+    },
+    "helper_patch": {
+      "filename": "packaging-followup.patch",
+      "bytes": 1668,
+      "sha256": "9de69331408f4ded2d9bf9e14b7713549a8185fce56269ea45484d7e8083a036"
+    },
+    "dependency_sources_manifest": {
+      "filename": "sources-manifest.json",
+      "bytes": 9638,
+      "sha256": "1f0c1f649258184d5b314c0ce6de5bcebc00251b5f0a15e5059f13c335583174"
+    },
+    "dependency_source_archives": [
+      {
+        "filename": "geos-3.14.1.tar.bz2",
+        "bytes": 7013834,
+        "sha256": "3c20919cda9a505db07b5216baa980bacdaa0702da715b43f176fb07eff7e716"
+      },
+      {
+        "filename": "altgraph-0.17.5.tar.gz",
+        "bytes": 48428,
+        "sha256": "c87b395dd12fabde9c99573a9749d67da8d29ef9de0125c7f536699b4a9bc9e7"
+      },
+      {
+        "filename": "annotated_types-0.8.0.tar.gz",
+        "bytes": 15893,
+        "sha256": "13b2beaad985e05e2d6407ee4c4f35590b11f8d693a258a561055cac8f64cab7"
+      },
+      {
+        "filename": "anyio-4.16.0.tar.gz",
+        "bytes": 310971,
+        "sha256": "59bb03251907983d1603d27c3087ddb1e93299ea2163adcdba37899a4fb12ffb"
+      },
+      {
+        "filename": "attrs-26.1.0.tar.gz",
+        "bytes": 952055,
+        "sha256": "d03ceb89cb322a8fd706d4fb91940737b6642aa36998fe130a9bc96c985eff32"
+      },
+      {
+        "filename": "certifi-2026.10.23.tar.gz",
+        "bytes": 136225,
+        "sha256": "a9895e6e2758b371e0545e321a3a8fd1fcfd9829ada8824a936dfb16aaaf36cd"
+      },
+      {
+        "filename": "cffi-2.1.1.tar.gz",
+        "bytes": 530807,
+        "sha256": "dd31f52ea1086513bb9df30f8fcee9b8918323ae067a3d5b78bc826a000712be"
+      },
+      {
+        "filename": "click-8.5.1.tar.gz",
+        "bytes": 399151,
+        "sha256": "9bbfada76703fd1d784b83eea012e3e8c6a001a876543ef104fa56aaaeb072b4"
+      },
+      {
+        "filename": "cryptography-50.0.2.tar.gz",
+        "bytes": 880623,
+        "sha256": "7b46165bb56eb4704e2eaaf86f3c940d19154535d9b0ca7d6d590b04060e00d5"
+      },
+      {
+        "filename": "grpcio-1.85.3.tar.gz",
+        "bytes": 14103282,
+        "sha256": "8e18f15d1b09b8771edbf59d634b26cbe4903bc2577cb667264934a6655eb8b4"
+      },
+      {
+        "filename": "grpcio_tools-1.85.3.tar.gz",
+        "bytes": 6579265,
+        "sha256": "9439be3cfae21974656abf0c07d0e203535162069f2d786667ad6f618c83b5be"
+      },
+      {
+        "filename": "h11-0.16.0.tar.gz",
+        "bytes": 101250,
+        "sha256": "4e35b956cf45792e4caa5885e69fba00bdbc6ffafbfa020300e549b208ee5ff1"
+      },
+      {
+        "filename": "httpcore-1.0.9.tar.gz",
+        "bytes": 85484,
+        "sha256": "6e34463af53fd2ab5d807f399a9b45ea31c3dfa2276f15a2c3f00afff6e176e8"
+      },
+      {
+        "filename": "httpx-0.28.1.tar.gz",
+        "bytes": 141406,
+        "sha256": "75e98c5f16b0f35b567856f597f06ff2270a374470a5c2392242528e3e3e42fc"
+      },
+      {
+        "filename": "httpx_sse-0.4.3.tar.gz",
+        "bytes": 15943,
+        "sha256": "9b1ed0127459a66014aec3c56bebd93da3c1bc8bb6618c8082039a44889a755d"
+      },
+      {
+        "filename": "idna-3.20.tar.gz",
+        "bytes": 216463,
+        "sha256": "a7db850025b95ded1eae8a46181a1a6c56c92c96f0e2b005d9ff8dc0210cab44"
+      },
+      {
+        "filename": "iniconfig-2.3.1.tar.gz",
+        "bytes": 21209,
+        "sha256": "67f4b9c50da0dedf52af349e7749a80a9057a5031199791b906c3bb3ae878960"
+      },
+      {
+        "filename": "jsonschema-4.26.0.tar.gz",
+        "bytes": 366583,
+        "sha256": "0c26707e2efad8aa1bfc5b7ce170f3fccc2e4918ff85989ba9ffa9facb2be326"
+      },
+      {
+        "filename": "jsonschema_specifications-2025.9.1.tar.gz",
+        "bytes": 32855,
+        "sha256": "b540987f239e745613c7a9176f3edb72b832a4ac465cf02712288397832b5e8d"
+      },
+      {
+        "filename": "mcp-1.30.0.tar.gz",
+        "bytes": 680511,
+        "sha256": "445414625fce5c295faa505bb11bacece661ab6f4028d57c935db57820b7a3e4"
+      },
+      {
+        "filename": "numpy-2.5.5.tar.gz",
+        "bytes": 20873892,
+        "sha256": "5cddc243c75114ba845f01b1f87aca1572dbf7b6c2d88636ed3e1d2bccd7f1bf"
+      },
+      {
+        "filename": "packaging-26.3.tar.gz",
+        "bytes": 313412,
+        "sha256": "94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79"
+      },
+      {
+        "filename": "pip-24.0.tar.gz",
+        "bytes": 2132709,
+        "sha256": "ea9bd1a847e8c5774a5777bb398c19e80bcd4e2aa16a4b301b718fe6f593aba2"
+      },
+      {
+        "filename": "pluggy-1.7.0.tar.gz",
+        "bytes": 123304,
+        "sha256": "d1eaa46ebb595891b860ab086b4d09c8588af65ebd4361b8e8f4bb8920b90ba8"
+      },
+      {
+        "filename": "protobuf-7.36.2.tar.gz",
+        "bytes": 512737,
+        "sha256": "497d0463ff3316681da6c0b9e8d06cb465d61abce00b613ab42226175644d1bb"
+      },
+      {
+        "filename": "pycparser-3.12.tar.gz",
+        "bytes": 158785,
+        "sha256": "f03387877eab82ce01bbdfd0ba7252ee55a90b1c708d5129e2ce915475cf1db6"
+      },
+      {
+        "filename": "pydantic-2.14.3.tar.gz",
+        "bytes": 925636,
+        "sha256": "1054f237f4d4733e5a30e1e2333bd33a2004ab9ab1510bd053a9a31bb48e232d"
+      },
+      {
+        "filename": "pydantic_core-2.50.4.tar.gz",
+        "bytes": 522249,
+        "sha256": "aead3b74b68396bf0feab5d57e050b730ded7df55853c1e048a87e00aaf033c6"
+      },
+      {
+        "filename": "pydantic_settings-2.16.3.tar.gz",
+        "bytes": 311716,
+        "sha256": "10e36f616623ebb586c05ca3d3cd22927146869db413d4f14c20c514442a1337"
+      },
+      {
+        "filename": "pygments-2.21.0.tar.gz",
+        "bytes": 5005329,
+        "sha256": "610ca751c9bc2492b38eb9a38a7fbc93edbbb2d7182edaf34e66ae493dee5c8c"
+      },
+      {
+        "filename": "pyinstaller-6.22.3.tar.gz",
+        "bytes": 4437180,
+        "sha256": "05eb2f5615503e72939a7224d68b4aff572c6b0438ee4a17d0a4b481f399362d"
+      },
+      {
+        "filename": "pyinstaller_hooks_contrib-2026.10.tar.gz",
+        "bytes": 181831,
+        "sha256": "7e906c659522e592a1680f30f709ffb6333277141a695926aa7190592205c5e3"
+      },
+      {
+        "filename": "pyjwt-2.15.1.tar.gz",
+        "bytes": 121252,
+        "sha256": "4f259e80cdfb6b3fc18a7de51fd1ef9ec79652f25019bae68975ca2468a34df8"
+      },
+      {
+        "filename": "pynng-0.9.0.tar.gz",
+        "bytes": 7211228,
+        "sha256": "fcd839abf82a2934fa8c27ff57b574b41810458e35895bac6288814defa8fb4e"
+      },
+      {
+        "filename": "pytest-9.2.0.tar.gz",
+        "bytes": 1797555,
+        "sha256": "97c4f3b1f3c7414aa36465e09b8220f1d03627993bd51b1282e193753c80557b"
+      },
+      {
+        "filename": "python_dotenv-1.2.4.tar.gz",
+        "bytes": 60824,
+        "sha256": "f0d53e69935a851c0dcc78f3ab7aaccd8cabef0b92382b576b824212902873c0"
+      },
+      {
+        "filename": "python_multipart-0.0.34.tar.gz",
+        "bytes": 52456,
+        "sha256": "b998ae90ca6e1e363261ce2e0e230281b8af53867b757970abd69ee9edcd843a"
+      },
+      {
+        "filename": "referencing-0.37.0.tar.gz",
+        "bytes": 78036,
+        "sha256": "44aefc3142c5b842538163acb373e24cce6632bd54bdb01b21ad5863489f50d8"
+      },
+      {
+        "filename": "rpds_py-2026.9.1.tar.gz",
+        "bytes": 63948,
+        "sha256": "4793ef7f78268b124b73fa933440f01d258bbae01de9fa53e9080c9ab0425a12"
+      },
+      {
+        "filename": "setuptools-84.2.1.tar.gz",
+        "bytes": 1230289,
+        "sha256": "3ff8b3b5492a0aa66960f4419365a86b84e013070d4313e4d4a6894f5d64d6bc"
+      },
+      {
+        "filename": "shapely-2.2.0.tar.gz",
+        "bytes": 380326,
+        "sha256": "e8865e553d874a1ec4a032057ea81fca9def37b188cd8fb550af3b3480b3f88c"
+      },
+      {
+        "filename": "sniffio-1.3.1.tar.gz",
+        "bytes": 20372,
+        "sha256": "f4324edc670a0f49750a81b895f35c3adb843cca46f0530f79fc1babb23789dc"
+      },
+      {
+        "filename": "sse_starlette-3.7.0.tar.gz",
+        "bytes": 43869,
+        "sha256": "326416da2ab52e9a41b3f409d3ff897eda45aa68c9f3b7b17d0913aab8d219c3"
+      },
+      {
+        "filename": "starlette-1.10.0.tar.gz",
+        "bytes": 2734356,
+        "sha256": "b8399098d4c1e3522734f7235dc79b1fc967f96cf139c81e0fa30479e0685f9b"
+      },
+      {
+        "filename": "typing_extensions-4.16.0.tar.gz",
+        "bytes": 113555,
+        "sha256": "dc983d19a509c94dba722ee6abd33940f7c05a89e243c47e907eb4db6f1a43e5"
+      },
+      {
+        "filename": "typing_inspection-0.4.5.tar.gz",
+        "bytes": 81194,
+        "sha256": "7f16c411e7930dc79596d42ab44672a3fe5f60eb34b781a1647e7872363120c7"
+      },
+      {
+        "filename": "uvicorn-0.54.0.tar.gz",
+        "bytes": 112283,
+        "sha256": "a2e33cbfaa0306f8e6b0c13e0cb89d7d7a2da3e62b90c66e18c33d9807b28620"
+      },
+      {
+        "filename": "gcc-14_14.2.0-4ubuntu2~24.04.1.debian.tar.xz",
+        "bytes": 1950432,
+        "sha256": "cfece214c2fb790ef5f3baffb9a53e40618e7ae12d053610b251e94d77d08ade"
+      },
+      {
+        "filename": "gcc-14_14.2.0-4ubuntu2~24.04.1.dsc",
+        "bytes": 46930,
+        "sha256": "50950080874a6ec6780dd60c243e21d9cda9d736bb32bca98d16095d27cc01b5"
+      },
+      {
+        "filename": "gcc-14_14.2.0.orig.tar.gz",
+        "bytes": 97158172,
+        "sha256": "768c314c11eeab56ccebb91eb42ec4a41122fa94f0d83400126401942622197b"
+      },
+      {
+        "filename": "python3.12_3.12.3-1ubuntu0.17.debian.tar.xz",
+        "bytes": 302472,
+        "sha256": "17b15629cb10825924cf7b85055255080ec773133ae0f8b8ce5ea2eec90dd200"
+      },
+      {
+        "filename": "python3.12_3.12.3-1ubuntu0.17.dsc",
+        "bytes": 3916,
+        "sha256": "941700b999737d869b80c3b5a0adc0996a0fd760b982e18551bd2104da779384"
+      },
+      {
+        "filename": "python3.12_3.12.3.orig.tar.xz",
+        "bytes": 20625068,
+        "sha256": "56bfef1fdfc1221ce6720e43a661e3eb41785dd914ce99698d8c7896af4bdaa1"
+      },
+      {
+        "filename": "readline_8.2-4build1.debian.tar.xz",
+        "bytes": 33816,
+        "sha256": "d3b4bfa92d0026f5d3f5d2b21e2bf6d8ae163f9ccdebdcef20afde77901c7b70"
+      },
+      {
+        "filename": "readline_8.2-4build1.dsc",
+        "bytes": 2926,
+        "sha256": "442c688eb851652987a0b1a7f85d236c6fa445757f188bc275ec475d0fabf22f"
+      },
+      {
+        "filename": "readline_8.2.orig.tar.gz",
+        "bytes": 3043952,
+        "sha256": "3feb7171f16a84ee82ca18a36d7b9be109a52c04f492a053331d7d1095007c35"
+      }
+    ],
+    "patched_native_prefix_backup": {
+      "filename": "patch-installed/native-prefix.tar.gz",
+      "bytes": 81178574,
+      "sha256": "27e291a8be043a08f4e6b99a069baedca7177c11d0f0e874e64ebde1a2718eec"
+    }
+  },
+  "offline_adapter_tests": {
+    "macos": {
+      "passed": 242,
+      "skipped": 2,
+      "python": "3.14.3"
+    },
+    "arm64": {
+      "passed": 243,
+      "skipped": 1,
+      "python": "3.12",
+      "skip": "compression.zstd fixture requires Python3.14"
+    }
+  },
+  "other_platforms": {
+    "receipt": "windows-wsl-2026-11-18.json",
+    "commit": "973e8fa808d052f18ac1493378934816d444e1ac",
+    "wsl_tests_passed": 243,
+    "windows_python_passed": 200,
+    "windows_python_skipped": 43,
+    "wsl_native_live_baseline_and_patch": "passed",
+    "x86_deb_installed_bwrap": "passed; DBus namespace setup caveat in separate report",
+    "native_windows": "unqualified; fork configure stopped at glslangValidator and editorIPC unsupported",
+    "wslg": "unqualified"
+  },
+  "limitations": [
+    "Xvfb/software-rendered Linux live proof; physical desktop interaction, WSLg and nativeWindows application/installer remain unqualified.",
+    "Fixture ERC10/DRC3 findings are execution evidence, not clean design signoff.",
+    "Original frozen archive caller-d880 label retained. One pytest-onlyconftest differs from b47; runtime/proto inputs match.",
+    "No upstream submissions or release/10.0.6 qualification."
+  ],
+  "final_focused_tests": {
+    "test": "test_qualification.py",
+    "passed": 12,
+    "log": "qualification-final-focused.log"
+  },
+  "rebased_followup": {
+    "base_main": "66b2d28870d9f9eb0748debbbfc42bdfbe51815d",
+    "tested_code_commit_before_documentation_amendment": "d7c1505522",
+    "native_loader_blobs_unchanged": true,
+    "conflict_resolution": "Preserved both merged provenance fixture and ARM64 footprint-order/content/duplicate regression.",
+    "macos_tests": {
+      "passed": 247,
+      "skipped": 2,
+      "python": "3.14.3",
+      "log": "rebase-main-offline-macos.log"
+    },
+    "strict_retained_prefix_check": {
+      "result": "passed",
+      "scope": "New merged-main inventory/alias guard plus ARM64 staging helper applied to original b47 installed prefix; old binary/artifact identities unchanged.",
+      "native_revision": "b47c4fd2ce7cdc9dd071ac7b79da3875e36f6fc6",
+      "hashed_payload_entries": 192,
+      "symlinks": {
+        "lib/libkigal.so": "libkigal.so.10.99.0",
+        "lib/libkicommon.so": "libkicommon.so.10.99.0",
+        "lib/libkiapi.so": "libkiapi.so.10.99.0",
+        "lib/libkicad_3dsg.so": "libkicad_3dsg.so.2.0.0"
+      }
+    },
+    "artifact_boundary": "Original native binary/frozen MCP/.deb not rebuilt or relabeled. They predate merged packaging review fixes including malformed-preferences launcher hardening; new tests qualify combined source/validator only."
+  }
+}
