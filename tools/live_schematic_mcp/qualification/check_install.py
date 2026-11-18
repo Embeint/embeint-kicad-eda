@@ -1,25 +1,86 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Exercise the installed distribution in a clean runtime container over MCP stdio.
 
-The driver runs outside the container. The application container has no checkout,
-MCP virtual environment, exposed API socket or network access. Use only a newly
-started Dockerfile.runtime container: this driver creates its disposable project.
+The driver runs outside the runtime. The application has no checkout, MCP virtual
+environment, outside API socket or network access. Use a new Dockerfile.runtime
+container or a separate installed Bubblewrap root; the driver creates its project.
 """
 
 import argparse
 import asyncio
 from contextlib import asynccontextmanager
 import json
+import os
 from pathlib import Path
+import signal
 import subprocess
+import sys
 import time
+import uuid
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from qualification.persistence import canonical_items
 
-def docker(container, *args, input=None):
-    return subprocess.check_output(["docker", "exec", "-i", container, *args], input=input, text=True)
+
+class Runtime:
+    """Run installed programs in Docker or a source-free Bubblewrap root."""
+
+    def __init__(self, target, kind="docker"):
+        self.target, self.kind = target, kind
+        if kind == "bwrap":
+            self.root = Path(target).resolve(strict=True)
+            if self.root == Path("/") or not (self.root / "opt/embeint-kicad/distribution.json").is_file():
+                raise ValueError("select a separate root containing the installed distribution")
+            for name in ("home/qualification", "tmp", "run"):
+                (self.root / name).mkdir(parents=True, exist_ok=True)
+            self.temporary = self.root / "tmp" / ("embeint-check-" + uuid.uuid4().hex)
+            self.temporary.mkdir(mode=0o700)
+
+    def command(self, *args):
+        if self.kind == "docker":
+            return ["docker", "exec", "-i", self.target, *args]
+        return ["bwrap", "--unshare-user", "--uid", "1000", "--gid", "1000",
+                "--unshare-net", "--unshare-pid", "--die-with-parent", "--clearenv",
+                "--ro-bind", str(self.root), "/", "--proc", "/proc", "--dev", "/dev",
+                *[part for name in ("home/qualification", "run")
+                  for part in ("--bind", str(self.root / name), "/" + name)],
+                "--bind", str(self.temporary), "/tmp",
+                "--setenv", "PATH", "/usr/bin:/bin", "--setenv", "HOME", "/home/qualification",
+                "--setenv", "DISPLAY", ":99", "--setenv", "LIBGL_ALWAYS_SOFTWARE", "1",
+                "--setenv", "LANG", "C.UTF-8", "--chdir", "/home/qualification", *args]
+
+    def execute(self, *args, input=None):
+        return subprocess.check_output(self.command(*args), input=input, text=True)
+
+    def launch(self, *args):
+        # Keep the namespace alive for this application. A separate invocation
+        # cannot address its private PID namespace, so retain the owned host group.
+        log = (self.root / "home/qualification/app.log").open("ab")
+        try:
+            return subprocess.Popen(self.command(*args), stdout=log, stderr=subprocess.STDOUT,
+                                    start_new_session=True)
+        finally:
+            log.close()
+
+    def stop(self, process):
+        if process.poll() is None:
+            os.killpg(process.pid, signal.SIGTERM)
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                os.killpg(process.pid, signal.SIGKILL)
+                process.wait(timeout=5)
+
+    def validate(self):
+        if self.kind == "docker":
+            configuration = json.loads(subprocess.check_output(["docker", "inspect", self.target], text=True))[0]
+            assert configuration["HostConfig"]["NetworkMode"] == "none", "use --network none"
+            assert not configuration["Mounts"], "runtime check must have no host mounts"
+            assert configuration["Config"]["User"] == "qualification", "use the unprivileged runtime image"
+        self.execute("sh", "-c", "test -z \"$(command -v python || command -v python3)\"")
 
 
 def payload(reply):
@@ -27,9 +88,14 @@ def payload(reply):
     return reply.structuredContent or json.loads(reply.content[0].text)
 
 
+def disk_hashes(container):
+    return container.execute("sh", "-c", "sha256sum /home/qualification/live-demo/*.kicad_sch").splitlines()
+
+
 @asynccontextmanager
 async def session(container):
-    params = StdioServerParameters(command="docker", args=["exec", "-i", container, "/usr/bin/embeint-kicad-mcp"])
+    command = container.command("/usr/bin/embeint-kicad-mcp")
+    params = StdioServerParameters(command=command[0], args=command[1:])
     async with stdio_client(params) as (reader, writer):
         async with ClientSession(reader, writer) as client:
             await client.initialize()
@@ -37,42 +103,56 @@ async def session(container):
 
 
 async def start(container):
-    pid = docker(container, "sh", "-c",
+    if container.kind == "bwrap":
+        pid = container.launch("/usr/bin/embeint-kicad", "/home/qualification/live-demo/live-demo.kicad_pro")
+    else:
+        pid = container.execute("sh", "-c",
                  "/usr/bin/embeint-kicad /home/qualification/live-demo/live-demo.kicad_pro "
                  ">/home/qualification/app.log 2>&1 & echo $!").strip()
-    assert pid.isdecimal(), pid
-    deadline = time.monotonic() + 90
-    async with session(container) as client:
-        while time.monotonic() < deadline:
-            # Version is a read; no edit/open request is replayed after a timeout.
-            reply = await client.call_tool("live_schematic_documents", {})
-            if not reply.isError:
-                payload(await client.call_tool("live_schematic_open", {}))
-                return pid
-            await asyncio.sleep(0.5)
-    raise RuntimeError("installed application did not become ready")
+        assert pid.isdecimal(), pid
+    try:
+        deadline = time.monotonic() + 90
+        async with session(container) as client:
+            while time.monotonic() < deadline:
+                if container.kind == "bwrap" and pid.poll() is not None:
+                    raise RuntimeError("installed application exited during startup; inspect app.log")
+                # Version is a read; no edit/open request is replayed after a timeout.
+                reply = await client.call_tool("live_schematic_documents", {})
+                if not reply.isError:
+                    payload(await client.call_tool("live_schematic_open", {}))
+                    return pid
+                await asyncio.sleep(0.5)
+        raise RuntimeError("installed application did not become ready")
+    except BaseException:
+        stop(container, pid)
+        raise
 
 
 def stop(container, pid):
-    docker(container, "kill", "-TERM", pid)
+    if container.kind == "bwrap":
+        container.stop(pid)
+    else:
+        container.execute("kill", "-TERM", pid)
 
 
-async def check(container):
-    configuration = json.loads(subprocess.check_output(["docker", "inspect", container], text=True))[0]
-    assert configuration["HostConfig"]["NetworkMode"] == "none", "use --network none"
-    assert not configuration["Mounts"], "runtime check must have no host mounts"
-    assert configuration["Config"]["User"] == "qualification", "use the unprivileged runtime image"
-    docker(container, "mkdir", "/home/qualification/live-demo")
-    docker(container, "sh", "-c", "cat > /home/qualification/live-demo/live-demo.kicad_pro",
+async def check(container, evidence=None):
+    container.validate()
+    container.execute("mkdir", "/home/qualification/live-demo")
+    container.execute("sh", "-c", "cat > /home/qualification/live-demo/live-demo.kicad_pro",
            input='{"meta":{"version":3}}\n')
-    docker(container, "sh", "-c", "cat > /home/qualification/live-demo/live-demo.kicad_sch",
+    container.execute("sh", "-c", "cat > /home/qualification/live-demo/live-demo.kicad_sch",
            input='(kicad_sch (version 20250114) (generator "eeschema")\n'
                  '(uuid "6976536f-f7a2-4323-874c-c6aa91f39999") (paper "A4")\n'
                  '(lib_symbols) (sheet_instances (path "/" (page "1"))))\n')
-    subprocess.run(["docker", "exec", "-d", container, "Xvfb", ":99", "-screen", "0", "1600x1200x24"], check=True)
-    await asyncio.sleep(1)
+    xvfb = None
+    if container.kind == "bwrap":
+        xvfb = container.launch("Xvfb", ":99", "-screen", "0", "1600x1200x24")
+    else:
+        subprocess.run(["docker", "exec", "-d", container.target, "Xvfb", ":99", "-screen", "0", "1600x1200x24"], check=True)
     pid = None
+    observations = {}
     try:
+        await asyncio.sleep(1)
         pid = await start(container)
         async with session(container) as client:
             inventory = payload(await client.call_tool("live_mcp_capabilities", {}))
@@ -86,14 +166,18 @@ async def check(container):
                 "document_spec": document, "from_reference": "R1", "from_pin": "2",
                 "to_reference": "R2", "to_pin": "2"}))
             before = payload(await client.call_tool("live_schematic_items", {"document_spec": document}))
+            assert len(before["items"]) >= 3, "placement/wiring returned an empty fixture"
             payload(await client.call_tool("live_schematic_undo", {"document_spec": document}))
             payload(await client.call_tool("live_schematic_undo", {"document_spec": document, "redo": True}))
             restored = payload(await client.call_tool("live_schematic_items", {"document_spec": document}))
-            canonical = lambda value: sorted(json.dumps(i, sort_keys=True) for i in value.get("items", []))
-            assert canonical(before) == canonical(restored), "undo/redo changed the design"
+            assert canonical_items(before) == canonical_items(restored), "undo/redo changed the design"
             payload(await client.call_tool("live_schematic_save", {"document_spec": document}))
             saved = payload(await client.call_tool("live_schematic_items", {"document_spec": document}))
+            observations["saved_items"] = saved
             netlist = payload(await client.call_tool("live_schematic_netlist", {"document_spec": document}))
+            observations["saved_netlist"] = netlist
+            observations["saved_disk_hashes"] = disk_hashes(container)
+            assert any({"R1.2", "R2.2"} <= set(net["pins"]) for net in netlist.values()), netlist
         stop(container, pid)
         pid = None
         # Wait only for the process this check launched, without closing other applications.
@@ -103,23 +187,34 @@ async def check(container):
             documents = payload(await client.call_tool("live_schematic_documents", {}))
             document = documents["documents"][0]
             reopened = payload(await client.call_tool("live_schematic_items", {"document_spec": document}))
-            assert canonical(saved) == canonical(reopened), "installed save/reopen changed items"
+            observations["reopened_items"] = reopened
+            assert canonical_items(saved, persisted=True) == canonical_items(reopened, persisted=True), "installed save/reopen changed items"
             assert payload(await client.call_tool("live_schematic_netlist", {"document_spec": document})) == netlist
+            observations["reopened_disk_hashes"] = disk_hashes(container)
+            assert observations["saved_disk_hashes"] == observations["reopened_disk_hashes"], "reopen changed saved files"
         return {"result": "passed", "schema_sha256": inventory["schema_sha256"],
                 "version": documents["version"], "checks": ["install", "first_launch", "stdio",
                 "place_symbols", "connect_pins", "undo_redo", "save_restart_reopen", "connectivity"],
-                "network": "none", "host_mounts": False}
+                "network": "none", "runtime": container.kind, "host_source_mounted": False,
+                "system_python_present": False}
     finally:
         if pid is not None:
             stop(container, pid)
+        if xvfb is not None:
+            container.stop(xvfb)
+        if evidence is not None:
+            evidence.write_text(json.dumps(observations, indent=2) + "\n")
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("container")
+    parser.add_argument("--runtime", choices=("docker", "bwrap"), default="docker",
+                        help="Docker container name, or a separate installed root directory for bwrap")
     parser.add_argument("output", type=Path)
     args = parser.parse_args()
-    result = asyncio.run(asyncio.wait_for(check(args.container), timeout=300))
+    result = asyncio.run(asyncio.wait_for(check(Runtime(args.container, args.runtime),
+                                              args.output.with_suffix(".snapshots.json")), timeout=300))
     args.output.write_text(json.dumps(result, indent=2) + "\n")
 
 

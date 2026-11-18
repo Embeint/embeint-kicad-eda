@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Build with only embeint-kicad.deb in the context, then run with --network none.
-FROM ubuntu:24.04
+ARG UBUNTU_VERSION=24.04
+FROM ubuntu:${UBUNTU_VERSION}
 ENV DEBIAN_FRONTEND=noninteractive LIBGL_ALWAYS_SOFTWARE=1 DISPLAY=:99
 COPY embeint-kicad.deb /tmp/embeint-kicad.deb
 RUN apt-get update && apt-get install -y --no-install-recommends \
