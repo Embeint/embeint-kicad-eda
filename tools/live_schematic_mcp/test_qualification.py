@@ -38,6 +38,40 @@ def test_installed_persistence_ignores_only_unstored_library_graphic_ids():
     assert canonical_items(original, True) != canonical_items(reopened, True)
 
 
+def test_persistence_retains_effective_symbol_ids_and_distinct_overrides():
+    from qualification.persistence import persisted_schematic_item
+
+    symbol = {"@type":"type.googleapis.com/kiapi.schematic.types.SchematicSymbolInstance",
+              "id":{"value":"placed"}, "definition":{"id":{"entry_name":"R_1"}},
+              "lib_id":{"entry_name":"R_1"}}
+    normalized = persisted_schematic_item(symbol)
+    assert "lib_id" not in normalized
+    assert normalized["definition"]["id"] == {"entry_name":"R_1"}
+    symbol["lib_id"] = {"library_nickname":"Device", "entry_name":"R"}
+    assert persisted_schematic_item(symbol)["lib_id"] == symbol["lib_id"]
+
+
+def test_board_persistence_retains_placed_ids_pad_parents_and_geometry():
+    import copy
+    from qualification.persistence import persisted_board_items
+
+    before = [{"@type":"type.googleapis.com/kiapi.board.types.FootprintInstance",
+               "id":{"value":"footprint"},"parent":{"value":"board-root-before"},"position":{"x_nm":"10"}},
+              {"@type":"type.googleapis.com/kiapi.board.types.Pad", "id":{"value":"pad"},
+               "parent":{"value":"footprint"}}]
+    after = copy.deepcopy(before)
+    after[0]["parent"]["value"] = "board-root-after"
+    assert persisted_board_items(before,"test.kicad_pcb") == persisted_board_items(after,"test.kicad_pcb")
+    after[1]["parent"]["value"] = "other-footprint"
+    assert persisted_board_items(before,"test.kicad_pcb") != persisted_board_items(after,"test.kicad_pcb")
+    after[1]["parent"]["value"] = "footprint"
+    after[0]["position"]["x_nm"] = "11"
+    assert persisted_board_items(before,"test.kicad_pcb") != persisted_board_items(after,"test.kicad_pcb")
+    after[0]["parent"]["value"] = "pad"
+    with pytest.raises(AssertionError, match="root points at an item"):
+        persisted_board_items(after,"test.kicad_pcb")
+
+
 def test_native_provenance_refuses_missing_or_mismatched_payload_identity(tmp_path):
     from hashlib import sha256
     import json
