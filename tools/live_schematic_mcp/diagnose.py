@@ -13,10 +13,13 @@ from instance_discovery import DiscoveryError, discover_instances, socket_entry
 
 def runtime_status():
     """Check this interpreter and this checkout, including absent generated code."""
+    bundled = bool(getattr(sys, "frozen", False))
     here = Path(__file__).resolve().parent
-    source = here.parents[1] / "api" / "proto"
-    expected = [here / "_generated" / path.relative_to(source).with_name(path.stem + "_pb2.py")
-                for path in sorted(source.rglob("*.proto"))]
+    expected = []
+    if not bundled:
+        source = here.parents[1] / "api" / "proto"
+        expected = [here / "_generated" / path.relative_to(source).with_name(path.stem + "_pb2.py")
+                    for path in sorted(source.rglob("*.proto"))]
     missing = [path.relative_to(here).as_posix() for path in expected if not path.is_file()]
     dependencies = {}
     dependency_actions = {}
@@ -26,12 +29,14 @@ def runtime_status():
             dependencies[name] = "available"
         except Exception as error:
             dependencies[name] = "unavailable"
-            dependency_actions[name] = ("Install requirements.txt with the MCP interpreter and "
+            dependency_actions[name] = ("Reinstall the Embeint KiCad MCP package and check its native "
+                                        "shared-library dependencies." if bundled else
+                                        "Install requirements.txt with the MCP interpreter and "
                                         "check the package's native shared-library dependencies.")
             if name == "pynng" and sys.platform == "linux" and "libatomic.so.1" in str(error):
                 dependency_actions[name] = ("Install libatomic1 on Debian/Ubuntu to provide "
                                             "libatomic.so.1, then rerun with the MCP interpreter.")
-    if missing or not expected:
+    if not bundled and (missing or not expected):
         protocols = {"state": "missing", "missing_modules": missing,
                      "action": "Run this interpreter with generate_proto.py from this checkout."}
     elif "unavailable" in dependencies.values():
@@ -40,10 +45,14 @@ def runtime_status():
         try:
             importlib.import_module("client")
             protocols = {"state": "ready"}
+            if bundled:
+                protocols["source"] = "bundled modules"
         except Exception:
             # Import exceptions can contain paths or arbitrary dependency text. Do not echo them.
-            protocols = {"state": "incompatible", "action": "Regenerate protocols with "
-                         "generate_proto.py and install requirements.txt using this interpreter."}
+            protocols = {"state": "incompatible", "action":
+                         "Reinstall the Embeint KiCad MCP package." if bundled else
+                         "Regenerate protocols with generate_proto.py and install requirements.txt "
+                         "using this interpreter."}
     return {"dependencies": dependencies, "dependency_actions": dependency_actions, "protocols": protocols}
 
 
