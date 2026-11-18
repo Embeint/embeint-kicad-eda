@@ -152,6 +152,13 @@ reopen. The application container has no development checkout or MCP virtual
 environment. Keep the corresponding source archive and all required component
 notices with distributed builds; these scripts do not publish a release.
 
+The packager stages on the Linux temporary filesystem so frozen runtime symlinks
+are preserved even when the output directory is a host-shared mount. The runtime
+image allocates an unused UID for `qualification`; base images may already own
+UID 1000. The ARM64 installed workflow was verified with 2400 MiB RAM and 1024 MiB
+permitted swap. A 1400 MiB run hit memory pressure and timed out; this is not a
+general minimum-memory specification.
+
 When no Docker daemon is available, `check_install.py ROOT OUTPUT --runtime bwrap`
 accepts a separately prepared Ubuntu root with the `.deb` and its dependencies
 installed. Preparation may use network access; the driver forces a new network
