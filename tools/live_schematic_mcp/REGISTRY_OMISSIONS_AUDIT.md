@@ -7,7 +7,7 @@ No native or protocol source changes are made by this work.
 
 | Operation | Decision through generic execute/describe | Reason |
 | --- | --- | --- |
-| PCB `GetEmbeddedFiles` | Add as `read`, batchable | Concrete target validation and serialization path; no model mutation or disk write in that path |
+| PCB `GetEmbeddedFiles` | Add as standalone `read`; reject batches | Concrete target validation and serialization path; empty commits dirty an older native PCB build, so batch qualification remains deferred |
 | `ParseAndCreateItemsFromString` | Defer | PCB/footprint base handler is a stub; schematic has a declaration but no implementation or registration |
 | `OpenLibraryItem` | Defer for both library editors | GUI loading can prompt for unsaved changes; response does not establish safe completion |
 | `LoadAllLibraries` | Defer | GUI explicitly returns unimplemented; headless loading is not a completion contract |
@@ -60,11 +60,14 @@ native stored bytes. This operation supplies opaque bytes and a native hash;
 the adapter neither decompresses them nor certifies their integrity. No size cap
 or streaming is added, so large embedded collections produce large replies.
 
-Batch use follows the existing exact document binder: an omitted target is filled
-from the batch document; any supplied different type, filename, project name or
-path is rejected before `BeginCommit`. The read can observe prior changes in a
-batch, but is not a transactional edit. Its eligibility makes no claim about
-rollback for any other handler, nor about isolation from manual/concurrent edits.
+Batch use is explicitly rejected before `BeginCommit`. An actual test with upstream
+KiCad `10.99.0-unknown-4fe1ca2060~190~ubuntu24.04.1` found that an empty PCB commit
+leaves serialized contents unchanged but changes `DMS_UNMODIFIED` to `DMS_MODIFIED`.
+That build calls `onModified()` unconditionally in `API_HANDLER_BOARD::pushCurrentCommit`.
+The fork baseline already contains upstream fix `04a5485a073`, which checks whether
+the commit is empty, but a matching fork binary has not been qualified. Keep this
+new operation standalone until its batch path passes against the supported build.
+Existing batch document-binding behavior for other operations is unchanged.
 
 ## Specific deferrals and response semantics
 

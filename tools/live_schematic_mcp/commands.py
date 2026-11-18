@@ -181,7 +181,10 @@ BATCHABLE_KINDS = {"read", "edit", "view"}
 NOT_BATCHABLE = {C + "UndoLastChange", C + "RedoLastChange", B + "InteractiveMoveItems",
                  C + "ReloadLibrary", S + "NewLibrarySymbol", S + "EditLibrarySymbol",
                  S + "OpenFootprintEditor", B + "NewLibraryFootprint", B + "EditLibraryFootprint",
-                 "kiapi.schematic.tasks.StartErcTask", "kiapi.board.tasks.StartDrcTask"}
+                 "kiapi.schematic.tasks.StartErcTask", "kiapi.board.tasks.StartDrcTask",
+                 # Older native builds mark even empty PCB commits modified. Qualify
+                 # this new read standalone until matching-fork batch tests pass.
+                 B + "GetEmbeddedFiles"}
 
 
 def resolve(name):
