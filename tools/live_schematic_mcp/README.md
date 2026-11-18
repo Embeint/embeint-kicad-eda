@@ -9,6 +9,28 @@ Requires this development build (10.99 / KiCad 11). Released KiCad 10.x has no s
 
 The proposed path to an Embeint distribution with bundled MCP, shared Rust components
 and a browser client is in [Embeint fork roadmap](EMBEINT_FORK_ROADMAP.md).
+Desktop MCP reliability and workflow coverage take priority; see the
+[MCP support delivery plan](MCP_SUPPORT_PLAN.md) and the
+[IPC/MCP review record](IPC_MCP_REVIEW.md).
+
+`live_mcp_capabilities` and the JSON resource `embeint://mcp/capabilities` expose the
+loaded MCP tool schemas, curated IPC command schemas and a deterministic schema
+fingerprint without connecting to KiCad. This describes the local adapter; it does
+not assert that every operation is supported by the running editor or document.
+The unit suite also exercises the real MCP stdio initialize/discover/call/resource
+protocol, and the `MCP contracts` GitHub workflow runs these checks on pull requests.
+
+Atomic batches accept only item edits that participate in the current commit.
+Settings, file operations, editor replacement and asynchronous work are excluded.
+Omitted command document targets inherit the batch document; explicit targets must
+match it exactly. Selection and zoom changes are not rolled back. Inspect a command
+with `live_schematic_describe_command` to see its `batchable` status.
+
+Routing verification checks all clearance, keepout and manufacturing findings for
+the new route UUIDs, without truncating the internal DRC report. A rejected route
+is removed by its UUIDs in a separate undoable cleanup, preserving unrelated user
+edits. A timeout or unconfirmed cleanup reports that the editor needs inspection.
+This is scoped route validation, not a claim that the whole board is DRC-clean.
 
 ## Tools
 
@@ -152,7 +174,8 @@ hosts the schematic and PCB editors in one process; `live_pcb_open` opens the pr
 | `live_pcb_save` | Explicit save, only when asked |
 
 `live_schematic_execute` and `live_schematic_batch` also take every board command (see
-`live_schematic_list_commands`); a batch on a board document is one undo step.
+`live_schematic_list_commands`); supported transactional edits in a batch on one
+board document form one undo step.
 
 Hierarchy: create a `SheetSymbol` (with `pins`) on the parent, read its path from
 `live_schematic_hierarchy`, then target the child sheet with that `sheet_path` to add matching
@@ -169,8 +192,10 @@ search commands KiCad declared but left unimplemented (`GetLibraryTable`, `Add`/
 shares `UndoLastChange` / `RedoLastChange`, `GetPageLayout` and `GetGridSettings` /
 `SetGridSettings` (`api/proto/common/commands/editor_commands.proto`), and the project manager
 answers `OpenDocument` for the project's schematic and board. For boards it adds `TransformBoardItems` (move, rotate, flip and lock in place) and implements
-`UpdateBoardStackup`, which KiCad declares but leaves unimplemented. Every editing command joins an open
-`BeginCommit`, so a batch is one undo step. Undo/redo need the GUI and refuse an open commit.
+`UpdateBoardStackup`, which KiCad declares but leaves unimplemented. Transactional item-edit
+commands join an open `BeginCommit`, so a supported batch is one undo step. Settings
+operations have separate effects and are excluded from batches. Undo/redo need the
+GUI and refuse an open commit.
 
 ## For agents
 

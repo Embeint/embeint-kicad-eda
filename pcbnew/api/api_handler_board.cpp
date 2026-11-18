@@ -1499,8 +1499,7 @@ HANDLER_RESULT<TransformBoardItemsResponse> API_HANDLER_BOARD::handleTransformBo
     TransformBoardItemsResponse response;
     response.mutable_header()->CopyFrom( request.header() );
 
-    BOARD_COMMIT* commit = static_cast<BOARD_COMMIT*>( getCurrentCommit( aCtx.ClientName ) );
-    bool          anyModified = false;
+    bool anyModified = false;
 
     for( const types::KIID& id : request.items() )
     {
@@ -1525,6 +1524,7 @@ HANDLER_RESULT<TransformBoardItemsResponse> API_HANDLER_BOARD::handleTransformBo
             continue;
         }
 
+        BOARD_COMMIT* commit = static_cast<BOARD_COMMIT*>( getCurrentCommit( aCtx.ClientName ) );
         commit->Modify( item, nullptr, RECURSE_MODE::RECURSE );
 
         if( request.has_flip() )

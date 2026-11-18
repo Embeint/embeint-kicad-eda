@@ -698,7 +698,7 @@ class BoardTools:
         self.send(request, empty_pb2.Empty)
         return {"refilled": True}
 
-    def board_drc(self, doc, timeout_s=300.0, parity=True, refill=True):
+    def board_drc(self, doc, timeout_s=300.0, parity=True, refill=True, limit=200):
         import pynng
         started = self.send(board_tasks.StartDrcTask(board=doc, test_schematic_parity=parity,
                                                      require_zones_filled=refill),
@@ -731,7 +731,9 @@ class BoardTools:
                                "items": [i.value for i in marker.items],
                                **({"rule": marker.violating_rule} if marker.violating_rule else {})})
         return {"violation_count": len(violations), "by_type": by_type, "ignored": result.ignored_count,
-                "excluded": result.excluded_count, "violations": violations[:200]}
+                "excluded": result.excluded_count,
+                "violations_truncated": limit is not None and len(violations) > limit,
+                "violations": violations if limit is None else violations[:limit]}
 
     def board_update_from_schematic(self, doc, schematic_doc, dry_run=False, delete_extra=False,
                                     update_footprints=True, match="uuid"):

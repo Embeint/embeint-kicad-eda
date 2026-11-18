@@ -480,15 +480,18 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
         return {"command": full, "kind": kind, "result": as_dict(self.send(request, response_type))}
 
     def batch(self, doc, steps, description="MCP: batch"):
-        """Run steps in one commit: one undo step, all dropped if any step fails."""
-        from commands import BATCHABLE_KINDS, NOT_BATCHABLE, build_request
+        """Run transactional edits on one document. UI selection/zoom are not rolled back."""
+        from commands import BATCHABLE_KINDS, NOT_BATCHABLE, TRANSACTIONAL_COMMANDS, build_request
         if not steps or len(steps) > 100:
             raise ValueError("Supply between 1 and 100 steps")
         prepared = []
         for index, step in enumerate(steps):
             full, request, response_type, kind = build_request(step["command"], step.get("payload"))
-            if kind not in BATCHABLE_KINDS or full in NOT_BATCHABLE:
+            if (kind not in BATCHABLE_KINDS or full in NOT_BATCHABLE
+                    or (kind == "edit" and full not in TRANSACTIONAL_COMMANDS)):
                 raise ValueError(f"step {index}: {full} ({kind}) cannot run inside a batch")
+            if not bind_batch_document(request, doc) and kind == "edit":
+                raise ValueError(f"step {index}: {full} has no transactional document target")
             prepared.append((full, request, response_type))
         results = []
         with self.transaction(doc, description):
@@ -496,8 +499,8 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
                 try:
                     response = self.send(request, response_type)
                 except Exception as error:
-                    raise RuntimeError(f"step {index} ({full}) failed, batch rolled back: {error}") from error
-                check_item_statuses(index, full, response)
+                    raise RuntimeError(f"step {index} ({full}) failed: {error}") from error
+                check_item_statuses(index, full, response, request)
                 results.append({"command": full, "result": as_dict(response)})
         return {"committed": True, "steps": results}
 
@@ -823,19 +826,57 @@ def empty():
     return empty_pb2.Empty
 
 
-def check_item_statuses(index, command, response):
+def bind_batch_document(request, doc):
+    """Bind omitted targets and reject cross-document edits before opening a commit."""
+    bound = False
+    for field in request.DESCRIPTOR.fields:
+        if not field.message_type or field.is_repeated:
+            continue
+        target = None
+        if field.message_type.full_name == types.DocumentSpecifier.DESCRIPTOR.full_name:
+            target = getattr(request, field.name)
+        elif field.message_type.full_name == types.ItemHeader.DESCRIPTOR.full_name:
+            target = getattr(request, field.name).document
+        if target is not None:
+            if target.ListFields() and target != doc:
+                raise ValueError("Batch steps must target the batch document exactly")
+            target.CopyFrom(doc)
+            bound = True
+    return bound
+
+
+def check_item_statuses(index, command, response, request=None):
     """Raise for any per-item rejection, which KiCad reports inside an otherwise OK reply."""
-    for field in ("created_items", "updated_items"):
+    for field in ("created_items", "updated_items", "items"):
         for result in getattr(response, field, ()):
-            if result.status.code != editor.ISC_OK:
+            # Only item-result messages have ItemStatus; GetItems contains protobuf Any items.
+            if hasattr(result, "status") and hasattr(result.status, "code") \
+                    and result.status.code != editor.ISC_OK:
                 raise RuntimeError(f"step {index} ({command}) rejected an item, batch rolled back: "
                                    f"{result.status.error_message or editor.ItemStatusCode.Name(result.status.code)}")
     for result in getattr(response, "deleted_items", ()):
         if result.status != editor.IDS_OK:
             raise RuntimeError(f"step {index} ({command}) could not delete {result.id.value}, batch rolled back")
+    for result in getattr(response, "symbols", ()):
+        if hasattr(result, "updated") and not result.updated:
+            raise RuntimeError(f"step {index} ({command}) rejected a symbol, batch rolled back: "
+                               f"{result.error_message or 'symbol was not updated'}")
     if hasattr(response, "status") and isinstance(response.status, int) and command.endswith("Items") \
             and response.status != types.IRS_OK:
         raise RuntimeError(f"step {index} ({command}) returned {types.ItemRequestStatus.Name(response.status)}")
+    if request is not None:
+        result_fields = {"CreateItems": ("items", "created_items"),
+                         "UpdateItems": ("items", "updated_items"),
+                         "DeleteItems": ("item_ids", "deleted_items"),
+                         "TransformBoardItems": ("items", "items"),
+                         "UpdateSymbolsFromLibrary": ("symbols", "symbols")}
+        fields = result_fields.get(command.rsplit(".", 1)[-1])
+        if fields:
+            expected = len(getattr(request, fields[0]))
+            # An empty symbol filter intentionally addresses every symbol on the sheet.
+            if len(getattr(response, fields[1])) != expected \
+                    and (expected or not command.endswith("UpdateSymbolsFromLibrary")):
+                raise RuntimeError(f"step {index} ({command}) did not acknowledge every item, batch rolled back")
 
 
 PAGE_SIZES = {"A5": types.PS_A5, "A4": types.PS_A4, "A3": types.PS_A3, "A2": types.PS_A2, "A1": types.PS_A1,
