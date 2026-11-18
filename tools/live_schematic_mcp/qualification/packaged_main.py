@@ -28,7 +28,17 @@ def configure_desktop(config_home):
     config = Path(config_home) / "10.99"
     config.mkdir(parents=True, exist_ok=True)
     path = config / "kicad_common.json"
-    data = json.loads(path.read_text()) if path.exists() else {}
+    try:
+        data = json.loads(path.read_text()) if path.exists() else {}
+        if not isinstance(data, dict) or any(
+                key in data and not isinstance(data[key], dict)
+                for key in ("api", "do_not_show_again")):
+            raise ValueError("settings and API/prompt preferences must be JSON objects")
+    except (ValueError, UnicodeError) as error:
+        # KiCad owns recovery of its preferences. A damaged file must not prevent
+        # the desktop launcher from reaching the application or be overwritten.
+        print(f"Warning: leaving {path} unchanged: {error}", file=sys.stderr)
+        return
     previous = json.dumps(data, sort_keys=True)
     data.setdefault("api", {}).setdefault("enable_server", True)
     prompts = data.setdefault("do_not_show_again", {})

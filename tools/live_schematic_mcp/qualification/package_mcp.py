@@ -24,7 +24,14 @@ MCP = Path(__file__).resolve().parents[1]
 
 def source_identity(archive_revision):
     try:
-        result = subprocess.run(["git", "rev-parse", "HEAD"], cwd=MCP, text=True, capture_output=True)
+        root = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=MCP,
+                              text=True, capture_output=True)
+        # An archive may be unpacked inside an unrelated checkout. Its enclosing
+        # repository cannot identify the source used to build this adapter.
+        result = (subprocess.run(["git", "rev-parse", "HEAD"], cwd=MCP,
+                                 text=True, capture_output=True)
+                  if root.returncode == 0 and Path(root.stdout.strip()).resolve() == MCP.parents[1]
+                  else None)
     except FileNotFoundError:
         result = None
     if result is not None and result.returncode == 0:

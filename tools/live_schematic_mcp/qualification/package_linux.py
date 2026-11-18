@@ -55,7 +55,24 @@ def native_provenance(install, manifest):
             raise ValueError(f"native provenance path escapes install: {name}")
         if not path.is_file() or sha256(path.read_bytes()).hexdigest() != digest:
             raise ValueError(f"native payload does not match provenance: {name}")
-    return info
+    staged = set()
+    aliases = {}
+    for path in install.rglob("*"):
+        name = path.relative_to(install).as_posix()
+        if path.is_symlink():
+            target = path.resolve()
+            if (not target.is_relative_to(install) or not target.is_file()
+                    or target.relative_to(install).as_posix() not in hashes):
+                raise ValueError(f"native payload symlink requires a recorded file target: {name}")
+            aliases[name] = str(path.readlink())
+        elif path.is_file():
+            staged.add(name)
+    recorded = set(hashes) - set(aliases)
+    if staged != recorded:
+        raise ValueError(f"native provenance file inventory differs from staged payload: "
+                         f"unrecorded={sorted(staged - recorded)}, "
+                         f"unstaged={sorted(recorded - staged)}")
+    return {**info, "symlinks": aliases} if aliases else info
 
 
 def private_shlibs_entry(soname):
