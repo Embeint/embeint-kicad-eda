@@ -152,7 +152,43 @@ fails. Against a fake two-unit editor, they check that an ignored update is
 `inconclusive`, that a rejected update is never undone and that a dropped
 nickname is `reproduced` per unit.
 
-## Recorded Windows/WSL acceptance, 2026-11-19
+## Recorded Windows/WSL acceptance, 2026-11-19, run17 (current)
+
+The [run17 receipt](evidence/capture-windows-wsl-2026-11-19-run17.json) was
+generated from the driver's raw `report.json`. It records the clean adapter commit
+`5b5431f1975155f0958201e464d6a7355c741390`, rechecked at the end of the run. The
+native install is the retained staged package, read-only mounted at
+`/opt/embeint-kicad`. All 897 manifest files and the source archive were verified
+before and after the run. The seed manager loaded nine install modules and the
+reopened manager eight, all with manifest bytes, including libkicommon `506bb1dd...`.
+The one loaded private dependency was unchanged. The native version is still
+`10.99.0-qualification-d880-loader-patch-dirty` (d880 plus the four recorded
+loader blobs), with no new C++ build.
+
+All 292 offline tests passed on that commit, 24 of them focused
+intent/runtime/persistence regressions. Every run16 capture, persistence, parity,
+page and MCP check passed again. The negative ESD case again had **zero ERC
+findings** while the oracle rejected the split DM and DP nets, and its undo
+restored exact items. Each buffer unit's `UpdateItems` value change demonstrably
+applied before it was undone: the re-read value and serialized items both
+changed. Neither unit reproduced duplicate pin IDs or a lost library nickname,
+so both labels are `historical_not_reproduced` for this binary and request shape.
+DRC retained **18 unrouted connections**, with rules unchanged. Raw evidence:
+`/home/karlvonrichter/embeint-qualification/capture-acceptance-2026-11-19-17`,
+copied to `C:/Users/KarlVonRichter/.t3/scratch/capture-acceptance-evidence/run17`.
+The framed-render review in the receipt is the acceptance agent's visual
+inspection, labelled as such, not driver output.
+
+## Recorded Windows/WSL acceptance, 2026-11-19, run16 (retained, superseded)
+
+Run16 and its receipt are kept unchanged. Three limits found in review apply to
+them. First, run16 used `install-patched/`. Its manager and kiface bytes match
+the retained record, but its `libkicommon` (`d51f381f...`) was built for that
+prefix and is not in the retained manifest (`506bb1dd...`), and the driver then
+checked only four binaries. Second, its `retained_source_record_sha256` is the
+hash of the CRLF working-tree bytes, not the Git blob, so an LF checkout will not
+reproduce it. Third, its `framed_render_review` field is a human statement, not
+driver output.
 
 The [bounded receipt](evidence/capture-windows-wsl-2026-11-19.json) identifies the
 clean tested adapter commit `d644f74209e4bd736fe5b2d5a2b2417baa9ceb35`, actual
