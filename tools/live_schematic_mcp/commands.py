@@ -22,6 +22,9 @@ COMMANDS = {
     # Documents and files
     C + "GetOpenDocuments": (C + "GetOpenDocumentsResponse", "read"),
     C + "GetDocumentModifiedState": (C + "GetDocumentModifiedStateResponse", "read"),
+    # Revisions and operation outcomes (REVISIONS.md)
+    C + "GetDocumentRevision": (C + "DocumentRevisionResponse", "read"),
+    C + "GetOperationStatus": (C + "OperationStatusResponse", "read"),
     C + "SaveDocument": (EMPTY, "file"),
     C + "SaveDocumentAs": (EMPTY, "file"),
     C + "SaveCopyOfDocument": (EMPTY, "file"),
@@ -175,6 +178,10 @@ TRANSACTIONAL_COMMANDS = {
     S + "AutoplaceFields", S + "TransformItems", S + "SetLibrarySymbolProperties",
     B + "TransformBoardItems", B + "SetLibraryFootprintProperties",
 }
+
+# Project settings edits run in the common handler, not a document editor: they have no document
+# revision and refuse expected_revision/operation_id (see REVISIONS.md).
+PROJECT_EDITS = {C + "SetNetClasses", C + "SetNetClassAssignments", C + "SetTextVariables"}
 
 # Read/view operations may accompany a transaction, but UI selection and zoom are not undone.
 BATCHABLE_KINDS = {"read", "edit", "view"}

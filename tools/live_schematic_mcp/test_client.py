@@ -1275,3 +1275,230 @@ def test_rounded_outline_from_arcs_closes():
         lines += edge_lines(shape)
     outline = rt.outline_from_lines(lines)
     assert outline is not None and abs(outline.area - (2400 - (4 - math.pi) * 4)) < 0.05
+
+
+# ---- Revisions and operation reconciliation (REVISIONS.md) ---------------------------------------
+
+class HeaderClient(FakeClient):
+    """Records the (expected_revision, operation_id) header each request was sent with."""
+
+    def __init__(self, reply=None, end_commit=None):
+        super().__init__(reply)
+        self.headers = []
+        self.end_commit = end_commit
+
+    def send(self, request, response_type):
+        self.headers.append(self._pending_header)
+        if isinstance(request, editor.EndCommit) and self.end_commit:
+            self.requests.append(request)
+            return self.end_commit(request)
+        if isinstance(request, editor.EndCommit) and request.action == editor.CMA_COMMIT:
+            self.requests.append(request)
+            self.last_revision = f"rev-{len(self.requests)}"
+            return editor.EndCommitResponse()
+        return super().send(request, response_type)
+
+
+def created(request, response_type):
+    if isinstance(request, editor.GetOperationStatus):
+        raise AssertionError("no reconciliation expected")
+    response = editor.CreateItemsResponse(status=types.IRS_OK)
+    for item in request.items:
+        response.created_items.add(status=editor.ItemStatus(code=editor.ISC_OK), item=item)
+    return response
+
+
+def test_document_revision_reports_the_live_token():
+    client = FakeClient(lambda request, _: editor.DocumentRevisionResponse(revision="ab12cd34-7", open_commits=1,
+                                                                           modified=True))
+    assert client.document_revision(doc()) == {"revision": "ab12cd34-7", "open_commits": 1, "modified": True}
+    assert isinstance(client.requests[0], editor.GetDocumentRevision)
+
+
+def test_operation_status_names_every_state():
+    client = FakeClient(lambda request, _: editor.OperationStatusResponse(operation_id=request.operation_id))
+    assert client.operation_status("op-1")["state"] == "OPS_UNKNOWN"
+    with pytest.raises(ValueError):
+        client.operation_status("")
+
+
+def test_every_transaction_carries_an_operation_id_and_options_chain_revisions():
+    client = HeaderClient(created)
+    client.mutate(doc(), [wire()])
+    expected, operation = client.headers[0]
+    assert expected == "" and operation.startswith("mcp-")
+    assert client.last_operation["operation_id"] == operation
+    assert client.last_operation["state"] == "committed"
+
+    client = HeaderClient(created)
+    with client.mutation_options("rev-0", "agent-op") as done:
+        client.mutate(doc(), [wire()])
+        client.mutate(doc(), [wire()])
+    begins = [h for h, r in zip(client.headers, client.requests) if isinstance(r, editor.BeginCommit)]
+    # The second commit must find the document exactly as the first left it
+    assert begins == [("rev-0", "agent-op"), ("rev-3", "agent-op.2")]
+    assert [o["operation_id"] for o in done["operations"]] == ["agent-op", "agent-op.2"]
+    # Steps and EndCommit never repeat the commit's id or revision
+    assert all(h == ("", "") or h is None for h, r in zip(client.headers, client.requests)
+               if not isinstance(r, editor.BeginCommit))
+
+
+def test_lost_commit_reply_is_reconciled_not_resent():
+    from client import OutcomeUnknown, ReplyTimeout
+
+    def lost(request):
+        if request.action == editor.CMA_DROP:
+            return editor.EndCommitResponse()
+        raise ReplyTimeout("No reply from KiCad to EndCommit within 1 ms")
+
+    settle = ["EndCommit", "GetOperationStatus"]
+    # (states the status queries return, expected error, requests after the lost EndCommit)
+    for states, outcome, extra in ((["OPS_COMMITTED"], None, []),
+                                   (["OPS_ROLLED_BACK"], RuntimeError, []),
+                                   (["OPS_UNKNOWN"], OutcomeUnknown, []),
+                                   # Still open: a drop settles it either way, then KiCad is asked again
+                                   (["OPS_IN_PROGRESS", "OPS_COMMITTED"], None, settle),
+                                   (["OPS_IN_PROGRESS", "OPS_ROLLED_BACK"], RuntimeError, settle),
+                                   (["OPS_IN_PROGRESS", "OPS_IN_PROGRESS"], OutcomeUnknown, settle)):
+        answers = iter(states)
+
+        def reply(request, response_type):
+            if isinstance(request, editor.GetOperationStatus):
+                return editor.OperationStatusResponse(operation_id=request.operation_id,
+                                                      state=editor.OperationState.Value(next(answers)),
+                                                      revision_after="rev-9", message="lease expired")
+            return created(request, response_type)
+        client = HeaderClient(reply, end_commit=lost)
+        if outcome is None:
+            client.mutate(doc(), [wire()])
+            assert client.last_operation["reconciled"] and client.last_revision == "rev-9"
+        else:
+            with pytest.raises(outcome) as error:
+                client.mutate(doc(), [wire()])
+            if outcome is OutcomeUnknown:
+                assert error.value.operation_id == client.headers[0][1]
+                assert "Do not resend" in str(error.value)
+        names = [type(r).__name__ for r in client.requests]
+        # One edit and one commit attempt: the mutation is reconciled, never replayed
+        assert names == ["BeginCommit", "CreateItems", "EndCommit", "GetOperationStatus", *extra]
+        assert sum(isinstance(r, editor.EndCommit) and r.action == editor.CMA_COMMIT
+                   for r in client.requests) == 1
+
+
+def test_lost_begin_reply_drops_an_opened_commit_without_sending_edits():
+    from client import ReplyTimeout
+
+    class LostBegin(HeaderClient):
+        def send(self, request, response_type):
+            if isinstance(request, editor.BeginCommit):
+                self.requests.append(request)
+                raise ReplyTimeout("No reply from KiCad to BeginCommit within 1 ms")
+            return super().send(request, response_type)
+
+    def reply(request, response_type):
+        if isinstance(request, editor.GetOperationStatus):
+            return editor.OperationStatusResponse(state=editor.OPS_IN_PROGRESS)
+        pytest.fail("no edit may be sent after a lost BeginCommit reply")
+    client = LostBegin(reply)
+    with pytest.raises(RuntimeError, match="nothing was changed"):
+        client.mutate(doc(), [wire()])
+    drop = client.requests[-1]
+    assert isinstance(drop, editor.EndCommit) and drop.action == editor.CMA_DROP and not drop.id.value
+    assert not any(isinstance(r, editor.CreateItems) for r in client.requests)
+
+
+def test_conflicting_commit_is_reported_as_rolled_back():
+    from client import RevisionMismatch
+
+    def conflict(request):
+        raise RevisionMismatch("AS_REVISION_MISMATCH: another client or the user changed the document")
+    client = HeaderClient(created, end_commit=conflict)
+    with pytest.raises(RevisionMismatch):
+        client.mutate(doc(), [wire()])
+    assert client.last_operation["state"] == "rolled_back"
+
+
+def test_send_maps_revision_statuses_and_records_the_reply_revision(monkeypatch):
+    import client as client_module
+    from client import DuplicateOperation, RevisionMismatch, envelope
+    sent = []
+
+    def connection(status, revision="ab12cd34-4"):
+        class Connection:
+            def __init__(self, **kwargs):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                pass
+
+            def dial(self, url, **kwargs):
+                pass
+
+            def send(self, raw):
+                sent.append(envelope.ApiRequest.FromString(raw))
+
+            def recv(self):
+                reply = envelope.ApiResponse()
+                reply.header.document_revision = revision
+                reply.status.status = status
+                reply.status.error_message = "the document is at revision ab12cd34-4, not ab12cd34-3"
+                if status == envelope.AS_OK:
+                    reply.message.Pack(editor.BeginCommitResponse(id=types.KIID(value="commit")))
+                return reply.SerializeToString()
+        return Connection
+
+    live = LiveSchematic("ipc:///unused-test-socket")
+    for status, error in ((envelope.AS_REVISION_MISMATCH, RevisionMismatch),
+                          (envelope.AS_DUPLICATE_OPERATION, DuplicateOperation)):
+        monkeypatch.setattr(client_module.pynng, "Req0", connection(status))
+        with pytest.raises(error, match="AS_"):
+            live._send_with(editor.BeginCommit(), editor.BeginCommitResponse, "ab12cd34-3", "op-7")
+        assert live.last_revision == "ab12cd34-4"
+    assert sent[-1].header.expected_revision == "ab12cd34-3" and sent[-1].header.operation_id == "op-7"
+
+    monkeypatch.setattr(client_module.pynng, "Req0", connection(envelope.AS_OK, revision=""))
+    live.send(editor.BeginCommit(), editor.BeginCommitResponse)
+    # Plain sends carry no contract fields, and a reply without a document has no revision
+    assert not sent[-1].header.expected_revision and not sent[-1].header.operation_id
+    assert live.last_revision is None
+
+
+def test_reply_timeout_is_still_a_pynng_timeout(monkeypatch):
+    import client as client_module
+    from client import ReplyTimeout
+
+    class Silent:
+        def __init__(self, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            pass
+
+        def dial(self, url, **kwargs):
+            pass
+
+        def send(self, raw):
+            pass
+
+        def recv(self):
+            raise client_module.pynng.Timeout("synthetic timeout", 5)
+
+    monkeypatch.setattr(client_module.pynng, "Req0", Silent)
+    with pytest.raises(client_module.pynng.Timeout) as error:
+        LiveSchematic("ipc:///unused-test-socket").send(editor.BeginCommit(), editor.BeginCommitResponse)
+    assert isinstance(error.value, ReplyTimeout) and isinstance(error.value, TimeoutError)
+    assert "may still apply" in str(error.value)
+
+
+def test_execute_tags_document_edits_but_not_project_settings():
+    client = HeaderClient(lambda request, response_type: response_type())
+    client.execute("SetNetClasses", {})
+    client.execute("UndoLastChange", {"document": as_dict(doc())})
+    assert client.headers[0] is None
+    assert client.headers[1][1].startswith("mcp-")
