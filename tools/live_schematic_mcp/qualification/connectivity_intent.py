@@ -110,20 +110,31 @@ def validate_board_parity(observations, footprints):
     """Compare every schematic pin to every physical numbered pad and its native net.
 
     Multiple pads with the same number are legitimate only when all share the
-    schematic pin's net. Unnumbered mechanical pads have no electrical identity.
+    schematic pin's net. Unnumbered mechanical pads have no electrical identity,
+    but a footprint whose reference has no schematic pin is still reported.
+    Standalone use must not hide duplicate schematic pins, so they are reported
+    rather than collapsed into one expected net.
     """
-    expected = {entry["pin"]: entry.get("net") or "" for entry in observations}
+    nets = defaultdict(list)
+    for entry in observations:
+        nets[entry["pin"]].append(entry.get("net") or "")
+    findings = [{"kind": "duplicate_schematic_pin", "pin": pin, "nets": sorted(values)}
+                for pin, values in sorted(nets.items()) if len(values) > 1]
+    expected = {pin: values[0] for pin, values in nets.items() if len(values) == 1}
     observed = defaultdict(list)
     refs = Counter(footprint["reference"] for footprint in footprints)
-    findings = [{"kind": "duplicate_footprint", "reference": ref}
-                for ref, count in sorted(refs.items()) if count > 1]
+    findings += [{"kind": "duplicate_footprint", "reference": ref}
+                 for ref, count in sorted(refs.items()) if count > 1]
+    schematic_refs = {pin.split(".", 1)[0] for pin in nets}
+    findings += [{"kind": "extra_footprint", "reference": ref}
+                 for ref in sorted(refs.keys() - schematic_refs)]
     for footprint in footprints:
         for pad in footprint["pads"]:
             if pad["number"]:
                 observed[footprint["reference"] + "." + pad["number"]].append(pad.get("net") or "")
     for pin in sorted(expected.keys() - observed.keys()):
         findings.append({"kind": "missing_pad", "pin": pin})
-    for pin in sorted(observed.keys() - expected.keys()):
+    for pin in sorted(observed.keys() - nets.keys()):
         findings.append({"kind": "extra_pad", "pin": pin})
     for pin in sorted(expected.keys() & observed.keys()):
         if any(net != expected[pin] for net in observed[pin]):
