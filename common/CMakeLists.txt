@@ -122,6 +122,7 @@ set( KICOMMON_SRCS
     git/git_transfer_busy.cpp
     git/kicad_git_common.cpp
     git/kicad_git_errors.cpp
+    git/kigit_author.cpp
     git/text_diff.cpp
     git/git_backend.cpp
     git/kigit_orphan_registry.cpp
@@ -163,6 +164,7 @@ set( KICOMMON_SRCS
     jobs/job_export_pcb_gerber.cpp
     jobs/job_export_pcb_gerbers.cpp
     jobs/job_export_pcb_hpgl.cpp
+    jobs/job_export_pcb_hyperlynx.cpp
     jobs/job_export_pcb_ipc2581.cpp
     jobs/job_export_pcb_fab.cpp
     jobs/job_export_pcb_ipcd356.cpp
@@ -283,6 +285,7 @@ set( KICOMMON_SRCS
     widgets/html_window.cpp
     widgets/indicator_icon.cpp
     widgets/kistatusbar.cpp
+    widgets/kistatusbar_popup.cpp
     widgets/number_badge.cpp
     widgets/progress_reporter_base.cpp
     widgets/report_severity.cpp

@@ -34,6 +34,7 @@
 #include <wx/translation.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <filesystem>
 #include <memory>
@@ -175,7 +176,11 @@ static KIGIT_FAILURE classifyGitFailure( const KIGIT_ERROR_INFO& aError, const K
     if( !aContext.pushRefusal.IsEmpty() )
         return KIGIT_FAILURE::SERVER_REFUSED;
 
-    if( aError.code == GIT_EAUTH )
+    // WinHTTP reports a rejected password as an OS error, with localized system text after this prefix
+    const bool winHttpRejected = aError.klass == GIT_ERROR_OS
+                                 && lower.Contains( wxS( "failed to parse supported auth schemes" ) );
+
+    if( aError.code == GIT_EAUTH || winHttpRejected )
     {
         if( aError.klass == GIT_ERROR_HTTP && lower.Contains( wxS( "proxy" ) ) )
             return KIGIT_FAILURE::PROXY;
@@ -234,7 +239,8 @@ static KIGIT_FAILURE classifyGitFailure( const KIGIT_ERROR_INFO& aError, const K
 namespace
 {
 
-wxString summaryFor( KIGIT_FAILURE aKind, const KIGIT_AUTH_ATTEMPT& aAuth, const KIGIT_FAILURE_CONTEXT& aContext )
+wxString summaryFor( KIGIT_FAILURE aKind, const KIGIT_AUTH_ATTEMPT& aAuth, const KIGIT_FAILURE_CONTEXT& aContext,
+                     const wxString& aServerLine = wxString() )
 {
     const KIGIT_COMMON::REMOTE_URL parsed = KIGIT_COMMON::ParseRemoteURL( aContext.url );
     const wxString                 key = aKind == KIGIT_FAILURE::AUTH_SSH_KEY_REJECTED
@@ -319,6 +325,15 @@ wxString summaryFor( KIGIT_FAILURE aKind, const KIGIT_AUTH_ATTEMPT& aAuth, const
                                  host );
 
     case KIGIT_FAILURE::HOST_UNREACHABLE:
+#ifdef __APPLE__
+        if( KIGIT::IsLocalNetworkHost( parsed.hostname ) )
+        {
+            return wxString::Format( _( "%s did not answer. Check your network connection, and that KiCad is "
+                                        "allowed in System Settings > Privacy & Security > Local Network." ),
+                                     host );
+        }
+#endif
+
         return wxString::Format( _( "%s did not answer. Check your network or VPN connection, then try again." ),
                                  host );
 
@@ -351,6 +366,13 @@ wxString summaryFor( KIGIT_FAILURE aKind, const KIGIT_AUTH_ATTEMPT& aAuth, const
                                  host );
 
     case KIGIT_FAILURE::SERVER_REFUSED:
+        if( !aServerLine.IsEmpty() )
+        {
+            return wxString::Format( aContext.operation == KIGIT_OPERATION::PUSH ? _( "%s refused the push: %s" )
+                                                                                 : _( "%s refused the request: %s" ),
+                                     host, aServerLine );
+        }
+
         if( aContext.operation == KIGIT_OPERATION::PUSH )
             return wxString::Format( _( "%s refused the push. The server's reason is shown in the details." ), host );
 
@@ -444,7 +466,18 @@ KIGIT_FAILURE_REPORT KIGIT::DescribeGitFailure( const KIGIT_ERROR_INFO& aError, 
 {
     KIGIT_FAILURE_REPORT report;
     report.kind = classifyGitFailure( aError, aAuth, aContext );
-    report.summary = summaryFor( report.kind, aAuth, aContext );
+
+    wxString serverLine;
+
+    for( const wxString* text : { &aContext.serverMessage, &aContext.pushRefusal, &aError.message } )
+    {
+        serverLine = serverText( *text ).BeforeFirst( '\n' );
+
+        if( !serverLine.IsEmpty() )
+            break;
+    }
+
+    report.summary = summaryFor( report.kind, aAuth, aContext, KIGIT::StripEmbeddedUserinfo( serverLine ) );
     report.details = detailsFor( aError, aAuth, aContext );
     return report;
 }
@@ -456,6 +489,58 @@ wxString KIGIT::UnexplainedFailure( KIGIT_OPERATION aOperation, const wxString& 
     context.operation = aOperation;
     context.url = aUrl;
     return summaryFor( KIGIT_FAILURE::OTHER, {}, context );
+}
+
+
+bool KIGIT::IsLocalNetworkHost( const wxString& aHost )
+{
+    const std::string host = aHost.Lower().ToStdString();
+
+    if( host.size() > 6 && host.compare( host.size() - 6, 6, ".local" ) == 0 )
+        return true;
+
+    if( host.find( ':' ) != std::string::npos )
+    {
+        // Only the first group decides fc00::/7 and fe80::/10
+        const std::string first = host.substr( 0, host.find( ':' ) );
+        const auto        isHex = []( unsigned char c ) { return std::isxdigit( c ) != 0; };
+
+        if( first.size() > 4 || !std::all_of( first.begin(), first.end(), isHex ) )
+            return false;
+
+        const unsigned long group = first.empty() ? 0 : std::strtoul( first.c_str(), nullptr, 16 );
+
+        return ( group & 0xfe00 ) == 0xfc00 || ( group & 0xffc0 ) == 0xfe80;
+    }
+
+    int octets[4] = { 0, 0, 0, 0 };
+    int count = 0;
+    int digits = 0;
+
+    for( char c : host )
+    {
+        if( c == '.' )
+        {
+            if( digits == 0 || ++count > 3 )
+                return false;
+
+            digits = 0;
+        }
+        else if( c >= '0' && c <= '9' && ++digits <= 3 )
+        {
+            octets[count] = octets[count] * 10 + ( c - '0' );
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    if( count != 3 || digits == 0 || octets[0] > 255 || octets[1] > 255 )
+        return false;
+
+    return octets[0] == 10 || ( octets[0] == 172 && octets[1] >= 16 && octets[1] <= 31 )
+           || ( octets[0] == 192 && octets[1] == 168 ) || ( octets[0] == 169 && octets[1] == 254 );
 }
 
 

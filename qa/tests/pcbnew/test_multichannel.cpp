@@ -43,6 +43,7 @@
 #include <geometry/shape_line_chain.h>
 #include <geometry/shape_utils.h>
 #include <lib_id.h>
+#include <string_utils.h>
 #include <atomic>
 
 struct MULTICHANNEL_TEST_FIXTURE
@@ -1316,8 +1317,8 @@ BOOST_FIXTURE_TEST_CASE( ApplyDesignBlockLayoutCopiesSilkscreen, MULTICHANNEL_TE
                 return fp;
             };
 
-    // Source: a "design block" with two matched footprints and a silkscreen rectangle that
-    // is not associated with any footprint.
+    // Source: a "design block" with two matched footprints, a silkscreen rectangle,
+    // and a track that is not associated with any pad.
     FOOTPRINT* refFp1 = makeFootprint( wxT( "R1" ),
                                        VECTOR2I( pcbIUScale.mmToIU( 0 ), pcbIUScale.mmToIU( 0 ) ) );
     FOOTPRINT* refFp2 = makeFootprint( wxT( "R2" ),
@@ -1329,6 +1330,25 @@ BOOST_FIXTURE_TEST_CASE( ApplyDesignBlockLayoutCopiesSilkscreen, MULTICHANNEL_TE
     silkRect->SetLayer( F_SilkS );
     silkRect->SetStroke( STROKE_PARAMS( pcbIUScale.mmToIU( 0.15 ), LINE_STYLE::SOLID ) );
     m_board->Add( silkRect );
+
+    NETINFO_ITEM* unmappedNet = new NETINFO_ITEM( m_board.get(), wxT( "BLOCK_ONLY" ), 2 );
+    m_board->Add( unmappedNet );
+
+    PCB_TRACK* unmappedTrack = new PCB_TRACK( m_board.get() );
+    unmappedTrack->SetLayer( F_Cu );
+    unmappedTrack->SetWidth( pcbIUScale.mmToIU( 0.25 ) );
+    unmappedTrack->SetStart( VECTOR2I( pcbIUScale.mmToIU( 4 ), pcbIUScale.mmToIU( 2 ) ) );
+    unmappedTrack->SetEnd( VECTOR2I( pcbIUScale.mmToIU( 6 ), pcbIUScale.mmToIU( 2 ) ) );
+    unmappedTrack->SetNet( unmappedNet );
+    m_board->Add( unmappedTrack );
+
+    NETINFO_ITEM* retainedNet = new NETINFO_ITEM( m_board.get(), wxT( "BOARD_NET" ), 3 );
+    m_board->Add( retainedNet );
+
+    PCB_TRACK* retainedTrack = static_cast<PCB_TRACK*>( unmappedTrack->Duplicate( false ) );
+    retainedTrack->Move( VECTOR2I( 0, pcbIUScale.mmToIU( -4 ) ) );
+    retainedTrack->SetNet( retainedNet );
+    m_board->Add( retainedTrack );
 
     // Destination: a group containing the matched pair so RepeatLayout can find a parent group.
     FOOTPRINT* destFp1 = makeFootprint( wxT( "R3" ),
@@ -1368,6 +1388,9 @@ BOOST_FIXTURE_TEST_CASE( ApplyDesignBlockLayoutCopiesSilkscreen, MULTICHANNEL_TE
     dbRA.m_designBlockItems.insert( refFp1 );
     dbRA.m_designBlockItems.insert( refFp2 );
     dbRA.m_designBlockItems.insert( silkRect );
+    dbRA.m_designBlockItems.insert( unmappedTrack );
+    dbRA.m_designBlockItems.insert( retainedTrack );
+    dbRA.m_temporaryNets.insert( unmappedNet );
 
     // The Apply Design Block flow uses a synthetic copper-only rule area zone. The destination
     // zone is a temporary zone never added to the board.
@@ -1406,6 +1429,34 @@ BOOST_FIXTURE_TEST_CASE( ApplyDesignBlockLayoutCopiesSilkscreen, MULTICHANNEL_TE
 
     int result = mtTool->RepeatLayout( TOOL_EVENT(), dbRA, destRA, opts );
     BOOST_CHECK_MESSAGE( result >= 0, "RepeatLayout failed" );
+
+    int copiedTracks = 0;
+    int copiedUnmapped = 0;
+    int copiedRetained = 0;
+
+    for( PCB_TRACK* track : m_board->Tracks() )
+    {
+        if( track != unmappedTrack && track != retainedTrack )
+        {
+            copiedTracks++;
+            copiedUnmapped += track->GetNetCode() == 0;
+            copiedRetained += track->GetNetCode() == retainedNet->GetNetCode();
+        }
+    }
+
+    BOOST_CHECK_EQUAL( copiedTracks, 2 );
+    BOOST_CHECK_EQUAL( copiedUnmapped, 1 );
+    BOOST_CHECK_EQUAL( copiedRetained, 1 );
+
+    dbRA.m_designBlockItems.erase( unmappedTrack );
+    dbRA.m_temporaryNets.clear();
+    m_board->Remove( unmappedTrack );
+    m_board->Remove( unmappedNet );
+    delete unmappedTrack;
+    delete unmappedNet;
+    m_board->BuildConnectivity();
+
+    BOOST_CHECK_GE( mtTool->RepeatLayout( TOOL_EVENT(), dbRA, destRA, opts ), 0 );
 
     delete dbRA.m_zone;
     delete destRA.m_zone;
@@ -4364,8 +4415,7 @@ BOOST_FIXTURE_TEST_CASE( RepeatFromSelection, REPEAT_TOOL_FIXTURE )
     BOOST_REQUIRE( anchor );
 
     std::vector<std::pair<FOOTPRINT*, VECTOR2I>> expected;
-    FOOTPRINT*                                   probeRef = nullptr;
-    FOOTPRINT*                                   probeTarget = nullptr;
+    std::vector<std::pair<FOOTPRINT*, FOOTPRINT*>> probes;
 
     for( const auto& [area, compat] : m_tool->GetData()->m_compatMap )
     {
@@ -4379,15 +4429,24 @@ BOOST_FIXTURE_TEST_CASE( RepeatFromSelection, REPEAT_TOOL_FIXTURE )
             expected.emplace_back( targetFp,
                                    targetAnchor->GetPosition() + refFp->GetPosition() - anchor->GetPosition() );
 
-            if( !probeRef && refFp != anchor )
-            {
-                probeRef = refFp;
-                probeTarget = targetFp;
-            }
+            if( refFp != anchor )
+                probes.emplace_back( refFp, targetFp );
         }
     }
 
-    BOOST_REQUIRE( probeRef );
+    BOOST_REQUIRE( !probes.empty() );
+
+    // Drag the same part on every run, the first by reference
+    const auto [probeRef, probeTarget] = *std::ranges::min_element(
+            probes,
+            []( const auto& aA, const auto& aB )
+            {
+                if( int cmp = StrNumCmp( aA.first->GetReference(), aB.first->GetReference() ) )
+                    return cmp < 0;
+
+                return StrNumCmp( aA.second->GetReference(), aB.second->GetReference() ) < 0;
+            } );
+
     BOOST_CHECK_EQUAL( m_tool->ApplyRepeat(), 0 );
     BOOST_CHECK_GT( m_board->Tracks().size(), tracksBefore );
 
@@ -4429,6 +4488,13 @@ BOOST_FIXTURE_TEST_CASE( RepeatFromSelection, REPEAT_TOOL_FIXTURE )
     BOOST_CHECK( m_tool->UpdateLinkedLayouts( refZone ) );
     BOOST_CHECK_EQUAL( probeTarget->GetPosition(), targetBefore + delta );
 
+    // Dragging D78 out sends its counterparts' copied exit routing over a neighbour's copper
+    FOOTPRINT* diode = m_board->FindFootprintByReference( wxT( "D78" ) );
+
+    BOOST_REQUIRE( diode );
+    diode->SetPosition( VECTOR2I( outside.x, diode->GetPosition().y ) );
+    BOOST_CHECK( m_tool->UpdateLinkedLayouts( refZone ) );
+
     // Repeating unlinked areas again replaces what was copied, boundary segments included. The first
     // repeats settle the target outlines, after which every repeat starts from identical geometry
     m_tool->UnlinkAreas( std::set<ZONE*>( created.begin(), created.end() ) );
@@ -4444,7 +4510,35 @@ BOOST_FIXTURE_TEST_CASE( RepeatFromSelection, REPEAT_TOOL_FIXTURE )
 
                 m_tool->GetData()->m_options.m_connectedRoutingOnly = false;
                 m_tool->GetData()->m_options.m_groupItems = false;
+
+                std::set<KIID> before;
+
+                for( PCB_TRACK* track : m_board->Tracks() )
+                    before.insert( track->m_Uuid );
+
                 BOOST_REQUIRE( m_tool->RepeatLayout( TOOL_EVENT(), refZone ) >= 0 );
+
+                // Every copy lying in a target keeps a net of that channel
+                for( const auto& [area, compat] : m_tool->GetData()->m_compatMap )
+                {
+                    std::set<int> nets;
+
+                    for( const auto& [refFp, targetFp] : compat.m_matchingComponents )
+                    {
+                        for( PAD* pad : targetFp->Pads() )
+                            nets.insert( pad->GetNetCode() );
+                    }
+
+                    for( PCB_TRACK* track : m_board->Tracks() )
+                    {
+                        if( !before.contains( track->m_Uuid ) && area->m_zone->Outline()->Contains( track->GetStart() )
+                            && area->m_zone->Outline()->Contains( track->GetEnd() ) )
+                        {
+                            BOOST_CHECK_MESSAGE( nets.contains( track->GetNetCode() ),
+                                                 track->GetNetname().ToStdString() );
+                        }
+                    }
+                }
             };
 
     repeat();

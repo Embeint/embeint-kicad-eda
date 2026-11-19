@@ -135,28 +135,18 @@ std::vector<FILE_CHECKLIST_ENTRY> BuildGitChangeEntries( KIGIT_COMMON& aCommon, 
         relativePath.Replace( wxS( "\\" ), wxS( "/" ) );
 #endif
 
-        // Only files git does not know at all are hidden. One that is tracked, or staged to be,
-        // is carried by a commit and blocks a merge, so hiding it would leave the user with
-        // nothing to commit and no way forward.
-        bool untracked = ( fileStatus.gitStatus & GIT_STATUS_WT_NEW )
-                         && !( fileStatus.gitStatus & GIT_STATUS_INDEX_NEW );
-
-        if( untracked )
+        if( KIGIT::PROJECT_GIT_UTILS::IsHiddenTransient( relativePath, *prefix, fileStatus.gitStatus,
+                                                         fileStatus.isDirectory ) )
         {
-            // Use the session prefix so a project opened through a symlink has the same paths.
-            const wxString pathPrefix = relativePath.Left( prefix->length() );
+            continue;
+        }
 
-#ifdef __WINDOWS__
-            bool inProject = pathPrefix.CmpNoCase( *prefix ) == 0;
-#else
-            bool inProject = pathPrefix == *prefix;
-#endif
-
-            if( inProject
-                && KIGIT::PROJECT_GIT_UTILS::IsTransientGitFile( wxFileName( relativePath.Mid( prefix->length() ) ) ) )
-            {
-                continue;
-            }
+        // Committing the row removes the gitlink from the index and keeps the folder on disk
+        if( fileStatus.isDirectory && KIGIT::PROJECT_GIT_UTILS::IsTransientGitlink( aCommon.GetRepo(), relativePath ) )
+        {
+            word = _( "Stop Tracking" );
+            icon = BITMAPS::git_delete;
+            colour = theme.removed.ToColour();
         }
 
         FILE_CHECKLIST_ENTRY entry;
@@ -338,7 +328,10 @@ void ReloadOpenEditors( KIWAY& aKiway, const EDITOR_SNAPSHOT& aBefore )
 
     for( const EDITOR_DOC& doc : g_editorDocs )
     {
-        if( !aKiway.Player( doc.frameType, false ) )
+        KIWAY_PLAYER* player = aKiway.Player( doc.frameType, false );
+
+        // A frame that is quitting would reopen its file and leave a lock behind
+        if( !player || player->IsClosing() )
             continue;
 
         // Reloading throws away undo history and the view state, so only do it for a document
@@ -778,7 +771,7 @@ wxString GIT_WORKTREE_STATUS::RefusalMessage( const std::vector<wxString>& aUnsa
 
         wxString message = aAllowTrackedChanges
                                    ? _( "The following editors have unsaved changes:%s\n\n"
-                                        "Save or discard those changes before stashing." )
+                                        "Save or discard those changes before continuing." )
                                    : _( "The following editors have unsaved changes:%s\n\n"
                                         "Save or discard those changes first. If saving leaves uncommitted "
                                         "files, commit or stash them before trying again." );
