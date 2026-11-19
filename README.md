@@ -96,6 +96,27 @@ The live tests edit the open test document. Do not point them at a production
 project. The [agent and developer guide](tools/live_schematic_mcp/AGENTS.md) explains
 the code structure, test guard and editor integration requirements.
 
+### Native Windows build
+
+To open and edit projects with the fork as a normal Windows application, build it
+natively with Visual Studio ("Desktop development with C++"; tested with Visual
+Studio 2026). From the repository root in PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\live_schematic_mcp\scripts\build_windows.ps1
+```
+
+The script clones vcpkg into `C:\kb\vcpkg` and builds into `C:\kb\build`. Use `-Root`
+for another location, but keep the path short. It then installs to `C:\kb\install`,
+copies the runtime DLLs and links the stock symbol, footprint and 3D libraries from
+the newest installed upstream KiCad. It also adds an "Embeint KiCad" Start Menu
+shortcut. The first run builds every dependency from source and takes hours; later
+runs rebuild only what changed. Pass `-NoConfigure` to skip reconfiguring.
+
+The native build keeps its settings separate from an upstream KiCad install. The MCP
+adapter does not connect to a native Windows editor yet, so agent-driven editing
+still uses the WSL build.
+
 ## Contributing and licensing
 
 Contributions to this fork belong in this repository. Read
