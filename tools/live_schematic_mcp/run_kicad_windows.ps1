@@ -7,7 +7,8 @@
 #   run_kicad_windows.ps1 [-Project <file.kicad_pro | file.kicad_sch>] [-Fresh] [-Wait]
 #       default: creates <root>\live\projects\live-demo and opens it in the project manager
 #   run_kicad_windows.ps1 -Stop
-#       stops the KiCad this script started (unsaved edits are lost); never touches another KiCad
+#       closes the KiCad this script started, terminating it if it does not exit within 15 s
+#       (unsaved edits are lost); never touches another KiCad
 #
 # A project opens KiCad's project manager, which hosts the schematic AND PCB editors in one process
 # on one API endpoint; the MCP opens the editors (live_schematic_open, live_pcb_open).  A .kicad_sch
@@ -84,15 +85,64 @@ function Assert-EndpointFree
             ( $output -join ' ' ) )
 }
 
+# Post WM_CLOSE to the process's project manager (or only) top-level window; false if none
+function Close-ProjectManager( $Process )
+{
+    Add-Type -Namespace KiCadLive -Name Windows -MemberDefinition @'
+public delegate bool EnumProc( System.IntPtr hwnd, System.IntPtr lparam );
+[System.Runtime.InteropServices.DllImport( "user32.dll" )]
+public static extern bool EnumWindows( EnumProc proc, System.IntPtr lparam );
+[System.Runtime.InteropServices.DllImport( "user32.dll" )]
+public static extern uint GetWindowThreadProcessId( System.IntPtr hwnd, out uint pid );
+[System.Runtime.InteropServices.DllImport( "user32.dll" )]
+public static extern bool IsWindowVisible( System.IntPtr hwnd );
+[System.Runtime.InteropServices.DllImport( "user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode )]
+public static extern int GetWindowText( System.IntPtr hwnd, System.Text.StringBuilder text, int count );
+[System.Runtime.InteropServices.DllImport( "user32.dll" )]
+public static extern bool PostMessage( System.IntPtr hwnd, uint msg, System.IntPtr wparam, System.IntPtr lparam );
+'@ -ErrorAction SilentlyContinue
+
+    $windows = New-Object System.Collections.ArrayList
+    $callback = [KiCadLive.Windows+EnumProc] {
+        param( $hwnd, $lparam )
+        $owner = [uint32] 0
+        [KiCadLive.Windows]::GetWindowThreadProcessId( $hwnd, [ref] $owner ) | Out-Null
+        if( $owner -eq $Process.Id -and [KiCadLive.Windows]::IsWindowVisible( $hwnd ) )
+        {
+            $title = New-Object System.Text.StringBuilder 512
+            [KiCadLive.Windows]::GetWindowText( $hwnd, $title, 512 ) | Out-Null
+            [void] $windows.Add( [pscustomobject] @{ Handle = $hwnd; Title = $title.ToString() } )
+        }
+        return $true
+    }
+    [KiCadLive.Windows]::EnumWindows( $callback, [IntPtr]::Zero ) | Out-Null
+
+    # The project manager's title ends in "KiCad <version>"; eeschema run alone has one frame
+    $target = @( $windows | Where-Object { $_.Title -match 'KiCad \d+\.\d+$' } ) + @( $windows ) |
+        Select-Object -First 1
+    if( -not $target ) { return $false }
+    # WM_CLOSE
+    return [KiCadLive.Windows]::PostMessage( $target.Handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero )
+}
+
 if( $Stop )
 {
     $process = Get-LiveKiCad
     if( $process )
     {
-        # Unsaved edits in the test project are discarded; nothing is saved implicitly
-        Stop-Process -Id $process.Id -Force
-        $process.WaitForExit( 30000 ) | Out-Null
-        Write-Host "Stopped KiCad (PID $( $process.Id ))"
+        # Close it like a user would, through the project manager window (closing an editor frame
+        # leaves the process running).  With unsaved edits KiCad asks whether to save; nothing is
+        # saved implicitly, so it is then terminated and the edits in the test project are lost.
+        if( ( Close-ProjectManager $process ) -and $process.WaitForExit( 15000 ) )
+        {
+            Write-Host "Closed KiCad (PID $( $process.Id ))"
+        }
+        else
+        {
+            Stop-Process -Id $process.Id -Force
+            $process.WaitForExit( 30000 ) | Out-Null
+            Write-Host "Stopped KiCad (PID $( $process.Id )); it did not close (unsaved changes?)"
+        }
     }
     Remove-Item $pidFile -ErrorAction SilentlyContinue
     return
