@@ -283,16 +283,12 @@ def live_schematic_connect_pin_to_net(document_spec: dict, reference: str, pin: 
 
 
 @mcp.tool()
-def live_schematic_netlist(document_spec: dict) -> dict:
-    """Read live connectivity: each net with its pins as REF.PIN, plus item counts. Includes unsaved edits."""
-    doc = document(document_spec)
-    nets, pin_nets = client.netlist(doc)
-    labels = {}
-    for symbol in client.symbol_pins(doc, with_nets=False):
-        for pin in symbol["pins"]:
-            labels[pin["id"]] = f'{symbol["reference"]}.{pin["number"]}'
-    return {name: {"pins": sorted({labels[i] for _, i in members if i in labels}), "items": len(members)}
-            for name, members in sorted(nets.items())}
+def live_schematic_netlist(document_spec: dict, scope: str = "hierarchy") -> dict:
+    """Read live connectivity of the whole design, unsaved edits included: each net with its pins as
+    REF.PIN, the connected item count and "sheets" (each sheet path with the pins on it). Nets and pins
+    cover every sheet whichever sheet document_spec names; a reused sheet lists each instance's
+    references. scope="sheet" lists only pins on the given sheet (no "sheets" entry)."""
+    return client.netlist_pins(document(document_spec), scope)
 
 
 @mcp.tool()
