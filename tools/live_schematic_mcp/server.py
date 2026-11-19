@@ -319,6 +319,18 @@ def live_schematic_export(document_spec: dict, kind: str, output_path: str) -> d
 
 
 @mcp.tool()
+def live_kicad_cli(args: list[str], working_directory: str | None = None, timeout_s: float = 300) -> dict:
+    """Run kicad-cli (a separate KiCad process that reads SAVED files) with the environment the running
+    KiCad was launched with: the same libraries, configuration, library tables and path variables,
+    with no manual setup. Use it to check what was saved, e.g. ["sch", "erc", "--format", "json",
+    "-o", "/tmp/erc.json", "design.kicad_sch"] or ["sch", "export", "netlist", "-o", "/tmp/d.net",
+    "design.kicad_sch"]. args[0] is one of sch, pcb, sym, fp, jobset, version; on WSL, Windows paths are
+    translated. Returns the exit code, output tails and where the environment came from ("kicad", or
+    "install layout" when no KiCad answers). Unsaved editor changes are not seen: save first."""
+    return client.run_kicad_cli(args, working_directory, timeout_s)
+
+
+@mcp.tool()
 def live_schematic_list_commands() -> list[dict]:
     """List every KiCad IPC command these tools know (schematic, PCB, libraries), its kind
     (read/edit/view/file/job) and reply type."""

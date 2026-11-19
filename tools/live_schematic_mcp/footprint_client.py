@@ -362,6 +362,41 @@ class FootprintTools:
             raise RuntimeError("KiCad did not report a kicad-cli binary")
         return path
 
+    def kicad_environment(self):
+        """The variables KiCad was launched with that kicad-cli needs, or None if this KiCad cannot say."""
+        try:
+            return dict(self.send(base.GetKiCadEnvironment(), base.KiCadEnvironmentResponse).variables)
+        except RuntimeError as error:
+            if str(error).startswith("AS_UNHANDLED"):
+                return None
+            raise
+
+    def kicad_cli_launch(self):
+        """(kicad-cli path, environment, description): KiCad's own binary and launch environment, or,
+        when no KiCad answers, the installed or development kicad-cli and its layout's environment."""
+        import kicad_cli
+        try:
+            path = self.kicad_cli()
+            variables = self.kicad_environment()
+            note = None
+        except Exception as error:  # noqa: BLE001 - no editor reachable: run the CLI without it
+            path = kicad_cli.default_cli()
+            if path is None:
+                raise RuntimeError(f"No running KiCad reported kicad-cli ({error}) and none was found; "
+                                   "set KICAD_CLI to the kicad-cli of this KiCad build") from error
+            variables, note = None, f"KiCad not reachable: {error}"
+        env, description = kicad_cli.cli_environment(path, variables)
+        if note:
+            description["note"] = note
+        return path, env, description
+
+    def run_kicad_cli(self, args, working_directory=None, timeout_s=300):
+        """Run kicad-cli (a separate KiCad process, on saved files) in KiCad's launch environment."""
+        import kicad_cli
+        kicad_cli.cli_arguments(args)
+        path, env, description = self.kicad_cli_launch()
+        return {**kicad_cli.run(path, args, env, working_directory, timeout_s), "environment": description}
+
     def saved_footprint_text(self, lib_id):
         nickname, _, name = lib_id.partition(":")
         for row in self.library_table(kind="footprint"):
@@ -375,7 +410,8 @@ class FootprintTools:
     def footprint_view_3d(self, lib_id, rotate="-45,0,45", zoom=1.0):
         """KiCad's own 3D render of a SAVED footprint with its models, on a scratch board."""
         from model_handoff import render_footprint_3d
-        return render_footprint_3d(self.kicad_cli(), self.saved_footprint_text(lib_id), lib_id, rotate, zoom=zoom)
+        path, env, _ = self.kicad_cli_launch()
+        return render_footprint_3d(path, self.saved_footprint_text(lib_id), lib_id, rotate, zoom=zoom, env=env)
 
     def footprint_check_model(self, lib_id, source_path=None):
         """Check a saved footprint's embedded models: stored bytes, links, and KiCad loading them."""
@@ -392,7 +428,8 @@ class FootprintTools:
                 source = Path(kicad_path(source_path)).read_bytes()
                 entry["matches_source"] = hashlib.sha256(source).hexdigest() == entry["sha256"]
             report["embedded"].append(entry)
-        step = export_board_step(self.kicad_cli(), text, lib_id)
+        path, env, _ = self.kicad_cli_launch()
+        step = export_board_step(path, text, lib_id, env=env)
         report["kicad_export_step_bytes"] = len(step)
         report["kicad_export_solids"] = step.count("MANIFOLD_SOLID_BREP")
         return report

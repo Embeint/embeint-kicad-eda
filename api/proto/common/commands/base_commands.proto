@@ -51,6 +51,20 @@ message PathResponse
   string path = 1;
 }
 
+// Returns the part of KiCad's process environment that another KiCad program started for it,
+// such as kicad-cli, needs to use the same configuration, libraries and library paths: KICAD*
+// variables (except KICAD_API_*), the shared library search path, the XDG base directories and
+// TMPDIR.  Only variables that are set are returned.  Returns KiCadEnvironmentResponse
+// Since: 11.0
+message GetKiCadEnvironment
+{
+}
+
+message KiCadEnvironmentResponse
+{
+  map<string, string> variables = 1;
+}
+
 // returns kiapi.common.types.Box2
 message GetTextExtents
 {

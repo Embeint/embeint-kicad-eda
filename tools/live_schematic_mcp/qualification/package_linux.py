@@ -33,6 +33,29 @@ def executable(path, contents):
     path.chmod(0o755)
 
 
+def stage_launchers(stage):
+    """The shared environment and the commands that use it: desktop, MCP and kicad-cli."""
+    executable(stage / "opt/embeint-kicad/libexec/environment.sh", ENVIRONMENT)
+    executable(stage / "usr/bin/embeint-kicad", '''#!/bin/sh
+set -eu
+. /opt/embeint-kicad/libexec/environment.sh
+/opt/embeint-kicad/libexec/mcp/embeint-kicad-mcp --configure-desktop
+exec /opt/embeint-kicad/bin/kicad "$@"
+''')
+    executable(stage / "usr/bin/embeint-kicad-mcp", '''#!/bin/sh
+set -eu
+. /opt/embeint-kicad/libexec/environment.sh
+exec /opt/embeint-kicad/libexec/mcp/embeint-kicad-mcp "$@"
+''')
+    # kicad-cli needs the desktop's libraries and configuration home, or it fails to load its
+    # libraries or reads another KiCad's settings and library tables.
+    executable(stage / "usr/bin/embeint-kicad-cli", '''#!/bin/sh
+set -eu
+. /opt/embeint-kicad/libexec/environment.sh
+exec /opt/embeint-kicad/bin/kicad-cli "$@"
+''')
+
+
 def native_provenance(install, manifest):
     """Bind native source/build identity to the actual staged payload."""
     info = json.loads(manifest.read_text())
@@ -128,18 +151,7 @@ def main():
         prefix = stage / "opt/embeint-kicad"
         shutil.copytree(args.install, prefix, symlinks=True)
         shutil.copytree(args.mcp, prefix / "libexec/mcp", symlinks=True)
-        executable(prefix / "libexec/environment.sh", ENVIRONMENT)
-        executable(stage / "usr/bin/embeint-kicad", '''#!/bin/sh
-set -eu
-. /opt/embeint-kicad/libexec/environment.sh
-/opt/embeint-kicad/libexec/mcp/embeint-kicad-mcp --configure-desktop
-exec /opt/embeint-kicad/bin/kicad "$@"
-''')
-        executable(stage / "usr/bin/embeint-kicad-mcp", '''#!/bin/sh
-set -eu
-. /opt/embeint-kicad/libexec/environment.sh
-exec /opt/embeint-kicad/libexec/mcp/embeint-kicad-mcp "$@"
-''')
+        stage_launchers(stage)
         desktop = stage / "usr/share/applications/embeint-kicad.desktop"
         desktop.parent.mkdir(parents=True)
         desktop.write_text('''[Desktop Entry]

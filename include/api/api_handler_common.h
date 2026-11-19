@@ -81,6 +81,9 @@ private:
     HANDLER_RESULT<commands::GetPathsResponse> handleGetPaths(
         const HANDLER_CONTEXT<commands::GetPaths>& aCtx );
 
+    HANDLER_RESULT<commands::KiCadEnvironmentResponse> handleGetKiCadEnvironment(
+        const HANDLER_CONTEXT<commands::GetKiCadEnvironment>& aCtx );
+
     HANDLER_RESULT<commands::NetClassesResponse> handleGetNetClasses(
         const HANDLER_CONTEXT<commands::GetNetClasses>& aCtx );
 
