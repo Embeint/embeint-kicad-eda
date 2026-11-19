@@ -1,0 +1,312 @@
+{
+  "adapter_acceptance_file_sha256": {
+    "tools/live_schematic_mcp/qualification/capture_acceptance.py": "056b2bd71dcb4714639a50ab0b9e143d6139d73576d90052206092d8a91a8357",
+    "tools/live_schematic_mcp/qualification/capture_fixture.py": "fd03e92fbae6e56611d5b7ddb2224669acf7fd55f7ffcf86c9291ef10934de20",
+    "tools/live_schematic_mcp/qualification/capture_persistence.py": "865005d9bc3d41606e06ecfe539c0eed221162095d61fcc512f28e30715bc491",
+    "tools/live_schematic_mcp/qualification/capture_runtime.py": "af35ee918358d90a5b02b7793c442c5704f9ea0c95bd4c3f82323d62375832af",
+    "tools/live_schematic_mcp/qualification/connectivity_intent.py": "d9b0ac9afd14312ac4fdb5f96d8eba1fd549bf335121da5f3fe3b32c31110b3f",
+    "tools/live_schematic_mcp/test_capture_runtime.py": "46db9955eba8afef53e58f00a02dadf47bcd0636a2039f4a15869e5855680164",
+    "tools/live_schematic_mcp/test_connectivity_intent.py": "230925d604d73b181d77b39742b0fd6c81b69e078448eafb40b255971fccb4ce"
+  },
+  "adapter_acceptance_git_blobs": {
+    "tools/live_schematic_mcp/qualification/capture_acceptance.py": "0b6cc390b2c5b19f140840e05efaea7fe88dc1ed",
+    "tools/live_schematic_mcp/qualification/capture_fixture.py": "8ca302ba7a04cf9e55661d87ad28c556e5237b96",
+    "tools/live_schematic_mcp/qualification/capture_persistence.py": "11f85bd297d2528b0d74bee00a9427b50a876fd9",
+    "tools/live_schematic_mcp/qualification/capture_runtime.py": "29849268abea5fdd8c12fcfb713d33893d4a1ba5",
+    "tools/live_schematic_mcp/qualification/connectivity_intent.py": "923a5ef1040ff4f52fe2fa50601ed9619120354c",
+    "tools/live_schematic_mcp/test_capture_runtime.py": "c8dc2b4a40b48390afcba77cd5282da476bb25ab",
+    "tools/live_schematic_mcp/test_connectivity_intent.py": "9b3a94995ebd181552693e00e677a0306ef51b06"
+  },
+  "adapter_dirty": false,
+  "adapter_file_hash_scope": "executed working-tree bytes; line endings follow this checkout",
+  "adapter_source_rechecked_at_end": true,
+  "adapter_source_revision": "5b5431f1975155f0958201e464d6a7355c741390",
+  "agent_review_not_driver_output": {
+    "driver_checks": "page fit and framed != bare render are driver assertions; this visual review is not",
+    "framed_renders": "all four framed PNGs viewed by the acceptance agent (Claude Code): content inside the drawing area, clear of the title block, ESD bridges and NC markers as intended"
+  },
+  "capture": {
+    "board_parity": "all numbered pads match all schematic pins",
+    "board_transfer": {
+      "errors": 0,
+      "new_footprints": 7,
+      "warnings": 0
+    },
+    "drc": {
+      "by_type": {
+        "unconnected_items": 18
+      },
+      "excluded": 0,
+      "ignored": 5,
+      "violation_count": 18
+    },
+    "drc_scope": "unrouted fixture findings retained; not manufacturing sign-off",
+    "edit_invariants": {
+      "failed_batch": "exact items and pins restored",
+      "implicit_save": false,
+      "rejection": "step 1 (kiapi.common.commands.UpdateItems) rejected an item, batch rolled back: an item with UUID 541a3259-1291-4f36-9369-bac25281abf6 does not exist",
+      "undo_redo": "exact items restored"
+    },
+    "erc": {
+      "excluded": 0,
+      "ignored_checks": 4,
+      "violation_count": 0,
+      "violations": []
+    },
+    "explicit_save_owned_stop_restart_reopen": "passed",
+    "hidden_stack": [
+      "U1.2",
+      "U1.7"
+    ],
+    "intent_membership": "passed",
+    "negative_esd": {
+      "connectivity_findings": [
+        {
+          "kind": "split_net",
+          "net": "DM",
+          "parts": [
+            [
+              "J1.2",
+              "U3.1"
+            ],
+            [
+              "U1.3",
+              "U3.6"
+            ]
+          ]
+        },
+        {
+          "kind": "split_net",
+          "net": "DP",
+          "parts": [
+            [
+              "J1.3",
+              "U3.3"
+            ],
+            [
+              "U1.4",
+              "U3.4"
+            ]
+          ]
+        }
+      ],
+      "erc": {
+        "excluded": 0,
+        "ignored_checks": 4,
+        "violation_count": 0,
+        "violations": []
+      },
+      "restore": "exact items and native pins/nets",
+      "status": "reproduced"
+    },
+    "pages_fit": {
+      "Interface": true,
+      "MCU": true,
+      "PCB": true,
+      "Root": true
+    },
+    "part_fields_and_footprints": "validated before and after restart",
+    "physical_parts": 7,
+    "physical_pins": 28,
+    "saved_file_sha256": {
+      "interface.kicad_sch": "3f62742dcb46788c55c05294a793817397a8c30ce63101317ab7363776f3a676",
+      "live-demo.kicad_pcb": "675a3f3c55bf6b99fbdf03907dce7681c915a95ac8211f562d9f54f1bc5682e8",
+      "live-demo.kicad_sch": "a301cedf4afe7f04495f3d040a9c643fe49ee3477d9d11a1c48e0d1586ee6b30",
+      "mcu.kicad_sch": "3ec6678a25308c23d5e9943ce89b0fbbf1e05fbd46636433f344030417a22d67"
+    },
+    "sheets": 3,
+    "symbol_units": 8,
+    "update_probes": {
+      "multi_unit_update_duplicate_pin_ids": {
+        "findings": [],
+        "status": "historical_not_reproduced"
+      },
+      "request": "UpdateItems with the complete read-back SchematicSymbolInstance; only the value field changed; one placed unit per request",
+      "units": [
+        {
+          "applied": true,
+          "duplicates": [],
+          "items_changed": true,
+          "library_drops": [],
+          "rejected": null,
+          "restored": "exact items and native pins/nets",
+          "symbol_id": "6966ea74-eb5c-4346-9569-ba4a35ea162c",
+          "unit": 1,
+          "value_after": [
+            "Dual probe"
+          ]
+        },
+        {
+          "applied": true,
+          "duplicates": [],
+          "items_changed": true,
+          "library_drops": [],
+          "rejected": null,
+          "restored": "exact items and native pins/nets",
+          "symbol_id": "e033c3aa-aeb3-4d61-83ed-8958ced10e20",
+          "unit": 2,
+          "value_after": [
+            "Dual probe"
+          ]
+        }
+      ],
+      "update_dropped_library_nickname": {
+        "findings": [],
+        "status": "historical_not_reproduced"
+      }
+    }
+  },
+  "finished_utc": "2026-11-19T02:30:15.585363+00:00",
+  "fresh_agent_evaluation": "pending separate evaluator",
+  "installed_distribution_evaluation": "not run by this driver",
+  "kind": "scripted_source_fixture",
+  "limits": [
+    "Retained d880 plus four-file loader-patch native build; no native C++ rebuild for this acceptance layer",
+    "Source contents are asserted by the retained archive and record; the native build was not reproduced from them",
+    "Scripted source MCP/native fixture; independent fresh-agent evaluation and installed distribution are separate receipts",
+    "UpdateItems probes cover this binary and request shape only",
+    "DRC describes an unrouted synthetic board, not manufacturing sign-off"
+  ],
+  "native": {
+    "core_sha256": {
+      "bin/_eeschema.kiface": "77c270bea3b9b582fde76cd9de4eee333bad637b5f5594199a5d3a2629effc5f",
+      "bin/_pcbnew.kiface": "aa9d3fedf7017f8dcd0ec8b8005a51baf2fff41df44ab62a29185f23aedab49c",
+      "bin/kicad": "f313b0e7b2be3989b336d834658fbbdbb4a40ab9850f42dee64ca47ebdb34359",
+      "bin/kicad-cli": "f7b77db7cf81f3d662ced7ee6ede358b60ad8fb8488fc334af2165c721eab3ab",
+      "lib/libkicommon.so.10.99.0": "506bb1dd51767bdf80e620670a931a5d0fd8c912d80b88653f98b5d982e0c1a1"
+    },
+    "install": "/opt/embeint-kicad",
+    "install_source": "retained d880-windows-wsl/stage-package/opt/embeint-kicad, read-only bind-mounted at its manifest prefix in a private namespace",
+    "loaded_install_modules": {
+      "reopened": {
+        "bin/_eeschema.kiface": "77c270bea3b9b582fde76cd9de4eee333bad637b5f5594199a5d3a2629effc5f",
+        "bin/_pcbnew.kiface": "aa9d3fedf7017f8dcd0ec8b8005a51baf2fff41df44ab62a29185f23aedab49c",
+        "bin/kicad": "f313b0e7b2be3989b336d834658fbbdbb4a40ab9850f42dee64ca47ebdb34359",
+        "lib/libkiapi.so.10.99.0": "90666767292d2b5f213a9f8f940625bbb9f7fa6fc839fe11c5cfd6830337b50b",
+        "lib/libkicad_3d_import.so": "28aa0670b6b74b4e84f18487ec8b65afd59c02c8a94eb280ec6bb2540f877927",
+        "lib/libkicad_3dsg.so.2.0.0": "c0825c3bbbe42576e2c825524ccda2ac3bac722495b77c747c43196882ce3b6e",
+        "lib/libkicommon.so.10.99.0": "506bb1dd51767bdf80e620670a931a5d0fd8c912d80b88653f98b5d982e0c1a1",
+        "lib/libkigal.so.10.99.0": "d35895294fd8fdf9ab93e7ea04684be4a1651f5f146af7f1478851d10a5967b1"
+      },
+      "seed": {
+        "bin/_cvpcb.kiface": "b78d92f860a1ec68d28bc6855a4ab5b9dbbdb43d4813f59b45f6423e07b80538",
+        "bin/_eeschema.kiface": "77c270bea3b9b582fde76cd9de4eee333bad637b5f5594199a5d3a2629effc5f",
+        "bin/_pcbnew.kiface": "aa9d3fedf7017f8dcd0ec8b8005a51baf2fff41df44ab62a29185f23aedab49c",
+        "bin/kicad": "f313b0e7b2be3989b336d834658fbbdbb4a40ab9850f42dee64ca47ebdb34359",
+        "lib/libkiapi.so.10.99.0": "90666767292d2b5f213a9f8f940625bbb9f7fa6fc839fe11c5cfd6830337b50b",
+        "lib/libkicad_3d_import.so": "28aa0670b6b74b4e84f18487ec8b65afd59c02c8a94eb280ec6bb2540f877927",
+        "lib/libkicad_3dsg.so.2.0.0": "c0825c3bbbe42576e2c825524ccda2ac3bac722495b77c747c43196882ce3b6e",
+        "lib/libkicommon.so.10.99.0": "506bb1dd51767bdf80e620670a931a5d0fd8c912d80b88653f98b5d982e0c1a1",
+        "lib/libkigal.so.10.99.0": "d35895294fd8fdf9ab93e7ea04684be4a1651f5f146af7f1478851d10a5967b1"
+      }
+    },
+    "loaded_private_dependencies": {
+      "reopened": {
+        "/home/karlvonrichter/kicad-live/deps/usr/lib/x86_64-linux-gnu/libpoppler-glib.so.8.31.0": "280569b929b41b8516050cb0614380d735bb93337951dc64b71e04811a37d208"
+      },
+      "seed": {
+        "/home/karlvonrichter/kicad-live/deps/usr/lib/x86_64-linux-gnu/libpoppler-glib.so.8.31.0": "280569b929b41b8516050cb0614380d735bb93337951dc64b71e04811a37d208"
+      }
+    },
+    "loaded_system_file_count": {
+      "reopened": 284,
+      "seed": 284
+    },
+    "manifest_files_verified_before_and_after": 897,
+    "measured_application_version": {
+      "version": {
+        "full_version": "10.99.0-qualification-d880-loader-patch-dirty",
+        "major": 10,
+        "minor": 99
+      }
+    },
+    "native_dependency_search_path": "/home/karlvonrichter/kicad-live/deps/usr/lib/x86_64-linux-gnu",
+    "retained_provenance_exact_bytes_sha256": "a1dd90cea9653f42b29e4fe8848c4f601d5ba0e09305201a49c1683ba1d55706",
+    "scope": "every retained install file and the source archive verified; source contents asserted by the retained archive/record, not rebuilt",
+    "source_archive": {
+      "filename": "native-source-d880-supplied-loader.tar.gz",
+      "sha256": "60c2e8b89fcd96b904ea3f7c20e586932e873ed1e3b2a29038f6541db4c742cb"
+    },
+    "source_changes": {
+      "eeschema/files-io.cpp": {
+        "git_blob": "7c78ed6ea49723ec268d6e7a2c6768285adb033b",
+        "sha256": "7bd22f67cfc9b7756c371d40b7d096f866a697fd174700fe99906a72a66d0d2e"
+      },
+      "include/kiway_player.h": {
+        "git_blob": "652b8a568a8cc698a449b32c24926595e962609a",
+        "sha256": "bf48a1f698cd461364a51af228448dccf75664d2c9b16fa2e9c28997a6e40056"
+      },
+      "kicad/kicad.cpp": {
+        "git_blob": "fd8108323cd676ac84ab6505bd375eb13c5000df",
+        "sha256": "a28919f3af354eace1e92b10e834a1ff46ac65809f94645974b9e5690871517c"
+      },
+      "pcbnew/files.cpp": {
+        "git_blob": "77fc7922307a9797b5a4eb705b140b36dbc5157c",
+        "sha256": "9b726ffe491da59ef2b7fc7abece6df50e6b7790ed9d1b5296059c5ef234427c"
+      }
+    },
+    "source_description": "d880 plus exact parent-supplied four-file loader patch; not pristine main",
+    "source_revision": "d880b3be5dbf30003e4b0069262417d0278bf528"
+  },
+  "offline_tests": {
+    "focused_intent_runtime_and_persistence_tests": 24,
+    "passed": 292,
+    "revision": "5b5431f1975155f0958201e464d6a7355c741390",
+    "xml": "/home/karlvonrichter/embeint-qualification/capture-offline-5b5431f197/results.xml",
+    "xml_sha256": "f59876b3c126be49f55f2e34f59bccbe892264387c63466ad0879b2fac28e674"
+  },
+  "owned_processes": "seed and reopened managers and the private Xvfb were started and stopped by the driver; no cleanup errors",
+  "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+  "raw_evidence": {
+    "files_sha256": {
+      "after-restart.json": "f86d8461ca6c11f2df15aec35a04a2c3c540b1f7557183e8526995b0ec36327d",
+      "before-restart.json": "f86d8461ca6c11f2df15aec35a04a2c3c540b1f7557183e8526995b0ec36327d",
+      "intent.json": "5a28c5f1a66b6ec937ad2ea4d4f773d31c1f1a445aa0aedf3244aefdf8fc144d",
+      "interface-framed.png": "ef8fcc3399de9f92a97054a701000cd41b2bb6a5c6151979606ba6ec41916bf6",
+      "mcu-framed.png": "5d89720e4e8dcb9a73bad75099cec121b503dc83bf85b89762dd0fc7486d6ee4",
+      "pcb-framed.png": "d5e09212933666f54501510a15d7724bef3426ca8d234fa4355017fe3b42a161",
+      "pin-observations.json": "006e82c51387e61c89fb46ee2642b50ea63e909c686bea4c6db8e7134e0c1c84",
+      "reopened.app.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "report.json": "0787fcf0224f4ebeaba9f7068ad726b6ce284f5041b6673ac94d7e70c8d84289",
+      "root-framed.png": "228734534cef29dcbf8a63c95a8228e324d244af092710da3b025335ff8a28d0",
+      "seed.app.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "xvfb.log": "fd4e628012178986123d5fd9b6a1d27c370a071a15557eed4880a78170a57aaf"
+    },
+    "windows_copy": "C:/Users/KarlVonRichter/.t3/scratch/capture-acceptance-evidence/run17",
+    "wsl": "/home/karlvonrichter/embeint-qualification/capture-acceptance-2026-11-19-17"
+  },
+  "release_qualified": false,
+  "result": "passed",
+  "run": "run17; new evidence after the Opus 5.5 review of PR #8. Run16 and its receipt are unchanged.",
+  "run16_relation": "Run16 loaded install-patched/lib/libkicommon.so.10.99.0 (d51f381f...), built for a different install prefix and absent from the retained manifest (506bb1dd...). Its kicad and kiface bytes match. Run16's receipt is retained unchanged; run17 covers every loaded install module.",
+  "schema_sha256": "214ce118ab3b9bfa24fc06818000fb6443c8a4340976875bcc0569f96d9b5115",
+  "skill_manifest": {
+    "default": "kicad-house-style",
+    "manifest_version": 1,
+    "skill_content_sha256": "d52cd4b0c5ba8277105861ccf98cbc25867c1cc7130a251d0e221605a302e992",
+    "skill_file_sha256": {
+      "kicad-house-style/SKILL.md": "3dbc143f18ba98edcd5ac89351254d9ded06c20f5a2837f319ebe62bf29372ca",
+      "kicad-house-style/design-review.md": "be051ad91580471e79aef1fe744196981fed106eedee28c3ec1affaae5bc955e",
+      "kicad-house-style/live-workflow.md": "a9313c0569a8adb88c3dea4e73d0d7632d02b98192f39fa1039d0a8b767a2a9e",
+      "kicad-house-style/parts-and-libraries.md": "d7ab2b2915a0e8e59de0fc9a4a596cd7331399646ca98b692d737346247a42b3",
+      "kicad-house-style/pcb.md": "928b9e78c3f2694ecec6ea89a350364f31fc2f476348f4a59cc710373f130109",
+      "kicad-house-style/schematic-style.md": "34f88b080d6d87fd546bf5bd60465dc21a275f62abff9531d225e65a7bbb21ee",
+      "kicad-house-style/workstation.md": "82eaf9c08692c9243ded37399d96494cd225130ffe5ff9a4c682be04cae13274"
+    },
+    "skill_versions": {
+      "kicad-house-style": "1.0.0"
+    }
+  },
+  "source_mcp_edit_undo": {
+    "checks": [
+      "initialize",
+      "documents",
+      "create_text",
+      "undo",
+      "exact_item_restore"
+    ],
+    "result": "passed",
+    "runtime": "source"
+  },
+  "started_utc": "2026-11-19T02:28:19.586982+00:00"
+}
