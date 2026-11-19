@@ -105,9 +105,9 @@ class Block:
         self._items = {}
         self._pins = {}
         self._routes = {}
-        # Block-owned connection points (symbol pins, ports, sheet pins) in nm. KiCad
-        # counts one as an extra exit when deciding junctions and wire merges.
-        self._points = set()
+        # Per logical key, the points in nm that KiCad's junction analysis counts as a
+        # wire exit: non-NC symbol pins and sheet pins. Labels and ports do not count.
+        self._points = {}
 
     def id(self, key):
         if not key or not isinstance(key, str):
@@ -195,7 +195,9 @@ class Block:
         self.add(key, instance)
         self._pins[key] = [(p.number, (p.position.x_nm + origin[0], p.position.y_nm + origin[1]))
                            for p in pins]
-        self._points.update(pos for _, pos in self._pins[key])
+        # KiCad skips no-connect pins when testing a symbol connection (SCH_SYMBOL::doIsConnected).
+        self._points[key] = {pos for (_, pos), p in zip(self._pins[key], pins)
+                             if p.electrical_type != types.EPT_NO_CONNECT}
         numbers = [p.number for p in pins]
         return {number: self.pin(key, number) for number in numbers if numbers.count(number) == 1}
 
@@ -214,7 +216,6 @@ class Block:
             raise ValueError("A port name is required")
         self.add(key, sch.HierarchicalLabel(position=point(*at), text=_text(name, at),
                                             shape=shapes[shape], spin_style=spins[spin]))
-        self._points.add(_xy(point(*at)))
         return tuple(at)
 
     def sheet(self, key, name, filename, at, size, page, ports):
@@ -248,16 +249,20 @@ class Block:
             sheet.pins.add(id=kiid(self.id(f"{key}/pin/{port}")), position=point(x, y),
                            text=_text(port, (x, y)), side=sides[side], shape=shapes[shape])
         self.add(key, sheet)
-        self._points.update(_xy(point(*pos)) for pos in endpoints.values())
+        self._points[key] = {_xy(point(*pos)) for pos in endpoints.values()}
         return endpoints
+
+    def connection_points(self):
+        """Per key, sorted nm points KiCad counts as wire exits (non-NC pins, sheet pins)."""
+        return {key: tuple(sorted(points)) for key, points in self._points.items()}
 
     def wire(self, key, net, path):
         """Declare an explicit Manhattan path; split same-net joins and add junctions.
 
         Net is a local planning name, not a label or electrical net assignment.
         Collinear overlaps and intersections between different nets are refused, as
-        are in-line wire ends meeting with nothing else there (KiCad merges those on
-        commit). plan() also refuses block wires touching manual wires. This is not an
+        are in-line wire ends meeting with no symbol or sheet pin there (KiCad merges
+        those on commit). plan() also refuses block wires touching manual wiring. This is not an
         obstacle router; manual geometry still needs visual review.
         """
         if key in self._routes or not net or len(path) < 2:
@@ -293,14 +298,17 @@ class Block:
                                                     start=point(*_mm(start)), end=point(*_mm(end)))
                 for pos in (start, end):
                     ends.setdefault((net, pos), []).append(horizontal)
+        exits = set().union(*self._points.values())
         for (net, pos), axes in ends.items():
             # KiCad's commit cleanup merges two in-line wires touching where nothing else
-            # connects, which would delete an owned UUID; a pin or port there prevents it.
-            if len(axes) == 2 and axes[0] == axes[1] and pos not in self._points:
-                raise ValueError(f"In-line wires meet at {_mm(pos)} with nothing else there; "
+            # counts as an exit, deleting an owned UUID. A symbol or sheet pin there
+            # prevents it; a label or port does not (JUNCTION_HELPERS::AnalyzePoint).
+            if len(axes) == 2 and axes[0] == axes[1] and pos not in exits:
+                raise ValueError(f"In-line wires meet at {_mm(pos)} with no pin there; "
                                  "KiCad would merge them. Use one straight leg")
-            # Same rule as KiCad: three or more exits, counting a pin or port, is a junction.
-            if len(axes) + (pos in self._points) >= 3:
+            # Same rule as KiCad: three or more exits, counting a pin, is a junction;
+            # CleanUp removes a junction with fewer.
+            if len(axes) + (pos in exits) >= 3:
                 logical = f"junction/{net}/{pos[0]}/{pos[1]}"
                 if logical in result:
                     raise ValueError("Logical key collides with a generated junction")
@@ -353,11 +361,13 @@ def _touches(a, b, c, d):
     return any(_on_segment(p, c, d) for p in (a, b)) or any(_on_segment(p, a, b) for p in (c, d))
 
 
-def _refuse_manual_contact(desired, manual):
-    """Refuse block wires/junctions that touch unowned wires or junctions.
+def _refuse_manual_contact(desired, manual, vanished):
+    """Refuse block changes that let KiCad's commit cleanup alter manual wiring.
 
-    Such contact lets KiCad's cleanup change manual UUIDs or geometry, which the
-    block may not do. Join blocks to manual circuitry through labels or pins.
+    Cleanup merges touching in-line wires and removes junctions with fewer than
+    three exits. So block wires/junctions must not touch unowned wires or junctions,
+    and a block pin that moves or disappears (``vanished``) must not have manual
+    wiring attached. Join manual circuitry to a block through a label instead.
     """
     wires = [(_xy(item.start), _xy(item.end)) for item in manual
              if isinstance(item, sch.SchematicLine) and item.type == sch.SLT_WIRE]
@@ -367,9 +377,13 @@ def _refuse_manual_contact(desired, manual):
             a, b = _xy(item.start), _xy(item.end)
             if any(_touches(a, b, c, d) for c, d in wires) or any(_on_segment(j, a, b) for j in junctions):
                 raise ValueError(f"Block wire {key} touches a manual wire or junction; "
-                                 "connect through a label or pin instead")
+                                 "connect through a label instead")
         elif isinstance(item, sch.Junction) and _xy(item.position) in junctions:
             raise ValueError(f"Block junction {key} duplicates a manual junction")
+    for pos in sorted(vanished):
+        if pos in junctions or any(_on_segment(pos, c, d) for c, d in wires):
+            raise ValueError(f"A moved or removed block pin at {_mm(pos)} has manual wiring "
+                             "attached; reroute the manual wiring first")
 
 
 class StaleState(ValueError):
@@ -385,6 +399,9 @@ class OwnedItem:
     key: str
     observed_sha256: str
     desired_sha256: str
+    # Planned nm points KiCad counts as wire exits (non-NC pins, sheet pins). GetItems
+    # omits definition pins, so this is the only record of where owned pins were.
+    points: tuple[tuple[int, int], ...]
 
 
 @dataclass(frozen=True)
@@ -407,8 +424,10 @@ class Manifest:
         value = json.loads(text)
         if value["version"] != 1:
             raise ValueError("Unsupported block manifest version")
-        return cls(str(uuid.UUID(value["namespace"])), _doc_bytes(document(value["document"])),
-                   tuple(OwnedItem(**item) for item in value["owned"]))
+        owned = tuple(OwnedItem(item["key"], item["observed_sha256"], item["desired_sha256"],
+                                tuple(tuple(int(v) for v in pos) for pos in item["points"]))
+                      for item in value["owned"])
+        return cls(str(uuid.UUID(value["namespace"])), _doc_bytes(document(value["document"])), owned)
 
 
 @dataclass(frozen=True)
@@ -419,6 +438,7 @@ class Plan:
     creates: tuple[str, ...]
     updates: tuple[str, ...]
     deletes: tuple[str, ...]
+    points: tuple[tuple[str, tuple[tuple[int, int], ...]], ...]
     _attempted: bool = field(default=False, init=False, repr=False)
 
     def report(self):
@@ -462,9 +482,6 @@ def plan(block, manifest, doc, current_items):
         live = current.get(block.id(key))
         if live is None or _hash(live) != record.observed_sha256:
             raise StaleState(f"Owned item changed or missing: {key}")
-    owned_ids = {block.id(key) for key in previous} | {block.id(key) for key in desired}
-    _refuse_manual_contact({key: _unpack(packed) for key, packed in desired.items()},
-                           [_unpack(packed) for value, packed in current.items() if value not in owned_ids])
     creates, updates, deletes = [], [], []
     for key, packed in desired.items():
         if key not in previous:
@@ -485,9 +502,18 @@ def plan(block, manifest, doc, current_items):
         deletes.append(key)
     if len(creates) + len(updates) + len(deletes) > 200:
         raise ValueError("A block apply is limited to 200 changed items")
+    points = block.connection_points()
+    vanished = set()
+    for key in updates + deletes:
+        vanished.update(set(previous[key].points) - set(points.get(key, ())))
+    owned_ids = {block.id(key) for key in previous} | {block.id(key) for key in desired}
+    _refuse_manual_contact({key: _unpack(packed) for key, packed in desired.items()},
+                           [_unpack(packed) for value, packed in current.items() if value not in owned_ids],
+                           vanished)
     return Plan(manifest, fingerprint(current.values()),
                 tuple((key, _bytes(value)) for key, value in sorted(desired.items())),
-                tuple(sorted(creates)), tuple(sorted(updates)), tuple(sorted(deletes)))
+                tuple(sorted(creates)), tuple(sorted(updates)), tuple(sorted(deletes)),
+                tuple(sorted(points.items())))
 
 
 def apply(client, doc, pending):
@@ -532,8 +558,8 @@ def apply(client, doc, pending):
                     value = block.id(record.key)
                     if current[value] != observed[value]:
                         raise RuntimeError("An unchanged owned item changed during apply")
-            # Connectivity geometry must be stored exactly as requested; other content
-            # is only checked by membership/hash below and may be normalized by KiCad.
+            # Wire and junction geometry must be stored exactly as requested. Symbol, label
+            # and sheet-pin positions and other content are not compared here.
             for key in pending.creates + pending.updates:
                 wanted, stored = _unpack(desired[key]), _unpack(observed[block.id(key)])
                 if (isinstance(wanted, sch.SchematicLine)
@@ -545,8 +571,10 @@ def apply(client, doc, pending):
             # requests just because their protobuf representation differs. Later plans
             # compare desired content with this last request, not with the editor's
             # stored fields; verify stored fields separately where they matter.
+            points = dict(pending.points)
             return Manifest(pending.manifest.namespace, pending.manifest.document_bytes,
-                            tuple(OwnedItem(key, _hash(observed[block.id(key)]), _hash(packed))
+                            tuple(OwnedItem(key, _hash(observed[block.id(key)]), _hash(packed),
+                                            points.get(key, ()))
                                   for key, packed in sorted(desired.items())))
         except Exception as error:
             raise ApplyUncertain("Block apply outcome unknown/unverified. Do not replay. Inspect the "
