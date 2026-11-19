@@ -1245,45 +1245,33 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
 
         std::unique_ptr<EDA_ITEM> item( std::move( *creationResult ) );
 
-        bool unpacked = false;
-
         // Retained past the unpack: the placement data they carry is applied once the item is
         // in the schematic.
         kiapi::schematic::types::SchematicSymbolInstance symbolProto;
         kiapi::schematic::types::SheetSymbol             sheetProto;
 
-        if( *type == SCH_SYMBOL_T )
-        {
-            unpacked = anyItem.UnpackTo( &symbolProto )
-                       && UnpackSymbol( static_cast<SCH_SYMBOL*>( item.get() ), symbolProto );
-        }
-        else if( *type == SCH_SHEET_T )
-        {
-            unpacked = anyItem.UnpackTo( &sheetProto );
-
-            if( unpacked )
-            {
-                SCH_SHEET* sheet = static_cast<SCH_SHEET*>( item.get() );
-
-                if( tl::expected<bool, ApiResponseStatus> result = UnpackSheet( sheet, sheetProto );
-                    result.has_value() )
+        auto unpackInto =
+                [&]( EDA_ITEM* aTarget ) -> bool
                 {
-                    unpacked = *result;
-                }
-                else
-                {
-                    return tl::unexpected( result.error() );
-                }
-            }
-        }
-        else if( SCH_GROUP* group = dynamic_cast<SCH_GROUP*>( item.get() ) )
-        {
-            unpacked = group->DeserializeGroup( anyItem, commit );
-        }
-        else
-        {
-            unpacked = item->Deserialize( anyItem );
-        }
+                    if( *type == SCH_SYMBOL_T )
+                    {
+                        return anyItem.UnpackTo( &symbolProto )
+                               && UnpackSymbol( static_cast<SCH_SYMBOL*>( aTarget ), symbolProto );
+                    }
+                    else if( *type == SCH_SHEET_T )
+                    {
+                        return anyItem.UnpackTo( &sheetProto )
+                               && UnpackSheet( static_cast<SCH_SHEET*>( aTarget ), sheetProto ).has_value();
+                    }
+                    else if( SCH_GROUP* group = dynamic_cast<SCH_GROUP*>( aTarget ) )
+                    {
+                        return group->DeserializeGroup( anyItem, commit );
+                    }
+
+                    return aTarget->Deserialize( anyItem );
+                };
+
+        bool unpacked = unpackInto( item.get() );
 
         if( !unpacked )
         {
@@ -1358,6 +1346,28 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
                 aItemHandler( status, anyItem );
                 continue;
             }
+
+            // Unpack the update over a copy of the item it replaces rather than a new item, so
+            // that whatever the message does not carry keeps its value instead of a new item's
+            // default (a text box hyperlink, a symbol's library link, pins and instance data).
+            // A definition-less symbol update keeps the library definition this way.  Groups
+            // resolve their members through the commit, so they are unpacked once only.
+            if( *type != SCH_GROUP_T )
+            {
+                std::unique_ptr<EDA_ITEM> copy( existingItem->Clone() );
+
+                if( !unpackInto( copy.get() ) )
+                {
+                    commit->RevertToCheckpoint( commitCheckpoint );
+
+                    e.set_status( ApiStatusCode::AS_BAD_REQUEST );
+                    e.set_error_message( fmt::format( "could not unpack {} from request",
+                                                      copy->GetClass().ToStdString() ) );
+                    return tl::unexpected( e );
+                }
+
+                item = std::move( copy );
+            }
         }
 
         if( *type == SCH_SYMBOL_T )
@@ -1383,15 +1393,17 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
                 continue;
             }
 
-            if( existingSymbol
-                    && ( !symbolProto.has_definition()
-                         || IsSymbolDefinitionUnchanged( existingSymbol, existingPath,
-                                                         symbolProto.definition() ) ) )
+            // A definition-less update was unpacked over a copy of the existing symbol above, so
+            // it already keeps the embedded symbol, pins and library link.  A request that carries
+            // the definition rebuilds them, which needs the corrections below.
+            if( existingSymbol && symbolProto.has_definition()
+                    && IsSymbolDefinitionUnchanged( existingSymbol, existingPath,
+                                                    symbolProto.definition() ) )
             {
-                // Definition-less update, or a full symbol sent back with its definition as read
-                // (the usual way to edit field values): keep the existing embedded symbol, pins and
-                // library link.  A definition rebuilt from the request would not be an exact copy,
-                // and would then fail the library comparison and be renamed in the schematic.
+                // A full symbol sent back with its definition as read (the usual way to edit field
+                // values): keep the existing embedded symbol, pins and library link.  A definition
+                // rebuilt from the request would not be an exact copy, and would then fail the
+                // library comparison and be renamed in the schematic.
                 tempSymbol->SetLibId( existingSymbol->GetLibId() );
                 tempSymbol->SetSchSymbolLibraryName( existingSymbol->UseLibIdLookup()
                                                              ? wxString( wxEmptyString )
@@ -1408,7 +1420,8 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
                 if( existingSymbol->GetLibSymbolRef() )
                     tempSymbol->SetLibSymbol( new LIB_SYMBOL( *existingSymbol->GetLibSymbolRef() ) );
             }
-            else if( existingSymbol && existingSymbol->GetLibSymbolRef()
+            else if( existingSymbol && symbolProto.has_definition()
+                     && existingSymbol->GetLibSymbolRef()
                      && UnpackLibId( symbolProto.definition().id() )
                                 == existingSymbol->GetLibSymbolRef()->GetLibId() )
             {

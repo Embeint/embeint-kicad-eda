@@ -1061,6 +1061,13 @@ bool SCH_SYMBOL::Deserialize( const kiapi::schematic::types::SchematicSymbolInst
 
     if( haveDefinition )
     {
+        // The message lists pins sorted by UUID.  Pins this symbol already has keep their order
+        // (the order they are saved in), so an unchanged update leaves the file unchanged.
+        std::unordered_map<::KIID, size_t> previousOrder;
+
+        for( size_t ii = 0; ii < m_pins.size(); ++ii )
+            previousOrder.emplace( m_pins[ii]->m_Uuid, ii );
+
         m_pins.clear();
 
         for( SCH_PIN* pin : GetAllLibPins() )
@@ -1068,6 +1075,22 @@ bool SCH_SYMBOL::Deserialize( const kiapi::schematic::types::SchematicSymbolInst
             m_pins.emplace_back( std::make_unique<SCH_PIN>( *pin ) );
             m_pins.back()->SetParent( this );
             const_cast<::KIID&>( m_pins.back()->m_Uuid ) = pin->m_Uuid;
+        }
+
+        if( !previousOrder.empty() )
+        {
+            auto rank =
+                    [&]( const std::unique_ptr<SCH_PIN>& aPin )
+                    {
+                        auto it = previousOrder.find( aPin->m_Uuid );
+                        return it == previousOrder.end() ? previousOrder.size() : it->second;
+                    };
+
+            std::stable_sort( m_pins.begin(), m_pins.end(),
+                              [&]( const std::unique_ptr<SCH_PIN>& aLhs, const std::unique_ptr<SCH_PIN>& aRhs )
+                              {
+                                  return rank( aLhs ) < rank( aRhs );
+                              } );
         }
 
         UpdatePins();
