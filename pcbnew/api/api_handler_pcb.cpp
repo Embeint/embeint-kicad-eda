@@ -1567,6 +1567,9 @@ HANDLER_RESULT<Empty> API_HANDLER_PCB::handleSetBoardOrigin(
 
     VECTOR2I origin = UnpackVector2( aCtx.Request.origin() );
 
+    // Embeint: the origin actions are applied before replying (not with CallAfter), so the reply's
+    // document revision already includes the change.  With a parameter both actions are one-shot
+    // (no picker), and checkForBusy() has ruled out a running interactive tool.
     switch( aCtx.Request.type() )
     {
     case BOT_GRID:
@@ -1575,15 +1578,10 @@ HANDLER_RESULT<Empty> API_HANDLER_PCB::handleSetBoardOrigin(
 
         if( f )
         {
-            frame()->CallAfter(
-                    [f, origin]()
-                    {
-                        // gridSetOrigin takes ownership and frees this
-                        VECTOR2D*     dorigin = new VECTOR2D( origin );
-                        TOOL_MANAGER* mgr = f->GetToolManager();
-                        mgr->RunAction( PCB_ACTIONS::gridSetOrigin, dorigin );
-                        f->Refresh();
-                    } );
+            // gridSetOrigin takes ownership and frees this
+            VECTOR2D* dorigin = new VECTOR2D( origin );
+            f->GetToolManager()->RunAction( PCB_ACTIONS::gridSetOrigin, dorigin );
+            f->Refresh();
         }
         else
         {
@@ -1600,13 +1598,8 @@ HANDLER_RESULT<Empty> API_HANDLER_PCB::handleSetBoardOrigin(
 
         if( f )
         {
-            frame()->CallAfter(
-                    [f, origin]()
-                    {
-                        TOOL_MANAGER* mgr = f->GetToolManager();
-                        mgr->RunAction( PCB_ACTIONS::drillSetOrigin, origin );
-                        f->Refresh();
-                    } );
+            f->GetToolManager()->RunAction( PCB_ACTIONS::drillSetOrigin, origin );
+            f->Refresh();
         }
         else
         {
