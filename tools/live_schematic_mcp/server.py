@@ -165,7 +165,8 @@ def live_schematic_page(document_spec: dict) -> dict:
     border, the title block box and its fields, the extent of the content, all in mm, and every item
     that crosses the border or overlaps the title block (fits=false). Separately, overlap_free and
     overlaps list pairs of fields, labels, sheet pins, text, symbol/sheet bodies and wires crossing text
-    whose drawn extents overlap (KiCad's own text extents, each pair with both boxes and the overlap).
+    that overlap (each pair with both KiCad boxes and the overlap). Text is compared by the band its
+    glyphs occupy, so text stacked at its usual pitch is not an overlap, nor is a label on its own wire.
     Check both before saving; still look at the framed view.
     """
     return client.page_layout(document(document_spec))

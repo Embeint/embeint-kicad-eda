@@ -94,7 +94,16 @@ def page_overlaps(client, root, out, ox, oy):
     crossed = schematic_text("CROSSED_TEXT", x + 50.8, y)
     through = sch.SchematicLine(id=kiid(), start=point(x + 50.8 + 5.08, y - 5.08),
                                 end=point(x + 50.8 + 5.08, y + 5.08), type=sch.SLT_WIRE)
-    client.mutate(root, [first, second, apart, crossed, through])
+    # Labels sitting on two wires at the usual 2.54 mm pitch: neither stacked label overlaps the
+    # other (their boxes do, by the line spacing) and neither is "on" its own wire
+    stacked_wires, stacked_labels = [], []
+    for row in range(2):
+        wy = y + 25.4 + 2.54 * row
+        stacked_wires.append(sch.SchematicLine(id=kiid(), start=point(x, wy), end=point(x + 30.48, wy),
+                                               type=sch.SLT_WIRE))
+        stacked_labels.append(sch.LocalLabel(id=kiid(), position=point(x + 5.08, wy), spin_style=sch.SLSS_RIGHT,
+                                             text=types.Text(text=f"STACKED_{row}_{uuid.uuid4().hex[:4]}")))
+    client.mutate(root, [first, second, apart, crossed, through, *stacked_wires, *stacked_labels])
     resistor = client.place_symbol(root, "Device:R", x + 25.4, y + 7.62,
                                    reference=f"R{random.randint(5000, 8999) * 2}")
     labelled = client.connect_pin_to_net(root, resistor["reference"], "1", f"NET_{uuid.uuid4().hex[:6]}")
@@ -113,6 +122,9 @@ def page_overlaps(client, root, out, ox, oy):
     check({crossed.id.value, through.id.value} in pairs, "a wire through text is reported")
     check(not any(apart.id.value in p for p in pairs), "separated text is not reported")
     check({labelled["wire"], labelled["label"]} not in pairs, "a label on the end of its wire is not reported")
+    stacked = {i.id.value for i in stacked_wires + stacked_labels}
+    check(not any(p <= stacked for p in pairs),
+          f"labels along their wires at 2.54 mm pitch are not reported: {[p for p in pairs if p <= stacked]}")
     own = [o for o in page["overlaps"] if o["first"]["id"] == o["second"]["id"] == resistor["id"]]
     check(not own, f"a freshly placed resistor's fields and body do not overlap each other: {own}")
 
