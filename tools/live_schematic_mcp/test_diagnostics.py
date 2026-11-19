@@ -22,13 +22,19 @@ import diagnose
 import instance_discovery as discovery
 
 
-def test_native_windows_reports_transport_scope_without_discovery(monkeypatch):
+def test_native_windows_reports_named_pipe_scope_and_no_editor(monkeypatch):
+    monkeypatch.delenv("KICAD_API_SOCKET", raising=False)
     monkeypatch.setattr(diagnose.sys, "platform", "win32")
-    monkeypatch.setattr(diagnose, "discover_instances", lambda *_: pytest.fail("Windows discovery"))
+    monkeypatch.setattr(discovery, "default_socket_url", lambda: r"ipc://C:\Temp\kicad\api.sock")
+    monkeypatch.setattr(discovery, "directory_key", str)
+    monkeypatch.setattr(discovery, "list_pipes", lambda: [r"C_\repo\.git\fsmonitor--daemon.ipc"])
+    monkeypatch.setattr(diagnose, "_probe_instance", lambda *_: pytest.fail("no candidate to probe"))
     report = diagnose.diagnose(probe=True)
     assert report["runtime"]["protocols"]["state"] == "ready"
-    assert report["discovery"]["selection"] == "unsupported_platform"
-    assert report["probe"]["state"] == "unsupported_platform"
+    assert "named pipes" in report["scope"]
+    assert report["discovery"]["selection"] == "default_missing"
+    assert "No KiCad editor is listening" in report["discovery"]["action"]
+    assert report["probe"]["state"] == "no_socket"
     assert report["connection_attempted"] is False
 
 

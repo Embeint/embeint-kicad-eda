@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """End-to-end check of the PCB editor tools against a running development KiCad.
 
-KiCad must run as the project manager with the test project (run_kicad_wsl.sh without arguments);
-the test opens the schematic and board itself.  Exercises page and title block, the page check,
-grid, both origins, outline, footprint placement and moves, routing, vias, zones, graphics, DRC,
+KiCad must run as the project manager with the test project (run_kicad_wsl.sh or
+run_kicad_windows.ps1 without arguments); the test opens the schematic and board itself.  Exercises
+page and title block, the page check, grid, both origins, outline, footprint placement and moves, routing, vias, zones, graphics, DRC,
 undo, views, exports and update-from-schematic.  Never saves; checks the board on disk is unchanged
 and removes what it added.
 

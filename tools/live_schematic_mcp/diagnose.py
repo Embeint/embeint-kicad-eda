@@ -8,7 +8,18 @@ import os
 from pathlib import Path
 import sys
 
-from instance_discovery import DiscoveryError, discover_instances, socket_entry
+from instance_discovery import DiscoveryError, discover_instances, is_endpoint, socket_entry
+
+
+SCOPES = {
+    "linux": "Linux/WSL local filesystem IPC (Unix sockets) only",
+    "win32": "Windows local IPC (named pipes on this machine) only",
+    "other": "Default local IPC endpoint only; automatic discovery covers Linux/WSL and Windows",
+}
+PROBE_PLATFORMS = ("linux", "win32")
+NO_EDITOR_ACTION = ("No KiCad editor is listening. Start Embeint KiCad with the API server enabled "
+                    "(Preferences > Plugins > Enable KiCad API) and open a project, as the same "
+                    "user and with the same temporary directory as the MCP, or set KICAD_API_SOCKET.")
 
 
 def runtime_status():
@@ -80,8 +91,9 @@ def _probe_instance(url, timeout_ms, token, secrets):
     from google.protobuf.message import DecodeError
     from client import base, editor, envelope, types
 
-    if socket_entry(url)["kind"] != "socket":
-        return {"state": "not_probed", "action": "The path must be an existing local socket file."}
+    if not is_endpoint(socket_entry(url)):
+        return {"state": "not_probed", "action": "The endpoint must be an existing local socket "
+                "file (Linux/WSL) or named pipe (Windows)."}
     requests = [(base.GetVersion(), base.GetVersionResponse)]
     requests.extend((editor.GetOpenDocuments(type=kind), editor.GetOpenDocumentsResponse)
                     for kind in (types.DOCTYPE_SCHEMATIC, types.DOCTYPE_PCB,
@@ -161,19 +173,10 @@ def diagnose(*, probe=False, socket_url=None, timeout_ms=500):
     secrets = {os.environ.get("KICAD_API_TOKEN", "")}
     report = {"read_only": True, "connection_attempted": False,
               "live_support_verified": False, "platform": sys.platform,
-              "scope": "Linux/WSL local filesystem IPC only",
+              "scope": SCOPES.get(sys.platform, SCOPES["other"]),
               "capability_limit": "Only listed read-only requests are probed. No mutation support "
               "or negotiated capability set is inferred from an application version.",
               "runtime": runtime_status()}
-    if sys.platform == "win32":
-        report["discovery"] = {
-            "selection": "unsupported_platform",
-            "action": "Run the MCP server inside the same WSL distro as the development KiCad; "
-                      "native Windows editor IPC is not supported by this adapter.",
-        }
-        if probe:
-            report["probe"] = {"state": "unsupported_platform"}
-        return _redact(report, secrets)
     try:
         inventory = discover_instances(socket_url)
         report["discovery"] = inventory
@@ -184,29 +187,31 @@ def diagnose(*, probe=False, socket_url=None, timeout_ms=500):
         "Set KICAD_API_SOCKET to the intended candidate before editor operations. "
         "Use --probe to identify responding candidates; stale sockets are never removed."
         if inventory["selection"] in ("ambiguous", "unavailable") else
-        "Start KiCad with IPC enabled if absent. Use --probe for bounded read-only checks.")
+        NO_EDITOR_ACTION + " Use --probe for bounded read-only checks."
+        if inventory["selection"] == "default_missing" else
+        "Use --probe for bounded read-only checks.")
     if probe:
-        if sys.platform != "linux":
+        if sys.platform not in PROBE_PLATFORMS:
             report["probe"] = {"state": "unsupported_platform",
-                               "action": "Run opt-in probes inside the Linux/WSL MCP environment."}
+                               "action": "Run opt-in probes on Windows or inside Linux/WSL."}
         elif report["runtime"]["protocols"]["state"] != "ready":
             report["probe"] = {"state": "runtime_unavailable", "action": "Fix runtime diagnostics first."}
         else:
             for candidate in inventory["candidates"]:
-                if candidate["kind"] == "socket":
+                if is_endpoint(candidate):
                     report["connection_attempted"] = True
                     token = os.environ.get("KICAD_API_TOKEN", "") if inventory["selection"] == "explicit" else ""
                     candidate["probe"] = _probe_instance(candidate["socket_url"], timeout_ms, token, secrets)
             if not report["connection_attempted"]:
-                report["probe"] = {"state": "no_socket", "action": "Start KiCad with IPC enabled "
-                                   "and check KICAD_API_SOCKET in this Linux/WSL environment."}
+                report["probe"] = {"state": "no_socket", "action": NO_EDITOR_ACTION}
     return _redact(report, secrets)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--probe", action="store_true", help="Opt in to version/open-document reads only")
-    parser.add_argument("--socket", help="Explicit absolute local ipc:///path URL (overrides environment)")
+    parser.add_argument("--socket", help="Explicit local IPC URL, ipc:///path (Linux/WSL) or "
+                        r"ipc://C:\...\api.sock (Windows); overrides the environment")
     parser.add_argument("--timeout-ms", type=int, default=500, help="Per send/receive timeout, 1..5000")
     args = parser.parse_args()
     if not 1 <= args.timeout_ms <= 5000:

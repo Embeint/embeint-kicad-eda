@@ -16,8 +16,8 @@ import sys
 import uuid
 
 from client import LiveSchematic, document, footprint_document
-from e2e_guard import test_document
-from model_handoff import to_wsl
+from e2e_guard import park_footprint_editor, test_document
+from model_handoff import kicad_path
 from solidcraft_stdio import SolidCraftMcp
 
 SOIC8 = dict(pins=8, pitch=1.27, body_width=3.9, body_length=4.9, pad_length=1.95, pad_width=0.6, row_pitch=4.95)
@@ -73,7 +73,7 @@ def main():
         if shots:
             (out / "solidcraft_model.png").write_bytes(shots[0])
         solidcraft.call(plan["export"]["tool"], export)
-        step_file = Path(to_wsl(export["path"]))
+        step_file = Path(kicad_path(export["path"]))
         check(step_file.exists() and step_file.read_bytes()[:13] == b"ISO-10303-21;",
               f"SolidCraft exported {step_file.stat().st_size} bytes of STEP")
 
@@ -94,6 +94,7 @@ def main():
     finally:
         if solidcraft:
             solidcraft.close()
+        park_footprint_editor(client)  # before deleting the library folder it watches
         try:
             client.remove_library(fp_lib, scope="global", kind="footprint")
         except Exception as error:  # noqa: BLE001

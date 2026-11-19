@@ -307,7 +307,8 @@ class BoardTools:
         except RuntimeError as error:
             if "AS_UNIMPLEMENTED" in str(error) or "AS_UNHANDLED" in str(error):
                 raise RuntimeError("This KiCad cannot open the PCB editor over the API. Start KiCad's project "
-                                   "manager with the project (run_kicad_wsl.sh project.kicad_pro), not the "
+                                   "manager with the project (run_kicad_wsl.sh or run_kicad_windows.ps1 with a "
+                                   ".kicad_pro), not the "
                                    "schematic editor on its own.") from error
             raise
         return _dict(response.document)

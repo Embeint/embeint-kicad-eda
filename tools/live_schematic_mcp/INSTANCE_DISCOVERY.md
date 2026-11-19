@@ -1,8 +1,9 @@
-# Linux/WSL instance discovery and startup diagnostics
+# Instance discovery and startup diagnostics (Linux/WSL and Windows)
 
 This is the first bounded P1.3 slice. It covers the current checkout's Python
-adapter and local filesystem IPC in Linux/WSL. It is not a clean-machine installer,
-an application compatibility certification, or Windows/macOS qualification.
+adapter and local IPC: filesystem sockets in Linux/WSL and named pipes on Windows
+(see [Windows named pipes](#windows-named-pipes)). It is not a clean-machine
+installer, an application compatibility certification, or macOS qualification.
 
 ## Offline startup checks
 
@@ -74,8 +75,35 @@ its handshake still respects the configured send/receive timeouts. A restarted
 application can have a different token or project; the
 client deliberately does not silently switch endpoints, clear identity or replay
 an operation. Restart MCP with an explicit endpoint after identifying the intended
-project. Non-Linux automatic discovery is
-not enabled by this slice; the prior default path behavior is retained there.
+project. Windows discovery is described in the next section; on other hosts (macOS)
+the prior default path behavior is retained.
+
+## Windows named pipes
+
+On Windows, NNG serves the same `ipc://<temp>\kicad\api.sock` URL as the local named
+pipe `\\.\pipe\<temp>\kicad\api.sock`. The pipe exists only while a server holds it,
+so there are no stale endpoints, and KiCad's `api-<pid>.sock` fallback never triggers
+(it tests for a file): a second KiCad with the API enabled runs without an API.
+
+- Accepted URLs are `ipc://X:\...` drive paths of plain components. Relative, UNC
+  (`\\server\pipe`), device (`\\.\`, `\\?\`), forward-slash, `.`/`..` and
+  trailing-dot/space components are rejected without echoing the URL, because Windows
+  normalises `\\.\pipe\` names and such components could redirect the name to a
+  network pipe.
+- Discovery lists `\\.\pipe\` (enumeration never connects) and keeps only
+  `api(-<n>)?.sock` pipes whose directory is this user's temp `kicad` directory.
+  Directories are compared case-insensitively after resolving short (8.3) names, so
+  `C:\Users\LONGNA~1\...` and `C:\Users\LongName\...` match. Pipes are visible
+  machine-wide; other users' and other directories' endpoints are never candidates.
+- Liveness before the first request, and the dead-pinned-endpoint check, use the same
+  listing: absence proves no listener; nothing is dialed.
+- Explicit selection uses the URL literally. Pipe names are exact strings, so use the
+  endpoint that discovery, `diagnose.py` or `scripts\wait_ready.ps1` reports.
+
+`test_windows_discovery.py` covers validation, discovery and selection with a
+substituted pipe listing on every platform, and with real disposable NNG named-pipe
+peers (two instances, probes, MCP stdio) on Windows. Native evidence comes from the
+live suites run against the Windows build with `scripts\run_tests.ps1 -Live`.
 
 ## Opt-in read-only probes
 
