@@ -49,6 +49,7 @@
 
 #include <fmt/format.h>
 #include <fmt/ranges.h>
+#include <google/protobuf/util/message_differencer.h>
 #include <schematic.h>
 
 #include <api/api_utils.h>
@@ -297,6 +298,22 @@ bool UnpackSymbol( SCH_SYMBOL* aOutput, const kiapi::schematic::types::Schematic
                                                               : PIN_MAP_INSTANCE_OVERRIDE() );
 
     return true;
+}
+
+
+bool IsSymbolDefinitionUnchanged( const SCH_SYMBOL* aSymbol, const SCH_SHEET_PATH& aPath,
+                                  const kiapi::schematic::types::SchematicSymbol& aDefinition )
+{
+    if( !aSymbol || !aSymbol->GetLibSymbolRef() )
+        return false;
+
+    kiapi::schematic::types::SchematicSymbolInstance current;
+
+    if( !PackSymbol( &current, aSymbol, aPath ) )
+        return false;
+
+    // Equivalent rather than Equals: a client may drop sub-messages that only hold defaults
+    return google::protobuf::util::MessageDifferencer::Equivalent( current.definition(), aDefinition );
 }
 
 
