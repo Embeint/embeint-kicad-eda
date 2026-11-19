@@ -1784,6 +1784,59 @@ API_HANDLER_PCB::getPageLayoutInput( const DocumentSpecifier& aDocument )
     if( outline.GetWidth() > 0 && outline.GetHeight() > 0 )
         input.boardOutline = outline;
 
+    // Visible text on the silkscreen and fabrication layers for the overlap check, with the
+    // extents the editor draws; only text on the same layer is compared
+    input.checkOverlaps = true;
+
+    auto addText = [&]( const KIID& aId, const KIID& aGroup, const std::string& aType, const wxString& aName,
+                        const wxString& aPart, PCB_TEXT* aText )
+    {
+        const PCB_LAYER_ID layer = aText->GetLayer();
+
+        if( layer != F_SilkS && layer != B_SilkS && layer != F_Fab && layer != B_Fab )
+            return;
+
+        if( !aText->IsVisible() || aText->GetShownText( FOR_CANVAS ).IsEmpty() )
+            return;
+
+        PAGE_LAYOUT_SHAPE shape;
+        shape.id = aId;
+        shape.group = aGroup;
+        shape.type = aType;
+        shape.name = aName;
+        shape.part = aPart;
+        shape.box = aText->GetBoundingBox();
+        shape.box.Normalize();
+        shape.layer = layer;
+        shape.layerName = brd->GetLayerName( layer );
+        input.shapes.push_back( shape );
+    };
+
+    for( FOOTPRINT* fp : brd->Footprints() )
+    {
+        for( PCB_FIELD* field : fp->GetFields() )
+            addText( fp->m_Uuid, fp->m_Uuid, "Footprint", fp->GetReference(), field->GetName(), field );
+
+        for( BOARD_ITEM* item : fp->GraphicalItems() )
+        {
+            if( item->Type() == PCB_TEXT_T )
+            {
+                PCB_TEXT* text = static_cast<PCB_TEXT*>( item );
+                addText( fp->m_Uuid, fp->m_Uuid, "Footprint", fp->GetReference(), wxS( "Text: " ) + text->GetText(),
+                         text );
+            }
+        }
+    }
+
+    for( BOARD_ITEM* item : brd->Drawings() )
+    {
+        if( item->Type() == PCB_TEXT_T )
+        {
+            PCB_TEXT* text = static_cast<PCB_TEXT*>( item );
+            addText( item->m_Uuid, item->m_Uuid, "Text", text->GetText().BeforeFirst( '\n' ), wxEmptyString, text );
+        }
+    }
+
     return input;
 }
 

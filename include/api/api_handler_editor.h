@@ -131,6 +131,31 @@ protected:
         BOX2I       box;
     };
 
+    /// How a shape takes part in the overlap check
+    enum class OVERLAP_KIND
+    {
+        BODY, ///< A symbol, sheet or table outline: compared with bodies and text
+        TEXT, ///< Text, a field, a label or a sheet pin: compared with everything
+        WIRE  ///< A wire or bus segment: compared with text only
+    };
+
+    /// One drawn part of an item for the overlap check
+    struct PAGE_LAYOUT_SHAPE
+    {
+        KIID         id;              ///< The item to report (the owner of a field)
+        KIID         group;           ///< Shapes of one item share a group
+        std::string  type;
+        wxString     name;
+        wxString     part;            ///< Field name or footprint text; empty for the item itself
+        BOX2I        box;
+        OVERLAP_KIND kind = OVERLAP_KIND::TEXT;
+        bool         ownerBody = false; ///< Not compared with other shapes of its own group
+        int          layer = 0;       ///< Only shapes on the same layer are compared
+        wxString     layerName;
+        VECTOR2I     start;           ///< WIRE only: the segment
+        VECTOR2I     end;
+    };
+
     /// What an editor provides for GetPageLayout: its page, its drawing sheet laid out the way
     /// the editor draws it, and the bounding box of every item on the page
     struct PAGE_LAYOUT_INPUT
@@ -139,7 +164,15 @@ protected:
         std::shared_ptr<DS_DRAW_ITEM_LIST> drawing;
         std::vector<PAGE_LAYOUT_ITEM>      items;
         std::optional<BOX2I>               boardOutline;
+
+        /// Shapes for the overlap check; only reported when checkOverlaps is set
+        std::vector<PAGE_LAYOUT_SHAPE>     shapes;
+        bool                               checkOverlaps = false;
     };
+
+    /// Pairs of shapes whose extents overlap by more than aMargin in both directions
+    void addOverlaps( commands::PageLayoutResponse& aResponse, const PAGE_LAYOUT_INPUT& aInput,
+                      int aMargin ) const;
 
     /**
      * Override in editors that draw a drawing sheet (schematic, board).  The default refuses.

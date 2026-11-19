@@ -4334,6 +4334,114 @@ API_HANDLER_SCH::getPageLayoutInput( const DocumentSpecifier& aDocument )
         input.items.push_back( { item->m_Uuid, type, name, item->GetBoundingBox() } );
     }
 
+    // The drawn parts of each item for the overlap check, with the extents the editor draws:
+    // bodies without their fields or pins, each visible field, label and sheet pin, and wires
+    input.checkOverlaps = true;
+
+    auto addShape = [&]( const KIID& aId, const KIID& aGroup, const std::string& aType,
+                         const wxString& aName, const wxString& aPart, const BOX2I& aBox,
+                         OVERLAP_KIND aKind, bool aOwnerBody )
+    {
+        PAGE_LAYOUT_SHAPE shape;
+        shape.id = aId;
+        shape.group = aGroup;
+        shape.type = aType;
+        shape.name = aName;
+        shape.part = aPart;
+        shape.box = aBox;
+        shape.box.Normalize();
+        shape.kind = aKind;
+        shape.ownerBody = aOwnerBody;
+        input.shapes.push_back( shape );
+    };
+
+    auto addFields = [&]( SCH_ITEM* aOwner, const std::string& aType, const wxString& aName,
+                          const std::vector<SCH_FIELD>& aFields )
+    {
+        for( const SCH_FIELD& field : aFields )
+        {
+            if( !field.IsVisible() || field.GetShownText( &*target, FOR_CANVAS ).IsEmpty() )
+                continue;
+
+            addShape( aOwner->m_Uuid, aOwner->m_Uuid, aType, aName, field.GetName(),
+                      field.GetBoundingBox(), OVERLAP_KIND::TEXT, false );
+        }
+    };
+
+    for( SCH_ITEM* item : screen->Items() )
+    {
+        auto [type, name] = describe( item );
+
+        switch( item->Type() )
+        {
+        case SCH_SYMBOL_T:
+        {
+            SCH_SYMBOL* symbol = static_cast<SCH_SYMBOL*>( item );
+            addShape( item->m_Uuid, item->m_Uuid, type, name, wxEmptyString, symbol->GetBodyBoundingBox(),
+                      OVERLAP_KIND::BODY, true );
+            addFields( item, type, name, symbol->GetFields() );
+            break;
+        }
+
+        case SCH_SHEET_T:
+        {
+            SCH_SHEET* sheet = static_cast<SCH_SHEET*>( item );
+            addShape( item->m_Uuid, item->m_Uuid, type, name, wxEmptyString, sheet->GetBodyBoundingBox(),
+                      OVERLAP_KIND::BODY, true );
+            addFields( item, type, name, sheet->GetFields() );
+
+            for( SCH_SHEET_PIN* pin : sheet->GetPins() )
+            {
+                addShape( pin->m_Uuid, item->m_Uuid, "Sheet pin", pin->GetText(), wxEmptyString,
+                          pin->GetBoundingBox(), OVERLAP_KIND::TEXT, false );
+            }
+
+            break;
+        }
+
+        case SCH_LABEL_T:
+        case SCH_GLOBAL_LABEL_T:
+        case SCH_HIER_LABEL_T:
+        case SCH_DIRECTIVE_LABEL_T:
+        {
+            SCH_LABEL_BASE* label = static_cast<SCH_LABEL_BASE*>( item );
+            addShape( item->m_Uuid, item->m_Uuid, type, name, wxEmptyString,
+                      label->GetBodyBoundingBox( nullptr ), OVERLAP_KIND::TEXT, true );
+            addFields( item, type, name, label->GetFields() );
+            break;
+        }
+
+        case SCH_TEXT_T:
+        case SCH_TEXTBOX_T:
+            addShape( item->m_Uuid, item->m_Uuid, type, name, wxEmptyString, item->GetBoundingBox(),
+                      OVERLAP_KIND::TEXT, false );
+            break;
+
+        case SCH_TABLE_T:
+            addShape( item->m_Uuid, item->m_Uuid, "Table", wxEmptyString, wxEmptyString,
+                      item->GetBoundingBox(), OVERLAP_KIND::BODY, true );
+            break;
+
+        case SCH_LINE_T:
+        {
+            SCH_LINE* line = static_cast<SCH_LINE*>( item );
+
+            if( !line->IsWire() && !line->IsBus() )
+                break;
+
+            addShape( item->m_Uuid, item->m_Uuid, type, name, wxEmptyString,
+                      BOX2I::ByCorners( line->GetStartPoint(), line->GetEndPoint() ), OVERLAP_KIND::WIRE,
+                      false );
+            input.shapes.back().start = line->GetStartPoint();
+            input.shapes.back().end = line->GetEndPoint();
+            break;
+        }
+
+        default:
+            break;
+        }
+    }
+
     return input;
 }
 

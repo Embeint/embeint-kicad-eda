@@ -796,7 +796,10 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
     # ---- Page, drawing sheet and title block -------------------------------------------------
 
     def page_layout(self, doc):
-        """Page size, drawing area, title block box and fields, and items outside the frame (mm)."""
+        """Page size, drawing area, title block box and fields, items outside the frame and overlapping
+        text (mm).  `fits` covers the frame only; `overlap_free` and `overlaps` report overlapping text,
+        fields, labels and bodies (schematic) or silkscreen/fab text (board) from KiCad's own extents,
+        and are None/empty with `overlap_check` set when the editor cannot check."""
         layout = self.send(editor.GetPageLayout(document=doc), editor.PageLayoutResponse)
         settings = self.send(editor.GetPageSettings(document=doc), types.PageSettings)
         block = self.send(editor.GetTitleBlockInfo(document=doc), types.TitleBlockInfo)
@@ -804,6 +807,19 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
                      **({"outside_drawing_area": True} if p.outside_drawing_area else {}),
                      **({"overlaps_title_block": True} if p.overlaps_title_block else {})}
                     for p in layout.problems]
+
+        def part(item):
+            return {"id": item.id.value, "type": item.type, "name": item.name,
+                    **({"part": item.part} if item.part else {}), "box_mm": box_mm(item.box)}
+
+        overlaps = [{"first": part(o.first), "second": part(o.second), "overlap_mm": box_mm(o.overlap),
+                     **({"layer": o.layer} if o.layer else {})} for o in layout.overlaps]
+        overlap_report = {"overlap_free": None, "overlaps": [],
+                          "overlap_check": "not available from this KiCad build"}
+        if layout.overlaps_checked:
+            overlap_report = {"overlap_free": layout.overlap_count == 0, "overlaps": overlaps}
+            if layout.overlap_count > len(overlaps):
+                overlap_report["overlaps_not_listed"] = layout.overlap_count - len(overlaps)
         return {
             "paper": types.PageSize.Name(settings.page_size).removeprefix("PS_"),
             "orientation": types.PageOrientation.Name(settings.orientation).removeprefix("PO_").lower(),
@@ -815,6 +831,7 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
             "items": layout.item_count,
             "fits": not problems,
             "problems": problems,
+            **overlap_report,
             "title_block": title_block_dict(block),
             **({"drawing_sheet": settings.drawing_sheet} if settings.drawing_sheet else {}),
         }

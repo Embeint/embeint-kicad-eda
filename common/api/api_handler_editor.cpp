@@ -20,6 +20,9 @@
 
 #include <api/api_handler_editor.h>
 
+#include <algorithm>
+#include <optional>
+
 #include <api/api_enums.h>
 #include <api/api_utils.h>
 #include <class_draw_panel_gal.h>
@@ -843,7 +846,158 @@ HANDLER_RESULT<PageLayoutResponse> API_HANDLER_EDITOR::handleGetPageLayout(
         PackBox2( *response.mutable_content(), *content, scale );
 
     response.set_item_count( static_cast<int>( input->items.size() ) );
+
+    // Ignore contact closer than this: drawn extents include half the pen width
+    if( input->checkOverlaps )
+        addOverlaps( response, *input, scale.mmToIU( 0.05 ) );
+
     return response;
+}
+
+
+void API_HANDLER_EDITOR::addOverlaps( PageLayoutResponse& aResponse, const PAGE_LAYOUT_INPUT& aInput,
+                                      int aMargin ) const
+{
+    static constexpr int MAX_REPORTED_OVERLAPS = 200;
+
+    const EDA_IU_SCALE& scale = getIuScale();
+
+    // A wire must cross the text, not end at its connection point on the outline
+    const int wireInset = scale.mmToIU( 0.25 );
+
+    struct FOUND
+    {
+        size_t first;
+        size_t second;
+        BOX2I  overlap;
+    };
+
+    const std::vector<PAGE_LAYOUT_SHAPE>& shapes = aInput.shapes;
+    std::vector<size_t>                   order( shapes.size() );
+    std::vector<FOUND>                    found;
+
+    for( size_t ii = 0; ii < order.size(); ++ii )
+        order[ii] = ii;
+
+    std::sort( order.begin(), order.end(),
+               [&]( size_t a, size_t b )
+               {
+                   return shapes[a].box.GetLeft() < shapes[b].box.GetLeft();
+               } );
+
+    auto boxOverlap = [&]( const BOX2I& a, const BOX2I& b ) -> std::optional<BOX2I>
+    {
+        const int left = std::max( a.GetLeft(), b.GetLeft() );
+        const int right = std::min( a.GetRight(), b.GetRight() );
+        const int top = std::max( a.GetTop(), b.GetTop() );
+        const int bottom = std::min( a.GetBottom(), b.GetBottom() );
+
+        if( right - left <= aMargin || bottom - top <= aMargin )
+            return std::nullopt;
+
+        return BOX2I::ByCorners( VECTOR2I( left, top ), VECTOR2I( right, bottom ) );
+    };
+
+    auto wireOverlap = [&]( const PAGE_LAYOUT_SHAPE& aWire, const BOX2I& aText ) -> std::optional<BOX2I>
+    {
+        if( aText.GetWidth() <= 2 * wireInset || aText.GetHeight() <= 2 * wireInset )
+            return std::nullopt;
+
+        BOX2I inner = aText;
+        inner.Inflate( -wireInset, -wireInset );
+
+        if( !inner.Intersects( aWire.start, aWire.end ) )
+            return std::nullopt;
+
+        const BOX2I segment = BOX2I::ByCorners( aWire.start, aWire.end );
+        const int   left = std::max( segment.GetLeft(), aText.GetLeft() );
+        const int   right = std::min( segment.GetRight(), aText.GetRight() );
+        const int   top = std::max( segment.GetTop(), aText.GetTop() );
+        const int   bottom = std::min( segment.GetBottom(), aText.GetBottom() );
+
+        return BOX2I::ByCorners( VECTOR2I( left, top ),
+                                 VECTOR2I( std::max( left, right ), std::max( top, bottom ) ) );
+    };
+
+    // Sweep along x: only shapes starting before this one ends can overlap it
+    for( size_t ii = 0; ii < order.size(); ++ii )
+    {
+        const PAGE_LAYOUT_SHAPE& a = shapes[order[ii]];
+
+        for( size_t jj = ii + 1; jj < order.size(); ++jj )
+        {
+            const PAGE_LAYOUT_SHAPE& b = shapes[order[jj]];
+
+            if( b.box.GetLeft() > a.box.GetRight() )
+                break;
+
+            if( a.layer != b.layer )
+                continue;
+
+            if( a.group == b.group && ( a.ownerBody || b.ownerBody ) )
+                continue;
+
+            const bool           aWire = a.kind == OVERLAP_KIND::WIRE;
+            const bool           bWire = b.kind == OVERLAP_KIND::WIRE;
+            std::optional<BOX2I> overlap;
+
+            if( aWire && bWire )
+                continue;
+
+            if( aWire || bWire )
+            {
+                const PAGE_LAYOUT_SHAPE& wire = aWire ? a : b;
+                const PAGE_LAYOUT_SHAPE& other = aWire ? b : a;
+
+                if( other.kind == OVERLAP_KIND::TEXT )
+                    overlap = wireOverlap( wire, other.box );
+            }
+            else
+            {
+                overlap = boxOverlap( a.box, b.box );
+            }
+
+            if( overlap )
+                found.push_back( { order[ii], order[jj], *overlap } );
+        }
+    }
+
+    // Report top to bottom, left to right, so a reply reads like the page
+    std::sort( found.begin(), found.end(),
+               []( const FOUND& a, const FOUND& b )
+               {
+                   if( a.overlap.GetTop() != b.overlap.GetTop() )
+                       return a.overlap.GetTop() < b.overlap.GetTop();
+
+                   return a.overlap.GetLeft() < b.overlap.GetLeft();
+               } );
+
+    auto packShape = [&]( PageLayoutItem* aOut, const PAGE_LAYOUT_SHAPE& aShape )
+    {
+        aOut->mutable_id()->set_value( aShape.id.AsStdString() );
+        aOut->set_type( aShape.type );
+        aOut->set_name( aShape.name.ToUTF8() );
+        aOut->set_part( aShape.part.ToUTF8() );
+
+        PackBox2( *aOut->mutable_box(), aShape.box, scale );
+    };
+
+    for( const FOUND& entry : found )
+    {
+        if( aResponse.overlaps_size() >= MAX_REPORTED_OVERLAPS )
+            break;
+
+        PageLayoutOverlap* overlap = aResponse.add_overlaps();
+        packShape( overlap->mutable_first(), shapes[entry.first] );
+        packShape( overlap->mutable_second(), shapes[entry.second] );
+        PackBox2( *overlap->mutable_overlap(), entry.overlap, scale );
+
+        if( !shapes[entry.first].layerName.IsEmpty() )
+            overlap->set_layer( shapes[entry.first].layerName.ToUTF8() );
+    }
+
+    aResponse.set_overlap_count( static_cast<int>( found.size() ) );
+    aResponse.set_overlaps_checked( true );
 }
 
 

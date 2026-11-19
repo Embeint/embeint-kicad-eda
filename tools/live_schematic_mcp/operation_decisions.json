@@ -681,7 +681,9 @@
         "live_pcb_page"
       ],
       "offline_tests": [
-        "test_client.py::test_page_layout_reports_mm_and_flags_items_outside_the_frame"
+        "test_client.py::test_page_layout_reports_mm_and_flags_items_outside_the_frame",
+        "test_design_checks.py::test_page_reports_overlap_pairs_without_changing_fits",
+        "test_design_checks.py::test_page_is_overlap_free_only_when_the_editor_checked"
       ],
       "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified.",
       "surface_overrides": {
