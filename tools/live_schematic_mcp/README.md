@@ -299,8 +299,12 @@ claude mcp add kicad-live -- powershell -NoProfile -ExecutionPolicy Bypass -File
 `build_windows.ps1` also installs the MCP as `C:\kb\install\mcp\embeint-kicad-mcp.exe`: the
 server frozen with PyInstaller (`qualification\package_mcp.py`), with its own Python runtime,
 protocol code, skills and licence notices (`licenses\`). Users of the install need neither
-Python nor this repository; Python 3.11+ is needed only to build it. `-McpOnly` rebundles an
-existing install after an MCP change and `-NoMcp` skips it. Register it directly:
+Python nor this repository; 64-bit Python 3.11+ is needed only to build it (`-McpPython` picks the
+interpreter and recreates the build environment in `C:\kb\build\mcp\venv`; the script checks it
+before compiling). `-McpOnly` rebundles an existing install after an MCP change and `-NoMcp` skips
+it. The new package replaces `install\mcp` as a whole: while an MCP client runs the bundled server,
+the script refuses and leaves the installed package untouched; close that client and run it again.
+Register it directly:
 
 ```powershell
 claude mcp add kicad-live -- C:\kb\install\mcp\embeint-kicad-mcp.exe

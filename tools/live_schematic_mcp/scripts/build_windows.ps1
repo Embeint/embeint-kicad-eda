@@ -68,25 +68,120 @@ function Copy-Changed( [string] $Pattern, [string] $Destination )
     }
 }
 
+# Why a Python command cannot freeze the MCP (it must be 64-bit CPython 3.11+), or '' if it can.
+# $Command is the executable and its leading arguments, e.g. @( 'py', '-3' ).
+function Get-McpPythonProblem( [string[]] $Command )
+{
+    $probe = "import struct, sys; print(sys.version_info[0], sys.version_info[1], struct.calcsize('P') * 8)"
+    $ErrorActionPreference = 'Continue'
+    try
+    {
+        $out = "$( & $Command[0] @( @( $Command | Select-Object -Skip 1 ) + @( '-c', $probe ) ) 2>$null )".Trim()
+        $code = $LASTEXITCODE
+    }
+    catch
+    {
+        $out, $code = '', 1
+    }
+    $ErrorActionPreference = 'Stop'
+
+    if( $code -ne 0 -or $out -notmatch '^(\d+) (\d+) (\d+)$' ) { return "$( $Command -join ' ' ) does not run" }
+
+    $major, $minor, $bits = [int] $Matches[1], [int] $Matches[2], [int] $Matches[3]
+    if( $major -ne 3 -or $minor -lt 11 -or $bits -ne 64 )
+    {
+        return "$( $Command -join ' ' ) is Python $major.$minor ($bits-bit); bundling the MCP needs 64-bit Python 3.11+"
+    }
+
+    return ''
+}
+
+# The Python that creates build\mcp\venv, or $null when the existing environment can be reused (it
+# exists, -McpPython is not given and it passes Get-McpPythonProblem).  Throws when no suitable
+# Python is found, so a full build stops before compiling rather than hours later.
+function Resolve-McpBasePython
+{
+    $venvPython = Join-Path $Build 'mcp\venv\Scripts\python.exe'
+    if( -not $McpPython -and ( Test-Path $venvPython ) )
+    {
+        $problem = Get-McpPythonProblem @( $venvPython )
+        if( -not $problem ) { return $null }
+        Write-Warning "Recreating the MCP build environment: $problem"
+    }
+
+    $base = @()
+    if( $McpPython ) { $base = @( $McpPython ) }
+    elseif( Get-Command py -ErrorAction SilentlyContinue ) { $base = @( 'py', '-3' ) }
+    elseif( Get-Command python -ErrorAction SilentlyContinue ) { $base = @( 'python' ) }
+    else { throw 'Bundling the MCP needs 64-bit Python 3.11+ (python.org or -McpPython); or pass -NoMcp' }
+
+    $problem = Get-McpPythonProblem $base
+    if( $problem ) { throw "$problem (choose one with -McpPython, or pass -NoMcp)" }
+
+    return , $base
+}
+
+# Replace the folder $Destination with $New as a whole, or change nothing.  Remove-Item would delete
+# what it can and then fail on a file in use (an MCP client's running embeint-kicad-mcp.exe keeps
+# its executable and DLLs mapped), leaving a broken install.  A rename alone does not detect that
+# either: Windows renames a folder whose programs are running.  So refuse while any file in it is
+# open (opening it exclusively fails then, also for a running program's images), rename it aside,
+# move the new folder in (renaming the old one back if that fails), and only then delete the old one.
+function Update-Folder( [string] $New, [string] $Destination )
+{
+    $aside = $null
+    if( Test-Path -LiteralPath $Destination )
+    {
+        $busy = @( foreach( $file in Get-ChildItem -LiteralPath $Destination -Recurse -File -Force )
+        {
+            $access = if( $file.IsReadOnly ) { 'Read' } else { 'ReadWrite' }
+            try { [IO.File]::Open( $file.FullName, 'Open', $access, 'None' ).Dispose() }
+            catch { $file.FullName }
+        } )
+
+        if( $busy.Count -gt 0 )
+        {
+            throw "Cannot replace $( $Destination ): $( $busy.Count ) file(s) are in use, e.g. $( $busy[0] ). " +
+                  'Close the MCP client running embeint-kicad-mcp.exe from it and run again; nothing was changed.'
+        }
+
+        $aside = "$Destination.old-" + ( Get-Date -Format 'yyyyMMddHHmmss' )
+        try { Rename-Item -LiteralPath $Destination ( Split-Path -Leaf $aside ) }
+        catch { throw "Cannot replace $( $Destination ) (a file in it is in use); nothing was changed: $_" }
+    }
+
+    try { Move-Item -LiteralPath $New $Destination }
+    catch
+    {
+        if( $aside ) { Rename-Item -LiteralPath $aside ( Split-Path -Leaf $Destination ) }
+        throw
+    }
+
+    if( $aside )
+    {
+        try { Remove-Item -LiteralPath $aside -Recurse -Force }
+        catch { Write-Warning "Installed the new $Destination, but could not delete the previous one ($aside): $_" }
+    }
+}
+
 # Freeze the MCP server with its own Python runtime (qualification\package_mcp.py, PyInstaller) and
 # install it to install\mcp, so MCP clients need neither Python nor a development checkout.  The
-# package is built and checked offline in build\mcp, then replaces install\mcp.
-function Install-Mcp
+# package is built and checked offline in build\mcp, then replaces install\mcp.  $BasePython comes
+# from Resolve-McpBasePython ($null: reuse build\mcp\venv).
+function Install-Mcp( [string[]] $BasePython )
 {
     $mcp = Join-Path $Repo 'tools\live_schematic_mcp'
     $work = Join-Path $Build 'mcp'
-    $python = Join-Path $work 'venv\Scripts\python.exe'
+    $venv = Join-Path $work 'venv'
+    $python = Join-Path $venv 'Scripts\python.exe'
     New-Item -ItemType Directory -Force $work | Out-Null
 
-    if( -not ( Test-Path $python ) )
+    if( $BasePython )
     {
-        $base = @()
-        if( $McpPython ) { $base = @( $McpPython ) }
-        elseif( Get-Command py -ErrorAction SilentlyContinue ) { $base = @( 'py', '-3' ) }
-        elseif( Get-Command python -ErrorAction SilentlyContinue ) { $base = @( 'python' ) }
-        else { throw 'Bundling the MCP needs Python 3.11+ (python.org or -McpPython); or pass -NoMcp' }
-
-        Invoke-Checked $base[0] ( @( $base | Select-Object -Skip 1 ) + @( '-m', 'venv', ( Join-Path $work 'venv' ) ) )
+        if( Test-Path $venv ) { Remove-Item -LiteralPath $venv -Recurse -Force }
+        Invoke-Checked $BasePython[0] ( @( $BasePython | Select-Object -Skip 1 ) + @( '-m', 'venv', $venv ) )
+        $problem = Get-McpPythonProblem @( $python )
+        if( $problem ) { throw $problem }
     }
 
     Invoke-Checked $python @( '-m', 'pip', 'install', '-q', '--disable-pip-version-check',
@@ -94,7 +189,10 @@ function Install-Mcp
 
     $kicadCli = Join-Path $Install 'bin\kicad-cli.exe'
     if( -not ( Test-Path $kicadCli ) ) { throw "KiCad is not installed in $Install; build it first" }
-    $version = "$( & $kicadCli version | Select-Object -First 1 )".Trim()
+    $lines = @( & $kicadCli version )
+    $code = $LASTEXITCODE
+    $version = "$( $lines | Select-Object -First 1 )".Trim()
+    if( $code -ne 0 -or -not $version ) { throw "$kicadCli version failed with exit code $code" }
 
     Get-ChildItem $work -Directory -Filter 'package-*' | Remove-Item -Recurse -Force
     $package = Join-Path $work ( 'package-' + ( Get-Date -Format 'yyyyMMddHHmmss' ) )
@@ -104,18 +202,18 @@ function Install-Mcp
                               ( Join-Path $package 'embeint-kicad-mcp.exe' ) )
 
     $dest = Join-Path $Install 'mcp'
-    if( Test-Path $dest )
-    {
-        try { Remove-Item -Recurse -Force $dest }
-        catch { throw "Cannot replace $dest (is embeint-kicad-mcp.exe running? close its MCP client): $_" }
-    }
-    Move-Item $package $dest
+    Update-Folder $package $dest
     Write-Host "MCP server: $dest\embeint-kicad-mcp.exe (KiCad $version)"
 }
 
+# Check the MCP build Python before anything slow
+$McpBasePython = $null
+if( -not $NoMcp ) { $McpBasePython = Resolve-McpBasePython }
+
 if( $McpOnly )
 {
-    Install-Mcp
+    if( $NoMcp ) { throw '-McpOnly and -NoMcp cannot be combined' }
+    Install-Mcp $McpBasePython
     return
 }
 
@@ -272,7 +370,7 @@ else
     Write-Warning 'No installed upstream KiCad found: stock symbol/footprint libraries are not linked'
 }
 
-if( -not $NoMcp ) { Install-Mcp }
+if( -not $NoMcp ) { Install-Mcp $McpBasePython }
 
 # Start Menu shortcut for this user
 $shortcut = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Embeint KiCad.lnk'

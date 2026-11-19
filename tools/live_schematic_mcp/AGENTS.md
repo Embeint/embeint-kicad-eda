@@ -73,7 +73,8 @@ The MCP server is `run_mcp_windows.ps1` from the checkout, or the bundled
 change; check it with `qualification\check_package.py`).  The endpoint is a local named pipe; only
 one KiCad per Windows account can hold it.  Installing over `C:\kb\install` fails while any KiCad
 started from it is running (Windows locks the DLLs): never stop a KiCad you did not start; ask its
-user.  `-McpOnly` works while KiCad runs, but not while an MCP client runs the bundled server.
+user.  `-McpOnly` works while KiCad runs, but not while an MCP client runs the bundled server: it
+then refuses before touching `install\mcp` (the old package stays complete) and names a file in use.
 
 ## Rules that save time
 
