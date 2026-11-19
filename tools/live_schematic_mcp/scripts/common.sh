@@ -4,6 +4,7 @@
 #   KICAD_LIVE_ROOT  where the build lives (default ~/kicad-live): src/ build/ install/ deps/ venv/ config/
 #   KICAD_BUILD_JOBS parallel compile jobs (default 8).  Each KiCad compile job can take about 1 GB,
 #                    so an uncapped build can exhaust WSL memory and kill other work on the machine.
+#                    0 means no limit (ninja's -j 0); avoid it on a shared machine.
 
 ROOT="${KICAD_LIVE_ROOT:-$HOME/kicad-live}"
 SCRIPTS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -25,7 +25,7 @@ CONFIG_HOME="$ROOT/config"
 CONFIG_DIR="$CONFIG_HOME/10.99"
 
 if [[ ! -x "$INSTALL/bin/kicad" ]]; then
-    echo "Development KiCad not installed at $INSTALL (run: ninja -C $ROOT/build install)" >&2
+    echo "Development KiCad not installed at $INSTALL (run: ninja -j 8 -C $ROOT/build install)" >&2
     exit 1
 fi
 
