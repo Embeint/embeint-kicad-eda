@@ -84,7 +84,29 @@ _SLASH_DATETIME = rb"\d{4}/\d{2}/\d{2}[ .]\d{2}:\d{2}(?::\d{2})?"
 _LOCALE_DATETIME = rb"\d{1,2}/\d{1,2}/\d{4},? \d{1,2}:\d{2}(?::\d{2})?(?: ?[AaPp]\.?[Mm]\.?)?"
 _CTIME = rb"(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),? \d{1,2}? ?(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* " \
          rb"\d{1,2},? (?:\d{4} )?\d{1,2}:\d{2}:\d{2}(?: ?[AP]M)?(?: [A-Z]{2,5})?(?: \d{4})?"
-_VERSION = rb"(?<![\d.])(?:10\.99|10\.0|11\.0|9\.0)(?:\.\d+)?(?:-[0-9A-Za-z.+_-]+)?(?:,? ?release build)?"
+# An application version (10.0.6, 10.99, 10.99.0-unknown, 10.99.0-123-gabc1234), never running into
+# a following digit or ".digit".  It is only replaced after one of _VERSION_CONTEXTS: a bare number
+# such as an SVG coordinate (M10.000), a footprint name (CP_Axial_L10.0mm) or a value (10.0k) is
+# design content and must stay distinct.
+_VERSION = rb"\d+\.\d+(?:\.\d+)*(?:-[0-9A-Za-z.+_-]*[0-9A-Za-z+_])?(?:,? ?release build)?(?!\.?\d)"
+
+# Every place the exports of KiCad 10.0.6 and the fork name the generating application's version
+# (found by scanning both builds' outputs of the fixture and of the reference demo project).
+_VERSION_CONTEXTS = (
+    rb"\(\s*generator_version\s+\"",                         # s-expression files (library rewrites)
+    rb"\(\s*tool\s+\"(?:Eeschema|Pcbnew)\s+",                 # KiCad netlist (design (tool ...))
+    rb"\(\s*host_version\s+\"",                              # Specctra DSN
+    rb"\"kicad_version\"\s*:\s*\"",                          # ERC and DRC JSON reports
+    rb"KiCad E\.D\.A\.\s+",                                  # ${KICAD_VERSION} in plotted title blocks
+    rb"KiCad EDA\s+",                                        # ODB++ HDR and SAVE_APP
+    rb"(?:Created|Printed) by KiCad(?: version)?\s+",        # IDF headers, position files
+    rb"\((?:PCBNEW|EESCHEMA)\s+",                            # Gerber "G04 Created by KiCad (PCBNEW x)"
+    rb"TF\.GenerationSoftware,(?i:kicad),(?:Pcbnew|Eeschema),",  # Gerber and drill attributes
+    rb"DRILL file \{?KiCad\s+",                              # Excellon header
+    rb"^USER\s+\"KiCad\s+",                                  # GenCAD header
+    rb"<SoftwarePackage\s+name=\"KiCad\"\s+revision=\"",     # IPC-2581
+)
+_VERSION_RULE = re.compile(rb"(?P<context>" + b"|".join(_VERSION_CONTEXTS) + rb")" + _VERSION, re.M)
 
 # Rules that hold for every text export: generation time stamps and the application version string.
 _COMMON_RULES = (
@@ -201,7 +223,9 @@ def normalize_bytes(data, name, project_dirs=(), structural=False):
     suffix = Path(name).suffix.lower()
     if suffix in (".zip", ".tgz") or name.endswith(".tar.gz"):
         return _normalize_archive(data, suffix, project_dirs)
-    for index, folder in enumerate(sorted({str(d) for d in project_dirs if d}, key=len, reverse=True)):
+    # Longest first, so a folder inside another is replaced before its parent; ties by name keep the
+    # placeholder numbering independent of set order
+    for index, folder in enumerate(sorted({str(d) for d in project_dirs if d}, key=lambda d: (-len(d), d))):
         for spelling in _path_spellings(folder):
             data = data.replace(spelling.encode(), b"<DIR%d>" % index)
     data = _replace(data, _SUFFIX_RULES.get(suffix, ()))
@@ -210,7 +234,7 @@ def normalize_bytes(data, name, project_dirs=(), structural=False):
         data = _replace(data, _LINE_RULES)
     if Path(name).name == "info" or suffix == "":
         data = _ODB_INFO.sub(rb"\1=<VOLATILE>", data)
-    data = re.sub(_VERSION, b"<VERSION>", data).replace(b"\r\n", b"\n")
+    data = _VERSION_RULE.sub(rb"\g<context><VERSION>", data).replace(b"\r\n", b"\n")
     if suffix in STRUCTURAL or structural:
         return structure(data, suffix if suffix in STRUCTURAL else "")
     return data

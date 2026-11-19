@@ -65,6 +65,51 @@ def test_content_changes_are_not_normalized():
     assert normalize_bytes(a, "x.gbr") != normalize_bytes(a.replace(b"X1Y2", b"X1Y3"), "x.gbr")
 
 
+# Numbers that look like application versions but are design content: coordinates, footprint names,
+# values and negative numbers must stay distinct after normalization.
+@pytest.mark.parametrize("name,a,b", [
+    ("b.svg", b'<path d="M10.0000 5L11.0000 5"/>', b'<path d="M11.0000 5L10.0000 5"/>'),
+    ("b.svg", b'<path d="M 10.05 1"/>', b'<path d="M 11.05 1"/>'),
+    ("b.svg", b'<text x="11.000" y="35.65">', b'<text x="11.093" y="35.65">'),
+    ("bom.csv", b'"R1","10.0k"\n', b'"R1","9.0k"\n'),
+    ("bom.csv", b'"C1","Capacitor_THT:CP_Axial_L10.0mm_D4.5mm"\n', b'"C1","Capacitor_THT:CP_Axial_L11.0mm_D4.5mm"\n'),
+    ("x.net", b'(comp (value "10.0-4.5"))', b'(comp (value "10.0-4.6"))'),
+    ("x.net", b'(comp (value "10.0-4.5"))', b'(comp (value "10.0"))'),
+    ("board.emn", b"0 16.00000 10.00000 0\n", b"0 16.00000 11.00000 0\n"),
+    ("board.dxf", b" 10\n11.0365000000000\n", b" 10\n11.0928000000000\n"),
+    ("x.kicad_mod", b"(fp_line (start 9.07 -1.47) (end 9.07 1.47))", b"(fp_line (start 9.08 -1.47) (end 9.07 1.47))"),
+    # A version context is still not allowed to swallow the digits that follow it
+    ("x.net", b'(tool "Eeschema 10.0.6") (value "10.0.61")', b'(tool "Eeschema 10.0.6") (value "10.0.62")'),
+])
+def test_version_like_content_is_not_normalized(name, a, b):
+    assert normalize_bytes(a, name) != normalize_bytes(b, name)
+
+
+# Every generator banner seen in the 10.0.6 and fork exports still loses its version
+@pytest.mark.parametrize("name,line", [
+    ("x.kicad_sym", b'\t(generator_version "{v}")\n'),
+    ("x.net", b'\t\t(tool "Eeschema {v}")\n'),
+    ("b.dsn", b'    (host_version "{v}")\n'),
+    ("erc.json", b'    "kicad_version": "{v}",\n'),
+    ("b.svg", b'<desc>KiCad E.D.A. {v}</desc>\n'),
+    ("data", b"HDR KiCad EDA {v}\n"),
+    ("b.emn", b'BOARD_FILE 3.0 "Created by KiCad {v}" 2026/10/19.10:00:00 1\n'),
+    ("b.pos", b"### Printed by KiCad version {v}\n"),
+    ("b.gbr", b"G04 Created by KiCad (PCBNEW {v}) date 2026-11-19 15:41:27*\n"),
+    ("b.gbr", b"%TF.GenerationSoftware,KiCad,Pcbnew,{v}*%\n"),
+    ("b.drl", b"; #@! TF.GenerationSoftware,Kicad,Pcbnew,{v}\n"),
+    ("b.drl", b"; DRILL file KiCad {v} date 2026-11-19 15:41:27\n"),
+    ("b.cad", b'USER "KiCad {v}"\r\n'),
+    ("b.xml", b'<SoftwarePackage name="KiCad" revision="{v}" vendor="KiCad EDA">\n'),
+])
+def test_generator_versions_are_normalized(name, line):
+    fork, reference = (normalize_bytes(line.replace(b"{v}", v), name) for v in (b"10.99.0-unknown", b"10.0.6"))
+    assert fork == reference
+    assert normalize_bytes(line.replace(b"{v}", b"10.99.0-123-gabc1234"), name) == fork
+    if not name.endswith(".xml"):  # IPC-2581 is compared by element histogram only
+        assert b"<VERSION>" in fork or b"<VOLATILE>" in fork, fork
+
+
 def test_windows_paths_with_escaped_separators():
     data = b'(source "C:\\\\work\\\\p1\\\\x.kicad_sch") C:\\work\\p1\\y C:/work/p1/z'
     assert normalize_bytes(data, "x.net", ("C:\\work\\p1",)).count(b"<DIR0>") == 3
