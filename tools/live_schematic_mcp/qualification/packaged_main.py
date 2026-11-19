@@ -76,17 +76,36 @@ def configure_desktop(config_home):
             pass
 
 
+def version_report():
+    """This server's version, its packaged application version and schema fingerprint (offline)."""
+    import asyncio
+    from support import build_info
+    from server import live_mcp_capabilities
+    capabilities = asyncio.run(live_mcp_capabilities())
+    report = {key: capabilities[key] for key in ("server", "server_version", "distribution",
+                                                 "application_version", "source_revision",
+                                                 "schema_sha256", "tool_count", "command_count")}
+    info = build_info()
+    if info:
+        # A fingerprint different from the build's means the package was altered after building
+        report["build_schema_sha256_matches"] = info.get("schema_sha256") == report["schema_sha256"]
+    return report
+
+
 def main():
     if sys.argv[1:2] == ["--diagnose"]:
         from diagnose import main as diagnose
         del sys.argv[1]
         diagnose()
         return
+    if sys.argv[1:] == ["--version"]:
+        print(json.dumps(version_report(), indent=2, sort_keys=True))
+        return
     if sys.argv[1:] == ["--configure-desktop"]:
         configure_desktop(os.environ["KICAD_CONFIG_HOME"])
         return
     if len(sys.argv) != 1:
-        raise SystemExit("Usage: embeint-kicad-mcp [--configure-desktop | --diagnose [options]]")
+        raise SystemExit("Usage: embeint-kicad-mcp [--version | --configure-desktop | --diagnose [options]]")
     from server import mcp
     run_stdio(lambda: mcp.run(transport="stdio"))
 
