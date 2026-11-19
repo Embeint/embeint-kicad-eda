@@ -96,6 +96,7 @@ void SCH_TEXTBOX::Serialize( kiapi::schematic::types::SchematicTextBox& aOutput,
     PackVector2( *text.mutable_bottom_right(), GetEnd(), aScale );
     text.set_text( GetText().ToUTF8() );
     text.set_border_enabled( GetStroke().GetWidth() >= 0 );
+    aOutput.set_hyperlink( GetHyperlink().ToUTF8() );
 
     types::TextAttributes* attrs = text.mutable_attributes();
 
@@ -155,6 +156,7 @@ bool SCH_TEXTBOX::Deserialize( const kiapi::schematic::types::SchematicTextBox& 
     SetPosition( UnpackVector2( aInput.textbox().top_left(), aScale ) );
     SetEnd( UnpackVector2( aInput.textbox().bottom_right(), aScale ) );
     SetText( wxString::FromUTF8( aInput.textbox().text() ) );
+    SetHyperlink( wxString::FromUTF8( aInput.hyperlink() ) );
     UnpackCustomProperties( aInput.custom_properties(), *this );
 
     if( aInput.has_margin_left() )
@@ -177,7 +179,7 @@ bool SCH_TEXTBOX::Deserialize( const kiapi::schematic::types::SchematicTextBox& 
         attrs.m_Italic = aInput.textbox().attributes().italic();
         attrs.m_Underlined = aInput.textbox().attributes().underlined();
         attrs.m_Mirrored = aInput.textbox().attributes().mirrored();
-        attrs.m_Multiline = aInput.textbox().attributes().multiline();
+        // m_Multiline is not saved: text boxes and table cells keep their type's setting
         attrs.m_KeepUpright = aInput.textbox().attributes().keep_upright();
         attrs.m_Size = UnpackVector2( aInput.textbox().attributes().size(), aScale );
 

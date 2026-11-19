@@ -77,6 +77,9 @@ message NoConnectMarker
 {
   kiapi.common.types.KIID id = 1;
   kiapi.common.types.Vector2 position = 2;
+
+  // Read-only: the marker size is not saved in the schematic file, so every marker has the default
+  // size.  A size sent in a request is ignored.
   kiapi.common.types.Distance size = 3;
   kiapi.common.types.LockedState locked = 4;
 
@@ -125,6 +128,9 @@ message SchematicTextBox
   kiapi.common.types.Distance margin_bottom = 9;
 
   repeated kiapi.common.types.CustomProperty custom_properties = 10;
+
+  // The text box's hyperlink (empty for none)
+  string hyperlink = 11;
 }
 
 message SchematicGraphicShape
@@ -148,7 +154,10 @@ message SchematicImage
   repeated kiapi.common.types.CustomProperty custom_properties = 7;
 
   kiapi.common.types.Angle orientation = 8;
-  double opacity = 9;
+
+  // From 0 (transparent) to 1 (opaque).  If absent, a new image is opaque and an update keeps the
+  // image's opacity.
+  optional double opacity = 9;
 }
 
 enum SchematicLabelShape
@@ -226,6 +235,9 @@ message DirectiveLabel
   repeated SchematicField fields = 6;
   kiapi.common.types.LockedState locked = 7;
   kiapi.common.types.Distance pin_length = 8;
+
+  // Read-only: the flag symbol size is not saved in the schematic file, so every directive label
+  // has the default size.  A size sent in a request is ignored.
   kiapi.common.types.Distance symbol_size = 9;
   bool fields_autoplaced = 10;
 

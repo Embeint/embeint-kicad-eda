@@ -95,8 +95,13 @@ bool SCH_SHEET_PIN::Deserialize( const kiapi::schematic::types::SheetPin& pin )
 
     const_cast<KIID&>( m_Uuid ) = KIID( pin.id().value() );
 
+    // Multiline is not saved: sheet pins keep their type's setting
+    bool multiline = IsMultilineAllowed();
+
     if( !EDA_TEXT::Deserialize( pin.text(), schIUScale ) )
         return false;
+
+    SetMultilineAllowed( multiline );
 
     SetPosition( kiapi::common::UnpackVector2( pin.position(), schIUScale ) );
     SetSide( FromProtoEnum<SHEET_SIDE, SheetSide>( pin.side() ) );

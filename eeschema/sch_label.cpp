@@ -1676,8 +1676,13 @@ bool unpackLabel( const LabelProto& aInput, SCH_LABEL_BASE& aLabel )
     const_cast<KIID&>( aLabel.m_Uuid ) = KIID( aInput.id().value() );
     aLabel.SetLocked( aInput.locked() == kiapi::common::types::LockedState::LS_LOCKED );
 
+    // Multiline is not saved: labels keep their type's setting
+    bool multiline = aLabel.IsMultilineAllowed();
+
     if( !aLabel.EDA_TEXT::Deserialize( aInput.text(), schIUScale ) )
         return false;
+
+    aLabel.SetMultilineAllowed( multiline );
 
     aLabel.SetSpinStyle( FromProtoEnum<SPIN_STYLE::SPIN, types::SchematicLabelSpinStyle>( aInput.spin_style() ) );
     aLabel.SetPosition( kiapi::common::UnpackVector2( aInput.position(), schIUScale ) );
@@ -1864,8 +1869,8 @@ bool SCH_DIRECTIVE_LABEL::Deserialize( const google::protobuf::Any& aContainer )
     if( label.has_pin_length() )
         m_pinLength = kiapi::common::UnpackDistance( label.pin_length(), schIUScale );
 
-    if( label.has_symbol_size() )
-        m_symbolSize = kiapi::common::UnpackDistance( label.symbol_size(), schIUScale );
+    // The symbol size is not part of the schematic file: every directive label loads with the
+    // default size, so a requested size would not survive saving.  It is reported, never applied.
 
     return true;
 }
