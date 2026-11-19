@@ -98,6 +98,27 @@ stdio handles so its wrapper cleanup cannot close the bootloader's original
 output stream. It makes
 no editor requests and does not qualify native editing.
 
+The frozen MCP also includes every advertised skill Markdown file beside its
+bundled `skills.py`. `build-info.json` records `skills.skill_versions`,
+`skills.skill_file_sha256` (relative POSIX paths), and `skills.skill_content_sha256`.
+The aggregate is SHA-256 of UTF-8 canonical JSON of the path-to-file-hash map
+(`sort_keys=True`, separators `,` and `:`); version labels are in the hashed
+frontmatter. `schema_sha256` continues to cover only tool/protobuf schemas.
+The packager rejects missing/unsafe skill data and checks delivered bytes before
+publishing its output. Local non-Markdown configuration is not bundled.
+
+`check_package.py` reads every skill through both real stdio tools and resources,
+checks discovery, initialization guidance, versions, hashes, missing-file and
+traversal errors. It launches the frozen process from an empty working directory
+with no Python on PATH and deliberately absent PYTHONHOME/PYTHONPATH locations.
+For source-versus-frozen evidence, capture `skills.skill_manifest()` as JSON from
+the source environment before freezing and pass its path as
+`--expected-skill-manifest /path/to/source-skills.json`. The check can be copied
+outside the checkout; neither the frozen executable nor its data depends on that
+checkout or a system Python. The checker itself uses an MCP client environment.
+This validates content delivery, not independent fresh-session design behavior,
+native editing, or electrical acceptance; those require separate evaluation.
+
 `embeint-kicad-mcp --diagnose` inventories the bundled runtime and local endpoints
 without dialing them. Add `--probe` only when opt-in version/document reads are
 appropriate; the existing Linux/WSL limitations and token redaction still apply.

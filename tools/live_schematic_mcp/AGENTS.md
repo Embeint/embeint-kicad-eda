@@ -90,6 +90,17 @@ repository; building from `/mnt/c` is far slower.  Register the MCP server with
 
 ## The user's library conventions
 
+The maintained design guidance is the bundled
+[kicad-house-style skill](skills/kicad-house-style/SKILL.md). Load its entrypoint
+and relevant reference for design tasks; the summary below is for orientation.
+`live_skill_reference` and `kicad-skill://` resources serve it offline. Keep local
+workstation configuration and private reference designs outside the published skill.
+Skill folders contain a flat `SKILL.md` plus linked Markdown references, with
+name/description frontmatter and a quoted `metadata.version` (major.minor.patch).
+Bump that content version for maintained guidance changes. Per-file and aggregate
+content hashes identify exact bytes independently of tool/protobuf schema hashes.
+The packager includes only advertised Markdown files and validates their delivery.
+
 - Symbols: hidden `Manufacturer` and `MPN` fields; designator above value at the body's bottom
   right, left-aligned; datasheet-style pin groups (supplies first, 7.62 mm before signals: VIN
   over EN, VOUT over ADJ); NC pins hidden no-connects; stock body styling (device layer, 0.254 mm

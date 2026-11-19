@@ -20,6 +20,17 @@ not assert that every operation is supported by the running editor or document.
 The unit suite also exercises the real MCP stdio initialize/discover/call/resource
 protocol, and the `MCP contracts` GitHub workflow runs these checks on pull requests.
 
+Design work uses the bundled [Embeint house style](skills/kicad-house-style/SKILL.md).
+MCP initialization instructions direct agents to `live_skill_reference` with
+`skill="kicad-house-style"`; the entrypoint links the reference for each task.
+With no arguments the tool lists skills, versions and files. Offline resources
+provide the same data: `kicad-skill://index`, `kicad-skill://{skill}/{file}` and
+`kicad-skill://manifest`. The manifest records raw UTF-8 file SHA-256 hashes and
+an aggregate content hash separately from the capability schema fingerprint.
+Workstation paths and optional selector configuration stay outside the portable
+guidance. Start a new server process/session to receive updated initialization
+instructions and bundled content; discovery does not establish live design acceptance.
+
 The editor transport and instance diagnostics currently target local Unix filesystem
 IPC. On Windows, launch the server through `wsl.exe` in the same distro as the
 development KiCad. Native Windows Python can serve the offline MCP capability and
@@ -44,6 +55,7 @@ This is scoped route validation, not a claim that the whole board is DRC-clean.
 
 | Tool | Purpose |
 | --- | --- |
+| `live_skill_reference` | Offline bundled Embeint design guidance; no arguments lists skills, `skill=` reads SKILL.md, `file=` selects a linked reference |
 | `live_schematic_documents` | Open schematic + KiCad version; returns the document spec other tools take |
 | `live_schematic_open` | Open the project's schematic when KiCad runs as the project manager |
 | `live_schematic_hierarchy` | Live sheet tree, including unsaved sheets, with UUID sheet paths |

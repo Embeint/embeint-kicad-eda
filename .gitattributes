@@ -19,6 +19,8 @@
 *.cmake     kicad-cmake-source
 *.txt       kicad-cmake-source
 *.md        text=auto
+# Skill fingerprints identify portable content bytes across Windows and Unix checkouts.
+tools/live_schematic_mcp/skills/**/*.md text eol=lf
 
 # Keep LF so shell scripts and git hooks run under any bash, not only Git for Windows
 *.sh        text eol=lf
