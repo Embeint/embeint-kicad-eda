@@ -26,6 +26,11 @@ PIPE_NAME_LIMIT = 256
 ENDPOINT_NAME = re.compile(r"api(?:-[0-9]+)?\.sock", re.IGNORECASE)
 
 
+NO_EDITOR_ACTION = ("No KiCad editor is listening. Start Embeint KiCad with the API server enabled "
+                    "(Preferences > Plugins > Enable KiCad API) and open a project, as the same "
+                    "user and with the same temporary directory as the MCP, or set KICAD_API_SOCKET.")
+
+
 class DiscoveryError(RuntimeError):
     def __init__(self, code, message):
         super().__init__(message)
@@ -250,14 +255,21 @@ def socket_reachability(url):
         return "unknown"
 
 
-def select_instance(socket_url=None, *, directory=None, check_liveness=False):
+def select_instance(socket_url=None, *, directory=None, check_liveness=False, require_listener=False):
     """Return (url, selection) for the instance to use, or raise DiscoveryError.
 
     selection is "explicit", "single_candidate" or "default_missing"; the last means no
     instance was found and url is only the default endpoint a KiCad would take, so a
-    caller should look again later instead of keeping it.
+    caller should look again later instead of keeping it.  With require_listener, a
+    missing default raises DiscoveryError("no_editor") instead: no editor runs.
     """
     inventory = discover_instances(socket_url, directory=directory)
+    if require_listener and inventory["selection"] == "default_missing":
+        # No endpoint exists at all, so nothing can answer; fail now instead of timing out
+        diagnose = ("embeint-kicad-mcp --diagnose" if getattr(sys, "frozen", False)
+                    else "diagnose.py")
+        raise DiscoveryError("no_editor", NO_EDITOR_ACTION + f" Nothing was sent. Run {diagnose} "
+                             "for details.")
     # Online selection happens only immediately before an editor request. Offline
     # inventory and explicit selection never connect or clean up socket files.
     if check_liveness and inventory["selection"] not in {"explicit", "unavailable"}:
@@ -275,8 +287,9 @@ def select_instance(socket_url=None, *, directory=None, check_liveness=False):
     return inventory["selected_socket"], inventory["selection"]
 
 
-def select_socket(socket_url=None, *, directory=None, check_liveness=False):
-    return select_instance(socket_url, directory=directory, check_liveness=check_liveness)[0]
+def select_socket(socket_url=None, *, directory=None, check_liveness=False, require_listener=False):
+    return select_instance(socket_url, directory=directory, check_liveness=check_liveness,
+                           require_listener=require_listener)[0]
 
 
 def main():

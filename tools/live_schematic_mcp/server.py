@@ -13,7 +13,7 @@ from client import footprint_document as footprint_document_spec
 from client import symbol_document as symbol_document_spec
 from skills import (DEFAULT_SKILL, INDEX_URI, MANIFEST_URI, read_skill, skill_index,
                     skill_manifest)
-from support import CAPABILITIES_URI, local_capabilities
+from support import CAPABILITIES_URI, local_capabilities, version_identity
 
 INSTRUCTIONS = (
     "These tools drive Embeint KiCad over IPC. For schematic capture/review, part selection, "
@@ -27,6 +27,8 @@ INSTRUCTIONS = (
 )
 
 mcp = FastMCP("KiCad Live", instructions=INSTRUCTIONS)
+# Report this adapter's version in the initialize reply (FastMCP would report the SDK's)
+mcp._mcp_server.version = version_identity()["server_version"]
 client = LiveSchematic()
 
 

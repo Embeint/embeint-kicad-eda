@@ -157,7 +157,7 @@ def test_windows_client_selects_lazily_and_dead_pinned_pipe_fails_before_send(fa
 
 
 def test_windows_client_keeps_looking_until_kicad_starts(fake_windows, monkeypatch):
-    """The missing default endpoint is tried but not pinned, so a KiCad started later is found."""
+    """With no endpoint the client fails at once and pins nothing, so a KiCad started later is found."""
     dialed = []
 
     class Connection:
@@ -181,9 +181,9 @@ def test_windows_client_keeps_looking_until_kicad_starts(fake_windows, monkeypat
 
     live = client.LiveSchematic()
     monkeypatch.setattr(client.pynng, "Req0", Connection)
-    with pytest.raises(client.pynng.Timeout):
+    with pytest.raises(client.DiscoveryError) as error:
         live.send(client.base.GetVersion(), client.base.GetVersionResponse)
-    assert dialed == ["ipc://" + OURS + r"\api.sock"] and not live._socket_selected
+    assert error.value.code == "no_editor" and dialed == [] and not live._socket_selected
 
     # KiCad starts, with the long spelling of the temp directory: found and then pinned
     long_name = r"C:\Users\LongName\AppData\Local\Temp\kicad\api.sock"
@@ -329,3 +329,14 @@ def test_stdio_mcp_reaches_a_named_pipe_instance(pipe_dir):
                     payload = result.structuredContent or json.loads(result.content[0].text)
                     assert "gamma" in json.dumps(payload)
         asyncio.run(asyncio.wait_for(exercise(), timeout=60))
+
+
+def test_no_editor_fails_fast_with_actionable_error_and_retries_discovery(fake_windows):
+    live = client.LiveSchematic()
+    with pytest.raises(discovery.DiscoveryError) as error:
+        live.send(client.base.GetVersion(), client.base.GetVersionResponse)  # Req0 would fail the test
+    assert error.value.code == "no_editor"
+    assert "No KiCad editor is listening" in str(error.value) and "Nothing was sent" in str(error.value)
+    assert not live._socket_selected  # the next request looks again: KiCad may start later
+    fake_windows.append(OURS + r"\api.sock")
+    assert discovery.select_socket(check_liveness=True, require_listener=True) == "ipc://" + OURS + r"\api.sock"

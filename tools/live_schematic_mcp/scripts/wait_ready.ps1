@@ -34,7 +34,7 @@ try
         $out = $lines | Select-Object -Last 1
 
         # Not started yet, still loading (AS_NOT_READY) or no endpoint: wait.  Anything else is real.
-        if( $out -notmatch 'NOT_READY|Timed out|Timeout|Connection|refused|default_missing|unavailable|No such' )
+        if( $out -notmatch 'NOT_READY|Timed out|Timeout|Connection|refused|No KiCad editor|unavailable|No such' )
         {
             break
         }
