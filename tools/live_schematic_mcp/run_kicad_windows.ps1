@@ -114,6 +114,23 @@ function Set-JsonValue( $Object, [string] $Section, [string] $Name, $Value )
 Set-JsonValue $common 'api' 'enable_server' $true
 Set-JsonValue $common 'do_not_show_again' 'data_collection_prompt' $true
 Set-JsonValue $common 'do_not_show_again' 'update_check_prompt' $true
+
+# The project manager offers, in a modal dialog, to (re)register the bundled Explorer 3D model
+# preview handler whenever its version differs from the registered one, i.e. after most rebuilds.
+# That dialog blocks the API (AS_BUSY), and this KiCad must not change the user's shell
+# registration, so decline the offer for the installed handler.  KiCad keys the decline by
+# windows-preview-handler-v1-<file version of the handler DLL>.
+$previewer = Join-Path $bin 'kicad_3d_model_previewer.dll'
+$requirement = 'windows-preview-handler-v1'
+if( Test-Path $previewer )
+{
+    $version = ( Get-Item $previewer ).VersionInfo
+    $requirement += "-$( $version.FileMajorPart ).$( $version.FileMinorPart ).$( $version.FileBuildPart )." +
+                    "$( $version.FilePrivatePart )"
+}
+$declined = @( @( $common.system.declined_model_preview_requirements ) + $requirement |
+               Where-Object { $_ } | Select-Object -Unique )
+Set-JsonValue $common 'system' 'declined_model_preview_requirements' $declined
 [IO.File]::WriteAllText( $commonPath, ( $common | ConvertTo-Json -Depth 32 ), $utf8 )
 
 # Global library tables referencing the stock libraries (versioned variables).  All three must exist
