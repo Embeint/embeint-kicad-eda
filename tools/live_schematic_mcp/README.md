@@ -46,6 +46,16 @@ Omitted command document targets inherit the batch document; explicit targets mu
 match it exactly. Selection and zoom changes are not rolled back. Inspect a command
 with `live_schematic_describe_command` to see its `batchable` status.
 
+Concurrent writers and lost replies follow the [revision contract](REVISIONS.md).
+Every editor reply carries the document revision, and `live_document_revision` reads it.
+The generic edit tools accept an optional `expected_revision`, and KiCad refuses
+(`AS_REVISION_MISMATCH`) an edit made against a stale revision before changing
+anything. A batch is also rolled back if another writer changes the document while
+it runs. Every mutation carries an operation id. After a timeout the client asks
+`live_operation_status` instead of resending; mutations are never retried. A
+client killed mid-batch has its open commit rolled back when the commit's lease
+expires (60 s by default).
+
 Routing verification checks all clearance, keepout and manufacturing findings for
 the new route UUIDs, without truncating the internal DRC report. A rejected route
 is removed by its UUIDs in a separate undoable cleanup, preserving unrelated user
@@ -74,6 +84,8 @@ This is scoped route validation, not a claim that the whole board is DRC-clean.
 | `live_schematic_autoplace_fields` | Re-run field autoplacement on symbols, sheets and labels |
 | `live_schematic_move` | Move / rotate / mirror items; attached wires follow and stay square |
 | `live_schematic_undo` | Undo or redo the editor's last change |
+| `live_document_revision` | Live revision, open API commits and unsaved state of any open document ([contract](REVISIONS.md)) |
+| `live_operation_status` | What happened to an edit whose reply was lost (committed, rolled back, rejected, unknown); never resends |
 | `live_editor_grid` | Read or set any editor's grid (size, presets, visibility, style, snapping) |
 | `live_schematic_symbol_pins` | Placed pins with absolute positions, drawn direction and current net |
 | `live_schematic_connect_pins` | Orthogonal wire between two pins (`R1`,`2` to `U1`,`VCC`) |
@@ -347,6 +359,7 @@ are translated. SolidCraft exports default to `%USERPROFILE%\kicad-models`
 ~/kicad-live/venv/bin/python e2e_pcb.py out/               # board page, grid, origins, outline, footprints, routing, zones, DRC, exports
 ~/kicad-live/venv/bin/python e2e_design.py out/            # stackup, impedance, rules, custom rules, net classes, keepouts, routing around copper, checks
 ~/kicad-live/venv/bin/python e2e_design_checks.py out/     # hierarchical netlist, page text overlaps, kicad-cli in KiCad's environment
+~/kicad-live/venv/bin/python e2e_revisions.py out/         # revisions, stale-edit refusal, concurrent clients, lost replies, killed client
 SOLIDCRAFT_CLI=/path/to/solidcraft-cli ~/kicad-live/venv/bin/python e2e_model_handoff.py out/     # SolidCraft builds the STEP; KiCad embeds and renders it
 ~/kicad-live/venv/bin/python e2e_item_roundtrip.py out/    # unchanged item updates and re-creations leave the saved file unchanged
 ```
