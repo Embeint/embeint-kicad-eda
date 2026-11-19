@@ -203,7 +203,9 @@ SCH_FIELD::SCH_FIELD( const SCH_FIELD& aField ) :
 
 void SCH_FIELD::Serialize( kiapi::schematic::types::SchematicField& field, const EDA_IU_SCALE& aScale ) const
 {
-    field.set_name( GetName( false ).ToUTF8() );
+    // The name as saved: GetName() gives label fields their translated UI name (such as "Net Class"
+    // for "Netclass"), which depends on the language and is not what the file stores
+    field.set_name( GetUntranslatedName().ToUTF8() );
     field.set_visible( IsVisible() );
     field.set_show_name( IsNameShown() );
     field.set_allow_auto_place( CanAutoplace() );
@@ -237,7 +239,11 @@ bool SCH_FIELD::Deserialize( const kiapi::schematic::types::SchematicField& fiel
     SetCanAutoplace( field.allow_auto_place() );
     SetPrivate( field.is_private() );
 
+    // Multiline is not saved: fields keep their type's setting
+    bool multiline = IsMultilineAllowed();
     bool result = EDA_TEXT::Deserialize( field.text(), aScale );
+
+    SetMultilineAllowed( multiline );
 
     if( m_parent && m_parent->Type() == SCH_SYMBOL_T )
         SetPosition( kiapi::common::UnpackVector2( field.text().position(), aScale ) );

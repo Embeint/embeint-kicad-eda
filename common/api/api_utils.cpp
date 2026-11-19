@@ -317,9 +317,17 @@ KICOMMON_API void PackColor( types::Color& aOutput, const KIGFX::COLOR4D& aInput
 
 KICOMMON_API KIGFX::COLOR4D UnpackColor( const types::Color& aInput )
 {
-    double r = std::clamp( aInput.r(), 0.0, 1.0 );
-    double g = std::clamp( aInput.g(), 0.0, 1.0 );
-    double b = std::clamp( aInput.b(), 0.0, 1.0 );
+    // Documents store each colour channel in 8 bits, so a finer value would change on reopening:
+    // apply the colour as it will be saved
+    auto channel =
+            []( double aValue )
+            {
+                return KiROUND( std::clamp( aValue, 0.0, 1.0 ) * 255.0 ) / 255.0;
+            };
+
+    double r = channel( aInput.r() );
+    double g = channel( aInput.g() );
+    double b = channel( aInput.b() );
     double a = std::clamp( aInput.a(), 0.0, 1.0 );
 
     return KIGFX::COLOR4D( r, g, b, a );

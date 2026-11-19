@@ -109,8 +109,13 @@ bool SCH_TEXT::Deserialize( const google::protobuf::Any& aContainer )
     SetExcludedFromSim( text.exclude_from_sim() );
     UnpackCustomProperties( text.custom_properties(), *this );
 
+    // Multiline is not saved: every schematic text item has its type's setting
+    bool multiline = IsMultilineAllowed();
+
     if( !EDA_TEXT::Deserialize( text.text(), schIUScale ) )
         return false;
+
+    SetMultilineAllowed( multiline );
 
     SetPosition( UnpackVector2( text.text().position(), schIUScale ) );
     return true;

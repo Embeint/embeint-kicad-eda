@@ -1466,7 +1466,13 @@ void SCH_IO_KICAD_SEXPR::saveBusEntry( SCH_BUS_ENTRY_BASE* aBusEntry )
     {
         SCH_LINE busEntryLine( aBusEntry->GetPosition(), LAYER_BUS );
 
+        // Keep the entry's identity and appearance, so that saving twice writes the same file
+        // and the bus segment it becomes on reload is still the same item
+        const_cast<KIID&>( busEntryLine.m_Uuid ) = aBusEntry->m_Uuid;
         busEntryLine.SetEndPoint( aBusEntry->GetEnd() );
+        busEntryLine.SetStroke( aBusEntry->GetStroke() );
+        busEntryLine.SetLocked( aBusEntry->IsLocked() );
+        busEntryLine.SetCustomProperties( aBusEntry->GetCustomProperties() );
         saveLine( &busEntryLine );
         return;
     }

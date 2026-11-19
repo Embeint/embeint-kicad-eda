@@ -168,7 +168,10 @@ bool SCH_BITMAP::Deserialize( const google::protobuf::Any& aContainer )
     kiapi::common::UnpackCustomProperties( image.custom_properties(), *this );
 
     m_referenceImage.SetOrientation( EDA_ANGLE( image.orientation().value_degrees(), DEGREES_T ) );
-    m_referenceImage.SetOpacity( image.opacity() );
+
+    // An absent opacity is not a request for a transparent image
+    if( image.has_opacity() )
+        m_referenceImage.SetOpacity( image.opacity() );
 
     return true;
 }

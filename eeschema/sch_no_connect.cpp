@@ -84,7 +84,10 @@ bool SCH_NO_CONNECT::Deserialize( const google::protobuf::Any& aContainer )
 
     const_cast<KIID&>( m_Uuid ) = KIID( marker.id().value() );
     m_pos = UnpackVector2( marker.position(), schIUScale );
-    m_size = UnpackDistance( marker.size(), schIUScale );
+
+    // The size is not part of the schematic file: every marker loads with the default size, so a
+    // requested size would not survive saving.  It is reported, never applied.
+
     SetLocked( marker.locked() == types::LockedState::LS_LOCKED );
     kiapi::common::UnpackCustomProperties( marker.custom_properties(), *this );
     return true;
