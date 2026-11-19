@@ -109,6 +109,80 @@ def test_success_commits_without_save():
     assert client.requests[-1].action == editor.CMA_COMMIT
 
 
+def returned_symbol():
+    """A placed resistor as GetItems returns it, with its embedded library definition and pins."""
+    def field(target, name, text, angle=0.0, visible=True):
+        target.name, target.visible, target.allow_auto_place = name, visible, True
+        target.text.text = text
+        target.text.attributes.angle.value_degrees = angle
+        target.text.attributes.stroke_width.SetInParent()
+        target.text.attributes.size.x_nm = target.text.attributes.size.y_nm = 1270000
+        target.text.position.SetInParent()
+
+    symbol = sch.SchematicSymbolInstance(id=types.KIID(value=str(uuid.uuid4())), position=point(86.36, 76.2),
+                                         path=doc().sheet_path)
+    symbol.transform.orientation = sch.SSO_90
+    symbol.unit.unit = 1
+    definition = symbol.definition
+    definition.id.library_nickname, definition.id.entry_name = "Device", "R"
+    definition.unit_count = 1
+    definition.body_style.add(name="?")
+    definition.keywords = "R res resistor"
+    definition.footprint_filters.append("R_*")
+    definition.pin_maps.SetInParent()
+    for target, name, text in ((definition.reference_field, "Reference", "R"),
+                               (definition.value_field, "Value", "R"),
+                               (definition.footprint_field, "Footprint", ""),
+                               (definition.datasheet_field, "Datasheet", "~"),
+                               (definition.description_field, "Description", "Resistor")):
+        field(target, name, text, 90.0, name in ("Reference", "Value"))
+    body = definition.items.add()
+    body.unit.unit, body.body_style.style = 1, 1
+    body.item.Pack(sch.SchematicGraphicShape(id=types.KIID(value=str(uuid.uuid4()))))
+    for number, y in (("1", 3.81), ("2", -3.81)):
+        child = definition.items.add()
+        child.unit.unit, child.body_style.style = 1, 1
+        child.item.Pack(sch.SchematicPin(id=types.KIID(value=str(uuid.uuid4())), name="~", number=number,
+                                         position=point(0, y), length=types.Distance(value_nm=1270000)))
+    field(symbol.reference_field, "Reference", "R1", 90.0)
+    field(symbol.value_field, "Value", "R", 90.0)
+    field(symbol.footprint_field, "Footprint", "", visible=False)
+    return symbol
+
+
+def test_full_symbol_update_returns_the_definition_unchanged():
+    """KiCad keeps the embedded library symbol only when the definition comes back as it was read.
+
+    Editing instance fields through the MCP's JSON form must therefore leave the definition
+    identical, or the editor rebuilds it and it can stop matching its library.
+    """
+    import json
+    from google.protobuf.any_pb2 import Any
+    original = returned_symbol()
+    packed = Any()
+    packed.Pack(original)
+    edited = json.loads(json.dumps(as_dict(packed)))   # what an MCP client holds and sends back
+    edited["value_field"]["text"]["text"] = "4k7"
+    edited["footprint_field"]["text"]["text"] = "Resistor_SMD:R_0603_1608Metric"
+    edited.setdefault("user_fields", []).append(
+        dict(edited["value_field"], name="MPN", visible=False, text=dict(edited["value_field"]["text"], text="X1")))
+
+    def reply(request, response_type):
+        response = editor.UpdateItemsResponse(status=types.IRS_OK)
+        for item in request.items:
+            response.updated_items.add(status=editor.ItemStatus(code=editor.ISC_OK), item=item)
+        return response
+    client = FakeClient(reply)
+    client.mutate(doc(), parse_items([edited]), update=True)
+    sent = sch.SchematicSymbolInstance()
+    assert next(r for r in client.requests if isinstance(r, editor.UpdateItems)).items[0].Unpack(sent)
+    assert sent.definition == original.definition
+    assert sent.definition.SerializeToString(deterministic=True) == \
+        original.definition.SerializeToString(deterministic=True)
+    assert sent.value_field.text.text == "4k7" and [f.name for f in sent.user_fields] == ["MPN"]
+    assert sent.footprint_field.text.text == "Resistor_SMD:R_0603_1608Metric"
+
+
 def test_connection_failure_rolls_back_without_replaying_edit():
     def reply(request, response_type):
         raise TimeoutError("reply lost")
