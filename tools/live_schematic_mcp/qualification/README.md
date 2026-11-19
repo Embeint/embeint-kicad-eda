@@ -90,8 +90,11 @@ runtime, protocol modules, dependencies, license notices and `build-info.json`.
 `--application-version` records the KiCad version the package ships with; with the
 adapter version and source revision (`mcp_version`) it is reported by
 `embeint-kicad-mcp --version`, `live_mcp_capabilities` and the MCP `serverInfo`.
-Notices for native code linked into extension modules without its own licence file
-(nng and Mbed TLS in `pynng`) come from `notices/`. On Windows,
+Licence files are copied only for the distributions that ship in the package. Notices
+for native code without its own licence file in that metadata (nng and Mbed TLS in
+`pynng`, the runtime's OpenSSL) come from `notices/`, whose `manifest.json` pins the
+versions they cover; `notices/README.md` lists what is not covered (crates statically
+linked into Rust extension modules). On Windows,
 `scripts/build_windows.ps1` runs both steps and installs the result as
 `install\mcp\embeint-kicad-mcp.exe` (`-McpOnly` rebundles an existing install).
 For an unpacked source archive, pass `--source-revision FULL_COMMIT_HASH`. The

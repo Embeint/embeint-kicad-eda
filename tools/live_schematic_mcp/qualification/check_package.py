@@ -16,14 +16,36 @@ from mcp.client.stdio import stdio_client
 from pydantic import AnyUrl
 
 
+NOTICES = Path(__file__).resolve().with_name("notices")
+
+
+def check_notices(package, build_info):
+    """The licence notices are present, and the notices kept in notices/ were written for the
+    versions this package bundles (pynng's nng and Mbed TLS, the interpreter's OpenSSL)."""
+    manifest = json.loads((NOTICES / "manifest.json").read_text(encoding="utf-8"))
+    licenses = package / "licenses"
+    entries = [*manifest["distributions"].values(), *manifest["runtime"].values()]
+    required = ["KiCad-GPL.txt", "Python-LICENSE.txt",
+                *(f"third-party/{name}" for entry in entries for name in entry["notices"])]
+    for name in required:
+        assert (licenses / name).is_file(), f"missing licence notice {name}"
+    dependencies = build_info.get("dependencies", {})
+    for name, entry in manifest["distributions"].items():
+        assert dependencies.get(name) == entry["version"], (
+            f"the package bundles {name} {dependencies.get(name)}, but notices/ covers {name} "
+            f"{entry['version']} ({entry['components']}); update notices/")
+        assert (licenses / name).is_dir(), f"missing licence files of {name}"
+    openssl = manifest["runtime"]["openssl"]
+    assert str(build_info.get("openssl_version", "")).startswith(f"OpenSSL {openssl['major_version']}."), (
+        f"the package bundles {build_info.get('openssl_version')}, but notices/ covers OpenSSL "
+        f"{openssl['major_version']}.x")
+
+
 async def check(executable, expected_skill_manifest=None):
     expected = json.loads((executable.parent / "build-info.json").read_text())
     if expected_skill_manifest is not None:
         assert expected["skills"] == expected_skill_manifest, "source and build skill manifests differ"
-    licenses = executable.parent / "licenses"
-    for required in ("KiCad-GPL.txt", "Python-LICENSE.txt", "third-party/nng-LICENSE.txt",
-                     "third-party/mbedtls-LICENSE.txt"):
-        assert (licenses / required).is_file(), f"missing licence notice {required}"
+    check_notices(executable.parent, expected)
     with tempfile.TemporaryDirectory(prefix="embeint-mcp-install-check-") as folder:
         environment = {"PATH": folder, "HOME": folder,
                        "PYTHONPATH": str(Path(folder) / "absent-source"),

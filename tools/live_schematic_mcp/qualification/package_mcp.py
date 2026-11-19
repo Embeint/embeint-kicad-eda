@@ -20,6 +20,46 @@ import sysconfig
 import tempfile
 
 MCP = Path(__file__).resolve().parents[1]
+NOTICES = Path(__file__).resolve().with_name("notices")
+
+
+def notice_manifest():
+    """notices/manifest.json: the notices for native code that distribution metadata lacks, and
+    the versions they were written for."""
+    return json.loads((NOTICES / "manifest.json").read_text(encoding="utf-8"))
+
+
+def notice_mismatches(manifest, versions, openssl_version_info):
+    """Why notices/ does not describe this build environment ([] when it does).  versions maps
+    installed distribution names to versions; openssl_version_info is ssl.OPENSSL_VERSION_INFO."""
+    problems = []
+    for name, entry in manifest["distributions"].items():
+        if versions.get(name) != entry["version"]:
+            problems.append(f"{name} {versions.get(name, '(not installed)')} is installed, but notices/ "
+                            f"covers {name} {entry['version']} ({entry['components']})")
+    openssl = manifest["runtime"]["openssl"]
+    if openssl_version_info is None or openssl_version_info[0] != openssl["major_version"]:
+        problems.append(f"the build interpreter's OpenSSL {openssl_version_info} is not covered by "
+                        f"notices/ (OpenSSL {openssl['major_version']}.x)")
+    return problems
+
+
+def shipped_distributions(package):
+    """Installed distributions with modules in the frozen package: pure Python modules in the
+    executable's archives, extension modules and packages in _internal."""
+    from PyInstaller.archive.readers import CArchiveReader
+    executable = package / ("embeint-kicad-mcp.exe" if os.name == "nt" else "embeint-kicad-mcp")
+    archive = CArchiveReader(str(executable))
+    modules = set(archive.toc)
+    for name, entry in archive.toc.items():
+        if entry[-1] == "z":  # the PYZ archive of pure Python modules
+            modules.update(archive.open_embedded_archive(name).toc)
+    for entry in (package / "_internal").iterdir():
+        # Package folders; not metadata (name.dist-info) or vendored libraries (name.libs)
+        if (entry.is_dir() and "." not in entry.name) or entry.suffix in (".pyd", ".so"):
+            modules.add(entry.name)
+    owners = importlib.metadata.packages_distributions()
+    return {dist for module in modules for dist in owners.get(module.split(".")[0], ())}
 
 
 def source_identity(archive_revision):
@@ -61,6 +101,12 @@ def main():
     output = args.output.resolve()
     if output.exists():
         parser.error("output already exists; choose a new directory")
+    import ssl
+    installed = {dist.metadata["Name"]: dist.version for dist in importlib.metadata.distributions()}
+    problems = notice_mismatches(notice_manifest(), installed, ssl.OPENSSL_VERSION_INFO)
+    if problems:
+        parser.error("; ".join(problems) + ". Update notices/ (see notices/README.md) or install "
+                     "the covered versions.")
     output.parent.mkdir(parents=True, exist_ok=True)
     env = {key: value for key, value in os.environ.items() if key not in {"PYTHONPATH", "PYTHONHOME"}}
     env["PYTHONNOUSERSITE"] = "1"
@@ -106,12 +152,19 @@ def main():
         # licence file in the distribution metadata (see notices/README.md)
         third_party = notices / "third-party"
         third_party.mkdir()
-        for source in sorted(Path(__file__).with_name("notices").iterdir()):
+        for source in sorted(NOTICES.iterdir()):
             if source.is_file():
                 shutil.copyfile(source, third_party / source.name)
+        # Only what ships: the build environment also holds PyInstaller, pip, pytest's runner
+        # dependencies and protocol generators that the frozen server does not include
+        shipped = shipped_distributions(package)
+        if not {"mcp", "pynng"} <= shipped:
+            raise RuntimeError("could not identify the distributions in the frozen package")
         distributions = {}
         for dist in importlib.metadata.distributions():
             name = dist.metadata["Name"]
+            if name not in shipped:
+                continue
             distributions[name] = dist.version
             for item in dist.files or []:
                 if ".dist-info" not in item.parts[0]:
@@ -139,7 +192,8 @@ def main():
                 "schema_sha256": manifest["schema_sha256"], "tool_count": manifest["tool_count"],
                 "command_count": manifest["command_count"], "python": sys.version,
                 "skills": skill_content,
-                "dependencies": dict(sorted(distributions.items()))}
+                "dependencies": dict(sorted(distributions.items())),
+                "openssl_version": ssl.OPENSSL_VERSION, "third_party_notices": notice_manifest()}
         (package / "build-info.json").write_text(json.dumps(info, indent=2, sort_keys=True) + "\n")
         shutil.move(str(package), output)
     print(output)

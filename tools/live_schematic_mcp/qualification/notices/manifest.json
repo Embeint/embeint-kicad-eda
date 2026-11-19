@@ -1,0 +1,16 @@
+{
+  "distributions": {
+    "pynng": {
+      "version": "0.9.0",
+      "components": "nng 1.11, Mbed TLS 3.6.3",
+      "notices": ["nng-LICENSE.txt", "mbedtls-LICENSE.txt"]
+    }
+  },
+  "runtime": {
+    "openssl": {
+      "major_version": 3,
+      "components": "OpenSSL 3.x (libssl and libcrypto, loaded by Python's _ssl and _hashlib)",
+      "notices": ["openssl-LICENSE.txt"]
+    }
+  }
+}
