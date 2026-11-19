@@ -375,6 +375,56 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
                     pin_nets[(key, item.value)] = net.name
         return nets, pin_nets
 
+    def sheet_instances(self, doc):
+        """Every sheet instance of the schematic, depth first: (document for that sheet, its path)."""
+        result = []
+
+        def visit(nodes):
+            for node in nodes:
+                spec = types.DocumentSpecifier()
+                spec.CopyFrom(doc)
+                spec.sheet_path.CopyFrom(node.path)
+                result.append((spec, node.path.path_human_readable or "/"))
+                visit(node.children)
+
+        visit(self.hierarchy(doc).top_level_sheets)
+        return result
+
+    def netlist_pins(self, doc, scope="hierarchy"):
+        """Nets with their pins as REF.PIN and the number of connected items.
+
+        scope="hierarchy" labels pins on every sheet instance, so a net that crosses sheets lists all of
+        its pins, and adds "sheets": each sheet path with the pins on it.  A reused sheet's pins carry the
+        reference of each instance.  scope="sheet" labels only pins on the requested sheet (the reply
+        before hierarchy support); "items" counts every sheet in both cases.
+        """
+        if scope not in ("hierarchy", "sheet"):
+            raise ValueError('scope must be "hierarchy" or "sheet"')
+        nets = self.netlist(doc)[0]
+        if scope == "sheet":
+            labels = {}
+            for symbol in self.symbol_pins(doc, with_nets=False):
+                for pin in symbol["pins"]:
+                    labels[pin["id"]] = f'{symbol["reference"]}.{pin["number"]}'
+            return {name: {"pins": sorted({labels[i] for _, i in members if i in labels}), "items": len(members)}
+                    for name, members in sorted(nets.items())}
+        labels, paths = {}, {}
+        for spec, path in self.sheet_instances(doc):
+            key = sheet_key(spec.sheet_path)
+            paths[key] = path
+            for symbol in self.symbol_pins(spec, with_nets=False):
+                for pin in symbol["pins"]:
+                    labels[(key, pin["id"])] = f'{symbol["reference"]}.{pin["number"]}'
+        result = {}
+        for name, members in sorted(nets.items()):
+            sheets = {}
+            for key, item in members:
+                if (key, item) in labels:
+                    sheets.setdefault(paths.get(key, "/".join(key)), set()).add(labels[(key, item)])
+            result[name] = {"pins": sorted(set().union(*sheets.values())), "items": len(members),
+                            "sheets": [{"path": path, "pins": sorted(pins)} for path, pins in sorted(sheets.items())]}
+        return result
+
     def symbol_pins(self, doc, symbols=(), with_nets=True):
         request = commands.GetSymbolPins(document=doc)
         request.symbols.extend(kiid(v) for v in symbols)
