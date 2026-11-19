@@ -1450,7 +1450,7 @@ def test_send_maps_revision_statuses_and_records_the_reply_revision(monkeypatch)
                 return reply.SerializeToString()
         return Connection
 
-    live = LiveSchematic("ipc:///unused-test-socket")
+    live = LiveSchematic(unused_socket("unused-test-socket"))
     for status, error in ((envelope.AS_REVISION_MISMATCH, RevisionMismatch),
                           (envelope.AS_DUPLICATE_OPERATION, DuplicateOperation)):
         monkeypatch.setattr(client_module.pynng, "Req0", connection(status))
@@ -1491,7 +1491,7 @@ def test_reply_timeout_is_still_a_pynng_timeout(monkeypatch):
 
     monkeypatch.setattr(client_module.pynng, "Req0", Silent)
     with pytest.raises(client_module.pynng.Timeout) as error:
-        LiveSchematic("ipc:///unused-test-socket").send(editor.BeginCommit(), editor.BeginCommitResponse)
+        LiveSchematic(unused_socket("unused-test-socket")).send(editor.BeginCommit(), editor.BeginCommitResponse)
     assert isinstance(error.value, ReplyTimeout) and isinstance(error.value, TimeoutError)
     assert "may still apply" in str(error.value)
 
