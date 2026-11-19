@@ -58,6 +58,20 @@ Builds happen in `$KICAD_LIVE_ROOT` (default `~/kicad-live`) from an rsync copy 
 repository; building from `/mnt/c` is far slower.  Register the MCP server with
 `run_mcp_wsl.sh` (see `README.md`); it regenerates the Python protocol code when a `.proto` changed.
 
+## Build, run, test (native Windows)
+
+```powershell
+tools\live_schematic_mcp\scripts\build_windows.ps1 -NoConfigure   # incremental build + install to C:\kb\install
+tools\live_schematic_mcp\scripts\setup_windows.ps1                # venv in C:\kb\venv, protocol code (idempotent)
+tools\live_schematic_mcp\run_kicad_windows.ps1 -Wait              # isolated config, live-demo, project manager
+tools\live_schematic_mcp\scripts\run_tests.ps1 [-Live]            # unit tests [plus end-to-end tests]
+tools\live_schematic_mcp\run_kicad_windows.ps1 -Stop              # stop only the KiCad the launcher started
+```
+
+The MCP server is `run_mcp_windows.ps1`.  The endpoint is a local named pipe; only one KiCad per
+Windows account can hold it.  Installing over `C:\kb\install` fails while any KiCad started from
+it is running (Windows locks the DLLs): never stop a KiCad you did not start; ask its user.
+
 ## Rules that save time
 
 - **Adding a command** touches four places: the `.proto` message, the C++ handler and its

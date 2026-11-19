@@ -113,9 +113,20 @@ the newest installed upstream KiCad. It also adds an "Embeint KiCad" Start Menu
 shortcut. The first run builds every dependency from source and takes hours; later
 runs rebuild only what changed. Pass `-NoConfigure` to skip reconfiguring.
 
-The native build keeps its settings separate from an upstream KiCad install. The MCP
-adapter does not connect to a native Windows editor yet, so agent-driven editing
-still uses the WSL build.
+The native build keeps its settings separate from an upstream KiCad install.
+
+The MCP adapter drives the native editor too, over KiCad's local named pipe. Set it up
+and start an isolated test instance with:
+
+```powershell
+tools\live_schematic_mcp\scripts\setup_windows.ps1      # Python venv in C:\kb\venv and protocol code
+tools\live_schematic_mcp\run_kicad_windows.ps1 -Wait    # isolated config, API enabled, disposable live-demo project
+tools\live_schematic_mcp\scripts\run_tests.ps1 -Live    # unit and end-to-end tests against it
+```
+
+Register `run_mcp_windows.ps1` as the MCP server. See
+[Setup (native Windows)](tools/live_schematic_mcp/README.md#setup-native-windows) for
+details and limits; the WSL build and its scripts work as before.
 
 ## Contributing and licensing
 
