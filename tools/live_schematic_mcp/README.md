@@ -85,6 +85,12 @@ This is scoped route validation, not a claim that the whole board is DRC-clean.
 | `live_schematic_list_commands` / `_describe_command` / `_execute` | Every IPC command KiCad registers, by name |
 | `live_schematic_batch` | Several commands as one undo step, all rolled back if any fails |
 
+To change a placed symbol's Value, Footprint or user fields, send back the whole symbol from
+`live_schematic_items` with only those fields edited. When its `definition` is returned exactly
+as read, the editor keeps the embedded library symbol, its pins and its library link, so ERC
+reports no library mismatch. An edited definition replaces the embedded symbol. A De Morgan
+symbol's definition lists only the pins of the placed body style, so do not edit its definition.
+
 ### Symbol libraries and the Symbol Editor
 
 | Tool | Purpose |
