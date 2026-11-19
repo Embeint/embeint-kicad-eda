@@ -114,3 +114,35 @@ python -m pytest tools/live_schematic_mcp/test_connectivity_intent.py
 These tests include the ERC-zero ESD split, a missing hidden stacked pad, merged
 nets/connected NCs, duplicate identities across units, unexpected pins, native
 reference mapping, board mismatches and a changed native editor hash.
+
+## Recorded Windows/WSL acceptance, 2026-11-19
+
+The [bounded receipt](evidence/capture-windows-wsl-2026-11-19.json) identifies the
+clean tested adapter commit `d644f74209e4bd736fe5b2d5a2b2417baa9ceb35`, actual
+source bytes, retained native binaries, loaded modules and schema independently.
+The native version remains `10.99.0-qualification-d880-loader-patch-dirty`:
+d880 plus the four recorded loader source blobs, without a new C++ build.
+
+All 281 offline tests passed on that committed source, including 13 focused
+intent/persistence regressions. The new owned native run passed three-sheet
+capture, all 28 physical pins, hidden stacking, multi-unit identities, fields and
+footprints, exact rollback/undo, seven-footprint transfer and complete pad parity,
+all four page-fit/framed-render checks, bundled source MCP entrypoints and an
+actual MCP edit/undo. Explicit save, owned manager stop/restart/reopen, normalized
+complete snapshots, active pin identities, native nets and saved hashes matched.
+
+Baseline ERC and the intentionally split ESD case each reported **zero findings**,
+zero excluded findings and four default-disabled check categories. The independent
+oracle rejected both split signal nets. The historical full-definition value-update
+probes did not reproduce duplicate active pin IDs or lost library nicknames on
+this exact native build/request shape. DRC retained **18 unrouted connections**,
+zero excluded findings and five default-disabled categories; rules were unchanged.
+
+Raw new evidence is in
+`/home/karlvonrichter/embeint-qualification/capture-acceptance-2026-11-19-16`,
+copied to `C:/Users/KarlVonRichter/.t3/scratch/capture-acceptance-evidence/run16`.
+Earlier failed attempts remain separate. Save-file hashes cover schematic/PCB
+files; project preferences and local history are not compared. The coordinated
+helper probe's exact source commit/bytes and successful no-save cleanup are in
+the receipt. Installed-distribution qualification and independent fresh-agent
+evaluation remain separate; the latter is pending a separate evaluator.
