@@ -38,7 +38,11 @@ if ! dpkg -s libpoppler-glib-dev >/dev/null 2>&1 && [[ ! -f "$POPPLER/include/po
     for deb in "$ROOT"/debs/*.deb; do dpkg -x "$deb" "$ROOT/deps"; done
 fi
 
-rsync -a --delete --exclude .git --exclude tools/live_schematic_mcp/_generated "$REPO/" "$ROOT/src/"
+# rust/target holds cargo output (hundreds of MB) that the KiCad build never uses.  --delete
+# leaves excluded paths alone, so also drop a copy that an earlier run made.
+rsync -a --delete --exclude .git --exclude tools/live_schematic_mcp/_generated --exclude rust/target \
+    "$REPO/" "$ROOT/src/"
+rm -rf "${ROOT:?}/src/rust/target"
 
 if [[ ! -f "$ROOT/build/build.ninja" ]]; then
     extra=()
