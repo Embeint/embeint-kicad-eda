@@ -53,6 +53,16 @@ bool PackSymbol( kiapi::schematic::types::SchematicSymbolInstance* aOutput, cons
 bool UnpackSymbol( SCH_SYMBOL* aOutput, const kiapi::schematic::types::SchematicSymbolInstance& aInput );
 
 /**
+ * Test whether @a aDefinition is the definition #PackSymbol reports for @a aSymbol at @a aPath,
+ * which is what a client sends back after editing only placement data such as field values.
+ *
+ * The embedded library symbol rebuilt from a definition is not an exact copy of the one it was
+ * packed from, so an update that leaves the definition unchanged should keep the existing one.
+ */
+bool IsSymbolDefinitionUnchanged( const SCH_SYMBOL* aSymbol, const SCH_SHEET_PATH& aPath,
+                                  const kiapi::schematic::types::SchematicSymbol& aDefinition );
+
+/**
  * Check what #ApplySymbolInstance would refuse, so a caller can reject a request before it
  * changes anything.  The reference must not carry another instance's sheet suffix, and no
  * variant may override the reference.

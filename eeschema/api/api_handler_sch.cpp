@@ -1362,6 +1362,9 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
 
         if( *type == SCH_SYMBOL_T )
         {
+            SCH_SYMBOL* existingSymbol = aCreate ? nullptr : static_cast<SCH_SYMBOL*>( existingItem );
+            SCH_SYMBOL* tempSymbol = static_cast<SCH_SYMBOL*>( item.get() );
+
             if( symbolProto.has_definition() )
             {
                 if( symbolProto.definition().id().entry_name().empty() )
@@ -1379,17 +1382,22 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
                 aItemHandler( status, anyItem );
                 continue;
             }
-            else
-            {
-                // Definition-less update: re-point the temporary at the existing symbol's
-                // library identity so the swap below keeps the library link
-                SCH_SYMBOL* existingSymbol = static_cast<SCH_SYMBOL*>( existingItem );
-                SCH_SYMBOL* tempSymbol = static_cast<SCH_SYMBOL*>( item.get() );
 
+            if( existingSymbol
+                    && ( !symbolProto.has_definition()
+                         || IsSymbolDefinitionUnchanged( existingSymbol, existingPath,
+                                                         symbolProto.definition() ) ) )
+            {
+                // Definition-less update, or a full symbol sent back with its definition as read
+                // (the usual way to edit field values): keep the existing embedded symbol, pins and
+                // library link.  A definition rebuilt from the request would not be an exact copy,
+                // and would then fail the library comparison and be renamed in the schematic.
                 tempSymbol->SetLibId( existingSymbol->GetLibId() );
                 tempSymbol->SetSchSymbolLibraryName( existingSymbol->UseLibIdLookup()
                                                              ? wxString( wxEmptyString )
                                                              : existingSymbol->GetSchSymbolLibraryName() );
+
+                tempSymbol->GetRawPins().clear();
 
                 for( const std::unique_ptr<SCH_PIN>& pin : existingSymbol->GetRawPins() )
                 {
@@ -1399,6 +1407,18 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
 
                 if( existingSymbol->GetLibSymbolRef() )
                     tempSymbol->SetLibSymbol( new LIB_SYMBOL( *existingSymbol->GetLibSymbolRef() ) );
+            }
+            else if( existingSymbol && existingSymbol->GetLibSymbolRef()
+                     && UnpackLibId( symbolProto.definition().id() )
+                                == existingSymbol->GetLibSymbolRef()->GetLibId() )
+            {
+                // An edited definition under the same id.  That id names the embedded copy, which is
+                // a schematic-local name (e.g. R_1) once the copy has diverged from its library, so
+                // it must not replace the symbol's library link.
+                tempSymbol->SetLibId( existingSymbol->GetLibId() );
+
+                if( !symbolProto.has_lib_id() && !existingSymbol->UseLibIdLookup() )
+                    tempSymbol->SetSchSymbolLibraryName( existingSymbol->GetSchSymbolLibraryName() );
             }
         }
 
