@@ -4,6 +4,7 @@ kicad-cli runs in KiCad's launch environment.  No running KiCad is required."""
 
 import asyncio
 import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -242,16 +243,86 @@ def test_default_cli_finds_the_package_beside_a_frozen_mcp(tmp_path):
     assert kicad_cli.default_cli({"KICAD_CLI": str(explicit), "HOME": str(tmp_path)}) == str(explicit)
 
 
-@pytest.mark.parametrize("args", [[], ["rm", "-rf", "/"], ["sch", 3], ["sch", "erc\0"], "sch erc"])
+def test_default_cli_finds_the_windows_bundle_beside_a_frozen_mcp(tmp_path):
+    # C:\kb\install\mcp\embeint-kicad-mcp.exe -> C:\kb\install\bin\kicad-cli.exe
+    install = tmp_path / "kb/install"
+    (install / "bin").mkdir(parents=True)
+    (install / "mcp").mkdir(parents=True)
+    (install / "bin/kicad-cli.exe").write_text("")
+    found = kicad_cli.default_cli({"HOME": str(tmp_path / "nobody")},
+                                  executable=install / "mcp/embeint-kicad-mcp.exe")
+    assert Path(found) == (install / "bin/kicad-cli.exe").resolve()
+
+
+@pytest.mark.parametrize("args", [
+    [], ["rm", "-rf", "/"], ["sch", 3], ["sch", "erc\0"], "sch erc",
+    # commands that execute things or rewrite files in place
+    ["jobset", "run", "x.kicad_jobset"], ["sch", "upgrade", "a.kicad_sch"], ["pcb", "upgrade", "a.kicad_pcb"],
+    ["sym", "upgrade", "a.kicad_sym"], ["fp", "upgrade", "a.pretty"], ["sch", "downgrade", "a.kicad_sch"],
+    ["pcb", "downgrade", "a.kicad_pcb"], ["sym", "downgrade", "a.kicad_sym"], ["fp", "downgrade", "a.pretty"],
+    ["project", "downgrade", "a.kicad_pro"], ["pcb", "import", "a.brd"], ["sch", "import", "a.sch"],
+    ["import", "a.zip"], ["api-server"], ["mergetool"], ["sch"], ["pcb", "--help"],
+    # export kinds are checked too
+    ["sch", "export"], ["sch", "export", "-o", "x.svg", "a.kicad_sch"], ["pcb", "export", "kicad_pcb", "a.kicad_pcb"],
+    # pcb drc may not save the board
+    ["pcb", "drc", "--refill-zones", "--save-board", "a.kicad_pcb"], ["pcb", "drc", "--save-board=1", "a.kicad_pcb"],
+    # outputs onto design, project and library files, or into a footprint library
+    ["sch", "erc", "-o", "a.kicad_sch", "a.kicad_sch"],
+    ["sch", "export", "netlist", "--output", "C:\\p\\a.KiCad_Sch", "a.kicad_sch"],
+    ["sch", "export", "netlist", "--output=a.kicad_sch", "b.kicad_sch"],
+    ["pcb", "drc", "--output=/p/a.kicad_pcb", "a.kicad_pcb"],
+    ["pcb", "export", "step", "-o", "a.kicad_pro", "a.kicad_pcb"],
+    ["pcb", "export", "svg", "-o", "a.kicad_prl", "a.kicad_pcb"],
+    ["sym", "export", "svg", "-o", "lib.kicad_sym", "lib.kicad_sym"],
+    ["fp", "export", "svg", "-o", "C:\\libs\\x.kicad_mod", "x.pretty"],
+    ["fp", "export", "svg", "-o", "x.pretty", "x.pretty"],
+    ["fp", "export", "svg", "--output=/libs/x.pretty/svg/", "x.pretty"],
+    ["pcb", "export", "gerbers", "-o", "C:\\libs\\X.Pretty", "a.kicad_pcb"],
+    ["pcb", "export", "vrml", "--models-dir", "/libs/x.pretty", "-o", "a.wrl", "a.kicad_pcb"],
+    ["pcb", "export", "drill", "--report-path=/p/a.kicad_dru", "-o", "out/", "a.kicad_pcb"],
+    ["sch", "export", "bom", "-o", "/p/sym-lib-table", "a.kicad_sch"],
+    # combined short options can hide an output
+    ["sch", "erc", "-no", "a.kicad_sch", "a.kicad_sch"], ["pcb", "export", "svg", "-o=x.svg", "a.kicad_pcb"],
+])
 def test_cli_arguments_are_refused_before_starting_a_process(args):
     with pytest.raises(ValueError):
         kicad_cli.cli_arguments(args)
 
 
-@posix_only
-def test_cli_windows_paths_are_translated_on_wsl():
+@pytest.mark.parametrize("args", [
+    ["version"], ["version", "--format", "about"],
+    ["sch", "erc", "--format", "json", "--severity-all", "-o", "/tmp/erc.json", "a.kicad_sch"],
+    ["sch", "erc", "--output=/tmp/erc.json", "a.kicad_sch"],
+    ["sch", "export", "netlist", "-o", "/tmp/a.net", "a.kicad_sch"],
+    ["sch", "export", "python-bom", "--output", "/tmp/a.xml", "a.kicad_sch"],
+    ["sch", "export", "svg", "-o", "out/", "a.kicad_sch"],
+    ["pcb", "drc", "--refill-zones", "--schematic-parity", "-o", "/tmp/drc.rpt", "a.kicad_pcb"],
+    ["pcb", "export", "step", "--force", "-o", "/tmp/a.step", "a.kicad_pcb"],
+    ["pcb", "export", "pos", "--x-scale-factor", "-1.5", "-o", "/tmp/a.pos", "a.kicad_pcb"],
+    ["pcb", "export", "gerbers", "-o", "C:\\p\\gerbers\\", "C:\\p\\a.kicad_pcb"],
+    ["sym", "export", "svg", "-o", "/tmp/svg", "lib.kicad_sym"],
+    ["fp", "export", "svg", "--output=/tmp/svg", "/libs/x.pretty"],
+])
+def test_read_only_cli_commands_are_allowed(args):
+    assert len(kicad_cli.cli_arguments(args)) == len(args)
+
+
+def test_cli_windows_paths_are_translated_on_wsl(monkeypatch):
+    monkeypatch.setattr(kicad_cli.sys, "platform", "linux")
     assert kicad_cli.cli_arguments(["sch", "erc", "-o", "C:\\out\\erc.json", "D:/p/a.kicad_sch"]) == [
         "sch", "erc", "-o", "/mnt/c/out/erc.json", "/mnt/d/p/a.kicad_sch"]
+    assert kicad_cli.cli_arguments(["sch", "erc", "--output=C:\\out\\erc.json", "--define-var=X=1",
+                                    "a.kicad_sch"]) == [
+        "sch", "erc", "--output=/mnt/c/out/erc.json", "--define-var=X=1", "a.kicad_sch"]
+    monkeypatch.setattr(kicad_cli.sys, "platform", "win32")
+    args = ["sch", "erc", "--output=C:\\out\\erc.json", "C:\\p\\a.kicad_sch"]
+    assert kicad_cli.cli_arguments(args) == args, "native Windows passes Windows paths unchanged"
+
+
+@pytest.mark.parametrize("timeout_s", [0, -1, 601, 3600])
+def test_cli_timeout_is_limited_to_ten_minutes(timeout_s):
+    with pytest.raises(ValueError, match="600"):
+        kicad_cli.prepare("kicad-cli", ["version"], None, timeout_s)
 
 
 def environment_reply(cli_path, variables=None, unhandled=False):
@@ -268,38 +339,63 @@ def environment_reply(cli_path, variables=None, unhandled=False):
     return reply
 
 
-def shell_script(path, body):
+def cli_stub(path, body):
+    """A stand-in kicad-cli at path that runs the Python body (sys and os imported): a shell script on
+    Linux, a .cmd file on Windows (returned path), both starting this interpreter."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("#!/bin/sh\n" + body)
-    path.chmod(0o755)
+    script = path.with_name(path.name + "-stub.py")
+    script.write_text("import os, sys\n" + body)
+    if os.name == "nt":
+        path = path.with_suffix(".cmd")
+        path.write_text(f'@"{sys.executable}" "{script}" %*\r\n')
+    else:
+        path.write_text(f'#!/bin/sh\nexec "{sys.executable}" "{script}" "$@"\n')
+        path.chmod(0o755)
     return path
 
 
-@posix_only
+ECHO = ('print(f"config={os.environ.get(\'KICAD_CONFIG_HOME\')} args={\' \'.join(sys.argv[1:])}")\n'
+        'print("warn", file=sys.stderr)\nsys.exit(3)\n')
+
+
 def test_run_kicad_cli_uses_the_environment_kicad_reports(tmp_path):
-    cli = shell_script(tmp_path / "bin/kicad-cli",
-                       'echo "config=$KICAD_CONFIG_HOME args=$*"\necho warn >&2\nexit 3\n')
+    cli = cli_stub(tmp_path / "bin/kicad-cli", ECHO)
     client = FakeClient(environment_reply(cli, {"KICAD_CONFIG_HOME": "/launcher/config"}))
     result = client.run_kicad_cli(["sch", "erc", "C:\\p\\a.kicad_sch"], timeout_s=30)
+    schematic = "C:\\p\\a.kicad_sch" if os.name == "nt" else "/mnt/c/p/a.kicad_sch"
     assert result["returncode"] == 3 and result["stderr"] == "warn\n"
-    assert result["stdout"] == "config=/launcher/config args=sch erc /mnt/c/p/a.kicad_sch\n"
+    assert result["stdout"] == f"config=/launcher/config args=sch erc {schematic}\n"
     assert result["environment"] == {"source": "kicad", "variables": ["KICAD_CONFIG_HOME"]}
     assert result["command"][0] == str(cli)
+    assert asyncio.run(client.run_kicad_cli_async(["sch", "erc", "C:\\p\\a.kicad_sch"], timeout_s=30)) == result
 
 
-@posix_only
 def test_older_kicad_falls_back_to_the_install_layout(tmp_path, monkeypatch):
     monkeypatch.delenv("KICAD_CONFIG_HOME", raising=False)
-    cli = shell_script(tmp_path / "kicad-live/install/bin/kicad-cli", 'echo "$KICAD_CONFIG_HOME"\n')
+    cli = cli_stub(tmp_path / "kicad-live/install/bin/kicad-cli", 'print(os.environ["KICAD_CONFIG_HOME"])\n')
     (tmp_path / "kicad-live/config").mkdir()
     result = FakeClient(environment_reply(cli, unhandled=True)).run_kicad_cli(["version"], timeout_s=30)
-    assert result["environment"]["source"] == "install layout"
+    assert result["environment"]["source"] == "install layout" and "note" not in result["environment"]
     assert result["stdout"].strip() == str((tmp_path / "kicad-live/config").resolve())
 
 
+def test_an_empty_kicad_environment_is_not_reported_as_kicads(tmp_path, monkeypatch):
+    monkeypatch.delenv("KICAD_CONFIG_HOME", raising=False)
+    cli = tmp_path / "kicad-live/install/bin/kicad-cli"
+    cli.parent.mkdir(parents=True)
+    cli.write_text("")
+    (tmp_path / "kicad-live/config").mkdir()
+    path, env, description = FakeClient(environment_reply(cli, {})).kicad_cli_launch()
+    assert description["source"] == "install layout" and "empty" in description["note"]
+    assert env["KICAD_CONFIG_HOME"] == str((tmp_path / "kicad-live/config").resolve())
+
+
 def test_unreachable_kicad_uses_the_located_cli_or_says_what_to_set(monkeypatch, tmp_path):
+    import pynng
+    from instance_discovery import DiscoveryError
+
     def unreachable(request, response_type):
-        raise RuntimeError("KiCad socket selection is default_missing")
+        raise DiscoveryError("no_editor", "No KiCad editor is running")
 
     monkeypatch.setattr(kicad_cli, "default_cli", lambda: None)
     with pytest.raises(RuntimeError, match="KICAD_CLI"):
@@ -310,16 +406,66 @@ def test_unreachable_kicad_uses_the_located_cli_or_says_what_to_set(monkeypatch,
     path, env, description = FakeClient(unreachable).kicad_cli_launch()
     assert path == str(cli) and description["source"] == "install layout"
     assert "not reachable" in description["note"]
+
+    def silent(request, response_type):
+        raise pynng.Timeout("Timed out", 5)
+
+    assert FakeClient(silent).kicad_cli_launch()[0] == str(cli), "an editor that does not answer falls back"
     with pytest.raises(ValueError):
         FakeClient(unreachable).run_kicad_cli(["bash"])
 
 
+@pytest.mark.parametrize("error", ["AS_BAD_REQUEST: no such binary", "AS_NOT_READY: ", "AS_UNHANDLED: "])
+def test_other_kicad_errors_are_not_hidden_by_the_fallback(monkeypatch, tmp_path, error):
+    def reply(request, response_type):
+        raise RuntimeError(error)
+
+    monkeypatch.setattr(kicad_cli, "default_cli", lambda: str(tmp_path / "kicad-cli"))
+    with pytest.raises(RuntimeError, match=error.split(":")[0]):
+        FakeClient(reply).kicad_cli_launch()
+
+
+def test_the_cli_tool_does_not_block_the_event_loop(tmp_path):
+    import time
+
+    cli = cli_stub(tmp_path / "bin/kicad-cli", "import time\ntime.sleep(1.5)\n")
+    client = FakeClient(environment_reply(cli, {"KICAD_CONFIG_HOME": "/c"}))
+
+    async def main():
+        ticks = 0
+
+        async def ticker():
+            nonlocal ticks
+            while True:
+                await asyncio.sleep(0.05)
+                ticks += 1
+
+        task = asyncio.create_task(ticker())
+        start = time.monotonic()
+        result = await client.run_kicad_cli_async(["version"], timeout_s=30)
+        task.cancel()
+        return result, ticks, time.monotonic() - start
+
+    result, ticks, elapsed = asyncio.run(main())
+    assert result["returncode"] == 0 and elapsed >= 1.4
+    assert ticks >= 10, "other work ran while kicad-cli did"
+
+
+def test_a_cli_run_that_times_out_is_stopped(tmp_path):
+    cli = cli_stub(tmp_path / "bin/kicad-cli", "import time\ntime.sleep(3)\n")
+    with pytest.raises(TimeoutError, match="stopped"):
+        asyncio.run(kicad_cli.run_async(str(cli), ["version"], dict(os.environ), timeout_s=0.3))
+
+
 def test_cli_tool_is_registered_with_a_list_argument():
+    import inspect
     import server
 
     tools = {tool.name: tool for tool in asyncio.run(server.mcp.list_tools())}
     schema = tools["live_kicad_cli"].inputSchema
     assert schema["properties"]["args"]["type"] == "array" and schema["required"] == ["args"]
+    assert inspect.iscoroutinefunction(server.live_kicad_cli), "the tool must not run on the event loop"
+    assert "jobset" in tools["live_kicad_cli"].description and "600" in tools["live_kicad_cli"].description
 
 
 @posix_only
