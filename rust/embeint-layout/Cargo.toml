@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[package]
+name = "embeint-layout"
+description = "Symbol pin layout for Embeint KiCad, a port of tools/live_schematic_mcp/symbol_layout.py"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde_json.workspace = true

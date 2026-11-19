@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[package]
+name = "embeint-layout-cli"
+description = "Native JSON-lines runner for embeint-layout, used by the parity harness"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "embeint-layout"
+path = "src/main.rs"
+
+[dependencies]
+embeint-layout.workspace = true

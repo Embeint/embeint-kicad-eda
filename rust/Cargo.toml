@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Embeint KiCad Rust workspace.  Portable crates (no filesystem, sockets, processes or GUI types)
+# are shared by native tools and the WebAssembly build; see README.md.
+
+[workspace]
+resolver = "2"
+members = ["embeint-layout", "embeint-web", "embeint-layout-cli"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/Embeint/embeint-kicad-eda"
+publish = false
+
+[workspace.dependencies]
+embeint-layout = { path = "embeint-layout" }
+serde_json = { version = "1", default-features = false, features = ["std", "preserve_order", "arbitrary_precision"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
