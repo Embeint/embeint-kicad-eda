@@ -73,9 +73,15 @@ id can be used once. When set:
 - On a request outside a commit, the operation is `OPS_COMMITTED` if the request
   succeeded and `OPS_FAILED` if it returned an error after its handler ran (compare
   `revision_before` and `revision_after`, then inspect the document).
+- A step inside an open commit that returns an error is `OPS_FAILED` too. It is not
+  bound to the commit; whatever it staged is committed or rolled back with the
+  commit.
 - A request refused by the contract itself (revision mismatch, a step after
-  expiry, an invalid document with an expected revision) is `OPS_REJECTED`. The
-  document is unchanged.
+  expiry, an invalid document with an expected revision) is `OPS_REJECTED`, and so
+  is a `BeginCommit` that fails and opens nothing (for example "already has a
+  commit in progress"). The document is unchanged.
+- If the editor closes while a commit is open, its operations become `OPS_FAILED`:
+  the user may save or discard the staged changes while closing.
 - Like an expected revision, an operation id on a request that no document editor
   handles is refused with `AS_BAD_REQUEST`. Duplicate and malformed ids are not
   recorded.
@@ -96,27 +102,49 @@ as "not applied".
 
 A client that is killed or disconnected mid-batch leaves its commit open. That
 commit's staged changes stay in the document, and undo/redo and revert are
-refused while it is open. The editor therefore gives every open commit (explicit
-`BeginCommit`, or an implicit one a failed request left behind) a **lease**:
+refused while it is open. A client can therefore ask for a **lease** on its
+commit, after which the editor rolls the commit back.
 
-- The lease is `BeginCommit.lease_seconds`, or **60 s** by default, at most 3600 s.
-  Each request from the commit's client renews it.
-- A one-second timer in the editor checks the leases while any commit is open.
-  Every request to the editor also checks them first. An expired commit is
-  reverted (`COMMIT::Revert`), its operations become `OPS_ROLLED_BACK` with a
-  "lease expired" message, and the revision advances. The rollback is deferred
-  while a dialog or interactive tool is active (`CanAcceptApiCommands`).
+Leases are **opt-in**, so upstream clients (kipy plugins) keep upstream behaviour:
+their commits stay open until they end them, however long that takes.
+
+- An explicit commit has a lease only when `BeginCommit.lease_seconds` is set
+  (at most 3600 s). 0, the default, means no lease.
+- An implicit commit (one a failed request left open) has a 60 s lease
+  (`IMPLICIT_COMMIT_LEASE_S`) only when that request carried an `operation_id` or
+  an `expected_revision`. Only clients of this contract send those.
+- Each request from the commit's client to that editor renews its lease.
+- Leases are measured on a monotonic clock (`std::chrono::steady_clock`) that
+  **stops** while expiry is deferred. Expiry is deferred while an API task runs
+  (DRC, zone refill, ERC: the server answers other requests `AS_BUSY`, so the
+  client cannot renew, and the task's worker threads read the document), while
+  the event loop is yielding (a progress dialog), while a dialog or interactive
+  tool is active (`CanAcceptApiCommands`) and while the editor closes. A gap of
+  more than 1.5 s between two clock readings, when the UI thread was blocked,
+  counts as 1.5 s. Time under a task or a dialog therefore never counts against
+  the client. The worst case is a slightly longer lease.
+- A one-second timer in the editor checks the leases while any commit with a lease
+  is open, and so does every request to the editor, except those allowed during a
+  task (`GetDocumentRevision`). An expired commit is reverted (`COMMIT::Revert`),
+  its operations become `OPS_ROLLED_BACK` with a "lease expired" message, and the
+  revision advances.
 - The client is then remembered (up to 64 clients). Its later requests to that
   editor are refused with `AS_BAD_REQUEST` until it sends `EndCommit`, so a late
-  step cannot land outside the commit as a standalone change. `EndCommit(DROP)`
-  then succeeds and confirms the rollback; `EndCommit(COMMIT)` fails and says
-  nothing was committed.
+  step cannot land outside the commit as a standalone change. The refusal covers
+  only requests for that editor: those that name its document or document type,
+  or that name no document at all. Requests for another editor, such as
+  `GetOpenDocuments(type=PCB)` sent to the schematic editor, are passed on, and so
+  is an `ItemHeader` with no document. `EndCommit(DROP)` then succeeds and confirms
+  the rollback; `EndCommit(COMMIT)` fails and says nothing was committed.
+- When the editor closes, the timer stops and leases are no longer enforced; open
+  commits are left to the frame as upstream.
 
 ## Client behaviour (Python client and MCP tools)
 
 - Every transaction (`LiveSchematic.transaction`, used by all MCP edit tools)
   sends an operation id on `BeginCommit` (`mcp-<uuid>` unless the caller names
-  one). Standalone edits (undo/redo, page and title block settings, `execute` of
+  one) and asks for a 60 s lease (`DEFAULT_LEASE_S`; `lease_seconds = None` asks
+  for none). Standalone edits (undo/redo, page and title block settings, `execute` of
   a document edit) carry one too.
 - `mutation_options(expected_revision, operation_id)` applies an expected
   revision and id to one tool call. Its first mutation uses them as given; each
@@ -152,8 +180,11 @@ refused while it is open. The editor therefore gives every open commit (explicit
 - Commits without an expected revision still interleave as upstream allows. Use
   expected revisions when more than one writer may be active.
 - After a lost `BeginCommit` reply with `OPS_UNKNOWN`, a late-arriving
-  `BeginCommit` opens an empty commit. The lease rolls it back; until then that
-  client's next `BeginCommit` is refused as "already in progress".
+  `BeginCommit` opens an empty commit. Its lease (the MCP always asks for one)
+  rolls it back; until then that client's next `BeginCommit` is refused as
+  "already in progress".
+- A commit without a lease stays open until its client ends it, as upstream,
+  even if the client was killed.
 - Operation outcomes are not persisted across a KiCad restart; neither are open
   commits.
 - Cross-editor operations (schematic plus board) are separate operations with
@@ -170,9 +201,17 @@ update is visible and that a drop restores it. It checks that a strict batch fai
 at its next step, and at `EndCommit`, when another client commits. It checks that
 a lost `EndCommit` reply reconciles to committed, an undelivered `EndCommit` to
 rolled back, and a lost `BeginCommit` reply leaves nothing open. It checks that a
-step after lease expiry is refused and that the client recovers. Finally, a client
-process killed mid-batch with a visible staged edit, with undo blocked, has its
-commit rolled back by the editor's timer within the lease. The edit is reverted
-and undo works again. When the PCB editor is open it also checks that the board
-refuses a stale revision. Unit tests in `test_client.py` cover the client side
+step after lease expiry is refused and that the client recovers. It checks that
+a refused `BeginCommit` is recorded as rejected and a failed step inside a commit
+as failed, not with the commit's outcome. A client process killed mid-batch with
+a visible staged edit, with undo blocked, has its commit rolled back by the
+editor's timer within the lease. The edit is reverted and undo works again. When
+the PCB editor is open it also checks that the board refuses a stale revision.
+It checks that a 2 s lease survives a zone refill task of at least 4 s while
+`GetDocumentRevision` and `GetTaskStatus` requests keep arriving. The task's
+hatched zone is made finer until the refill takes that long, and the check is
+skipped if it cannot be. Finally it checks that leases are opt-in: a board commit
+opened with no lease, no operation id and no expected revision is still open
+after 62 s and ends normally. A 3 s opt-in lease opened beside it at the same
+time has expired. Unit tests in `test_client.py` cover the client side
 without KiCad.

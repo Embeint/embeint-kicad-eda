@@ -20,6 +20,7 @@
 #ifndef KICAD_API_TASK_SCHEDULER_H
 #define KICAD_API_TASK_SCHEDULER_H
 
+#include <cstdint>
 #include <deque>
 #include <map>
 #include <memory>
@@ -92,6 +93,13 @@ public:
     bool AnyTaskRunning() const;
 
     /**
+     * A counter that grows whenever a task starts or finishes.  Comparing two readings tells
+     * whether a task ran in between, even one that started and finished between them (Embeint:
+     * commit leases do not count time spent under a task, see API_HANDLER_EDITOR).
+     */
+    uint64_t TaskActivity() const;
+
+    /**
      * Run the current task to completion, synchronously.  The scheduler normally pumps
      * itself via QueueEvent; hosts without a running event loop (unit tests) use this.
      */
@@ -116,6 +124,9 @@ private:
     mutable std::mutex m_mutex;
     std::map<std::string, std::shared_ptr<TASK_ENTRY>> m_tasks;
     std::deque<std::string> m_finishedTokens;
+
+    /// @see TaskActivity; guarded by m_mutex
+    uint64_t m_taskActivity = 0;
 };
 
 #endif //KICAD_API_TASK_SCHEDULER_H

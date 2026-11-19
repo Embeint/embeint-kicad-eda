@@ -78,6 +78,7 @@ std::optional<std::string> API_TASK_SCHEDULER::StartTask( const std::shared_ptr<
         }
 
         m_tasks[ token ] = entry;
+        ++m_taskActivity;
     }
 
     wxLogTrace( traceApi, wxString::Format( wxS( "TaskScheduler: started task %s (%s)" ), token, aDescription ) );
@@ -160,6 +161,13 @@ bool API_TASK_SCHEDULER::AnyTaskRunning() const
 }
 
 
+uint64_t API_TASK_SCHEDULER::TaskActivity() const
+{
+    std::lock_guard<std::mutex> lock( m_mutex );
+    return m_taskActivity;
+}
+
+
 void API_TASK_SCHEDULER::onTaskRunEvent( wxCommandEvent& aEvent )
 {
     std::unique_ptr<std::string> token( static_cast<std::string*>( aEvent.GetClientData() ) );
@@ -218,6 +226,7 @@ void API_TASK_SCHEDULER::runTask( const std::string& aToken )
         entry->failed = failed;
         entry->failureMessage = failureMessage;
         entry->finished = true;
+        ++m_taskActivity;
 
         m_finishedTokens.push_back( entry->token );
 

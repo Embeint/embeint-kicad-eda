@@ -214,7 +214,8 @@ void KICAD_API_SERVER::DeregisterHandler( API_HANDLER* aHandler )
     if( aHandler )
         aHandler->setApiServer( nullptr );
 
-    m_handlers.erase( aHandler );
+    if( m_handlers.erase( aHandler ) > 0 )
+        aHandler->OnDeregistered();
 }
 
 
