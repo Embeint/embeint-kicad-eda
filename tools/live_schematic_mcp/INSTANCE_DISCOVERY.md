@@ -60,10 +60,11 @@ and paths that disappeared are excluded; timeouts, permission errors and unknown
 conditions remain candidates. Multiple remaining candidates require explicit selection.
 Stale socket files are preserved. Regular files and symlink entries are not
 automatic socket candidates; unreadable entries prevent selection. A symlink socket
-directory requires explicit selection. If no candidates exist, the existing
-`api.sock` default remains in effect and a later request can time out normally.
+directory requires explicit selection. If no candidates exist, the request tries the
+`api.sock` default and can time out normally; the default is not pinned, so the next
+request looks again and finds a KiCad started in the meantime.
 
-The first selected endpoint stays pinned for that client. Existing instance-token
+The first endpoint found stays pinned for that client. Existing instance-token
 handling guards subsequent requests after an initial successful reply. The client
 does not switch endpoints or retry a mutation after failure. NNG request resends
 are disabled with `NNG_DURATION_INFINITE` (`resend_time=-1`), including on disconnect.
@@ -90,11 +91,23 @@ so there are no stale endpoints, and KiCad's `api-<pid>.sock` fallback never tri
   trailing-dot/space components are rejected without echoing the URL, because Windows
   normalises `\\.\pipe\` names and such components could redirect the name to a
   network pipe.
+- The temp directory is derived as KiCad derives it (`wxFileName::GetTempDir`): the
+  first of `TMPDIR`, `TMP` and `TEMP` that is set, else `GetTempPath()`. Python's
+  `tempfile`, which prefers `TEMP` to `TMP`, is only a last resort.
 - Discovery lists `\\.\pipe\` (enumeration never connects) and keeps only
-  `api(-<n>)?.sock` pipes whose directory is this user's temp `kicad` directory.
+  `api(-<n>)?.sock` pipes whose name is under this user's temp `kicad` directory.
   Directories are compared case-insensitively after resolving short (8.3) names, so
-  `C:\Users\LONGNA~1\...` and `C:\Users\LongName\...` match. Pipes are visible
-  machine-wide; other users' and other directories' endpoints are never candidates.
+  `C:\Users\LONGNA~1\...` and `C:\Users\LongName\...` match. Pipes that name other
+  directories are never candidates.
+- Pipes are selected by name only; their owner is not verified. The pipe namespace is
+  machine-wide, so another local account could create a pipe with the expected name
+  before KiCad starts and receive the MCP's requests. Use the MCP on machines whose
+  other local accounts you trust. Checking the owner (`GetNamedPipeServerProcessId`
+  and the server's token) needs a handle to the pipe, i.e. a connection to it, which
+  discovery deliberately never makes; it is left as a follow-up.
+- `run_kicad_windows.ps1` runs this discovery (`python instance_discovery.py` prints
+  the inventory as JSON, ignoring `KICAD_API_SOCKET`) in the environment the new
+  KiCad inherits, and refuses to start while any candidate holds the endpoint.
 - Liveness before the first request, and the dead-pinned-endpoint check, use the same
   listing: absence proves no listener; nothing is dialed.
 - Explicit selection uses the URL literally. Pipe names are exact strings, so use the
@@ -102,7 +115,7 @@ so there are no stale endpoints, and KiCad's `api-<pid>.sock` fallback never tri
 
 `test_windows_discovery.py` covers validation, discovery and selection with a
 substituted pipe listing on every platform, and with real disposable NNG named-pipe
-peers (two instances, probes, MCP stdio) on Windows. Native evidence comes from the
+peers (two instances, probes, MCP stdio, the launcher's refusal) on Windows. Native evidence comes from the
 live suites run against the Windows build with `scripts\run_tests.ps1 -Live`.
 
 ## Opt-in read-only probes

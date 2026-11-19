@@ -16,8 +16,9 @@
 #   -Fresh  recreate the live-demo test project (discarding anything saved into it)
 #   -Wait   wait until the API answers (scripts\wait_ready.ps1) before returning
 #
-# KiCad starts in the background; its process ID is written to <root>\live\kicad.pid.  The root is
-# KICAD_WINDOWS_ROOT (default C:\kb), as for build_windows.ps1.
+# KiCad starts in the background; its process ID is written to <root>\live\kicad.pid.
+# The root is KICAD_WINDOWS_ROOT (default C:\kb), as for build_windows.ps1.  The MCP's Python
+# (scripts\setup_windows.ps1) checks first that no other KiCad holds the API endpoint.
 
 [CmdletBinding()]
 param(
@@ -45,6 +46,38 @@ function Get-LiveKiCad
     return $null
 }
 
+# On Windows the API endpoint is the named pipe \\.\pipe\<temp>\kicad\api.sock.  A second KiCad
+# cannot take it and runs without an API, so the MCP would reach the first one instead: refuse.
+# The MCP's own discovery decides: it lists the pipes without connecting to any, derives the temp
+# directory as KiCad does from this environment (which the new KiCad inherits) and matches both the
+# short (8.3) and the long spelling of it.  KICAD_API_SOCKET is ignored there.
+function Assert-EndpointFree
+{
+    Assert-Python
+    # Native stderr would become PowerShell errors under 'Stop'; collect it as text instead
+    $ErrorActionPreference = 'Continue'
+    $output = @( & $Python -I ( Join-Path $Mcp 'instance_discovery.py' ) 2>&1 | ForEach-Object { "$_" } )
+    $code = $LASTEXITCODE
+    $ErrorActionPreference = 'Stop'
+
+    $inventory = $null
+    $json = $output | Where-Object { $_.StartsWith( '{' ) } | Select-Object -Last 1
+    if( $json ) { try { $inventory = $json | ConvertFrom-Json } catch { $inventory = $null } }
+
+    if( $code -eq 0 -and $inventory -and $inventory.selection -eq 'default_missing' ) { return }
+
+    $endpoints = @( $inventory.candidates | Where-Object { $_.kind -eq 'named_pipe' } |
+                    ForEach-Object { $_.socket_url } )
+    if( $endpoints.Count -gt 0 )
+    {
+        throw ( "Another KiCad with the API enabled already serves $( $endpoints -join ', ' ).  Close it " +
+                "(or disable its API server) first: this KiCad could not serve the API and the MCP would " +
+                "reach the other one." )
+    }
+    throw ( "Cannot tell whether another KiCad holds the API endpoint, so KiCad was not started: " +
+            ( $output -join ' ' ) )
+}
+
 if( $Stop )
 {
     $process = Get-LiveKiCad
@@ -59,29 +92,15 @@ if( $Stop )
     return
 }
 
-if( -not ( Test-Path ( Join-Path $bin 'kicad.exe' ) ) )
-{
-    throw "Native KiCad not installed at $Install (run scripts\build_windows.ps1)"
-}
 if( Get-LiveKiCad )
 {
     throw "The live KiCad started by this script is still running (PID $( ( Get-LiveKiCad ).Id )); use -Stop first"
 }
-
-# On Windows the API endpoint is the named pipe \\.\pipe\<temp>\kicad\api.sock.  A second KiCad
-# cannot take it and runs without an API, so the MCP would reach the first one instead: refuse.
-# The pipe name is the literal temp path, which may be the short (8.3) or the long spelling depending
-# on how a KiCad was started, so check every spelling of this user's temp directory.
-$temps = @( $env:TEMP, $env:TMP, [IO.Path]::GetTempPath(),
-            [Environment]::GetEnvironmentVariable( 'TEMP', 'User' ) ) |
-    Where-Object { $_ } | ForEach-Object { Join-Path $_ 'kicad\api.sock' }
-$taken = [IO.Directory]::GetFiles( '\\.\pipe\' ) |
-    ForEach-Object { $_.Substring( '\\.\pipe\'.Length ) } |
-    Where-Object { $temps -contains $_ } | Select-Object -First 1
-if( $taken )
+# Before anything else is set up, so a refused start changes nothing
+Assert-EndpointFree
+if( -not ( Test-Path ( Join-Path $bin 'kicad.exe' ) ) )
 {
-    throw ( "Another KiCad with the API enabled already serves $taken.  Close it (or disable its API " +
-            "server) first: this KiCad could not serve the API and the MCP would reach the other one." )
+    throw "Native KiCad not installed at $Install (run scripts\build_windows.ps1)"
 }
 
 $share = Join-Path $Install 'share\kicad'

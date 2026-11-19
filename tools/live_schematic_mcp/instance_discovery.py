@@ -40,9 +40,25 @@ def is_endpoint(entry):
     return entry["kind"] in ENDPOINT_KINDS
 
 
+def windows_temp_dir(environ=None):
+    """The temporary directory KiCad uses on Windows, spelt as KiCad spells it.
+
+    KiCad takes wxStandardPaths::GetTempDir(), i.e. wxFileName::GetTempDir(): the first of
+    TMPDIR, TMP and TEMP that is set, else GetTempPath() (TMP, TEMP, USERPROFILE, then the
+    Windows directory).  Python's tempfile prefers TEMP to TMP and checks writability, so it
+    can name another directory.  The value is used as given (a short 8.3 spelling stays
+    short), with forward slashes and the trailing separator normalised away as wxFileName does.
+    """
+    environ = os.environ if environ is None else environ
+    for name in ("TMPDIR", "TMP", "TEMP", "USERPROFILE", "SystemRoot"):
+        if environ.get(name):
+            return str(PureWindowsPath(environ[name]))
+    return str(PureWindowsPath(tempfile.gettempdir()))
+
+
 def default_socket_url():
     if windows():
-        return "ipc://" + str(PureWindowsPath(tempfile.gettempdir()) / "kicad" / "api.sock")
+        return "ipc://" + str(PureWindowsPath(windows_temp_dir()) / "kicad" / "api.sock")
     return "ipc://" + str(Path(tempfile.gettempdir()) / "kicad" / "api.sock")
 
 
@@ -136,10 +152,11 @@ def socket_entry(url):
 
 
 def _windows_candidates(root):
-    """KiCad pipes in this user's temp\\kicad directory.
+    """KiCad pipes named under this user's temp\\kicad directory.
 
-    Named pipes are machine-wide, so other users' and other directories' endpoints are
-    visible too; they are never candidates.
+    Named pipes are machine-wide, so endpoints under other directories are visible too;
+    they are never candidates.  Only the name is checked, not the pipe's owner: another
+    local account could create a pipe with this name (see INSTANCE_DISCOVERY.md).
     """
     try:
         pipes = list_pipes()
@@ -233,7 +250,13 @@ def socket_reachability(url):
         return "unknown"
 
 
-def select_socket(socket_url=None, *, directory=None, check_liveness=False):
+def select_instance(socket_url=None, *, directory=None, check_liveness=False):
+    """Return (url, selection) for the instance to use, or raise DiscoveryError.
+
+    selection is "explicit", "single_candidate" or "default_missing"; the last means no
+    instance was found and url is only the default endpoint a KiCad would take, so a
+    caller should look again later instead of keeping it.
+    """
     inventory = discover_instances(socket_url, directory=directory)
     # Online selection happens only immediately before an editor request. Offline
     # inventory and explicit selection never connect or clean up socket files.
@@ -242,10 +265,39 @@ def select_socket(socket_url=None, *, directory=None, check_liveness=False):
         usable = [url for url in sockets if socket_reachability(url) != "not_listening"]
         if sockets:
             inventory["selected_socket"] = usable[0] if len(usable) == 1 else None
-            inventory["selection"] = "ambiguous" if len(usable) > 1 else "unavailable"
+            inventory["selection"] = ("single_candidate" if len(usable) == 1 else
+                                      "ambiguous" if usable else "unavailable")
     if inventory["selected_socket"] is None:
         raise DiscoveryError(inventory["selection"],
                              "KiCad socket selection is " + inventory["selection"] + ". "
                              "Run diagnose.py (optionally --probe) and set KICAD_API_SOCKET "
                              "to the intended instance. Stale sockets are never removed by MCP.")
-    return inventory["selected_socket"]
+    return inventory["selected_socket"], inventory["selection"]
+
+
+def select_socket(socket_url=None, *, directory=None, check_liveness=False):
+    return select_instance(socket_url, directory=directory, check_liveness=check_liveness)[0]
+
+
+def main():
+    """Print the offline inventory of the default endpoint as JSON; nothing is dialed.
+
+    For run_kicad_windows.ps1, which refuses to start a KiCad unless the selection is
+    "default_missing" (no other KiCad holds the endpoint the new one would take).
+    KICAD_API_SOCKET is ignored: the inventory is always of the default location.
+    Exits 2 if the endpoints cannot be listed.
+    """
+    import json
+    os.environ.pop("KICAD_API_SOCKET", None)
+    try:
+        inventory = discover_instances()
+    except DiscoveryError as error:
+        print(json.dumps({"selection": error.code, "selected_socket": None, "candidates": [],
+                          "error": str(error)}))
+        return 2
+    print(json.dumps(inventory))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

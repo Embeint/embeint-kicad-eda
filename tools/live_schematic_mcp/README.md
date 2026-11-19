@@ -275,11 +275,13 @@ build's or upstream KiCad's), creates the disposable test project in
 `C:\kb\live\projects\live-demo` (`-Fresh` recreates it) and uses the stock libraries that
 `build_windows.ps1` linked from upstream KiCad. `-Project <file>` opens another project or a
 `.kicad_sch` (schematic editor only). `KICAD_WINDOWS_ROOT` moves `C:\kb`; `KICAD_LIVE_PYTHON`
-selects another interpreter. Python 3.11+ (64-bit) is needed.
+selects another interpreter. Python 3.11+ (64-bit) is needed; the launcher uses it too.
 
 Only one KiCad on a Windows account can serve the API: the pipe name is fixed and a second
 instance runs without an API. The launcher refuses to start while another KiCad with the API
-enabled holds the pipe, so the MCP cannot reach the wrong instance. For your own KiCad, enable
+enabled holds the pipe (in either spelling of the temporary directory), so the MCP cannot
+reach the wrong instance. Pipes are found by name; their owner is not verified, so use the
+MCP where you trust the machine's other local accounts. For your own KiCad, enable
 the API in Preferences > Plugins (Enable KiCad API). The MCP finds the pipe in your temporary
 directory; to name an instance explicitly, set `KICAD_API_SOCKET` to the exact endpoint
 `scripts\wait_ready.ps1` prints (pipe names are literal: `C:\Users\LONGNA~1\...` and

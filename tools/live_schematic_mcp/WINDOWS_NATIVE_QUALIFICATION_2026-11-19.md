@@ -34,6 +34,9 @@ installer qualification.
 - `zstandard` (the pre-3.14 `compression.zstd` fallback) was missing from `requirements.txt`.
 - The `.NET` temp path is the long spelling while KiCad uses `%TEMP%` as given (8.3 here);
   the launcher checks every spelling and `wait_ready.ps1` prints the exact endpoint.
+  Correction (review, 2026-11-20): that launcher check never matched, because Windows
+  PowerShell lists drive-letter pipe names without the `\\.\pipe\` prefix. The launcher
+  now asks `instance_discovery.py`, and a unit test checks the refusal against a real pipe.
 
 ## Known limitations
 

@@ -17,7 +17,7 @@ from board_client import BoardTools, board_document  # noqa: F401
 from board_design import BoardDesignTools
 from footprint_client import FootprintTools, footprint_document, library_kind  # noqa: F401
 from instance_discovery import (DiscoveryError, default_socket_url, local_socket_path,
-                                select_socket, socket_reachability)
+                                select_instance, socket_reachability)
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "_generated"))
 try:
@@ -173,8 +173,11 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
         """Never retry mutations: a timeout may follow a successfully applied edit."""
         with self.lock:
             if not self._socket_selected:
-                self.socket_url = select_socket(check_liveness=True)
-                self._socket_selected = True
+                self.socket_url, selection = select_instance(check_liveness=True)
+                # Pin only an instance that was found.  With none, the request tries the default
+                # endpoint and the next one looks again, so a KiCad started later (or serving
+                # another spelling of the temp directory) is still found.
+                self._socket_selected = selection != "default_missing"
             local_socket_path(self.socket_url)
             if self._received_reply and socket_reachability(self.socket_url) == "not_listening":
                 raise DiscoveryError("instance_unavailable", "Selected KiCad instance is unavailable; "
