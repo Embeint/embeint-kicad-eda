@@ -35,6 +35,18 @@ enum ApiStatusCode
   AS_BUSY           = 7; // KiCad is busy performing an operation and can't accept API commands
   AS_UNIMPLEMENTED  = 8; // The requested API call has not yet been implemented
   AS_INTERNAL_ERROR = 9; // KiCad was unable to handle the request properly
+
+  // Embeint extensions, numbered apart from upstream codes.  See
+  // tools/live_schematic_mcp/REVISIONS.md for the revision and operation contract.
+
+  // The document's revision did not match ApiRequestHeader.expected_revision, or another client
+  // or the user changed the document while a commit opened with an expected revision was open.
+  // The request was refused before it changed anything (a conflicting commit is rolled back).
+  AS_REVISION_MISMATCH = 100;
+
+  // ApiRequestHeader.operation_id names an operation the editor has already seen; the request was
+  // not run.  Query GetOperationStatus for the outcome of the original.
+  AS_DUPLICATE_OPERATION = 101;
 }
 
 /*
@@ -53,6 +65,19 @@ message ApiRequestHeader
   // process ID or a random string, e.g. "com.github.me.my_awesome_plugin-73951".  The main purpose
   // of this name is to identify the client in debug logs.
   string client_name = 2;
+
+  // Embeint extension.  If set, an editor refuses a request that names its document with
+  // AS_REVISION_MISMATCH unless the document's revision (ApiResponseHeader.document_revision)
+  // equals this value.  On BeginCommit it also makes the commit fail at EndCommit if anything
+  // else changes the document while the commit is open.  Requests that name no document, or that
+  // a document editor does not handle, are refused with AS_BAD_REQUEST when this is set.
+  string expected_revision = 100;
+
+  // Embeint extension.  An optional client-chosen identifier (at most 128 printable characters)
+  // for the mutation this request starts.  Editors keep the outcome so a client can ask with
+  // GetOperationStatus after a timeout instead of resending.  An identifier can be used once.
+  // Requests that a document editor does not handle are refused with AS_BAD_REQUEST when set.
+  string operation_id = 101;
 }
 
 /*
@@ -72,6 +97,10 @@ message ApiResponseHeader
 {
   /// An opaque string identifying a running instance of KiCad.
   string kicad_token = 1;
+
+  /// Embeint extension: the revision of the editor document the request named, after the request
+  /// ran.  Opaque; compare for equality only.  Empty when the request named no open document.
+  string document_revision = 100;
 }
 
 message ApiResponse

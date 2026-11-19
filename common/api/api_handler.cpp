@@ -27,9 +27,29 @@ using kiapi::common::ApiRequest, kiapi::common::ApiResponse, kiapi::common::ApiR
 const wxString API_HANDLER::m_defaultCommitMessage = _( "Modification from API" );
 
 
+std::optional<ApiResponseStatus> API_HANDLER::beforeRequest( const kiapi::common::ApiRequestHeader& aHeader,
+                                                             const google::protobuf::Message& aRequest )
+{
+    // Only document editors keep revisions and operation outcomes.  Refuse rather than ignore the
+    // fields, so a client never believes a request was revision-checked or can be reconciled.
+    if( !aHeader.expected_revision().empty() || !aHeader.operation_id().empty() )
+    {
+        ApiResponseStatus status;
+        status.set_status( ApiStatusCode::AS_BAD_REQUEST );
+        status.set_error_message( fmt::format( "{} is not handled by a document editor, so it cannot take "
+                                               "expected_revision or operation_id",
+                                               std::string( aRequest.GetTypeName() ) ) );
+        return status;
+    }
+
+    return std::nullopt;
+}
+
+
 API_RESULT API_HANDLER::Handle( ApiRequest& aMsg )
 {
     ApiResponseStatus status;
+    m_responseHeader.Clear();
 
     if( !aMsg.has_message() )
     {

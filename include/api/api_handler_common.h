@@ -27,6 +27,7 @@
 
 #include <api/api_handler.h>
 #include <api/common/commands/base_commands.pb.h>
+#include <api/common/commands/editor_commands.pb.h>
 #include <api/common/commands/project_commands.pb.h>
 #include <api/common/tasks.pb.h>
 
@@ -97,6 +98,10 @@ private:
         const HANDLER_CONTEXT<commands::SetNetClassAssignments>& aCtx );
 
     HANDLER_RESULT<Empty> handlePing( const HANDLER_CONTEXT<commands::Ping>& aCtx );
+
+    /// The outcome of a mutation sent with an operation id (Embeint; see API_OPERATION_LOG)
+    HANDLER_RESULT<commands::OperationStatusResponse> handleGetOperationStatus(
+            const HANDLER_CONTEXT<commands::GetOperationStatus>& aCtx );
 
     HANDLER_RESULT<types::Box2> handleGetTextExtents(
         const HANDLER_CONTEXT<commands::GetTextExtents>& aCtx );

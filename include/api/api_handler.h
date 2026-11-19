@@ -104,7 +104,32 @@ public:
     void setApiServer( KICAD_API_SERVER* aServer ) { m_apiServer = aServer; }
     KICAD_API_SERVER* apiServer() const { return m_apiServer; }
 
+    /**
+     * Header fields for the reply to the request this handler handled last (for example the
+     * document revision).  The server merges them into the reply envelope, error replies included.
+     */
+    const kiapi::common::ApiResponseHeader& ResponseHeader() const { return m_responseHeader; }
+
 protected:
+    /**
+     * Called before a registered handler runs, with its unpacked request.  Returning an error
+     * refuses the request without running the handler.
+     *
+     * The default refuses requests that ask for a revision check or an operation id, which only
+     * document editors (API_HANDLER_EDITOR) can honour.
+     */
+    virtual std::optional<ApiResponseStatus> beforeRequest( const kiapi::common::ApiRequestHeader& aHeader,
+                                                            const google::protobuf::Message& aRequest );
+
+    /**
+     * Called after a registered handler ran, or after beforeRequest refused the request.
+     * @param aStatus is AS_OK or the error that is returned to the client
+     */
+    virtual void afterRequest( const kiapi::common::ApiRequestHeader& aHeader,
+                               const google::protobuf::Message& aRequest, const ApiResponseStatus& aStatus )
+    {
+    }
+
     /**
      * A handler for outer messages (envelopes) that will unpack to inner messages and call a
      * specific handler function.  @see registerHandler.
@@ -151,6 +176,14 @@ protected:
                         return envelope;
 
                     ctx.ClientName = aRequest.header().client_name();
+                    m_responseHeader.Clear();
+
+                    if( std::optional<ApiResponseStatus> refused =
+                                beforeRequest( aRequest.header(), ctx.Request ) )
+                    {
+                        afterRequest( aRequest.header(), ctx.Request, *refused );
+                        return tl::unexpected( *refused );
+                    }
 
                     HANDLER_RESULT<ResponseType> response =
                             std::invoke( aHandler, static_cast<HandlerType*>( this ), ctx );
@@ -164,14 +197,17 @@ protected:
                             ApiResponseStatus status;
                             status.set_status( ApiStatusCode::AS_INTERNAL_ERROR );
                             status.set_error_message( "the response could not be serialized" );
+                            afterRequest( aRequest.header(), ctx.Request, status );
                             return tl::unexpected( status );
                         }
 
                         envelope.mutable_status()->set_status( ApiStatusCode::AS_OK );
+                        afterRequest( aRequest.header(), ctx.Request, envelope.status() );
                         return envelope;
                     }
                     else
                     {
+                        afterRequest( aRequest.header(), ctx.Request, response.error() );
                         return tl::unexpected( response.error() );
                     }
                 }, aAllowedDuringTask };
@@ -183,6 +219,9 @@ protected:
     bool m_notifyNetSettings = false;
 
     KICAD_API_SERVER* m_apiServer = nullptr;
+
+    /// Extra reply header fields for the request being handled; @see ResponseHeader
+    kiapi::common::ApiResponseHeader m_responseHeader;
 
     static const wxString m_defaultCommitMessage;
 

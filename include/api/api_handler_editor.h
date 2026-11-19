@@ -29,7 +29,9 @@
 #include <google/protobuf/empty.pb.h>
 #include <kiid.h>
 #include <math/box2.h>
+#include <deque>
 #include <memory>
+#include <optional>
 #include <vector>
 #include <page_info.h>
 
@@ -42,16 +44,57 @@ class DS_DRAW_ITEM_LIST;
 class EDA_BASE_FRAME;
 class EDA_DRAW_FRAME;
 class TITLE_BLOCK;
+class wxTimer;
 
 /**
  * Base class for API handlers related to editor frames
+ *
+ * Revisions and operations (Embeint, see tools/live_schematic_mcp/REVISIONS.md): every reply to a
+ * request naming this editor's document carries the document revision.  A request with an
+ * expected revision is refused with AS_REVISION_MISMATCH before its handler runs if the revision
+ * differs.  Mutations may carry an operation id whose outcome API_OPERATION_LOG keeps.  Open
+ * commits hold a lease: one whose client sends nothing for the lease is rolled back.
  */
 class API_HANDLER_EDITOR : public API_HANDLER
 {
 public:
     API_HANDLER_EDITOR( EDA_BASE_FRAME* aFrame = nullptr );
 
+    ~API_HANDLER_EDITOR() override;
+
+    /// Seconds an open commit is kept without a request from its client, unless BeginCommit asks
+    static constexpr int DEFAULT_COMMIT_LEASE_S = 60;
+    static constexpr int MAX_COMMIT_LEASE_S = 3600;
+
+    /// Clients whose commit was rolled back on expiry are remembered (to refuse their later steps)
+    static constexpr size_t MAX_EXPIRED_CLIENTS = 64;
+
 protected:
+    std::optional<ApiResponseStatus> beforeRequest( const kiapi::common::ApiRequestHeader& aHeader,
+                                                    const google::protobuf::Message& aRequest ) override;
+
+    void afterRequest( const kiapi::common::ApiRequestHeader& aHeader, const google::protobuf::Message& aRequest,
+                       const ApiResponseStatus& aStatus ) override;
+
+    HANDLER_RESULT<commands::DocumentRevisionResponse> handleGetDocumentRevision(
+            const HANDLER_CONTEXT<commands::GetDocumentRevision>& aCtx );
+
+    /// The document revision token, or empty for a handler without a frame
+    std::string documentRevision() const;
+
+    /// Roll back every commit (except aExceptClient's) whose lease has run out
+    void expireCommits( const std::string& aExceptClient = {} );
+
+    /**
+     * Revert a client's open commit and resolve its operations as rolled back.
+     * @param aExpired remembers the client so its later commit steps are refused
+     */
+    void rollBackCommit( const std::string& aClientName, const std::string& aReason, bool aExpired );
+
+    /// Resolve the operations of a client's commit that has ended, and forget its state
+    void finishCommit( const std::string& aClientName, commands::OperationState aState,
+                       const std::string& aMessage );
+
     /// If the header is valid, returns the item container
     HANDLER_RESULT<std::optional<KIID>> validateItemHeaderDocument(
             const kiapi::common::types::ItemHeader& aHeader );
@@ -255,6 +298,49 @@ protected:
     std::set<std::string> m_activeClients;
 
     EDA_BASE_FRAME* m_frame;
+
+private:
+    /// Revision and lease bookkeeping for one client's open commit (explicit or implicit)
+    struct COMMIT_STATE
+    {
+        std::vector<std::string> operations;           ///< operation ids bound to the commit
+        std::string              revisionAtBegin;
+        uint64_t                 lastSeenRevision = 0; ///< after the client's last request
+        bool                     strict = false;       ///< opened with an expected revision
+        bool                     foreignChange = false;
+        std::string              foreignChangeFrom;    ///< revision when the conflict was seen
+        long long                lastActivityMs = 0;
+        int                      leaseSeconds = DEFAULT_COMMIT_LEASE_S;
+    };
+
+    /// What beforeRequest learned about the request being handled
+    struct REQUEST_STATE
+    {
+        bool                                    namesThisDocument = false;
+        bool                                    refusedBeforeRun = false; ///< by the revision contract
+        bool                                    doNotRecord = false;      ///< duplicate or invalid id
+        std::string                             revisionBefore;
+        kiapi::common::types::DocumentSpecifier document;
+        std::optional<commands::OperationState> endCommitOutcome;
+        std::vector<std::string>                resolvedOperations; ///< by a commit ending
+    };
+
+    void ensureLeaseTimer();
+
+    std::string revisionToken( uint64_t aCounter ) const;
+
+    /// Distinguishes this editor window's revisions from any other's
+    std::string m_revisionEpoch;
+
+    std::map<std::string, COMMIT_STATE> m_commitStates;
+
+    /// Client name -> why its commit was rolled back; oldest first in m_expiredOrder
+    std::map<std::string, std::string> m_expiredClients;
+    std::deque<std::string>            m_expiredOrder;
+
+    REQUEST_STATE m_request;
+
+    std::unique_ptr<wxTimer> m_leaseTimer;
 };
 
 #endif //KICAD_API_HANDLER_EDITOR_H

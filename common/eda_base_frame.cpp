@@ -1875,6 +1875,8 @@ void EDA_BASE_FRAME::initExitKey()
 
 void EDA_BASE_FRAME::ClearUndoRedoList()
 {
+    // Called when a document is loaded or reloaded, which replaces its content
+    AdvanceDocumentRevision();
     ClearUndoORRedoList( UNDO_LIST );
     ClearUndoORRedoList( REDO_LIST );
 }
@@ -1882,6 +1884,7 @@ void EDA_BASE_FRAME::ClearUndoRedoList()
 
 void EDA_BASE_FRAME::PushCommandToUndoList( PICKED_ITEMS_LIST* aNewitem )
 {
+    AdvanceDocumentRevision();
     m_undoList.PushCommand( aNewitem );
 
     // Delete the extra items, if count max reached
@@ -1897,6 +1900,7 @@ void EDA_BASE_FRAME::PushCommandToUndoList( PICKED_ITEMS_LIST* aNewitem )
 
 void EDA_BASE_FRAME::PushCommandToRedoList( PICKED_ITEMS_LIST* aNewitem )
 {
+    AdvanceDocumentRevision();
     m_redoList.PushCommand( aNewitem );
 
     // Delete the extra items, if count max reached
@@ -1943,6 +1947,7 @@ wxString EDA_BASE_FRAME::GetRedoActionDescription() const
 void EDA_BASE_FRAME::OnModify()
 {
     m_autoSaveRequired = true;
+    AdvanceDocumentRevision();
 }
 
 
