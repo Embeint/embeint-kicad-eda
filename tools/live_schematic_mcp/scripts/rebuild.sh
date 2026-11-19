@@ -11,7 +11,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 pkill -x eeschema 2>/dev/null && sleep 1
 rsync -rc --exclude .git --exclude tools/live_schematic_mcp --out-format='synced %n' "$REPO/" "$ROOT/src/" \
     | grep -v "non-regular" | grep -v "_help_\|help_md"
-ninja -C "$ROOT/build" > "$ROOT/build.log" 2>&1
+ninja -j "$JOBS" -C "$ROOT/build" > "$ROOT/build.log" 2>&1
 status=$?
 if (( status )); then
     grep -E "^FAILED|error:" "$ROOT/build.log" | head -20
@@ -19,5 +19,5 @@ if (( status )); then
     exit "$status"
 fi
 tail -1 "$ROOT/build.log"
-ninja -C "$ROOT/build" install > "$ROOT/install.log" 2>&1 && echo installed
+ninja -j "$JOBS" -C "$ROOT/build" install > "$ROOT/install.log" 2>&1 && echo installed
 ensure_protos

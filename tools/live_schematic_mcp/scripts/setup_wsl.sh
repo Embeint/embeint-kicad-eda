@@ -50,8 +50,8 @@ if [[ ! -f "$ROOT/build/build.ninja" ]]; then
           -DKICAD_USE_SENTRY=OFF -DCMAKE_INSTALL_PREFIX="$ROOT/install" "${extra[@]}"
 fi
 
-ninja -C "$ROOT/build"
-ninja -C "$ROOT/build" install
+ninja -j "$JOBS" -C "$ROOT/build"
+ninja -j "$JOBS" -C "$ROOT/build" install
 
 if [[ ! -x "$PYTHON" ]]; then
     python3 -m venv "$ROOT/venv"
