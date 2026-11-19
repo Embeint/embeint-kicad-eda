@@ -65,11 +65,35 @@ fn error_value(kind: &str, message: &str) -> Value {
     Value::Object(response)
 }
 
+/// The most digits Python's `json` accepts in an integer literal: CPython's default int/str
+/// conversion limit (`sys.get_int_max_str_digits()`).  `json.loads` raises `ValueError` beyond it.
+pub const PYTHON_MAX_INT_DIGITS: usize = 4300;
+
+/// True if any integer literal in `value` has more digits than Python's `json` accepts.
+fn has_oversized_integer(value: &Value) -> bool {
+    match value {
+        Value::Number(number) => {
+            let text = number.as_str();
+            !text.contains(['.', 'e', 'E'])
+                && text.trim_start_matches('-').len() > PYTHON_MAX_INT_DIGITS
+        }
+        Value::Array(items) => items.iter().any(has_oversized_integer),
+        Value::Object(fields) => fields.values().any(has_oversized_integer),
+        _ => false,
+    }
+}
+
 /// Check the request shape.  The Python reference adapter in `rust/parity/parity.py` applies the
 /// same checks, in the same order and with the same messages.
 pub fn parse_request(text: &str) -> Result<LayoutRequest, String> {
     let value: Value =
         serde_json::from_str(text).map_err(|_| "request is not valid JSON".to_string())?;
+
+    // Python's json.loads rejects the whole document, wherever the integer is.
+    if has_oversized_integer(&value) {
+        return Err("request is not valid JSON".into());
+    }
+
     let Value::Object(mut fields) = value else {
         return Err("request must be a JSON object".into());
     };
@@ -165,5 +189,28 @@ mod tests {
         );
         assert_eq!(error("{\"pins\": "), "request is not valid JSON");
         assert_eq!(parse_request("{\"pins\": []}").unwrap().group_gap, 2);
+    }
+
+    #[test]
+    fn integers_beyond_python_limit_are_not_json() {
+        let request = |digits: usize, sign: &str| {
+            format!(
+                "{{\"pins\": [{{\"number\": \"1\", \"unit\": {sign}{}}}]}}",
+                "9".repeat(digits)
+            )
+        };
+        assert!(parse_request(&request(PYTHON_MAX_INT_DIGITS, "-")).is_ok());
+        for sign in ["", "-"] {
+            assert_eq!(
+                parse_request(&request(PYTHON_MAX_INT_DIGITS + 1, sign)).unwrap_err(),
+                "request is not valid JSON"
+            );
+        }
+        // Floats have no such limit in Python.
+        let float = format!("{{\"pins\": [], \"x\": {}.0}}", "9".repeat(5000));
+        assert_eq!(
+            parse_request(&float).unwrap_err(),
+            "unknown request field: x"
+        );
     }
 }
