@@ -42,10 +42,10 @@
     },
     "pcb/idf": {
       "files": {
-        "board.emn": "65e88b0c991acd1839a4456e71bea6d5c9368794d268626849009f30bcae5e7d",
+        "board.emn": "c3300adaefd3afd49f5f6b81aecdf946bc64a79053707b58c85ee57c2c439781",
         "board.emp": "66e8def8108c48dc49fc7bb59f15fa9508be1c3fc73fdbabce639bf3f1671436"
       },
-      "tree_sha256": "64d32540646328ddc6387efb7f6d9a8ab800f29d799a64620ff8536a42bc3128"
+      "tree_sha256": "55bd642c5f62bee29555bfe0e1adf4f5a2e2ad35a8146fc7d8718d22a7e5f0bd"
     },
     "pcb/ipc2581": {
       "files": {
@@ -92,9 +92,9 @@
     },
     "pcb/svg": {
       "files": {
-        "board.svg": "d5dcdf011bb5c72ee4dbc4e3240e4e301d6a92c668335191313a39c133c92e0b"
+        "board.svg": "c111cb51b026ccce7c51b67361a3d6a75821347329f2a3555be95a7457eba355"
       },
-      "tree_sha256": "c4a0b8f88625d82006f67bd0f5af6a58daae80940ecf0f606c619c75cd348f2c"
+      "tree_sha256": "c8f2cd44654a7d0c2e16b216aaea44f67409ed84ef6909155d413e568a6ae695"
     },
     "sch/bom": {
       "files": {
