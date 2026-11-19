@@ -552,11 +552,13 @@ def test_embedded_file_bytes_decodes_kicad_storage():
     import base64
     from model_handoff import embedded_file_bytes
     try:
-        from compression import zstd
+        from compression import zstd  # Python 3.14+
+        compress = zstd.compress
     except ImportError:
-        pytest.skip("needs Python 3.14 compression.zstd")
+        zstandard = pytest.importorskip("zstandard", reason="needs compression.zstd or zstandard")
+        compress = zstandard.ZstdCompressor().compress
     payload = b"ISO-10303-21;\nHEADER;\n" * 50
-    encoded = base64.b64encode(zstd.compress(payload)).decode()
+    encoded = base64.b64encode(compress(payload)).decode()
     text = f'(embedded_files (file (name "m.step") (type model) (data |{encoded[:40]}|\n |{encoded[40:]}|) (checksum "x")))'
     assert embedded_file_bytes(text, "m.step") == payload
 
