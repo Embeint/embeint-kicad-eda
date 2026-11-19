@@ -21,6 +21,31 @@
   pins, then wire the parent. Preserve the rest of a sheet symbol when updating
   pins. Page and title-block settings apply to each sheet document.
 
+## Supported block scripting API
+
+For a generated functional block that will be revised, read
+[block-helpers.md](block-helpers.md). The source installation supports
+`block_helpers.Block`, `Manifest`, `plan()` and `apply()` over the existing client.
+It provides dashed titled frames, unrotated symbol placement from real library pin
+endpoints, Manhattan paths with junctions and hierarchical ports/sheet pins.
+Keep stable logical keys and the ownership manifest; a revision targets only its
+generated UUIDs and refuses stale state or unowned collisions. Apply is single-use,
+uses one existing document batch, and never retries or saves. The expected-state
+fingerprint is client-side; it is not an atomic editor revision check. Keep a
+single writer and reread/replan after an unknown outcome.
+
+Run the synthetic planner with no editor connection or circuit-file writes:
+
+```sh
+python tools/live_schematic_mcp/block_example.py
+```
+
+This prints a proposed two-resistor block, T junction and hierarchical port. The
+guarded `--live` probe is for the owner of an isolated disposable native runtime.
+The Python API needs the source installation and generated protocol/dependencies;
+the frozen MCP includes its module/reference but adds no helper execution tool.
+Consult the loaded tool inventory for actual tool support.
+
 ## Evidence for each completed sheet
 
 1. Render the whole page with frame (`live_schematic_view`); fix overlaps and check

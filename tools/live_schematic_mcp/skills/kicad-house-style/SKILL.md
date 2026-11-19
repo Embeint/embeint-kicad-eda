@@ -2,7 +2,7 @@
 name: kicad-house-style
 description: Apply Embeint conventions when capturing or reviewing schematics, selecting parts, or creating symbols, footprints and boards with KiCad. Use for design work, not general fork development.
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Embeint KiCad house style
@@ -17,6 +17,7 @@ the user's current design requirements and existing authorization take precedenc
 | Review pin planning, power paths and interfaces | [design-review.md](design-review.md) |
 | Set up, place, route or export a board | [pcb.md](pcb.md) |
 | Drive live IPC and verify edits and persistence | [live-workflow.md](live-workflow.md) |
+| Plan and reconcile a small generated schematic block | [block-helpers.md](block-helpers.md) |
 | Configure local libraries or optional part selector | [workstation.md](workstation.md) |
 
 Start by identifying the intended project and document. Reuse authorization already
