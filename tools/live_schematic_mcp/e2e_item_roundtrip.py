@@ -13,7 +13,9 @@ request set are reported too ("explicit values").
 
 The default run creates a fixture of every schematic item type with non-default values
 (item_roundtrip.api_fixture plus library and power symbols) far off the page of the live-demo
-schematic, and deletes it afterwards.
+schematic, and deletes it afterwards (also when a check fails).  It also sends the library symbol
+without its definition and with a lib_id naming another symbol: the update must keep the symbol's
+library link, so the saved document must not change.
 
 --isolated requires KICAD_ROUNDTRIP_ISOLATED=1 and an explicit KICAD_API_SOCKET for a separately
 launched KiCad whose open project (KICAD_LIVE_TEST_PROJECT) is disposable, such as one written by
@@ -191,11 +193,30 @@ def failures(entry):
     return {k: entry[k] for k in keys if entry.get(k)}
 
 
-def build_fixture(client, doc):
+def check_definitionless_lib_id(client, doc, symbol):
+    """File differences after a definition-less update whose lib_id names a symbol the schematic
+    does not embed (undone).  The update keeps the embedded symbol, so it must keep the library
+    link to it too."""
+    before = save_string(client, doc)
+    message = type(symbol)()
+    message.CopyFrom(symbol)
+    message.ClearField("definition")
+    message.lib_id.library_nickname = "Device"
+    message.lib_id.entry_name = "R_roundtrip_missing"
+    client.mutate(doc, [message], update=True)
+    changed = block_differences(before, save_string(client, doc))
+    if changed:
+        client.undo(doc)
+    return changed
+
+
+def build_fixture(client, doc, created_ids):
     """Create the API fixture and symbols; returns {id: message}, explicit-value losses and the
-    known (documented) ones."""
+    known (documented) ones.  Appends the id of every item it creates to created_ids as it goes,
+    so the caller can remove them even if this fails part way."""
     sent = api_fixture()
     created = create(client, doc, sent)
+    created_ids.extend(item.id.value for item in created)
     losses, known = {}, {}
     for request, reply in zip(sent, created):
         kind = type(request).DESCRIPTOR.name
@@ -208,14 +229,24 @@ def build_fixture(client, doc):
                                                     "returned": field_values(reply, lost)}
         if expected:
             known[f"{kind} {request.id.value}"] = expected
-    ids = [item.id.value for item in created]
+    symbols = {}
     for lib_id, x in (("Device:R", 520), ("power:GND", 540), ("power:+3V3", 560)):
-        ids.append(client.place_symbol(doc, lib_id, x, 150)["id"])
+        symbols[lib_id] = client.place_symbol(doc, lib_id, x, 150)["id"]
+        created_ids.append(symbols[lib_id])
     current = item_map(client, doc)
     for request in sent:
         if request.id.value not in current:
             losses[f"{type(request).DESCRIPTOR.name} {request.id.value}"] = "not returned by GetItems"
-    return {uuid: current[uuid] for uuid in ids if uuid in current}, losses, known
+    fixture = {uuid: current[uuid] for uuid in created_ids if uuid in current}
+    return fixture, losses, known, symbols["Device:R"]
+
+
+def remove_fixture(client, doc, created_ids):
+    """Delete whichever of the created items are still in the document."""
+    present = set(item_map(client, doc))
+    remaining = [uuid for uuid in created_ids if uuid in present]
+    for first in range(0, len(remaining), 200):
+        client.delete(doc, remaining[first:first + 200])
 
 
 def reopen_check(client, doc, kinds=()):
@@ -279,24 +310,30 @@ def main():
     client = LiveSchematic(timeout_ms=30000)
     doc = test_document(client)
     start = save_string(client, doc)
-    fixture, losses, known = build_fixture(client, doc)
-    targets = item_map(client, doc) if args.isolated else fixture
+    created_ids = []
+    try:
+        fixture, losses, known, resistor = build_fixture(client, doc, created_ids)
+        targets = item_map(client, doc) if args.isolated else fixture
 
-    # Recreating a loaded sheet would give it an empty screen in place of its sub-sheet
-    result = {"explicit_value_losses": losses, "known_unpreservable": known,
-              "schematic": check_document(client, doc, targets,
-                                          lambda i, item: not is_type(item, sch.SheetSymbol) or i in fixture)}
-    if args.isolated:
-        board = test_board(client)
-        # A created footprint gets new UUIDs for all its children by design, and generated tables
-        # (wrapping a table) are rebuilt from the board rather than created from a message
-        result["board"] = check_document(client, board, item_map(client, board, BOARD_KINDS),
-                                         lambda i, item: type(item).DESCRIPTOR.name != "FootprintInstance"
-                                         and "id" in item.DESCRIPTOR.fields_by_name)
-        result["reopen"] = {"schematic": reopen_check(client, doc),
-                            "board": reopen_check(client, board, BOARD_KINDS)}
-    else:
-        client.delete(doc, list(fixture))
+        # Recreating a loaded sheet would give it an empty screen in place of its sub-sheet
+        result = {"explicit_value_losses": losses, "known_unpreservable": known,
+                  "schematic": check_document(client, doc, targets,
+                                              lambda i, item: not is_type(item, sch.SheetSymbol) or i in fixture),
+                  "definitionless_lib_id": check_definitionless_lib_id(client, doc, fixture[resistor])}
+        if args.isolated:
+            board = test_board(client)
+            # A created footprint gets new UUIDs for all its children by design, and generated tables
+            # (wrapping a table) are rebuilt from the board rather than created from a message
+            result["board"] = check_document(client, board, item_map(client, board, BOARD_KINDS),
+                                             lambda i, item: type(item).DESCRIPTOR.name != "FootprintInstance"
+                                             and "id" in item.DESCRIPTOR.fields_by_name)
+            result["reopen"] = {"schematic": reopen_check(client, doc),
+                                "board": reopen_check(client, board, BOARD_KINDS)}
+    finally:
+        # The default run edits the open live-demo schematic: never leave the fixture behind
+        if not args.isolated:
+            remove_fixture(client, doc, created_ids)
+    if not args.isolated:
         leftover = block_differences(start, save_string(client, doc))
         result["cleanup"] = [d for d in leftover if d["head"] != "lib_symbols"]
 
@@ -308,6 +345,8 @@ def main():
             problems.append(f"CHANGED {name} {key} " + json.dumps(
                 {k: (v if not k.endswith("_file") else [d["key"] for d in v]) for k, v in value.items()}))
     problems += [f"EXPLICIT {key} {value}" for key, value in losses.items()]
+    problems += [f"LIB_ID a definition-less update with another lib_id changed {d['kind']} {d['head']} {d['key']}"
+                 for d in result["definitionless_lib_id"]]
     for name, check in result.get("reopen", {}).items():
         problems += [f"REOPEN {name} {key} {value}" for key, value in check["items"].items()]
         problems += [f"REOPEN {name} file block {d['key']}" for d in check["file"]]
