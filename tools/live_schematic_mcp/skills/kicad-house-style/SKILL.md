@@ -2,7 +2,7 @@
 name: kicad-house-style
 description: Apply Embeint conventions when capturing or reviewing schematics, selecting parts, or creating symbols, footprints and boards with KiCad. Use for design work, not general fork development.
 metadata:
-  version: "1.1.0"
+  version: "1.1.1"
 ---
 
 # Embeint KiCad house style

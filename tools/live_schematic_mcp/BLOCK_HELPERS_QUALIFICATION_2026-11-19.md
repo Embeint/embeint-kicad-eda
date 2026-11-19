@@ -96,6 +96,20 @@ Give that evaluator only installed/bundled skill instructions and a new syntheti
 project, with no original conversation. A scripted probe by the implementation or
 acceptance owner is not independent-agent evidence.
 
+## Review fixes after qualification
+
+A later code review changed `block_helpers.py`, its tests, the qualification
+checker and the helper guidance (skill version 1.1.1). Block wires that KiCad's
+commit cleanup would merge (in-line ends meeting with nothing else there) or that
+touch manual wires/junctions are now refused; a block pin, port or sheet pin counts
+as a junction exit; wire/junction geometry is checked after apply; owned-item hashes
+are deterministic across processes (map fields); and checker failures no longer use
+`assert`. The combined offline suite passed **326 tests** with these changes.
+
+The frozen receipt, its skill content hash and the native helper probe above describe
+the earlier helper source and skill 1.1.0. They were **not** rerun for these fixes:
+no new package was built and no native probe was requested from the runtime owner.
+
 ## Limits
 
 One writer is required. Fingerprints cover serialized sheet items before a batch;

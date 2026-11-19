@@ -21,6 +21,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import skills
 
 
+def require(condition, message):
+    # Explicit failure rather than assert, so `python -O` cannot write a passing receipt.
+    if not condition:
+        raise SystemExit(f"check failed: {message}")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("executable", type=Path)
@@ -39,12 +45,13 @@ def main():
     helper_hashes = {}
     for name in ("block_helpers.py", "block_example.py"):
         helper_hashes[name] = sha256((source / name).read_bytes()).hexdigest()
-        assert helper_hashes[name] == info["source_sha256"][name], f"build source differs: {name}"
+        require(helper_hashes[name] == info["source_sha256"][name], f"build source differs: {name}")
     embedded = CArchiveReader(str(executable)).open_embedded_archive("PYZ.pyz")
-    assert "block_helpers" in embedded.toc, "helper module missing from frozen archive"
+    require("block_helpers" in embedded.toc, "helper module missing from frozen archive")
     skills.SKILLS_DIR = source / "skills"
     expected = skills.skill_manifest()
-    assert "kicad-house-style/block-helpers.md" in expected["skill_file_sha256"]
+    require("kicad-house-style/block-helpers.md" in expected["skill_file_sha256"],
+            "helper reference missing from the bundled skill manifest")
     result = asyncio.run(check(executable, expected))
     result.update({"kind": "scripted_fresh_stdio_and_frozen_delivery_check",
                    "source_revision": info["source_revision"], "revision_source": info["revision_source"],
@@ -63,7 +70,8 @@ def main():
         for name in helper_hashes:
             raw = (args.native_source_mcp / name).read_bytes()
             built = (source / name).read_bytes()
-            assert raw.replace(b"\r\n", b"\n") == built.replace(b"\r\n", b"\n"), name
+            require(raw.replace(b"\r\n", b"\n") == built.replace(b"\r\n", b"\n"),
+                    f"native-tested source differs: {name}")
             hashes[name] = sha256(raw).hexdigest()
         result["native_source_sha256"] = hashes
         result["native_source_comparison"] = "Equal after CRLF/LF newline normalization"

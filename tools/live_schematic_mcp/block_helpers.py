@@ -29,8 +29,10 @@ def _copy(message):
 
 
 def _pack(message):
+    # Deterministic so map fields (e.g. variant fields) hash identically across processes;
+    # manifests are saved by one process and checked by another.
     packed = any_pb2.Any()
-    packed.Pack(message)
+    packed.Pack(message, deterministic=True)
     return packed
 
 
@@ -103,6 +105,9 @@ class Block:
         self._items = {}
         self._pins = {}
         self._routes = {}
+        # Block-owned connection points (symbol pins, ports, sheet pins) in nm. KiCad
+        # counts one as an extra exit when deciding junctions and wire merges.
+        self._points = set()
 
     def id(self, key):
         if not key or not isinstance(key, str):
@@ -133,7 +138,7 @@ class Block:
                 content = _message(child.item)
                 if hasattr(content, "id"):
                     content.id.CopyFrom(kiid(self.id(f"{key}/child/{index}")))
-                    child.item.Pack(content)
+                    child.item.Pack(content, deterministic=True)
         self._items[key] = item
         return item.id.value
 
@@ -190,6 +195,7 @@ class Block:
         self.add(key, instance)
         self._pins[key] = [(p.number, (p.position.x_nm + origin[0], p.position.y_nm + origin[1]))
                            for p in pins]
+        self._points.update(pos for _, pos in self._pins[key])
         numbers = [p.number for p in pins]
         return {number: self.pin(key, number) for number in numbers if numbers.count(number) == 1}
 
@@ -208,6 +214,7 @@ class Block:
             raise ValueError("A port name is required")
         self.add(key, sch.HierarchicalLabel(position=point(*at), text=_text(name, at),
                                             shape=shapes[shape], spin_style=spins[spin]))
+        self._points.add(_xy(point(*at)))
         return tuple(at)
 
     def sheet(self, key, name, filename, at, size, page, ports):
@@ -241,14 +248,17 @@ class Block:
             sheet.pins.add(id=kiid(self.id(f"{key}/pin/{port}")), position=point(x, y),
                            text=_text(port, (x, y)), side=sides[side], shape=shapes[shape])
         self.add(key, sheet)
+        self._points.update(_xy(point(*pos)) for pos in endpoints.values())
         return endpoints
 
     def wire(self, key, net, path):
         """Declare an explicit Manhattan path; split same-net joins and add junctions.
 
         Net is a local planning name, not a label or electrical net assignment.
-        Collinear overlaps and intersections between different nets are refused.
-        This is not an obstacle router; manual geometry still needs visual review.
+        Collinear overlaps and intersections between different nets are refused, as
+        are in-line wire ends meeting with nothing else there (KiCad merges those on
+        commit). plan() also refuses block wires touching manual wires. This is not an
+        obstacle router; manual geometry still needs visual review.
         """
         if key in self._routes or not net or len(path) < 2:
             raise ValueError("Unique route key, net name and at least two points are required")
@@ -271,9 +281,10 @@ class Block:
                     raise ValueError("Wire overlap or different-net intersection; choose another path")
                 cuts[i].update(hits)
                 cuts[j].update(hits)
-        degree = {}
+        ends = {}
         for (key, index, net, a, b), points in zip(legs, cuts):
             ordered = sorted(points, reverse=a > b)
+            horizontal = a[1] == b[1]
             for segment, (start, end) in enumerate(zip(ordered, ordered[1:])):
                 logical = f"route/{key}/{index}/{segment}"
                 if logical in result:
@@ -281,9 +292,15 @@ class Block:
                 result[logical] = sch.SchematicLine(id=kiid(self.id(logical)), type=sch.SLT_WIRE,
                                                     start=point(*_mm(start)), end=point(*_mm(end)))
                 for pos in (start, end):
-                    degree[(net, pos)] = degree.get((net, pos), 0) + 1
-        for (net, pos), count in degree.items():
-            if count >= 3:
+                    ends.setdefault((net, pos), []).append(horizontal)
+        for (net, pos), axes in ends.items():
+            # KiCad's commit cleanup merges two in-line wires touching where nothing else
+            # connects, which would delete an owned UUID; a pin or port there prevents it.
+            if len(axes) == 2 and axes[0] == axes[1] and pos not in self._points:
+                raise ValueError(f"In-line wires meet at {_mm(pos)} with nothing else there; "
+                                 "KiCad would merge them. Use one straight leg")
+            # Same rule as KiCad: three or more exits, counting a pin or port, is a junction.
+            if len(axes) + (pos in self._points) >= 3:
                 logical = f"junction/{net}/{pos[0]}/{pos[1]}"
                 if logical in result:
                     raise ValueError("Logical key collides with a generated junction")
@@ -319,6 +336,40 @@ def _intersection(a, b, c, d):
     pos = (c[0], a[1])
     return ({pos} if min(a[0], b[0]) <= pos[0] <= max(a[0], b[0])
             and min(c[1], d[1]) <= pos[1] <= max(c[1], d[1]) else set()), False
+
+
+def _on_segment(p, a, b):
+    cross = (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])
+    return (cross == 0 and min(a[0], b[0]) <= p[0] <= max(a[0], b[0])
+            and min(a[1], b[1]) <= p[1] <= max(a[1], b[1]))
+
+
+def _touches(a, b, c, d):
+    """True when two segments share any point other than a crossing of both interiors.
+
+    KiCad's commit cleanup may merge, split or rejoin wires that touch this way; a
+    plain crossing of two interiors is not connected and is left alone.
+    """
+    return any(_on_segment(p, c, d) for p in (a, b)) or any(_on_segment(p, a, b) for p in (c, d))
+
+
+def _refuse_manual_contact(desired, manual):
+    """Refuse block wires/junctions that touch unowned wires or junctions.
+
+    Such contact lets KiCad's cleanup change manual UUIDs or geometry, which the
+    block may not do. Join blocks to manual circuitry through labels or pins.
+    """
+    wires = [(_xy(item.start), _xy(item.end)) for item in manual
+             if isinstance(item, sch.SchematicLine) and item.type == sch.SLT_WIRE]
+    junctions = {_xy(item.position) for item in manual if isinstance(item, sch.Junction)}
+    for key, item in desired.items():
+        if isinstance(item, sch.SchematicLine) and item.type == sch.SLT_WIRE:
+            a, b = _xy(item.start), _xy(item.end)
+            if any(_touches(a, b, c, d) for c, d in wires) or any(_on_segment(j, a, b) for j in junctions):
+                raise ValueError(f"Block wire {key} touches a manual wire or junction; "
+                                 "connect through a label or pin instead")
+        elif isinstance(item, sch.Junction) and _xy(item.position) in junctions:
+            raise ValueError(f"Block junction {key} duplicates a manual junction")
 
 
 class StaleState(ValueError):
@@ -411,6 +462,9 @@ def plan(block, manifest, doc, current_items):
         live = current.get(block.id(key))
         if live is None or _hash(live) != record.observed_sha256:
             raise StaleState(f"Owned item changed or missing: {key}")
+    owned_ids = {block.id(key) for key in previous} | {block.id(key) for key in desired}
+    _refuse_manual_contact({key: _unpack(packed) for key, packed in desired.items()},
+                           [_unpack(packed) for value, packed in current.items() if value not in owned_ids])
     creates, updates, deletes = [], [], []
     for key, packed in desired.items():
         if key not in previous:
@@ -478,9 +532,19 @@ def apply(client, doc, pending):
                     value = block.id(record.key)
                     if current[value] != observed[value]:
                         raise RuntimeError("An unchanged owned item changed during apply")
+            # Connectivity geometry must be stored exactly as requested; other content
+            # is only checked by membership/hash below and may be normalized by KiCad.
+            for key in pending.creates + pending.updates:
+                wanted, stored = _unpack(desired[key]), _unpack(observed[block.id(key)])
+                if (isinstance(wanted, sch.SchematicLine)
+                        and (wanted.start, wanted.end) != (stored.start, stored.end)) or (
+                        isinstance(wanted, sch.Junction) and wanted.position != stored.position):
+                    raise RuntimeError(f"Stored geometry differs from the request: {key}")
             # KiCad normalizes defaults and omits definition pins on reads. Record
             # both requested content and the observed baseline rather than replaying
-            # requests just because their protobuf representation differs.
+            # requests just because their protobuf representation differs. Later plans
+            # compare desired content with this last request, not with the editor's
+            # stored fields; verify stored fields separately where they matter.
             return Manifest(pending.manifest.namespace, pending.manifest.document_bytes,
                             tuple(OwnedItem(key, _hash(observed[block.id(key)]), _hash(packed))
                                   for key, packed in sorted(desired.items())))
