@@ -21,7 +21,10 @@
 #include <api/sch_context.h>
 #include <api/sch_api_save.h>
 
+#include <kiway.h>
+#include <local_history.h>
 #include <sch_edit_frame.h>
+#include <sch_screen.h>
 
 
 class SCH_EDIT_FRAME_CONTEXT : public SCH_CONTEXT
@@ -69,7 +72,32 @@ public:
 
     bool SaveSchematic() override
     {
-        return SCH_API_SAVE::SaveSchematic( m_frame->Schematic(), m_frame->Prj() );
+        if( !SCH_API_SAVE::SaveSchematic( m_frame->Schematic(), m_frame->Prj() ) )
+            return false;
+
+        if( !m_frame->Prj().IsNullProject() )
+        {
+            // Match an interactive save: supersede incremental recovery snapshots, or
+            // remove only the ZIP autosaves for sheets that this save persisted.
+            LOCAL_HISTORY& history = m_frame->Kiway().LocalHistory();
+            const wxString projectPath = m_frame->Prj().GetProjectPath();
+            history.RunRegisteredSaversAndCommit( projectPath, wxS( "SCH Save" ), wxS( "sch" ) );
+
+            SCH_SCREENS screens( m_frame->Schematic().Root() );
+            std::vector<wxString> savedSheetPaths;
+
+            for( size_t i = 0; i < screens.GetCount(); ++i )
+            {
+                const wxString& fileName = screens.GetScreen( i )->GetFileName();
+
+                if( !fileName.IsEmpty() )
+                    savedSheetPaths.push_back( fileName );
+            }
+
+            history.RemoveAutosaveFiles( projectPath, savedSheetPaths );
+        }
+
+        return true;
     }
 
     bool SaveSchematicAs( const wxString& aFileName ) override
