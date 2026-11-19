@@ -9,7 +9,7 @@ reviewed.
 | Crate | Purpose |
 | --- | --- |
 | `embeint-layout` | Portable library: `layout_box` from `symbol_layout.py`, JSON in and JSON out. No filesystem, sockets, processes or GUI types. |
-| `embeint-web` | Thin WebAssembly binding (`cdylib`): a three-function C-style ABI plus `js/embeint_layout.mjs`, which loads it in a browser, a Web Worker or Node.js without a binding generator. |
+| `embeint-web` | Thin WebAssembly binding (`cdylib`): a three-function C-style ABI plus `js/embeint_layout.mjs`, which loads it in a browser, a Web Worker or Node.js without a binding generator. The ABI packs a 32-bit pointer into its return value, so the functions are only exported on 32-bit targets such as wasm32; a native build exports nothing. |
 | `embeint-layout-cli` | Native runner (`embeint-layout` binary): one JSON request per stdin line, used by the parity harness. Process I/O lives here so the library stays portable. |
 | `parity/` | `parity.py` (harness and Python reference adapter), `cases.json` (fixed examples), `run_wasm.mjs` (Node runner). |
 
@@ -36,7 +36,10 @@ the pins are passed exactly as the agent sends them. A request with any other sh
 `RequestError`: a request that is not a JSON object, an unknown field, `pins` that is not a list
 of objects, an `arrange` that is not a string, or a `group_gap` that is not an integer (booleans
 and `2.0` are rejected). `parse_request` in Rust and `reference()` in `parity.py` apply these
-checks in the same order, with the same messages.
+checks in the same order, with the same messages. As with Python's `json`, an integer literal with
+more than 4,300 digits anywhere in the request makes it invalid JSON. That is CPython's default
+int/str conversion limit; the harness sets it explicitly, so `PYTHONINTMAXSTRDIGITS` cannot change
+the reference.
 
 Response: the Python result as JSON, `{"body": [x1, y1, x2, y2], "pins": [...]}` in millimetres.
 On failure it is `{"error": {"type": ..., "message": ...}}`, where `type` names the Python
@@ -72,31 +75,41 @@ You need a stable Rust toolchain (1.85 or later) and Python 3. The WebAssembly r
 ```bash
 rustup target add wasm32-unknown-unknown             # once
 cd rust && cargo test --locked --release && cd ..    # unit tests
+node --test rust/embeint-web/js/embeint_layout.test.mjs   # JavaScript loader tests
 python rust/parity/parity.py --build                 # build, then compare (WASM skipped without node)
 python rust/parity/parity.py --build --require-wasm --bench 200 --report /tmp/report.json
 ```
 
-`--build` runs `cargo build --release` for the native runner and for the wasm32 module. The
-harness then sends every request through all three implementations and compares the responses
-structurally. Key order, `int` versus `float` and each float's exact value all count. It exits
-non-zero on any difference, or when `--require-wasm` is given and the module or Node.js is missing.
-The corpus is the 64 cases in `cases.json`, plus a generated 256-pin symbol and 500 seeded
-pseudo-random pin lists (`--generated N`).
+`--build` runs `cargo build --release` for the native runner and for the wasm32 module, and uses
+the artefact paths that cargo reports for that build. A failed build therefore never falls back
+to an older module left in the target directory (or restored from a CI cache). The harness then
+sends every request through all three implementations and compares the responses structurally.
+Key order, `int` versus `float` and each float's exact value all count. It exits non-zero on any
+difference. With `--require-wasm`, it also exits non-zero when the WASM build fails or Node.js is
+missing; without it, a failed WASM build only skips WASM. Without `--build`, it refuses an
+artefact older than any Rust source. The corpus is the 64 cases in `cases.json`, a generated
+256-pin symbol, 7 cases around Python's integer digit limit, 500 seeded pseudo-random pin lists
+(`--generated N`), and 300 seeded pin lists with values of any JSON type in their fields
+(`--typed N`).
 
-CI runs `.github/workflows/rust-layout.yml` when `rust/**` or `symbol_layout.py` changes:
-rustfmt, clippy with `-D warnings`, the unit tests, and the parity run with `--require-wasm`. It is
-a separate job from the MCP unit tests (`mcp.yml`), which neither need nor wait for Rust.
+CI runs `.github/workflows/rust-layout.yml` when `rust/**` or `symbol_layout.py` changes. Its
+actions are pinned to commit SHAs and its Rust toolchain to an explicit version (`RUST_TOOLCHAIN`),
+so a new stable release cannot fail unrelated pull requests with new lints. It runs rustfmt,
+clippy with `-D warnings` (native and wasm32), `cargo check` with the declared minimum Rust 1.85.0
+(native and wasm32), the unit tests, the loader tests, and the parity run with `--require-wasm`.
+It is a separate job from the MCP unit tests (`mcp.yml`), which neither need nor wait for Rust.
 
-## Parity results (2026-11-19)
+## Parity results (2026-11-20)
 
-Every run reports 565/565 identical for each implementation, and the harness exited 0 each time.
+Every run reports 872/872 identical for each implementation, and the harness exited 0 each time.
 
 | Host | Python | Rust | Native | WASM (Node 22.22.1) |
 | --- | --- | --- | --- | --- |
-| WSL Ubuntu, x86_64 | 3.14.4 | 1.99.1 | 565/565 identical | 565/565 identical |
-| Windows 11, x86_64 MSVC | 3.12.0 | 1.99.0 | 565/565 identical | not run (no Node.js on the host) |
+| WSL Ubuntu, x86_64 | 3.14.4 | 1.99.1 | 872/872 identical | 872/872 identical |
+| Windows 11, x86_64 MSVC | 3.12.0 | 1.99.0 | 872/872 identical | not run (no Node.js on the host) |
 
-The corpus is the 65 fixed cases plus the 500 seeded cases. It covers the following:
+The corpus is the 72 fixed cases, the 500 seeded cases and the 300 seeded typed cases. It covers
+the following:
 
 - **Ordinary layouts.** LDO and buck regulators, explicit gaps, top/bottom centring, long names,
   ground and feedback classification, inversion marks, pass-through fields, non-string values,
@@ -105,8 +118,14 @@ The corpus is the 65 fixed cases plus the 500 seeded cases. It covers the follow
   `KeyError`/`TypeError` cases, `group_gap` and `arrange` errors, wrong request shapes, invalid
   JSON, and `NaN`.
 - **Multi-unit symbols (5 cases).**
+- **Python's integer digit limit (7 cases).** Integers of 4,300 digits pass through; 4,301 digits
+  anywhere in the request, signed or not, are invalid JSON; long floats are not limited.
+- **Values of any JSON type (300 seeded cases).** Null, booleans, integers (including ones beyond
+  64 bits), floats, strings, lists and objects in every pin field the layout reads or writes. 130
+  of them lay out; the rest are `ValueError`, `TypeError` and `KeyError` responses, including
+  Python `repr()`s of nested values.
 
-There were 109 error responses in all.
+There were 284 error responses in all.
 
 The harness catches real differences. Each of these deliberate edits to the Rust code failed the
 run:
@@ -124,21 +143,21 @@ fixture depended on the `!` mark, so fixtures for it were added.
 ### Responsiveness
 
 The table times each call with JSON in and JSON out: the best of 5 rounds of 200 calls over the
-25 valid fixed cases, in microseconds. The host was shared with other builds (load average 5 to 36
+27 valid fixed cases, in microseconds. The host was shared with other builds (load average about 5
 on 32 threads), so treat the ratios as indicative.
 
 | WSL run | Median | Slowest (256 pins) | Compared with the Python adapter |
 | --- | ---: | ---: | ---: |
-| Python adapter (`json.loads` + `layout_box` + `json.dumps`) | 43.2 | 1400 | 1.0x |
-| Python `layout_box` alone (as the MCP calls it) | 23.1 | 975 | |
-| Rust native | 13.0 | 753 | 3.3x |
-| Rust WASM in Node | 20.9 | 922 | 2.1x |
+| Python adapter (`json.loads` + `layout_box` + `json.dumps`) | 45.7 | 1354 | 1.0x |
+| Python `layout_box` alone (as the MCP calls it) | 23.0 | 926 | |
+| Rust native | 12.8 | 745 | 3.6x |
+| Rust WASM in Node | 25.8 | 960 | 1.8x |
 
-The Windows run gave a Python adapter median of 86.8 µs, a native median of 24.4 µs (3.6x), and
-1393 µs for the 256-pin case.
+The Windows run gave a Python adapter median of 91.0 µs, a native median of 30.0 µs (3.0x), and
+1246 µs natively for the 256-pin case.
 
-A whole-corpus run, including process start, took 37 ms natively and 202 ms in Node. Most of the
-Node time is startup and WebAssembly compilation. The release module is 232 KB.
+A whole-corpus run, including process start, took 43 ms natively and 226 ms in Node. Most of the
+Node time is startup and WebAssembly compilation. The release module is 234 KB.
 
 Every case is far below interactive limits, and even 256 pins takes under 1 ms. For the MCP the
 gain is small: a typical symbol takes about 23 µs in Python, against milliseconds for the IPC round
@@ -177,5 +196,12 @@ The JavaScript loader, the Node runner and the harness use only the platform's s
 - **Python 3.14 messages.** Python 3.14 words "unhashable type" errors differently. The reference
   adapter reduces them to the `unhashable type: '...'` part.
 - **WASM traps.** A trap (there should be none, because the layout code does not panic on input)
-  loses the module instance. The host must create a new one.
+  loses the module instance. `js/embeint_layout.mjs` then marks it broken: the trapping call
+  rethrows the trap, every later call throws `EmbeintLayoutBrokenError` without entering the
+  module, and `layout.broken` is true. It does not re-instantiate by itself, because synchronous
+  instantiation is restricted on a browser's main thread; call `loadEmbeintLayout` again, with
+  the bytes or a compiled `WebAssembly.Module`.
+- **Python's integer digit limit.** The Rust side hard-codes CPython's default of 4,300 digits. A
+  Python process configured with a different limit (`sys.set_int_max_str_digits`) would accept or
+  reject other requests.
 - **Pin length.** `pin_length` is not part of the boundary, because the MCP never passes it.
