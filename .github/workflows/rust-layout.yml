@@ -1,0 +1,60 @@
+name: Rust layout parity
+
+# Portable Rust checks, separate from the MCP unit tests (mcp.yml) so neither slows the other.
+# The parity harness also runs when the authoritative Python layout changes, so a change there
+# that the Rust port does not follow fails here.
+on:
+  pull_request:
+    paths:
+      - "rust/**"
+      - "tools/live_schematic_mcp/symbol_layout.py"
+      - ".github/workflows/rust-layout.yml"
+  push:
+    branches: [main, live-schematic-ipc]
+    paths:
+      - "rust/**"
+      - "tools/live_schematic_mcp/symbol_layout.py"
+      - ".github/workflows/rust-layout.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  layout-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install the Rust toolchain and the WebAssembly target
+        run: |
+          rustup toolchain install stable --profile minimal --component clippy,rustfmt --target wasm32-unknown-unknown
+          rustup default stable
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            rust/target
+          key: rust-layout-${{ runner.os }}-${{ hashFiles('rust/Cargo.lock') }}
+      - name: Format and lint
+        working-directory: rust
+        run: |
+          cargo fmt --all --check
+          cargo clippy --locked --release --all-targets -- -D warnings
+      - name: Unit tests
+        working-directory: rust
+        run: cargo test --locked --release
+      - name: Python, native and WebAssembly parity
+        run: python rust/parity/parity.py --build --require-wasm --bench 50 --report parity-report.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rust-layout-parity-report
+          path: parity-report.json
+          if-no-files-found: ignore
