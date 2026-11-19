@@ -114,7 +114,7 @@ def test_client_pins_selection_and_does_not_retry_timeout(monkeypatch):
     monkeypatch.setattr(client.sys, "platform", "linux")
     selected, sent, dialed, options = [], [], [], []
     def select(**kwargs):
-        assert kwargs == {"check_liveness": True}
+        assert kwargs == {"check_liveness": True, "require_listener": True}
         selected.append(True)
         return "ipc:///chosen-once.sock", "single_candidate"
     class Connection:
