@@ -25,34 +25,19 @@ sys.path.insert(0, str(MCP))
 
 from client import as_dict, base, kiid, point, sch, types
 from qualification import run
-from qualification.capture_fixture import (INTENT, build, documents, erc_summary,
-                                           negative_flow_through, prepare_library, symbol)
+from qualification.capture_fixture import (INTENT, build, documents, erc_summary, exact_items,
+                                           negative_flow_through, prepare_library, symbols)
+from qualification.capture_runtime import (cleanup_steps, dependency_identity, loaded_identity,
+                                           native_identity, owned_display)
 from qualification.connectivity_intent import (observe_pins, require_connectivity,
                                                validate_board_parity, validate_connectivity)
-from qualification.persistence import canonical_items
 from qualification.capture_persistence import snapshot
 
-
-def native_identity(install, hashes, source_record):
-    """Validate retained binary identity before launching; never relabel old tests."""
-    expected = {}
-    for line in hashes.read_text().splitlines():
-        digest, filename = line.split(maxsplit=1)
-        expected[Path(filename.strip()).name] = digest
-    required = {"kicad", "kicad-cli", "_eeschema.kiface", "_pcbnew.kiface"}
-    if not required <= expected.keys():
-        raise ValueError("native hash record must identify manager, CLI and both editor modules")
-    actual = {name: sha256((install / "bin" / name).read_bytes()).hexdigest() for name in sorted(required)}
-    if any(actual[name] != expected[name] for name in required):
-        raise ValueError("retained native hash record does not match selected install")
-    source = json.loads(source_record.read_text())
-    return {"install": str(install), "files_sha256": actual,
-            "retained_hash_record_sha256": sha256(hashes.read_bytes()).hexdigest(),
-            "retained_source_record_sha256": sha256(source_record.read_bytes()).hexdigest(),
-            "source_revision": source["native_base_revision"],
-            "source_patch_blobs": source["native_patch_blobs"],
-            "version_stamp_note": source["version_stamp_note"],
-            "scope": "retained binary/source identity only; all acceptance checks below are new"}
+# Source MCP stdio checks start server.py subprocesses while owned native
+# processes run; a hung tool call must fail the run, not leave them running.
+SKILL_DELIVERY_TIMEOUT = 180
+MCP_EDIT_TIMEOUT = 90
+PROBE_VALUE = "Dual probe"
 
 
 def source_identity(git="git"):
@@ -62,9 +47,15 @@ def source_identity(git="git"):
                                       cwd=root, text=True)
     paths = list(MCP.glob("*.py")) + list((MCP / "qualification").glob("*.py"))
     paths += list((root / "api/proto").rglob("*.proto"))
+    paths += [path for path in (MCP / "skills").rglob("*") if path.is_file()]
+    staged = subprocess.check_output([git, "ls-files", "-s", "--", "tools/live_schematic_mcp", "api/proto"],
+                                     cwd=root, text=True)
     return {"revision": revision, "dirty": bool(changed), "status": changed.splitlines(),
-            "files_sha256": {str(path.relative_to(root)): sha256(path.read_bytes()).hexdigest()
-                             for path in sorted(paths)}}
+            "files_sha256": {str(path.relative_to(root).as_posix()): sha256(path.read_bytes()).hexdigest()
+                             for path in sorted(paths)},
+            "files_sha256_scope": "executed working-tree bytes; line endings follow this checkout",
+            # Blob ids are independent of core.autocrlf, so an LF checkout can reproduce them.
+            "git_blobs": {line.split("\t", 1)[1]: line.split()[1] for line in staged.splitlines()}}
 
 
 def native_views(client, docs, board, output):
@@ -80,11 +71,6 @@ def native_views(client, docs, board, output):
         assert framed.startswith(b"\x89PNG") and framed != bare
         (output / (name.lower() + "-framed.png")).write_bytes(framed)
     return pages
-
-
-def exact_items(client, docs):
-    return {name: canonical_items({"items": [as_dict(item) for item in client.items(doc).items]})
-            for name, doc in docs.items()}
 
 
 def part_properties(client, docs):
@@ -149,34 +135,73 @@ def edit_invariants(client, docs, project):
             "implicit_save": False, "rejection": rejected}
 
 
-def update_regressions(client, docs):
-    """Guarded probes of historical reports, retaining observations even on reproduction.
+def update_probe(client, docs, item, record):
+    """Update one placed unit's value through UpdateItems, observe, then undo.
 
-    Each UpdateItems request is isolated by undo. A reproduced historical defect
-    is recorded as a finding, never silently repaired or called a passing probe.
+    Observations are written into ``record`` before any restore assertion, so a
+    reproduced defect or a failed restore keeps its evidence in the report.
     """
     doc = docs["MCU"]
-    before = observe_pins(client, docs.values())
     baseline_items = exact_items(client, docs)
-    item = symbol(client, doc, "U2")
-    item.value_field.text.text = "Dual probe"
-    client.mutate(doc, [item], update=True)
-    after = observe_pins(client, docs.values())
-    duplicates = [finding for finding in validate_connectivity(INTENT, after)
-                  if finding["kind"] in ("duplicate_pin", "duplicate_identity")]
-    library_drops = [{"pin": entry["pin"], "lib_id": entry["lib_id"]}
-                     for entry in after if not entry["lib_id"].startswith("Acceptance:")]
-    assert client.undo(doc).get("performed")
-    assert exact_items(client, docs) == baseline_items, "UpdateItems probe undo changed serialized items"
-    assert observe_pins(client, docs.values()) == before, "UpdateItems probe undo changed pin identities"
-    return {
-        "multi_unit_update_duplicate_pin_ids": {
-            "status": "reproduced" if duplicates else "historical_not_reproduced",
-            "findings": duplicates, "before": before, "after": after},
-        "update_dropped_library_nickname": {
-            "status": "reproduced" if library_drops else "historical_not_reproduced",
-            "findings": library_drops},
-    }
+    record["before"] = observe_pins(client, docs.values())
+    item.value_field.text.text = PROBE_VALUE
+    try:
+        client.mutate(doc, [item], update=True)
+    except RuntimeError as error:
+        # The client drops a rejected commit; an undo here would revert an earlier edit.
+        record.update(applied=False, rejected=str(error))
+        assert exact_items(client, docs) == baseline_items, "rejected UpdateItems changed serialized items"
+        record["restored"] = "rejected commit dropped; exact items unchanged"
+        return
+    try:
+        record["after"] = after = observe_pins(client, docs.values())
+        values = []
+        for packed in client.items(doc).items:
+            placed = sch.SchematicSymbolInstance()
+            if packed.Unpack(placed) and placed.id.value == item.id.value:
+                values.append(placed.value_field.text.text)
+        record["value_after"] = values
+        record["items_changed"] = exact_items(client, docs) != baseline_items
+        # A no-op update cannot be evidence that a historical defect is absent.
+        record["applied"] = values == [PROBE_VALUE] and record["items_changed"]
+        record["duplicates"] = [finding for finding in validate_connectivity(INTENT, after)
+                                if finding["kind"] in ("duplicate_pin", "duplicate_identity")]
+        record["library_drops"] = [{"pin": entry["pin"], "lib_id": entry["lib_id"]}
+                                   for entry in after if not entry["lib_id"].startswith("Acceptance:")]
+    finally:
+        record["undo"] = client.undo(doc)
+        assert record["undo"].get("performed"), record["undo"]
+        assert exact_items(client, docs) == baseline_items, "UpdateItems probe undo changed serialized items"
+        assert observe_pins(client, docs.values()) == record["before"], \
+            "UpdateItems probe undo changed pin identities"
+        record["restored"] = "exact items and native pins/nets"
+
+
+def update_regressions(client, docs, result):
+    """Guarded probes of historical reports, one isolated update per placed unit.
+
+    ``result`` is filled in place so partial evidence survives a failed probe. A
+    defect is ``reproduced`` when seen; ``historical_not_reproduced`` requires
+    every unit's update to have demonstrably taken effect; otherwise the probe
+    is ``inconclusive``. Nothing is repaired or retried.
+    """
+    units = symbols(client, docs["MCU"], "U2")
+    result["request"] = ("UpdateItems with the complete read-back SchematicSymbolInstance; "
+                         "only the value field changed; one placed unit per request")
+    result["units"] = []
+    assert sorted(unit.unit.unit for unit in units) == [1, 2], "both buffer units must be placed"
+    for unit in units:
+        record = {"symbol_id": unit.id.value, "unit": unit.unit.unit}
+        result["units"].append(record)
+        update_probe(client, docs, unit, record)
+    applied = all(record.get("applied") for record in result["units"])
+    for key, kind in (("multi_unit_update_duplicate_pin_ids", "duplicates"),
+                      ("update_dropped_library_nickname", "library_drops")):
+        findings = [dict(finding, probed_unit=record["unit"])
+                    for record in result["units"] for finding in record.get(kind, [])]
+        status = "reproduced" if findings else "historical_not_reproduced" if applied else "inconclusive"
+        result[key] = {"status": status, "findings": findings}
+    return result
 
 
 def board_transfer(client, root, observations):
@@ -227,6 +252,10 @@ async def bundled_entrypoints(env):
             "manifest": skills.skill_manifest(), "checks": ["initialize instructions", "tool", "resources", "exact all-file content"]}
 
 
+def bounded(coroutine, timeout):
+    return asyncio.run(asyncio.wait_for(coroutine, timeout=timeout))
+
+
 def helper_probe(path, client, root, git):
     """Optional coordinated probe, serially on the still-empty owned schematic."""
     folder = path.parent
@@ -243,11 +272,82 @@ def helper_probe(path, client, root, git):
         sys.path.remove(str(folder))
 
 
+def capture(args, report, project, folder, env, owned, dependencies):
+    """The owned native session. ``owned`` tracks the live manager for cleanup."""
+    native = report["native"]
+    owned["proc"], owned["log"], client = run.start(project, folder, args.output, env, "seed")
+    report["owned_manager_pids"] = [owned["proc"].pid]
+    native["measured_application_version"] = as_dict(client.send(base.GetVersion(), base.GetVersionResponse))
+    import server
+    report["schema_sha256"] = asyncio.run(server.live_mcp_capabilities())["schema_sha256"]
+    from e2e_guard import test_document
+    os.environ["KICAD_LIVE_TEST_PROJECT"] = "live-demo"
+    root = test_document(client)
+    before_disk = run.disk_hashes(project)
+    if args.helper_probe:
+        report["checks"]["coordinated_helper_probe"] = helper_probe(args.helper_probe, client, root, args.git_executable)
+        assert not client.items(root).items
+        assert run.disk_hashes(project) == before_disk
+        print("coordinated helper probe passed", flush=True)
+    docs, bridges = build(client, root)
+    print("hierarchical capture and expected pin membership passed", flush=True)
+    run.write_json(args.output / "intent.json", INTENT)
+    report["checks"]["erc"] = erc_summary(client.erc(root))
+    assert report["checks"]["erc"]["violation_count"] == 0, report["checks"]["erc"]
+    report["checks"]["flow_through_negative"] = negative_flow_through(client, docs, bridges)
+    print("ERC-zero split ESD regression reproduced and undone", flush=True)
+    report["checks"]["edit_invariants"] = edit_invariants(client, docs, project)
+    update_regressions(client, docs, report["checks"].setdefault("update_probes", {}))
+    print("rollback, undo/redo and per-unit UpdateItems probes completed", flush=True)
+    observations = observe_pins(client, docs.values())
+    require_connectivity(INTENT, observations)
+    properties = part_properties(client, docs)
+    report["checks"]["project_part_properties"] = properties
+    run.write_json(args.output / "pin-observations.json", observations)
+    board, report["checks"]["board"] = board_transfer(client, root, observations)
+    report["checks"]["pages"] = native_views(client, docs, board, args.output)
+    report["checks"]["bundled_entrypoints"] = bounded(bundled_entrypoints(env), SKILL_DELIVERY_TIMEOUT)
+    report["checks"]["source_mcp_edit_undo"] = bounded(run.stdio_edit_check(client, env), MCP_EDIT_TIMEOUT)
+    print("PCB parity, framed views and source MCP/skill integration passed", flush=True)
+    assert run.disk_hashes(project) == before_disk, "capture implicitly saved schematic/board"
+    for value in client.documents()["documents"] + client.boards():
+        client.execute("SaveDocument", {"document": value})
+    saved = run.disk_hashes(project)
+    assert saved != before_disk, "explicit save did not write capture"
+    expected = snapshot(client)
+    run.write_json(args.output / "before-restart.json", expected)
+    expected_pins = observe_pins(client, docs.values())
+    # Every module the seed manager loaded, after all editors and checks ran.
+    native["loaded"] = {"seed": loaded_identity(owned["proc"].pid, args.install, native, dependencies)}
+    run.stop(owned["proc"], owned["log"])
+    owned["proc"] = owned["log"] = None
+    owned["proc"], owned["log"], client = run.start(project, folder, args.output, env, "reopened")
+    report["owned_manager_pids"].append(owned["proc"].pid)
+    board = __import__("client").board_document(client.open_board())
+    root = test_document(client)
+    docs = documents(client, root)
+    actual = snapshot(client)
+    run.write_json(args.output / "after-restart.json", actual)
+    assert actual == expected, "normalized items/hierarchy/net membership changed on reopen"
+    observed = observe_pins(client, docs.values())
+    require_connectivity(INTENT, observed)
+    assert part_properties(client, docs) == properties
+    assert observed == expected_pins, "native pin identities/connectivity changed on reopen"
+    assert not validate_board_parity(observed, client.board_footprints(board, with_pads=True))
+    for doc in [*docs.values(), board]:
+        assert client.page_layout(doc)["fits"]
+    assert run.disk_hashes(project) == saved, "reopening wrote schematic/board files"
+    native["loaded"]["reopened"] = loaded_identity(owned["proc"].pid, args.install, native, dependencies)
+    report["checks"]["explicit_save_owned_stop_restart_reopen"] = "passed"
+    report["saved_file_sha256"] = saved
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--install", type=Path, required=True)
-    parser.add_argument("--native-hashes", type=Path, required=True)
-    parser.add_argument("--native-source-record", type=Path, required=True)
+    parser.add_argument("--install", type=Path, required=True,
+                        help="native prefix whose every file the provenance manifest lists")
+    parser.add_argument("--native-provenance", type=Path, required=True,
+                        help="retained native-provenance.json, beside its source archive")
     parser.add_argument("--library-root", type=Path, default=Path("/usr/share/kicad"))
     parser.add_argument("--git-executable", default="git", help="use git.exe for a Windows-owned T3 worktree")
     parser.add_argument("--helper-probe", type=Path, help="optional block_example.py from the coordinated helper checkout")
@@ -255,13 +355,17 @@ def main():
     args = parser.parse_args()
     if sys.platform != "linux":
         parser.error("run inside Linux/WSL with the retained native build")
-    identity = native_identity(args.install, args.native_hashes, args.native_source_record)
+    identity = native_identity(args.install, args.native_provenance)
+    dependency_path = os.environ.get("LD_LIBRARY_PATH", "")
+    dependencies = dependency_identity(dependency_path)
     args.output.mkdir(parents=True, exist_ok=False)
+    source = source_identity(args.git_executable)
     report = {"result": "failed", "started_utc": datetime.now(timezone.utc).isoformat(),
               "kind": "scripted_source_fixture", "fresh_agent_evaluation": "pending separate evaluator",
               "installed_distribution_evaluation": "not run by this driver",
-              "adapter_source": source_identity(args.git_executable), "native": identity,
-              "native_dependency_search_path": os.environ.get("LD_LIBRARY_PATH", ""),
+              "adapter_source": source, "native": identity,
+              "native_dependency_search_path": dependency_path,
+              "native_private_dependencies_sha256": dependencies,
               "platform": platform.platform(), "checks": {}}
     # A short new Linux path is required by Unix socket limits. Retain it as raw
     # evidence, together with the project/config; never reuse another run's state.
@@ -282,106 +386,43 @@ def main():
         '(options "") (descr "Acceptance stock footprint"))' for name in libraries) + ")\n")
     (folder / "tmp").mkdir()
     (folder / "runtime").mkdir(mode=0o700)
-    read_fd, write_fd = os.pipe()
-    xlog = (args.output / "xvfb.log").open("w")
-    display = subprocess.Popen(["Xvfb", "-displayfd", str(write_fd), "-screen", "0", "1600x1200x24", "-nolisten", "tcp"],
-                               pass_fds=(write_fd,), stdout=xlog, stderr=subprocess.STDOUT, start_new_session=True)
-    os.close(write_fd)
-    with os.fdopen(read_fd) as ready:
-        display_number = ready.readline().strip()
-    if not display_number.isdigit():
-        run.stop(display, xlog)
-        raise RuntimeError("owned Xvfb did not allocate a display")
-    env = {**os.environ, "DISPLAY": ":" + display_number, "TMPDIR": str(folder / "tmp"),
-           "XDG_RUNTIME_DIR": str(folder / "runtime"), "KICAD_CONFIG_HOME": str(folder / "config"),
-           "KICAD_API_SOCKET": "ipc://" + str(folder / "tmp/kicad/api.sock"), "KICAD_API_TOKEN": "",
-           "KICAD_LIVE_TEST_PROJECT": "live-demo", "KICAD_LIVE_ROOT": str(folder),
-           "KICAD10_FOOTPRINT_DIR": str(args.library_root / "footprints"),
-           "LIBGL_ALWAYS_SOFTWARE": "1"}
     run.INSTALL = args.install
     run.MCP = MCP
-    proc = log = None
+    owned = {"proc": None, "log": None}
     try:
-        proc, log, client = run.start(project, folder, args.output, env, "seed")
-        report["native"]["measured_application_version"] = as_dict(client.send(base.GetVersion(), base.GetVersionResponse))
-        import server
-        report["schema_sha256"] = asyncio.run(server.live_mcp_capabilities())["schema_sha256"]
-        from e2e_guard import test_document
-        os.environ["KICAD_LIVE_TEST_PROJECT"] = "live-demo"
-        root = test_document(client)
-        before_disk = run.disk_hashes(project)
-        if args.helper_probe:
-            report["checks"]["coordinated_helper_probe"] = helper_probe(args.helper_probe, client, root, args.git_executable)
-            assert not client.items(root).items
-            assert run.disk_hashes(project) == before_disk
-            print("coordinated helper probe passed", flush=True)
-        docs, bridges = build(client, root)
-        print("hierarchical capture and expected pin membership passed", flush=True)
-        run.write_json(args.output / "intent.json", INTENT)
-        report["checks"]["erc"] = erc_summary(client.erc(root))
-        assert report["checks"]["erc"]["violation_count"] == 0, report["checks"]["erc"]
-        report["checks"]["flow_through_negative"] = negative_flow_through(client, docs, bridges)
-        print("ERC-zero split ESD regression reproduced and undone", flush=True)
-        report["checks"]["edit_invariants"] = edit_invariants(client, docs, project)
-        report["checks"].update(update_regressions(client, docs))
-        print("rollback, undo/redo and historical UpdateItems probes completed", flush=True)
-        observations = observe_pins(client, docs.values())
-        require_connectivity(INTENT, observations)
-        properties = part_properties(client, docs)
-        report["checks"]["project_part_properties"] = properties
-        run.write_json(args.output / "pin-observations.json", observations)
-        board, report["checks"]["board"] = board_transfer(client, root, observations)
-        report["checks"]["pages"] = native_views(client, docs, board, args.output)
-        report["checks"]["bundled_entrypoints"] = asyncio.run(bundled_entrypoints(env))
-        report["checks"]["source_mcp_edit_undo"] = asyncio.run(run.stdio_edit_check(client, env))
-        print("PCB parity, framed views and source MCP/skill integration passed", flush=True)
-        assert run.disk_hashes(project) == before_disk, "capture implicitly saved schematic/board"
-        for value in client.documents()["documents"] + client.boards():
-            client.execute("SaveDocument", {"document": value})
-        saved = run.disk_hashes(project)
-        assert saved != before_disk, "explicit save did not write capture"
-        expected = snapshot(client)
-        run.write_json(args.output / "before-restart.json", expected)
-        expected_pins = observe_pins(client, docs.values())
-        report["owned_manager_pids"] = [proc.pid]
-        modules = {line.split()[-1] for line in Path(f"/proc/{proc.pid}/maps").read_text().splitlines()
-                   if str(args.install) in line}
-        report["native"]["loaded_modules_sha256"] = {path: sha256(Path(path).read_bytes()).hexdigest()
-                                                       for path in sorted(modules)}
-        run.stop(proc, log)
-        proc = log = None
-        proc, log, client = run.start(project, folder, args.output, env, "reopened")
-        report["owned_manager_pids"].append(proc.pid)
-        board = __import__("client").board_document(client.open_board())
-        root = test_document(client)
-        docs = documents(client, root)
-        actual = snapshot(client)
-        run.write_json(args.output / "after-restart.json", actual)
-        assert actual == expected, "normalized items/hierarchy/net membership changed on reopen"
-        observed = observe_pins(client, docs.values())
-        require_connectivity(INTENT, observed)
-        assert part_properties(client, docs) == properties
-        assert observed == expected_pins, "native pin identities/connectivity changed on reopen"
-        assert not validate_board_parity(observed, client.board_footprints(board, with_pads=True))
-        for doc in [*docs.values(), board]:
-            assert client.page_layout(doc)["fits"]
-        assert run.disk_hashes(project) == saved, "reopening wrote schematic/board files"
-        report["checks"]["explicit_save_owned_stop_restart_reopen"] = "passed"
-        report["saved_file_sha256"] = saved
-        assert native_identity(args.install, args.native_hashes, args.native_source_record)["files_sha256"] == identity["files_sha256"]
-        report["result"] = "passed"
+        with owned_display(args.output, report) as display_number:
+            env = {**os.environ, "DISPLAY": ":" + display_number, "TMPDIR": str(folder / "tmp"),
+                   "XDG_RUNTIME_DIR": str(folder / "runtime"), "KICAD_CONFIG_HOME": str(folder / "config"),
+                   "KICAD_API_SOCKET": "ipc://" + str(folder / "tmp/kicad/api.sock"), "KICAD_API_TOKEN": "",
+                   "KICAD_LIVE_TEST_PROJECT": "live-demo", "KICAD_LIVE_ROOT": str(folder),
+                   "KICAD10_FOOTPRINT_DIR": str(args.library_root / "footprints"),
+                   "LIBGL_ALWAYS_SOFTWARE": "1"}
+            try:
+                capture(args, report, project, folder, env, owned, dependencies)
+            finally:
+                # The manager stops before its display; each step is independent.
+                if owned["proc"] is not None:
+                    cleanup_steps(report, [("KiCad manager", lambda: run.stop(owned["proc"], owned["log"]))])
+        # Identities after all owned processes stopped: nothing may have changed.
+        assert native_identity(args.install, args.native_provenance)["files_sha256"] == identity["files_sha256"]
+        assert dependency_identity(dependency_path) == dependencies, "private dependencies changed during run"
+        final_source = source_identity(args.git_executable)
+        assert final_source == source, "adapter source or worktree status changed during run"
+        report["adapter_source_rechecked_at_end"] = True
+        if "cleanup_errors" not in report:
+            report["result"] = "passed"
     except BaseException as error:
+        report["result"] = "failed"
         report["error"] = f"{type(error).__name__}: {error}"
         raise
     finally:
-        if proc is not None:
-            run.stop(proc, log)
-        run.stop(display, xlog)
         report["finished_utc"] = datetime.now(timezone.utc).isoformat()
+        cleanup_steps(report, [("project copy", lambda: shutil.copytree(project, args.output / "project")),
+                               ("config copy", lambda: shutil.copytree(folder / "config", args.output / "config"))])
         run.write_json(args.output / "report.json", report)
-        shutil.copytree(project, args.output / "project")
-        shutil.copytree(folder / "config", args.output / "config")
     print(json.dumps({"result": report["result"], "evidence": str(args.output)}, indent=2))
+    if report["result"] != "passed":
+        sys.exit(1)
 
 
 if __name__ == "__main__":

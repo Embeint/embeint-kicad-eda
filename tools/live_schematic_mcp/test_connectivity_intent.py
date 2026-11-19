@@ -145,25 +145,18 @@ def test_native_unit_display_suffix_does_not_change_physical_reference():
     assert "duplicate_identity" in kinds({"nets": {"signal": ["U2.1", "U2.3"]}}, observations)
 
 
-def test_native_identity_rejects_changed_editor_before_launch(tmp_path):
-    import json
-    from hashlib import sha256
-    from qualification.capture_acceptance import native_identity
-
-    install = tmp_path / "install"
-    (install / "bin").mkdir(parents=True)
-    names = ("kicad", "kicad-cli", "_eeschema.kiface", "_pcbnew.kiface")
-    for name in names:
-        (install / "bin" / name).write_bytes(name.encode())
-    hashes = tmp_path / "retained.txt"
-    hashes.write_text("\n".join(sha256(name.encode()).hexdigest() + "  /retained/bin/" + name for name in names))
-    source = tmp_path / "source.json"
-    source.write_text(json.dumps({"native_base_revision": "a" * 40, "native_patch_blobs": {}, "version_stamp_note": "synthetic"}))
-    measured = native_identity(install, hashes, source)
-    assert measured["source_revision"] == "a" * 40
-    (install / "bin/_eeschema.kiface").write_bytes(b"different native build")
-    with pytest.raises(ValueError, match="does not match"):
-        native_identity(install, hashes, source)
+def test_board_parity_standalone_reports_duplicate_pins_and_unknown_footprints(circuit):
+    _, observations = circuit
+    footprints = [{"reference": ref, "pads": [{"number": entry["pin"].split(".")[1], "net": entry["net"]}
+                                              for entry in observations if entry["pin"].startswith(ref + ".")]}
+                  for ref in sorted({entry["pin"].split(".")[0] for entry in observations})]
+    # A second copy of one pin on another net must not silently replace the first.
+    observations.append(dict(observations[-2], net="other"))
+    footprints.append({"reference": "MH1", "pads": [{"number": "", "net": ""}]})
+    findings = validate_board_parity(observations, footprints)
+    assert {"kind": "extra_footprint", "reference": "MH1"} in findings
+    duplicate = next(item for item in findings if item["kind"] == "duplicate_schematic_pin")
+    assert duplicate["pin"] == observations[-1]["pin"] and "other" in duplicate["nets"]
 
 
 def test_roundtrip_only_ignores_inactive_library_pin_ids_and_child_order():

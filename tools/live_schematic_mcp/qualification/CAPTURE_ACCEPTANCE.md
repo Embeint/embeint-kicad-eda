@@ -1,7 +1,9 @@
 # Schematic capture acceptance
 
-`capture_acceptance.py` extends the explicit-save workflow in `e2e_persistence.py`
-and the item normalization in `qualification/persistence.py`. It owns a new
+`capture_acceptance.py` reuses the owned-process lifecycle, explicit saves and MCP
+stdio check in `qualification/run.py` and the item normalization in
+`qualification/persistence.py`; it follows the same explicit-save principle as
+`e2e_persistence.py` but does not import or run that test. It owns a new
 project, settings directory, IPC namespace, Xvfb display and manager processes.
 It never attaches to a discovered editor. All project parts are deliberately
 synthetic test models, with explicit electrical types, fields and stock test
@@ -45,25 +47,40 @@ exclusions. DRC results describe an unrouted test board, not manufacturing sign-
 ## Owned native run
 
 Generate protocols from this checkout and use an existing compatible venv. Select
-an installed native prefix and its retained four-binary SHA-256 record. The
-Windows/WSL source record identifies the native d880 base plus the exact four-file
-loader patch separately from the adapter Git revision and source hashes. The
-driver verifies the selected binaries against that record before starting and
-after finishing. It records the measured application version, loaded modules,
-current adapter revision/dirty state, source hashes and adapter schema manifest.
-It does not rebuild or relabel the retained binary.
+a native prefix and the retained `native-provenance.json` that lists **every**
+file of that install with its SHA-256, the d880 source revision, the exact
+four-file loader patch blobs and the retained source archive. Hashes and source
+attribution come from that one record, and the archive beside it must match the
+hash it names. Before launch and again after all owned processes stop, the driver
+verifies all manifest files and the private dependency libraries on
+`LD_LIBRARY_PATH`. For the seed manager and the reopened manager, it reads
+`/proc/<pid>/maps` after their editors have run. Every loaded install module
+must appear in the manifest with identical bytes, every private dependency must
+be unchanged and a deleted mapped file fails the run. System libraries are
+hashed and recorded. The driver records the measured application version,
+adapter revision and dirty state, executed source bytes, checkout-independent
+Git blob ids and the adapter schema manifest. It checks the adapter source and
+worktree status again at the end, and does not rebuild or relabel the retained
+binary.
 
-On WSL, use a private mount namespace for X11 rather than WSLg's shared socket
-directory. Run from the T3 checkout, choosing a **new** output directory:
+KiCad embeds its install prefix in `libkicommon`, the library that carries the
+API code every editor shares. The same build installed under two prefixes
+therefore differs there even when `kicad` and both kifaces are byte-identical.
+Run the staged package at the prefix its manifest describes. On WSL, mount it at
+`/opt/embeint-kicad` inside a private namespace that also replaces WSLg's shared
+X11 socket directory. Run from the T3 checkout, choosing a **new** output
+directory outside `/tmp`:
 
 ```sh
 python tools/live_schematic_mcp/generate_proto.py
-bwrap --bind / / --tmpfs /tmp --dev-bind /dev /dev -- \
+R=/path/to/retained/d880-windows-wsl
+bwrap --bind / / --tmpfs /tmp --tmpfs /opt \
+  --ro-bind "$R/stage-package/opt/embeint-kicad" /opt/embeint-kicad \
+  --dev-bind /dev /dev -- \
   /path/to/existing/venv/bin/python \
   tools/live_schematic_mcp/qualification/capture_acceptance.py \
-  --install /path/to/retained/install-patched \
-  --native-hashes /path/to/retained/patched-application-sha256.txt \
-  --native-source-record tools/live_schematic_mcp/qualification/evidence/windows-wsl-2026-11-18.json \
+  --install /opt/embeint-kicad \
+  --native-provenance "$R/artifacts/native-provenance.json" \
   --library-root /path/to/kicad/share \
   --git-executable '/mnt/c/Program Files/Git/cmd/git.exe' \
   --output /path/to/new/evidence
@@ -71,6 +88,10 @@ bwrap --bind / / --tmpfs /tmp --dev-bind /dev /dev -- \
 
 If the retained build needs private dependency libraries, pass its existing
 `LD_LIBRARY_PATH` into the namespace. No dependencies are installed or modified.
+Xvfb starts inside the cleanup scope with a display-allocation deadline. The
+source MCP stdio checks have explicit time limits. Manager, display, project and
+config cleanup steps run independently, and any cleanup failure fails the
+receipt. The driver exits non-zero unless the result is `passed`.
 Windows-owned worktree `.git` pointers require Windows Git under WSL; ordinary
 Linux checkouts use the default `git`. Optional `--helper-probe /path/block_example.py`
 runs the coordinated helper's isolated probe serially on the empty test sheet,
@@ -79,10 +100,18 @@ stops the run without mutation replay.
 
 The driver records exact failed-batch rollback, transaction undo/redo, no implicit
 saves, actual schematic-to-PCB transfer, pin/pad parity, page fits and distinct
-framed renders. Guarded `UpdateItems` probes label duplicate multi-unit pin IDs
-and missing library nicknames as `reproduced` or `historical_not_reproduced` for
-this exact binary and request shape. Each probe is undone and its restoration
-checked; absence of reproduction is not evidence for other versions or paths.
+framed renders. Guarded `UpdateItems` probes send each placed buffer unit's
+complete read-back definition, with only the value changed, as a separate
+request, and record the unit and symbol id. A probe counts only when the re-read
+value and serialized items show that the update took effect. Duplicate
+multi-unit pin IDs and missing library nicknames are labelled `reproduced`, or
+`historical_not_reproduced` only when every unit's update demonstrably applied;
+otherwise the label is `inconclusive`. Observations are stored before restore
+assertions. A rejected update is recorded without an undo, because the client
+already dropped its commit. Every committed probe is undone and the exact items
+and pins are compared. Absence of reproduction is not evidence for other
+versions or paths. The negative ESD probe likewise restores exact items, not
+only pins.
 Source MCP stdio checks cover bundled skill initialization/tool/resource delivery
 and an actual create/undo operation against the owned native editor.
 
@@ -108,12 +137,20 @@ driver always labels independent fresh-agent evaluation pending.
 ## Offline regressions
 
 ```sh
-python -m pytest tools/live_schematic_mcp/test_connectivity_intent.py
+python -m pytest tools/live_schematic_mcp/test_connectivity_intent.py \
+  tools/live_schematic_mcp/test_capture_runtime.py
 ```
 
 These tests include the ERC-zero ESD split, a missing hidden stacked pad, merged
 nets/connected NCs, duplicate identities across units, unexpected pins, native
-reference mapping, board mismatches and a changed native editor hash.
+reference mapping, and board mismatches, including duplicate schematic pins and
+unknown footprints. The runtime tests reject a libkicommon from another prefix
+with identical editor binaries, a source archive that differs from its record, an
+unlisted or deleted loaded module and a changed private dependency. They also
+cover a stalled partial display line and cleanup that continues after one step
+fails. Against a fake two-unit editor, they check that an ignored update is
+`inconclusive`, that a rejected update is never undone and that a dropped
+nickname is `reproduced` per unit.
 
 ## Recorded Windows/WSL acceptance, 2026-11-19
 

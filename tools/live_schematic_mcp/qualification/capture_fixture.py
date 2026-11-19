@@ -6,8 +6,9 @@ Its passive pins intentionally require external wires: ERC cannot infer intent.
 Every electrical pin type below is explicit; no ERC or DRC setting is changed.
 """
 
-from client import commands, enums, kiid, lib_identifier, library, point as native_point, sch, types
+from client import as_dict, commands, enums, kiid, lib_identifier, library, point as native_point, sch, types
 from qualification.connectivity_intent import observe_pins, require_connectivity, validate_connectivity
+from qualification.persistence import canonical_items
 
 
 INTENT = {
@@ -158,12 +159,22 @@ def block(client, doc, name, bounds):
     client.mutate(doc, items)
 
 
-def symbol(client, doc, ref):
+def symbols(client, doc, ref):
+    """Every placed unit with physical reference ``ref``, in native item order."""
+    found = []
     for packed in client.items(doc).items:
         item = sch.SchematicSymbolInstance()
         if packed.Unpack(item) and item.reference_field.text.text == ref:
-            return item
-    raise AssertionError(ref)
+            found.append(item)
+    if not found:
+        raise AssertionError(ref)
+    return found
+
+
+def exact_items(client, docs):
+    """Complete normalized items per sheet: wires, junctions, labels and symbols."""
+    return {name: canonical_items({"items": [as_dict(item) for item in client.items(doc).items]})
+            for name, doc in docs.items()}
 
 
 def place(client, doc, name, ref, x, y):
@@ -291,6 +302,8 @@ def negative_flow_through(client, docs, bridges):
     """Reproduce the failure class: zero ERC still permits split protection pins."""
     doc = docs["Interface"]
     before = observe_pins(client, docs.values())
+    before_items = exact_items(client, docs)
+    # A rejected delete is dropped as one commit; only a committed delete is undone.
     client.delete(doc, bridges)
     try:
         observed = observe_pins(client, docs.values())
@@ -299,7 +312,10 @@ def negative_flow_through(client, docs, bridges):
         erc = erc_summary(client.erc(docs["Root"]))
         assert erc["violation_count"] == 0, erc
         return {"status": "reproduced", "scope": "synthetic USBLC6 flow-through topology; not client design",
-                "erc": erc, "connectivity_findings": findings, "observations": observed}
+                "erc": erc, "connectivity_findings": findings, "observations": observed,
+                "restore": "exact items and native pins/nets"}
     finally:
         assert client.undo(doc).get("performed")
+        # Pins alone would miss changed junctions, merged segments or new UUIDs.
+        assert exact_items(client, docs) == before_items, "negative probe undo changed serialized items"
         assert observe_pins(client, docs.values()) == before, "negative probe undo changed native pins/nets"
