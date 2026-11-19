@@ -148,8 +148,10 @@ message BeginCommit
   kiapi.common.types.ItemHeader header = 1;
 
   // Embeint extension: seconds the commit may stay without a request from its client before the
-  // editor rolls it back (for a client that was killed or disconnected).  0 means the default of
-  // 60 seconds; at most 3600.
+  // editor rolls it back (for a client that was killed or disconnected); at most 3600.  Leases are
+  // opt-in: 0 (the default, and what upstream clients send) means no lease, so the commit stays
+  // open until its client ends it, as upstream.  Time while an API task runs, or while the editor
+  // cannot accept API commands, does not count.  See tools/live_schematic_mcp/REVISIONS.md.
   uint32 lease_seconds = 100;
 }
 
@@ -618,11 +620,14 @@ enum OperationState
   // lease expired.  The document holds none of its changes.
   OPS_ROLLED_BACK = 3;
 
-  // Refused before it changed anything (for example AS_REVISION_MISMATCH)
+  // Refused before it changed anything (for example AS_REVISION_MISMATCH), or a BeginCommit that
+  // failed and opened no commit
   OPS_REJECTED    = 4;
 
-  // A request outside a commit returned an error after it may have changed the document; compare
-  // revision_before and revision_after and inspect the document
+  // The request returned an error after its handler ran, so it may have changed the document (a
+  // failed step inside a commit leaves what it staged to the commit's outcome), or the editor
+  // closed while the operation's commit was open.  Compare revision_before and revision_after and
+  // inspect the document.
   OPS_FAILED      = 5;
 }
 

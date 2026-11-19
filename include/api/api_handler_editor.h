@@ -52,8 +52,9 @@ class wxTimer;
  * Revisions and operations (Embeint, see tools/live_schematic_mcp/REVISIONS.md): every reply to a
  * request naming this editor's document carries the document revision.  A request with an
  * expected revision is refused with AS_REVISION_MISMATCH before its handler runs if the revision
- * differs.  Mutations may carry an operation id whose outcome API_OPERATION_LOG keeps.  Open
- * commits hold a lease: one whose client sends nothing for the lease is rolled back.
+ * differs.  Mutations may carry an operation id whose outcome API_OPERATION_LOG keeps.  Commits
+ * of clients that opt in hold a lease: one whose client sends nothing for the lease is rolled
+ * back.  Clients that do not opt in (upstream plugins) keep upstream behaviour.
  */
 class API_HANDLER_EDITOR : public API_HANDLER
 {
@@ -62,9 +63,22 @@ public:
 
     ~API_HANDLER_EDITOR() override;
 
-    /// Seconds an open commit is kept without a request from its client, unless BeginCommit asks
-    static constexpr int DEFAULT_COMMIT_LEASE_S = 60;
+    /// Stops the lease timer and forgets open commit leases; the frame is going away
+    void OnDeregistered() override;
+
+    /**
+     * Seconds an implicit commit (one a failed request left open) is kept without a request from
+     * its client, when that request carried an operation id or an expected revision.  An explicit
+     * commit has a lease only when BeginCommit asks for one; other commits have none.
+     */
+    static constexpr int IMPLICIT_COMMIT_LEASE_S = 60;
     static constexpr int MAX_COMMIT_LEASE_S = 3600;
+
+    /**
+     * Most lease-clock time one reading may add.  A longer gap means the UI thread was blocked
+     * and could not serve the client either, so it is not held against the client.
+     */
+    static constexpr long long MAX_LEASE_CLOCK_STEP_MS = 1500;
 
     /// Clients whose commit was rolled back on expiry are remembered (to refuse their later steps)
     static constexpr size_t MAX_EXPIRED_CLIENTS = 64;
@@ -309,8 +323,8 @@ private:
         bool                     strict = false;       ///< opened with an expected revision
         bool                     foreignChange = false;
         std::string              foreignChangeFrom;    ///< revision when the conflict was seen
-        long long                lastActivityMs = 0;
-        int                      leaseSeconds = DEFAULT_COMMIT_LEASE_S;
+        long long                lastActivityMs = 0;   ///< on the lease clock, see leaseClockMs
+        int                      leaseSeconds = 0;     ///< 0: no lease (the client did not opt in)
     };
 
     /// What beforeRequest learned about the request being handled
@@ -327,6 +341,22 @@ private:
 
     void ensureLeaseTimer();
 
+    /**
+     * True while rolling a commit back is unsafe or its client cannot reach the editor: an API
+     * task is running (the server answers its client AS_BUSY and the task's worker threads read
+     * the document), the event loop is yielding (a progress dialog), the frame is closing or it
+     * cannot accept API commands (a dialog or an interactive tool).
+     */
+    bool leaseExpiryDeferred() const;
+
+    /**
+     * The lease clock in milliseconds.  It follows std::chrono::steady_clock but stands still
+     * while expiry is deferred (and across any API task since the last reading), and advances by
+     * at most MAX_LEASE_CLOCK_STEP_MS per reading.  Leases are measured on it, so time spent
+     * under a task or a dialog never counts against a client.
+     */
+    long long leaseClockMs();
+
     std::string revisionToken( uint64_t aCounter ) const;
 
     /// Distinguishes this editor window's revisions from any other's
@@ -341,6 +371,13 @@ private:
     REQUEST_STATE m_request;
 
     std::unique_ptr<wxTimer> m_leaseTimer;
+
+    long long                m_leaseClockMs = 0;
+    std::optional<long long> m_leaseClockLastSteadyMs;  ///< steady clock at the last reading
+    uint64_t                 m_leaseClockTaskActivity = 0;
+
+    /// Set by OnDeregistered: the frame is closing, so leases are no longer enforced
+    bool m_deregistered = false;
 };
 
 #endif //KICAD_API_HANDLER_EDITOR_H

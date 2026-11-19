@@ -77,6 +77,9 @@ message ApiRequestHeader
   // for the mutation this request starts.  Editors keep the outcome so a client can ask with
   // GetOperationStatus after a timeout instead of resending.  An identifier can be used once.
   // Requests that a document editor does not handle are refused with AS_BAD_REQUEST when set.
+  // A request with an operation_id or expected_revision opts its client into commit leases for an
+  // implicit commit it leaves open (see BeginCommit.lease_seconds); clients that send neither keep
+  // upstream behaviour.
   string operation_id = 101;
 }
 

@@ -21,10 +21,12 @@
 #include <api/api_handler_editor.h>
 
 #include <algorithm>
+#include <chrono>
 #include <optional>
 
 #include <api/api_enums.h>
 #include <api/api_operation_log.h>
+#include <api/api_task_scheduler.h>
 #include <api/api_utils.h>
 #include <class_draw_panel_gal.h>
 #include <drawing_sheet/ds_data_item.h>
@@ -43,8 +45,8 @@
 #include <tool/actions.h>
 #include <tool/common_tools.h>
 #include <tool/tool_manager.h>
+#include <wx/evtloop.h>
 #include <wx/log.h>
-#include <wx/time.h>
 #include <wx/timer.h>
 #include <wx/wx.h>
 
@@ -70,9 +72,12 @@ private:
 };
 
 
-long long nowMs()
+/// Monotonic milliseconds; unaffected by changes to the wall clock
+long long steadyMs()
 {
-    return wxGetLocalTimeMillis().GetValue();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+                   std::chrono::steady_clock::now().time_since_epoch() )
+            .count();
 }
 
 
@@ -85,20 +90,51 @@ ApiResponseStatus contractError( ApiStatusCode aCode, const std::string& aMessag
 }
 
 
-/**
- * The document a request names: its first top-level DocumentSpecifier, or the document of its
- * first top-level ItemHeader.  Requests that nest their document deeper name none.
- */
-const types::DocumentSpecifier* requestDocument( const google::protobuf::Message& aRequest )
+/// What a request says about the editor it is meant for
+struct REQUEST_TARGET
 {
+    /// Its first top-level DocumentSpecifier, or the document of its first top-level ItemHeader.
+    /// Requests that nest their document deeper name none.
+    const types::DocumentSpecifier* document = nullptr;
+
+    /// The document type it names: its document's, or else that of a top-level DocumentType
+    /// field (as in GetOpenDocuments or OpenLibraryItem), if one is set
+    std::optional<types::DocumentType> type;
+
+    /// It has a top-level ItemHeader without a document, so the editor it is for is unknown
+    bool headerWithoutDocument = false;
+};
+
+
+REQUEST_TARGET requestTarget( const google::protobuf::Message& aRequest )
+{
+    using google::protobuf::FieldDescriptor;
+
+    REQUEST_TARGET                      target;
     const google::protobuf::Descriptor* descriptor = aRequest.GetDescriptor();
     const google::protobuf::Reflection* reflection = aRequest.GetReflection();
 
     for( int ii = 0; ii < descriptor->field_count(); ++ii )
     {
-        const google::protobuf::FieldDescriptor* field = descriptor->field( ii );
+        const FieldDescriptor* field = descriptor->field( ii );
 
-        if( field->is_repeated() || field->cpp_type() != google::protobuf::FieldDescriptor::CPPTYPE_MESSAGE
+        if( field->is_repeated() )
+            continue;
+
+        if( field->cpp_type() == FieldDescriptor::CPPTYPE_ENUM )
+        {
+            if( !target.type && field->enum_type() == types::DocumentType_descriptor() )
+            {
+                int value = reflection->GetEnumValue( aRequest, field );
+
+                if( value != types::DOCTYPE_UNKNOWN )
+                    target.type = static_cast<types::DocumentType>( value );
+            }
+
+            continue;
+        }
+
+        if( target.document || field->cpp_type() != FieldDescriptor::CPPTYPE_MESSAGE
             || !reflection->HasField( aRequest, field ) )
         {
             continue;
@@ -107,16 +143,22 @@ const types::DocumentSpecifier* requestDocument( const google::protobuf::Message
         const google::protobuf::Message& value = reflection->GetMessage( aRequest, field );
 
         if( auto document = google::protobuf::DynamicCastToGenerated<types::DocumentSpecifier>( &value ) )
-            return document;
-
-        if( auto header = google::protobuf::DynamicCastToGenerated<types::ItemHeader>( &value ) )
+        {
+            target.document = document;
+        }
+        else if( auto header = google::protobuf::DynamicCastToGenerated<types::ItemHeader>( &value ) )
         {
             if( header->has_document() )
-                return &header->document();
+                target.document = &header->document();
+            else
+                target.headerWithoutDocument = true;
         }
     }
 
-    return nullptr;
+    if( target.document )
+        target.type = target.document->type();
+
+    return target;
 }
 
 } // namespace
@@ -155,6 +197,32 @@ API_HANDLER_EDITOR::~API_HANDLER_EDITOR()
 }
 
 
+void API_HANDLER_EDITOR::OnDeregistered()
+{
+    // The frame is closing (its tool manager may already be gone), so nothing may revert a commit
+    // from here on
+    m_deregistered = true;
+
+    if( m_leaseTimer )
+        m_leaseTimer->Stop();
+
+    // Staged changes leave with the document, or go into a save the user confirms while closing;
+    // the API cannot tell which
+    const std::string revision = documentRevision();
+
+    for( const auto& [client, state] : m_commitStates )
+    {
+        for( const std::string& operation : state.operations )
+        {
+            API_OPERATION_LOG::Instance().Resolve( operation, OperationState::OPS_FAILED, revision,
+                                                   "the editor closed while the commit was open" );
+        }
+    }
+
+    m_commitStates.clear();
+}
+
+
 std::string API_HANDLER_EDITOR::revisionToken( uint64_t aCounter ) const
 {
     return fmt::format( "{}-{}", m_revisionEpoch, aCounter );
@@ -178,22 +246,26 @@ std::optional<ApiResponseStatus> API_HANDLER_EDITOR::beforeRequest( const kiapi:
     const std::string& operation = aHeader.operation_id();
     const bool         contract = !expected.empty() || !operation.empty();
     const bool         isEndCommit = google::protobuf::DynamicCastToGenerated<EndCommit>( &aRequest ) != nullptr;
+    const REQUEST_TARGET target = requestTarget( aRequest );
 
-    // Clean up after clients that went away before anything else touches the document
-    expireCommits( client );
-
-    if( const types::DocumentSpecifier* document = requestDocument( aRequest ) )
+    if( target.type && *target.type != thisDocumentType() )
     {
-        if( document->type() != thisDocumentType() )
-        {
-            // Another editor's document.  With a revision or operation id, make sure only the
-            // editor that owns the document can run it.
-            if( contract )
-                return contractError( ApiStatusCode::AS_UNHANDLED, "" );
+        // Another editor's document.  With a revision or operation id, make sure only the editor
+        // that owns the document can run it.
+        if( contract )
+            return contractError( ApiStatusCode::AS_UNHANDLED, "" );
 
-            return std::nullopt;
-        }
+        return std::nullopt;
+    }
 
+    // Clean up after clients that went away before anything else touches the document.  Not
+    // from requests allowed during an API task: those arrive while the task (and its worker
+    // threads) may be using the document.
+    if( !AllowsDuringTask( std::string( aRequest.GetTypeName() ) ) )
+        expireCommits( client );
+
+    if( const types::DocumentSpecifier* document = target.document )
+    {
         if( tl::expected<bool, ApiResponseStatus> valid = validateDocumentInternal( *document ); valid )
         {
             m_request.namesThisDocument = true;
@@ -225,10 +297,14 @@ std::optional<ApiResponseStatus> API_HANDLER_EDITOR::beforeRequest( const kiapi:
     }
 
     // A client whose commit was rolled back on expiry must end it before doing anything else, so
-    // later steps of its batch cannot land outside the commit
+    // later steps of its batch cannot land outside the commit.  Requests for another editor were
+    // passed on above; an ItemHeader without a document may be for another editor too.
     if( auto it = m_expiredClients.find( client ); it != m_expiredClients.end() && !isEndCommit
                                                    && !m_commits.contains( client ) )
     {
+        if( !target.type && target.headerWithoutDocument )
+            return contractError( ApiStatusCode::AS_UNHANDLED, "" );
+
         m_request.refusedBeforeRun = true;
         return contractError( ApiStatusCode::AS_BAD_REQUEST,
                               fmt::format( "the open commit of this client was rolled back ({}); nothing it "
@@ -239,7 +315,7 @@ std::optional<ApiResponseStatus> API_HANDLER_EDITOR::beforeRequest( const kiapi:
     if( auto it = m_commitStates.find( client ); it != m_commitStates.end() )
     {
         COMMIT_STATE& state = it->second;
-        state.lastActivityMs = nowMs();
+        state.lastActivityMs = leaseClockMs();
 
         if( m_frame && m_frame->GetDocumentRevision() != state.lastSeenRevision && !state.foreignChange )
         {
@@ -298,6 +374,7 @@ void API_HANDLER_EDITOR::afterRequest( const kiapi::common::ApiRequestHeader& aH
     const std::string& client = aHeader.client_name();
     const std::string& operation = aHeader.operation_id();
     const bool         ok = aStatus.status() == ApiStatusCode::AS_OK;
+    const bool         contract = !aHeader.expected_revision().empty() || !operation.empty();
     const auto*        begin = google::protobuf::DynamicCastToGenerated<BeginCommit>( &aRequest );
     const bool         isRevisionQuery =
             google::protobuf::DynamicCastToGenerated<GetDocumentRevision>( &aRequest ) != nullptr;
@@ -312,6 +389,7 @@ void API_HANDLER_EDITOR::afterRequest( const kiapi::common::ApiRequestHeader& aH
         {
             state.revisionAtBegin = m_request.revisionBefore;
 
+            // Leases are opt-in, so upstream clients keep their commits as long as they like
             if( begin && ok )
             {
                 state.strict = !aHeader.expected_revision().empty();
@@ -321,6 +399,11 @@ void API_HANDLER_EDITOR::afterRequest( const kiapi::common::ApiRequestHeader& aH
                     state.leaseSeconds = static_cast<int>(
                             std::min<uint32_t>( begin->lease_seconds(), MAX_COMMIT_LEASE_S ) );
                 }
+            }
+            else if( !begin && contract )
+            {
+                // An implicit commit left by a request that uses the Embeint contract
+                state.leaseSeconds = IMPLICIT_COMMIT_LEASE_S;
             }
         }
 
@@ -332,7 +415,7 @@ void API_HANDLER_EDITOR::afterRequest( const kiapi::common::ApiRequestHeader& aH
         if( m_frame )
             state.lastSeenRevision = m_frame->GetDocumentRevision();
 
-        state.lastActivityMs = nowMs();
+        state.lastActivityMs = leaseClockMs();
     }
 
     const std::string revisionAfter = documentRevision();
@@ -357,15 +440,18 @@ void API_HANDLER_EDITOR::afterRequest( const kiapi::common::ApiRequestHeader& aH
 
         auto commitState = m_commitStates.find( client );
 
-        if( m_request.refusedBeforeRun )
+        if( m_request.refusedBeforeRun || ( begin && !ok ) )
         {
+            // Refused by the contract, or a BeginCommit that opened nothing (for example because
+            // the client already has a commit in progress): nothing changed
             entry.set_state( OperationState::OPS_REJECTED );
             entry.set_revision_after( revisionAfter );
             entry.set_message( aStatus.error_message() );
         }
-        else if( commitState != m_commitStates.end() && m_commits.contains( client ) )
+        else if( ok && commitState != m_commitStates.end() && m_commits.contains( client ) )
         {
-            // Decided when the commit ends
+            // A successful request in an open commit: decided when the commit ends.  A failed one
+            // falls through to OPS_FAILED; what it staged is decided with the commit.
             entry.set_state( OperationState::OPS_IN_PROGRESS );
             commitState->second.operations.push_back( operation );
 
@@ -400,7 +486,13 @@ void API_HANDLER_EDITOR::ensureLeaseTimer()
     if( !m_frame )
         return;
 
-    if( m_commitStates.empty() )
+    const bool anyLease = std::any_of( m_commitStates.begin(), m_commitStates.end(),
+                                       []( const auto& aEntry )
+                                       {
+                                           return aEntry.second.leaseSeconds > 0;
+                                       } );
+
+    if( m_deregistered || !anyLease )
     {
         if( m_leaseTimer )
             m_leaseTimer->Stop();
@@ -423,22 +515,57 @@ void API_HANDLER_EDITOR::ensureLeaseTimer()
 }
 
 
+bool API_HANDLER_EDITOR::leaseExpiryDeferred() const
+{
+    if( API_TASK_SCHEDULER::Instance().AnyTaskRunning() )
+        return true;
+
+    if( wxEventLoopBase* loop = wxEventLoopBase::GetActive(); loop && loop->IsYielding() )
+        return true;
+
+    return m_frame && ( m_frame->IsClosing() || !m_frame->CanAcceptApiCommands() );
+}
+
+
+long long API_HANDLER_EDITOR::leaseClockMs()
+{
+    const long long now = steadyMs();
+    const uint64_t  taskActivity = API_TASK_SCHEDULER::Instance().TaskActivity();
+
+    // Time since the last reading counts only if no task ran in between and nothing defers
+    // expiry now.  Readings come at least once a second while a lease runs (the timer), so the
+    // time lost when a deferral starts or ends between readings is small and only lengthens leases.
+    if( m_leaseClockLastSteadyMs && taskActivity == m_leaseClockTaskActivity && !leaseExpiryDeferred() )
+        m_leaseClockMs += std::clamp( now - *m_leaseClockLastSteadyMs, 0LL, MAX_LEASE_CLOCK_STEP_MS );
+
+    m_leaseClockLastSteadyMs = now;
+    m_leaseClockTaskActivity = taskActivity;
+    return m_leaseClockMs;
+}
+
+
 void API_HANDLER_EDITOR::expireCommits( const std::string& aExceptClient )
 {
-    if( m_commitStates.empty() )
+    if( m_commitStates.empty() || m_deregistered )
         return;
 
-    // Never revert under an open dialog or an interactive tool; try again on the next tick
-    if( m_frame && !m_frame->CanAcceptApiCommands() )
+    // Read the clock first, so a deferred period does not count once expiry is allowed again
+    const long long now = leaseClockMs();
+
+    // Never revert under a task, a progress dialog, an open dialog or an interactive tool; try
+    // again on the next tick
+    if( leaseExpiryDeferred() )
         return;
 
-    const long long          now = nowMs();
     std::vector<std::string> expired;
 
     for( const auto& [client, state] : m_commitStates )
     {
-        if( client != aExceptClient && now - state.lastActivityMs >= state.leaseSeconds * 1000LL )
+        if( state.leaseSeconds > 0 && client != aExceptClient
+            && now - state.lastActivityMs >= state.leaseSeconds * 1000LL )
+        {
             expired.push_back( client );
+        }
     }
 
     for( const std::string& client : expired )

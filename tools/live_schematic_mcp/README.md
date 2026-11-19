@@ -54,7 +54,8 @@ anything. A batch is also rolled back if another writer changes the document whi
 it runs. Every mutation carries an operation id. After a timeout the client asks
 `live_operation_status` instead of resending; mutations are never retried. A
 client killed mid-batch has its open commit rolled back when the commit's lease
-expires (60 s by default).
+expires (the MCP asks for 60 s; leases are opt-in, so other API clients keep
+upstream behaviour, and time under an API task does not count).
 
 Routing verification checks all clearance, keepout and manufacturing findings for
 the new route UUIDs, without truncating the internal DRC report. A rejected route

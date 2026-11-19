@@ -1343,6 +1343,23 @@ def test_every_transaction_carries_an_operation_id_and_options_chain_revisions()
                if not isinstance(r, editor.BeginCommit))
 
 
+def test_transactions_opt_into_a_commit_lease():
+    from client import DEFAULT_LEASE_S
+
+    # KiCad gives a commit no lease unless its client asks (upstream plugins keep theirs open), so
+    # the MCP asks on every BeginCommit; a killed MCP's commit is then rolled back
+    client = HeaderClient(created)
+    client.mutate(doc(), [wire()])
+    begin = next(r for r in client.requests if isinstance(r, editor.BeginCommit))
+    assert begin.lease_seconds == DEFAULT_LEASE_S > 0
+
+    client = HeaderClient(created)
+    client.lease_seconds = None
+    client.mutate(doc(), [wire()])
+    begin = next(r for r in client.requests if isinstance(r, editor.BeginCommit))
+    assert begin.lease_seconds == 0
+
+
 def test_lost_commit_reply_is_reconciled_not_resent():
     from client import OutcomeUnknown, ReplyTimeout
 

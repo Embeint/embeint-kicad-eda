@@ -105,6 +105,13 @@ public:
     KICAD_API_SERVER* apiServer() const { return m_apiServer; }
 
     /**
+     * Called by the API server when it stops routing requests to this handler, for example when
+     * the editor frame that owns it starts closing.  Handlers drop anything that would act on the
+     * frame later (timers, deferred work).
+     */
+    virtual void OnDeregistered() {}
+
+    /**
      * Header fields for the reply to the request this handler handled last (for example the
      * document revision).  The server merges them into the reply envelope, error replies included.
      */

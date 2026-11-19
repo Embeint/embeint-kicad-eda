@@ -81,7 +81,8 @@ class OutcomeUnknown(RuntimeError):
 # Errors whose status code means the request did not run; see api/proto/common/envelope.proto
 STATUS_ERRORS = {"AS_REVISION_MISMATCH": RevisionMismatch, "AS_DUPLICATE_OPERATION": DuplicateOperation}
 
-# Default commit lease (seconds) the editor uses when BeginCommit asks for none
+# Commit lease (seconds) the MCP asks for on BeginCommit.  Leases are opt-in: the editor gives a
+# commit none unless its client asks, so a killed MCP's open commit would otherwise stay open.
 DEFAULT_LEASE_S = 60
 
 
@@ -223,8 +224,8 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
         self.last_revision = None
         # Expected revision/operation id for the transactions of one tool call; see mutation_options
         self._options = None
-        # Lease the next BeginCommit asks for (tests shorten it); None uses the editor default
-        self.lease_seconds = None
+        # Lease every BeginCommit asks for (tests shorten it); None or 0 asks for none (no lease)
+        self.lease_seconds = DEFAULT_LEASE_S
         # {"operation_id", "state", "revision"} of the last mutation this client finished
         self.last_operation = None
 
