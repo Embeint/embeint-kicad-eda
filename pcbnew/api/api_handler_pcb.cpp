@@ -1807,6 +1807,9 @@ API_HANDLER_PCB::getPageLayoutInput( const DocumentSpecifier& aDocument )
         shape.part = aPart;
         shape.box = aText->GetBoundingBox();
         shape.box.Normalize();
+
+        // Compared by the band the glyphs occupy, without the line spacing in the box
+        shape.core = textCore( shape.box, aText->GetTextHeight(), aText->GetDrawRotation() );
         shape.layer = layer;
         shape.layerName = brd->GetLayerName( layer );
         input.shapes.push_back( shape );

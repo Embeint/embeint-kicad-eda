@@ -25,6 +25,7 @@
 #include <api/common/commands/editor_commands.pb.h>
 #include <base_units.h>
 #include <commit.h>
+#include <geometry/eda_angle.h>
 #include <google/protobuf/empty.pb.h>
 #include <kiid.h>
 #include <math/box2.h>
@@ -147,14 +148,34 @@ protected:
         std::string  type;
         wxString     name;
         wxString     part;            ///< Field name or footprint text; empty for the item itself
-        BOX2I        box;
+        BOX2I        box;             ///< The drawn extents, as reported
+
+        /// The area compared, inside box: for text, the band the glyphs occupy (see textCore);
+        /// box when unset
+        std::optional<BOX2I> core;
+
         OVERLAP_KIND kind = OVERLAP_KIND::TEXT;
         bool         ownerBody = false; ///< Not compared with other shapes of its own group
         int          layer = 0;       ///< Only shapes on the same layer are compared
         wxString     layerName;
         VECTOR2I     start;           ///< WIRE only: the segment
         VECTOR2I     end;
+
+        /// Labels and sheet pins: the connection point.  A wire or bus through it is the item's
+        /// own connection, not text drawn over a wire.
+        std::optional<VECTOR2I> anchor;
     };
+
+    /**
+     * The band a line of text occupies inside its drawn extents: aBox less the line spacing and
+     * pen above and below the glyphs (at most half the glyph height on each side, so multi-line
+     * text keeps its lines).  Text at other than 0, 90, 180 or 270 degrees keeps aBox.
+     *
+     * @param aBox the text's bounding box as the editor draws it
+     * @param aTextHeight the glyph height (text size)
+     * @param aDrawAngle the angle the text is drawn at, after any parent transform
+     */
+    static BOX2I textCore( const BOX2I& aBox, int aTextHeight, const EDA_ANGLE& aDrawAngle );
 
     /// What an editor provides for GetPageLayout: its page, its drawing sheet laid out the way
     /// the editor draws it, and the bounding box of every item on the page
@@ -170,7 +191,7 @@ protected:
         bool                               checkOverlaps = false;
     };
 
-    /// Pairs of shapes whose extents overlap by more than aMargin in both directions
+    /// Pairs of shapes whose compared areas overlap by more than aMargin in both directions
     void addOverlaps( commands::PageLayoutResponse& aResponse, const PAGE_LAYOUT_INPUT& aInput,
                       int aMargin ) const;
 

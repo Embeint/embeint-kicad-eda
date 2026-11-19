@@ -4338,11 +4338,12 @@ API_HANDLER_SCH::getPageLayoutInput( const DocumentSpecifier& aDocument )
     // bodies without their fields or pins, each visible field, label and sheet pin, and wires
     input.checkOverlaps = true;
 
+    // Returns the new shape, valid until the next one is added
     auto addShape = [&]( const KIID& aId, const KIID& aGroup, const std::string& aType,
                          const wxString& aName, const wxString& aPart, const BOX2I& aBox,
-                         OVERLAP_KIND aKind, bool aOwnerBody )
+                         OVERLAP_KIND aKind, bool aOwnerBody ) -> PAGE_LAYOUT_SHAPE&
     {
-        PAGE_LAYOUT_SHAPE shape;
+        PAGE_LAYOUT_SHAPE& shape = input.shapes.emplace_back();
         shape.id = aId;
         shape.group = aGroup;
         shape.type = aType;
@@ -4352,7 +4353,13 @@ API_HANDLER_SCH::getPageLayoutInput( const DocumentSpecifier& aDocument )
         shape.box.Normalize();
         shape.kind = aKind;
         shape.ownerBody = aOwnerBody;
-        input.shapes.push_back( shape );
+        return shape;
+    };
+
+    // Text is compared by the band its glyphs occupy, without the line spacing in its box
+    auto setTextCore = [&]( PAGE_LAYOUT_SHAPE& aShape, const EDA_TEXT& aText, const EDA_ANGLE& aDrawAngle )
+    {
+        aShape.core = textCore( aShape.box, aText.GetTextHeight(), aDrawAngle );
     };
 
     auto addFields = [&]( SCH_ITEM* aOwner, const std::string& aType, const wxString& aName,
@@ -4363,8 +4370,9 @@ API_HANDLER_SCH::getPageLayoutInput( const DocumentSpecifier& aDocument )
             if( !field.IsVisible() || field.GetShownText( &*target, FOR_CANVAS ).IsEmpty() )
                 continue;
 
-            addShape( aOwner->m_Uuid, aOwner->m_Uuid, aType, aName, field.GetName(),
-                      field.GetBoundingBox(), OVERLAP_KIND::TEXT, false );
+            PAGE_LAYOUT_SHAPE& shape = addShape( aOwner->m_Uuid, aOwner->m_Uuid, aType, aName, field.GetName(),
+                                                 field.GetBoundingBox(), OVERLAP_KIND::TEXT, false );
+            setTextCore( shape, field, field.GetDrawRotation() );
         }
     };
 
@@ -4392,8 +4400,11 @@ API_HANDLER_SCH::getPageLayoutInput( const DocumentSpecifier& aDocument )
 
             for( SCH_SHEET_PIN* pin : sheet->GetPins() )
             {
-                addShape( pin->m_Uuid, item->m_Uuid, "Sheet pin", pin->GetText(), wxEmptyString,
-                          pin->GetBoundingBox(), OVERLAP_KIND::TEXT, false );
+                PAGE_LAYOUT_SHAPE& shape = addShape( pin->m_Uuid, item->m_Uuid, "Sheet pin", pin->GetText(),
+                                                     wxEmptyString, pin->GetBoundingBox(), OVERLAP_KIND::TEXT,
+                                                     false );
+                setTextCore( shape, *pin, pin->GetTextAngle() );
+                shape.anchor = pin->GetPosition();
             }
 
             break;
@@ -4404,14 +4415,28 @@ API_HANDLER_SCH::getPageLayoutInput( const DocumentSpecifier& aDocument )
         case SCH_HIER_LABEL_T:
         case SCH_DIRECTIVE_LABEL_T:
         {
-            SCH_LABEL_BASE* label = static_cast<SCH_LABEL_BASE*>( item );
-            addShape( item->m_Uuid, item->m_Uuid, type, name, wxEmptyString,
-                      label->GetBodyBoundingBox( nullptr ), OVERLAP_KIND::TEXT, true );
+            SCH_LABEL_BASE*    label = static_cast<SCH_LABEL_BASE*>( item );
+            PAGE_LAYOUT_SHAPE& shape = addShape( item->m_Uuid, item->m_Uuid, type, name, wxEmptyString,
+                                                 label->GetBodyBoundingBox( nullptr ), OVERLAP_KIND::TEXT, true );
+
+            // A directive label's body is its flag, not text
+            if( item->Type() != SCH_DIRECTIVE_LABEL_T )
+                setTextCore( shape, *label, label->GetTextAngle() );
+
+            shape.anchor = label->GetPosition();
             addFields( item, type, name, label->GetFields() );
             break;
         }
 
         case SCH_TEXT_T:
+        {
+            SCH_TEXT*          text = static_cast<SCH_TEXT*>( item );
+            PAGE_LAYOUT_SHAPE& shape = addShape( item->m_Uuid, item->m_Uuid, type, name, wxEmptyString,
+                                                 item->GetBoundingBox(), OVERLAP_KIND::TEXT, false );
+            setTextCore( shape, *text, text->GetTextAngle() );
+            break;
+        }
+
         case SCH_TEXTBOX_T:
             addShape( item->m_Uuid, item->m_Uuid, type, name, wxEmptyString, item->GetBoundingBox(),
                       OVERLAP_KIND::TEXT, false );

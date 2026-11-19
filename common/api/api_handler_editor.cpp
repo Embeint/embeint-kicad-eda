@@ -33,6 +33,7 @@
 #include <eda_draw_frame.h>
 #include <eda_item.h>
 #include <eda_units.h>
+#include <geometry/seg.h>
 #include <gal/gal_display_options.h>
 #include <gal_display_options_common.h>
 #include <settings/app_settings.h>
@@ -847,11 +848,38 @@ HANDLER_RESULT<PageLayoutResponse> API_HANDLER_EDITOR::handleGetPageLayout(
 
     response.set_item_count( static_cast<int>( input->items.size() ) );
 
-    // Ignore contact closer than this: drawn extents include half the pen width
+    // Ignore contact closer than this: text that only touches, or a wire grazing a corner
     if( input->checkOverlaps )
-        addOverlaps( response, *input, scale.mmToIU( 0.05 ) );
+        addOverlaps( response, *input, scale.mmToIU( 0.1 ) );
 
     return response;
+}
+
+
+BOX2I API_HANDLER_EDITOR::textCore( const BOX2I& aBox, int aTextHeight, const EDA_ANGLE& aDrawAngle )
+{
+    BOX2I     core = aBox;
+    EDA_ANGLE angle = aDrawAngle;
+
+    core.Normalize();
+    angle.Normalize();
+
+    const bool horizontal = angle.IsHorizontal();
+
+    if( aTextHeight <= 0 || !( horizontal || angle.IsVertical() ) )
+        return core;
+
+    // Text boxes include the line spacing above and below the glyphs: without it, text stacked at
+    // its usual pitch (fields, labels on adjacent wires) or sitting on a wire would overlap
+    const int across = horizontal ? core.GetHeight() : core.GetWidth();
+    const int pad = std::clamp( ( across - aTextHeight ) / 2, 0, aTextHeight / 2 );
+
+    if( horizontal )
+        core.Inflate( 0, -pad );
+    else
+        core.Inflate( -pad, 0 );
+
+    return core;
 }
 
 
@@ -861,9 +889,6 @@ void API_HANDLER_EDITOR::addOverlaps( PageLayoutResponse& aResponse, const PAGE_
     static constexpr int MAX_REPORTED_OVERLAPS = 200;
 
     const EDA_IU_SCALE& scale = getIuScale();
-
-    // A wire must cross the text, not end at its connection point on the outline
-    const int wireInset = scale.mmToIU( 0.25 );
 
     struct FOUND
     {
@@ -898,22 +923,35 @@ void API_HANDLER_EDITOR::addOverlaps( PageLayoutResponse& aResponse, const PAGE_
         return BOX2I::ByCorners( VECTOR2I( left, top ), VECTOR2I( right, bottom ) );
     };
 
-    auto wireOverlap = [&]( const PAGE_LAYOUT_SHAPE& aWire, const BOX2I& aText ) -> std::optional<BOX2I>
+    auto coreOf = []( const PAGE_LAYOUT_SHAPE& aShape ) -> const BOX2I&
     {
-        if( aText.GetWidth() <= 2 * wireInset || aText.GetHeight() <= 2 * wireInset )
+        return aShape.core ? *aShape.core : aShape.box;
+    };
+
+    auto wireOverlap = [&]( const PAGE_LAYOUT_SHAPE& aWire,
+                            const PAGE_LAYOUT_SHAPE& aTextShape ) -> std::optional<BOX2I>
+    {
+        const BOX2I& text = coreOf( aTextShape );
+
+        // A label on its wire, or a wire or bus ending at a label or sheet pin, is its connection
+        if( aTextShape.anchor && SEG( aWire.start, aWire.end ).Contains( *aTextShape.anchor ) )
             return std::nullopt;
 
-        BOX2I inner = aText;
-        inner.Inflate( -wireInset, -wireInset );
+        // The wire must cross the text, not graze its edge
+        if( text.GetWidth() <= 2 * aMargin || text.GetHeight() <= 2 * aMargin )
+            return std::nullopt;
+
+        BOX2I inner = text;
+        inner.Inflate( -aMargin, -aMargin );
 
         if( !inner.Intersects( aWire.start, aWire.end ) )
             return std::nullopt;
 
         const BOX2I segment = BOX2I::ByCorners( aWire.start, aWire.end );
-        const int   left = std::max( segment.GetLeft(), aText.GetLeft() );
-        const int   right = std::min( segment.GetRight(), aText.GetRight() );
-        const int   top = std::max( segment.GetTop(), aText.GetTop() );
-        const int   bottom = std::min( segment.GetBottom(), aText.GetBottom() );
+        const int   left = std::max( segment.GetLeft(), text.GetLeft() );
+        const int   right = std::min( segment.GetRight(), text.GetRight() );
+        const int   top = std::max( segment.GetTop(), text.GetTop() );
+        const int   bottom = std::min( segment.GetBottom(), text.GetBottom() );
 
         return BOX2I::ByCorners( VECTOR2I( left, top ),
                                  VECTOR2I( std::max( left, right ), std::max( top, bottom ) ) );
@@ -950,11 +988,11 @@ void API_HANDLER_EDITOR::addOverlaps( PageLayoutResponse& aResponse, const PAGE_
                 const PAGE_LAYOUT_SHAPE& other = aWire ? b : a;
 
                 if( other.kind == OVERLAP_KIND::TEXT )
-                    overlap = wireOverlap( wire, other.box );
+                    overlap = wireOverlap( wire, other );
             }
             else
             {
-                overlap = boxOverlap( a.box, b.box );
+                overlap = boxOverlap( coreOf( a ), coreOf( b ) );
             }
 
             if( overlap )
