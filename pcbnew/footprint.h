@@ -577,6 +577,12 @@ public:
     }
 
     /**
+     * Take the net-tie group text of @p aOther where it lists the same pads as this footprint's
+     * groups, so that an equivalent rewrite (such as "1, 2" for "1,2") keeps the original text.
+     */
+    void KeepEquivalentNetTiePadGroups( const FOOTPRINT& aOther );
+
+    /**
      * @return a map from pad numbers to net-tie group indices.  If a pad is not a member of
      *         a net-tie group its index will be -1.
      */

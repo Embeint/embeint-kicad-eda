@@ -4536,6 +4536,19 @@ void FOOTPRINT::BuildNetTieCache()
 }
 
 
+void FOOTPRINT::KeepEquivalentNetTiePadGroups( const FOOTPRINT& aOther )
+{
+    if( m_netTiePadGroups.size() != aOther.m_netTiePadGroups.size() )
+        return;
+
+    for( size_t ii = 0; ii < m_netTiePadGroups.size(); ++ii )
+    {
+        if( parseNetTiePadGroup( m_netTiePadGroups[ii] ) == parseNetTiePadGroup( aOther.m_netTiePadGroups[ii] ) )
+            m_netTiePadGroups[ii] = aOther.m_netTiePadGroups[ii];
+    }
+}
+
+
 std::map<wxString, int> FOOTPRINT::MapPadNumbersToNetTieGroups() const
 {
     std::map<wxString, int> padNumberToGroupIdxMap;

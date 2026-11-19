@@ -43,6 +43,7 @@
 #include <pcb_table.h>
 #include <pcb_tablecell.h>
 #include <pcb_3d_body.h>
+#include <constraints/pcb_constraint.h>
 
 #include <layer_ids.h>
 #include <project.h>
@@ -701,6 +702,62 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_BOARD::handleCreateUpdateItemsInte
             {
                 // Save group membership before removal, since Remove() severs the relationship
                 PCB_GROUP* parentGroup = dynamic_cast<PCB_GROUP*>( boardItem->GetParentGroup() );
+
+                // The message does not carry a footprint's geometric constraints, so the
+                // replacement keeps them, except those whose members the update removed
+                if( boardItem->Type() == PCB_FOOTPRINT_T )
+                {
+                    FOOTPRINT* existingFp = static_cast<FOOTPRINT*>( boardItem );
+                    FOOTPRINT* replacement = static_cast<FOOTPRINT*>( item.get() );
+
+                    auto collectIds =
+                            []( const FOOTPRINT* aFootprint )
+                            {
+                                std::set<KIID> ids = { aFootprint->m_Uuid };
+
+                                aFootprint->RunOnChildren(
+                                        [&]( BOARD_ITEM* aChild )
+                                        {
+                                            ids.insert( aChild->m_Uuid );
+                                        },
+                                        RECURSE_MODE::RECURSE );
+
+                                return ids;
+                            };
+
+                    std::set<KIID> existingIds = collectIds( existingFp );
+                    std::set<KIID> replacementIds = collectIds( replacement );
+
+                    auto keep =
+                            [&]( const PCB_CONSTRAINT* aConstraint )
+                            {
+                                for( const CONSTRAINT_MEMBER& member : aConstraint->GetMembers() )
+                                {
+                                    if( existingIds.contains( member.m_item )
+                                            && !replacementIds.contains( member.m_item ) )
+                                    {
+                                        return false;
+                                    }
+                                }
+
+                                return true;
+                            };
+
+                    // Net-tie groups travel as pad lists; keep the text of groups that are unchanged
+                    replacement->KeepEquivalentNetTiePadGroups( *existingFp );
+
+                    if( replacement->Constraints().empty() )
+                    {
+                        for( PCB_CONSTRAINT* constraint : existingFp->Constraints() )
+                        {
+                            if( keep( constraint ) )
+                            {
+                                replacement->Add( static_cast<PCB_CONSTRAINT*>( constraint->Clone() ),
+                                                  ADD_MODE::APPEND );
+                            }
+                        }
+                    }
+                }
 
                 commit->Remove( boardItem );
                 item->Serialize( newItem );
