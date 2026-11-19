@@ -25,19 +25,37 @@ ensure_protos
 export PYTHONPATH="$MCP"
 kicad_pid=""
 
-# One development KiCad at a time: name its socket so discovery never picks a stale one
-export KICAD_API_SOCKET="${KICAD_API_SOCKET:-ipc:///tmp/kicad/api.sock}"
+# KiCad does not read KICAD_API_SOCKET.  It listens on <temp>/kicad/api.sock, or on
+# api-<pid>.sock when api.sock is already taken (common/api/api_server.cpp).  Never share the
+# standard socket with a KiCad this script did not start, and talk only to the one it started.
+socket_dir="$("$PYTHON" -c 'from instance_discovery import default_socket_url, local_socket_path
+print(local_socket_path(default_socket_url()).parent)')"
+unset KICAD_API_SOCKET
+
+socket_answers() {  # socket path: true when a server accepts connections on it
+    "$PYTHON" -c 'import sys
+from instance_discovery import socket_reachability
+sys.exit(socket_reachability("ipc://" + sys.argv[1]) != "connectable")' "$1"
+}
 
 start_kicad() {  # project.kicad_pro log
+    if socket_answers "$socket_dir/api.sock"; then
+        echo "Another KiCad already serves $socket_dir/api.sock; stop it (or wait for its owner) first" >&2
+        exit 1
+    fi
+    # run_kicad_wsl.sh execs KiCad, so this is KiCad's own PID
     "$MCP/run_kicad_wsl.sh" "$1" > "$2" 2>&1 &
     kicad_pid=$!
     # run_kicad_wsl.sh first refreshes the local library copies, which can take minutes
     for _ in $(seq 300); do
         kill -0 "$kicad_pid" 2>/dev/null || { echo "KiCad exited: $2" >&2; exit 1; }
-        if (cd "$MCP" && "$PYTHON" -c 'from client import LiveSchematic, base
-LiveSchematic(timeout_ms=2000).send(base.GetVersion(), base.GetVersionResponse)') >/dev/null 2>&1; then
-            return 0
-        fi
+        for socket in "$socket_dir/api-$kicad_pid.sock" "$socket_dir/api.sock"; do
+            if [[ -S "$socket" ]] && KICAD_API_SOCKET="ipc://$socket" "$PYTHON" -c 'from client import LiveSchematic, base
+LiveSchematic(timeout_ms=2000).send(base.GetVersion(), base.GetVersionResponse)' >/dev/null 2>&1; then
+                export KICAD_API_SOCKET="ipc://$socket"
+                return 0
+            fi
+        done
         sleep 2
     done
     stop_kicad
@@ -53,6 +71,7 @@ stop_kicad() {
     fi
     wait "$kicad_pid" 2>/dev/null || true
     kicad_pid=""
+    unset KICAD_API_SOCKET
 }
 trap stop_kicad EXIT
 
@@ -97,13 +116,18 @@ case "$step" in
         export LD_LIBRARY_PATH="$ROOT/deps/usr/lib/x86_64-linux-gnu:$INSTALL/lib:${LD_LIBRARY_PATH:-}"
         export KICAD_CONFIG_HOME="$ROOT/config"
         "$INSTALL/bin/kicad-cli" version --format about > "$out/fork-version.txt" 2>&1 || true
+        # Record every library's exit status; under set -e a bare failing command would end the step
         for library in "$source_dir"/*.kicad_sym; do
+            rc=0
             "$INSTALL/bin/kicad-cli" sym upgrade --force -o "$out/$(basename "$library")" "$library" \
-                >> "$out/cli.log" 2>&1; echo "sym $(basename "$library") rc=$?" | tee -a "$out/cli.log"
+                >> "$out/cli.log" 2>&1 || rc=$?
+            echo "sym $(basename "$library") rc=$rc" | tee -a "$out/cli.log"
         done
         for library in "$source_dir"/*.pretty; do
+            rc=0
             "$INSTALL/bin/kicad-cli" fp upgrade --force -o "$out/$(basename "$library")" "$library" \
-                >> "$out/cli.log" 2>&1; echo "fp $(basename "$library") rc=$?" | tee -a "$out/cli.log"
+                >> "$out/cli.log" 2>&1 || rc=$?
+            echo "fp $(basename "$library") rc=$rc" | tee -a "$out/cli.log"
         done
         "$PYTHON" "$COMPAT/check_compat.py" versions "$out" > "$out/versions.json"
         ;;
