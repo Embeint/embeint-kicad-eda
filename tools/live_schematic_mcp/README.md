@@ -64,7 +64,7 @@ This is scoped route validation, not a claim that the whole board is DRC-clean.
 | `live_schematic_create_items` / `_update_items` / `_delete_items` | Batched edits, one undo step, rolled back on any rejection |
 | `live_schematic_place_symbol` | Place `Library:Symbol` at mm coordinates |
 | `live_schematic_view` | PNG of the whole page in its current unsaved state, with the drawing sheet (border, title block) unless `frame=false` |
-| `live_schematic_page` | Paper and orientation, drawing area, title block box and fields (mm), and items outside the border or in the title block |
+| `live_schematic_page` | Paper and orientation, drawing area, title block box and fields (mm), items outside the border or in the title block (`fits`), and separately overlapping fields, labels, sheet pins, text, bodies and wires through text (`overlap_free`, `overlaps`) |
 | `live_schematic_set_page` | Set the paper (A4, A3, ...), orientation and title block fields |
 | `live_schematic_focus` | Switch the editor to a sheet and zoom to items |
 | `live_schematic_item_schema` | Field reference for item types (SheetSymbol, SheetPin, ...) |
@@ -78,10 +78,11 @@ This is scoped route validation, not a claim that the whole board is DRC-clean.
 | `live_schematic_symbol_pins` | Placed pins with absolute positions, drawn direction and current net |
 | `live_schematic_connect_pins` | Orthogonal wire between two pins (`R1`,`2` to `U1`,`VCC`) |
 | `live_schematic_connect_pin_to_net` | Stub wire plus local/global/hierarchical label on a pin |
-| `live_schematic_netlist` | Live nets with their `REF.PIN` members |
+| `live_schematic_netlist` | Live nets with their `REF.PIN` members across every sheet, and the pins on each sheet path (`scope="sheet"`: pins of the given sheet only) |
 | `live_schematic_erc` | Electrical rules check of the unsaved design |
 | `live_schematic_select` / `_highlight_nets` | Show items or nets to the user in the editor |
 | `live_schematic_export` | SVG, PDF, DXF, PS, netlist or BOM from the unsaved design |
+| `live_kicad_cli` | kicad-cli on saved files (ERC, netlist and other exports) in the environment the running KiCad was launched with |
 | `live_schematic_list_commands` / `_describe_command` / `_execute` | Every IPC command KiCad registers, by name |
 | `live_schematic_batch` | Several commands as one undo step, all rolled back if any fails |
 
@@ -193,7 +194,7 @@ hosts the schematic and PCB editors in one process; `live_pcb_open` opens the pr
 | `live_pcb_items` / `_create_items` / `_update_items` / `_delete_items` / `_item_schema` | Raw board items (protobuf JSON), one undo step per call |
 | `live_pcb_delete_routing` | Rip up tracks and vias by net and/or layer |
 | `live_pcb_view` / `live_pcb_view_3d` | PNG of chosen layers on the page with the drawing sheet; KiCad's 3D render |
-| `live_pcb_page` / `live_pcb_set_page` | Page check (drawing area, title block, board outline, items outside the border); paper and title block |
+| `live_pcb_page` / `live_pcb_set_page` | Page check (drawing area, title block, board outline, items outside the border, overlapping silkscreen/fab text); paper and title block |
 | `live_pcb_origins` | Read or set the grid origin and the drill/place origin |
 | `live_pcb_layers` | Copper layer count (through the stackup, refused if a removed layer has items), visible and active layers |
 | `live_pcb_stackup` / `live_pcb_set_stackup` | Read or change the stackup: layer count, copper and dielectric thickness, core/prepreg, epsilon_r, loss tangent, board thickness, colours, finish |
@@ -345,6 +346,7 @@ are translated. SolidCraft exports default to `%USERPROFILE%\kicad-models`
 ~/kicad-live/venv/bin/python e2e_footprints.py out/        # generate a footprint, embed its STEP, link it from a symbol
 ~/kicad-live/venv/bin/python e2e_pcb.py out/               # board page, grid, origins, outline, footprints, routing, zones, DRC, exports
 ~/kicad-live/venv/bin/python e2e_design.py out/            # stackup, impedance, rules, custom rules, net classes, keepouts, routing around copper, checks
+~/kicad-live/venv/bin/python e2e_design_checks.py out/     # hierarchical netlist, page text overlaps, kicad-cli in KiCad's environment
 SOLIDCRAFT_CLI=/path/to/solidcraft-cli ~/kicad-live/venv/bin/python e2e_model_handoff.py out/     # SolidCraft builds the STEP; KiCad embeds and renders it
 ~/kicad-live/venv/bin/python e2e_item_roundtrip.py out/    # unchanged item updates and re-creations leave the saved file unchanged
 ```
@@ -388,6 +390,17 @@ created symbol lists its pins in the order of the request. Sending a symbol with
 definition keeps the cached library symbol when the definition is unchanged and rebuilds it when it
 was edited (see the note after the schematic tools table); the probe reports full-definition results separately
 (informational) and checks the instance round trip with a definition-less update.
+
+### kicad-cli
+
+kicad-cli is a separate KiCad process and needs the launcher's environment: the shared library
+path, the configuration home (library tables, path variables) and the stock library directories.
+The MCP asks the running KiCad for that environment (`GetKiCadEnvironment`) whenever it starts
+kicad-cli (`live_kicad_cli`, `live_footprint_view_3d`, `live_footprint_check_model`); with an older
+KiCad, or none running, it rebuilds it from the install layout (`run_kicad_wsl.sh` for
+`~/kicad-live`, `libexec/environment.sh` for the package; `KICAD_CLI` selects another binary).
+From a shell, the installed package provides `embeint-kicad-cli`, which sources the same
+environment as `embeint-kicad`.
 
 ## Supported schematic block scripting
 

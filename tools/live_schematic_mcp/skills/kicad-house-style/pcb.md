@@ -4,6 +4,8 @@
 
 - Use the same page rules as schematics: `live_pcb_page` must report `fits: true`. Draw the outline inside
   the drawing area, clear of the title block.
+- Before saving, `live_pcb_page` should also report `overlap_free: true` (no silkscreen or fab
+  texts overlapping on the same layer); DRC covers silkscreen against copper and other silk.
 - Use the Embeint title block (`live_pcb_set_page`), the same fields as the schematic.
 - **Origin and grid:** use the project mechanical requirements; resolve missing requirements
   before final placement rather than assuming an undocumented house standard.

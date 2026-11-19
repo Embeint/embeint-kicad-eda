@@ -51,19 +51,25 @@ Consult the loaded tool inventory for actual tool support.
 
 1. Render the whole page with frame (`live_schematic_view`); fix overlaps and check
    notes, fields, dashed blocks and the title block.
-2. Check `live_schematic_page` reports `fits: true`.
+2. Check `live_schematic_page` reports `fits: true` (frame and title block) and
+   `overlap_free: true`. Each entry in `overlaps` names both items and their boxes;
+   move the text or field rather than shrinking it. The check uses KiCad's own text
+   extents but not every drawn detail, so still inspect the framed render.
 3. Run root ERC. Correct electrical causes rather than suppressing warnings or
    relabeling unspecified pins passive without datasheet evidence. Explain remaining
    violations; ERC cleanliness alone is not design sign-off.
-4. Export the whole-design netlist and compare intended nets as REF.PIN sets,
-   including hidden/stacked pins and parent-child connectivity. Report missing,
-   extra, shorted or split nets. Check the current netlist tool's coverage before
-   relying on per-sheet reads for a hierarchical design.
+4. Compare intended nets as REF.PIN sets with `live_schematic_netlist`, which covers
+   every sheet and lists each pin's sheet path, including hidden/stacked pins and
+   parent-child connectivity. Report missing, extra, shorted or split nets.
 5. Save explicitly when authorized by the task. Compare saved schematic contents
    or parsed exports with the intended state; for persistence acceptance, reopen in
    an isolated validation session and compare hierarchy, fields and connectivity.
    A timestamp or success message alone is insufficient. An error or ambiguous save
    remains unresolved until content evidence establishes the outcome.
+6. For an independent check of the saved files, run `live_kicad_cli` (for example
+   `sch erc` and `sch export netlist` on the saved root). It uses the running KiCad's
+   launch environment; from a shell use the package's `embeint-kicad-cli`, not a bare
+   `kicad-cli`, or library and configuration warnings are not about the design.
 
 ## Historical 10.99 observations (unverified on the current version)
 
