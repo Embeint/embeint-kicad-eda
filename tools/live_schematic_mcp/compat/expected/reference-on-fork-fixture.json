@@ -30,5 +30,13 @@
   },
   "changed_inputs": [
     "compat-fixture.kicad_prl"
-  ]
+  ],
+  "messages": {
+    "fp read compat.pretty": "Unable to load library",
+    "pcb drc": "created with a more recent version.*\\s+.*upgrade KiCad to version 10\\.99 or later \\(file format dated 20261031",
+    "pcb export gerbers": "created with a more recent version",
+    "sch erc": "^Failed to load schematic$",
+    "sch export netlist": "^Failed to load schematic$",
+    "sym read compat.kicad_sym": "Unable to load library"
+  }
 }

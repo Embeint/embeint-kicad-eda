@@ -92,7 +92,7 @@ def libraries(client, project_dir, step_file):
                                     keywords="SOT-23 compat", datasheet=DATASHEET)
     attached = client.footprint_attach_step(fp, str(step_file))
     client.footprint_save(fp)
-    saved = (project_dir / "compat.pretty/SOT-23_COMPAT.kicad_mod").read_text()
+    saved = (project_dir / "compat.pretty/SOT-23_COMPAT.kicad_mod").read_text(encoding="utf-8")
     check("embedded_files" in saved and "kicad-embed://" in saved, f"footprint embeds its model: {attached}")
 
     sym = symbol_document(client.new_symbol(SYMBOL_LIB, "COMPAT_LDO", reference_prefix="U",
