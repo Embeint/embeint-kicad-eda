@@ -9,8 +9,8 @@ The maintained matrix is [operation_decisions.json](operation_decisions.json).
 Each key is an explicit `API_HANDLER_CLASS/fully.qualified.Request` decision.
 [operation_coverage.py](operation_coverage.py) joins these decisions with the
 current C++ registrations, inherited handlers and Python generic registry. The
-baseline contains **207 owner/request registrations**, **163 distinct requests**
-and **390 contextual rows** across manager, schematic, PCB, symbol and footprint.
+checkout contains **209 owner/request registrations**, **165 distinct requests**
+and **399 contextual rows** across manager, schematic, PCB, symbol and footprint.
 These are inventory counts, not counts of qualified operations.
 
 ## Inspect the complete matrix
@@ -105,6 +105,10 @@ Concrete source-derived limits captured in the decisions include:
   Batch use remains deferred until matching-build qualification passes.
 - `RunAction` and `InteractiveMoveItems` are interactive. Debug DRC injection is
   internal. They are not silently counted as unattended supported commands.
+- `GetDocumentRevision` (EDITOR) and `GetOperationStatus` (COMMON) are the read
+  side of the revision and reconciliation contract in [REVISIONS.md](REVISIONS.md).
+  Expected-revision and operation-id checks themselves are request-header fields
+  enforced around every EDITOR registration, so they add no rows of their own.
 - Library-item rendering requires a GUI frame and writes/removes temporary image
   files. The source library is not saved by rendering.
 
