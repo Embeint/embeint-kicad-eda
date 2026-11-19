@@ -9,15 +9,37 @@ libexec/environment.sh) for the installed package.  The running KiCad reports th
 here: client code supplies what KiCad reported.
 """
 
+import asyncio
+import locale
 import os
 from pathlib import Path
 import re
 import subprocess
 import sys
 
-# kicad-cli's top-level commands; anything else is refused before starting a process
-COMMANDS = ("sch", "pcb", "sym", "fp", "jobset", "version")
+# The read-only kicad-cli commands live_kicad_cli may run: checks and exports of saved files.  Anything
+# else is refused before starting a process: jobset run (its "Execute Command" jobs run through a
+# shell), upgrade/downgrade (rewrite files in place), import, diff, render and the rest.  The value is
+# the allowed export kinds, or None for a command that takes no kind.
+SCH_EXPORTS = ("bom", "dxf", "hpgl", "netlist", "pdf", "png", "ps", "python-bom", "svg")
+PCB_EXPORTS = ("3dpdf", "bom", "brep", "drill", "dxf", "gencad", "gerbers", "glb", "hpgl", "idf", "ipc2581",
+               "ipcd356", "odb", "pdf", "ply", "png", "pos", "ps", "specctra", "stackup", "stats", "step",
+               "stl", "stpz", "svg", "u3d", "vrml", "xao")
+COMMANDS = {("sch", "erc"): None, ("sch", "export"): SCH_EXPORTS,
+            ("pcb", "drc"): None, ("pcb", "export"): PCB_EXPORTS,
+            ("sym", "export"): ("svg",), ("fp", "export"): ("svg",),
+            ("version",): None}
+# Options that make an allowed command write into the project (pcb drc --save-board saves the board)
+WRITE_OPTIONS = ("--save-board",)
+# Options whose value is a file or folder kicad-cli writes
+OUTPUT_OPTIONS = ("-o", "--output", "--models-dir", "--report-path")
+# Outputs that would overwrite a design, project or library file
+PROTECTED_SUFFIXES = (".kicad_sch", ".kicad_pcb", ".kicad_pro", ".kicad_prl", ".kicad_sym", ".kicad_mod",
+                      ".kicad_dru")
+PROTECTED_NAMES = ("sym-lib-table", "fp-lib-table", "design-block-lib-table")
+MAX_TIMEOUT_S = 600
 OUTPUT_LIMIT = 20000
+WINDOWS_PATH = re.compile(r"^[A-Za-z]:[\\/]")
 
 
 def child_environment(environ=None, frozen=None):
@@ -67,15 +89,19 @@ def layout_environment(cli_path, env):
 
 def cli_environment(cli_path, kicad_variables=None, environ=None, frozen=None):
     """(environment, description) for running kicad-cli.  kicad_variables, as reported by the running
-    KiCad, take precedence; None means KiCad could not report them and the install layout is used."""
+    KiCad, take precedence; None means KiCad could not report them and the install layout is used.  An
+    empty report is not a usable environment either (KiCad always has a configuration home): it is
+    rebuilt from the install layout and the description says KiCad reported nothing."""
     env = child_environment(environ, frozen)
-    if kicad_variables is not None:
+    if kicad_variables:
         env.update(kicad_variables)
         return env, {"source": "kicad", "variables": sorted(kicad_variables)}
     before = dict(env)
     env = layout_environment(cli_path, env)
-    return env, {"source": "install layout",
-                 "variables": sorted(k for k in env if env[k] != before.get(k))}
+    description = {"source": "install layout", "variables": sorted(k for k in env if env[k] != before.get(k))}
+    if kicad_variables is not None:
+        description["note"] = "KiCad reported an empty launch environment"
+    return env, description
 
 
 def default_cli(environ=None, executable=None):
@@ -86,8 +112,11 @@ def default_cli(environ=None, executable=None):
     if environ.get("KICAD_CLI"):
         candidates.append(Path(environ["KICAD_CLI"]))
     if executable or getattr(sys, "frozen", False):
-        # /opt/embeint-kicad/libexec/mcp/embeint-kicad-mcp -> /opt/embeint-kicad/bin/kicad-cli
-        candidates.append(Path(executable or sys.executable).resolve().parents[2] / "bin/kicad-cli")
+        mcp = Path(executable or sys.executable).resolve()
+        # Windows bundle: C:\kb\install\mcp\embeint-kicad-mcp.exe -> C:\kb\install\bin\kicad-cli.exe
+        candidates.append(mcp.parents[1] / "bin/kicad-cli")
+        # Linux package: /opt/embeint-kicad/libexec/mcp/embeint-kicad-mcp -> /opt/embeint-kicad/bin/kicad-cli
+        candidates.append(mcp.parents[2] / "bin/kicad-cli")
     live_root = environ.get("KICAD_LIVE_ROOT") or str(Path(environ.get("HOME", str(Path.home()))) / "kicad-live")
     candidates.append(Path(live_root) / "install/bin/kicad-cli")
     for candidate in candidates:
@@ -97,36 +126,129 @@ def default_cli(environ=None, executable=None):
     return None
 
 
+def allowed_commands():
+    """The allowed commands, for messages: "sch erc, sch export <kind>, ..."."""
+    return ", ".join(" ".join(verb) + (" <kind>" if kinds else "") for verb, kinds in COMMANDS.items())
+
+
+def check_output(option, value):
+    """Refuse an output that would overwrite a design, project or library file, or land in a .pretty
+    footprint library (every file there is read as a footprint)."""
+    parts = [part for part in re.split(r"[\\/]+", value) if part]
+    name = parts[-1].lower() if parts else ""
+    if name.endswith(PROTECTED_SUFFIXES) or name in PROTECTED_NAMES:
+        raise ValueError(f"{option} {value!r} would overwrite a design, project or library file; "
+                         "write kicad-cli outputs elsewhere")
+    if any(part.lower().endswith(".pretty") for part in parts):
+        raise ValueError(f"{option} {value!r} is inside a footprint library (.pretty folder); "
+                         "write kicad-cli outputs elsewhere")
+
+
+def check_options(options):
+    """Refuse options that write into the project, and check every output target.  Options are given
+    as kicad-cli parses them: "--name value" or "--name=value" for long options, "-o value" for short
+    ones.  Combined short options ("-no out") are refused because they can hide an output."""
+    for index, arg in enumerate(options):
+        long_option = arg.startswith("--")
+        name, assign, value = arg.partition("=") if long_option else (arg, "", "")
+        if name in WRITE_OPTIONS:
+            raise ValueError(f"{name} writes into the project; live_kicad_cli only runs read-only commands")
+        if not long_option and len(arg) > 2 and arg[0] == "-" and not re.match(r"-[\d.]", arg):
+            raise ValueError(f"combined short options are not accepted ({arg!r}); give each option separately")
+        if name in OUTPUT_OPTIONS:
+            if assign:
+                check_output(name, value)
+            elif index + 1 < len(options):
+                check_output(name, options[index + 1])
+
+
+def translate_path(arg):
+    """On Linux/WSL, C:\\... (alone or as --option=C:\\...) becomes /mnt/c/... ."""
+    from model_handoff import to_wsl
+    if WINDOWS_PATH.match(arg):
+        return to_wsl(arg)
+    name, assign, value = arg.partition("=")
+    if arg.startswith("--") and assign and WINDOWS_PATH.match(value):
+        return f"{name}={to_wsl(value)}"
+    return arg
+
+
 def cli_arguments(args):
-    """Validate kicad-cli arguments.  On Linux/WSL, Windows paths (C:\\...) become /mnt/c/... ."""
+    """Validate kicad-cli arguments against the read-only allow-list (COMMANDS) and the output rules.
+    On Linux/WSL, Windows paths (C:\\...) become /mnt/c/... ."""
     if not isinstance(args, (list, tuple)) or not args or not all(isinstance(a, str) for a in args):
         raise ValueError("args must be a non-empty list of strings, e.g. [\"sch\", \"erc\", \"design.kicad_sch\"]")
-    if args[0] not in COMMANDS:
-        raise ValueError(f"the first argument must be a kicad-cli command: {', '.join(COMMANDS)}")
     if any("\0" in a for a in args):
         raise ValueError("arguments must not contain NUL characters")
+    verb = tuple(args[:1]) if args[0] == "version" else tuple(args[:2])
+    if verb not in COMMANDS:
+        raise ValueError(f"{' '.join(verb)!r} is not allowed; live_kicad_cli runs only read-only kicad-cli "
+                         f"commands: {allowed_commands()}")
+    kinds = COMMANDS[verb]
+    options = list(args[len(verb):])
+    if kinds is not None:
+        if not options or options[0] not in kinds:
+            raise ValueError(f"{' '.join(verb)} needs one of these kinds next: {', '.join(kinds)}")
+        options = options[1:]
+    check_options(options)
     if sys.platform == "win32":
         return list(args)
-    from model_handoff import to_wsl
-    return [to_wsl(a) if re.match(r"^[A-Za-z]:[\\/]", a) else a for a in args]
+    return [translate_path(a) for a in args]
 
 
 def tail(text):
     return (text[-OUTPUT_LIMIT:], True) if len(text) > OUTPUT_LIMIT else (text, False)
 
 
-def run(cli_path, args, env, cwd=None, timeout_s=300):
-    """Run kicad-cli once; returns its exit code and output (the last 20000 characters of each)."""
-    if not 0 < timeout_s <= 3600:
-        raise ValueError("timeout_s must be between 0 and 3600 seconds")
+def prepare(cli_path, args, cwd, timeout_s):
+    """The command line and working directory for one run, after validating everything."""
+    if not 0 < timeout_s <= MAX_TIMEOUT_S:
+        raise ValueError(f"timeout_s must be between 0 and {MAX_TIMEOUT_S} seconds")
     command = [cli_path, *cli_arguments(args)]
     if cwd is not None and sys.platform != "win32":
         from model_handoff import to_wsl
         cwd = to_wsl(cwd)
-    completed = subprocess.run(command, env=env, cwd=cwd, capture_output=True, text=True,
-                               errors="replace", timeout=timeout_s)
-    stdout, stdout_cut = tail(completed.stdout)
-    stderr, stderr_cut = tail(completed.stderr)
-    return {"command": command, "returncode": completed.returncode, "stdout": stdout, "stderr": stderr,
+    return command, cwd
+
+
+def result(command, returncode, stdout, stderr):
+    stdout, stdout_cut = tail(stdout)
+    stderr, stderr_cut = tail(stderr)
+    return {"command": command, "returncode": returncode, "stdout": stdout, "stderr": stderr,
             **({"stdout_truncated": True} if stdout_cut else {}),
             **({"stderr_truncated": True} if stderr_cut else {})}
+
+
+def run(cli_path, args, env, cwd=None, timeout_s=300):
+    """Run kicad-cli once; returns its exit code and output (the last 20000 characters of each).
+    Blocks the caller: the MCP tool uses run_async."""
+    command, cwd = prepare(cli_path, args, cwd, timeout_s)
+    completed = subprocess.run(command, env=env, cwd=cwd, stdin=subprocess.DEVNULL, capture_output=True,
+                               text=True, errors="replace", timeout=timeout_s)
+    return result(command, completed.returncode, completed.stdout, completed.stderr)
+
+
+def decode(data):
+    """Process output as text, like subprocess's text mode."""
+    return data.decode(locale.getpreferredencoding(False), errors="replace").replace("\r\n", "\n")
+
+
+async def run_async(cli_path, args, env, cwd=None, timeout_s=300):
+    """run() without blocking the event loop.  kicad-cli is killed when it times out (TimeoutError) or
+    when the caller is cancelled, so no process outlives the tool call."""
+    command, cwd = prepare(cli_path, args, cwd, timeout_s)
+    process = await asyncio.create_subprocess_exec(*command, env=env, cwd=cwd, stdin=asyncio.subprocess.DEVNULL,
+                                                   stdout=asyncio.subprocess.PIPE,
+                                                   stderr=asyncio.subprocess.PIPE)
+    try:
+        stdout, stderr = await asyncio.wait_for(process.communicate(), timeout_s)
+    except asyncio.TimeoutError:
+        process.kill()
+        await process.wait()
+        raise TimeoutError(f"kicad-cli did not finish within {timeout_s} s and was stopped") from None
+    except BaseException:
+        # Cancelled: kill without awaiting, as a cancelled task may be cancelled again at any await
+        if process.returncode is None:
+            process.kill()
+        raise
+    return result(command, process.returncode, decode(stdout), decode(stderr))

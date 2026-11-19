@@ -373,13 +373,17 @@ class FootprintTools:
 
     def kicad_cli_launch(self):
         """(kicad-cli path, environment, description): KiCad's own binary and launch environment, or,
-        when no KiCad answers, the installed or development kicad-cli and its layout's environment."""
+        when no KiCad answers, the installed or development kicad-cli and its layout's environment.
+        Only a KiCad that cannot be found or reached falls back; any other error from KiCad is raised."""
+        import pynng
         import kicad_cli
+        from instance_discovery import DiscoveryError
         try:
             path = self.kicad_cli()
             variables = self.kicad_environment()
             note = None
-        except Exception as error:  # noqa: BLE001 - no editor reachable: run the CLI without it
+        except (DiscoveryError, pynng.NNGException, OSError) as error:
+            # No editor found, or the selected one does not answer: run the CLI without it
             path = kicad_cli.default_cli()
             if path is None:
                 raise RuntimeError(f"No running KiCad reported kicad-cli ({error}) and none was found; "
@@ -396,6 +400,16 @@ class FootprintTools:
         kicad_cli.cli_arguments(args)
         path, env, description = self.kicad_cli_launch()
         return {**kicad_cli.run(path, args, env, working_directory, timeout_s), "environment": description}
+
+    async def run_kicad_cli_async(self, args, working_directory=None, timeout_s=300):
+        """run_kicad_cli without blocking the event loop: KiCad is asked in a worker thread and kicad-cli
+        runs as an asyncio subprocess, killed on timeout or cancellation."""
+        import asyncio
+        import kicad_cli
+        kicad_cli.cli_arguments(args)
+        path, env, description = await asyncio.to_thread(self.kicad_cli_launch)
+        return {**await kicad_cli.run_async(path, args, env, working_directory, timeout_s),
+                "environment": description}
 
     def saved_footprint_text(self, lib_id):
         nickname, _, name = lib_id.partition(":")

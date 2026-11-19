@@ -320,15 +320,21 @@ def live_schematic_export(document_spec: dict, kind: str, output_path: str) -> d
 
 
 @mcp.tool()
-def live_kicad_cli(args: list[str], working_directory: str | None = None, timeout_s: float = 300) -> dict:
-    """Run kicad-cli (a separate KiCad process that reads SAVED files) with the environment the running
-    KiCad was launched with: the same libraries, configuration, library tables and path variables,
-    with no manual setup. Use it to check what was saved, e.g. ["sch", "erc", "--format", "json",
-    "-o", "/tmp/erc.json", "design.kicad_sch"] or ["sch", "export", "netlist", "-o", "/tmp/d.net",
-    "design.kicad_sch"]. args[0] is one of sch, pcb, sym, fp, jobset, version; on WSL, Windows paths are
-    translated. Returns the exit code, output tails and where the environment came from ("kicad", or
-    "install layout" when no KiCad answers). Unsaved editor changes are not seen: save first."""
-    return client.run_kicad_cli(args, working_directory, timeout_s)
+async def live_kicad_cli(args: list[str], working_directory: str | None = None,
+                         timeout_s: float = 300) -> dict:
+    """Run a read-only kicad-cli command (a separate KiCad process that reads SAVED files) with the
+    environment the running KiCad was launched with: the same libraries, configuration, library tables
+    and path variables, with no manual setup. Use it to check what was saved, e.g. ["sch", "erc",
+    "--format", "json", "-o", "/tmp/erc.json", "design.kicad_sch"] or ["sch", "export", "netlist", "-o",
+    "/tmp/d.net", "design.kicad_sch"]. Allowed: sch erc, sch export <kind>, pcb drc, pcb export <kind>,
+    sym export svg, fp export svg, version. Refused: jobset, upgrade/downgrade and every other command,
+    pcb drc --save-board, combined short options, and outputs (-o/--output, --models-dir,
+    --report-path) onto .kicad_sch/.kicad_pcb/.kicad_pro/.kicad_prl/.kicad_sym/.kicad_mod/.kicad_dru
+    files, library tables or into a .pretty folder. On WSL, Windows paths are translated. timeout_s is
+    at most 600; kicad-cli is stopped when it runs out. Returns the exit code, output tails and where the
+    environment came from ("kicad", or "install layout" when no KiCad answers). Unsaved editor changes
+    are not seen: save first."""
+    return await client.run_kicad_cli_async(args, working_directory, timeout_s)
 
 
 @mcp.tool()
