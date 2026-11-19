@@ -550,7 +550,26 @@ bool LIB_SYMBOL::Deserialize( const kiapi::schematic::types::SchematicSymbol& aI
         for( const SchematicBodyStyle& bodyStyle : def.body_style() )
             bodyStyleNames.emplace_back( wxString::FromUTF8( bodyStyle.name() ) );
 
-        SetBodyStyleNames( bodyStyleNames );
+        // Serialize names every body style, including the single one of an ordinary symbol and the
+        // De Morgan pair, which a symbol stores as no names and a flag.  Storing those as names would
+        // make an unchanged definition differ from its library symbol.
+        if( bodyStyleNames.size() == 1 )
+        {
+            SetHasDeMorganBodyStyles( false );
+            SetBodyStyleNames( {} );
+        }
+        else if( bodyStyleNames.size() == 2 && bodyStyleNames[0] == wxS( "Standard" )
+                 && bodyStyleNames[1] == wxS( "Alternate" ) )
+        {
+            SetHasDeMorganBodyStyles( true );
+            SetBodyStyleNames( {} );
+        }
+        else
+        {
+            SetHasDeMorganBodyStyles( false );
+            SetBodyStyleNames( bodyStyleNames );
+        }
+
         SetBodyStyleCount( static_cast<int>( bodyStyleNames.size() ), false, false );
     }
 
