@@ -6,12 +6,15 @@
 #
 # Everything lives under -Root (default C:\kb; keep it short, MSVC and vcpkg hit path limits):
 #   vcpkg\    vcpkg tool checkout (cloned and bootstrapped on first run)
-#   build\    CMake/Ninja build tree; vcpkg installs the manifest dependencies into build\vcpkg_installed
-#   install\  the installed KiCad; run install\bin\kicad.exe
+#   build\    CMake/Ninja build tree; vcpkg installs the manifest dependencies into build\vcpkg_installed;
+#             build\mcp holds the Python environment that freezes the MCP server
+#   install\  the installed KiCad; run install\bin\kicad.exe.  install\mcp\embeint-kicad-mcp.exe is the
+#             bundled MCP server (stdio), with its own Python runtime and licences
 #
 # The first run builds every dependency from source with vcpkg (several hours); later runs reuse
 # vcpkg's binary cache and only rebuild what changed.  Requires Visual Studio with the "Desktop
 # development with C++" workload (MSVC, Windows SDK, CMake and Ninja); tested with Visual Studio 2026.
+# Bundling the MCP also needs 64-bit Python 3.11+ (python.org or the py launcher) at build time only.
 
 [CmdletBinding()]
 param(
@@ -25,7 +28,13 @@ param(
     [switch] $NoConfigure,
     # share\kicad directory of a KiCad install providing the stock libraries (default: newest
     # C:\Program Files\KiCad\<version>)
-    [string] $StockLibraries
+    [string] $StockLibraries,
+    # Do not bundle the MCP server
+    [switch] $NoMcp,
+    # Only (re)bundle the MCP server into an existing install
+    [switch] $McpOnly,
+    # Python used to create the MCP build environment (default: py -3, then python on PATH)
+    [string] $McpPython
 )
 
 $ErrorActionPreference = 'Stop'
@@ -40,6 +49,74 @@ function Invoke-Checked( [string] $Exe, [string[]] $Arguments )
     Write-Host "> $Exe $($Arguments -join ' ')"
     & $Exe @Arguments
     if( $LASTEXITCODE -ne 0 ) { throw "$Exe failed with exit code $LASTEXITCODE" }
+}
+
+# Copy files whose size or time differ.  Unchanged files are skipped, so a rerun works while a KiCad
+# started from the install holds its DLLs open (Windows refuses to overwrite a loaded DLL).
+function Copy-Changed( [string] $Pattern, [string] $Destination )
+{
+    foreach( $file in Get-ChildItem $Pattern -File )
+    {
+        $target = Join-Path $Destination $file.Name
+        $existing = Get-Item $target -ErrorAction SilentlyContinue
+        if( $existing -and $existing.Length -eq $file.Length -and
+            $existing.LastWriteTimeUtc -eq $file.LastWriteTimeUtc )
+        {
+            continue
+        }
+        Copy-Item $file.FullName $target -Force
+    }
+}
+
+# Freeze the MCP server with its own Python runtime (qualification\package_mcp.py, PyInstaller) and
+# install it to install\mcp, so MCP clients need neither Python nor a development checkout.  The
+# package is built and checked offline in build\mcp, then replaces install\mcp.
+function Install-Mcp
+{
+    $mcp = Join-Path $Repo 'tools\live_schematic_mcp'
+    $work = Join-Path $Build 'mcp'
+    $python = Join-Path $work 'venv\Scripts\python.exe'
+    New-Item -ItemType Directory -Force $work | Out-Null
+
+    if( -not ( Test-Path $python ) )
+    {
+        $base = @()
+        if( $McpPython ) { $base = @( $McpPython ) }
+        elseif( Get-Command py -ErrorAction SilentlyContinue ) { $base = @( 'py', '-3' ) }
+        elseif( Get-Command python -ErrorAction SilentlyContinue ) { $base = @( 'python' ) }
+        else { throw 'Bundling the MCP needs Python 3.11+ (python.org or -McpPython); or pass -NoMcp' }
+
+        Invoke-Checked $base[0] ( @( $base | Select-Object -Skip 1 ) + @( '-m', 'venv', ( Join-Path $work 'venv' ) ) )
+    }
+
+    Invoke-Checked $python @( '-m', 'pip', 'install', '-q', '--disable-pip-version-check',
+                              '-r', ( Join-Path $mcp 'requirements.txt' ), 'pyinstaller>=6.16,<7' )
+
+    $kicadCli = Join-Path $Install 'bin\kicad-cli.exe'
+    if( -not ( Test-Path $kicadCli ) ) { throw "KiCad is not installed in $Install; build it first" }
+    $version = "$( & $kicadCli version | Select-Object -First 1 )".Trim()
+
+    Get-ChildItem $work -Directory -Filter 'package-*' | Remove-Item -Recurse -Force
+    $package = Join-Path $work ( 'package-' + ( Get-Date -Format 'yyyyMMddHHmmss' ) )
+    Invoke-Checked $python @( '-I', ( Join-Path $mcp 'qualification\package_mcp.py' ), $package,
+                              '--application-version', $version )
+    Invoke-Checked $python @( '-I', ( Join-Path $mcp 'qualification\check_package.py' ),
+                              ( Join-Path $package 'embeint-kicad-mcp.exe' ) )
+
+    $dest = Join-Path $Install 'mcp'
+    if( Test-Path $dest )
+    {
+        try { Remove-Item -Recurse -Force $dest }
+        catch { throw "Cannot replace $dest (is embeint-kicad-mcp.exe running? close its MCP client): $_" }
+    }
+    Move-Item $package $dest
+    Write-Host "MCP server: $dest\embeint-kicad-mcp.exe (KiCad $version)"
+}
+
+if( $McpOnly )
+{
+    Install-Mcp
+    return
 }
 
 # Import the x64 MSVC developer environment into this process
@@ -136,7 +213,7 @@ Invoke-Checked 'cmake' @( '--install', $Build )
 # that in its separate packaging scripts), so copy them next to kicad.exe.
 $triplet = Join-Path $Build 'vcpkg_installed\x64-windows'
 $bin = Join-Path $Install 'bin'
-Copy-Item ( Join-Path $triplet 'bin\*.dll' ) $bin -Force
+Copy-Changed ( Join-Path $triplet 'bin\*.dll' ) $bin
 Write-Host "Copied vcpkg runtime DLLs to $bin"
 
 # Fontconfig looks for its configuration in ..\etc\fonts relative to its DLL
@@ -153,7 +230,7 @@ if( Test-Path $codeModels )
 {
     $dest = Join-Path $Install 'lib\ngspice'
     New-Item -ItemType Directory -Force $dest | Out-Null
-    Copy-Item ( Join-Path $codeModels '*.cm' ) $dest -Force
+    Copy-Changed ( Join-Path $codeModels '*.cm' ) $dest
 }
 
 # Stock symbol, footprint and 3D libraries are separate KiCad repositories and not part of this
@@ -195,6 +272,8 @@ else
     Write-Warning 'No installed upstream KiCad found: stock symbol/footprint libraries are not linked'
 }
 
+if( -not $NoMcp ) { Install-Mcp }
+
 # Start Menu shortcut for this user
 $shortcut = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Embeint KiCad.lnk'
 $shell = New-Object -ComObject WScript.Shell
@@ -208,3 +287,4 @@ Write-Host "Start Menu shortcut: $shortcut"
 Write-Host ''
 Write-Host "Installed to $Install"
 Write-Host "Run: $Install\bin\kicad.exe"
+if( -not $NoMcp ) { Write-Host "MCP server (register it with your MCP client): $Install\mcp\embeint-kicad-mcp.exe" }

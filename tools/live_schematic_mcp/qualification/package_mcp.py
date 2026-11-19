@@ -49,6 +49,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("output", type=Path, help="new output directory (must not already exist)")
     parser.add_argument("--source-revision", help="source archive's full commit hash when Git metadata is absent")
+    parser.add_argument("--application-version",
+                        help="version of the KiCad build this package ships with (e.g. kicad-cli version)")
     args = parser.parse_args()
     if not sys.flags.isolated or sys.prefix == sys.base_prefix:
         parser.error("use a dedicated virtual environment and invoke python -I")
@@ -100,6 +102,13 @@ def main():
         if python_license is None:
             raise RuntimeError("the build interpreter's LICENSE.txt is required for distribution")
         shutil.copyfile(python_license, notices / "Python-LICENSE.txt")
+        # Upstream notices for native code linked into extension modules without its own
+        # licence file in the distribution metadata (see notices/README.md)
+        third_party = notices / "third-party"
+        third_party.mkdir()
+        for source in sorted(Path(__file__).with_name("notices").iterdir()):
+            if source.is_file():
+                shutil.copyfile(source, third_party / source.name)
         distributions = {}
         for dist in importlib.metadata.distributions():
             name = dist.metadata["Name"]
@@ -115,6 +124,7 @@ def main():
                     destination.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copyfile(source, destination)
         import server
+        from support import ADAPTER_VERSION
         manifest = asyncio.run(server.live_mcp_capabilities())
         sources = {str(path.relative_to(MCP)): sha256(path.read_bytes()).hexdigest()
                    for path in sorted(MCP.glob("*.py")) if not path.name.startswith(("test_", "e2e_"))}
@@ -122,7 +132,9 @@ def main():
         sources[str(entrypoint.relative_to(MCP))] = sha256(entrypoint.read_bytes()).hexdigest()
         protocol_sources = {str(path.relative_to(MCP.parents[1])): sha256(path.read_bytes()).hexdigest()
                             for path in sorted((MCP.parents[1] / "api/proto").rglob("*.proto"))}
-        info = {"source_revision": revision, "source_dirty": dirty, "source_sha256": sources,
+        mcp_version = f"{ADAPTER_VERSION}+g{revision[:10]}" + (".dirty" if dirty else "")
+        info = {"mcp_version": mcp_version, "application_version": args.application_version,
+                "source_revision": revision, "source_dirty": dirty, "source_sha256": sources,
                 "revision_source": revision_source, "protocol_source_sha256": protocol_sources,
                 "schema_sha256": manifest["schema_sha256"], "tool_count": manifest["tool_count"],
                 "command_count": manifest["command_count"], "python": sys.version,

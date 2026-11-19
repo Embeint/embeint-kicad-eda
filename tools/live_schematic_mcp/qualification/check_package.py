@@ -5,9 +5,11 @@ import argparse
 import asyncio
 from hashlib import sha256
 import json
+import os
 from pathlib import Path
 import tempfile
 import subprocess
+import sys
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -18,16 +20,34 @@ async def check(executable, expected_skill_manifest=None):
     expected = json.loads((executable.parent / "build-info.json").read_text())
     if expected_skill_manifest is not None:
         assert expected["skills"] == expected_skill_manifest, "source and build skill manifests differ"
+    licenses = executable.parent / "licenses"
+    for required in ("KiCad-GPL.txt", "Python-LICENSE.txt", "third-party/nng-LICENSE.txt",
+                     "third-party/mbedtls-LICENSE.txt"):
+        assert (licenses / required).is_file(), f"missing licence notice {required}"
     with tempfile.TemporaryDirectory(prefix="embeint-mcp-install-check-") as folder:
         environment = {"PATH": folder, "HOME": folder,
                        "PYTHONPATH": str(Path(folder) / "absent-source"),
                        "PYTHONHOME": str(Path(folder) / "absent-python"),
                        "KICAD_API_SOCKET": "ipc:///nonexistent-embeint-package-check/api.sock"}
+        if sys.platform == "win32":
+            # Windows processes need SYSTEMROOT (e.g. for random numbers); the endpoint must be
+            # a valid local pipe URL that nothing serves
+            environment.update({name: os.environ[name] for name in ("SYSTEMROOT", "TEMP", "TMP")
+                                if name in os.environ})
+            environment["KICAD_API_SOCKET"] = "ipc://" + str(Path(folder) / "absent-kicad" / "api.sock")
         diagnostic = subprocess.run([str(executable), "--diagnose"], cwd=folder, env=environment,
                                     capture_output=True, text=True, check=True, timeout=20)
         report = json.loads(diagnostic.stdout)
         assert report["runtime"]["protocols"]["state"] == "ready", report
         assert not report["connection_attempted"], report
+        version = json.loads(subprocess.run([str(executable), "--version"], cwd=folder, env=environment,
+                                            capture_output=True, text=True, check=True,
+                                            timeout=60).stdout)
+        assert version["distribution"] == "bundled", version
+        assert version["server_version"] == expected["mcp_version"], version
+        assert version["schema_sha256"] == expected["schema_sha256"], version
+        assert version["build_schema_sha256_matches"] is True, version
+        assert version["application_version"] == expected.get("application_version"), version
         eof = subprocess.run([str(executable)], input="", cwd=folder, env=environment,
                              capture_output=True, text=True, check=True, timeout=20)
         assert not eof.stdout, "server wrote unsolicited protocol output on EOF"
@@ -40,6 +60,7 @@ async def check(executable, expected_skill_manifest=None):
                 initialized = await session.initialize()
                 assert "live_skill_reference" in (initialized.instructions or "")
                 assert "kicad-house-style" in initialized.instructions
+                assert initialized.serverInfo.version == expected["mcp_version"], initialized.serverInfo
                 tools = (await session.list_tools()).tools
                 reply = await session.call_tool("live_mcp_capabilities", {})
                 assert not reply.isError, reply
@@ -87,10 +108,12 @@ async def check(executable, expected_skill_manifest=None):
                 unknown = await session.call_tool("unknown_embeint_tool", {})
                 assert unknown.isError
                 return {"result": "passed", "schema_sha256": inventory["schema_sha256"],
+                        "server_version": version["server_version"],
+                        "application_version": version["application_version"],
                         "skills": skill_manifest,
                         "source_skill_manifest_compared": expected_skill_manifest is not None,
                         "tool_count": len(tools), "command_count": inventory["command_count"],
-                        "checks": ["offline_diagnostics", "clean_eof", "initialize", "tools", "capabilities", "resource", "describe",
+                        "checks": ["offline_diagnostics", "version", "clean_eof", "initialize", "tools", "capabilities", "resource", "describe",
                                    "skill_discovery", "skill_tools_and_resources_all_files", "skill_hashes",
                                    "missing_and_traversal_errors", "invalid_arguments", "unknown_tool"],
                         "editor_contacted": False}
