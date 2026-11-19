@@ -88,8 +88,13 @@ This is scoped route validation, not a claim that the whole board is DRC-clean.
 To change a placed symbol's Value, Footprint or user fields, send back the whole symbol from
 `live_schematic_items` with only those fields edited. When its `definition` is returned exactly
 as read, the editor keeps the embedded library symbol, its pins and its library link, so ERC
-reports no library mismatch. An edited definition replaces the embedded symbol. A De Morgan
-symbol's definition lists only the pins of the placed body style, so do not edit its definition.
+reports no library mismatch. The request's `lib_id` is then ignored as well; change the library
+link with `live_schematic_update_from_library` (`new_lib_id`). An edited definition replaces the
+embedded symbol. A De Morgan symbol's definition lists only the pins of the placed body style, so
+do not edit its definition. Place De Morgan symbols with `live_schematic_place_symbol`: one created
+from its full library definition keeps both body styles, but a shape read through the API loses
+repeated consecutive polyline vertices, which the stock 74xx and 4xxx gates have, so ERC then
+reports a library mismatch.
 
 ### Symbol libraries and the Symbol Editor
 
