@@ -31,13 +31,14 @@ Workstation paths and optional selector configuration stay outside the portable
 guidance. Start a new server process/session to receive updated initialization
 instructions and bundled content; discovery does not establish live design acceptance.
 
-The editor transport and instance diagnostics currently target local Unix filesystem
-IPC. On Windows, launch the server through `wsl.exe` in the same distro as the
-development KiCad. Native Windows Python can serve the offline MCP capability and
-schema tools; this does not establish native Windows KiCad/IPC support. Windows
-drive paths and network transports are rejected before sending editor requests.
-Offline tests that create Unix socket peers are skipped on Windows and must also
-run inside WSL.
+The editor transport is KiCad's local IPC only: a Unix socket for the WSL/Linux build,
+and a local named pipe (`\\.\pipe\<temp>\kicad\api.sock`, URL
+`ipc://C:\Users\...\Temp\kicad\api.sock`) for the native Windows build. Run the server
+next to the KiCad it drives: inside WSL for the WSL build (through `wsl.exe`), natively
+for the native build (see [Setup (native Windows)](#setup-native-windows)). Network
+transports, UNC pipes and dot-segment pipe paths are rejected before any request.
+Offline tests that create Unix socket peers are skipped on Windows and must also run
+inside WSL; the named-pipe tests run only on Windows.
 
 Atomic batches accept only item edits that participate in the current commit.
 Settings, file operations, editor replacement and asynchronous work are excluded.
@@ -224,6 +225,8 @@ commands, and the library conventions the tools follow.
 
 ## Setup (Windows + WSL Ubuntu)
 
+For the native Windows build see [Setup (native Windows)](#setup-native-windows).
+
 `scripts/setup_wsl.sh` does everything below in one go (and is safe to rerun after a pull);
 `scripts/rebuild.sh` rebuilds after C++ edits; `scripts/run_tests.sh [--live]` runs the tests.
 
@@ -254,6 +257,45 @@ Register the MCP server (it must run inside WSL, where KiCad's Unix socket lives
 claude mcp add kicad-live -- wsl.exe -d Ubuntu -- bash /mnt/c/<fork>/tools/live_schematic_mcp/run_mcp_wsl.sh
 ```
 
+## Setup (native Windows)
+
+For the native Windows build (`scripts/build_windows.ps1`, installed in `C:\kb\install`), the
+MCP runs in native Python next to KiCad and talks to its named pipe. From the repository root
+in PowerShell (`powershell -ExecutionPolicy Bypass -File <script>` if scripts are blocked):
+
+```powershell
+tools\live_schematic_mcp\scripts\setup_windows.ps1       # once, and after pulls: venv in C:\kb\venv, protocol code
+tools\live_schematic_mcp\run_kicad_windows.ps1 -Wait     # isolated config, API enabled, project manager with live-demo
+tools\live_schematic_mcp\scripts\run_tests.ps1 -Live     # unit tests, then the end-to-end tests against that KiCad
+tools\live_schematic_mcp\run_kicad_windows.ps1 -Stop     # stops only the KiCad the launcher started
+```
+
+`run_kicad_windows.ps1` keeps its settings in `C:\kb\live\config` (never the Start Menu
+build's or upstream KiCad's), creates the disposable test project in
+`C:\kb\live\projects\live-demo` (`-Fresh` recreates it) and uses the stock libraries that
+`build_windows.ps1` linked from upstream KiCad. `-Project <file>` opens another project or a
+`.kicad_sch` (schematic editor only). `KICAD_WINDOWS_ROOT` moves `C:\kb`; `KICAD_LIVE_PYTHON`
+selects another interpreter. Python 3.11+ (64-bit) is needed.
+
+Only one KiCad on a Windows account can serve the API: the pipe name is fixed and a second
+instance runs without an API. The launcher refuses to start while another KiCad with the API
+enabled holds the pipe, so the MCP cannot reach the wrong instance. For your own KiCad, enable
+the API in Preferences > Plugins (Enable KiCad API). The MCP finds the pipe in your temporary
+directory; to name an instance explicitly, set `KICAD_API_SOCKET` to the exact endpoint
+`scripts\wait_ready.ps1` prints (pipe names are literal: `C:\Users\LONGNA~1\...` and
+`C:\Users\LongName\...` are different pipes). `python diagnose.py --probe` lists and probes
+the candidates.
+
+Register the MCP server (stdout carries only MCP messages):
+
+```powershell
+claude mcp add kicad-live -- powershell -NoProfile -ExecutionPolicy Bypass -File C:\<fork>\tools\live_schematic_mcp\run_mcp_windows.ps1
+```
+
+Paths in tool arguments are as the native KiCad reads them (`C:\...`); WSL `/mnt/c/...` paths
+are translated. SolidCraft exports default to `%USERPROFILE%\kicad-models`
+(`KICAD_LIVE_MODEL_DIR` overrides it).
+
 ## Tests
 
 ```bash
@@ -266,6 +308,9 @@ claude mcp add kicad-live -- wsl.exe -d Ubuntu -- bash /mnt/c/<fork>/tools/live_
 ~/kicad-live/venv/bin/python e2e_design.py out/            # stackup, impedance, rules, custom rules, net classes, keepouts, routing around copper, checks
 SOLIDCRAFT_CLI=/path/to/solidcraft-cli ~/kicad-live/venv/bin/python e2e_model_handoff.py out/     # SolidCraft builds the STEP; KiCad embeds and renders it
 ```
+
+On native Windows, `scripts\run_tests.ps1 [-Live]` runs the same set with `C:\kb\venv`
+(output in `C:\kb\live\test-output`); run single scripts with `C:\kb\venv\Scripts\python.exe`.
 
 ## Supported schematic block scripting
 
