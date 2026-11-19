@@ -37,7 +37,7 @@ positions, a sheet bounding box or whichever items happen to be selected.
 | `wire(key, net, path)` | Explicit Manhattan waypoints; split same-net T/X joins and add junctions (as in KiCad, a symbol pin or sheet pin counts as one exit; ports, labels and no-connect pins do not). Reject zero/diagonal legs, collinear overlaps, different-net intersections and in-line wire ends meeting with no pin there, which KiCad would merge on commit. `net` is a planning name, not an editor net assignment. |
 | `port(key, name, at, shape='input', spin='left')` | Hierarchical label at a real wire endpoint. Shapes: input/output/bidi/passive. |
 | `sheet(key, name, filename, at, size, page, ports)` | Owned parent sheet with pins `(name, side, edge_offset_mm, shape)`; returns their endpoints. Sides: left/right/top/bottom. |
-| `add(key, item)` | Complete supported top-level schematic protobuf; assigns a generated UUID. This is a full replacement request, not a field patch. Preserve required fields. |
+| `add(key, item)` | Complete text, graphic shape, graphic line, label or no-connect protobuf; assigns a generated UUID. This is a full replacement request, not a field patch. Preserve required fields. Wires, buses, junctions, symbols and sheets are refused here: use `wire()`, `symbol()` and `sheet()`. |
 | `report()` | Geometry construction report only; not electrical or visual sign-off. |
 
 Library definitions in `GetItems` omit pins: fetch complete definitions through
@@ -54,9 +54,20 @@ a junction. A same-net X join is intentionally connected. Block wires must not
 touch manual wires or junctions (a shared end, an end on the other wire, or an
 overlap): KiCad's commit cleanup could merge the wires or drop a junction, so
 `plan()` refuses it. A plain crossing of two wire interiors is unconnected and
-allowed. For the same reason, a revision that moves or removes a block symbol or
-sheet pin with manual wiring attached is refused; the manifest records each owned
-item's planned pin points because `GetItems` omits them.
+allowed. For the same reason, a revision that removes a block wire or junction, or
+moves or removes a block symbol or sheet pin, with manual wiring attached is
+refused. The manifest records each owned item's planned pin points because
+`GetItems` omits them.
+
+Wire and junction keys include their geometry, so a rerouted wire is deleted and
+recreated rather than updated. KiCad's schematic API runs connectivity cleanup after
+updating a connectable item even inside an open commit, on a screen where the
+batch's deletes and creates are not yet applied, and records that cleanup as a
+separate undo step. Avoiding wire updates keeps that intermediate screen unchanged
+except for updated symbols, sheets and labels. A revision that moves a symbol or
+sheet pin sitting on a wire branch (two or more wire ends, or a junction) is refused
+for this reason: remove or reroute those wires in one apply, then move the part.
+Skipping that mid-commit cleanup in the API handler is a protocol followup.
 Separate generated blocks, and join manual circuitry, with short local labels; connect sheets through matching hierarchical ports and
 parent pins. A child sheet is a separate document/block/manifest. Match names and
 directions and wire the parent pins explicitly; there is no multi-document commit.
@@ -91,6 +102,9 @@ above keep KiCad's cleanup from changing manual items. It refuses sheet deletion
 and changing a child sheet filename, since manual child content could be discarded.
 It limits a revision to 200 changed items and refuses changing an item's type under
 the same key. Use a new logical key for a deliberate type replacement.
+
+Manifests are JSON version 2. A version 1 manifest from the earlier helper lacks pin
+points and is refused; recover its ownership explicitly as described below.
 
 The manifest is trusted local bookkeeping, not an authorization boundary against
 a caller forging receipts. Preserve it durably. Losing a manifest is not permission

@@ -106,8 +106,17 @@ wiring, and moving or removing a block pin with manual wiring attached (the
 manifest records planned pin points for this). Symbol and sheet pins count as a
 junction exit; ports and no-connect pins do not. Wire/junction geometry is checked
 after apply; owned-item hashes are deterministic across processes (map fields); and
-checker and probe failures no longer use `assert`. The combined offline suite passed
-**329 tests** with these changes.
+checker and probe failures no longer use `assert`.
+
+A third review found that the schematic API handler runs connectivity cleanup after
+an UpdateItems of a connectable item even inside an open commit, before the batch's
+staged deletes and creates apply, and pushes it as a separate undo step. Wire and
+junction keys now include geometry so wires are replaced, never updated; moving a
+pin at a wire branch, removing a block wire/junction with manual wiring attached,
+duplicate no-connect markers and `add()` of wires/junctions/symbols/sheets are
+refused; manifests are version 2. Changing the handler is a recorded followup. The
+combined offline suite passed **339 tests** with these changes. None of this is
+native evidence: the in-memory editor does not model KiCad's cleanup.
 
 The frozen receipt, its skill content hash and the native helper probe above describe
 the earlier helper source and skill 1.1.0. They were **not** rerun for these fixes:
@@ -122,5 +131,6 @@ report a problem after a commit has already taken effect. Unknown outcomes requi
 inspection and a new read/plan, with explicit manifest recovery if needed. There
 are no automatic mutation retries, implicit saves or sheet rebuilds. Symbol builder
 placement is unrotated/unmirrored; routes use explicit corridors and do not avoid
-manual geometry automatically. True document revisions and operation-result lookup
-remain protocol followups.
+manual geometry automatically. True document revisions, operation-result lookup and
+skipping mid-commit cleanup in the schematic UpdateItems handler remain protocol
+followups.

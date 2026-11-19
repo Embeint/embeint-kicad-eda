@@ -115,9 +115,19 @@ class Block:
         return str(uuid.uuid5(uuid.UUID(self.namespace), key))
 
     def add(self, key, item):
-        """Add a complete supported top-level item, assigning its generated UUID."""
+        """Add a complete supported top-level item, assigning its generated UUID.
+
+        Wires, buses, junctions, symbols and sheets must come from wire(), symbol()
+        and sheet(), which model KiCad's wire cleanup and record pin points.
+        """
+        if (isinstance(item, (sch.Junction, sch.SchematicSymbolInstance, sch.SheetSymbol))
+                or (isinstance(item, sch.SchematicLine) and item.type != sch.SLT_GRAPHIC)):
+            raise ValueError("Use wire(), symbol() or sheet() for wires, junctions, symbols and sheets")
+        return self._add(key, item)
+
+    def _add(self, key, item):
         supported = (sch.SchematicLine, sch.SchematicText, sch.SchematicGraphicShape,
-                     sch.SchematicSymbolInstance, sch.Junction, sch.NoConnectMarker,
+                     sch.SchematicSymbolInstance, sch.NoConnectMarker,
                      sch.LocalLabel, sch.HierarchicalLabel, sch.SheetSymbol)
         if not isinstance(item, supported):
             raise ValueError("Unsupported block item type")
@@ -132,8 +142,7 @@ class Block:
             for pin in item.pins:
                 pin.id.CopyFrom(kiid(self.id(f"{key}/pin/{pin.text.text}")))
         if isinstance(item, sch.SchematicSymbolInstance):
-            # Definition child identities must not be shared by placed units,
-            # including callers using add() rather than the symbol convenience.
+            # Definition child identities must not be shared by placed units.
             for index, child in enumerate(item.definition.items):
                 content = _message(child.item)
                 if hasattr(content, "id"):
@@ -192,7 +201,7 @@ class Block:
                 user_field.text.position.y_nm += origin[1]
                 instance.user_fields.add().CopyFrom(user_field)
         instance.reference_field.text.text = reference
-        self.add(key, instance)
+        self._add(key, instance)
         self._pins[key] = [(p.number, (p.position.x_nm + origin[0], p.position.y_nm + origin[1]))
                            for p in pins]
         # KiCad skips no-connect pins when testing a symbol connection (SCH_SYMBOL::doIsConnected).
@@ -248,7 +257,7 @@ class Block:
             endpoints[port] = (x, y)
             sheet.pins.add(id=kiid(self.id(f"{key}/pin/{port}")), position=point(x, y),
                            text=_text(port, (x, y)), side=sides[side], shape=shapes[shape])
-        self.add(key, sheet)
+        self._add(key, sheet)
         self._points[key] = {_xy(point(*pos)) for pos in endpoints.values()}
         return endpoints
 
@@ -290,8 +299,12 @@ class Block:
         for (key, index, net, a, b), points in zip(legs, cuts):
             ordered = sorted(points, reverse=a > b)
             horizontal = a[1] == b[1]
-            for segment, (start, end) in enumerate(zip(ordered, ordered[1:])):
-                logical = f"route/{key}/{index}/{segment}"
+            for start, end in zip(ordered, ordered[1:]):
+                # Wire and junction keys include their geometry, so a changed wire is a
+                # delete plus a create and never an UpdateItems. KiCad's schematic API runs
+                # connectivity cleanup after updating a connectable item even inside an
+                # open commit, on a screen where staged deletes/creates are not yet applied.
+                logical = f"route/{key}/{start[0]}/{start[1]}/{end[0]}/{end[1]}"
                 if logical in result:
                     raise ValueError("Logical key collides with a generated route")
                 result[logical] = sch.SchematicLine(id=kiid(self.id(logical)), type=sch.SLT_WIRE,
@@ -313,6 +326,9 @@ class Block:
                 if logical in result:
                     raise ValueError("Logical key collides with a generated junction")
                 result[logical] = sch.Junction(id=kiid(self.id(logical)), position=point(*_mm(pos)))
+        markers = [_xy(i.position) for i in result.values() if isinstance(i, sch.NoConnectMarker)]
+        if len(set(markers)) != len(markers):
+            raise ValueError("Two no-connect markers share a position; KiCad would remove one")
         return result
 
     def report(self):
@@ -355,35 +371,63 @@ def _on_segment(p, a, b):
 def _touches(a, b, c, d):
     """True when two segments share any point other than a crossing of both interiors.
 
-    KiCad's commit cleanup may merge, split or rejoin wires that touch this way; a
-    plain crossing of two interiors is not connected and is left alone.
+    KiCad's commit cleanup may merge wires that touch this way or drop a junction
+    between them; a plain crossing of two interiors is not connected and is left alone.
     """
     return any(_on_segment(p, c, d) for p in (a, b)) or any(_on_segment(p, a, b) for p in (c, d))
 
 
-def _refuse_manual_contact(desired, manual, vanished):
-    """Refuse block changes that let KiCad's commit cleanup alter manual wiring.
+def _wiring(items):
+    wires = [(_xy(i.start), _xy(i.end)) for i in items
+             if isinstance(i, sch.SchematicLine) and i.type in (sch.SLT_WIRE, sch.SLT_BUS)]
+    junctions = {_xy(i.position) for i in items if isinstance(i, sch.Junction)}
+    return wires, junctions
 
-    Cleanup merges touching in-line wires and removes junctions with fewer than
-    three exits. So block wires/junctions must not touch unowned wires or junctions,
-    and a block pin that moves or disappears (``vanished``) must not have manual
-    wiring attached. Join manual circuitry to a block through a label instead.
+
+def _refuse_cleanup_hazards(created, removed, vanished, moved, current, manual, markers):
+    """Refuse changes that KiCad's connectivity cleanup could turn into other edits.
+
+    Cleanup merges touching in-line wires and removes junctions with fewer than three
+    exits (SCHEMATIC::CleanUp). It runs when the commit is pushed and, for an updated
+    connectable item, also mid-batch on the original screen plus the updates.
+
+    created: new block items; removed: old block wires/junctions being deleted;
+    vanished: old pin points of updated/deleted block symbols and sheets;
+    moved: the subset of vanished belonging to updated (not deleted) items;
+    current/manual: all and unowned items on the sheet; markers: (uuid, position) of
+    block no-connect markers being created or updated.
     """
-    wires = [(_xy(item.start), _xy(item.end)) for item in manual
-             if isinstance(item, sch.SchematicLine) and item.type == sch.SLT_WIRE]
-    junctions = {_xy(item.position) for item in manual if isinstance(item, sch.Junction)}
-    for key, item in desired.items():
+    manual_wires, manual_junctions = _wiring(manual)
+
+    def manual_contact(a, b):
+        return (any(_touches(a, b, c, d) for c, d in manual_wires)
+                or any(_on_segment(j, a, b) for j in manual_junctions))
+
+    for key, item in created.items():
         if isinstance(item, sch.SchematicLine) and item.type == sch.SLT_WIRE:
-            a, b = _xy(item.start), _xy(item.end)
-            if any(_touches(a, b, c, d) for c, d in wires) or any(_on_segment(j, a, b) for j in junctions):
+            if manual_contact(_xy(item.start), _xy(item.end)):
                 raise ValueError(f"Block wire {key} touches a manual wire or junction; "
                                  "connect through a label instead")
-        elif isinstance(item, sch.Junction) and _xy(item.position) in junctions:
+        elif isinstance(item, sch.Junction) and _xy(item.position) in manual_junctions:
             raise ValueError(f"Block junction {key} duplicates a manual junction")
+    for key, (a, b) in removed.items():
+        if manual_contact(a, b):
+            raise ValueError(f"Removing block item {key} would change manual wiring attached "
+                             "to it; reroute the manual wiring first")
     for pos in sorted(vanished):
-        if pos in junctions or any(_on_segment(pos, c, d) for c, d in wires):
+        if manual_contact(pos, pos):
             raise ValueError(f"A moved or removed block pin at {_mm(pos)} has manual wiring "
                              "attached; reroute the manual wiring first")
+    # Mid-batch: the moved pin is gone but the old wires (deleted later) are still there.
+    wires, junctions = _wiring(current)
+    for pos in sorted(moved):
+        if pos in junctions or sum(pos in (c, d) for c, d in wires) >= 2:
+            raise ValueError(f"Moving a block pin at the wire branch {_mm(pos)} in one apply "
+                             "lets KiCad clean up mid-batch; remove those wires first, then move")
+    for value, pos in markers:
+        if any(isinstance(i, sch.NoConnectMarker) and i.id.value != value and _xy(i.position) == pos
+               for i in current):
+            raise ValueError(f"A no-connect marker already exists at {_mm(pos)}; KiCad would remove one")
 
 
 class StaleState(ValueError):
@@ -415,15 +459,17 @@ class Manifest:
         return cls(str(uuid.UUID(namespace)), _doc_bytes(doc))
 
     def to_json(self):
-        return json.dumps({"version": 1, "namespace": self.namespace,
+        return json.dumps({"version": 2, "namespace": self.namespace,
                            "document": as_dict(types.DocumentSpecifier.FromString(self.document_bytes)),
                            "owned": [vars(item) for item in self.owned]}, indent=2, sort_keys=True)
 
     @classmethod
     def from_json(cls, text):
         value = json.loads(text)
-        if value["version"] != 1:
-            raise ValueError("Unsupported block manifest version")
+        if value["version"] != 2:
+            # Version 1 had no pin points, so moved/removed pins could not be checked.
+            raise ValueError(f"Unsupported block manifest version {value['version']}; "
+                             "recover version 1 ownership explicitly from the sheet")
         owned = tuple(OwnedItem(item["key"], item["observed_sha256"], item["desired_sha256"],
                                 tuple(tuple(int(v) for v in pos) for pos in item["points"]))
                       for item in value["owned"])
@@ -492,6 +538,10 @@ def plan(block, manifest, doc, current_items):
             if current[block.id(key)].type_url != packed.type_url:
                 raise ValueError("Changing an owned item's type requires a new logical key")
             before, after = _unpack(current[block.id(key)]), _unpack(packed)
+            if isinstance(after, sch.Junction) or (isinstance(after, sch.SchematicLine)
+                                                   and after.type != sch.SLT_GRAPHIC):
+                # Unreachable through wire(): its keys include geometry. See Block.items().
+                raise ValueError("Wires and junctions are replaced, never updated in place")
             if (isinstance(before, sch.SheetSymbol)
                     and before.filename_field.text.text != after.filename_field.text.text):
                 raise ValueError("Retargeting a child sheet is outside block reconciliation")
@@ -503,13 +553,26 @@ def plan(block, manifest, doc, current_items):
     if len(creates) + len(updates) + len(deletes) > 200:
         raise ValueError("A block apply is limited to 200 changed items")
     points = block.connection_points()
-    vanished = set()
-    for key in updates + deletes:
-        vanished.update(set(previous[key].points) - set(points.get(key, ())))
+    moved = set()
+    for key in updates:
+        moved.update(set(previous[key].points) - set(points.get(key, ())))
+    vanished = set(moved)
+    removed = {}
+    for key in deletes:
+        vanished.update(previous[key].points)
+        old = _unpack(current[block.id(key)])
+        if isinstance(old, sch.Junction):
+            removed[key] = (_xy(old.position), _xy(old.position))
+        elif isinstance(old, sch.SchematicLine) and old.type != sch.SLT_GRAPHIC:
+            removed[key] = (_xy(old.start), _xy(old.end))
     owned_ids = {block.id(key) for key in previous} | {block.id(key) for key in desired}
-    _refuse_manual_contact({key: _unpack(packed) for key, packed in desired.items()},
-                           [_unpack(packed) for value, packed in current.items() if value not in owned_ids],
-                           vanished)
+    changed = {key: _unpack(desired[key]) for key in creates + updates}
+    markers = [(item.id.value, _xy(item.position)) for item in changed.values()
+               if isinstance(item, sch.NoConnectMarker)]
+    _refuse_cleanup_hazards({key: changed[key] for key in creates}, removed, vanished, moved,
+                            [_unpack(packed) for packed in current.values()],
+                            [_unpack(packed) for value, packed in current.items() if value not in owned_ids],
+                            markers)
     return Plan(manifest, fingerprint(current.values()),
                 tuple((key, _bytes(value)) for key, value in sorted(desired.items())),
                 tuple(sorted(creates)), tuple(sorted(updates)), tuple(sorted(deletes)),
