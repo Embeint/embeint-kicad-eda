@@ -155,6 +155,28 @@ async def wait_for_autosave(container, saved=None):
     raise AssertionError("no new incremental autosave observed before deadline")
 
 
+async def check_cli(container, client):
+    """kicad-cli of the saved design, from the MCP and from the package's shell wrapper, both in the
+    launcher's environment: no library-configuration warnings."""
+    schematic = "/home/qualification/live-demo/live-demo.kicad_sch"
+    erc = payload(await client.call_tool("live_kicad_cli", {"args": [
+        "sch", "erc", "--format", "json", "--severity-all", "-o", "/tmp/installed-erc.json", schematic]}))
+    assert erc["returncode"] == 0 and erc["environment"]["source"] == "kicad", erc
+    assert "KICAD_CONFIG_HOME" in erc["environment"]["variables"], erc
+    report = json.loads(container.execute("cat", "/tmp/installed-erc.json"))
+    violations = sorted(v["type"] for sheet in report["sheets"] for v in sheet["violations"])
+    assert "lib_symbol_issues" not in violations, violations
+    exported = payload(await client.call_tool("live_kicad_cli", {"args": [
+        "sch", "export", "netlist", "-o", "/tmp/installed.net", schematic]}))
+    assert exported["returncode"] == 0, exported
+    text = container.execute("cat", "/tmp/installed.net")
+    assert '(ref "R1")' in text and '(ref "R2")' in text, text[-2000:]
+    version = container.execute("/usr/bin/embeint-kicad-cli", "version").strip()
+    assert version, "embeint-kicad-cli printed no version"
+    return {"erc": erc, "erc_violation_types": violations, "netlist_export": exported,
+            "wrapper_version": version}
+
+
 async def check(container, evidence=None, recovery_history=False):
     container.validate()
     container.execute("mkdir", "/home/qualification/live-demo")
@@ -209,6 +231,7 @@ async def check(container, evidence=None, recovery_history=False):
             observations["saved_netlist"] = netlist
             observations["saved_disk_hashes"] = disk_hashes(container)
             assert any({"R1.2", "R2.2"} <= set(net["pins"]) for net in netlist.values()), netlist
+            observations["saved_cli"] = await check_cli(container, client)
         stop(container, pid)
         pid = None
         # Wait only for the process this check launched, without closing other applications.
@@ -233,7 +256,8 @@ async def check(container, evidence=None, recovery_history=False):
                 observations["later_unsaved_history"] = refs
         return {"result": "passed", "schema_sha256": inventory["schema_sha256"],
                 "version": documents["version"], "checks": ["install", "first_launch", "stdio",
-                "place_symbols", "connect_pins", "undo_redo", "save_restart_reopen", "connectivity"],
+                "place_symbols", "connect_pins", "undo_redo", "save_restart_reopen", "connectivity",
+                "cli_erc", "cli_netlist", "cli_wrapper"],
                 "network": "none", "runtime": container.kind, "host_source_mounted": False,
                 "system_python_present": False, "recovery_history_checked": recovery_history}
     finally:

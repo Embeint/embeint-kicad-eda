@@ -1,12 +1,19 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Offline contracts for whole-design verification: hierarchical netlist and page text overlaps.
-No running KiCad is required."""
+"""Offline contracts for whole-design verification: hierarchical netlist, page text overlaps and
+kicad-cli runs in KiCad's launch environment.  No running KiCad is required."""
+
+import asyncio
+import os
+from pathlib import Path
 
 import pytest
 
-from client import editor, types
+import kicad_cli
+from client import base, editor, types
 from client import commands as sch_cmds
 from test_client import FakeClient, _page_box, doc, page_reply
+
+posix_only = pytest.mark.skipif(os.name != "posix", reason="Linux/WSL library paths and shell scripts")
 
 
 ROOT, CHILD, REUSED_A, REUSED_B = "root-0000", "child-1111", "reuse-aaaa", "reuse-bbbb"
@@ -163,3 +170,201 @@ def test_board_overlap_keeps_its_layer():
     page = FakeClient(reply).page_layout(doc())
     assert page["overlaps"][0]["layer"] == "F.Silkscreen" and "layer" not in page["overlaps"][1]
 
+
+# ---- kicad-cli environment ----------------------------------------------------------------------
+
+def test_frozen_mcp_does_not_pass_its_private_libraries_to_kicad():
+    frozen = {"LD_LIBRARY_PATH": "/opt/embeint-kicad/libexec/mcp/_internal:/opt/embeint-kicad/lib",
+              "LD_LIBRARY_PATH_ORIG": "/opt/embeint-kicad/lib", "HOME": "/home/u"}
+    assert kicad_cli.child_environment(frozen, frozen=True) == {"LD_LIBRARY_PATH": "/opt/embeint-kicad/lib",
+                                                                "HOME": "/home/u"}
+    assert "LD_LIBRARY_PATH" not in kicad_cli.child_environment({"LD_LIBRARY_PATH": "/mei"}, frozen=True)
+    assert kicad_cli.child_environment(frozen, frozen=False) == frozen
+
+
+def test_kicad_reported_environment_takes_precedence(tmp_path):
+    reported = {"KICAD_CONFIG_HOME": "/home/u/.config/embeint-kicad", "LD_LIBRARY_PATH": "/opt/embeint-kicad/lib",
+                "KICAD10_SYMBOL_DIR": "/usr/share/kicad/symbols", "TMPDIR": "/run/user/1000/embeint-kicad-1000"}
+    env, description = kicad_cli.cli_environment(tmp_path / "bin/kicad-cli", reported,
+                                                 environ={"KICAD_CONFIG_HOME": "/elsewhere", "PATH": "/usr/bin"},
+                                                 frozen=False)
+    assert env == {**reported, "PATH": "/usr/bin"}
+    assert description == {"source": "kicad", "variables": sorted(reported)}
+
+
+@posix_only
+def test_development_layout_matches_run_kicad_wsl(tmp_path):
+    root = tmp_path / "kicad-live"
+    for folder in ("install/bin", "install/lib", "config", "share/symbols", "share/footprints"):
+        (root / folder).mkdir(parents=True)
+    cli = root / "install/bin/kicad-cli"
+    cli.write_text("")
+    stock = tmp_path / "stock"
+    (stock / "3dmodels").mkdir(parents=True)
+    env, description = kicad_cli.cli_environment(cli, None, environ={"KICAD_LIBRARY_ROOT": str(stock)},
+                                                 frozen=False)
+    assert description["source"] == "install layout"
+    assert env["LD_LIBRARY_PATH"].split(":")[0] == str((root / "install/lib").resolve())
+    assert env["KICAD_CONFIG_HOME"] == str((root / "config").resolve())
+    assert env["KICAD10_SYMBOL_DIR"] == env["KICAD11_SYMBOL_DIR"] == str((root / "share/symbols").resolve())
+    assert env["KICAD10_FOOTPRINT_DIR"] == str((root / "share/footprints").resolve())
+    assert env["KICAD10_3DMODEL_DIR"] == str(stock / "3dmodels")
+    assert {"KICAD_CONFIG_HOME", "LD_LIBRARY_PATH", "KICAD10_SYMBOL_DIR"} <= set(description["variables"])
+
+
+@posix_only
+def test_installed_layout_matches_the_package_environment(tmp_path):
+    prefix = tmp_path / "opt/embeint-kicad"
+    for folder in ("bin", "lib", "libexec"):
+        (prefix / folder).mkdir(parents=True)
+    (prefix / "libexec/environment.sh").write_text("")
+    cli = prefix / "bin/kicad-cli"
+    cli.write_text("")
+    env, _ = kicad_cli.cli_environment(cli, None, environ={"HOME": "/home/u"}, frozen=False)
+    assert env["KICAD_CONFIG_HOME"] == "/home/u/.config/embeint-kicad"
+    assert env["LD_LIBRARY_PATH"] == str((prefix / "lib").resolve())
+    assert not any(name.startswith("KICAD10_") for name in env), "stock paths come from the package's tables"
+    env, _ = kicad_cli.cli_environment(cli, None, environ={"HOME": "/home/u", "XDG_CONFIG_HOME": "/cfg",
+                                                           "KICAD_CONFIG_HOME": "/chosen"}, frozen=False)
+    assert env["KICAD_CONFIG_HOME"] == "/chosen", "a configuration home already set is kept"
+
+
+def test_default_cli_finds_the_package_beside_a_frozen_mcp(tmp_path):
+    prefix = tmp_path / "opt/embeint-kicad"
+    (prefix / "bin").mkdir(parents=True)
+    (prefix / "libexec/mcp").mkdir(parents=True)
+    (prefix / "bin/kicad-cli").write_text("")
+    found = kicad_cli.default_cli({"HOME": str(tmp_path)}, executable=prefix / "libexec/mcp/embeint-kicad-mcp")
+    assert Path(found) == (prefix / "bin/kicad-cli").resolve()
+    assert kicad_cli.default_cli({"HOME": str(tmp_path / "nobody")}) is None
+    explicit = tmp_path / "custom-cli"
+    explicit.write_text("")
+    assert kicad_cli.default_cli({"KICAD_CLI": str(explicit), "HOME": str(tmp_path)}) == str(explicit)
+
+
+@pytest.mark.parametrize("args", [[], ["rm", "-rf", "/"], ["sch", 3], ["sch", "erc\0"], "sch erc"])
+def test_cli_arguments_are_refused_before_starting_a_process(args):
+    with pytest.raises(ValueError):
+        kicad_cli.cli_arguments(args)
+
+
+@posix_only
+def test_cli_windows_paths_are_translated_on_wsl():
+    assert kicad_cli.cli_arguments(["sch", "erc", "-o", "C:\\out\\erc.json", "D:/p/a.kicad_sch"]) == [
+        "sch", "erc", "-o", "/mnt/c/out/erc.json", "/mnt/d/p/a.kicad_sch"]
+
+
+def environment_reply(cli_path, variables=None, unhandled=False):
+    def reply(request, response_type):
+        name = type(request).__name__
+        if name == "GetKiCadBinaryPath":
+            assert request.binary_name == "kicad-cli"
+            return base.PathResponse(path=str(cli_path))
+        if name == "GetKiCadEnvironment":
+            if unhandled:
+                raise RuntimeError("AS_UNHANDLED: ")
+            return base.KiCadEnvironmentResponse(variables=variables or {})
+        raise AssertionError(f"unexpected request {name}")
+    return reply
+
+
+def shell_script(path, body):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("#!/bin/sh\n" + body)
+    path.chmod(0o755)
+    return path
+
+
+@posix_only
+def test_run_kicad_cli_uses_the_environment_kicad_reports(tmp_path):
+    cli = shell_script(tmp_path / "bin/kicad-cli",
+                       'echo "config=$KICAD_CONFIG_HOME args=$*"\necho warn >&2\nexit 3\n')
+    client = FakeClient(environment_reply(cli, {"KICAD_CONFIG_HOME": "/launcher/config"}))
+    result = client.run_kicad_cli(["sch", "erc", "C:\\p\\a.kicad_sch"], timeout_s=30)
+    assert result["returncode"] == 3 and result["stderr"] == "warn\n"
+    assert result["stdout"] == "config=/launcher/config args=sch erc /mnt/c/p/a.kicad_sch\n"
+    assert result["environment"] == {"source": "kicad", "variables": ["KICAD_CONFIG_HOME"]}
+    assert result["command"][0] == str(cli)
+
+
+@posix_only
+def test_older_kicad_falls_back_to_the_install_layout(tmp_path, monkeypatch):
+    monkeypatch.delenv("KICAD_CONFIG_HOME", raising=False)
+    cli = shell_script(tmp_path / "kicad-live/install/bin/kicad-cli", 'echo "$KICAD_CONFIG_HOME"\n')
+    (tmp_path / "kicad-live/config").mkdir()
+    result = FakeClient(environment_reply(cli, unhandled=True)).run_kicad_cli(["version"], timeout_s=30)
+    assert result["environment"]["source"] == "install layout"
+    assert result["stdout"].strip() == str((tmp_path / "kicad-live/config").resolve())
+
+
+def test_unreachable_kicad_uses_the_located_cli_or_says_what_to_set(monkeypatch, tmp_path):
+    def unreachable(request, response_type):
+        raise RuntimeError("KiCad socket selection is default_missing")
+
+    monkeypatch.setattr(kicad_cli, "default_cli", lambda: None)
+    with pytest.raises(RuntimeError, match="KICAD_CLI"):
+        FakeClient(unreachable).kicad_cli_launch()
+    cli = tmp_path / "kicad-cli"
+    cli.write_text("")
+    monkeypatch.setattr(kicad_cli, "default_cli", lambda: str(cli))
+    path, env, description = FakeClient(unreachable).kicad_cli_launch()
+    assert path == str(cli) and description["source"] == "install layout"
+    assert "not reachable" in description["note"]
+    with pytest.raises(ValueError):
+        FakeClient(unreachable).run_kicad_cli(["bash"])
+
+
+def test_cli_tool_is_registered_with_a_list_argument():
+    import server
+
+    tools = {tool.name: tool for tool in asyncio.run(server.mcp.list_tools())}
+    schema = tools["live_kicad_cli"].inputSchema
+    assert schema["properties"]["args"]["type"] == "array" and schema["required"] == ["args"]
+
+
+@posix_only
+def test_package_ships_a_kicad_cli_wrapper_with_the_launcher_environment(tmp_path):
+    from qualification.package_linux import ENVIRONMENT, stage_launchers
+
+    stage_launchers(tmp_path)
+    wrapper = tmp_path / "usr/bin/embeint-kicad-cli"
+    assert wrapper.read_text().splitlines() == [
+        "#!/bin/sh", "set -eu", ". /opt/embeint-kicad/libexec/environment.sh",
+        'exec /opt/embeint-kicad/bin/kicad-cli "$@"']
+    assert os.access(wrapper, os.X_OK)
+    assert (tmp_path / "opt/embeint-kicad/libexec/environment.sh").read_text() == ENVIRONMENT
+    for name in ("embeint-kicad", "embeint-kicad-mcp"):
+        assert ". /opt/embeint-kicad/libexec/environment.sh" in (tmp_path / "usr/bin" / name).read_text()
+
+
+def test_installed_check_runs_cli_through_the_mcp_and_the_wrapper():
+    import json
+    from types import SimpleNamespace
+    from qualification import check_install
+
+    calls, executed = [], []
+
+    class Peer:
+        async def call_tool(self, name, arguments):
+            calls.append((name, arguments["args"][:3]))
+            return SimpleNamespace(isError=False, structuredContent={
+                "returncode": 0, "stdout": "", "stderr": "",
+                "environment": {"source": "kicad", "variables": ["KICAD_CONFIG_HOME", "LD_LIBRARY_PATH"]}})
+
+    class Runtime:
+        def __init__(self, violations):
+            self.violations = violations
+
+        def execute(self, *args):
+            executed.append(args)
+            if args[-1] == "/tmp/installed-erc.json":
+                return json.dumps({"sheets": [{"violations": [{"type": t} for t in self.violations]}]})
+            if args[-1] == "/tmp/installed.net":
+                return '(node (ref "R1") (pin "2")) (node (ref "R2") (pin "2"))'
+            return "10.99.0\n"
+
+    result = asyncio.run(check_install.check_cli(Runtime(["pin_not_connected"]), Peer()))
+    assert [c[1][:2] for c in calls] == [["sch", "erc"], ["sch", "export"]]
+    assert result["wrapper_version"] == "10.99.0" and ("/usr/bin/embeint-kicad-cli", "version") in executed
+    with pytest.raises(AssertionError):
+        asyncio.run(check_install.check_cli(Runtime(["lib_symbol_issues"]), Peer()))

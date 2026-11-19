@@ -408,6 +408,24 @@
       "offline_tests": [],
       "notes": "Native utility exists but has no curated adapter at the audited baseline. Deferred pending an explicit adapter contract and meaningful tests; no live qualification."
     },
+    "API_HANDLER_COMMON/kiapi.common.commands.GetKiCadEnvironment": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "No document specifier; reports the running KiCad process environment.",
+      "registration_condition": "Unconditional in owning constructor.",
+      "disk_effects": "None. Reads the process environment only.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_kicad_cli",
+        "live_footprint_view_3d",
+        "live_footprint_check_model"
+      ],
+      "offline_tests": [
+        "test_design_checks.py::test_run_kicad_cli_uses_the_environment_kicad_reports",
+        "test_design_checks.py::test_older_kicad_falls_back_to_the_install_layout"
+      ],
+      "notes": "Allow-listed launch environment (KICAD* except KICAD_API_*, loader path, XDG base directories, TMPDIR) so kicad-cli started by the MCP uses the editor's configuration and libraries. Builds without it answer AS_UNHANDLED and the adapter rebuilds the environment from the install layout. Live check: e2e_design_checks.py."
+    },
     "API_HANDLER_COMMON/kiapi.common.commands.GetNetClassAssignments": {
       "decision": "supported",
       "implementation": "implemented",

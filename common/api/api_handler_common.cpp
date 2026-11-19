@@ -39,6 +39,7 @@
 #include <project/project_file.h>
 #include <settings/settings_manager.h>
 #include <wx/string.h>
+#include <wx/utils.h>
 
 using namespace kiapi::common::commands;
 using namespace kiapi::common::types;
@@ -52,6 +53,8 @@ API_HANDLER_COMMON::API_HANDLER_COMMON() :
     registerHandler<GetKiCadBinaryPath, PathResponse>(
             &API_HANDLER_COMMON::handleGetKiCadBinaryPath );
     registerHandler<GetPaths, GetPathsResponse>( &API_HANDLER_COMMON::handleGetPaths );
+    registerHandler<GetKiCadEnvironment, KiCadEnvironmentResponse>(
+            &API_HANDLER_COMMON::handleGetKiCadEnvironment );
     registerHandler<GetNetClasses, NetClassesResponse>( &API_HANDLER_COMMON::handleGetNetClasses );
     registerHandler<SetNetClasses, Empty>( &API_HANDLER_COMMON::handleSetNetClasses );
     registerHandler<GetNetClassAssignments, NetClassAssignmentsResponse>(
@@ -109,6 +112,36 @@ HANDLER_RESULT<PathResponse> API_HANDLER_COMMON::handleGetKiCadBinaryPath(
     wxString path = FindKicadFile( fn.GetFullName() );
     PathResponse reply;
     reply.set_path( path.ToUTF8() );
+    return reply;
+}
+
+
+HANDLER_RESULT<KiCadEnvironmentResponse> API_HANDLER_COMMON::handleGetKiCadEnvironment(
+        const HANDLER_CONTEXT<GetKiCadEnvironment>& )
+{
+    // What a launcher sets up for KiCad (configuration home, library paths and the loader search
+    // path), never API credentials or the per-project KIPRJMOD
+    static const std::set<wxString> s_exact = {
+        wxS( "LD_LIBRARY_PATH" ),  wxS( "DYLD_LIBRARY_PATH" ), wxS( "DYLD_FALLBACK_LIBRARY_PATH" ),
+        wxS( "XDG_CONFIG_HOME" ),  wxS( "XDG_DATA_HOME" ),     wxS( "XDG_CACHE_HOME" ),
+        wxS( "XDG_STATE_HOME" ),   wxS( "XDG_DATA_DIRS" ),     wxS( "TMPDIR" )
+    };
+
+    wxEnvVariableHashMap environment;
+    KiCadEnvironmentResponse reply;
+
+    if( !wxGetEnvMap( &environment ) )
+        return reply;
+
+    for( auto it = environment.begin(); it != environment.end(); ++it )
+    {
+        const wxString& name = it->first;
+        const bool      kicad = name.StartsWith( wxS( "KICAD" ) ) && !name.StartsWith( wxS( "KICAD_API_" ) );
+
+        if( kicad || s_exact.contains( name ) )
+            ( *reply.mutable_variables() )[name.ToStdString( wxConvUTF8 )] = it->second.ToStdString( wxConvUTF8 );
+    }
+
     return reply;
 }
 

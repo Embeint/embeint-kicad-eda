@@ -105,23 +105,15 @@ def footprint_board(footprint_text, lib_id, margin=2.0):
             f' (stroke (width 0.05) (type default)) (fill no) (layer "Edge.Cuts"))\n)\n')
 
 
-def kicad_cli_env(cli_path):
-    """Environment for the development kicad-cli: its libraries and the editor's configuration."""
-    import os
-    from pathlib import Path
-    env = dict(os.environ)
-    install = Path(cli_path).resolve().parent.parent
-    root = install.parent
-    libs = [str(install / "lib")]
-    if (root / "deps/usr/lib/x86_64-linux-gnu").is_dir():
-        libs.insert(0, str(root / "deps/usr/lib/x86_64-linux-gnu"))
-    env["LD_LIBRARY_PATH"] = ":".join(libs + [env.get("LD_LIBRARY_PATH", "")]).rstrip(":")
-    if (root / "config").is_dir():
-        env.setdefault("KICAD_CONFIG_HOME", str(root / "config"))
-    return env
+def kicad_cli_env(cli_path, kicad_variables=None):
+    """Environment for kicad-cli: what the running KiCad reported (kicad_variables), else rebuilt from
+    the install layout (see kicad_cli.cli_environment)."""
+    from kicad_cli import cli_environment
+    return cli_environment(cli_path, kicad_variables)[0]
 
 
-def render_footprint_3d(cli_path, footprint_text, lib_id, rotate="-45,0,45", size=(900, 700), zoom=1.0):
+def render_footprint_3d(cli_path, footprint_text, lib_id, rotate="-45,0,45", size=(900, 700), zoom=1.0,
+                        env=None):
     """Render one footprint's 3D view through kicad-cli; returns PNG bytes."""
     import subprocess
     import tempfile
@@ -134,13 +126,14 @@ def render_footprint_3d(cli_path, footprint_text, lib_id, rotate="-45,0,45", siz
                    "--perspective", "--zoom", str(zoom), "--background", "opaque", "-o", str(image), str(board)]
         if rotate:
             command[3:3] = ["--rotate", rotate]
-        run = subprocess.run(command, env=kicad_cli_env(cli_path), capture_output=True, text=True, timeout=300)
+        run = subprocess.run(command, env=env or kicad_cli_env(cli_path), capture_output=True, text=True,
+                             timeout=300)
         if run.returncode or not image.exists():
             raise RuntimeError(f"kicad-cli render failed ({run.returncode}): {run.stderr[-800:] or run.stdout[-800:]}")
         return image.read_bytes()
 
 
-def export_board_step(cli_path, footprint_text, lib_id):
+def export_board_step(cli_path, footprint_text, lib_id, env=None):
     """Export the footprint's board to STEP through kicad-cli (a separate KiCad process), so the
     output proves KiCad itself resolves the footprint's 3D model.  Returns the STEP text."""
     import subprocess
@@ -151,7 +144,7 @@ def export_board_step(cli_path, footprint_text, lib_id):
         output = Path(scratch) / "check.step"
         board.write_text(footprint_board(footprint_text, lib_id))
         run = subprocess.run([cli_path, "pcb", "export", "step", "--force", "-o", str(output), str(board)],
-                             env=kicad_cli_env(cli_path), capture_output=True, text=True, timeout=300)
+                             env=env or kicad_cli_env(cli_path), capture_output=True, text=True, timeout=300)
         if run.returncode or not output.exists():
             raise RuntimeError(f"kicad-cli STEP export failed ({run.returncode}): {(run.stderr or run.stdout)[-800:]}")
         return output.read_text(errors="replace")
