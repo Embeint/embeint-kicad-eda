@@ -24,7 +24,7 @@ out="${KICAD_LIVE_TEST_OUTPUT:-$ROOT/test-output}"
 mkdir -p "$out"
 tests=(e2e_symbols e2e_footprints)
 [[ -n "${SOLIDCRAFT_CLI:-}" ]] && tests+=(e2e_model_handoff)
-tests+=(e2e_smoke e2e_features e2e_pcb e2e_design)
+tests+=(e2e_smoke e2e_features e2e_item_roundtrip e2e_pcb e2e_design)
 failed=0
 for test in "${tests[@]}"; do
     echo "--- $test"
