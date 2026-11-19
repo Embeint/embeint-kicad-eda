@@ -294,6 +294,28 @@ Register the MCP server (stdout carries only MCP messages):
 claude mcp add kicad-live -- powershell -NoProfile -ExecutionPolicy Bypass -File C:\<fork>\tools\live_schematic_mcp\run_mcp_windows.ps1
 ```
 
+### Bundled MCP (no Python, no checkout)
+
+`build_windows.ps1` also installs the MCP as `C:\kb\install\mcp\embeint-kicad-mcp.exe`: the
+server frozen with PyInstaller (`qualification\package_mcp.py`), with its own Python runtime,
+protocol code, skills and licence notices (`licenses\`). Users of the install need neither
+Python nor this repository; Python 3.11+ is needed only to build it. `-McpOnly` rebundles an
+existing install after an MCP change and `-NoMcp` skips it. Register it directly:
+
+```powershell
+claude mcp add kicad-live -- C:\kb\install\mcp\embeint-kicad-mcp.exe
+```
+
+```powershell
+C:\kb\install\mcp\embeint-kicad-mcp.exe --version            # server and KiCad versions, schema fingerprint
+C:\kb\install\mcp\embeint-kicad-mcp.exe --diagnose [--probe]  # runtime, discovered editors, read-only probes
+```
+
+The same identity is in `live_mcp_capabilities` (`server_version`, `application_version`,
+`source_revision`, `schema_sha256`) and the MCP `serverInfo`. With no editor running, every
+editor tool answers at once that no KiCad is listening and what to start; nothing is sent, and
+the next call looks again, so the MCP may start before KiCad.
+
 Paths in tool arguments are as the native KiCad reads them (`C:\...`); WSL `/mnt/c/...` paths
 are translated. SolidCraft exports default to `%USERPROFILE%\kicad-models`
 (`KICAD_LIVE_MODEL_DIR` overrides it).
