@@ -14,10 +14,8 @@ $ErrorActionPreference = 'Stop'
 Assert-Python
 Update-Protos
 
-# The endpoint goes last: it is the exact URL to use for KICAD_API_SOCKET (pipe names are literal)
-# (no double quotes: Windows PowerShell 5.1 drops them from native command arguments)
-$probe = "from client import LiveSchematic; c = LiveSchematic(timeout_ms=5000); d = c.documents(); " +
-         "print(d); print('endpoint:', c.socket_url)"
+# readiness.py prints the documents and, last, the endpoint: the exact URL to use for
+# KICAD_API_SOCKET (pipe names are literal).  It exits 75 while KiCad does not answer yet.
 $deadline = ( Get-Date ).AddSeconds( $TimeoutSeconds )
 $out = ''
 Push-Location $Mcp
@@ -27,17 +25,14 @@ try
     {
         # Native stderr would become PowerShell errors under 'Stop'; collect it as text instead
         $ErrorActionPreference = 'Continue'
-        $lines = @( & $Python -c $probe 2>&1 | ForEach-Object { "$_" } )
+        $lines = @( & $Python 'readiness.py' 2>&1 | ForEach-Object { "$_" } )
         $code = $LASTEXITCODE
         $ErrorActionPreference = 'Stop'
         if( $code -eq 0 ) { $lines | ForEach-Object { Write-Output $_ }; exit 0 }
         $out = $lines | Select-Object -Last 1
 
         # Not started yet, still loading (AS_NOT_READY) or no endpoint: wait.  Anything else is real.
-        if( $out -notmatch 'NOT_READY|Timed out|Timeout|Connection|refused|No KiCad editor|unavailable|No such' )
-        {
-            break
-        }
+        if( $code -ne 75 ) { break }
         Start-Sleep -Seconds 2
     } while( ( Get-Date ) -lt $deadline )
 }
