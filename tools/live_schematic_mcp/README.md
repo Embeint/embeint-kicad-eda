@@ -236,10 +236,14 @@ python3 -m venv ~/kicad-live/venv
 
 cmake -S <source> -B ~/kicad-live/build -G Ninja -DCMAKE_BUILD_TYPE=Release \
       -DKICAD_BUILD_QA_TESTS=OFF -DCMAKE_INSTALL_PREFIX=$HOME/kicad-live/install
-ninja -C ~/kicad-live/build && ninja -C ~/kicad-live/build install
+ninja -j 8 -C ~/kicad-live/build && ninja -j 8 -C ~/kicad-live/build install
 
 ./run_kicad_wsl.sh            # isolated config, IPC server enabled, project manager with a demo project
 ```
+
+Keep the build to 8 jobs: each KiCad compile job can take about 1 GB, and one job per core can
+exhaust WSL's memory and kill other work on the machine. `scripts/setup_wsl.sh` and
+`scripts/rebuild.sh` read the limit from `KICAD_BUILD_JOBS` (default 8).
 
 `run_kicad_wsl.sh` keeps its settings in `~/kicad-live/config` and reuses the symbol and
 footprint libraries from the Windows KiCad 10.0 install.
