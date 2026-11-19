@@ -68,9 +68,12 @@ tools\live_schematic_mcp\scripts\run_tests.ps1 [-Live]            # unit tests [
 tools\live_schematic_mcp\run_kicad_windows.ps1 -Stop              # stop only the KiCad the launcher started
 ```
 
-The MCP server is `run_mcp_windows.ps1`.  The endpoint is a local named pipe; only one KiCad per
-Windows account can hold it.  Installing over `C:\kb\install` fails while any KiCad started from
-it is running (Windows locks the DLLs): never stop a KiCad you did not start; ask its user.
+The MCP server is `run_mcp_windows.ps1` from the checkout, or the bundled
+`C:\kb\install\mcp\embeint-kicad-mcp.exe` (`build_windows.ps1 -McpOnly` rebundles it after an MCP
+change; check it with `qualification\check_package.py`).  The endpoint is a local named pipe; only
+one KiCad per Windows account can hold it.  Installing over `C:\kb\install` fails while any KiCad
+started from it is running (Windows locks the DLLs): never stop a KiCad you did not start; ask its
+user.  `-McpOnly` works while KiCad runs, but not while an MCP client runs the bundled server.
 
 ## Rules that save time
 

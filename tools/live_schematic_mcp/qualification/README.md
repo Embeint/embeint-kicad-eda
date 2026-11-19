@@ -87,6 +87,13 @@ packages and `PYTHONPATH` cannot affect the bundle:
 
 Build each platform's executable on that platform. The output includes the Python
 runtime, protocol modules, dependencies, license notices and `build-info.json`.
+`--application-version` records the KiCad version the package ships with; with the
+adapter version and source revision (`mcp_version`) it is reported by
+`embeint-kicad-mcp --version`, `live_mcp_capabilities` and the MCP `serverInfo`.
+Notices for native code linked into extension modules without its own licence file
+(nng and Mbed TLS in `pynng`) come from `notices/`. On Windows,
+`scripts/build_windows.ps1` runs both steps and installs the result as
+`install\mcp\embeint-kicad-mcp.exe` (`-McpOnly` rebundles an existing install).
 For an unpacked source archive, pass `--source-revision FULL_COMMIT_HASH`. The
 manifest labels that revision as caller supplied, records an unknown dirty state,
 and includes adapter/protocol source checksums; it does not invent Git provenance.

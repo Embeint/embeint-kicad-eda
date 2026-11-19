@@ -124,7 +124,9 @@ tools\live_schematic_mcp\run_kicad_windows.ps1 -Wait    # isolated config, API e
 tools\live_schematic_mcp\scripts\run_tests.ps1 -Live    # unit and end-to-end tests against it
 ```
 
-Register `run_mcp_windows.ps1` as the MCP server. See
+Register `run_mcp_windows.ps1` as the MCP server, or, without Python or this checkout,
+the bundled `C:\kb\install\mcp\embeint-kicad-mcp.exe` that `build_windows.ps1` installs
+(Python 3.11+ is needed only to build it; `-McpOnly` rebundles it). See
 [Setup (native Windows)](tools/live_schematic_mcp/README.md#setup-native-windows) for
 details and limits; the WSL build and its scripts work as before.
 
