@@ -1349,9 +1349,11 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
 
             // Unpack the update over a copy of the item it replaces rather than a new item, so
             // that whatever the message does not carry keeps its value instead of a new item's
-            // default (a text box hyperlink, a symbol's library link, pins and instance data).
-            // A definition-less symbol update keeps the library definition this way.  Groups
-            // resolve their members through the commit, so they are unpacked once only.
+            // default (a symbol's embedded definition, pins and instance data).  Fields the message
+            // does carry are applied as sent, so an empty one clears its value (a text box without
+            // its hyperlink loses it): clients send back what they read.  A definition-less symbol
+            // update keeps the library definition this way.  Groups resolve their members through
+            // the commit, so they are unpacked once only.
             if( *type != SCH_GROUP_T )
             {
                 std::unique_ptr<EDA_ITEM> copy( existingItem->Clone() );
@@ -1394,9 +1396,18 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
             }
 
             // A definition-less update was unpacked over a copy of the existing symbol above, so
-            // it already keeps the embedded symbol, pins and library link.  A request that carries
-            // the definition rebuilds them, which needs the corrections below.
-            if( existingSymbol && symbolProto.has_definition()
+            // it already keeps the embedded symbol and pins.  Its lib_id would still rename the
+            // symbol's library link, leaving it pointing at a different (or missing) embedded
+            // symbol than the one kept, so restore the link.  A request that carries the
+            // definition rebuilds them all, which needs the corrections below.
+            if( existingSymbol && !symbolProto.has_definition() )
+            {
+                tempSymbol->SetLibId( existingSymbol->GetLibId() );
+                tempSymbol->SetSchSymbolLibraryName( existingSymbol->UseLibIdLookup()
+                                                             ? wxString( wxEmptyString )
+                                                             : existingSymbol->GetSchSymbolLibraryName() );
+            }
+            else if( existingSymbol && symbolProto.has_definition()
                     && IsSymbolDefinitionUnchanged( existingSymbol, existingPath,
                                                     symbolProto.definition() ) )
             {
@@ -1574,8 +1585,9 @@ HANDLER_RESULT<ItemRequestStatus> API_HANDLER_SCH::handleCreateUpdateItemsIntern
         }
         else
         {
-            // SwapItemData hands the item the temporary's (empty) instance list, so keep the
-            // placements to restore afterwards.
+            // SwapItemData hands the item the temporary's instance list.  For an update the
+            // temporary is a copy of this item, but keep the placements as they are now and
+            // restore them afterwards, so the swap cannot change them.
             std::vector<SCH_SYMBOL_INSTANCE> symbolPlacements;
             std::vector<SCH_SHEET_INSTANCE>  sheetPlacements;
 
