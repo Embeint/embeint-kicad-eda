@@ -55,8 +55,8 @@ touch manual wires or junctions (a shared end, an end on the other wire, or an
 overlap): KiCad's commit cleanup could merge the wires or drop a junction, so
 `plan()` refuses it. A plain crossing of two wire interiors is unconnected and
 allowed. For the same reason, a revision that removes a block wire or junction, or
-moves or removes a block symbol or sheet pin, with manual wiring attached is
-refused. The manifest records each owned item's planned pin points because
+moves or removes a block symbol pin, sheet pin or label, with manual wiring attached
+is refused, as is a block no-connect marker on top of another marker. The manifest records each owned item's planned pin points because
 `GetItems` omits them.
 
 Wire and junction keys include their geometry, so a rerouted wire is deleted and
@@ -64,7 +64,7 @@ recreated rather than updated. KiCad's schematic API runs connectivity cleanup a
 updating a connectable item even inside an open commit, on a screen where the
 batch's deletes and creates are not yet applied, and records that cleanup as a
 separate undo step. Avoiding wire updates keeps that intermediate screen unchanged
-except for updated symbols, sheets and labels. A revision that moves a symbol or
+except for updated symbols, sheets, labels and no-connect markers. A revision that moves a symbol or
 sheet pin sitting on a wire branch (two or more wire ends, or a junction) is refused
 for this reason: remove or reroute those wires in one apply, then move the part.
 Skipping that mid-commit cleanup in the API handler is a protocol followup.

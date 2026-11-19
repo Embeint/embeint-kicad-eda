@@ -114,9 +114,13 @@ staged deletes and creates apply, and pushes it as a separate undo step. Wire an
 junction keys now include geometry so wires are replaced, never updated; moving a
 pin at a wire branch, removing a block wire/junction with manual wiring attached,
 duplicate no-connect markers and `add()` of wires/junctions/symbols/sheets are
-refused; manifests are version 2. Changing the handler is a recorded followup. The
-combined offline suite passed **339 tests** with these changes. None of this is
-native evidence: the in-memory editor does not model KiCad's cleanup.
+refused; manifests are version 2. A fourth review found no high or medium issue;
+its low findings (moving a block label with manual wiring through it, an over-strict
+no-connect duplicate check, README wording) were fixed. Changing the handler is a
+recorded followup. The combined offline suite passed **340 tests** with these
+changes (an earlier run under heavy load had two unrelated timing failures that
+passed on rerun). None of this is native evidence: the in-memory editor does not
+model KiCad's cleanup.
 
 The frozen receipt, its skill content hash and the native helper probe above describe
 the earlier helper source and skill 1.1.0. They were **not** rerun for these fixes:
