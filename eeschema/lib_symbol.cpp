@@ -552,7 +552,10 @@ bool LIB_SYMBOL::Deserialize( const kiapi::schematic::types::SchematicSymbol& aI
 
         // Serialize names every body style, including the single one of an ordinary symbol and the
         // De Morgan pair, which a symbol stores as no names and a flag.  Storing those as names would
-        // make an unchanged definition differ from its library symbol.
+        // make an unchanged definition differ from its library symbol.  This assumes the De Morgan
+        // pair is the only one named "Standard" and "Alternate" (the names Serialize gives it): two
+        // custom body styles literally named so are read back as De Morgan, which shows them under
+        // the same names but no longer matches a library symbol that stores them as names.
         if( bodyStyleNames.size() == 1 )
         {
             SetHasDeMorganBodyStyles( false );
