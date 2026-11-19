@@ -16,7 +16,7 @@
 #   -Fresh  recreate the live-demo test project (discarding anything saved into it)
 #   -Wait   wait until the API answers (scripts\wait_ready.ps1) before returning
 #
-# KiCad starts in the background; its process ID is written to <root>\live\kicad.pid.
+# KiCad starts in the background; its process ID and start time are written to <root>\live\kicad.pid.
 # The root is KICAD_WINDOWS_ROOT (default C:\kb), as for build_windows.ps1.  The MCP's Python
 # (scripts\setup_windows.ps1) checks first that no other KiCad holds the API endpoint.
 
@@ -34,15 +34,21 @@ $ErrorActionPreference = 'Stop'
 $bin = Join-Path $Install 'bin'
 $pidFile = Join-Path $LiveRoot 'kicad.pid'
 
-# The KiCad this script started, if it is still running (never another KiCad the user opened)
+# The KiCad this script started, if it is still running (never another KiCad the user opened).
+# The pid file holds "<PID> <start time in UTC ticks>": a process that reused the PID has another
+# start time, so it is never taken for ours even if it runs from the same install.
 function Get-LiveKiCad
 {
     if( -not ( Test-Path $pidFile ) ) { return $null }
-    $process = Get-Process -Id ( [int]( Get-Content $pidFile -Raw ) ) -ErrorAction SilentlyContinue
-    if( $process -and $process.Path -and $process.Path.StartsWith( $bin, 'OrdinalIgnoreCase' ) )
+    $id, $started = @( ( Get-Content $pidFile -Raw ).Trim() -split '\s+' )
+    if( -not ( $id -as [int] ) -or -not $started ) { return $null }
+    $process = Get-Process -Id ( $id -as [int] ) -ErrorAction SilentlyContinue
+    if( -not $process -or -not $process.Path -or -not $process.Path.StartsWith( $bin, 'OrdinalIgnoreCase' ) )
     {
-        return $process
+        return $null
     }
+    try { $ticks = "$( $process.StartTime.ToUniversalTime().Ticks )" } catch { return $null }
+    if( $ticks -eq $started ) { return $process }
     return $null
 }
 
@@ -219,7 +225,7 @@ $Project = ( Resolve-Path $Project ).Path
 $exe = if( $Project -like '*.kicad_sch' ) { 'eeschema.exe' } else { 'kicad.exe' }
 $process = Start-Process -FilePath ( Join-Path $bin $exe ) -ArgumentList "`"$Project`"" `
                          -WorkingDirectory $bin -PassThru
-[IO.File]::WriteAllText( $pidFile, "$( $process.Id )", $utf8 )
+[IO.File]::WriteAllText( $pidFile, "$( $process.Id ) $( $process.StartTime.ToUniversalTime().Ticks )", $utf8 )
 Write-Host "Started $exe (PID $( $process.Id )) with $Project"
 Write-Host "Configuration: $configDir"
 
