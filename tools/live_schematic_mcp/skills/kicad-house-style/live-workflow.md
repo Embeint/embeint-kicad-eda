@@ -29,7 +29,8 @@ For a generated functional block that will be revised, read
 It provides dashed titled frames, unrotated symbol placement from real library pin
 endpoints, Manhattan paths with junctions and hierarchical ports/sheet pins.
 Keep stable logical keys and the ownership manifest; a revision targets only its
-generated UUIDs and refuses stale state or unowned collisions. Apply is single-use,
+generated UUIDs and refuses stale state, unowned collisions and block wires touching
+manual wires (join manual circuitry with labels). Apply is single-use,
 uses one existing document batch, and never retries or saves. The expected-state
 fingerprint is client-side; it is not an atomic editor revision check. Keep a
 single writer and reread/replan after an unknown outcome.

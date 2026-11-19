@@ -351,6 +351,84 @@ def test_overlapping_or_different_net_routes_are_invalid(second, net):
         plan(block, Manifest.empty(NAMESPACE, doc()), doc(), [])
 
 
+@pytest.mark.parametrize("routes", [
+    [[(10, 10), (20, 10), (30, 10)]],
+    [[(10, 10), (20, 10)], [(20, 10), (30, 10)]],
+    [[(10, 10), (10, 20)], [(10, 30), (10, 20)]],
+])
+def test_inline_wire_ends_that_kicad_would_merge_are_refused(routes):
+    # KiCad's commit cleanup merges these into one wire, deleting an owned UUID.
+    block = Block(NAMESPACE)
+    for index, path in enumerate(routes):
+        block.wire(str(index), "SIGNAL", path)
+    report = block.report()
+    assert not report["valid"] and "merge" in report["errors"][0]
+
+
+def test_inline_wires_meeting_at_a_port_or_pin_get_a_junction_not_a_merge():
+    block = Block(NAMESPACE)
+    block.wire("left", "SIGNAL", [(10, 10), (20, 10)])
+    block.wire("right", "SIGNAL", [(20, 10), (30, 10)])
+    block.port("port", "SIGNAL", (20, 10))
+    assert block.report()["junctions"] == 1
+    block = Block(NAMESPACE)
+    pins = block.symbol("part", definition(), "U101", "1", (40, 50))
+    block.wire("a", "SIGNAL", [pins["1"], (30, 50)])
+    block.wire("b", "SIGNAL", [pins["1"], (40, 60)])
+    junctions = [i for i in block.items().values() if isinstance(i, sch.Junction)]
+    assert [j.position for j in junctions] == [point(40, 50)]
+
+
+@pytest.mark.parametrize("item", [
+    sch.SchematicLine(type=sch.SLT_WIRE, start=point(60, 50), end=point(60, 40)),
+    sch.SchematicLine(type=sch.SLT_WIRE, start=point(70, 50), end=point(80, 50)),
+    sch.SchematicLine(type=sch.SLT_WIRE, start=point(30, 30), end=point(40, 50)),
+    sch.Junction(position=point(55, 50)),
+])
+def test_block_wires_touching_manual_wires_or_junctions_are_refused(item):
+    item.id.CopyFrom(kiid())
+    client = Editor([item])
+    with pytest.raises(ValueError, match="manual"):
+        plan(revision(), Manifest.empty(NAMESPACE, doc()), doc(), client.items(doc()).items)
+    assert not any(isinstance(r, editor.BeginCommit) for r in client.requests)
+
+
+def test_plain_crossing_of_a_manual_wire_is_allowed_and_preserved():
+    crossing = sch.SchematicLine(id=kiid(), type=sch.SLT_WIRE, start=point(65, 40), end=point(65, 60))
+    client = Editor([crossing])
+    apply(client, doc(), plan(revision(), Manifest.empty(NAMESPACE, doc()), doc(), client.items(doc()).items))
+    assert client.live[crossing.id.value] == pack(crossing)
+
+
+def test_stored_wire_geometry_differing_from_request_is_reported_uncertain():
+    client = Editor()
+    block = revision()
+    target = block.id("route/trunk/0/0")
+    def shift(live):
+        wire = unpack(live[target])
+        wire.end.x_nm += 1270000
+        live[target] = pack(wire)
+    client.side_effect = shift
+    with pytest.raises(ApplyUncertain, match="Stored geometry differs"):
+        apply(client, doc(), plan(block, Manifest.empty(NAMESPACE, doc()), doc(), []))
+
+
+def test_owned_hashes_with_map_fields_match_across_processes():
+    # Manifests are written by one process and checked by another; map field order
+    # must not change the recorded hash.
+    import subprocess
+    import sys
+    from pathlib import Path
+    script = ("import block_helpers as b; from client import sch\n"
+              "s = sch.SheetSymbol(); v = s.variants.variants.add(name='A')\n"
+              "[v.fields.__setitem__(f'F{i}', str(i)) for i in range(40)]\n"
+              "print(b._hash(b._pack(s)))")
+    here = Path(__file__).resolve().parent
+    hashes = {subprocess.run([sys.executable, "-c", script], cwd=here, check=True,
+                             capture_output=True, text=True).stdout for _ in range(3)}
+    assert len(hashes) == 1
+
+
 def test_hierarchy_ports_and_sheet_pins_have_matching_names_and_real_edges():
     parent, child = Block(NAMESPACE), Block(str(uuid.uuid4()))
     endpoints = parent.sheet("child", "Interface", "interface.kicad_sch", (100, 50), (30, 25), "2",

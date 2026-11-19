@@ -34,7 +34,7 @@ positions, a sheet bounding box or whichever items happen to be selected.
 | `frame(key, title, (x1,y1,x2,y2))` | Dashed unfilled rectangle plus title inside it; millimeters. |
 | `symbol(key, definition, reference, anchor_pin, at, unit=1)` | Full library definition from `client.library_symbols([lib_id])`; position by the real numbered pin endpoint. Unrotated, unmirrored unit only. Returns unambiguous numbered endpoints. |
 | `pin(key, number)` | Endpoint on a constructed symbol. Missing/ambiguous pins are refused; unit and body-style filtering apply, including hidden pins. |
-| `wire(key, net, path)` | Explicit Manhattan waypoints; split same-net T/X joins and add junctions. Reject zero/diagonal legs, collinear overlaps and different-net intersections. `net` is a planning name, not an editor net assignment. |
+| `wire(key, net, path)` | Explicit Manhattan waypoints; split same-net T/X joins and add junctions (a block pin, port or sheet pin counts as one exit, as in KiCad). Reject zero/diagonal legs, collinear overlaps, different-net intersections and in-line wire ends meeting with nothing else there, which KiCad would merge on commit. `net` is a planning name, not an editor net assignment. |
 | `port(key, name, at, shape='input', spin='left')` | Hierarchical label at a real wire endpoint. Shapes: input/output/bidi/passive. |
 | `sheet(key, name, filename, at, size, page, ports)` | Owned parent sheet with pins `(name, side, edge_offset_mm, shape)`; returns their endpoints. Sides: left/right/top/bottom. |
 | `add(key, item)` | Complete supported top-level schematic protobuf; assigns a generated UUID. This is a full replacement request, not a field patch. Preserve required fields. |
@@ -50,8 +50,11 @@ instead of a returned map if a pin could be stacked/ambiguous.
 Route waypoints must provide body clearance. There is no automatic obstacle router,
 label-on-every-pin scheme, page selection, or whole-sheet layout. Different-net
 crossings are conservatively refused even if KiCad could draw a crossing without
-a junction. A same-net X join is intentionally connected. Separate generated blocks
-with short local labels; connect sheets through matching hierarchical ports and
+a junction. A same-net X join is intentionally connected. Block wires must not
+touch manual wires or junctions (a shared end, an end on the other wire, or an
+overlap): KiCad's commit cleanup would merge or split the manual wire, so `plan()`
+refuses it. A plain crossing of two wire interiors is unconnected and allowed.
+Separate generated blocks, and join manual circuitry, with short local labels; connect sheets through matching hierarchical ports and
 parent pins. A child sheet is a separate document/block/manifest. Match names and
 directions and wire the parent pins explicitly; there is no multi-document commit.
 
@@ -80,7 +83,8 @@ manifest_text = state.to_json()  # persist explicitly with the block source
 
 Planning refuses changed/missing owned items and collisions with unowned UUIDs.
 It never adopts selected items, captures everything inside a rectangle, or clears
-a sheet. Removing an owned key removes that UUID only. It refuses sheet deletion
+a sheet. Removing an owned key removes that UUID only, provided block wires stay
+clear of manual wires as described above. It refuses sheet deletion
 and changing a child sheet filename, since manual child content could be discarded.
 It limits a revision to 200 changed items and refuses changing an item's type under
 the same key. Use a new logical key for a deliberate type replacement.
@@ -97,8 +101,11 @@ the client, reads again after the commit, verifies UUID membership and unchanged
 manual/unchanged owned items, and returns a new manifest. Repeat desired content
 is a no-op even when KiCad normalized defaults or omitted definition pins on read.
 It records both requested and observed fingerprints; this prevents blind replay.
-The manifest is not an electrical acceptance certificate. The editor may normalize
-requested content, so inspect actual fields, pins and intended net membership.
+Wire and junction geometry is compared with the request after apply; a difference
+raises `ApplyUncertain`. Other content is not: later plans compare the desired block
+with the last *request*, so a field KiCad stored differently is not detected or
+reapplied. The manifest is not an electrical acceptance certificate; inspect actual
+fields, pins and intended net membership.
 
 The fingerprint is **not an atomic editor revision check**. Other clients and the
 user can race after the final precondition read; the client lock coordinates only
