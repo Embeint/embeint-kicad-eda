@@ -54,7 +54,9 @@ foreach( $test in $tests )
     $testArgs = if( $arguments.ContainsKey( $test ) ) { $arguments[$test] } else { @( $out ) }
     $log = Join-Path $out "$test.log"
     # Byte-for-byte UTF-8 logs: no PowerShell re-encoding or error records around stderr
-    $argLine = ( @( "$test.py" ) + $testArgs | ForEach-Object { "`"$_`"" } ) -join ' '
+    # Trailing backslashes are doubled, or a directory such as C:\out\ would escape its closing quote
+    $argLine = ( @( "$test.py" ) + $testArgs |
+                 ForEach-Object { '"' + ( "$_" -replace '(\\+)$', '$1$1' ) + '"' } ) -join ' '
     $process = Start-Process -FilePath $Python -ArgumentList $argLine -NoNewWindow -Wait -PassThru `
                             -RedirectStandardOutput $log -RedirectStandardError "$log.stderr"
     Get-Content "$log.stderr" -Encoding UTF8 | Add-Content $log -Encoding UTF8
