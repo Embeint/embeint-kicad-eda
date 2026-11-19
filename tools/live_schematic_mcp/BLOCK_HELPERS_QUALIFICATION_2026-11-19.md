@@ -1,5 +1,10 @@
 # Schematic block helper qualification: 2026-11-19
 
+The later [merged-main installed qualification](MAIN_INSTALLED_QUALIFICATION_2026-11-19.md)
+covers skill 1.1.1, the reviewed helper guards, a fresh frozen package and a new
+installed runtime. The historical source/skill 1.1.0 results below keep their
+original revisions and limits.
+
 The helper is a supported Python scripting API over the existing client, with
 bundled instructions. It adds no MCP execution tool, native handler or protocol.
 The implementation is technically independent of the acceptance fixture; its PR
