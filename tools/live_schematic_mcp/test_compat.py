@@ -4,11 +4,14 @@
 import io
 import json
 from pathlib import Path
+from types import SimpleNamespace
 import zipfile
 
 import pytest
 
-from compat.check_compat import GOLDEN, FIXTURE, PCB_EXPORTS, SCH_EXPORTS, classify, reference_jobs
+from compat import check_compat
+from compat.check_compat import (GOLDEN, FIXTURE, PCB_EXPORTS, SCH_EXPORTS, classify, compare_expected, main,
+                                 reference_jobs, rule_errors)
 from compat.formats import file_versions, normalize_bytes, project_versions, tree_hash
 
 # Versions the fork's writers declare (eeschema/sch_file_versions.h,
@@ -91,6 +94,92 @@ def test_classify():
     assert classify(3, "failed to load", False) == "failed"
 
 
+def test_rule_errors_ignore_exit_code_and_paths():
+    assert rule_errors("Running DRC\nDRC incomplete: could not compile custom design rules.\nFound 0 violations\n")
+    assert rule_errors("ERROR: Unknown rule constraint 'x' in project.kicad_dru line 3\n")
+    assert not rule_errors("Found 0 violations\nSaved DRC Report to /tmp/out/fork-rules/drc.json\n")
+    assert not rule_errors("Plotted to '/tmp/out/fork-rules/gerbers/p-F_Cu.gbr'.\n")
+
+
+def test_expected_messages_must_match(tmp_path):
+    expect = tmp_path / "expect.json"
+    expect.write_text(json.dumps({"checks": {"sch erc": "failed"}, "changed_inputs": [],
+                                  "messages": {"sch erc": "^Failed to load schematic$"}}))
+    report = {"checks": {"sch erc": {"result": "failed", "output_tail": ["Failed to load schematic"]}},
+              "changed_inputs": {}}
+    assert compare_expected(report, expect) == 0
+    report["checks"]["sch erc"]["output_tail"] = ["Segmentation fault"]
+    assert compare_expected(report, expect) == 1
+
+
+def test_reproducible_compares_normalized_outputs(tmp_path):
+    reports = []
+    for index, outputs in enumerate(({"a.gbr": "1", "b.net": "2"}, {"a.gbr": "1", "b.net": "2"},
+                                     {"a.gbr": "1", "b.net": "3"}, {"a.gbr": "1"})):
+        path = tmp_path / f"r{index}.json"
+        path.write_text(json.dumps({"outputs": outputs}))
+        reports.append(str(path))
+    assert main(["reproducible", reports[0], reports[1]]) == 0
+    assert main(["reproducible", reports[0], reports[2]]) == 1
+    assert main(["reproducible", reports[0], reports[3]]) == 1
+
+
+def _fake_live(monkeypatch, tmp_path, run2_content):
+    """Replace the live client: one project file and two exports, the second taking run2_content
+    in the second run."""
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "p.kicad_sch").write_text("(kicad_sch)")
+    root = SimpleNamespace(project=SimpleNamespace(path=str(project)))
+    client = SimpleNamespace(send=lambda command, response_type: response_type())
+    monkeypatch.setattr(check_compat, "live_client", lambda: (client, root, None))
+
+    def export_once(client, root, board, folder):
+        for key, content in (("sch-netlist", "net"), ("pcb-gerbers", run2_content if folder.name == "run2" else "g")):
+            (folder / key).mkdir(parents=True)
+            (folder / key / "out.txt").write_text(content)
+        return {"sch/netlist": None, "pcb/gerbers": None}
+
+    monkeypatch.setattr(check_compat, "export_once", export_once)
+
+
+def test_fork_exports_update_writes_golden_only_for_golden_mismatches(monkeypatch, tmp_path):
+    golden = tmp_path / "golden.json"
+    golden.write_text(json.dumps({"exports": {"sch/netlist": {"tree_sha256": "stale", "files": {}}}}))
+    _fake_live(monkeypatch, tmp_path, "g")
+    assert main(["fork-exports", "--out", str(tmp_path / "out1"), "--golden", str(golden)]) == 1
+    assert main(["fork-exports", "--out", str(tmp_path / "out2"), "--golden", str(golden), "--update"]) == 0
+    assert set(json.loads(golden.read_text())["exports"]) == {"sch/netlist", "pcb/gerbers"}
+    assert main(["fork-exports", "--out", str(tmp_path / "out3"), "--golden", str(golden)]) == 0
+
+
+def test_fork_exports_update_refuses_a_failed_run(monkeypatch, tmp_path):
+    golden = tmp_path / "golden.json"
+    golden.write_text(json.dumps({"exports": {"sch/netlist": {"tree_sha256": "stale", "files": {}}}}))
+    before = golden.read_bytes()
+    _fake_live(monkeypatch, tmp_path, "different in run 2")  # pcb/gerbers is not deterministic
+    assert main(["fork-exports", "--out", str(tmp_path / "out"), "--golden", str(golden), "--update"]) == 1
+    assert golden.read_bytes() == before
+    report = json.loads((tmp_path / "out/report.json").read_text())
+    assert "pcb/gerbers" in report["failures"] and "sch/netlist" in report["failures"]
+
+
+def test_fork_roundtrip_verify_fails_when_reopen_rewrites_files(monkeypatch, tmp_path):
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "p.kicad_sch").write_text("(kicad_sch)")
+    root = SimpleNamespace(project=SimpleNamespace(path=str(project)))
+    monkeypatch.setattr(check_compat, "live_client", lambda: (None, root, None))
+    empty = {"nets": [], "schematics": {}, "board": []}
+    monkeypatch.setattr(check_compat, "snapshot", lambda client, root, board: empty)
+    state = tmp_path / "state.json"
+    teardrops = {"teardrop_zones_in_file": 0, "teardrop_zones_after_open": 0}
+    for hashes, status in ((check_compat.file_hashes(project), 0), ({"p.kicad_sch": "other"}, 1)):
+        state.write_text(json.dumps({"snapshot": empty, "unchanged_by_save": True, "before": teardrops,
+                                     "after": {"sha256": hashes, "teardrop_zones_in_file": 0}}))
+        assert main(["fork-roundtrip", "verify", "--state", str(state)]) == status
+
+
 def test_reference_jobs_cover_every_mcp_export(tmp_path):
     for suffix in (".kicad_pro", ".kicad_sch", ".kicad_pcb"):
         (tmp_path / f"p{suffix}").write_text("")
@@ -139,7 +228,7 @@ def test_committed_fixture_has_no_machine_paths():
 def test_golden_covers_every_export():
     if not Path(GOLDEN).exists():
         pytest.skip("golden hashes not generated")
-    golden = json.loads(Path(GOLDEN).read_text())["exports"]
+    golden = json.loads(Path(GOLDEN).read_text(encoding="utf-8"))["exports"]
     assert set(golden) == {f"sch/{k}" for k in SCH_EXPORTS} | {f"pcb/{k}" for k in PCB_EXPORTS}
     for entry in golden.values():
         assert entry["files"] and entry["tree_sha256"] == tree_hash(entry["files"])
@@ -147,7 +236,7 @@ def test_golden_covers_every_export():
 
 @pytest.mark.parametrize("name", ["reference-on-fork-fixture.json", "reference-on-reference-fixture.json"])
 def test_reference_expectations_cover_every_check(name, tmp_path):
-    expected = json.loads((Path(__file__).parent / "compat/expected" / name).read_text())
+    expected = json.loads((Path(__file__).parent / "compat/expected" / name).read_text(encoding="utf-8"))
     for suffix in (".kicad_pro", ".kicad_sch", ".kicad_pcb"):
         (tmp_path / f"p{suffix}").write_text("")
     jobs = {job for job, _, _ in reference_jobs(tmp_path, tmp_path / "out")}

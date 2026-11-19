@@ -6,6 +6,7 @@ Subcommands (each writes a JSON report into a NEW --out folder and never edits i
   versions DIR...          format version headers declared by every KiCad file in each folder
   reference                run the reference kicad-cli (ERC, DRC, every export, library reads) on a
                            COPY of a project and classify each result; no development KiCad needed
+  reproducible A B         compare the normalized outputs of two `reference` reports (same build)
   reference-mixed          fork-written rules and project files beside reference-authored designs
   reference-fixture        build a reference-authored project: copies of reference demos rewritten by
                            the reference kicad-cli and its Python pcbnew module (pro/prl)
@@ -40,6 +41,11 @@ SCH_EXPORTS = ("svg", "pdf", "dxf", "ps", "netlist", "bom")
 PCB_EXPORTS = ("gerbers", "drill", "position", "step", "pdf", "svg", "dxf", "ipc2581", "ipcd356", "odb",
                "stats", "dsn", "gencad", "idf")
 FUTURE = re.compile(r"newer version|future|too recent|more recent version", re.I)
+# Text KiCad prints when it cannot read a custom rules file (pcbnew_jobs_handler.cpp, DRC engine
+# parse errors).  Paths are not matched, so a folder named "rules" is not an error.
+RULE_ERROR = re.compile(r"could not compile custom design rules|\.kicad_dru\b|"
+                        r"\b(?:rule|constraint)s?\b[^\n]*\b(?:parse|syntax|unknown|unexpected|invalid)\b|"
+                        r"\b(?:parse|syntax) error", re.I)
 
 
 def write_json(path, value):
@@ -176,6 +182,8 @@ def run_reference(args):
         print(f"{name:28} {entry['result']:24} rc={completed.returncode}", flush=True)
     after = file_hashes(project)
     report["input_unchanged"] = after == before
+    # Normalized hashes of every output, so two runs of the same build can be compared (reproducible)
+    report["outputs"] = normalized_tree(out / "outputs", (project, out))
     # The reference may rewrite settings files even when it refuses the design (a downgrade)
     report["changed_inputs"] = {
         name: {"before": report["versions"].get(name), "after": project_versions(project).get(name)}
@@ -188,13 +196,18 @@ def run_reference(args):
 
 
 def compare_expected(report, expect_path):
-    """Exit status against a committed expectation: {"checks": {name: result}, "changed_inputs": [...]}."""
+    """Exit status against a committed expectation: {"checks": {name: result}, "changed_inputs": [...],
+    "messages": {name: regular expression the check's output must contain}}."""
     if not expect_path:
         return 0
     expected = json.loads(Path(expect_path).read_text(encoding="utf-8"))
     mismatches = [f"{name}: expected {result}, got {report['checks'].get(name, {}).get('result')}"
                   for name, result in expected["checks"].items()
                   if report["checks"].get(name, {}).get("result") != result]
+    for name, pattern in expected.get("messages", {}).items():
+        output = "\n".join(report["checks"].get(name, {}).get("output_tail") or [])
+        if not re.search(pattern, output, re.M):
+            mismatches.append(f"{name}: output does not contain /{pattern}/: {output!r}")
     if sorted(expected.get("changed_inputs", [])) != sorted(report["changed_inputs"]):
         mismatches.append(f"changed inputs: expected {expected.get('changed_inputs', [])}, "
                           f"got {sorted(report['changed_inputs'])}")
@@ -202,6 +215,19 @@ def compare_expected(report, expect_path):
         print("MISMATCH", line)
     print("matches expectation" if not mismatches else f"{len(mismatches)} mismatch(es)")
     return 1 if mismatches else 0
+
+
+def run_reproducible(args):
+    """Exit 1 unless two `reference` reports have the same normalized outputs (same files, same hashes)."""
+    first, second = (json.loads(Path(path).read_text(encoding="utf-8")).get("outputs") for path in args.reports)
+    if not first or not second:
+        print("a report has no normalized outputs (rerun `reference`)")
+        return 1
+    differing = sorted(name for name in set(first) | set(second) if first.get(name) != second.get(name))
+    for name in differing:
+        print("DIFFERS", name, "" if name in first and name in second else "(missing from one run)")
+    print(f"{len(first)} files; {len(differing)} differ" if differing else f"all {len(first)} files reproducible")
+    return 1 if differing else 0
 
 
 def run_reference_mixed(args):
@@ -229,18 +255,24 @@ def run_reference_mixed(args):
             completed = subprocess.run([str(args.cli), *cli_args], capture_output=True, text=True,
                                        encoding="utf-8", errors="replace", timeout=600)
             text = completed.stdout + completed.stderr
+            # KiCad can report a rules file it cannot compile and still exit 0 ("DRC incomplete")
             entry["checks"][name] = {"exit_code": completed.returncode,
                                      "result": classify(completed.returncode, text, produced.exists()),
-                                     "rule_errors": bool(re.search(r"rule|\.kicad_dru", text, re.I)
-                                                         and completed.returncode),
+                                     "rule_errors": rule_errors(text),
                                      "output_tail": text.strip().splitlines()[-4:]}
         entry["file_unchanged"] = sha256(target.read_bytes()).hexdigest() == before
         report["cases"][case] = entry
-        print(case, {k: v["result"] for k, v in entry["checks"].items()}, "unchanged:", entry["file_unchanged"])
+        print(case, {k: v["result"] + (" +rule errors" if v["rule_errors"] else "") for k, v in entry["checks"].items()},
+              "unchanged:", entry["file_unchanged"])
     write_json(out / "report.json", report)
-    ok = all(c["file_unchanged"] and all(v["result"] == "ok" for v in c["checks"].values())
+    ok = all(c["file_unchanged"] and all(v["result"] == "ok" and not v["rule_errors"] for v in c["checks"].values())
              for c in report["cases"].values())
     return 0 if ok else 1
+
+
+def rule_errors(text):
+    """Lines of kicad-cli output that report a rules-file problem, whatever the exit code."""
+    return [line.strip() for line in text.splitlines() if RULE_ERROR.search(line)]
 
 
 def file_versions_safe(path):
@@ -343,8 +375,9 @@ def run_fork_exports(args):
     for run in ("run1", "run2"):
         errors = export_once(client, root, board, out / run)
         runs.append(errors)
-    golden = json.loads(Path(args.golden).read_text()) if Path(args.golden).exists() else {"exports": {}}
-    failures = []
+    golden = (json.loads(Path(args.golden).read_text(encoding="utf-8")) if Path(args.golden).exists()
+              else {"exports": {}})
+    failures, golden_mismatches = [], []
     for key in runs[0]:
         folder = key.replace("/", "-")
         entry = {"error": runs[0][key] or runs[1][key]}
@@ -359,8 +392,8 @@ def run_fork_exports(args):
                            else "missing" if not expected else "mismatch")
         if entry["error"] or not entry.get("deterministic"):
             failures.append(key)
-        elif entry["golden"] != "match" and not args.update:
-            failures.append(key)
+        elif entry["golden"] != "match":
+            golden_mismatches.append(key)
         report["exports"][key] = entry
         print(f"{key:14} {'ERROR ' + entry['error'] if entry['error'] else ''}"
               f"{'' if entry['error'] else ('deterministic' if entry['deterministic'] else 'NONDETERMINISTIC')}"
@@ -368,7 +401,12 @@ def run_fork_exports(args):
     report["project_unchanged"] = file_hashes(project_dir) == report.pop("before")
     if not report["project_unchanged"]:
         failures.append("project files changed")
-    if args.update:
+    # --update only accepts golden mismatches: a run that failed otherwise never rewrites the golden
+    if args.update and failures:
+        print("golden NOT updated: the run has other failures", flush=True)
+    elif args.update:
+        report["golden_updated"] = golden_mismatches
+        golden_mismatches = []
         Path(args.golden).parent.mkdir(parents=True, exist_ok=True)
         write_json(Path(args.golden), {
             "fixture": "compat/fixture/compat-fixture",
@@ -376,6 +414,7 @@ def run_fork_exports(args):
             "application_version": report["application_version"].get("version", {}).get("full_version"),
             "exports": {k: {"tree_sha256": v["tree_sha256"], "files": v["files"]}
                         for k, v in sorted(report["exports"].items()) if v.get("tree_sha256")}})
+    failures += golden_mismatches
     report["failures"] = failures
     write_json(out / "report.json", report)
     print("failures:", failures or "none")
@@ -492,7 +531,7 @@ def run_fork_roundtrip(args):
                                      "teardrop_zones_in_file": count_teardrops(board_file)}})
         print("saved; versions after save:", json.dumps(project_versions(project_dir), indent=1))
         return 0
-    saved = json.loads(state.read_text())
+    saved = json.loads(state.read_text(encoding="utf-8"))
     differences = compare_snapshots(saved["snapshot"], current)
     on_disk = file_hashes(project_dir) == saved["after"]["sha256"]
     write_json(state.with_name(state.stem + "-verify.json"),
@@ -504,7 +543,7 @@ def run_fork_roundtrip(args):
                                    "after_reopen": len(canonical(current)["teardrops"])}})
     print("differences:", json.dumps(differences, indent=1) if differences else "none",
           "| files unchanged by reopen:", on_disk)
-    return 1 if differences or not saved["unchanged_by_save"] else 0
+    return 1 if differences or not saved["unchanged_by_save"] or not on_disk else 0
 
 
 def main(argv=None):
@@ -518,6 +557,8 @@ def main(argv=None):
     reference.add_argument("--label", default="")
     reference.add_argument("--out", required=True)
     reference.add_argument("--expect", help="JSON of expected results; exit 1 on any difference")
+    reproducible = sub.add_parser("reproducible")
+    reproducible.add_argument("reports", nargs=2, help="two report.json files written by `reference`")
     mixed = sub.add_parser("reference-mixed")
     mixed.add_argument("--cli", required=True)
     mixed.add_argument("--reference-project", required=True, help="reference-authored project folder")
@@ -539,7 +580,8 @@ def main(argv=None):
     if args.command == "versions":
         print(json.dumps({folder: project_versions(folder) for folder in args.folders}, indent=1, sort_keys=True))
         return 0
-    return {"reference": run_reference, "reference-mixed": run_reference_mixed,
+    return {"reference": run_reference, "reproducible": run_reproducible,
+            "reference-mixed": run_reference_mixed,
             "reference-fixture": run_reference_fixture,
             "fork-exports": run_fork_exports, "fork-roundtrip": run_fork_roundtrip}[args.command](args)
 
