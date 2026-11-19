@@ -1,0 +1,65 @@
+{
+  "build_info_sha256": "9aa30c6ca6024fe51cf98de83ee93bd46bc4a0c0773b4452c077b8527cc3695e",
+  "checks": [
+    "offline_diagnostics",
+    "clean_eof",
+    "initialize",
+    "tools",
+    "capabilities",
+    "resource",
+    "describe",
+    "skill_discovery",
+    "skill_tools_and_resources_all_files",
+    "skill_hashes",
+    "missing_and_traversal_errors",
+    "invalid_arguments",
+    "unknown_tool",
+    "block_helpers_module_in_PYZ_archive"
+  ],
+  "command_count": 145,
+  "editor_contacted": false,
+  "executable_sha256": "385975eb57daf703b97bd961cfbf75ea2ecf708dbbe06c76b8693820d333b91d",
+  "helper_source_sha256": {
+    "block_example.py": "07d31fe9e020f8bf50accab023dd890740fd108e35f63ec564ebb810cd7a607b",
+    "block_helpers.py": "6baeb22e1472e395aac3a963b9a47d333835c66cc0c178d0a69470608dc443e6"
+  },
+  "independent_agent_evidence": false,
+  "kind": "scripted_fresh_stdio_and_frozen_delivery_check",
+  "limitations": [
+    "No helper execution MCP tool added",
+    "No native editor mutation in this check",
+    "Independent fresh-session workflow awaits controller evaluator"
+  ],
+  "native_editor_contacted": false,
+  "native_source_comparison": "Equal after CRLF/LF newline normalization",
+  "native_source_sha256": {
+    "block_example.py": "43fc6c314507ad4db2ce716fc5030d914d77b4f3d59b2f720172cf007ca28bd4",
+    "block_helpers.py": "a3b41eed809201aa9b0c6a2773782714ce82f64738a61baa45ae226296f28de5"
+  },
+  "result": "passed",
+  "revision_source": "caller-supplied archive revision; inspect source checksums",
+  "schema_sha256": "214ce118ab3b9bfa24fc06818000fb6443c8a4340976875bcc0569f96d9b5115",
+  "skills": {
+    "default": "kicad-house-style",
+    "manifest_version": 1,
+    "skill_content_sha256": "2e4c83a49dad76f65eca2b28ca58e2e2d83e2cdc263d5aa8851bd6a86ae9b8c2",
+    "skill_file_sha256": {
+      "kicad-house-style/SKILL.md": "cff6b0e86335989f951ee28b98421b3f6e24be76f7edb05b82dd55aaad93adb0",
+      "kicad-house-style/block-helpers.md": "bc0011b82bd07545ebd058809cb99292dd5974050e2f78f0a7cfbd3e7240a6ad",
+      "kicad-house-style/design-review.md": "be051ad91580471e79aef1fe744196981fed106eedee28c3ec1affaae5bc955e",
+      "kicad-house-style/live-workflow.md": "5d1a3d69ff36b390c6e0c36baa4853f4330e310ba927cf225e62022ea3ebd1da",
+      "kicad-house-style/parts-and-libraries.md": "d7ab2b2915a0e8e59de0fc9a4a596cd7331399646ca98b692d737346247a42b3",
+      "kicad-house-style/pcb.md": "928b9e78c3f2694ecec6ea89a350364f31fc2f476348f4a59cc710373f130109",
+      "kicad-house-style/schematic-style.md": "34f88b080d6d87fd546bf5bd60465dc21a275f62abff9531d225e65a7bbb21ee",
+      "kicad-house-style/workstation.md": "82eaf9c08692c9243ded37399d96494cd225130ffe5ff9a4c682be04cae13274"
+    },
+    "skill_versions": {
+      "kicad-house-style": "1.1.0"
+    }
+  },
+  "source_archive_sha256": "f27a41684d9d8deb8b670cad3e1368303ceb6a006bf864ea7c67f4f927ee4341",
+  "source_dirty": null,
+  "source_revision": "4cc55d79a954dec80795094126c5b373a47a80b2",
+  "source_skill_manifest_compared": true,
+  "tool_count": 112
+}
