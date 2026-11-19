@@ -3,8 +3,8 @@
 
 Run against a development KiCad with a schematic open. Exercises annotate, pin lookup, wiring helpers,
 netlist, move-with-drag, undo/redo, update from library, autoplace, ERC, full-symbol updates without
-library mismatches, batch rollback, export and the generic execute path. Never saves; checks the
-files on disk are unchanged.
+library mismatches (including a De Morgan symbol created from its definition), batch rollback, export
+and the generic execute path. Never saves; checks the files on disk are unchanged.
 
     python e2e_features.py [output_dir]
 """
@@ -14,6 +14,7 @@ from pathlib import Path
 import random
 import sys
 import tempfile
+import uuid
 
 from client import LiveSchematic, as_dict, document, kiid, point, sch, types
 from e2e_guard import test_document
@@ -110,6 +111,103 @@ def check_full_symbol_updates(client, root, ox, oy):
     client.delete(root, list(ids))
 
 
+def body_style_names(definition):
+    return [style.name for style in definition.body_style]
+
+
+def pin_body_styles(definition):
+    return {child.body_style.style for child in definition.items
+            if child.item.TypeName().endswith(".SchematicPin")}
+
+
+DE_MORGAN_FONT = "(effects (font (size 1.27 1.27)))"
+DE_MORGAN_LIBRARY = """(kicad_symbol_lib (version 20251024) (generator "kicad_symbol_editor")
+  (symbol "MCP_DEMORGAN" (body_styles demorgan) (exclude_from_sim no) (in_bom yes) (on_board yes)
+    (property "Reference" "U" (at 0 6.35 0) {font})
+    (property "Value" "MCP_DEMORGAN" (at 0 -6.35 0) {font})
+    (property "Footprint" "" (at 0 0 0) (hide yes) {font})
+    (property "Datasheet" "" (at 0 0 0) (hide yes) {font})
+    (property "Description" "De Morgan test gate" (at 0 0 0) (hide yes) {font})
+    (symbol "MCP_DEMORGAN_1_1"
+      (rectangle (start -3.81 3.81) (end 3.81 -3.81) (stroke (width 0.254) (type default))
+        (fill (type background)))
+      (pin input line (at -7.62 0 0) (length 3.81) (name "A" {font}) (number "1" {font}))
+      (pin output line (at 7.62 0 180) (length 3.81) (name "Y" {font}) (number "2" {font})))
+    (symbol "MCP_DEMORGAN_1_2"
+      (circle (center 0 0) (radius 3.81) (stroke (width 0.254) (type default)) (fill (type background)))
+      (pin input inverted (at -7.62 0 0) (length 3.81) (name "A" {font}) (number "1" {font}))
+      (pin output inverted (at 7.62 0 180) (length 3.81) (name "Y" {font}) (number "2" {font})))))
+""".format(font=DE_MORGAN_FONT)
+
+
+def check_de_morgan_definition(client, root, ox, oy):
+    """A De Morgan symbol created from its full library definition matches its library.
+
+    A definition names every body style, so the De Morgan pair arrives as "Standard" and "Alternate",
+    which the editor must store as the De Morgan flag: stored as names, the embedded copy differs
+    from its library and ERC reports a mismatch.
+
+    The symbol is a minimal gate in a scratch library rather than a stock one: the API drops repeated
+    consecutive polyline vertices when it reads a shape, and every stock De Morgan gate (74xx, 4xxx)
+    draws its alternate body with some, so a copy rebuilt from its definition always differs from
+    the library.  Only a full library definition has the pins of both body styles; a placed symbol's
+    definition lists those of its placed body style, so it cannot rebuild the other one.  For a
+    placed symbol the guarantee is that sending its definition back unchanged keeps the embedded
+    copy, which the last step checks.
+    """
+    lib_dir = Path.home() / "kicad-live" / "libs"
+    lib_dir.mkdir(parents=True, exist_ok=True)
+    nickname = f"mcp_demorgan_{uuid.uuid4().hex[:6]}"
+    path = lib_dir / f"{nickname}.kicad_sym"
+    path.write_text(DE_MORGAN_LIBRARY)
+    client.add_library(nickname, str(path), scope="global", description="MCP De Morgan test", create=False)
+    try:
+        check_de_morgan_symbol(client, root, f"{nickname}:MCP_DEMORGAN", point(60 + ox, 135 + oy))
+    finally:
+        client.remove_library(nickname, scope="global")
+        path.unlink()
+
+
+def check_de_morgan_symbol(client, root, lib_id, origin):
+    found = client.library_symbols([lib_id])
+    check(len(found) == 1, f"read the {lib_id} library definition")
+    full = found[0]
+    names, pins = body_style_names(full), pin_body_styles(full)
+    check(names == ["Standard", "Alternate"] and {1, 2} <= pins,
+          f"library definition has both De Morgan body styles and their pins: {names} {pins}")
+
+    symbol = sch.SchematicSymbolInstance(id=kiid(), position=origin, definition=full, lib_id=full.id)
+    symbol.transform.orientation = sch.SSO_0
+    symbol.unit.unit = 1
+    symbol.body_style.style = 1
+    symbol.attributes.CopyFrom(full.attributes)
+    for name in ("reference", "value", "footprint", "datasheet", "description"):
+        field = getattr(symbol, name + "_field")
+        field.CopyFrom(getattr(full, name + "_field"))
+        field.text.position.x_nm += origin.x_nm
+        field.text.position.y_nm += origin.y_nm
+    symbol.reference_field.text.text = "U901"
+    client.mutate(root, [symbol])
+    symbol_id = symbol.id.value
+    ids = {symbol_id}
+
+    check(not library_mismatches(client, root, ids), "De Morgan symbol from its full definition: no library mismatch")
+    placed = symbol_items(client, root, ids)[symbol_id]
+    check(body_style_names(placed.definition) == ["Standard", "Alternate"] and placed.HasField("body_style"),
+          f"read back with two (De Morgan) body styles: {body_style_names(placed.definition)}")
+    check(client.symbol_pins(root, [symbol_id], with_nets=False)[0]["lib_id"] == lib_id,
+          f"and linked to {lib_id}")
+
+    placed.value_field.text.text = "MCP-DEMORGAN"
+    client.mutate(root, [placed], update=True)
+    again = symbol_items(client, root, ids)[symbol_id]
+    check(again.value_field.text.text == "MCP-DEMORGAN" and again.definition == placed.definition,
+          "sending its definition back unchanged kept it")
+    check(not library_mismatches(client, root, ids), "and still no library mismatch")
+
+    client.delete(root, [symbol_id])
+
+
 def main():
     out = Path(sys.argv[1] if len(sys.argv) > 1 else "live-smoke-output")
     out.mkdir(parents=True, exist_ok=True)
@@ -180,6 +278,7 @@ def main():
     check("violation_count" in erc, f"ERC ran: {erc['violation_count']} violations")
 
     check_full_symbol_updates(client, root, ox, oy)
+    check_de_morgan_definition(client, root, ox, oy)
 
     count = len(client.items(root).items)
     good = {"@type": "type.googleapis.com/kiapi.schematic.types.SchematicLine",
