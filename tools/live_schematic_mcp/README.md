@@ -346,10 +346,45 @@ are translated. SolidCraft exports default to `%USERPROFILE%\kicad-models`
 ~/kicad-live/venv/bin/python e2e_pcb.py out/               # board page, grid, origins, outline, footprints, routing, zones, DRC, exports
 ~/kicad-live/venv/bin/python e2e_design.py out/            # stackup, impedance, rules, custom rules, net classes, keepouts, routing around copper, checks
 SOLIDCRAFT_CLI=/path/to/solidcraft-cli ~/kicad-live/venv/bin/python e2e_model_handoff.py out/     # SolidCraft builds the STEP; KiCad embeds and renders it
+~/kicad-live/venv/bin/python e2e_item_roundtrip.py out/    # unchanged item updates and re-creations leave the saved file unchanged
 ```
 
 On native Windows, `scripts\run_tests.ps1 [-Live]` runs the same set with `C:\kb\venv`
 (output in `C:\kb\live\test-output`); run single scripts with `C:\kb\venv\Scripts\python.exe`.
+
+### Item round trip
+
+`e2e_item_roundtrip.py` sends every item back exactly as `GetItems` returned it, and also
+deletes it and creates it again from that message. Each time it compares the document saved to a
+string (`SaveDocumentToString`, KiCad's own writer) block by block. The default run builds one item
+of every schematic type with non-default values far off the test schematic's page and removes it
+afterwards; it never saves. `--isolated` (with `KICAD_ROUNDTRIP_ISOLATED=1` and an explicit
+`KICAD_API_SOCKET`) runs on a disposable project made by `e2e_item_roundtrip.py prepare <dir>` (qa's
+`api_kitchen_sink` schematic and board): it checks every schematic and board item, then saves,
+reverts to the saved files and compares every item again.
+
+An update applies the message over the existing item, so whatever the message cannot carry keeps
+its value. Values the files cannot hold are applied as they will be saved, or not at all:
+
+| Field | Behaviour |
+| --- | --- |
+| `NoConnectMarker.size`, `DirectiveLabel.symbol_size` | Read-only: not saved, every item has the default size |
+| Colours | Applied with 8 bits per channel (as saved); alpha is kept |
+| Text `multiline` | Not saved: each text type keeps its own setting |
+| `SheetSymbol.border_stroke.style` | Sheet borders are always solid |
+| `SchematicImage.opacity` | Optional: absent means opaque for a new image and unchanged for an update |
+| `SchematicImage.transform_origin_offset` | Not saved; reopening resets it |
+| Bus-to-bus `BusEntry` | Saved as the bus segment it draws (same UUID); it reopens as a bus line |
+| Schematic polyline `closed` | Not saved: polylines reopen open (filled ones still draw closed) |
+| `fields_autoplaced` of a label without fields | Not saved |
+| Global label intersheet reference visibility | Follows the schematic's setting when loaded |
+| Pins and graphics of a symbol definition, pad primitives, the board's own UUID | Have no saved UUID, so they are new after reopening |
+
+Creating an item renews the UUIDs of its children (symbol and sheet pins, table cells), and a
+created symbol lists its pins in the order of the request. Sending a symbol with its full
+definition keeps the cached library symbol when the definition is unchanged and rebuilds it when it
+was edited (see the note after the schematic tools table); the probe reports full-definition results separately
+(informational) and checks the instance round trip with a definition-less update.
 
 ## Supported schematic block scripting
 
