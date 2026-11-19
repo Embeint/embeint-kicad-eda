@@ -3,7 +3,7 @@
 
 KiCad must run as the project manager with the test project (run_kicad_wsl.sh or
 run_kicad_windows.ps1 without arguments); the test opens the schematic and board itself.  Exercises
-page and title block, the page check, grid, both origins, outline, footprint placement and moves, routing, vias, zones, graphics, DRC,
+page and title block, the page check, grid, both origins, outline, footprint placement and moves, a 3D body colour, routing, vias, zones, graphics, DRC,
 undo, views, exports and update-from-schematic.  Never saves; checks the board on disk is unchanged
 and removes what it added.
 
@@ -14,10 +14,12 @@ from hashlib import sha256
 from pathlib import Path
 import sys
 import tempfile
+import uuid
 
 from client import LiveSchematic
 from board_client import bt
 from e2e_guard import test_board, test_document
+from item_roundtrip import save_string
 
 RESISTOR = "Resistor_SMD:R_0603_1608Metric"
 
@@ -30,6 +32,30 @@ def check(condition, message):
 
 def digest(path):
     return sha256(path.read_bytes()).hexdigest() if path.exists() else None
+
+
+def check_body_colour(client, board, footprint_id):
+    """An extruded 3D body colour is saved at full precision, so the API keeps it exactly rather
+    than rounding it to the 8 bits per channel other colours are saved with."""
+    footprint = next(f for f in client.board_unpacked(board, "footprints") if f.id.value == footprint_id)
+    body = bt.Body3D(kind=bt.BDK_EXTRUDED, visible=True)
+    body.id.value = str(uuid.uuid4())
+    body.scale.x_nm = body.scale.y_nm = body.scale.z_nm = 1.0
+    body.extruded.height.value_nm = 500000
+    body.extruded.material = bt.EM_PLASTIC
+    body.extruded.color.r, body.extruded.color.g, body.extruded.color.b, body.extruded.color.a = 0.3, 0.45, 0.7, 1.0
+    footprint.definition.items.add().Pack(body)
+    client.mutate(board, [footprint], update=True)
+
+    footprint = next(f for f in client.board_unpacked(board, "footprints") if f.id.value == footprint_id)
+    colours = []
+    for packed in footprint.definition.items:
+        found = bt.Body3D()
+        if packed.Unpack(found) and found.id.value == body.id.value:
+            colours.append((found.extruded.color.r, found.extruded.color.g, found.extruded.color.b))
+    check(colours == [(0.3, 0.45, 0.7)], f"a 3D body colour is kept at full precision: {colours}")
+    saved = save_string(client, board)
+    check("(color 0.3 0.45 0.7 1)" in saved, "the 3D body colour is saved at full precision")
 
 
 def main():
@@ -94,6 +120,7 @@ def main():
     client.board_move_footprints(board, [{"reference": "R902", "side": "front"}])
     pads = {f["reference"]: f for f in client.board_footprints(board, ["R901", "R902"], with_pads=True)}
     check(len(pads["R901"]["pads"]) == 2 and "size_mm" in pads["R901"]["pads"][0], "pads listed with sizes")
+    check_body_colour(client, board, r1["id"])
 
     # Routing, via, zone, graphics
     # These manually placed fixture footprints have no schematic netlist. Give
