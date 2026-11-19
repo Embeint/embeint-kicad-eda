@@ -135,7 +135,27 @@ def stop(container, pid):
         container.execute("kill", "-TERM", pid)
 
 
-async def check(container, evidence=None):
+def history_refs(container):
+    text = container.execute("sh", "-c",
+        'for ref in /home/qualification/live-demo/.history/.git/refs/heads/* '
+        '/home/qualification/live-demo/.history/.git/refs/tags/Last_Save_sch; do '
+        'if test -f "$ref"; then printf "%s " "$ref"; cat "$ref"; fi; done')
+    return {line.split()[0].split("/refs/", 1)[1]: line.split()[1]
+            for line in text.splitlines()}
+
+
+async def wait_for_autosave(container, saved=None):
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        refs = history_refs(container)
+        heads = [oid for name, oid in refs.items() if name.startswith("heads/")]
+        if heads and (saved is None or heads[0] != saved):
+            return refs
+        await asyncio.sleep(0.5)
+    raise AssertionError("no new incremental autosave observed before deadline")
+
+
+async def check(container, evidence=None, recovery_history=False):
     container.validate()
     container.execute("mkdir", "/home/qualification/live-demo")
     container.execute("sh", "-c", "cat > /home/qualification/live-demo/live-demo.kicad_pro",
@@ -171,7 +191,18 @@ async def check(container, evidence=None):
             payload(await client.call_tool("live_schematic_undo", {"document_spec": document, "redo": True}))
             restored = payload(await client.call_tool("live_schematic_items", {"document_spec": document}))
             assert canonical_items(before) == canonical_items(restored), "undo/redo changed the design"
+            if recovery_history:
+                observations["before_save_history"] = await wait_for_autosave(container)
+                assert "tags/Last_Save_sch" not in observations["before_save_history"]
             payload(await client.call_tool("live_schematic_save", {"document_spec": document}))
+            if recovery_history:
+                refs = history_refs(container)
+                assert refs["tags/Last_Save_sch"] in [
+                    oid for name, oid in refs.items() if name.startswith("heads/")], refs
+                observations["after_save_history"] = refs
+                # Saving unchanged content must still anchor recovery at the saved HEAD.
+                payload(await client.call_tool("live_schematic_save", {"document_spec": document}))
+                assert history_refs(container) == refs
             saved = payload(await client.call_tool("live_schematic_items", {"document_spec": document}))
             observations["saved_items"] = saved
             netlist = payload(await client.call_tool("live_schematic_netlist", {"document_spec": document}))
@@ -192,11 +223,19 @@ async def check(container, evidence=None):
             assert payload(await client.call_tool("live_schematic_netlist", {"document_spec": document})) == netlist
             observations["reopened_disk_hashes"] = disk_hashes(container)
             assert observations["saved_disk_hashes"] == observations["reopened_disk_hashes"], "reopen changed saved files"
+            if recovery_history:
+                payload(await client.call_tool("live_schematic_place_symbol", {
+                    "document_spec": document, "lib_id": "Device:R", "x_mm": 100,
+                    "y_mm": 40, "reference": "R3"}))
+                saved = observations["after_save_history"]["tags/Last_Save_sch"]
+                refs = await wait_for_autosave(container, saved)
+                assert refs["tags/Last_Save_sch"] == saved, refs
+                observations["later_unsaved_history"] = refs
         return {"result": "passed", "schema_sha256": inventory["schema_sha256"],
                 "version": documents["version"], "checks": ["install", "first_launch", "stdio",
                 "place_symbols", "connect_pins", "undo_redo", "save_restart_reopen", "connectivity"],
                 "network": "none", "runtime": container.kind, "host_source_mounted": False,
-                "system_python_present": False}
+                "system_python_present": False, "recovery_history_checked": recovery_history}
     finally:
         if pid is not None:
             stop(container, pid)
@@ -212,9 +251,12 @@ def main():
     parser.add_argument("--runtime", choices=("docker", "bwrap"), default="docker",
                         help="Docker container name, or a separate installed root directory for bwrap")
     parser.add_argument("output", type=Path)
+    parser.add_argument("--recovery-history", action="store_true",
+                        help="require real incremental autosave, saved recovery marker and later unsaved history")
     args = parser.parse_args()
     result = asyncio.run(asyncio.wait_for(check(Runtime(args.container, args.runtime),
-                                              args.output.with_suffix(".snapshots.json")), timeout=300))
+                                              args.output.with_suffix(".snapshots.json"),
+                                              args.recovery_history), timeout=300))
     args.output.write_text(json.dumps(result, indent=2) + "\n")
 
 
