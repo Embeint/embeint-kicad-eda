@@ -1104,6 +1104,23 @@ def test_design_rules_and_netclasses_requests():
     assert assignment.assignments[0].net == "ANT" and assignment.pattern_assignments[0].netclass == "USB"
 
 
+@pytest.mark.parametrize("path, expected", [("/tmp/test", "/tmp/test/"), ("/tmp/test/", "/tmp/test/"),
+                                            (r"C:\kb\live\projects\live-demo", "C:\\kb\\live\\projects\\live-demo\\"),
+                                            ("C:\\kb\\demo\\", "C:\\kb\\demo\\")])
+def test_netclass_project_path_gets_the_native_trailing_separator(path, expected):
+    """KiCad matches GetProjectPath(), which ends in the native separator; board listings omit it."""
+    sent = []
+
+    def reply(request, response_type):
+        sent.append(request)
+        return response_type()
+
+    doc = board_doc()
+    doc.project.path = path
+    FakeClient(reply).board_netclasses(doc)
+    assert {request.project.path for request in sent} == {expected}
+
+
 def test_stackup_request_and_thickness_scaling():
     from board import board_pb2
     sent = []
