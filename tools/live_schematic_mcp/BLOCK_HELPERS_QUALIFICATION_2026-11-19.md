@@ -13,6 +13,13 @@ suite passed **291 tests**, including **23 helper regressions**, on WSL Python 3
 The skill-creator frontmatter/reference validator also passed. The later acceptance
 merge is tested separately; these numbers do not describe an untested later head.
 
+After merging acceptance head `61290f6731de8a1d15e3a6f3c7c92cb2ecc57278`, source
+`a8fcfd66aa4e080ee1e8a96cb1eb67cd5df42c3d` passed **304 combined offline tests**
+in 38.50 seconds with a JUnit receipt. The helper/client/server and bundled skill
+files are unchanged from the packaged `4cc55d7` source; this later merge adds the
+acceptance files and their evidence. The following helper commit updates this
+qualification record only.
+
 The helper regressions exercise the real client's batch/document/status/commit
 code over an in-memory editor. They show manual-item preservation, route-only
 connectivity revisions, normalized desired/current no-ops, stale owned state,
@@ -67,11 +74,13 @@ new isolated synthetic WSL runtime. The probe passed: actual Device:R pin endpoi
 intended net membership before/after the route revision, one T junction, manual
 item preservation, repeat no-op, stale fingerprint refusal, page containment and
 exact UUID cleanup with no save. It performed no app/configuration/process changes.
-The owner retains the full native receipt with the acceptance evidence; this
-layer never concurrently used that app.
+The [committed acceptance receipt](qualification/evidence/capture-windows-wsl-2026-11-19.json)
+retains this result under `helper_probe`; this layer never concurrently used that
+app. Acceptance PR #8 is published at `61290f6731de8a1d15e3a6f3c7c92cb2ecc57278`
+and merged here without rewriting history.
 
-The native-tested helper source was
-`dbd3075e3c9b05752c3a7ffa277ecf1331442bfe`; the helper files are unchanged in the
+The final native-tested helper source was
+`9dc7a020fc3dcc468c61906997826444fea283f9`; the helper files are unchanged in the
 archived package source except export newlines. Native identity is the retained
 `d880b3be5dbf30003e4b0069262417d0278bf528` build with its exact four-file loader
 patch, measured `10.99.0-qualification-d880-loader-patch-dirty`. This is new scripted
