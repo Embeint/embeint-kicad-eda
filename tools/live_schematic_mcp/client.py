@@ -154,11 +154,13 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
     def __init__(self, socket_url=None, timeout_ms=15000):
         self.socket_url = socket_url or os.environ.get("KICAD_API_SOCKET")
         explicit_socket = bool(self.socket_url)
-        self._socket_selected = explicit_socket or sys.platform != "linux"
+        # Linux/WSL (Unix sockets) and Windows (named pipes) discover the instance lazily;
+        # other hosts keep the default endpoint.
+        self._socket_selected = explicit_socket or sys.platform not in ("linux", "win32")
         if not self.socket_url:
             self.socket_url = default_socket_url()
-        # Offline MCP discovery must also start on hosts whose default temp path
-        # is outside the supported local Unix IPC contract (for example Windows).
+        # Offline MCP startup never validates or dials the default endpoint; an
+        # explicit one must be a local IPC URL from the start.
         if explicit_socket:
             local_socket_path(self.socket_url)
         self.token = os.environ.get("KICAD_API_TOKEN", "") if explicit_socket else ""

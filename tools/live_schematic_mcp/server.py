@@ -395,7 +395,7 @@ def live_symbol_libraries(scope: str = "both") -> list[dict]:
 def live_symbol_create_library(nickname: str, path: str, scope: str = "global", description: str = "") -> dict:
     """Create an empty .kicad_sym library at path and add it to the global (all projects) or project table.
 
-    path is as KiCad sees it (inside WSL for this build); environment variables like ${KIPRJMOD} work.
+    path is as KiCad sees it (a WSL path for the WSL build, a Windows path for native Windows); environment variables like ${KIPRJMOD} work.
     """
     return client.add_library(nickname, path, scope, description, create=True)
 
@@ -597,7 +597,8 @@ def live_footprint_attach_step(footprint_document: dict, step_path: str, offset_
                                rotation_deg: list[float] | None = None) -> dict:
     """EMBED a STEP/WRL model in the footprint and make it the 3D model (kicad-embed:// link).
 
-    step_path must be absolute and readable by KiCad (a WSL path for this build). The model travels
+    step_path must be absolute and readable by KiCad (Windows and WSL /mnt/x paths are both accepted and
+    translated for the KiCad in use). The model travels
     inside the footprint, so the library needs no separate 3D folder.
     """
     return client.footprint_attach_step(footprint_document_spec(footprint_document), step_path,

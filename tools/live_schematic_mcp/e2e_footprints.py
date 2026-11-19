@@ -17,10 +17,12 @@ import time
 import uuid
 
 from client import LiveSchematic, document, footprint_document, symbol_document
-from e2e_guard import test_document
+from e2e_guard import park_footprint_editor, test_document
+from model_handoff import kicad_path
 
 STOCK = "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
-STEP = "/mnt/c/Program Files/KiCad/10.0/share/kicad/3dmodels/Package_SO.3dshapes/SOIC-8_3.9x4.9mm_P1.27mm.step"
+STEP = kicad_path(r"C:\Program Files\KiCad\10.0\share\kicad\3dmodels\Package_SO.3dshapes"
+                  r"\SOIC-8_3.9x4.9mm_P1.27mm.step")
 DATASHEET = "https://www.ti.com/lit/ds/symlink/lm358.pdf"
 
 
@@ -113,6 +115,7 @@ def main():
         placed = client.place_symbol(root, f"{sym_lib}:TESTAMP", 150, 150)
         check(placed["reference"].startswith("U"), f"placed the symbol as {placed['reference']}")
     finally:
+        park_footprint_editor(client)  # before deleting the library folder it watches
         for nickname, kind in ((fp_lib, "footprint"), (sym_lib, "symbol")):
             try:
                 client.remove_library(nickname, scope="global", kind=kind)

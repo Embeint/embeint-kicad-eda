@@ -13,6 +13,7 @@ from mcp.client.stdio import stdio_client
 from pydantic import AnyUrl
 
 from commands import COMMANDS, message_class
+from fake_endpoints import unused_socket
 import server
 import client
 from support import CAPABILITIES_URI, local_capabilities
@@ -21,7 +22,8 @@ from support import CAPABILITIES_URI, local_capabilities
 @pytest.mark.parametrize("url", [r"ipc://C:\Temp\kicad\api.sock", "ipc:///"])
 def test_unsupported_default_path_allows_offline_startup_but_never_dials(monkeypatch, url):
     monkeypatch.delenv("KICAD_API_SOCKET", raising=False)
-    monkeypatch.setattr(client.sys, "platform", "win32")
+    # A host without automatic discovery keeps its default endpoint, which must still be local IPC
+    monkeypatch.setattr(client.sys, "platform", "darwin")
     monkeypatch.setattr(client, "default_socket_url", lambda: url)
     monkeypatch.setattr(client.pynng, "Req0", lambda **_: pytest.fail("unsupported IPC dialed"))
     live = client.LiveSchematic()
@@ -67,7 +69,7 @@ def test_registered_tool_and_command_schemas_are_valid():
     assert original["schema_sha256"] != changed["schema_sha256"]
 
 
-@pytest.mark.parametrize("socket_url", [None, "ipc:///nonexistent-embeint-mcp-test/api.sock"])
+@pytest.mark.parametrize("socket_url", [None, unused_socket("nonexistent-embeint-mcp-test")])
 def test_stdio_initialization_discovery_tools_and_resource_without_kicad(socket_url):
     async def exercise_protocol():
         parameters = StdioServerParameters(

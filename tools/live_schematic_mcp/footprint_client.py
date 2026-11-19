@@ -330,10 +330,11 @@ class FootprintTools:
     def footprint_attach_step(self, doc, step_path, offset=(0, 0, 0), rotation=(0, 0, 0), scale=(1, 1, 1)):
         """Embed a STEP/WRL model in the footprint and make it the footprint's 3D model.
 
-        Windows paths (as SolidCraft reports them) are translated to the WSL path KiCad reads.
+        Paths are translated to the form KiCad reads: Windows paths (as SolidCraft reports them)
+        to the WSL path under WSL, and WSL /mnt/x paths back to X:\ for native Windows KiCad.
         """
-        from model_handoff import to_wsl
-        step_path = to_wsl(step_path)
+        from model_handoff import kicad_path
+        step_path = kicad_path(step_path)
         if Path(step_path).suffix.lower() not in (".step", ".stp", ".stpz", ".wrl", ".wrz"):
             raise ValueError("3D models must be .step, .stp, .stpz, .wrl or .wrz")
         embedded = self.embed_file(doc, step_path, overwrite=True)
@@ -348,10 +349,10 @@ class FootprintTools:
                              lead_width=None, lead_span=None, foot_length=None, export_path=None):
         """The SolidCraft batch and export call that model this package, and how to come back."""
         from footprint_gen import generate
-        from model_handoff import default_model_dir, model_plan, to_wsl
+        from model_handoff import default_model_dir, kicad_path, model_plan
         if export_path is None:
-            export_path = f"{default_model_dir()}/{generate(package, **params)['name']}.step"
-        Path(to_wsl(export_path)).parent.mkdir(parents=True, exist_ok=True)
+            export_path = str(Path(default_model_dir()) / f"{generate(package, **params)['name']}.step")
+        Path(kicad_path(export_path)).parent.mkdir(parents=True, exist_ok=True)
         return model_plan(package, params, body_height, standoff, lead_thickness, lead_width, lead_span,
                           foot_length, export_path)
 
@@ -379,7 +380,7 @@ class FootprintTools:
     def footprint_check_model(self, lib_id, source_path=None):
         """Check a saved footprint's embedded models: stored bytes, links, and KiCad loading them."""
         import hashlib
-        from model_handoff import embedded_file_bytes, export_board_step, to_wsl
+        from model_handoff import embedded_file_bytes, export_board_step, kicad_path
         text = self.saved_footprint_text(lib_id)
         links = re.findall(r'\(model\s+"([^"]+)"', text)
         report = {"lib_id": lib_id, "models": links, "embedded": []}
@@ -388,7 +389,7 @@ class FootprintTools:
             entry = {"name": name, "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest(),
                      "is_step": data.lstrip()[:13] == b"ISO-10303-21;", "linked": f"kicad-embed://{name}" in links}
             if source_path:
-                source = Path(to_wsl(source_path)).read_bytes()
+                source = Path(kicad_path(source_path)).read_bytes()
                 entry["matches_source"] = hashlib.sha256(source).hexdigest() == entry["sha256"]
             report["embedded"].append(entry)
         step = export_board_step(self.kicad_cli(), text, lib_id)

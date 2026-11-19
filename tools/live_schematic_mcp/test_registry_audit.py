@@ -9,6 +9,7 @@ import pytest
 
 import commands
 from client import LiveSchematic, as_dict, bind_batch_document, check_item_statuses, editor, envelope, types
+from fake_endpoints import unused_socket
 from common.types import embedded_files_pb2 as embedded
 from test_client import FakeClient, board_doc
 
@@ -173,7 +174,7 @@ def test_embedded_execute_requires_ok_envelope_and_correct_reply(monkeypatch, st
             return reply.SerializeToString()
 
     monkeypatch.setattr("client.pynng.Req0", Connection)
-    client = LiveSchematic("ipc:///unused-p12-test-socket")
+    client = LiveSchematic(unused_socket("unused-p12-test-socket"))
     with pytest.raises(RuntimeError, match="Unexpected reply" if wrong_reply else "AS_"):
         client.execute("GetEmbeddedFiles", {"board": as_dict(board_doc())})
     assert len(calls) == 1  # no retry, commit or save
@@ -191,7 +192,7 @@ def test_live_audit_requires_explicit_isolation_before_contact(monkeypatch):
 def test_live_audit_refuses_customer_board_without_opening_another_editor(monkeypatch):
     import e2e_registry_audit
     monkeypatch.setenv("KICAD_P12_ISOLATED", "1")
-    monkeypatch.setenv("KICAD_API_SOCKET", "ipc:///unused-isolated-test-socket")
+    monkeypatch.setenv("KICAD_API_SOCKET", unused_socket("unused-isolated-test-socket"))
     monkeypatch.setenv("KICAD_LIVE_TEST_PROJECT", "live-demo")
 
     class CustomerSession:
@@ -206,7 +207,7 @@ def test_live_audit_refuses_customer_board_without_opening_another_editor(monkey
 def test_live_audit_handles_fixture_named_like_old_negative_target(monkeypatch, tmp_path, capsys):
     import e2e_registry_audit
     monkeypatch.setenv("KICAD_P12_ISOLATED", "1")
-    monkeypatch.setenv("KICAD_API_SOCKET", "ipc:///unused-isolated-test-socket")
+    monkeypatch.setenv("KICAD_API_SOCKET", unused_socket("unused-isolated-test-socket"))
     monkeypatch.setenv("KICAD_LIVE_TEST_PROJECT", "live-demo")
     monkeypatch.delenv("KICAD_P12_EXPECT_FILE", raising=False)
     target = board_doc()

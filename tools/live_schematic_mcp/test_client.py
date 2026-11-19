@@ -3,6 +3,7 @@
 
 from pathlib import Path
 import math
+import sys
 import uuid
 
 import pytest
@@ -11,6 +12,7 @@ from client import (LiveSchematic, as_dict, base, document, editor, jobs,
                     parse_items, point, sch, sch_jobs, types)
 from client import commands as sch_cmds
 from client import enums
+from fake_endpoints import unused_socket
 from board import board_rules_pb2 as rules_pb2
 from common.types import project_settings_pb2 as ps_pb2
 
@@ -30,7 +32,7 @@ def wire():
 
 class FakeClient(LiveSchematic):
     def __init__(self, reply=None):
-        super().__init__("ipc:///unused-test-socket")
+        super().__init__(unused_socket("unused-test-socket"))
         self.requests = []
         self.reply = reply
 
@@ -512,8 +514,9 @@ def test_paths_translate_between_windows_and_wsl():
     assert to_wsl("/home/me/a.step") == "/home/me/a.step" and to_windows("relative.step") == "relative.step"
 
 
-def test_model_plan_follows_kicad_3d_conventions():
+def test_model_plan_follows_kicad_3d_conventions(monkeypatch):
     from model_handoff import model_plan
+    monkeypatch.setattr(sys, "platform", "linux")  # the WSL KiCad reads /mnt/c
     plan = model_plan("soic", dict(pins=8, pitch=1.27, body_width=3.9, body_length=4.9, pad_length=1.95,
                                    pad_width=0.6, row_pitch=4.95),
                       body_height=1.75, standoff=0.1, lead_width=0.41, lead_span=6.0, foot_length=0.835,

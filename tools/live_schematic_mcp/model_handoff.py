@@ -13,6 +13,7 @@ KiCad 3D model conventions (what the plan follows):
 """
 
 import re
+import sys
 
 BODY_COLOR, LEAD_COLOR = "#1f1f1f", "#c9ccd1"
 
@@ -31,6 +32,15 @@ def to_windows(path):
     if not match:
         return str(path)
     return f"{match.group(1).upper()}:\\" + match.group(2).replace("/", "\\")
+
+
+def kicad_path(path):
+    """The path as the KiCad this MCP drives reads it.
+
+    The MCP runs next to KiCad: natively on Windows, where a WSL /mnt/x path is mapped back
+    to X:\\, and inside WSL, where SolidCraft's Windows paths are mapped to /mnt/x.
+    """
+    return to_windows(path) if sys.platform == "win32" else to_wsl(path)
 
 
 def _r(value):
@@ -148,11 +158,16 @@ def export_board_step(cli_path, footprint_text, lib_id):
 
 
 def default_model_dir():
-    """A folder on the Windows drive that both SolidCraft (Windows) and KiCad (WSL) can reach."""
+    """A folder that both SolidCraft (Windows) and KiCad can reach, as KiCad sees it."""
     import os
     import subprocess
     if os.environ.get("KICAD_LIVE_MODEL_DIR"):
         return os.environ["KICAD_LIVE_MODEL_DIR"]
+    if sys.platform == "win32":
+        profile = os.environ.get("USERPROFILE", "")
+        if re.match(r"^[A-Za-z]:\\", profile):
+            return profile.rstrip("\\") + "\\kicad-models"
+        raise RuntimeError("Set KICAD_LIVE_MODEL_DIR to a folder for SolidCraft's STEP exports")
     try:
         profile = subprocess.run(["cmd.exe", "/c", "echo %USERPROFILE%"], capture_output=True, text=True,
                                  timeout=20, cwd="/mnt/c").stdout.strip()
@@ -289,5 +304,5 @@ def model_plan(package, params, body_height, standoff=0.1, lead_thickness=0.2, l
     }
     if export_path:
         plan["export"] = {"tool": "export", "arguments": {"path": to_windows(export_path), "format": "step"}}
-        plan["then"] = {"tool": "live_footprint_attach_step", "step_path": to_wsl(export_path)}
+        plan["then"] = {"tool": "live_footprint_attach_step", "step_path": kicad_path(export_path)}
     return plan
