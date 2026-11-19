@@ -9,7 +9,7 @@ set -uo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
 pkill -x eeschema 2>/dev/null && sleep 1
-rsync -rc --exclude .git --exclude tools/live_schematic_mcp --out-format='synced %n' "$REPO/" "$ROOT/src/" \
+rsync -rc --exclude .git --exclude tools/live_schematic_mcp --exclude rust/target --out-format='synced %n' "$REPO/" "$ROOT/src/" \
     | grep -v "non-regular" | grep -v "_help_\|help_md"
 ninja -j "$JOBS" -C "$ROOT/build" > "$ROOT/build.log" 2>&1
 status=$?
