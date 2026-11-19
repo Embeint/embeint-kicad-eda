@@ -5,7 +5,6 @@ Mixed into LiveSchematic next to BoardTools.  Distances are millimetres; KiCad s
 """
 
 import math
-import re
 from pathlib import Path
 import sys
 
@@ -527,11 +526,12 @@ class BoardDesignTools:
         diff_pair_gap, priority}] (mm) creates or changes them ("Default" sets the board defaults);
         assign={net: class} and patterns={"/RF*": class} assign nets."""
         # The net class commands match the project path with its trailing separator; board listings omit
-        # it.  KiCad uses the native separator: "\" for a Windows path (C:\...), "/" otherwise.
+        # it.  KiCad uses the native separator: "\" for a Windows path (C:\... or \\server\share\...),
+        # "/" otherwise.
         project = types.ProjectSpecifier()
         project.CopyFrom(doc.project)
         if project.path and not project.path.endswith(("/", "\\")):
-            windows_path = re.match(r"^[A-Za-z]:\\", project.path) and "/" not in project.path
+            windows_path = "\\" in project.path and "/" not in project.path
             project.path += "\\" if windows_path else "/"
         if classes:
             existing = {c.name: c for c in self.send(project_cmds.GetNetClasses(project=project),

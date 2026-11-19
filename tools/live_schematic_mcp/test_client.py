@@ -1111,7 +1111,8 @@ def test_design_rules_and_netclasses_requests():
 
 @pytest.mark.parametrize("path, expected", [("/tmp/test", "/tmp/test/"), ("/tmp/test/", "/tmp/test/"),
                                             (r"C:\kb\live\projects\live-demo", "C:\\kb\\live\\projects\\live-demo\\"),
-                                            ("C:\\kb\\demo\\", "C:\\kb\\demo\\")])
+                                            ("C:\\kb\\demo\\", "C:\\kb\\demo\\"),
+                                            (r"\\server\share\proj", "\\\\server\\share\\proj\\")])
 def test_netclass_project_path_gets_the_native_trailing_separator(path, expected):
     """KiCad matches GetProjectPath(), which ends in the native separator; board listings omit it."""
     sent = []
