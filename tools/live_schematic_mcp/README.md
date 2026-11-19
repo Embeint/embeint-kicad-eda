@@ -364,12 +364,15 @@ afterwards; it never saves. `--isolated` (with `KICAD_ROUNDTRIP_ISOLATED=1` and 
 reverts to the saved files and compares every item again.
 
 An update applies the message over the existing item, so whatever the message cannot carry keeps
-its value. Values the files cannot hold are applied as they will be saved, or not at all:
+its value. Fields the message does carry are applied as sent, so send back what you read: an empty
+one clears its value (a text box sent without its hyperlink loses it). A definition-less symbol
+update keeps the symbol's embedded definition, pins and library link, even if its `lib_id` names
+another symbol. Values the files cannot hold are applied as they will be saved, or not at all:
 
 | Field | Behaviour |
 | --- | --- |
 | `NoConnectMarker.size`, `DirectiveLabel.symbol_size` | Read-only: not saved, every item has the default size |
-| Colours | Applied with 8 bits per channel (as saved); alpha is kept |
+| Colours | Schematic items, strokes, fills, net classes and stackup layers: applied with 8 bits per channel (as saved). A footprint's extruded 3D body colour is kept at full precision (as saved). Alpha is always kept |
 | Text `multiline` | Not saved: each text type keeps its own setting |
 | `SheetSymbol.border_stroke.style` | Sheet borders are always solid |
 | `SchematicImage.opacity` | Optional: absent means opaque for a new image and unchanged for an update |
