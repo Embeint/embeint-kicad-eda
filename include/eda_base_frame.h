@@ -623,6 +623,17 @@ public:
      */
     virtual void OnModify();
 
+    /**
+     * A counter that grows whenever the frame's document content changes: OnModify(), every
+     * undo/redo list push (commits, undo and redo) and clearing the undo history (loading or
+     * reloading a document).  It may also grow without a visible change; it never goes back.
+     * The API uses it for expected-revision checks (see API_HANDLER_EDITOR).
+     */
+    uint64_t GetDocumentRevision() const { return m_documentRevision; }
+
+    /// Mark a change to the document that did not go through OnModify() or the undo lists
+    void AdvanceDocumentRevision() { ++m_documentRevision; }
+
     bool IsClosing() const { return m_isClosing; }
 
     bool NonUserClose( bool aForce )
@@ -863,6 +874,9 @@ private:
 
     UNDO_REDO_CONTAINER     m_undoList;          // Objects list for the undo command (old data)
     UNDO_REDO_CONTAINER     m_redoList;          // Objects list for the redo command (old data)
+
+    /// @see GetDocumentRevision
+    uint64_t                m_documentRevision = 0;
 
     wxString                m_mruPath;           // Most recently used path.
 

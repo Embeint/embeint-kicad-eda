@@ -24,6 +24,7 @@
 #include <optional>
 
 #include <api/api_enums.h>
+#include <api/api_operation_log.h>
 #include <api/api_utils.h>
 #include <class_draw_panel_gal.h>
 #include <drawing_sheet/ds_data_item.h>
@@ -42,9 +43,83 @@
 #include <tool/actions.h>
 #include <tool/common_tools.h>
 #include <tool/tool_manager.h>
+#include <wx/log.h>
+#include <wx/time.h>
+#include <wx/timer.h>
 #include <wx/wx.h>
 
 using namespace kiapi::common::commands;
+
+
+namespace
+{
+
+/// Rolls back the API commits of clients that went away; ticks once a second while any is open
+class API_COMMIT_LEASE_TIMER : public wxTimer
+{
+public:
+    explicit API_COMMIT_LEASE_TIMER( std::function<void()> aOnTick ) :
+            m_onTick( std::move( aOnTick ) )
+    {
+    }
+
+    void Notify() override { m_onTick(); }
+
+private:
+    std::function<void()> m_onTick;
+};
+
+
+long long nowMs()
+{
+    return wxGetLocalTimeMillis().GetValue();
+}
+
+
+ApiResponseStatus contractError( ApiStatusCode aCode, const std::string& aMessage )
+{
+    ApiResponseStatus e;
+    e.set_status( aCode );
+    e.set_error_message( aMessage );
+    return e;
+}
+
+
+/**
+ * The document a request names: its first top-level DocumentSpecifier, or the document of its
+ * first top-level ItemHeader.  Requests that nest their document deeper name none.
+ */
+const types::DocumentSpecifier* requestDocument( const google::protobuf::Message& aRequest )
+{
+    const google::protobuf::Descriptor* descriptor = aRequest.GetDescriptor();
+    const google::protobuf::Reflection* reflection = aRequest.GetReflection();
+
+    for( int ii = 0; ii < descriptor->field_count(); ++ii )
+    {
+        const google::protobuf::FieldDescriptor* field = descriptor->field( ii );
+
+        if( field->is_repeated() || field->cpp_type() != google::protobuf::FieldDescriptor::CPPTYPE_MESSAGE
+            || !reflection->HasField( aRequest, field ) )
+        {
+            continue;
+        }
+
+        const google::protobuf::Message& value = reflection->GetMessage( aRequest, field );
+
+        if( auto document = google::protobuf::DynamicCastToGenerated<types::DocumentSpecifier>( &value ) )
+            return document;
+
+        if( auto header = google::protobuf::DynamicCastToGenerated<types::ItemHeader>( &value ) )
+        {
+            if( header->has_document() )
+                return &header->document();
+        }
+    }
+
+    return nullptr;
+}
+
+} // namespace
 
 
 API_HANDLER_EDITOR::API_HANDLER_EDITOR( EDA_BASE_FRAME* aFrame ) :
@@ -66,6 +141,387 @@ API_HANDLER_EDITOR::API_HANDLER_EDITOR( EDA_BASE_FRAME* aFrame ) :
     registerHandler<GetPageLayout, PageLayoutResponse>( &API_HANDLER_EDITOR::handleGetPageLayout );
     registerHandler<GetGridSettings, GridSettings>( &API_HANDLER_EDITOR::handleGetGridSettings );
     registerHandler<SetGridSettings, GridSettings>( &API_HANDLER_EDITOR::handleSetGridSettings );
+    registerHandler<GetDocumentRevision, DocumentRevisionResponse>( &API_HANDLER_EDITOR::handleGetDocumentRevision,
+                                                                    true );
+
+    m_revisionEpoch = KIID().AsStdString().substr( 0, 8 );
+}
+
+
+API_HANDLER_EDITOR::~API_HANDLER_EDITOR()
+{
+    if( m_leaseTimer )
+        m_leaseTimer->Stop();
+}
+
+
+std::string API_HANDLER_EDITOR::revisionToken( uint64_t aCounter ) const
+{
+    return fmt::format( "{}-{}", m_revisionEpoch, aCounter );
+}
+
+
+std::string API_HANDLER_EDITOR::documentRevision() const
+{
+    return m_frame ? revisionToken( m_frame->GetDocumentRevision() ) : std::string();
+}
+
+
+std::optional<ApiResponseStatus> API_HANDLER_EDITOR::beforeRequest( const kiapi::common::ApiRequestHeader& aHeader,
+                                                                    const google::protobuf::Message& aRequest )
+{
+    m_request = REQUEST_STATE();
+    m_request.revisionBefore = documentRevision();
+
+    const std::string& client = aHeader.client_name();
+    const std::string& expected = aHeader.expected_revision();
+    const std::string& operation = aHeader.operation_id();
+    const bool         contract = !expected.empty() || !operation.empty();
+    const bool         isEndCommit = google::protobuf::DynamicCastToGenerated<EndCommit>( &aRequest ) != nullptr;
+
+    // Clean up after clients that went away before anything else touches the document
+    expireCommits( client );
+
+    if( const types::DocumentSpecifier* document = requestDocument( aRequest ) )
+    {
+        if( document->type() != thisDocumentType() )
+        {
+            // Another editor's document.  With a revision or operation id, make sure only the
+            // editor that owns the document can run it.
+            if( contract )
+                return contractError( ApiStatusCode::AS_UNHANDLED, "" );
+
+            return std::nullopt;
+        }
+
+        if( tl::expected<bool, ApiResponseStatus> valid = validateDocumentInternal( *document ); valid )
+        {
+            m_request.namesThisDocument = true;
+            m_request.document.CopyFrom( *document );
+        }
+        else if( !expected.empty() )
+        {
+            m_request.refusedBeforeRun = true;
+            return valid.error();
+        }
+    }
+
+    if( !operation.empty() )
+    {
+        if( std::optional<std::string> problem = API_OPERATION_LOG::CheckId( operation ) )
+        {
+            m_request.doNotRecord = true;
+            return contractError( ApiStatusCode::AS_BAD_REQUEST, *problem );
+        }
+
+        if( API_OPERATION_LOG::Instance().Contains( operation ) )
+        {
+            m_request.doNotRecord = true;
+            return contractError( ApiStatusCode::AS_DUPLICATE_OPERATION,
+                                  fmt::format( "operation {} was already received; the request was not run.  "
+                                               "Use GetOperationStatus for its outcome",
+                                               operation ) );
+        }
+    }
+
+    // A client whose commit was rolled back on expiry must end it before doing anything else, so
+    // later steps of its batch cannot land outside the commit
+    if( auto it = m_expiredClients.find( client ); it != m_expiredClients.end() && !isEndCommit
+                                                   && !m_commits.contains( client ) )
+    {
+        m_request.refusedBeforeRun = true;
+        return contractError( ApiStatusCode::AS_BAD_REQUEST,
+                              fmt::format( "the open commit of this client was rolled back ({}); nothing it "
+                                           "staged was committed.  End the commit before continuing",
+                                           it->second ) );
+    }
+
+    if( auto it = m_commitStates.find( client ); it != m_commitStates.end() )
+    {
+        COMMIT_STATE& state = it->second;
+        state.lastActivityMs = nowMs();
+
+        if( m_frame && m_frame->GetDocumentRevision() != state.lastSeenRevision && !state.foreignChange )
+        {
+            state.foreignChange = true;
+            state.foreignChangeFrom = revisionToken( state.lastSeenRevision );
+        }
+
+        if( state.strict && state.foreignChange && !isEndCommit )
+        {
+            m_request.refusedBeforeRun = true;
+            return contractError( ApiStatusCode::AS_REVISION_MISMATCH,
+                                  fmt::format( "the document changed (revision {} to {}) while this commit was "
+                                               "open; nothing was changed.  End the commit: it will be "
+                                               "rolled back",
+                                               state.foreignChangeFrom, documentRevision() ) );
+        }
+    }
+
+    if( !expected.empty() )
+    {
+        m_request.refusedBeforeRun = true;
+
+        if( !m_request.namesThisDocument )
+        {
+            return contractError( ApiStatusCode::AS_BAD_REQUEST,
+                                  "expected_revision needs a request that names an open document" );
+        }
+
+        if( !m_frame )
+        {
+            return contractError( ApiStatusCode::AS_BAD_REQUEST,
+                                  "revision checks need an editor window; this editor is headless" );
+        }
+
+        if( expected != documentRevision() )
+        {
+            return contractError( ApiStatusCode::AS_REVISION_MISMATCH,
+                                  fmt::format( "the document is at revision {}, not {}; nothing was changed",
+                                               documentRevision(), expected ) );
+        }
+
+        m_request.refusedBeforeRun = false;
+    }
+
+    return std::nullopt;
+}
+
+
+void API_HANDLER_EDITOR::afterRequest( const kiapi::common::ApiRequestHeader& aHeader,
+                                       const google::protobuf::Message& aRequest, const ApiResponseStatus& aStatus )
+{
+    // Not this editor's request: the server offers it to the next handler
+    if( aStatus.status() == ApiStatusCode::AS_UNHANDLED )
+        return;
+
+    const std::string& client = aHeader.client_name();
+    const std::string& operation = aHeader.operation_id();
+    const bool         ok = aStatus.status() == ApiStatusCode::AS_OK;
+    const auto*        begin = google::protobuf::DynamicCastToGenerated<BeginCommit>( &aRequest );
+    const bool         isRevisionQuery =
+            google::protobuf::DynamicCastToGenerated<GetDocumentRevision>( &aRequest ) != nullptr;
+
+    if( m_commits.contains( client ) )
+    {
+        // Explicit (BeginCommit) or implicit (a request that staged without pushing) commit
+        auto [it, created] = m_commitStates.try_emplace( client );
+        COMMIT_STATE& state = it->second;
+
+        if( created )
+        {
+            state.revisionAtBegin = m_request.revisionBefore;
+
+            if( begin && ok )
+            {
+                state.strict = !aHeader.expected_revision().empty();
+
+                if( begin->lease_seconds() > 0 )
+                {
+                    state.leaseSeconds = static_cast<int>(
+                            std::min<uint32_t>( begin->lease_seconds(), MAX_COMMIT_LEASE_S ) );
+                }
+            }
+        }
+
+        // Staged changes are already visible to readers.  Advance the revision so other clients'
+        // checks see them, and attribute the change to this client's commit.
+        if( m_frame && ( !created || !begin ) && !isRevisionQuery && !m_request.refusedBeforeRun )
+            m_frame->AdvanceDocumentRevision();
+
+        if( m_frame )
+            state.lastSeenRevision = m_frame->GetDocumentRevision();
+
+        state.lastActivityMs = nowMs();
+    }
+
+    const std::string revisionAfter = documentRevision();
+
+    // Operations resolved by this request see the revision after any final onModified()
+    for( const std::string& resolved : m_request.resolvedOperations )
+    {
+        OperationStatusResponse entry = API_OPERATION_LOG::Instance().Find( resolved );
+        API_OPERATION_LOG::Instance().Resolve( resolved, entry.state(), revisionAfter, "" );
+    }
+
+    if( !operation.empty() && !m_request.doNotRecord )
+    {
+        OperationStatusResponse entry;
+        entry.set_operation_id( operation );
+        entry.set_client_name( client );
+        entry.set_request_type( std::string( aRequest.GetTypeName() ) );
+        entry.set_revision_before( m_request.revisionBefore );
+
+        if( m_request.namesThisDocument )
+            entry.mutable_document()->CopyFrom( m_request.document );
+
+        auto commitState = m_commitStates.find( client );
+
+        if( m_request.refusedBeforeRun )
+        {
+            entry.set_state( OperationState::OPS_REJECTED );
+            entry.set_revision_after( revisionAfter );
+            entry.set_message( aStatus.error_message() );
+        }
+        else if( commitState != m_commitStates.end() && m_commits.contains( client ) )
+        {
+            // Decided when the commit ends
+            entry.set_state( OperationState::OPS_IN_PROGRESS );
+            commitState->second.operations.push_back( operation );
+
+            if( begin )
+                entry.set_revision_before( commitState->second.revisionAtBegin );
+        }
+        else if( m_request.endCommitOutcome )
+        {
+            entry.set_state( *m_request.endCommitOutcome );
+            entry.set_revision_after( revisionAfter );
+            entry.set_message( aStatus.error_message() );
+        }
+        else
+        {
+            entry.set_state( ok ? OperationState::OPS_COMMITTED : OperationState::OPS_FAILED );
+            entry.set_revision_after( revisionAfter );
+            entry.set_message( aStatus.error_message() );
+        }
+
+        API_OPERATION_LOG::Instance().Record( entry );
+    }
+
+    if( m_request.namesThisDocument && m_frame )
+        m_responseHeader.set_document_revision( revisionAfter );
+
+    ensureLeaseTimer();
+}
+
+
+void API_HANDLER_EDITOR::ensureLeaseTimer()
+{
+    if( !m_frame )
+        return;
+
+    if( m_commitStates.empty() )
+    {
+        if( m_leaseTimer )
+            m_leaseTimer->Stop();
+
+        return;
+    }
+
+    if( !m_leaseTimer )
+    {
+        m_leaseTimer = std::make_unique<API_COMMIT_LEASE_TIMER>(
+                [this]()
+                {
+                    expireCommits();
+                    ensureLeaseTimer();
+                } );
+    }
+
+    if( !m_leaseTimer->IsRunning() )
+        m_leaseTimer->Start( 1000 );
+}
+
+
+void API_HANDLER_EDITOR::expireCommits( const std::string& aExceptClient )
+{
+    if( m_commitStates.empty() )
+        return;
+
+    // Never revert under an open dialog or an interactive tool; try again on the next tick
+    if( m_frame && !m_frame->CanAcceptApiCommands() )
+        return;
+
+    const long long          now = nowMs();
+    std::vector<std::string> expired;
+
+    for( const auto& [client, state] : m_commitStates )
+    {
+        if( client != aExceptClient && now - state.lastActivityMs >= state.leaseSeconds * 1000LL )
+            expired.push_back( client );
+    }
+
+    for( const std::string& client : expired )
+    {
+        const int lease = m_commitStates.at( client ).leaseSeconds;
+        rollBackCommit( client, fmt::format( "its client sent nothing for {} s and the lease expired", lease ),
+                        true );
+    }
+}
+
+
+void API_HANDLER_EDITOR::rollBackCommit( const std::string& aClientName, const std::string& aReason,
+                                         bool aExpired )
+{
+    wxLogTrace( traceApi, wxS( "API: rolling back the commit of %s: %s" ), wxString::FromUTF8( aClientName ),
+                wxString::FromUTF8( aReason ) );
+
+    if( auto it = m_commits.find( aClientName ); it != m_commits.end() )
+    {
+        it->second.second->Revert();
+        m_commits.erase( it );
+    }
+
+    const bool wasExplicit = m_activeClients.erase( aClientName ) > 0;
+
+    if( m_frame )
+        m_frame->AdvanceDocumentRevision();
+
+    finishCommit( aClientName, OperationState::OPS_ROLLED_BACK, aReason );
+
+    if( aExpired && wasExplicit )
+    {
+        if( !m_expiredClients.contains( aClientName ) )
+            m_expiredOrder.push_back( aClientName );
+
+        m_expiredClients[aClientName] = aReason;
+
+        while( m_expiredOrder.size() > MAX_EXPIRED_CLIENTS )
+        {
+            m_expiredClients.erase( m_expiredOrder.front() );
+            m_expiredOrder.pop_front();
+        }
+    }
+}
+
+
+void API_HANDLER_EDITOR::finishCommit( const std::string& aClientName, OperationState aState,
+                                       const std::string& aMessage )
+{
+    auto it = m_commitStates.find( aClientName );
+
+    if( it == m_commitStates.end() )
+        return;
+
+    const std::string revision = documentRevision();
+
+    for( const std::string& operation : it->second.operations )
+    {
+        API_OPERATION_LOG::Instance().Resolve( operation, aState, revision, aMessage );
+        m_request.resolvedOperations.push_back( operation );
+    }
+
+    m_commitStates.erase( it );
+}
+
+
+HANDLER_RESULT<DocumentRevisionResponse> API_HANDLER_EDITOR::handleGetDocumentRevision(
+        const HANDLER_CONTEXT<GetDocumentRevision>& aCtx )
+{
+    if( HANDLER_RESULT<bool> documentValidation = validateDocument( aCtx.Request.document() ); !documentValidation )
+        return tl::unexpected( documentValidation.error() );
+
+    if( !m_frame )
+    {
+        return tl::unexpected( contractError( ApiStatusCode::AS_UNIMPLEMENTED,
+                                              "document revisions need an editor window" ) );
+    }
+
+    DocumentRevisionResponse response;
+    response.set_revision( documentRevision() );
+    response.set_open_commits( static_cast<int>( m_commits.size() ) );
+    response.set_modified( m_frame->IsContentModified() );
+    return response;
 }
 
 
@@ -124,6 +580,23 @@ HANDLER_RESULT<EndCommitResponse> API_HANDLER_EDITOR::handleEndCommit(
 
     if( !m_commits.count( aCtx.ClientName ) )
     {
+        // The commit was rolled back when its lease expired.  Dropping it confirms that outcome.
+        if( auto it = m_expiredClients.find( aCtx.ClientName ); it != m_expiredClients.end() )
+        {
+            const std::string reason = it->second;
+            m_expiredClients.erase( it );
+            std::erase( m_expiredOrder, aCtx.ClientName );
+            m_request.endCommitOutcome = OperationState::OPS_ROLLED_BACK;
+
+            if( aCtx.Request.action() == kiapi::common::commands::CMA_DROP )
+                return EndCommitResponse();
+
+            return tl::unexpected( contractError( ApiStatusCode::AS_BAD_REQUEST,
+                                                  fmt::format( "nothing was committed: the commit was rolled "
+                                                               "back because {}",
+                                                               reason ) ) );
+        }
+
         ApiResponseStatus e;
         e.set_status( ApiStatusCode::AS_BAD_REQUEST );
         e.set_error_message( fmt::format( "the client {} does not has a commit in progress",
@@ -147,6 +620,13 @@ HANDLER_RESULT<EndCommitResponse> API_HANDLER_EDITOR::handleEndCommit(
         commit->Revert();
         m_commits.erase( aCtx.ClientName );
         m_activeClients.erase( aCtx.ClientName );
+
+        // Readers may have seen the staged changes
+        if( m_frame )
+            m_frame->AdvanceDocumentRevision();
+
+        finishCommit( aCtx.ClientName, OperationState::OPS_ROLLED_BACK, "dropped by its client" );
+        m_request.endCommitOutcome = OperationState::OPS_ROLLED_BACK;
         break;
     }
 
@@ -161,7 +641,22 @@ HANDLER_RESULT<EndCommitResponse> API_HANDLER_EDITOR::handleEndCommit(
             return tl::unexpected( e );
         }
 
+        // A commit opened with an expected revision must not land on top of someone else's change
+        if( auto it = m_commitStates.find( aCtx.ClientName );
+            it != m_commitStates.end() && it->second.strict && it->second.foreignChange )
+        {
+            const std::string reason =
+                    fmt::format( "another client or the user changed the document (revision {} to {}) while "
+                                 "the commit was open; the commit was rolled back",
+                                 it->second.foreignChangeFrom, documentRevision() );
+
+            rollBackCommit( aCtx.ClientName, reason, false );
+            m_request.endCommitOutcome = OperationState::OPS_ROLLED_BACK;
+            return tl::unexpected( contractError( ApiStatusCode::AS_REVISION_MISMATCH, reason ) );
+        }
+
         pushCurrentCommit( aCtx.ClientName, wxString( aCtx.Request.message().c_str(), wxConvUTF8 ) );
+        m_request.endCommitOutcome = OperationState::OPS_COMMITTED;
         break;
     }
 
@@ -196,6 +691,8 @@ void API_HANDLER_EDITOR::pushCurrentCommit( const std::string& aClientName,
     it->second.second->Push( aMessage.IsEmpty() ? m_defaultCommitMessage : aMessage );
     m_commits.erase( it );
     m_activeClients.erase( aClientName );
+
+    finishCommit( aClientName, OperationState::OPS_COMMITTED, "" );
 }
 
 

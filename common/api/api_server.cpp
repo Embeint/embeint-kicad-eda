@@ -346,15 +346,19 @@ void KICAD_API_SERVER::handleApiRequestString( std::string& aRequestString )
     API_RESULT result;
     bool notifyNetSettings = false;
 
+    // Header fields from the handler that answered, such as the document revision
+    kiapi::common::ApiResponseHeader replyHeader;
+
     for( API_HANDLER* handler : m_handlers )
     {
         result = handler->Handle( request );
         notifyNetSettings |= handler->clearNetSettingsNotification();
 
-        if( result.has_value() )
+        if( result.has_value() || result.error().status() != ApiStatusCode::AS_UNHANDLED )
+        {
+            replyHeader.CopyFrom( handler->ResponseHeader() );
             break;
-        else if( result.error().status() != ApiStatusCode::AS_UNHANDLED )
-            break;
+        }
     }
 
     if( notifyNetSettings )
@@ -364,6 +368,7 @@ void KICAD_API_SERVER::handleApiRequestString( std::string& aRequestString )
 
     if( result.has_value() )
     {
+        result->mutable_header()->MergeFrom( replyHeader );
         result->mutable_header()->set_kicad_token( m_token );
         m_server->Reply( result->SerializeAsString() );
 
@@ -374,6 +379,7 @@ void KICAD_API_SERVER::handleApiRequestString( std::string& aRequestString )
     {
         ApiResponse error;
         error.mutable_status()->CopyFrom( result.error() );
+        error.mutable_header()->CopyFrom( replyHeader );
         error.mutable_header()->set_kicad_token( m_token );
 
         if( result.error().status() == ApiStatusCode::AS_UNHANDLED )

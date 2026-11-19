@@ -24,6 +24,7 @@
 #include <tuple>
 
 #include <api/api_handler_common.h>
+#include <api/api_operation_log.h>
 #include <api/api_task_scheduler.h>
 #include <build_version.h>
 #include <eda_shape.h>
@@ -61,6 +62,10 @@ API_HANDLER_COMMON::API_HANDLER_COMMON() :
             &API_HANDLER_COMMON::handleGetNetClassAssignments );
     registerHandler<SetNetClassAssignments, Empty>( &API_HANDLER_COMMON::handleSetNetClassAssignments );
     registerHandler<Ping, Empty>( &API_HANDLER_COMMON::handlePing );
+
+    // Reconciliation must work while a task runs and with no editor open
+    registerHandler<commands::GetOperationStatus, commands::OperationStatusResponse>(
+            &API_HANDLER_COMMON::handleGetOperationStatus, true );
     registerHandler<GetTextExtents, types::Box2>( &API_HANDLER_COMMON::handleGetTextExtents );
     registerHandler<GetTextAsShapes, GetTextAsShapesResponse>(
             &API_HANDLER_COMMON::handleGetTextAsShapes );
@@ -400,6 +405,21 @@ API_HANDLER_COMMON::handleSetNetClassAssignments( const HANDLER_CONTEXT<SetNetCl
 HANDLER_RESULT<Empty> API_HANDLER_COMMON::handlePing( const HANDLER_CONTEXT<Ping>& aCtx )
 {
     return Empty();
+}
+
+
+HANDLER_RESULT<commands::OperationStatusResponse> API_HANDLER_COMMON::handleGetOperationStatus(
+        const HANDLER_CONTEXT<commands::GetOperationStatus>& aCtx )
+{
+    if( std::optional<std::string> problem = API_OPERATION_LOG::CheckId( aCtx.Request.operation_id() ) )
+    {
+        ApiResponseStatus e;
+        e.set_status( ApiStatusCode::AS_BAD_REQUEST );
+        e.set_error_message( *problem );
+        return tl::unexpected( e );
+    }
+
+    return API_OPERATION_LOG::Instance().Find( aCtx.Request.operation_id() );
 }
 
 

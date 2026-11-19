@@ -146,6 +146,11 @@ message BeginCommit
 {
   // Specifies which document to associate the commit with
   kiapi.common.types.ItemHeader header = 1;
+
+  // Embeint extension: seconds the commit may stay without a request from its client before the
+  // editor rolls it back (for a client that was killed or disconnected).  0 means the default of
+  // 60 seconds; at most 3600.
+  uint32 lease_seconds = 100;
 }
 
 
@@ -574,6 +579,84 @@ message UndoRedoResponse
   bool performed = 1;
   int32 undo_count = 2;
   int32 redo_count = 3;
+}
+
+// Reports the revision of an open document.  The editor advances the revision whenever the
+// document's content changes: manual edits, API commits, changes staged in an open API commit,
+// rollbacks, undo, redo and reloads.  Every reply to a request naming the document also carries
+// it in ApiResponseHeader.document_revision.  Returns DocumentRevisionResponse
+// Since: 11.0 (Embeint)
+message GetDocumentRevision
+{
+  kiapi.common.types.DocumentSpecifier document = 1;
+}
+
+message DocumentRevisionResponse
+{
+  // Opaque token; compare for equality only.  It differs between editor windows and sessions.
+  string revision = 1;
+
+  // API commits open on this editor, from any client
+  int32 open_commits = 2;
+
+  // The document has unsaved changes
+  bool modified = 3;
+}
+
+enum OperationState
+{
+  // Not in the editor's history: never received, still queued, or evicted (see history_capacity)
+  OPS_UNKNOWN     = 0;
+
+  // Part of an API commit that is still open
+  OPS_IN_PROGRESS = 1;
+
+  // Committed to the document (one undo step)
+  OPS_COMMITTED   = 2;
+
+  // Dropped by its client, rolled back on a revision conflict, or rolled back when its commit's
+  // lease expired.  The document holds none of its changes.
+  OPS_ROLLED_BACK = 3;
+
+  // Refused before it changed anything (for example AS_REVISION_MISMATCH)
+  OPS_REJECTED    = 4;
+
+  // A request outside a commit returned an error after it may have changed the document; compare
+  // revision_before and revision_after and inspect the document
+  OPS_FAILED      = 5;
+}
+
+// Reports what happened to a mutation sent with ApiRequestHeader.operation_id.
+// Returns OperationStatusResponse
+// Since: 11.0 (Embeint)
+message GetOperationStatus
+{
+  string operation_id = 1;
+}
+
+message OperationStatusResponse
+{
+  string operation_id = 1;
+
+  OperationState state = 2;
+
+  // The request type that started the operation, e.g. kiapi.common.commands.BeginCommit
+  string request_type = 3;
+
+  // The document the operation named, if any
+  kiapi.common.types.DocumentSpecifier document = 4;
+
+  // Document revision before the operation, and after it was committed or rolled back
+  string revision_before = 5;
+  string revision_after = 6;
+
+  // Why the operation was rolled back, refused or failed
+  string message = 7;
+
+  string client_name = 8;
+
+  // How many operations the process remembers; older ones report OPS_UNKNOWN
+  int32 history_capacity = 9;
 }
 
 // Reports how a schematic sheet or a board sits on its page: the page size, the drawing area
