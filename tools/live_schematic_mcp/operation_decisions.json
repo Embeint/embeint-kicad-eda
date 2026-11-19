@@ -456,6 +456,22 @@
       ],
       "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
     },
+    "API_HANDLER_COMMON/kiapi.common.commands.GetOperationStatus": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "No document specifier; operation_id names a mutation sent with ApiRequestHeader.operation_id to any editor in this process.",
+      "registration_condition": "Unconditional in owning constructor; allowed while an API task runs.",
+      "disk_effects": "No persistent write; reads the process-wide bounded API_OPERATION_LOG (1024 operations).",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_operation_status"
+      ],
+      "offline_tests": [
+        "test_client.py::test_lost_commit_reply_is_reconciled_not_resent",
+        "test_client.py::test_operation_status_names_every_state"
+      ],
+      "notes": "Reconciliation after a timeout; never resends. See REVISIONS.md. Live evidence in e2e_revisions.py."
+    },
     "API_HANDLER_COMMON/kiapi.common.commands.GetPaths": {
       "decision": "deferred",
       "implementation": "implemented",
@@ -671,6 +687,21 @@
       "typed_tools": [],
       "offline_tests": [],
       "notes": "Native path registered; generic adapter only unless a typed entry point is recorded. Live behavior unqualified."
+    },
+    "API_HANDLER_EDITOR/kiapi.common.commands.GetDocumentRevision": {
+      "decision": "supported",
+      "implementation": "implemented",
+      "document": "document: matching document/project identity for this surface.",
+      "registration_condition": "Unconditional in owning constructor; allowed while an API task runs. Needs an editor window (headless editors refuse).",
+      "disk_effects": "No explicit persistent write in this handler.",
+      "undo": "not_applicable",
+      "typed_tools": [
+        "live_document_revision"
+      ],
+      "offline_tests": [
+        "test_client.py::test_document_revision_reports_the_live_token"
+      ],
+      "notes": "Revision owned by the editor frame (EDA_BASE_FRAME); advanced by manual edits, API commits and staged changes, undo/redo, rollbacks and reloads. See REVISIONS.md; live evidence in e2e_revisions.py."
     },
     "API_HANDLER_EDITOR/kiapi.common.commands.GetGridSettings": {
       "decision": "supported",

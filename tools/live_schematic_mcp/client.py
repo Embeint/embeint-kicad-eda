@@ -47,6 +47,55 @@ def as_dict(message):
     return json_format.MessageToDict(message, preserving_proto_field_name=True)
 
 
+class RevisionMismatch(RuntimeError):
+    """KiCad refused a request because the document is not at the expected revision (or changed
+    while a commit opened with one was open).  Nothing was changed; read the document again."""
+
+
+class DuplicateOperation(RuntimeError):
+    """KiCad has already received this operation id, so it did not run the request again."""
+
+
+class ReplyTimeout(pynng.Timeout, TimeoutError):
+    """No reply arrived in time.  KiCad may still apply the request: never resend it blindly.
+
+    Still a pynng.Timeout, so callers that wait out a slow read keep working."""
+
+    def __init__(self, message, errno=5):
+        super().__init__(message, errno)
+        self.message = message
+
+    def __str__(self):
+        return self.message
+
+
+class OutcomeUnknown(RuntimeError):
+    """A mutation's outcome could not be confirmed.  Do not resend it; query its operation id."""
+
+    def __init__(self, message, operation_id, status=None):
+        super().__init__(message)
+        self.operation_id = operation_id
+        self.status = status
+
+
+# Errors whose status code means the request did not run; see api/proto/common/envelope.proto
+STATUS_ERRORS = {"AS_REVISION_MISMATCH": RevisionMismatch, "AS_DUPLICATE_OPERATION": DuplicateOperation}
+
+# Default commit lease (seconds) the editor uses when BeginCommit asks for none
+DEFAULT_LEASE_S = 60
+
+
+def new_operation_id():
+    return f"mcp-{uuid.uuid4()}"
+
+
+def operation_state(status):
+    """OperationStatusResponse as a dict that always names its state."""
+    result = as_dict(status)
+    result["state"] = editor.OperationState.Name(status.state)
+    return result
+
+
 def document(value):
     result = json_format.ParseDict(value, types.DocumentSpecifier())
     if result.type != types.DOCTYPE_SCHEMATIC:
@@ -168,9 +217,23 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
         self.timeout_ms = timeout_ms
         self._received_reply = False
         self.lock = threading.RLock()
+        # (expected_revision, operation_id) for the next send(); set only by _send_with
+        self._pending_header = None
+        # Revision KiCad reported in the last reply (ApiResponseHeader.document_revision), or None
+        self.last_revision = None
+        # Expected revision/operation id for the transactions of one tool call; see mutation_options
+        self._options = None
+        # Lease the next BeginCommit asks for (tests shorten it); None uses the editor default
+        self.lease_seconds = None
+        # {"operation_id", "state", "revision"} of the last mutation this client finished
+        self.last_operation = None
 
     def send(self, command, response_type):
-        """Never retry mutations: a timeout may follow a successfully applied edit."""
+        """Never retry mutations: a timeout may follow a successfully applied edit.
+
+        Raises ReplyTimeout when no reply arrives, RevisionMismatch/DuplicateOperation when KiCad
+        refused the request under the revision contract, and RuntimeError for other errors.
+        """
         with self.lock:
             if not self._socket_selected:
                 # With no endpoint at all this fails at once (no_editor) and the next request looks
@@ -186,21 +249,29 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
             request = envelope.ApiRequest()
             request.header.client_name = self.client_name
             request.header.kicad_token = self.token
+            if self._pending_header:
+                expected_revision, operation_id = self._pending_header
+                request.header.expected_revision = expected_revision
+                request.header.operation_id = operation_id
             request.message.Pack(command)
             # NNG_DURATION_INFINITE disables both timer and disconnect-triggered resends.
-            with pynng.Req0(send_timeout=self.timeout_ms, recv_timeout=self.timeout_ms,
-                            resend_time=-1) as conn:
-                # Synchronous NNG negotiation has its own timeout, which can exceed
-                # the request deadline when a peer is stopped before its handshake.
-                conn.dial(self.socket_url, block=False)
-                conn.send(request.SerializeToString())
-                raw = conn.recv()
+            try:
+                with pynng.Req0(send_timeout=self.timeout_ms, recv_timeout=self.timeout_ms,
+                                resend_time=-1) as conn:
+                    # Synchronous NNG negotiation has its own timeout, which can exceed
+                    # the request deadline when a peer is stopped before its handshake.
+                    conn.dial(self.socket_url, block=False)
+                    conn.send(request.SerializeToString())
+                    raw = conn.recv()
+            except pynng.Timeout as error:
+                raise ReplyTimeout(f"No reply from KiCad to {command.DESCRIPTOR.name} within "
+                                   f"{self.timeout_ms} ms; KiCad may still apply it",
+                                   getattr(error, "errno", 5)) from error
             reply = envelope.ApiResponse.FromString(raw)
+            self.last_revision = reply.header.document_revision or None
             if reply.status.status != envelope.AS_OK:
-                raise RuntimeError(
-                    f"{envelope.ApiStatusCode.Name(reply.status.status)}: "
-                    f"{reply.status.error_message}"
-                )
+                name = envelope.ApiStatusCode.Name(reply.status.status)
+                raise STATUS_ERRORS.get(name, RuntimeError)(f"{name}: {reply.status.error_message}")
             response = response_type()
             if not reply.message.Unpack(response):
                 raise RuntimeError(f"Unexpected reply to {command.DESCRIPTOR.full_name}")
@@ -239,12 +310,113 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
             raise RuntimeError(f"GetItems failed: {types.ItemRequestStatus.Name(response.status)}")
         return response
 
+    # ---- Revisions and operation reconciliation (REVISIONS.md) --------------------------------
+
+    def _send_with(self, command, response_type, expected_revision=None, operation_id=None):
+        """send() with ApiRequestHeader.expected_revision/operation_id set for this request only."""
+        with self.lock:
+            self._pending_header = (expected_revision or "", operation_id or "")
+            try:
+                return self.send(command, response_type)
+            finally:
+                self._pending_header = None
+
+    @contextmanager
+    def mutation_options(self, expected_revision=None, operation_id=None):
+        """Apply an expected revision and an operation id to the mutations of one tool call.
+
+        The first mutation uses them as given.  Each later one expects the revision the previous
+        one left (so nobody else may change the document in between) and uses operation_id.2,
+        .3, and so on.  Yields a dict whose "operations" lists what was done.
+        """
+        with self.lock:
+            saved = self._options
+            self._options = {"expected_revision": expected_revision or None,
+                             "operation_id": operation_id or None, "operations": []}
+            try:
+                yield self._options
+            finally:
+                self._options = saved
+
+    def _next_mutation(self):
+        """(expected_revision, operation_id) for the next mutation of the current tool call."""
+        options = self._options
+        if options is None:
+            return None, new_operation_id()
+        base = options["operation_id"]
+        count = len(options["operations"])
+        operation_id = (base if count == 0 else f"{base}.{count + 1}") if base else new_operation_id()
+        return options["expected_revision"], operation_id
+
+    def _mutation_done(self, operation_id, state, reconciled=False):
+        entry = {"operation_id": operation_id, "state": state, "revision": self.last_revision}
+        if reconciled:
+            entry["reconciled"] = True
+        self.last_operation = entry
+        options = self._options
+        if options is not None:
+            options["operations"].append(entry)
+            if options["expected_revision"] and state == "committed":
+                options["expected_revision"] = self.last_revision
+
+    def document_revision(self, doc):
+        """The live revision of an open document, its open API commits and unsaved state."""
+        response = self.send(editor.GetDocumentRevision(document=doc), editor.DocumentRevisionResponse)
+        return {"revision": response.revision, "open_commits": response.open_commits,
+                "modified": response.modified}
+
+    def operation_status(self, operation_id):
+        """What happened to a mutation sent with this operation id (never resends anything)."""
+        if not operation_id:
+            raise ValueError("operation_id is required")
+        return operation_state(self.send(editor.GetOperationStatus(operation_id=operation_id),
+                                         editor.OperationStatusResponse))
+
+    def reconcile(self, operation_id, error):
+        """Ask KiCad once what became of a mutation whose reply was lost; never resend it."""
+        try:
+            return self.operation_status(operation_id)
+        except Exception as query_error:
+            raise OutcomeUnknown(f"{error}. The outcome of operation {operation_id} is unknown and could "
+                                 f"not be queried ({query_error}). Do not resend it; query "
+                                 "live_operation_status later.", operation_id) from error
+
+    def send_mutation(self, command, response_type):
+        """One mutation outside a commit (undo, page settings), with the call's revision options."""
+        with self.lock:
+            expected, operation_id = self._next_mutation()
+            try:
+                response = self._send_with(command, response_type, expected, operation_id)
+            except ReplyTimeout as error:
+                status = self.reconcile(operation_id, error)
+                if status["state"] != "OPS_COMMITTED":
+                    raise OutcomeUnknown(f"{error}. Operation {operation_id} is {status['state']}; "
+                                         "do not resend it. Query live_operation_status again.",
+                                         operation_id, status) from error
+                self._mutation_done(operation_id, "committed", reconciled=True)
+                return response_type()
+            self._mutation_done(operation_id, "committed")
+            return response
+
     @contextmanager
     def transaction(self, doc, description):
-        """One undo step, including rollback if KiCad rejects any item in a batch."""
+        """One undo step, including rollback if KiCad rejects any item in a batch.
+
+        Every transaction carries an operation id; a commit whose reply is lost is reconciled
+        with GetOperationStatus instead of being resent.  With mutation_options, BeginCommit
+        also carries the expected revision, and KiCad rolls the commit back if anything else
+        changes the document before it ends.
+        """
         with self.lock:
             header = types.ItemHeader(document=doc)
-            started = self.send(editor.BeginCommit(header=header), editor.BeginCommitResponse)
+            expected, operation_id = self._next_mutation()
+            begin = editor.BeginCommit(header=header)
+            if self.lease_seconds:
+                begin.lease_seconds = self.lease_seconds
+            try:
+                started = self._send_with(begin, editor.BeginCommitResponse, expected, operation_id)
+            except ReplyTimeout as error:
+                self._abandon_lost_begin(header, operation_id, error)
             try:
                 yield
             except Exception as original:
@@ -253,11 +425,65 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
                               editor.EndCommitResponse)
                 except Exception as rollback:
                     raise RuntimeError(f"Edit failed ({original}); rollback unconfirmed ({rollback}). "
-                                       "Inspect the live editor before continuing.") from original
+                                       f"Operation {operation_id}: query live_operation_status and inspect "
+                                       "the live editor before continuing.") from original
+                self._mutation_done(operation_id, "rolled_back")
                 raise
             else:
-                self.send(editor.EndCommit(header=header, id=started.id, action=editor.CMA_COMMIT,
-                                           message=description), editor.EndCommitResponse)
+                try:
+                    self.send(editor.EndCommit(header=header, id=started.id, action=editor.CMA_COMMIT,
+                                               message=description), editor.EndCommitResponse)
+                except RevisionMismatch:
+                    # KiCad rolled the commit back: the document changed while it was open
+                    self._mutation_done(operation_id, "rolled_back")
+                    raise
+                except ReplyTimeout as error:
+                    status = self.reconcile(operation_id, error)
+                    if status["state"] == "OPS_IN_PROGRESS":
+                        status = self._settle_open_commit(header, operation_id, error)
+                    if status["state"] == "OPS_COMMITTED":
+                        self.last_revision = status.get("revision_after") or None
+                        self._mutation_done(operation_id, "committed", reconciled=True)
+                        return
+                    if status["state"] == "OPS_ROLLED_BACK":
+                        self._mutation_done(operation_id, "rolled_back", reconciled=True)
+                        raise RuntimeError(f"Operation {operation_id} was not committed: "
+                                           f"{status.get('message', 'rolled back')}") from error
+                    raise OutcomeUnknown(f"{error}. Operation {operation_id} is {status['state']}: it may "
+                                         "still commit, or be rolled back when its lease expires. Do not "
+                                         "resend it; query live_operation_status again.",
+                                         operation_id, status) from error
+                self._mutation_done(operation_id, "committed")
+
+    def _settle_open_commit(self, header, operation_id, error):
+        """EndCommit's reply was lost and the commit still looks open: settle it with a drop.
+
+        KiCad answers requests in order, so a delivered EndCommit runs before this drop (which
+        then finds no commit and changes nothing); an undelivered one leaves the commit open and
+        the drop rolls it back.  A drop never applies changes, so this is not a resend.
+        """
+        try:
+            self.send(editor.EndCommit(header=header, action=editor.CMA_DROP), editor.EndCommitResponse)
+        except ReplyTimeout:
+            return {"state": "OPS_IN_PROGRESS"}
+        except RuntimeError:
+            pass  # no commit left to drop: the delivered EndCommit settled it
+        return self.reconcile(operation_id, error)
+
+    def _abandon_lost_begin(self, header, operation_id, error):
+        """BeginCommit's reply was lost.  No edit was sent; close the commit if it opened."""
+        status = self.reconcile(operation_id, error)
+        if status["state"] == "OPS_IN_PROGRESS":
+            # Drop needs no id ("a safety net in case the id was lost on the client side")
+            self.send(editor.EndCommit(header=header, action=editor.CMA_DROP), editor.EndCommitResponse)
+            raise RuntimeError(f"{error}. The commit opened but its reply was lost; it was dropped and "
+                               "nothing was changed.") from error
+        if status["state"] == "OPS_REJECTED":
+            raise RevisionMismatch(f"{error}. KiCad refused operation {operation_id}: "
+                                   f"{status.get('message', '')}") from error
+        raise OutcomeUnknown(f"{error}. KiCad has not seen operation {operation_id} ({status['state']}). "
+                             "No edit was sent, so nothing was changed; a late commit is rolled back "
+                             "when its lease expires.", operation_id, status) from error
 
     def mutate(self, doc, items, update=False, description=None):
         if not items or len(items) > 200:
@@ -359,7 +585,7 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
     def undo(self, doc, redo=False):
         """Undo/redo are refused while any commit is open, so they never run in a transaction."""
         request = (editor.RedoLastChange if redo else editor.UndoLastChange)(document=doc)
-        return as_dict(self.send(request, editor.UndoRedoResponse))
+        return as_dict(self.send_mutation(request, editor.UndoRedoResponse))
 
     def netlist(self, doc):
         """Nets as {name: [{sheet, id}]} plus a pin lookup {(sheet, pin id): net}."""
@@ -555,9 +781,15 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
         return {"outputs": list(response.output_path)}
 
     def execute(self, name, payload=None):
-        from commands import build_request
+        from commands import PROJECT_EDITS, build_request
         full, request, response_type, kind = build_request(name, payload)
-        return {"command": full, "kind": kind, "result": as_dict(self.send(request, response_type))}
+        # Document edits carry an operation id (and any expected revision); project settings
+        # edits are not handled by a document editor, which keeps those
+        if kind == "edit" and full not in PROJECT_EDITS:
+            response = self.send_mutation(request, response_type)
+        else:
+            response = self.send(request, response_type)
+        return {"command": full, "kind": kind, "result": as_dict(response)}
 
     def batch(self, doc, steps, description="MCP: batch"):
         """Run transactional edits on one document. UI selection/zoom are not rolled back."""
@@ -853,7 +1085,7 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
                 if orientation not in ORIENTATIONS:
                     raise ValueError("orientation must be landscape or portrait")
                 settings.orientation = ORIENTATIONS[orientation]
-            self.send(editor.SetPageSettings(document=doc, page_settings=settings), types.PageSettings)
+            self.send_mutation(editor.SetPageSettings(document=doc, page_settings=settings), types.PageSettings)
         values = {"title": title, "date": date, "revision": revision, "company": company}
         if any(v is not None for v in values.values()) or comments is not None:
             block = self.send(editor.GetTitleBlockInfo(document=doc), types.TitleBlockInfo)
@@ -868,7 +1100,7 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
                     raise ValueError("a title block has at most 9 comments")
                 for n in range(1, 10):
                     setattr(block, f"comment{n}", comments[n - 1] if n <= len(comments) else "")
-            self.send(editor.SetTitleBlockInfo(document=doc, title_block=block), empty())
+            self.send_mutation(editor.SetTitleBlockInfo(document=doc, title_block=block), empty())
         return self.page_layout(doc)
 
     def place_symbol(self, doc, lib_id, x, y, reference=None, rotation=0):

@@ -31,6 +31,29 @@ mcp = FastMCP("KiCad Live", instructions=INSTRUCTIONS)
 mcp._mcp_server.version = version_identity()["server_version"]
 client = LiveSchematic()
 
+GUARD_DOC = (" Optional expected_revision (from live_document_revision or a previous result) makes KiCad "
+             "refuse the edit with AS_REVISION_MISMATCH if anyone else changed the document; "
+             "operation_id names the edit for live_operation_status. Results carry the new revision.")
+
+
+def guarded(call, expected_revision=None, operation_id=None):
+    """Run one tool's mutations under the revision contract and report their operations."""
+    with client.mutation_options(expected_revision, operation_id) as done:
+        result = call()
+    if isinstance(result, dict) and done["operations"]:
+        result = {**result, "revision": done["operations"][-1]["revision"], "operations": done["operations"]}
+    return result
+
+
+def editor_document(spec):
+    """A schematic, board, symbol or footprint document from its protobuf JSON."""
+    kind = spec.get("type")
+    if kind == "DOCTYPE_PCB":
+        return board_document_spec(spec)
+    if kind in ("DOCTYPE_SYMBOL", "DOCTYPE_FOOTPRINT"):
+        return any_editor_document(spec)
+    return document(spec)
+
 
 @mcp.tool()
 def live_skill_reference(skill: str = "", file: str = "SKILL.md") -> dict:
@@ -107,7 +130,32 @@ def live_schematic_items(document_spec: dict) -> dict:
 
 
 @mcp.tool()
-def live_schematic_create_items(document_spec: dict, items: list[dict]) -> dict:
+def live_document_revision(document_spec: dict) -> dict:
+    """Read an open document's live revision (schematic, board, symbol or footprint document).
+
+    The editor advances it on every change: manual edits, API edits, undo/redo, reloads. Pass it as
+    expected_revision to an edit so KiCad refuses the edit if anything changed in between. Also
+    reports open API commits (from any client) and unsaved changes.
+    """
+    return client.document_revision(editor_document(document_spec))
+
+
+@mcp.tool()
+def live_operation_status(operation_id: str) -> dict:
+    """After a timed-out or uncertain edit: ask KiCad what happened to it. Never resends anything.
+
+    state: OPS_COMMITTED, OPS_ROLLED_BACK (dropped, conflicting or abandoned; nothing applied),
+    OPS_REJECTED (refused before changing anything), OPS_IN_PROGRESS (its commit is still open;
+    ask again), OPS_FAILED (an error after it may have changed the document; inspect it) or
+    OPS_UNKNOWN (not received yet, or older than the last history_capacity operations).
+    Do not resend an edit while its outcome is unknown.
+    """
+    return client.operation_status(operation_id)
+
+
+@mcp.tool()
+def live_schematic_create_items(document_spec: dict, items: list[dict], expected_revision: str | None = None,
+                                operation_id: str | None = None) -> dict:
     """Create up to 200 items in the live editor as one undo step, without saving.
 
     Each item is protobuf JSON with @type=type.googleapis.com/kiapi.schematic.types.TYPE.
@@ -119,23 +167,28 @@ def live_schematic_create_items(document_spec: dict, items: list[dict]) -> dict:
     Pins belong in SheetSymbol.pins, positioned on the sheet edge given by side.
     Use live_schematic_place_symbol for library symbols.
     """
-    return client.mutate(document(document_spec), parse_items(items))
+    spec, parsed = document(document_spec), parse_items(items)
+    return guarded(lambda: client.mutate(spec, parsed), expected_revision, operation_id)
 
 
 @mcp.tool()
-def live_schematic_update_items(document_spec: dict, items: list[dict]) -> dict:
+def live_schematic_update_items(document_spec: dict, items: list[dict], expected_revision: str | None = None,
+                                operation_id: str | None = None) -> dict:
     """Replace live items in one undo step without saving. Supply complete items from live_schematic_items.
 
     Preserve IDs and unrelated fields; omitted fields are not a partial update. To add sheet pins,
     modify the parent SheetSymbol.pins and return its complete item. Hierarchical labels must match.
     """
-    return client.mutate(document(document_spec), parse_items(items), update=True)
+    spec, parsed = document(document_spec), parse_items(items)
+    return guarded(lambda: client.mutate(spec, parsed, update=True), expected_revision, operation_id)
 
 
 @mcp.tool()
-def live_schematic_delete_items(document_spec: dict, ids: list[str]) -> dict:
+def live_schematic_delete_items(document_spec: dict, ids: list[str], expected_revision: str | None = None,
+                                operation_id: str | None = None) -> dict:
     """Delete the specified UUIDs on one live sheet as one undo step, without saving."""
-    return client.delete(document(document_spec), ids)
+    spec = document(document_spec)
+    return guarded(lambda: client.delete(spec, ids), expected_revision, operation_id)
 
 
 @mcp.tool()
@@ -254,9 +307,11 @@ def live_schematic_move(document_spec: dict, ids: list[str], dx_mm: float = 0, d
 
 
 @mcp.tool()
-def live_schematic_undo(document_spec: dict, redo: bool = False) -> dict:
+def live_schematic_undo(document_spec: dict, redo: bool = False, expected_revision: str | None = None,
+                        operation_id: str | None = None) -> dict:
     """Undo (or redo) the editor's most recent change, including the user's own edits. Not while a batch is open."""
-    return client.undo(document(document_spec), redo)
+    spec = document(document_spec)
+    return guarded(lambda: client.undo(spec, redo), expected_revision, operation_id)
 
 
 @mcp.tool()
@@ -354,18 +409,21 @@ def live_schematic_describe_command(command: str) -> dict:
 
 
 @mcp.tool()
-def live_schematic_execute(command: str, payload: dict | None = None) -> dict:
+def live_schematic_execute(command: str, payload: dict | None = None, expected_revision: str | None = None,
+                           operation_id: str | None = None) -> dict:
     """Run any KiCad IPC command (schematic or PCB) by name with a protobuf-JSON payload.
 
     Prefer the typed tools. Most commands need a document (or header.document) from
     live_schematic_documents. File-kind commands (SaveDocument, RevertDocument, ...) change or discard
-    files: run them only when the user asks. An edit command is not retried if the reply is lost.
+    files: run them only when the user asks. An edit command is not retried if the reply is lost:
+    it carries an operation id for live_operation_status. expected_revision applies to document edits.
     """
-    return client.execute(command, payload)
+    return guarded(lambda: client.execute(command, payload), expected_revision, operation_id)
 
 
 @mcp.tool()
-def live_schematic_batch(document_spec: dict, steps: list[dict], description: str = "MCP: batch") -> dict:
+def live_schematic_batch(document_spec: dict, steps: list[dict], description: str = "MCP: batch",
+                         expected_revision: str | None = None, operation_id: str | None = None) -> dict:
     """Run supported item edits as ONE undo step; failed steps roll back those item edits.
 
     document_spec is a schematic, board (DOCTYPE_PCB), symbol or footprint document.
@@ -374,16 +432,11 @@ def live_schematic_batch(document_spec: dict, steps: list[dict], description: st
     Only edits marked batchable participate in rollback; settings, editor replacement,
     asynchronous work, undo/redo and file/job commands are refused. Omitted document
     targets inherit this batch's document; explicit targets must match it exactly.
-    Selection and zoom changes are not rolled back.
+    Selection and zoom changes are not rolled back. With expected_revision, KiCad also rolls the
+    batch back if anyone else changes the document while it runs.
     """
-    kind = document_spec.get("type")
-    if kind == "DOCTYPE_PCB":
-        spec = board_document_spec(document_spec)
-    elif kind in ("DOCTYPE_SYMBOL", "DOCTYPE_FOOTPRINT"):
-        spec = any_editor_document(document_spec)
-    else:
-        spec = document(document_spec)
-    return client.batch(spec, steps, description)
+    spec = editor_document(document_spec)
+    return guarded(lambda: client.batch(spec, steps, description), expected_revision, operation_id)
 
 
 # ---- Symbol libraries and the Symbol Editor ---------------------------------------------------
@@ -759,25 +812,32 @@ def live_pcb_items(board_document: dict, kinds: list[str]) -> list[dict]:
 
 
 @mcp.tool()
-def live_pcb_create_items(board_document: dict, items: list[dict]) -> dict:
+def live_pcb_create_items(board_document: dict, items: list[dict], expected_revision: str | None = None,
+                          operation_id: str | None = None) -> dict:
     """Create up to 200 board items (protobuf JSON, @type kiapi.board.types.*, nanometres) as one undo step.
 
     Prefer the typed tools (tracks, vias, zones, outline, graphics). Use live_pcb_item_schema for fields.
     """
-    return client.mutate(board(board_document), parse_board_items(items), description="MCP: create board items")
+    spec, parsed = board(board_document), parse_board_items(items)
+    return guarded(lambda: client.mutate(spec, parsed, description="MCP: create board items"),
+                   expected_revision, operation_id)
 
 
 @mcp.tool()
-def live_pcb_update_items(board_document: dict, items: list[dict]) -> dict:
+def live_pcb_update_items(board_document: dict, items: list[dict], expected_revision: str | None = None,
+                          operation_id: str | None = None) -> dict:
     """Replace board items with complete items from live_pcb_items (same ids), as one undo step."""
-    return client.mutate(board(board_document), parse_board_items(items), update=True,
-                         description="MCP: update board items")
+    spec, parsed = board(board_document), parse_board_items(items)
+    return guarded(lambda: client.mutate(spec, parsed, update=True, description="MCP: update board items"),
+                   expected_revision, operation_id)
 
 
 @mcp.tool()
-def live_pcb_delete_items(board_document: dict, ids: list[str]) -> dict:
+def live_pcb_delete_items(board_document: dict, ids: list[str], expected_revision: str | None = None,
+                          operation_id: str | None = None) -> dict:
     """Delete board items by UUID as one undo step."""
-    return client.delete(board(board_document), ids)
+    spec = board(board_document)
+    return guarded(lambda: client.delete(spec, ids), expected_revision, operation_id)
 
 
 @mcp.tool()
@@ -978,9 +1038,11 @@ def live_pcb_drc(board_document: dict, schematic_parity: bool = True) -> dict:
 
 
 @mcp.tool()
-def live_pcb_undo(board_document: dict, redo: bool = False) -> dict:
+def live_pcb_undo(board_document: dict, redo: bool = False, expected_revision: str | None = None,
+                  operation_id: str | None = None) -> dict:
     """Undo (or redo) the PCB editor's most recent change, including the user's own edits."""
-    return client.undo(board(board_document), redo)
+    spec = board(board_document)
+    return guarded(lambda: client.undo(spec, redo), expected_revision, operation_id)
 
 
 @mcp.tool()
