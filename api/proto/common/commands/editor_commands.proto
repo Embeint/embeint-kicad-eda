@@ -605,6 +605,25 @@ message PageLayoutItem
 
   // The box intersects the title block
   bool overlaps_title_block = 6;
+
+  // In overlaps only: which part of the item, a field name ("Reference", "Value") or
+  // "Text: <text>" for a footprint's own text; empty for the item itself (a symbol or sheet body,
+  // a label, text, a wire or a sheet pin)
+  string part = 7;
+}
+
+// Two items whose drawn extents overlap.  Boxes come from the editor's own text extents.
+message PageLayoutOverlap
+{
+  PageLayoutItem first = 1;
+
+  PageLayoutItem second = 2;
+
+  // The overlapping area (for a wire, where it crosses the text)
+  kiapi.common.types.Box2 overlap = 3;
+
+  // Boards only: the layer both texts are on
+  string layer = 4;
 }
 
 message PageLayoutResponse
@@ -628,6 +647,18 @@ message PageLayoutResponse
 
   // Boards only: the bounding box of the board outline (Edge.Cuts); empty without an outline
   kiapi.common.types.Box2 board_outline = 7;
+
+  // Overlapping pairs, independent of problems.  Schematics: visible fields, labels, sheet pins,
+  // text, text boxes, symbol and sheet bodies and tables with each other, and wires or buses
+  // crossing text.  An item's body is not compared with its own fields or pins.  Boards: visible
+  // text and footprint fields on the same silkscreen or fabrication layer.  At most 200 pairs.
+  repeated PageLayoutOverlap overlaps = 8;
+
+  // Number of overlapping pairs found, including any beyond those listed
+  int32 overlap_count = 9;
+
+  // The editor ran the overlap check (false from builds without it)
+  bool overlaps_checked = 10;
 }
 
 enum GridStyle

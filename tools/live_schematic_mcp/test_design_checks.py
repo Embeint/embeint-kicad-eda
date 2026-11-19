@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Offline contracts for whole-design verification: the hierarchical netlist.  No running KiCad is
-required."""
+"""Offline contracts for whole-design verification: hierarchical netlist and page text overlaps.
+No running KiCad is required."""
 
 import pytest
 
-from client import types
+from client import editor, types
 from client import commands as sch_cmds
-from test_client import FakeClient, doc
+from test_client import FakeClient, _page_box, doc, page_reply
 
 
 ROOT, CHILD, REUSED_A, REUSED_B = "root-0000", "child-1111", "reuse-aaaa", "reuse-bbbb"
@@ -104,4 +104,62 @@ def test_netlist_tool_defaults_to_the_whole_hierarchy(monkeypatch):
     whole = server.live_schematic_netlist(spec)
     assert whole["/Filter/SIGNAL"]["pins"] == ["C1.1", "R1.2", "R2.1"]
     assert server.live_schematic_netlist(spec, scope="sheet")["/Filter/SIGNAL"]["pins"] == ["R1.2"]
+
+
+# ---- Page overlaps ------------------------------------------------------------------------------
+
+def overlap_reply(checked=True, count=None, pairs=2):
+    others = page_reply()
+
+    def reply(request, response_type):
+        response = others(request, response_type)
+        if type(request).__name__ != "GetPageLayout":
+            return response
+        response.overlaps_checked = checked
+        for index in range(pairs if checked else 0):
+            entry = response.overlaps.add(overlap=_page_box(30, 30 + index, 32, 31 + index))
+            entry.first.CopyFrom(editor.PageLayoutItem(id=types.KIID(value=f"r{index}"), type="Symbol", name="R1",
+                                                       part="Value", box=_page_box(28, 29, 34, 32)))
+            entry.second.CopyFrom(editor.PageLayoutItem(id=types.KIID(value=f"l{index}"), type="Label", name="SDA",
+                                                        box=_page_box(30, 30, 40, 33)))
+        response.overlap_count = pairs if count is None else count
+        return response
+    return reply
+
+
+def test_page_reports_overlap_pairs_without_changing_fits():
+    page = FakeClient(overlap_reply()).page_layout(doc())
+    assert page["fits"] and page["problems"] == []
+    assert page["overlap_free"] is False and len(page["overlaps"]) == 2
+    assert page["overlaps"][0] == {
+        "first": {"id": "r0", "type": "Symbol", "name": "R1", "part": "Value", "box_mm": [28.0, 29.0, 34.0, 32.0]},
+        "second": {"id": "l0", "type": "Label", "name": "SDA", "box_mm": [30.0, 30.0, 40.0, 33.0]},
+        "overlap_mm": [30.0, 30.0, 32.0, 31.0]}
+    assert "overlaps_not_listed" not in page and "overlap_check" not in page
+
+
+def test_page_counts_overlaps_beyond_the_listed_pairs():
+    page = FakeClient(overlap_reply(count=250, pairs=2)).page_layout(doc())
+    assert page["overlap_free"] is False and page["overlaps_not_listed"] == 248
+
+
+def test_page_is_overlap_free_only_when_the_editor_checked():
+    clean = FakeClient(overlap_reply(pairs=0)).page_layout(doc())
+    assert clean["overlap_free"] is True and clean["overlaps"] == []
+    older = FakeClient(overlap_reply(checked=False)).page_layout(doc())
+    assert older["overlap_free"] is None and older["overlaps"] == []
+    assert "not available" in older["overlap_check"] and older["fits"]
+
+
+def test_board_overlap_keeps_its_layer():
+    others = overlap_reply()
+
+    def reply(request, response_type):
+        response = others(request, response_type)
+        if type(request).__name__ == "GetPageLayout":
+            response.overlaps[0].layer = "F.Silkscreen"
+        return response
+
+    page = FakeClient(reply).page_layout(doc())
+    assert page["overlaps"][0]["layer"] == "F.Silkscreen" and "layer" not in page["overlaps"][1]
 

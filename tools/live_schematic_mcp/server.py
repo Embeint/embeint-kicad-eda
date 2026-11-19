@@ -163,7 +163,10 @@ def live_schematic_view(document_spec: dict, dpi: int = 100, frame: bool = True)
 def live_schematic_page(document_spec: dict) -> dict:
     """The sheet's page: paper (A4, A3, ...) and orientation, page size, the drawing area inside the
     border, the title block box and its fields, the extent of the content, all in mm, and every item
-    that crosses the border or overlaps the title block (fits=false). Check this before saving.
+    that crosses the border or overlaps the title block (fits=false). Separately, overlap_free and
+    overlaps list pairs of fields, labels, sheet pins, text, symbol/sheet bodies and wires crossing text
+    whose drawn extents overlap (KiCad's own text extents, each pair with both boxes and the overlap).
+    Check both before saving; still look at the framed view.
     """
     return client.page_layout(document(document_spec))
 
@@ -992,7 +995,8 @@ def live_pcb_view_3d(board_document: dict, side: str = "top", zoom: float = 1.0,
 def live_pcb_page(board_document: dict) -> dict:
     """The board's page: paper and orientation, the drawing area inside the border, the title block box and
     its fields, the board outline and the extent of everything, all in mm, and every item that crosses
-    the border or overlaps the title block (fits=false). Check this before saving."""
+    the border or overlaps the title block (fits=false). Separately, overlap_free and overlaps list
+    visible texts and footprint fields on the same silkscreen or fab layer whose extents overlap."""
     return client.page_layout(board(board_document))
 
 
