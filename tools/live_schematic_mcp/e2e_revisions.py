@@ -6,8 +6,12 @@ reads leave the revision alone; every committed change (API commits, another cli
 the editor's undo/redo, staged and dropped changes) advances it; a stale expected revision is
 refused before anything changes; a commit opened with an expected revision is rolled back when
 another client changes the document; duplicate operation ids are refused; lost replies are
-reconciled with GetOperationStatus instead of being resent; and a client killed mid-batch has its
-open commit rolled back when its lease expires.  Never saves; deletes the markers it creates.
+reconciled with GetOperationStatus instead of being resent; a client killed mid-batch has its
+open commit rolled back when its lease expires; failed requests are recorded as failed or rejected.
+With the PCB editor open it also checks that leases are opt-in (a client that asks for none keeps
+its commit past the old 60 s default while a short opt-in lease expires) and that no lease
+expires while an API task (a zone refill) runs.  Never saves; deletes the markers and zones it
+creates.
 
     python e2e_revisions.py [output_dir]
 """
@@ -23,6 +27,7 @@ import uuid
 
 import pynng
 
+from board_client import board_tasks, bt, make_zone, tasks
 from client import (DuplicateOperation, LiveSchematic, ReplyTimeout, RevisionMismatch, editor, envelope, kiid,
                     point, sch, types, as_dict)
 from commands import message_class
@@ -30,6 +35,11 @@ from e2e_guard import test_board, test_document
 
 HERE = Path(__file__).resolve().parent
 LEASE_S = 3
+# The lease every commit had before leases became opt-in; a client that asks for none must outlive it
+OLD_DEFAULT_LEASE_S = 60
+# Lease held across the zone refill task, and the shortest task that proves it was not counted
+TASK_LEASE_S = 2
+TASK_MIN_S = 4.0
 RESULTS = []
 
 
@@ -150,6 +160,66 @@ def connect(cls=LiveSchematic, like=None):
     return client
 
 
+def drop(client, doc, commit_id=None):
+    """EndCommit(DROP) for a commit opened with a raw BeginCommit."""
+    request = editor.EndCommit(header=types.ItemHeader(document=doc), action=editor.CMA_DROP)
+    if commit_id is not None:
+        request.id.CopyFrom(commit_id)
+    return client.send(request, editor.EndCommitResponse)
+
+
+class BoardCommits:
+    """Two empty commits on the test board, opened early so the slow lease checks overlap the rest.
+
+    `upstream` asks for no lease and sends no operation id or expected revision, like an upstream
+    kipy plugin: it must keep its commit as long as it likes.  `leased` opts in with LEASE_S.
+    """
+
+    def __init__(self, a, board):
+        self.board = board
+        header = types.ItemHeader(document=board)
+        self.upstream, self.leased = connect(like=a), connect(like=a)
+        self.upstream_id = self.upstream._send_with(editor.BeginCommit(header=header),
+                                                    editor.BeginCommitResponse).id
+        self.upstream_open = True
+        self.leased_op = f"e2e-{uuid.uuid4()}"
+        self.leased._send_with(editor.BeginCommit(header=header, lease_seconds=LEASE_S),
+                               editor.BeginCommitResponse, None, self.leased_op)
+        self.opened_at = time.monotonic()
+
+    def close(self):
+        if self.upstream_open:
+            self.upstream_open = False
+            drop(self.upstream, self.board, self.upstream_id)
+
+
+def hatched_zone(points, step_mm):
+    """A no-net zone with a fine hatch: slow to fill, so its refill task runs for seconds."""
+    zone = make_zone(points, ["F.Cu"], "", name="REV lease task", min_width=min(0.25, step_mm))
+    settings = zone.copper_settings
+    settings.fill_mode = bt.ZFM_HATCHED
+    settings.hatch_settings.thickness.value_nm = int(step_mm * 1e6)
+    settings.hatch_settings.gap.value_nm = int(step_mm * 1e6)
+    settings.hatch_settings.border_mode = bt.ZHFBM_USE_MIN_ZONE_THICKNESS
+    return zone
+
+
+def refill(client, board, zone_id, during=None):
+    """Run a zone refill task to its end; returns (seconds, final TaskStatusResponse)."""
+    started = client.send(board_tasks.StartRefillZonesTask(board=board, zones=[types.KIID(value=zone_id)]),
+                          tasks.StartTaskResponse)
+    began = time.monotonic()
+    while True:
+        if during:
+            during()
+        status = client.send(tasks.GetTaskStatus(token=started.token), tasks.TaskStatusResponse)
+        if status.state not in (tasks.TS_RUNNING, tasks.TS_UNKNOWN):
+            return time.monotonic() - began, status
+        if time.monotonic() - began > 300:
+            raise TimeoutError("zone refill task did not finish in 300 s")
+        time.sleep(0.1)
+
+
 # A client that opens a commit, stages an edit of an existing marker and then hangs until killed
 CHILD = r"""
 import json, sys, time
@@ -201,6 +271,30 @@ def main():
 
 
 def run(a, b, root, markers, rev, out):
+    # The board's lease checks need more than the old 60 s default lease, so their commits are
+    # opened first and checked after the schematic checks
+    try:
+        board = test_board(a)
+    except (RuntimeError, SystemExit) as error:
+        board, skipped = None, str(error)
+    commits = BoardCommits(a, board) if board is not None else None
+    try:
+        run_schematic(a, b, root, markers, rev, out)
+        if board is None:
+            RESULTS.append({"check": "board revision and lease contract", "passed": None,
+                            "detail": f"skipped: {skipped}"})
+            print("SKIP board revision and lease contract:", skipped)
+            return
+        run_board(a, b, board, commits)
+    finally:
+        if commits is not None:
+            try:
+                commits.close()
+            except Exception as error:  # noqa: BLE001 - do not hide the original failure
+                print("cleanup: could not drop the upstream-style board commit:", error)
+
+
+def run_schematic(a, b, root, markers, rev, out):
     # Reads never advance the revision, and replies carry it
     r0 = rev()
     a.items(root)
@@ -259,6 +353,28 @@ def run(a, b, root, markers, rev, out):
         check("stale revision after another client's edit is refused",
               marker_c.id.value not in item_ids(a, root) and rev() == r_b, str(error))
     check("refused operation is recorded as rejected", a.operation_status(op_c)["state"] == "OPS_REJECTED")
+
+    # Requests that fail inside an open commit are not bound to it: a refused BeginCommit is
+    # rejected and a failed step is failed, whatever the commit's outcome
+    failing = connect(like=a)
+    header = types.ItemHeader(document=root)
+    op_open, op_again, op_undo = (f"e2e-{uuid.uuid4()}" for _ in range(3))
+    opened = failing._send_with(editor.BeginCommit(header=header), editor.BeginCommitResponse, None, op_open)
+    try:
+        failing._send_with(editor.BeginCommit(header=header), editor.BeginCommitResponse, None, op_again)
+        check("second BeginCommit is refused", False, "accepted")
+    except RuntimeError as error:
+        check("second BeginCommit is refused", "already has a commit" in str(error), str(error))
+    try:
+        failing._send_with(editor.UndoLastChange(document=root), editor.UndoRedoResponse, None, op_undo)
+        check("undo inside the client's own commit fails", False, "undo ran")
+    except RuntimeError as error:
+        check("undo inside the client's own commit fails", "commit is open" in str(error), str(error))
+    drop(failing, root, opened.id)
+    states = {op: a.operation_status(op)["state"] for op in (op_open, op_again, op_undo)}
+    check("refused BeginCommit is recorded as rejected", states[op_again] == "OPS_REJECTED", json.dumps(states))
+    check("failed step is recorded as failed, not bound to the commit", states[op_undo] == "OPS_FAILED"
+          and states[op_open] == "OPS_ROLLED_BACK", json.dumps(states))
 
     # The editor's own undo/redo actions (the tools behind Ctrl+Z/Ctrl+Y) advance the revision
     b_id = markers.created[-2]
@@ -412,13 +528,9 @@ def run(a, b, root, markers, rev, out):
     check("undo works again after cleanup", undone["performed"] and redone["performed"]
           and item_ids(b, root) == before)
 
-    # The board editor follows the same contract (project manager mode only)
-    try:
-        board = test_board(a)
-    except (RuntimeError, SystemExit) as error:
-        RESULTS.append({"check": "board revision contract", "passed": None, "detail": f"skipped: {error}"})
-        print("SKIP board revision contract:", error)
-        return
+
+def run_board(a, b, board, commits):
+    """The board editor (project manager mode only): the same contract, opt-in leases, tasks."""
     board_rev = a.document_revision(board)["revision"]
     try:
         with a.mutation_options("stale-0"):
@@ -426,6 +538,76 @@ def run(a, b, root, markers, rev, out):
         check("board refuses a stale revision", False, "undo ran")
     except RevisionMismatch as error:
         check("board refuses a stale revision", a.document_revision(board)["revision"] == board_rev, str(error))
+
+    zones = []
+    try:
+        check_no_expiry_during_task(a, b, board, zones)
+    finally:
+        if zones:
+            b.delete(board, zones)
+
+    # Leases are opt-in: the short opt-in lease has long expired, the commit that asked for none
+    # is still open after the old default lease
+    wait = OLD_DEFAULT_LEASE_S + 2 - (time.monotonic() - commits.opened_at)
+    if wait > 0:
+        print(f"waiting {wait:.0f} s for the old default lease to pass", flush=True)
+        time.sleep(wait)
+    held = time.monotonic() - commits.opened_at
+    status = b.operation_status(commits.leased_op)
+    check("an opt-in lease expires", status["state"] == "OPS_ROLLED_BACK" and "lease" in status.get("message", ""),
+          json.dumps(status))
+    state = b.document_revision(board)
+    check("a commit without a lease stays open past the old 60 s default", state["open_commits"] == 1,
+          f"after {held:.0f} s: {json.dumps(state)}")
+    try:
+        commits.close()
+        check("the client that asked for no lease ends its commit normally", True, f"after {held:.0f} s")
+    except RuntimeError as error:
+        check("the client that asked for no lease ends its commit normally", False, str(error))
+    drop(commits.leased, board)
+    check("expired opt-in client confirms its rollback", b.document_revision(board)["open_commits"] == 0)
+
+
+def check_no_expiry_during_task(a, b, board, zones):
+    """A lease shorter than a zone refill task survives it: the lease clock stops during tasks."""
+    box = a.board_box(board, "edges")
+    x1, y1, x2, y2 = (box[0] + 1, box[1] + 1, box[2] - 1, box[3] - 1) if box else (20, 20, 120, 120)
+    points = [(x1, y1), (x2, y1), (x2, y2), (x1, y2)]
+
+    # Find a hatch fine enough that the refill outlasts the lease with a margin
+    step, duration, zone_id = 0.5, 0.0, None
+    for _ in range(6):
+        zone = hatched_zone(points, step)
+        b.mutate(board, [zone])
+        zone_id = zone.id.value
+        zones.append(zone_id)
+        duration, status = refill(b, board, zone_id)
+        if status.state != tasks.TS_COMPLETED:
+            raise RuntimeError(f"zone refill task {tasks.TaskState.Name(status.state)}: {status.error_message}")
+        if duration >= TASK_MIN_S or step <= 0.05:
+            break
+        b.delete(board, [zones.pop()])
+        step = max(0.05, step * max(0.3, min(0.8, (duration / (TASK_MIN_S * 1.5)) ** 0.5)))
+    if duration < TASK_MIN_S:
+        RESULTS.append({"check": "no lease expiry while a task runs", "passed": None,
+                        "detail": f"skipped: the slowest refill took {duration:.1f} s (hatch {step} mm)"})
+        print(f"SKIP no lease expiry while a task runs: refill took {duration:.1f} s")
+        return
+
+    # Requests allowed during the task (GetDocumentRevision, GetTaskStatus) keep arriving; none
+    # of them may roll the commit back, and the task's time is not counted against the client
+    held = connect(like=a)
+    op = f"e2e-{uuid.uuid4()}"
+    opened = held._send_with(editor.BeginCommit(header=types.ItemHeader(document=board), lease_seconds=TASK_LEASE_S),
+                             editor.BeginCommitResponse, None, op)
+    duration, _ = refill(b, board, zone_id, during=lambda: b.document_revision(board))
+    status = b.operation_status(op)
+    check("no lease expiry while a task runs", status["state"] == "OPS_IN_PROGRESS",
+          f"{TASK_LEASE_S} s lease, {duration:.1f} s task; {json.dumps(status)}")
+    drop(held, board, opened.id)
+    status = b.operation_status(op)
+    check("the commit held across the task ends normally", status["state"] == "OPS_ROLLED_BACK"
+          and "lease" not in status.get("message", ""), json.dumps(status))
 
 
 if __name__ == "__main__":
