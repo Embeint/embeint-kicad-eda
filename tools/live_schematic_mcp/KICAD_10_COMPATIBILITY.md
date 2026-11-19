@@ -50,11 +50,12 @@ MCP client (`compat/build_fixture.py`). It is a two-sheet hierarchy (root divide
 sheet with sheet pin and hierarchical label), with a project symbol library, a project footprint
 library whose SOT-23 embeds a STEP model, both library tables, net classes, custom rules, a routed
 board with a GND pour, and Embeint title blocks. Expected results are committed in
-`compat/expected/reference-on-fork-fixture.json`.
+`compat/expected/reference-on-fork-fixture.json`. Besides each result, it requires the refusal
+messages quoted below for the schematic, board and library checks.
 
 | Fork file or operation | Result in KiCad 10.0.6 |
 | --- | --- |
-| `.kicad_sch`: ERC and the six schematic exports (svg, pdf, dxf, ps, netlist, bom) | **Refused**: `Failed to load schematic` (exit 3). The parser rejects any newer schematic version. |
+| `.kicad_sch`: ERC and the six schematic exports (svg, pdf, dxf, ps, netlist, bom) | **Refused**: `Failed to load schematic` (exit 3), with no reason given. The fixture's schematics declare `20261106`, newer than any version 10.0.6 writes, but the message does not confirm that the version is the cause. |
 | `.kicad_pcb`: DRC and the twelve board exports it offers | **Refused**: "created with a more recent version … upgrade KiCad to version 10.99 or later (file format dated 20261031 or later)" (exit 3) |
 | `.kicad_sym` (`sym upgrade`) | **Refused**: `Unable to load library` |
 | `.kicad_mod` / `.pretty` (`fp upgrade`), with its embedded model | **Refused**: `Unable to load library` (new root token and newer version) |
@@ -81,10 +82,17 @@ results are in `compat/expected/reference-on-reference-fixture.json`.
 | --- | --- |
 | Open project, schematic and board (project manager, IPC) | OK |
 | Explicit save (schematic, board) | Writes sch 20261106, pcb 20261031, pro 4, prl 7. Rules file, library tables and libraries are untouched. In-memory content is identical before and after the save. |
-| Restart and reopen the saved files | Hierarchy, every schematic item, nets and every board item are identical. The reopen leaves the files unchanged. |
+| Restart and reopen the saved files | Hierarchy, every schematic item, nets and every board item are identical. The reopen leaves the files unchanged. `fork-roundtrip verify` fails if either is not the case. |
 | Teardrops | The fork **rebuilds teardrop zones when it opens the reference board**: 165 zones in the KiCad 10.0.6 file become 167, with new outlines. It writes their invisible border as `hatch none`, which reads back as a visible solid border. Teardrop zones store no UUID in either version. Their geometry is stable across the fork's own save and reopen. This is upstream 10.99 code (teardrop and writer sources match `master`). |
 | Symbol and footprint libraries (fork `kicad-cli sym/fp upgrade`) | Rewritten to 20261106 / 20261031 with the `kicad_footprint_lib` root; the embedded model is kept |
 | Library pin and graphic UUIDs inside schematic symbol definitions | Not stored in the file by either version (generated on load); excluded from comparison |
+
+What the round trip compares: the fork's in-memory state after opening the KiCad 10.0.6 files
+(read over IPC) against its state after its own save, restart and reopen. It shows that a fork save
+loses nothing the fork loaded. It does not compare against the content of the reference files
+themselves, so a difference introduced while the fork reads them is not detected. The teardrop
+counts are the exception: they are read from the reference file. The file versions are read from
+disk before and after the save.
 
 ## Unsupported downgrade cases
 
@@ -126,12 +134,30 @@ Content changes are not normalized; `test_compat.py` checks this. The fixture's 
 fixed so plotted pages do not change from day to day.
 
 Results: all 20 kinds were deterministic within a session and matched the golden values in a fresh
-session. Applied to KiCad 10.0.6's own outputs, the same normalization makes all 57 files
-reproducible across two reference runs.
+session.
+
+`check_compat.py reference` also records the normalized hash of every reference output, and
+`check_compat.py reproducible A/report.json B/report.json` compares two runs. For two KiCad 10.0.6
+runs on the reference-authored project, 56 of the 57 outputs match. The GenCAD export (`board.cad`)
+can differ: KiCad writes one `$DEVICES` entry per footprint shape and takes its `PART` value from
+whichever footprint sharing that shape comes first in a pointer-keyed map
+(`createDevicesSection` in `pcbnew/exporters/export_gencad_writer.cpp`, the same in both builds).
+The two DIP-8 parts of the demo (ICL7660, LM358N) swapped in one of five runs. The fixture's R1
+(10k) and R2 (4k7) share a shape too, so the fork's GenCAD golden can in principle change in the
+same way. It has not done so in the sessions run so far.
 
 The structural comparison catches added or lost items, not moved coordinates. Golden values belong
 to the fork build that produced them. When upstream changes a plotter or exporter, inspect the
-difference and regenerate with `run_live.sh exports OUT --update`.
+difference and regenerate with `run_live.sh exports OUT --update`. That rewrites the golden file
+only when golden mismatches are the run's only failures. An export error, a difference between
+the two runs or a changed project file leaves the golden file untouched.
+
+Application versions are removed only where an export names its generator: `generator_version`,
+the netlist `(tool ...)`, Specctra `host_version`, the ERC/DRC `kicad_version`, `KiCad E.D.A.` in
+plotted title blocks, ODB++ `HDR`, IDF and position-file headers, the Gerber `G04` banner and
+`TF.GenerationSoftware` attribute, the Excellon header, the GenCAD `USER` line and the IPC-2581
+`SoftwarePackage`. A version-like number anywhere else (a coordinate, a value, a footprint name such
+as `CP_Axial_L10.0mm`) is content and is compared.
 
 ## Procedure
 
@@ -142,11 +168,20 @@ $K = "C:\Program Files\KiCad\10.0"; $C = "tools\live_schematic_mcp\compat"; $S =
 python -I $C\check_compat.py reference-fixture --cli "$K\bin\kicad-cli.exe" --python "$K\bin\python.exe" --share "$K\share\kicad" --out $S\ref-fixture
 python -I $C\check_compat.py reference --cli "$K\bin\kicad-cli.exe" --expect $C\expected\reference-on-fork-fixture.json --out $S\ref-on-fork-fixture
 python -I $C\check_compat.py reference --cli "$K\bin\kicad-cli.exe" --project $S\ref-fixture\ref-fixture --expect $C\expected\reference-on-reference-fixture.json --out $S\ref-on-ref
+python -I $C\check_compat.py reference --cli "$K\bin\kicad-cli.exe" --project $S\ref-fixture\ref-fixture --expect $C\expected\reference-on-reference-fixture.json --out $S\ref-on-ref-2
+python -I $C\check_compat.py reproducible $S\ref-on-ref\report.json $S\ref-on-ref-2\report.json
 python -I $C\check_compat.py reference-mixed --cli "$K\bin\kicad-cli.exe" --reference-project $S\ref-fixture\ref-fixture --out $S\ref-mixed
 ```
 
+`reference-mixed` fails if a check does not succeed, if the fork file is rewritten, or if
+`kicad-cli` prints a rules-file error (for example "DRC incomplete: could not compile custom design
+rules"), whatever its exit code.
+
 The live half runs in WSL with the shared build lock held, after `scripts/rebuild.sh`. Each step
-starts KiCad on a disposable copy and stops only the KiCad it started:
+starts KiCad on a disposable copy and stops only the KiCad it started. KiCad ignores
+`KICAD_API_SOCKET`: it serves `<temp>/kicad/api.sock`, or `api-<pid>.sock` when another KiCad holds
+that. `run_live.sh` therefore refuses to start while another KiCad answers on `api.sock`, and talks
+only to the socket of the KiCad it started:
 
 ```bash
 compat/run_live.sh exports   OUT                     # MCP exports of the fixture vs golden
@@ -160,10 +195,11 @@ OUT/<project>`. Each subcommand writes `report.json` into a new folder. `test_co
 `scripts/run_tests.sh`) checks the normalizers, the fixture headers and the coverage of the
 golden and expected files offline.
 
-Evidence for the results above (local scratch, `C:\Users\KarlVonRichter\.t3\scratch\kicad-10-compat`):
-`ref-fixture-1`, `ref-on-ref-1..3`, `ref-on-fork-fixture-1..2`, `ref-on-fork-saved-ref-1..2`,
-`ref-mixed-1`, `fork-fixture-5` (fixture authoring, ERC/DRC), `fork-exports-2` (golden),
-`fork-exports-3` (fresh-session match), `fork-roundtrip-2`, `fork-cli-libs-1`.
+The evidence for the results above is in the author's local scratch folder, not in the
+repository. It holds one run folder per subcommand: the reference fixture build, the reference
+runs on both fixtures and on the fork-saved reference project, the mixed-file run, the fixture
+authoring (with its ERC and DRC), the golden and fresh-session export runs, the round trip and the
+fork CLI library rewrite.
 
 ## Fixture checks and limitations
 
@@ -179,4 +215,6 @@ Evidence for the results above (local scratch, `C:\Users\KarlVonRichter\.t3\scra
   enforced identically.
 - The round trip covers one reference design. Features it does not contain (variants, design
   blocks, simulation models, embedded fonts) are untested.
+- GenCAD `$DEVICES` `PART` values depend on pointer order when footprints with different values
+  share a shape (see the deterministic export section).
 - No native file format was changed for this work.
