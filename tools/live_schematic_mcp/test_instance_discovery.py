@@ -116,7 +116,7 @@ def test_client_pins_selection_and_does_not_retry_timeout(monkeypatch):
     def select(**kwargs):
         assert kwargs == {"check_liveness": True}
         selected.append(True)
-        return "ipc:///chosen-once.sock"
+        return "ipc:///chosen-once.sock", "single_candidate"
     class Connection:
         def __init__(self, **kwargs):
             options.append(kwargs)
@@ -131,7 +131,7 @@ def test_client_pins_selection_and_does_not_retry_timeout(monkeypatch):
             sent.append(raw)
         def recv(self):
             raise client.pynng.Timeout("synthetic timeout", 5)
-    monkeypatch.setattr(client, "select_socket", select)
+    monkeypatch.setattr(client, "select_instance", select)
     monkeypatch.setattr(client.pynng, "Req0", Connection)
     live = client.LiveSchematic()
     with pytest.raises(client.pynng.Timeout):
@@ -212,7 +212,7 @@ else:
 def test_explicit_client_never_discovers(monkeypatch):
     def reject():
         raise AssertionError("explicit selection must not scan")
-    monkeypatch.setattr(client, "select_socket", reject)
+    monkeypatch.setattr(client, "select_instance", reject)
     live = client.LiveSchematic("ipc:///explicit.sock")
     assert live._socket_selected
 

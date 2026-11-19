@@ -10,6 +10,7 @@ import asyncio
 import json
 import os
 from pathlib import Path, PureWindowsPath
+import subprocess
 import sys
 import tempfile
 
@@ -155,6 +156,70 @@ def test_windows_client_selects_lazily_and_dead_pinned_pipe_fails_before_send(fa
         pinned.send(client.base.GetVersion(), client.base.GetVersionResponse)
 
 
+def test_windows_client_keeps_looking_until_kicad_starts(fake_windows, monkeypatch):
+    """The missing default endpoint is tried but not pinned, so a KiCad started later is found."""
+    dialed = []
+
+    class Connection:
+        def __init__(self, **_kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            pass
+
+        def dial(self, url, **_kwargs):
+            dialed.append(url)
+
+        def send(self, _raw):
+            pass
+
+        def recv(self):
+            raise client.pynng.Timeout("synthetic timeout", 5)
+
+    live = client.LiveSchematic()
+    monkeypatch.setattr(client.pynng, "Req0", Connection)
+    with pytest.raises(client.pynng.Timeout):
+        live.send(client.base.GetVersion(), client.base.GetVersionResponse)
+    assert dialed == ["ipc://" + OURS + r"\api.sock"] and not live._socket_selected
+
+    # KiCad starts, with the long spelling of the temp directory: found and then pinned
+    long_name = r"C:\Users\LongName\AppData\Local\Temp\kicad\api.sock"
+    fake_windows.append(long_name)
+    with pytest.raises(client.pynng.Timeout):
+        live.send(client.base.GetVersion(), client.base.GetVersionResponse)
+    assert dialed[-1] == "ipc://" + long_name and live._socket_selected
+
+    fake_windows.append(OURS + r"\api.sock")  # another instance no longer changes the pinned one
+    with pytest.raises(client.pynng.Timeout):
+        live.send(client.base.GetVersion(), client.base.GetVersionResponse)
+    assert dialed[-1] == "ipc://" + long_name
+
+
+@pytest.mark.parametrize("environ, expected", [
+    ({"TMPDIR": r"C:\a", "TMP": r"C:\b", "TEMP": r"C:\c"}, r"C:\a"),
+    ({"TMP": r"C:\b", "TEMP": r"C:\c"}, r"C:\b"),
+    ({"TMPDIR": "", "TMP": "", "TEMP": "C:\\Users\\LONGNA~1\\AppData\\Local\\Temp\\"},
+     r"C:\Users\LONGNA~1\AppData\Local\Temp"),
+    ({"TEMP": "C:/Temp/"}, r"C:\Temp"),
+    ({"USERPROFILE": r"C:\Users\me", "SystemRoot": r"C:\Windows"}, r"C:\Users\me"),
+    ({"SystemRoot": r"C:\Windows"}, r"C:\Windows"),
+])
+def test_windows_temp_dir_follows_wx(environ, expected):
+    """wxFileName::GetTempDir: TMPDIR, TMP, TEMP, then GetTempPath; Python's tempfile prefers TEMP."""
+    assert discovery.windows_temp_dir(environ) == expected
+
+
+def test_windows_default_endpoint_uses_kicads_temp_dir(monkeypatch):
+    monkeypatch.setattr(discovery.sys, "platform", "win32")
+    monkeypatch.delenv("TMPDIR", raising=False)
+    monkeypatch.setenv("TEMP", r"C:\python\would\pick\this")
+    monkeypatch.setenv("TMP", r"C:\Users\LONGNA~1\AppData\Local\Temp")
+    assert discovery.default_socket_url() == r"ipc://C:\Users\LONGNA~1\AppData\Local\Temp\kicad\api.sock"
+
+
 def test_kicad_path_follows_the_platform(monkeypatch):
     monkeypatch.setattr(sys, "platform", "win32")
     assert kicad_path(r"C:\Users\me\kicad-models\a.step") == r"C:\Users\me\kicad-models\a.step"
@@ -211,6 +276,38 @@ def test_real_pipes_from_two_instances_need_explicit_selection(pipe_dir):
         assert "private-token" not in json.dumps(report)
         explicit = client.LiveSchematic(second, timeout_ms=2000)
         assert explicit.documents()["documents"][0]["project"]["name"] == "beta"
+
+
+def run_launcher(temp_dir, root):
+    """run_kicad_windows.ps1 with temp_dir as KiCad's temp directory; returns (exit code, message).
+
+    root has no KiCad installed, so a launcher that passes the endpoint check stops at "not
+    installed": no KiCad can start here.
+    """
+    launcher = Path(diagnose.__file__).with_name("run_kicad_windows.ps1")
+    command = ("try { & '" + str(launcher) + "' } catch { [Console]::Error.WriteLine( $_.Exception.Message ); "
+               "exit 1 }")
+    env = {**os.environ, "TMPDIR": str(temp_dir), "KICAD_WINDOWS_ROOT": str(root),
+           "KICAD_LIVE_PYTHON": sys.executable, "KICAD_API_SOCKET": r"ipc://C:\elsewhere\kicad\api.sock"}
+    result = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+                             "-Command", command], env=env, capture_output=True, text=True, timeout=120)
+    return result.returncode, result.stdout + result.stderr
+
+
+@windows_only
+def test_launcher_refuses_while_a_pipe_holds_the_default_endpoint(pipe_dir, tmp_path):
+    from test_diagnostics import fake_instance, version_or_documents
+    # The pipe is served under the temp path as Python spells it (here the short 8.3 form if
+    # there is one) while the launcher is given the long spelling: they must still match
+    long_temp = os.path.realpath(str(pipe_dir.parent))
+    with fake_instance(pipe_dir / "api.sock", version_or_documents("alpha")) as (url, requests):
+        code, message = run_launcher(long_temp, tmp_path)
+        assert code != 0
+        assert "Another KiCad with the API enabled already serves " + url in message, message
+        assert not requests  # the check never dials the other instance
+    code, message = run_launcher(long_temp, tmp_path)
+    assert code != 0 and "Native KiCad not installed" in message, message
+    assert not (tmp_path / "live").exists()  # nothing set up before the checks
 
 
 @windows_only
