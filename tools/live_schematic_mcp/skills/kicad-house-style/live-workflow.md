@@ -70,6 +70,9 @@ Consult the loaded tool inventory for actual tool support.
    `sch erc` and `sch export netlist` on the saved root). It uses the running KiCad's
    launch environment; from a shell use the package's `embeint-kicad-cli`, not a bare
    `kicad-cli`, or library and configuration warnings are not about the design.
+   `live_kicad_cli` is read-only: ERC, DRC and exports only. Write its outputs outside
+   the design files and `.pretty` libraries. It refuses jobsets, upgrades and
+   `--save-board`.
 
 ## Historical 10.99 observations (unverified on the current version)
 

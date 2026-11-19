@@ -82,7 +82,7 @@ This is scoped route validation, not a claim that the whole board is DRC-clean.
 | `live_schematic_erc` | Electrical rules check of the unsaved design |
 | `live_schematic_select` / `_highlight_nets` | Show items or nets to the user in the editor |
 | `live_schematic_export` | SVG, PDF, DXF, PS, netlist or BOM from the unsaved design |
-| `live_kicad_cli` | kicad-cli on saved files (ERC, netlist and other exports) in the environment the running KiCad was launched with |
+| `live_kicad_cli` | Read-only kicad-cli on saved files (ERC, DRC, netlist and other exports) in the environment the running KiCad was launched with; see [kicad-cli](#kicad-cli) for what it refuses |
 | `live_schematic_list_commands` / `_describe_command` / `_execute` | Every IPC command KiCad registers, by name |
 | `live_schematic_batch` | Several commands as one undo step, all rolled back if any fails |
 
@@ -401,6 +401,28 @@ KiCad, or none running, it rebuilds it from the install layout (`run_kicad_wsl.s
 `~/kicad-live`, `libexec/environment.sh` for the package; `KICAD_CLI` selects another binary).
 From a shell, the installed package provides `embeint-kicad-cli`, which sources the same
 environment as `embeint-kicad`.
+
+`live_kicad_cli` only runs commands that read the saved design: `sch erc`, `sch export <kind>`,
+`pcb drc`, `pcb export <kind>`, `sym export svg`, `fp export svg` and `version`. It refuses
+everything else before starting a process, including `jobset run` (a jobset's "Execute Command"
+jobs run through a shell), `upgrade` and `downgrade` (they rewrite files in place) and imports. It
+also refuses `pcb drc --save-board`, combined short options such as `-no` (they can hide an
+output), and any output (`-o`, `--output`, `--output=...`, `--models-dir`, `--report-path`) that
+names a `.kicad_sch`, `.kicad_pcb`, `.kicad_pro`, `.kicad_prl`, `.kicad_sym`, `.kicad_mod` or
+`.kicad_dru` file or a library table, or lies inside a `.pretty` folder. On WSL, Windows paths
+are translated, including `--option=C:\...`. The tool runs kicad-cli without blocking the MCP
+server. `timeout_s` is at most 600 s, and kicad-cli is stopped when it runs out or the call is
+cancelled. The MCP falls back to the install layout only when no KiCad can be found or reached.
+Other errors from KiCad are reported, and so is an empty environment report (as the note
+`KiCad reported an empty launch environment`). A frozen MCP looks for kicad-cli in `../bin` on
+Windows (`C:\kb\install\mcp` -> `C:\kb\install\bin`) and in `../../bin` for the Linux package.
+
+### Page overlap check: known limitation
+
+`live_schematic_page` and `live_pcb_page` list at most 200 overlapping pairs. Any pairs beyond those
+are counted in `overlaps_not_listed`. The editor currently stores and sorts every pair before it applies that cap. On a
+pathological page with many stacked texts, the check can therefore be slow and use a lot of
+memory. Keeping only the first 200 pairs while it searches is a planned follow-up.
 
 ## Supported schematic block scripting
 
