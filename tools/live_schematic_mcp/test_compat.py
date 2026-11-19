@@ -118,6 +118,24 @@ def test_committed_fixture_declares_fork_versions():
     assert sum(p.stat().st_size for p in FIXTURE.rglob("*") if p.is_file()) < 400_000
 
 
+def test_committed_fixture_local_settings():
+    # KiCad 10.0.6 rewrites this file from version 7 to 5 (reference-on-fork-fixture.json), so it
+    # must be committed despite the repository-wide *.kicad_prl ignore
+    prl = FIXTURE / "compat-fixture.kicad_prl"
+    assert prl.is_file()
+    assert file_versions(prl)["versions"] == {"/": 7}
+    settings = json.loads(prl.read_text(encoding="utf-8"))
+    assert settings["meta"]["filename"] == prl.name
+    assert not any(settings["git"].get(key) for key in ("repo_username", "ssh_key"))
+
+
+def test_committed_fixture_has_no_machine_paths():
+    for path in (p for p in FIXTURE.rglob("*") if p.is_file()):
+        text = path.read_text(encoding="utf-8", errors="replace")
+        for marker in ("/tmp/", "/home/", "/mnt/", ":\\Users", ":\\\\Users", ":/Users", "kicad-live-netlist"):
+            assert marker not in text, (path.name, marker)
+
+
 def test_golden_covers_every_export():
     if not Path(GOLDEN).exists():
         pytest.skip("golden hashes not generated")
