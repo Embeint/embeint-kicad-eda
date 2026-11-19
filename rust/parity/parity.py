@@ -39,6 +39,13 @@ from symbol_layout import layout_box  # noqa: E402  (the authoritative implement
 SEED = 20261119
 REQUEST_FIELDS = ("pins", "arrange", "group_gap")
 
+# json.loads rejects integer literals with more digits than Python's int/str conversion limit.
+# embeint-layout matches the default (4300 digits, PYTHON_MAX_INT_DIGITS in its lib.rs); pin it
+# here so a PYTHONINTMAXSTRDIGITS setting cannot change the reference.
+PYTHON_MAX_INT_DIGITS = 4300
+if hasattr(sys, "set_int_max_str_digits"):
+    sys.set_int_max_str_digits(PYTHON_MAX_INT_DIGITS)
+
 
 # ---- Python reference adapter: the JSON boundary around layout_box --------------------------------
 
@@ -135,6 +142,50 @@ def generated_requests(count, seed=SEED):
     return requests
 
 
+FIELDS = ["number", "name", "type", "side", "hidden", "gap", "shape", "unit", "orientation", "length",
+          "position", "electrical_type"]
+
+
+def random_value(rng, depth=0):
+    """Any JSON value: null, bool, int, float, string, list or object (nested a little)."""
+    kind = rng.randrange(8 if depth < 2 else 6)
+    if kind == 0:
+        return None
+    if kind == 1:
+        return rng.choice([True, False])
+    if kind == 2:
+        return rng.choice([0, 1, -1, 2, 7, 10 ** 20, -(10 ** 30), rng.randint(-1000, 1000)])
+    if kind == 3:
+        return rng.choice([0.0, -0.0, 0.5, 1.0, -2.5, 1e16, 1e-7, 1.5e300, 123456789.125, rng.uniform(-1e6, 1e6)])
+    if kind in (4, 5):
+        return rng.choice(NAMES + TYPES + ["left", "right", "top", "bottom", " ", " left ", "	", "None", "True"])
+    if kind == 6:
+        return [random_value(rng, depth + 1) for _ in range(rng.randint(0, 3))]
+    return {rng.choice(FIELDS + ["a", ""]): random_value(rng, depth + 1) for _ in range(rng.randint(0, 3))}
+
+
+def typed_requests(count, seed=SEED + 1):
+    """Pins whose fields hold values of any JSON type, so non-string handling is compared too.
+
+    Every field the layout reads or writes gets a random value now and then; most such requests
+    are errors, so each pin keeps its ordinary string fields most of the time.
+    """
+    rng = random.Random(seed)
+    requests = []
+    for index in range(count):
+        pins = []
+        for n in range(rng.randint(1, 12)):
+            pin = {"number": str(n + 1), "name": rng.choice(NAMES), "type": rng.choice(TYPES)}
+            for field in FIELDS:
+                if rng.random() < 0.08:
+                    pin[field] = random_value(rng)
+            if rng.random() < 0.05:
+                pin = {field: random_value(rng) for field in rng.sample(FIELDS, rng.randint(0, 4))}
+            pins.append(pin)
+        requests.append((f"typed_{index:04d}", {"pins": pins}))
+    return requests
+
+
 def large_request(count=256):
     """A big MCU-like symbol: supplies, grounds, many IOs, top/bottom pins and NC pins."""
     pins = []
@@ -153,13 +204,30 @@ def large_request(count=256):
     return {"pins": pins}
 
 
-def load_cases(generated):
+def digit_limit_requests():
+    """Requests around Python's integer digit limit, wherever the literal appears."""
+    digits = "9" * PYTHON_MAX_INT_DIGITS
+    pin = '{"number": "1", "name": "A", "type": "input", "unit": %s}'
+    return [
+        ("int_at_digit_limit_passes_through", '{"pins": [%s]}' % (pin % digits)),
+        ("negative_int_at_digit_limit_as_pin_number", '{"pins": [{"number": -%s, "name": "A"}]}' % digits),
+        ("int_over_digit_limit_in_pin", '{"pins": [%s]}' % (pin % (digits + "9"))),
+        ("negative_int_over_digit_limit", '{"pins": [%s]}' % (pin % ("-" + digits + "9"))),
+        ("int_over_digit_limit_before_field_check", '{"pins": [], "x": %s9}' % digits),
+        ("int_over_digit_limit_as_group_gap", '{"pins": [], "group_gap": %s9}' % digits),
+        ("long_float_has_no_digit_limit", '{"pins": [], "group_gap": %s9.0}' % digits),
+    ]
+
+
+def load_cases(generated, typed):
     cases = []
     for case in json.loads((HERE / "cases.json").read_text(encoding="utf-8")):
         text = case["raw"] if "raw" in case else json.dumps(case["request"], ensure_ascii=False)
         cases.append({"name": case["name"], "group": case.get("group", "fixed"), "text": text})
     cases.append({"name": "large_256_pins", "group": "fixed", "text": json.dumps(large_request())})
-    for name, request in generated_requests(generated):
+    for name, text in digit_limit_requests():
+        cases.append({"name": name, "group": "fixed", "text": text})
+    for name, request in generated_requests(generated) + typed_requests(typed):
         cases.append({"name": name, "group": "generated", "text": json.dumps(request, ensure_ascii=False)})
     for case in cases:
         if "\n" in case["text"] or "\r" in case["text"]:
@@ -251,12 +319,55 @@ def cargo_target_dir(cargo):
     return Path(json.loads(metadata.stdout)["target_directory"])
 
 
-def build(cargo):
-    subprocess.run([cargo, "build", "--release", "--locked", "-p", "embeint-layout-cli"], cwd=RUST, check=True)
-    wasm = subprocess.run([cargo, "build", "--release", "--locked", "-p", "embeint-web",
-                           "--target", "wasm32-unknown-unknown"], cwd=RUST, check=False)
-    if wasm.returncode != 0:
-        print("WASM build failed (is the wasm32-unknown-unknown target installed?)", file=sys.stderr)
+def cargo_artifact(cargo, package, pick, *extra):
+    """Build one package with cargo and return the artefact path cargo reports for this build.
+
+    The path comes from cargo's own messages, so a failed build never falls back to whatever an
+    earlier build (or a restored CI cache) left in the target directory.  pick(message) returns
+    the wanted path from one compiler-artifact message, or None.  Returns None on failure.
+    """
+    completed = subprocess.run([cargo, "build", "--release", "--locked", "-p", package, *extra,
+                                "--message-format=json-render-diagnostics"],
+                               cwd=RUST, stdout=subprocess.PIPE, text=True, check=False)
+    if completed.returncode != 0:
+        return None
+    found = None
+    for line in completed.stdout.splitlines():
+        message = json.loads(line) if line.startswith("{") else {}
+        if message.get("reason") == "compiler-artifact":
+            found = pick(message) or found
+    return Path(found) if found else None
+
+
+def build(cargo, require_wasm):
+    """Build the native runner and the WASM module; return their paths (WASM None if it failed)."""
+    native = cargo_artifact(cargo, "embeint-layout-cli", lambda message: message.get("executable"))
+    if native is None:
+        raise SystemExit("native build failed")
+    wasm = cargo_artifact(cargo, "embeint-web",
+                          lambda message: next((f for f in message["filenames"] if f.endswith(".wasm")), None),
+                          "--target", "wasm32-unknown-unknown")
+    if wasm is None:
+        message = "WASM build failed (is the wasm32-unknown-unknown target installed?)"
+        if require_wasm:
+            raise SystemExit(message)
+        print(f"{message}; skipping WASM", file=sys.stderr)
+    return native, wasm
+
+
+RUST_SOURCES = ("Cargo.toml", "Cargo.lock", "embeint-layout", "embeint-layout-cli", "embeint-web/src",
+                "embeint-web/Cargo.toml")
+
+
+def stale(artifact):
+    """True if a Rust source is newer than a prebuilt artefact (only checked without --build)."""
+    built = artifact.stat().st_mtime
+    for entry in RUST_SOURCES:
+        path = RUST / entry
+        files = [path] if path.is_file() else (p for p in path.rglob("*") if p.is_file())
+        if any(file.stat().st_mtime > built for file in files):
+            return True
+    return False
 
 
 def main():
@@ -266,32 +377,44 @@ def main():
     parser.add_argument("--node", default=os.environ.get("NODE", "node"))
     parser.add_argument("--native", type=Path, help="embeint-layout binary (default: cargo's release build)")
     parser.add_argument("--wasm", type=Path, help="embeint_web.wasm (default: cargo's wasm32 release build)")
-    parser.add_argument("--require-wasm", action="store_true", help="fail if the WASM module or node is missing")
+    parser.add_argument("--require-wasm", action="store_true",
+                        help="fail if the WASM build fails, or the WASM module or node is missing")
     parser.add_argument("--generated", type=int, default=500, help="seeded corpus size (default 500)")
+    parser.add_argument("--typed", type=int, default=300,
+                        help="seeded corpus size with values of any JSON type in pin fields (default 300)")
     parser.add_argument("--bench", type=int, default=0, metavar="N", help="time N calls per fixed valid case")
     parser.add_argument("--report", type=Path, help="write a JSON report here")
     args = parser.parse_args()
 
-    if args.build:
-        build(args.cargo)
     native, wasm = args.native, args.wasm
-    if native is None or wasm is None:
-        target = cargo_target_dir(args.cargo)
-        exe = ".exe" if os.name == "nt" else ""
-        native = native or target / "release" / f"embeint-layout{exe}"
-        wasm = wasm or target / "wasm32-unknown-unknown" / "release" / "embeint_web.wasm"
+    if args.build:
+        built_native, built_wasm = build(args.cargo, args.require_wasm)
+        native = native or built_native
+        wasm = wasm or built_wasm
+    else:
+        target = None
+        if native is None or wasm is None:
+            target = cargo_target_dir(args.cargo)
+        if native is None:
+            native = target / "release" / f"embeint-layout{'.exe' if os.name == 'nt' else ''}"
+            if native.is_file() and stale(native):
+                raise SystemExit(f"{native} is older than the Rust sources (use --build)")
+        if wasm is None:
+            wasm = target / "wasm32-unknown-unknown" / "release" / "embeint_web.wasm"
+            if wasm.is_file() and stale(wasm):
+                raise SystemExit(f"{wasm} is older than the Rust sources (use --build)")
     if not native.is_file():
         raise SystemExit(f"native runner not found: {native} (use --build)")
     node = shutil.which(args.node)
     implementations = {"native": [str(native)]}
-    if node and wasm.is_file():
+    if node and wasm is not None and wasm.is_file():
         implementations["wasm"] = [node, str(HERE / "run_wasm.mjs"), str(wasm)]
     elif args.require_wasm:
-        raise SystemExit(f"WASM run required but {'node' if not node else wasm} is missing")
+        raise SystemExit(f"WASM run required but {'node' if not node else wasm or 'the WASM build'} is missing")
     else:
-        print(f"skipping WASM: {'node not found' if not node else f'{wasm} not built'}")
+        print(f"skipping WASM: {'node not found' if not node else 'module not built'}")
 
-    cases = load_cases(args.generated)
+    cases = load_cases(args.generated, args.typed)
     start = time.perf_counter()
     expected = [reference_text(case["text"]) for case in cases]
     python_seconds = time.perf_counter() - start
