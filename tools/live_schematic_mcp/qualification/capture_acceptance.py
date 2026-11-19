@@ -289,6 +289,12 @@ def capture(args, report, project, folder, env, owned, dependencies):
         assert not client.items(root).items
         assert run.disk_hashes(project) == before_disk
         print("coordinated helper probe passed", flush=True)
+    if args.helper_restrictions:
+        from qualification.block_restrictions import probe
+        report["checks"]["helper_review_restrictions"] = probe(client, root)
+        assert not client.items(root).items
+        assert run.disk_hashes(project) == before_disk
+        print("reviewed helper restriction probes passed", flush=True)
     docs, bridges = build(client, root)
     print("hierarchical capture and expected pin membership passed", flush=True)
     run.write_json(args.output / "intent.json", INTENT)
@@ -351,6 +357,8 @@ def main():
     parser.add_argument("--library-root", type=Path, default=Path("/usr/share/kicad"))
     parser.add_argument("--git-executable", default="git", help="use git.exe for a Windows-owned T3 worktree")
     parser.add_argument("--helper-probe", type=Path, help="optional block_example.py from the coordinated helper checkout")
+    parser.add_argument("--helper-restrictions", action="store_true",
+                        help="also check reviewed helper guards using native readbacks")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     if sys.platform != "linux":

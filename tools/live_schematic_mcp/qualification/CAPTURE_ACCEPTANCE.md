@@ -98,6 +98,17 @@ runs the coordinated helper's isolated probe serially on the empty test sheet,
 before capture, and records its commit and file hashes. A failed/unknown probe
 stops the run without mutation replay.
 
+Add `--helper-restrictions` to cover the reviewed helper boundaries against native
+readbacks. This serial probe checks in-line segment refusal, symbol and sheet-pin
+branches, manual wire attachments and label movement, duplicate no-connects,
+sheet deletion/retargeting refusal, and the `add()` boundary. It also applies a
+safe route replacement, checks exact one-step undo/redo, preserves a manual wire
+crossing, replaces an owned no-connect key, and restores the original sheet.
+Unsafe plans are refused before apply; the probe never sends the unsafe edits to
+test whether native cleanup would damage the sheet. It does not save or alter the
+native mid-commit cleanup behavior. The normal hierarchy, persistence and PCB
+acceptance then run in the same owned project.
+
 The driver records exact failed-batch rollback, transaction undo/redo, no implicit
 saves, actual schematic-to-PCB transfer, pin/pad parity, page fits and distinct
 framed renders. Guarded `UpdateItems` probes send each placed buffer unit's
