@@ -44,6 +44,51 @@ def test_freeze_identity_uses_only_the_source_repository(monkeypatch, tmp_path):
         package_mcp.source_identity("b" * 40)
 
 
+def test_notice_manifest_lists_kept_texts_and_refuses_other_versions():
+    from qualification import package_mcp
+
+    manifest = package_mcp.notice_manifest()
+    readme = (package_mcp.NOTICES / "README.md").read_text(encoding="utf-8")
+    for entry in [*manifest["distributions"].values(), *manifest["runtime"].values()]:
+        for name in entry["notices"]:
+            assert (package_mcp.NOTICES / name).is_file(), name
+            assert f"`{name}`" in readme, name
+    assert "Apache License" in (package_mcp.NOTICES / "openssl-LICENSE.txt").read_text(encoding="utf-8")
+    pynng_version = manifest["distributions"]["pynng"]["version"]
+    assert package_mcp.notice_mismatches(manifest, {"pynng": pynng_version}, (3, 0, 0, 11, 0)) == []
+    newer = package_mcp.notice_mismatches(manifest, {"pynng": "0.9.1"}, (3, 0, 0, 11, 0))
+    assert len(newer) == 1 and "pynng 0.9.1" in newer[0] and pynng_version in newer[0]
+    assert "not installed" in package_mcp.notice_mismatches(manifest, {}, (3, 0, 0, 11, 0))[0]
+    old_openssl = package_mcp.notice_mismatches(manifest, {"pynng": pynng_version}, (1, 1, 1, 23, 15))
+    assert len(old_openssl) == 1 and "OpenSSL" in old_openssl[0]
+
+
+def test_package_check_requires_notices_matching_the_bundled_versions(tmp_path):
+    import shutil
+    from qualification import check_package, package_mcp
+
+    manifest = package_mcp.notice_manifest()
+    licenses = tmp_path / "licenses"
+    (licenses / "third-party").mkdir(parents=True)
+    (licenses / "pynng").mkdir()
+    for name in ("KiCad-GPL.txt", "Python-LICENSE.txt"):
+        (licenses / name).write_text("licence")
+    for source in package_mcp.NOTICES.iterdir():
+        shutil.copyfile(source, licenses / "third-party" / source.name)
+    info = {"dependencies": {"pynng": manifest["distributions"]["pynng"]["version"]},
+            "openssl_version": "OpenSSL 3.0.11 19 Sep 2023"}
+    check_package.check_notices(tmp_path, info)
+    with pytest.raises(AssertionError, match="bundles pynng 0.10.0"):
+        check_package.check_notices(tmp_path, {**info, "dependencies": {"pynng": "0.10.0"}})
+    with pytest.raises(AssertionError, match="OpenSSL 1.1.1w"):
+        check_package.check_notices(tmp_path, {**info, "openssl_version": "OpenSSL 1.1.1w  11 Sep 2023"})
+    with pytest.raises(AssertionError, match="bundles None"):
+        check_package.check_notices(tmp_path, {"dependencies": info["dependencies"]})
+    (licenses / "third-party" / "openssl-LICENSE.txt").unlink()
+    with pytest.raises(AssertionError, match="missing licence notice third-party/openssl-LICENSE.txt"):
+        check_package.check_notices(tmp_path, info)
+
+
 def test_bundled_numpy_openblas_uses_dpkg_unstable_soname_mapping():
     assert private_shlibs_entry("libscipy_openblas64_-4b78795a.so") == "libscipy_openblas64_ 4b78795a embeint-kicad"
     assert private_shlibs_entry("libkiapi.so.10.99.0") == "libkiapi 10.99.0 embeint-kicad"
