@@ -11,10 +11,52 @@ from client import LiveSchematic, as_dict, document, editor, parse_items, projec
 from client import board_document as board_document_spec
 from client import footprint_document as footprint_document_spec
 from client import symbol_document as symbol_document_spec
+from skills import (DEFAULT_SKILL, INDEX_URI, MANIFEST_URI, read_skill, skill_index,
+                    skill_manifest)
 from support import CAPABILITIES_URI, local_capabilities
 
-mcp = FastMCP("KiCad Live")
+INSTRUCTIONS = (
+    "These tools drive Embeint KiCad over IPC. For schematic capture/review, part selection, "
+    "symbols, footprints or boards, load the bundled Embeint house style before editing: "
+    f'live_skill_reference {{"skill":"{DEFAULT_SKILL}"}} or '
+    f"kicad-skill://{DEFAULT_SKILL}/SKILL.md. Read the linked reference for the current task. "
+    "Skill discovery, file reads, content manifest and local capabilities work offline. "
+    "Follow the user's current intent and existing authorization; coordinate shared editor use. "
+    "Preserve manual edits, verify mutation outcomes, and save explicitly. "
+    "Local schemas and historical version notes do not prove current live editor support."
+)
+
+mcp = FastMCP("KiCad Live", instructions=INSTRUCTIONS)
 client = LiveSchematic()
+
+
+@mcp.tool()
+def live_skill_reference(skill: str = "", file: str = "SKILL.md") -> dict:
+    """Read offline Embeint design guidance; no arguments lists bundled skills/files.
+
+    Start design work with skill="kicad-house-style", then select a linked file:
+    schematic-style.md, parts-and-libraries.md, design-review.md, pcb.md,
+    live-workflow.md or workstation.md. Returns text, URI and raw-byte SHA-256.
+    """
+    return read_skill(skill, file)
+
+
+@mcp.resource(INDEX_URI, name="KiCad skills", mime_type="application/json")
+def skill_index_resource() -> str:
+    """Offline index of bundled skills, versions and available Markdown files."""
+    return json.dumps(skill_index(), sort_keys=True)
+
+
+@mcp.resource(MANIFEST_URI, name="KiCad skill content manifest", mime_type="application/json")
+def skill_manifest_resource() -> str:
+    """Skill versions and content hashes, independent of the capability schema hash."""
+    return json.dumps(skill_manifest(), sort_keys=True)
+
+
+@mcp.resource("kicad-skill://{skill}/{file}", name="KiCad skill file", mime_type="text/markdown")
+def skill_file_resource(skill: str, file: str) -> str:
+    """One allowlisted bundled Markdown file; no editor connection is needed."""
+    return read_skill(skill, file)["text"]
 
 
 @mcp.tool()

@@ -79,6 +79,8 @@ def test_stdio_initialization_discovery_tools_and_resource_without_kicad(socket_
         async with stdio_client(parameters) as (reader, writer):
             async with ClientSession(reader, writer) as session:
                 initialized = await session.initialize()
+                assert "live_skill_reference" in (initialized.instructions or "")
+                assert "kicad-house-style" in initialized.instructions
                 assert initialized.capabilities.tools is not None
                 assert initialized.capabilities.resources is not None
                 tools = (await session.list_tools()).tools
@@ -92,6 +94,30 @@ def test_stdio_initialization_discovery_tools_and_resource_without_kicad(socket_
                 assert CAPABILITIES_URI in {str(resource.uri) for resource in resources}
                 content = await session.read_resource(AnyUrl(CAPABILITIES_URI))
                 assert json.loads(content.contents[0].text) == manifest
+                import skills
+                templates = (await session.list_resource_templates()).resourceTemplates
+                assert "kicad-skill://{skill}/{file}" in {entry.uriTemplate for entry in templates}
+                for uri in (skills.INDEX_URI, skills.MANIFEST_URI):
+                    assert uri in {str(resource.uri) for resource in resources}
+                result = await session.call_tool("live_skill_reference", {})
+                assert not result.isError
+                listing = result.structuredContent or json.loads(result.content[0].text)
+                index = await session.read_resource(AnyUrl(skills.INDEX_URI))
+                assert listing["skills"] == json.loads(index.contents[0].text)
+                for entry in listing["skills"]:
+                    for name in entry["files"]:
+                        reply = await session.call_tool("live_skill_reference", {"skill": entry["skill"], "file": name})
+                        assert not reply.isError
+                        data = reply.structuredContent or json.loads(reply.content[0].text)
+                        resource = await session.read_resource(AnyUrl(data["uri"]))
+                        assert resource.contents[0].text == data["text"] == skills.read_skill(entry["skill"], name)["text"]
+                data_manifest = await session.read_resource(AnyUrl(skills.MANIFEST_URI))
+                assert json.loads(data_manifest.contents[0].text) == skills.skill_manifest()
+                for bad in ("missing.md", "../server.py", "..\\secret.md"):
+                    reply = await session.call_tool("live_skill_reference", {"skill": skills.DEFAULT_SKILL, "file": bad})
+                    assert reply.isError
+                with pytest.raises(Exception, match="missing|unsafe|invalid"):
+                    await session.read_resource(AnyUrl("kicad-skill://kicad-house-style/missing.md"))
                 description = await session.call_tool(
                     "live_schematic_describe_command", {"command": "GetItems"}
                 )

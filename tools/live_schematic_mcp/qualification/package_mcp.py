@@ -63,6 +63,16 @@ def main():
     env = {key: value for key, value in os.environ.items() if key not in {"PYTHONPATH", "PYTHONHOME"}}
     env["PYTHONNOUSERSITE"] = "1"
     subprocess.run([sys.executable, "-I", str(MCP / "generate_proto.py")], env=env, check=True)
+    sys.path.insert(0, str(MCP))
+    import skills
+    # Validate before freezing and include only the files advertised by discovery.
+    # Do not sweep local configuration or arbitrary files into the distribution.
+    skill_content = skills.skill_manifest()
+    skill_data = []
+    for relative in skill_content["skill_file_sha256"]:
+        source = skills.SKILLS_DIR / relative
+        destination = "skills/" + str(Path(relative).parent).replace("\\", "/")
+        skill_data.extend(["--add-data", f"{source}{os.pathsep}{destination}"])
     with tempfile.TemporaryDirectory(prefix="embeint-mcp-build-", dir=output.parent) as temp:
         build = Path(temp)
         subprocess.run([
@@ -71,9 +81,14 @@ def main():
             "--specpath", str(build), "--paths", str(MCP), "--paths", str(MCP / "_generated"),
             "--collect-all", "pynng", "--collect-all", "shapely",
             "--recursive-copy-metadata", "mcp",
+            *skill_data,
             str(Path(__file__).with_name("packaged_main.py")),
         ], env=env, check=True)
         package = build / "dist/embeint-kicad-mcp"
+        delivered = {relative: sha256((package / "_internal/skills" / relative).read_bytes()).hexdigest()
+                     for relative in skill_content["skill_file_sha256"]}
+        if delivered != skill_content["skill_file_sha256"] or skills.skill_manifest() != skill_content:
+            raise RuntimeError("skill data changed during packaging or was not delivered exactly")
         notices = package / "licenses"
         notices.mkdir()
         shutil.copyfile(MCP.parents[1] / "LICENSE", notices / "KiCad-GPL.txt")
@@ -98,7 +113,6 @@ def main():
                     destination = notices / name / Path(*item.parts[1:])
                     destination.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copyfile(source, destination)
-        sys.path.insert(0, str(MCP))
         import server
         manifest = asyncio.run(server.live_mcp_capabilities())
         sources = {str(path.relative_to(MCP)): sha256(path.read_bytes()).hexdigest()
@@ -111,6 +125,7 @@ def main():
                 "revision_source": revision_source, "protocol_source_sha256": protocol_sources,
                 "schema_sha256": manifest["schema_sha256"], "tool_count": manifest["tool_count"],
                 "command_count": manifest["command_count"], "python": sys.version,
+                "skills": skill_content,
                 "dependencies": dict(sorted(distributions.items()))}
         (package / "build-info.json").write_text(json.dumps(info, indent=2, sort_keys=True) + "\n")
         shutil.move(str(package), output)
