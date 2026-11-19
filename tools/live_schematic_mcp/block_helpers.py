@@ -179,6 +179,13 @@ class Block:
             dest.CopyFrom(source)
             dest.text.position.x_nm += origin[0]
             dest.text.position.y_nm += origin[1]
+        for child in definition.items:
+            user_field = sch.SchematicField()
+            if (child.item.Unpack(user_field) and not child.is_private
+                    and child.unit.unit in (0, unit) and child.body_style.style in (0, 1)):
+                user_field.text.position.x_nm += origin[0]
+                user_field.text.position.y_nm += origin[1]
+                instance.user_fields.add().CopyFrom(user_field)
         instance.reference_field.text.text = reference
         self.add(key, instance)
         self._pins[key] = [(p.number, (p.position.x_nm + origin[0], p.position.y_nm + origin[1]))

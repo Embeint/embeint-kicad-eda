@@ -283,6 +283,9 @@ def test_symbol_placement_uses_real_pin_endpoints_unit_and_preserves_pin_types()
     instance = block.items()["part"]
     assert instance.position == point(45.08, 50)
     assert instance.definition.id == original.id and instance.lib_id == original.id
+    assert instance.user_fields[0].name == "MPN"
+    assert instance.user_fields[0].text.text == "SYNTHETIC"
+    assert not instance.user_fields[0].visible
     p = sch.SchematicPin()
     assert instance.definition.items[0].item.Unpack(p) and p.electrical_type == types.EPT_UNSPECIFIED
     assert p.id != unpack(original.items[0].item).id
