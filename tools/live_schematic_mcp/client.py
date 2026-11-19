@@ -173,10 +173,10 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
         """Never retry mutations: a timeout may follow a successfully applied edit."""
         with self.lock:
             if not self._socket_selected:
-                self.socket_url, selection = select_instance(check_liveness=True)
-                # Pin only an instance that was found.  With none, the request tries the default
-                # endpoint and the next one looks again, so a KiCad started later (or serving
-                # another spelling of the temp directory) is still found.
+                # With no endpoint at all this fails at once (no_editor) and the next request looks
+                # again, so a KiCad started later is still found.  Pin only an instance that was
+                # found, never the default endpoint a KiCad would take.
+                self.socket_url, selection = select_instance(check_liveness=True, require_listener=True)
                 self._socket_selected = selection != "default_missing"
             local_socket_path(self.socket_url)
             if self._received_reply and socket_reachability(self.socket_url) == "not_listening":

@@ -132,3 +132,23 @@ def test_stdio_initialization_discovery_tools_and_resource_without_kicad(socket_
                 assert unknown.isError
 
     asyncio.run(asyncio.wait_for(exercise_protocol(), timeout=30))
+
+
+def test_version_identity_reports_checkout_and_bundled_builds(monkeypatch, tmp_path):
+    import support
+    source = support.version_identity()
+    assert source == {"server_version": support.ADAPTER_VERSION + "+source", "distribution": "source checkout",
+                      "application_version": None, "source_revision": None}
+    assert server.mcp._mcp_server.version == source["server_version"]
+    executable = tmp_path / "embeint-kicad-mcp.exe"
+    (tmp_path / "build-info.json").write_text(json.dumps({
+        "mcp_version": "0.1.0+gabc", "application_version": "10.99.0", "source_revision": "abc"}))
+    monkeypatch.setattr(support.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(support.sys, "executable", str(executable))
+    assert support.version_identity() == {"server_version": "0.1.0+gabc", "distribution": "bundled",
+                                          "application_version": "10.99.0", "source_revision": "abc"}
+    manifest = asyncio.run(server.live_mcp_capabilities())
+    assert manifest["server_version"] == "0.1.0+gabc" and manifest["application_version"] == "10.99.0"
+    assert manifest["editor_connection_attempted"] is False
+    (tmp_path / "build-info.json").write_text("not json")
+    assert support.version_identity()["server_version"] == support.ADAPTER_VERSION + "+unknown"

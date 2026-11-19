@@ -257,3 +257,13 @@ def test_mutation_is_not_replayed_when_peer_disconnects_and_rebinds(isolated_env
     assert not thread.is_alive()
     assert not errors
     assert len(requests) == 1
+
+
+def test_client_without_any_endpoint_reports_no_editor_without_dialing(monkeypatch, isolated_environment):
+    monkeypatch.setattr(client.sys, "platform", "linux")
+    monkeypatch.setattr(client.pynng, "Req0", lambda **_: pytest.fail("no connection should be opened"))
+    with pytest.raises(discovery.DiscoveryError) as error:
+        client.LiveSchematic().send(client.base.GetVersion(), client.base.GetVersionResponse)
+    assert error.value.code == "no_editor"
+    # Offline selection still keeps the historical default
+    assert discovery.select_socket() == "ipc://" + str(isolated_environment / "api.sock")

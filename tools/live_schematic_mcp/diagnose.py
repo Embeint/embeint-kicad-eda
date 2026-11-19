@@ -8,7 +8,8 @@ import os
 from pathlib import Path
 import sys
 
-from instance_discovery import DiscoveryError, discover_instances, is_endpoint, socket_entry
+from instance_discovery import (NO_EDITOR_ACTION, DiscoveryError, discover_instances, is_endpoint,
+                                socket_entry)
 
 
 SCOPES = {
@@ -17,9 +18,6 @@ SCOPES = {
     "other": "Default local IPC endpoint only; automatic discovery covers Linux/WSL and Windows",
 }
 PROBE_PLATFORMS = ("linux", "win32")
-NO_EDITOR_ACTION = ("No KiCad editor is listening. Start Embeint KiCad with the API server enabled "
-                    "(Preferences > Plugins > Enable KiCad API) and open a project, as the same "
-                    "user and with the same temporary directory as the MCP, or set KICAD_API_SOCKET.")
 
 
 def runtime_status():
@@ -177,6 +175,10 @@ def diagnose(*, probe=False, socket_url=None, timeout_ms=500):
               "capability_limit": "Only listed read-only requests are probed. No mutation support "
               "or negotiated capability set is inferred from an application version.",
               "runtime": runtime_status()}
+    if report["runtime"]["protocols"]["state"] == "ready":
+        # Server and packaged application versions (support imports the protocol modules)
+        from support import version_identity
+        report["mcp"] = version_identity()
     try:
         inventory = discover_instances(socket_url)
         report["discovery"] = inventory
