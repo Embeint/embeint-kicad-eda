@@ -1,0 +1,12 @@
+(version 2)
+
+(rule "Power clearance"
+	(condition "A.NetClass == 'Power'")
+	(constraint clearance (min 0.25mm))
+)
+
+(rule "No vias under U1"
+	(condition "A.intersectsCourtyard('U1')")
+	(constraint disallow through_via)
+	(severity warning)
+)

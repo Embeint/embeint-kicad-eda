@@ -1,0 +1,34 @@
+{
+  "note": "compat/fixture/compat-fixture (written by the fork) opened by the reference kicad-cli",
+  "reference": "KiCad 10.0.6 (kicad-cli, Windows x64 release build)",
+  "checks": {
+    "fp read compat.pretty": "failed",
+    "pcb drc": "refused-newer-format",
+    "pcb export drill": "refused-newer-format",
+    "pcb export dsn": "not-available-in-reference-cli",
+    "pcb export dxf": "refused-newer-format",
+    "pcb export gencad": "refused-newer-format",
+    "pcb export gerbers": "refused-newer-format",
+    "pcb export idf": "not-available-in-reference-cli",
+    "pcb export ipc2581": "refused-newer-format",
+    "pcb export ipcd356": "refused-newer-format",
+    "pcb export odb": "refused-newer-format",
+    "pcb export pdf": "refused-newer-format",
+    "pcb export position": "refused-newer-format",
+    "pcb export stats": "refused-newer-format",
+    "pcb export step": "refused-newer-format",
+    "pcb export svg": "refused-newer-format",
+    "sch erc": "failed",
+    "sch export bom": "failed",
+    "sch export dxf": "failed",
+    "sch export netlist": "failed",
+    "sch export pdf": "failed",
+    "sch export ps": "failed",
+    "sch export svg": "failed",
+    "sym read compat.kicad_sym": "failed",
+    "version": "ok"
+  },
+  "changed_inputs": [
+    "compat-fixture.kicad_prl"
+  ]
+}

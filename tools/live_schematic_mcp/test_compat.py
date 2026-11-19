@@ -110,6 +110,8 @@ def test_committed_fixture_declares_fork_versions():
         assert kinds.get(kind) == {version}, (kind, kinds.get(kind))
         assert version > REFERENCE[kind], "fork files are newer than KiCad 10.0.6 can declare"
     assert any(v.get("embedded_files") for k, v in found.items() if k.endswith(".kicad_mod"))
+    # The fork wraps library footprints in a new root that KiCad 10.0.6 does not know
+    assert {v["root"] for k, v in found.items() if k.endswith(".kicad_mod")} == {"kicad_footprint_lib"}
     assert {"sym-lib-table", "fp-lib-table", "compat-fixture.kicad_dru", "compat-fixture.kicad_pro",
             "power.kicad_sch"} <= set(found)
     # Small enough to keep in the repository
@@ -123,3 +125,22 @@ def test_golden_covers_every_export():
     assert set(golden) == {f"sch/{k}" for k in SCH_EXPORTS} | {f"pcb/{k}" for k in PCB_EXPORTS}
     for entry in golden.values():
         assert entry["files"] and entry["tree_sha256"] == tree_hash(entry["files"])
+
+
+@pytest.mark.parametrize("name", ["reference-on-fork-fixture.json", "reference-on-reference-fixture.json"])
+def test_reference_expectations_cover_every_check(name, tmp_path):
+    expected = json.loads((Path(__file__).parent / "compat/expected" / name).read_text())
+    for suffix in (".kicad_pro", ".kicad_sch", ".kicad_pcb"):
+        (tmp_path / f"p{suffix}").write_text("")
+    jobs = {job for job, _, _ in reference_jobs(tmp_path, tmp_path / "out")}
+    assert {job for job in expected["checks"] if not job.startswith(("sym read", "fp read"))} == jobs
+    assert expected["checks"]["pcb export dsn"] == "not-available-in-reference-cli"
+    if "fork" in name:
+        # Every design file is refused; only the version query works, and the reference rewrites
+        # the fork's local settings file even though it cannot open the board
+        assert {r for k, r in expected["checks"].items() if k != "version"} == {
+            "failed", "refused-newer-format", "not-available-in-reference-cli"}
+        assert expected["changed_inputs"] == ["compat-fixture.kicad_prl"]
+    else:
+        assert set(expected["checks"].values()) == {"ok", "not-available-in-reference-cli"}
+        assert expected["changed_inputs"] == []

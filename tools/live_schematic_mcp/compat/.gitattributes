@@ -1,0 +1,2 @@
+# The compatibility fixture is compared byte for byte: keep KiCad's LF endings on every platform
+fixture/** -text

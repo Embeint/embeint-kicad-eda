@@ -1,0 +1,138 @@
+{
+  "application_version": "10.99.0-unknown",
+  "exports": {
+    "pcb/drill": {
+      "files": {
+        "compat-fixture.drl": "370559967e53b82aad4528483d64b4b8ff4ee04f0b623a45542521c5cffb53fb"
+      },
+      "tree_sha256": "3be484907d3c230cf3c222ab788b9d262756ca3c782ea55c505d23fe5cb2f690"
+    },
+    "pcb/dsn": {
+      "files": {
+        "board.dsn": "de973622e7ef8551032a3d985505932dc0107b479b900dbf7fc200c53beacb76"
+      },
+      "tree_sha256": "ee116610dff18476458be82ddf5b54107fac34259122a2623853b05fa5c4a396"
+    },
+    "pcb/dxf": {
+      "files": {
+        "board.dxf": "a1396bbd25c856844d29066b89a116068226d1b58c95b1bee70d362bb6385695"
+      },
+      "tree_sha256": "e864559cd2fee8268931ac226bd2534e596f97d4c528d2f5c79694213671cb08"
+    },
+    "pcb/gencad": {
+      "files": {
+        "board.cad": "dc792697452d3b34d91405ec2cb83285f984423efa1577ec9e2a2e52e10a56ae"
+      },
+      "tree_sha256": "bf2266eb8c5184aec362d1d1e21009b0dbf17e2982a90e8ae1633ed05c817868"
+    },
+    "pcb/gerbers": {
+      "files": {
+        "compat-fixture-B_Cu.gbr": "18ada2ee42b00e854903d731fbdfc99ae2cfc4090d29565c423815b76e2eb515",
+        "compat-fixture-B_Mask.gbr": "d3ba0e1bbac8153408f80973ca087a682d046de2e4dd14c0d9f79fde6e1538d6",
+        "compat-fixture-B_Paste.gbr": "48bf1fd4f367c659f5a7287d852d6188a99e9f3f18a3262d8a65ac24da914abe",
+        "compat-fixture-B_Silkscreen.gbr": "a516a17da66ae3c3e425d484e999b9e448b67a7babd9453859936109ce87a611",
+        "compat-fixture-Edge_Cuts.gbr": "c48a394f682a309c230bffba6fbb66d1d41a6d0b213a8d2a1455135eefcbc63d",
+        "compat-fixture-F_Cu.gbr": "530132fe22ad9eed40d96a1894e571dc24559abd2e3a7a29db051f29facbd051",
+        "compat-fixture-F_Mask.gbr": "6441cb3db1e6a73c150db3eda91fc51f870e457eb5fd5af0819f354fe4570c3b",
+        "compat-fixture-F_Paste.gbr": "ee6970aab52847f24bd2b163783ac1474aef190a60497b27bc45fff449647492",
+        "compat-fixture-F_Silkscreen.gbr": "e7c4eed7d7693dc7b65d90d34906ca9b951c59f6e50427c3828e10640ff4face",
+        "compat-fixture-job.gbrjob": "798d5b636589bd6f68536a35b9a640c8b54215665be49d9fb6c52a257f9e62d7"
+      },
+      "tree_sha256": "5ca1ae07cffaff44af69e00d38e8517e5744069fdf817f03dd4a425a8dcc4f5d"
+    },
+    "pcb/idf": {
+      "files": {
+        "board.emn": "65e88b0c991acd1839a4456e71bea6d5c9368794d268626849009f30bcae5e7d",
+        "board.emp": "66e8def8108c48dc49fc7bb59f15fa9508be1c3fc73fdbabce639bf3f1671436"
+      },
+      "tree_sha256": "64d32540646328ddc6387efb7f6d9a8ab800f29d799a64620ff8536a42bc3128"
+    },
+    "pcb/ipc2581": {
+      "files": {
+        "board.xml": "f1dd723cf7226545d96de12aadf06c9e94532381eaa6a65896ed822aed5ce215"
+      },
+      "tree_sha256": "84805681dac19680e17c226bdee24e0b61512dd54fa25e1701c631c9e22a4796"
+    },
+    "pcb/ipcd356": {
+      "files": {
+        "board.d356": "6d00461ccb835157dd921bc1494dd2a7b800a26fbce9060af2fbac19136ab317"
+      },
+      "tree_sha256": "9d76bb497b918c0e741a408568ec3e0acdd1fcda97cc20b1227fe7999735fece"
+    },
+    "pcb/odb": {
+      "files": {
+        "board-odb.zip": "31fb793411487101748ab1b70c3a46b13a56a41f7919cd30e38fad9fce6af9b7"
+      },
+      "tree_sha256": "e08dddf9eb51d7b424cc6b3bd58d1280785ef679b2c786997898b25165960ba3"
+    },
+    "pcb/pdf": {
+      "files": {
+        "board.pdf": "c85c154d910a177ba59692c025facb749e2d428ea31c864ab74206e2f8f8c8a4"
+      },
+      "tree_sha256": "ca754a178f5bd46cfe92e44ccfbc2b850d1364ec53afe7347701a4b4207920b4"
+    },
+    "pcb/position": {
+      "files": {
+        "board-bottom.pos": "0b306ea12408d1e3620639b94f9a56dbe52a120a4a5d53ae6c862de4849af43d",
+        "board-top.pos": "b7111ba9573ca37979c20c1d294803ef672c6dadef75fb4ff821bff9a326c769"
+      },
+      "tree_sha256": "7141dcda2a58c4e9b5388f2c5ce29bb2ef0eb28a7078e4db1c07b1f4f795b92a"
+    },
+    "pcb/stats": {
+      "files": {
+        "board-stats.txt": "a76edf3e0253cb4cc68bdc15cfd5b37969f59bb2dd7233ad5e12c8b4a1c750fd"
+      },
+      "tree_sha256": "93d80f4a4453f1a9741ac59ef46f396c1dcf3ecf589ca07fa5d54624cf25af22"
+    },
+    "pcb/step": {
+      "files": {
+        "board.step": "9dae3fb2def4c8fab303e96adb35bc33101c2eab32467e5ace17d5ad75e83103"
+      },
+      "tree_sha256": "09af2b793a48cbe80c68856042b3e18f5052b5a372e3e7bd1e9e6332ecc7600e"
+    },
+    "pcb/svg": {
+      "files": {
+        "board.svg": "d5dcdf011bb5c72ee4dbc4e3240e4e301d6a92c668335191313a39c133c92e0b"
+      },
+      "tree_sha256": "c4a0b8f88625d82006f67bd0f5af6a58daae80940ecf0f606c619c75cd348f2c"
+    },
+    "sch/bom": {
+      "files": {
+        "bom.csv": "913a2fea5b348088c934296f93f454e4a9ce7d5be2591d53ecb7c7389f842f47"
+      },
+      "tree_sha256": "bf6d7857866ac320f1d47993b5a4ebc69e959007d438a5d618144e3e50961563"
+    },
+    "sch/dxf": {
+      "files": {
+        "compat-fixture.dxf": "f0818bc8b4a3822986b331abe135b0f1578033b73e2e62b833a205963b7d681c"
+      },
+      "tree_sha256": "7edc1357033d842ab5c1d13df2205c7b48869f2c24fe9a1a366d39b95913b95c"
+    },
+    "sch/netlist": {
+      "files": {
+        "schematic.net": "07e9c914bc95e4fdb8ee6660d9ad74ceebeae7b216bf86cee717f0b7f486a428"
+      },
+      "tree_sha256": "9694ddcfa2abdb33e363c5b53f8647ef7bcec02531a78f37df782f48b99a3185"
+    },
+    "sch/pdf": {
+      "files": {
+        "schematic.pdf": "0c7a479c3a6c7981ef1c8117f75600461ea8349f0ce8f83f8b4d0dc5a346151d"
+      },
+      "tree_sha256": "bebdda342507d4048c43524f25883b7b00593da95e9c375e18974a4aa0d7e695"
+    },
+    "sch/ps": {
+      "files": {
+        "compat-fixture.ps": "55cb005050ed027062ea053116d94fb02faf6dfd8ec5c31d91b8173c7b936e47"
+      },
+      "tree_sha256": "02aaadd01f36ce7e4068d497947e8ce330f32fa003181788b5658251b54ee326"
+    },
+    "sch/svg": {
+      "files": {
+        "compat-fixture.svg": "19cfe181fc47d0eed8e6385d2c2ea6fac2fb25462651180dccf9e6f5f0a080af"
+      },
+      "tree_sha256": "e68af25eb6be7f94d439ede8f22cfda96e2851bef82af8475afb7b92fc6cdc18"
+    }
+  },
+  "fixture": "compat/fixture/compat-fixture",
+  "note": "sha256 of normalized export trees (compat/formats.py); regenerate with fork-exports --update"
+}

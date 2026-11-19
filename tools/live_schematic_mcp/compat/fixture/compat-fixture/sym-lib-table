@@ -1,0 +1,4 @@
+(sym_lib_table
+	(version 7)
+	(lib (name "compat") (type "KiCad") (uri "${KIPRJMOD}/compat.kicad_sym") (options "") (descr "Compatibility fixture symbols"))
+)

@@ -137,14 +137,17 @@ _LINE_RULES = (
     (re.compile(rb"^(USER|DRAWING|REVISION) .*$", re.M), rb"\1 <VOLATILE>"),
     (re.compile(rb"^(BOARD_FILE|LIBRARY_FILE) (\S+) .*$", re.M), rb"\1 \2 <VOLATILE>"),
     (re.compile(rb"\(host_version\s+\"[^\"]*\"\)"), b"(host_version \"<VERSION>\")"),
-    (re.compile(rb"^(Board statistics report|Date|Board name|Generated|Created).*$", re.M), rb"\1 <VOLATILE>"),
+    (re.compile(rb"^- Date: .*$", re.M), b"- Date: <DATETIME>"),
 )
 
-# IPC-2581 and ODB++ exports are not reproducible between identical runs of the same build: KiCad
-# 10.0.6 and the fork both emit records in hash order and number their symbol/padstack tables in that
-# order, so even individual lines change.  They are compared by structure only: a histogram of XML
-# element names (IPC-2581) or of record types per ODB++ member, plus record counts.
-STRUCTURAL = (".xml",)
+# Exports that are not reproducible between identical runs, compared by structure only:
+# - IPC-2581 and ODB++: KiCad 10.0.6 emits records in hash order and numbers its symbol/padstack
+#   tables in that order, so even individual lines change (histogram of XML element names, or of
+#   record types per ODB++ member).
+# - STEP: OpenCASCADE numbers products and assembly usages with per-process counters and orders the
+#   colour (styled item) entities differently on each export (histogram of entity types).
+# Record counts still catch added or lost items; changed coordinates are not detected.
+STRUCTURAL = (".xml", ".step", ".stp")
 
 _ODB_INFO = re.compile(rb"^(CREATION_DATE|SAVE_DATE|SAVE_APP|SAVE_USER)=.*$", re.M)
 
@@ -162,12 +165,31 @@ def _histogram(keys):
     return json.dumps(dict(sorted(counts.items())), indent=0).encode()
 
 
-def structure(data, xml=False):
+def structure(data, kind=""):
     """Order- and numbering-independent summary of an export (see STRUCTURAL)."""
-    if xml:
+    if kind == ".xml":
         return _histogram(m.decode() for m in re.findall(rb"<([A-Za-z][\w:.-]*)", data))
+    if kind in (".step", ".stp"):
+        return _histogram(m.decode() for m in re.findall(rb"^#\d+\s*=\s*([A-Z0-9_]+)\s*\(", data, re.M))
     return _histogram(line.split(None, 1)[0].decode(errors="replace") if line.strip() else ""
                       for line in data.splitlines())
+
+
+def _path_spellings(folder):
+    """A folder as KiCad may write it: POSIX, WSL /mnt/<drive>, Windows, and s-expression escaped."""
+    posix = folder.replace("\\", "/")
+    forms = {posix}
+    drive = re.match(r"^/mnt/([a-zA-Z])(/.*)$", posix)
+    if drive:
+        forms.add(f"{drive.group(1).upper()}:{drive.group(2)}")
+    drive = re.match(r"^([a-zA-Z]):(/.*)$", posix)
+    if drive:
+        forms.add(f"/mnt/{drive.group(1).lower()}{drive.group(2)}")
+    for form in list(forms):
+        if re.match(r"^[A-Z]:", form):
+            forms.add(form.replace("/", "\\"))
+            forms.add(form.replace("/", "\\\\"))
+    return sorted(forms, key=len, reverse=True)
 
 
 def normalize_bytes(data, name, project_dirs=(), structural=False):
@@ -180,9 +202,7 @@ def normalize_bytes(data, name, project_dirs=(), structural=False):
     if suffix in (".zip", ".tgz") or name.endswith(".tar.gz"):
         return _normalize_archive(data, suffix, project_dirs)
     for index, folder in enumerate(sorted({str(d) for d in project_dirs if d}, key=len, reverse=True)):
-        windows = folder.replace("/", "\\")
-        for spelling in sorted({folder, windows, windows.replace("\\", "\\\\"), folder.replace("\\", "/")},
-                               key=len, reverse=True):
+        for spelling in _path_spellings(folder):
             data = data.replace(spelling.encode(), b"<DIR%d>" % index)
     data = _replace(data, _SUFFIX_RULES.get(suffix, ()))
     data = _replace(data, _COMMON_RULES)
@@ -192,7 +212,7 @@ def normalize_bytes(data, name, project_dirs=(), structural=False):
         data = _ODB_INFO.sub(rb"\1=<VOLATILE>", data)
     data = re.sub(_VERSION, b"<VERSION>", data).replace(b"\r\n", b"\n")
     if suffix in STRUCTURAL or structural:
-        return structure(data, xml=suffix in STRUCTURAL)
+        return structure(data, suffix if suffix in STRUCTURAL else "")
     return data
 
 

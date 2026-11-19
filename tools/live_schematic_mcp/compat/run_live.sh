@@ -25,10 +25,24 @@ ensure_protos
 export PYTHONPATH="$MCP"
 kicad_pid=""
 
+# One development KiCad at a time: name its socket so discovery never picks a stale one
+export KICAD_API_SOCKET="${KICAD_API_SOCKET:-ipc:///tmp/kicad/api.sock}"
+
 start_kicad() {  # project.kicad_pro log
     "$MCP/run_kicad_wsl.sh" "$1" > "$2" 2>&1 &
     kicad_pid=$!
-    "$SCRIPTS/wait_ready.sh" >> "$2" 2>&1 || { stop_kicad; echo "KiCad did not start: $2" >&2; exit 1; }
+    # run_kicad_wsl.sh first refreshes the local library copies, which can take minutes
+    for _ in $(seq 300); do
+        kill -0 "$kicad_pid" 2>/dev/null || { echo "KiCad exited: $2" >&2; exit 1; }
+        if (cd "$MCP" && "$PYTHON" -c 'from client import LiveSchematic, base
+LiveSchematic(timeout_ms=2000).send(base.GetVersion(), base.GetVersionResponse)') >/dev/null 2>&1; then
+            return 0
+        fi
+        sleep 2
+    done
+    stop_kicad
+    echo "KiCad did not answer: $2" >&2
+    exit 1
 }
 
 stop_kicad() {
