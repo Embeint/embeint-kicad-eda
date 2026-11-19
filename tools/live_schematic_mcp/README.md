@@ -262,3 +262,14 @@ claude mcp add kicad-live -- wsl.exe -d Ubuntu -- bash /mnt/c/<fork>/tools/live_
 ~/kicad-live/venv/bin/python e2e_design.py out/            # stackup, impedance, rules, custom rules, net classes, keepouts, routing around copper, checks
 SOLIDCRAFT_CLI=/path/to/solidcraft-cli ~/kicad-live/venv/bin/python e2e_model_handoff.py out/     # SolidCraft builds the STEP; KiCad embeds and renders it
 ```
+
+## Supported schematic block scripting
+
+The source distribution provides `block_helpers.py` for small generated blocks and
+UUID-scoped revisions through the existing Python client. Start with
+`python tools/live_schematic_mcp/block_example.py` for an offline synthetic plan,
+or read the bundled [helper API reference](skills/kicad-house-style/block-helpers.md).
+Stable ownership manifests, stale-state fingerprints and single-use plans preserve
+manual items and avoid blind mutation replay. This is a scripting API; no new MCP
+helper execution tool is registered. Fingerprints do not provide atomic editor
+revision checks, and live use requires a single writer plus pin/net/page validation.
