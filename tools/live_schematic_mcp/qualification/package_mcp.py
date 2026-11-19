@@ -80,6 +80,7 @@ def main():
             "--distpath", str(build / "dist"), "--workpath", str(build / "work"),
             "--specpath", str(build), "--paths", str(MCP), "--paths", str(MCP / "_generated"),
             "--collect-all", "pynng", "--collect-all", "shapely",
+            "--hidden-import", "block_helpers",
             "--recursive-copy-metadata", "mcp",
             *skill_data,
             str(Path(__file__).with_name("packaged_main.py")),
