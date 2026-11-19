@@ -34,7 +34,7 @@ positions, a sheet bounding box or whichever items happen to be selected.
 | `frame(key, title, (x1,y1,x2,y2))` | Dashed unfilled rectangle plus title inside it; millimeters. |
 | `symbol(key, definition, reference, anchor_pin, at, unit=1)` | Full library definition from `client.library_symbols([lib_id])`; position by the real numbered pin endpoint. Unrotated, unmirrored unit only. Returns unambiguous numbered endpoints. |
 | `pin(key, number)` | Endpoint on a constructed symbol. Missing/ambiguous pins are refused; unit and body-style filtering apply, including hidden pins. |
-| `wire(key, net, path)` | Explicit Manhattan waypoints; split same-net T/X joins and add junctions (a block pin, port or sheet pin counts as one exit, as in KiCad). Reject zero/diagonal legs, collinear overlaps, different-net intersections and in-line wire ends meeting with nothing else there, which KiCad would merge on commit. `net` is a planning name, not an editor net assignment. |
+| `wire(key, net, path)` | Explicit Manhattan waypoints; split same-net T/X joins and add junctions (as in KiCad, a symbol pin or sheet pin counts as one exit; ports, labels and no-connect pins do not). Reject zero/diagonal legs, collinear overlaps, different-net intersections and in-line wire ends meeting with no pin there, which KiCad would merge on commit. `net` is a planning name, not an editor net assignment. |
 | `port(key, name, at, shape='input', spin='left')` | Hierarchical label at a real wire endpoint. Shapes: input/output/bidi/passive. |
 | `sheet(key, name, filename, at, size, page, ports)` | Owned parent sheet with pins `(name, side, edge_offset_mm, shape)`; returns their endpoints. Sides: left/right/top/bottom. |
 | `add(key, item)` | Complete supported top-level schematic protobuf; assigns a generated UUID. This is a full replacement request, not a field patch. Preserve required fields. |
@@ -52,8 +52,11 @@ label-on-every-pin scheme, page selection, or whole-sheet layout. Different-net
 crossings are conservatively refused even if KiCad could draw a crossing without
 a junction. A same-net X join is intentionally connected. Block wires must not
 touch manual wires or junctions (a shared end, an end on the other wire, or an
-overlap): KiCad's commit cleanup would merge or split the manual wire, so `plan()`
-refuses it. A plain crossing of two wire interiors is unconnected and allowed.
+overlap): KiCad's commit cleanup could merge the wires or drop a junction, so
+`plan()` refuses it. A plain crossing of two wire interiors is unconnected and
+allowed. For the same reason, a revision that moves or removes a block symbol or
+sheet pin with manual wiring attached is refused; the manifest records each owned
+item's planned pin points because `GetItems` omits them.
 Separate generated blocks, and join manual circuitry, with short local labels; connect sheets through matching hierarchical ports and
 parent pins. A child sheet is a separate document/block/manifest. Match names and
 directions and wire the parent pins explicitly; there is no multi-document commit.
@@ -83,8 +86,8 @@ manifest_text = state.to_json()  # persist explicitly with the block source
 
 Planning refuses changed/missing owned items and collisions with unowned UUIDs.
 It never adopts selected items, captures everything inside a rectangle, or clears
-a sheet. Removing an owned key removes that UUID only, provided block wires stay
-clear of manual wires as described above. It refuses sheet deletion
+a sheet. Removing an owned key removes that UUID only; the manual-wiring refusals
+above keep KiCad's cleanup from changing manual items. It refuses sheet deletion
 and changing a child sheet filename, since manual child content could be discarded.
 It limits a revision to 200 changed items and refuses changing an item's type under
 the same key. Use a new logical key for a deliberate type replacement.

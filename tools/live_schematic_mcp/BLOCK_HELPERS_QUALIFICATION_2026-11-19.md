@@ -99,12 +99,15 @@ acceptance owner is not independent-agent evidence.
 ## Review fixes after qualification
 
 A later code review changed `block_helpers.py`, its tests, the qualification
-checker and the helper guidance (skill version 1.1.1). Block wires that KiCad's
-commit cleanup would merge (in-line ends meeting with nothing else there) or that
-touch manual wires/junctions are now refused; a block pin, port or sheet pin counts
-as a junction exit; wire/junction geometry is checked after apply; owned-item hashes
-are deterministic across processes (map fields); and checker failures no longer use
-`assert`. The combined offline suite passed **326 tests** with these changes.
+checker, the live probe and the helper guidance (skill version 1.1.1). Following
+KiCad's commit cleanup and junction analysis, planning now refuses block wires
+whose in-line ends meet with no pin there, block wires or junctions touching manual
+wiring, and moving or removing a block pin with manual wiring attached (the
+manifest records planned pin points for this). Symbol and sheet pins count as a
+junction exit; ports and no-connect pins do not. Wire/junction geometry is checked
+after apply; owned-item hashes are deterministic across processes (map fields); and
+checker and probe failures no longer use `assert`. The combined offline suite passed
+**329 tests** with these changes.
 
 The frozen receipt, its skill content hash and the native helper probe above describe
 the earlier helper source and skill 1.1.0. They were **not** rerun for these fixes:

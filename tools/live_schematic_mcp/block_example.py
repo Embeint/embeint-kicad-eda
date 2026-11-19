@@ -74,29 +74,33 @@ def run_probe(client, doc):
     first = example_block(namespace, definitions[0])
     state = apply(client, doc, plan(first, Manifest.empty(namespace, doc), doc, client.items(doc).items))
     after = {item.id.value: item for item in _read(client, doc)}
-    assert all(after[key] == value for key, value in baseline.items()), "manual content changed"
-    assert sum(isinstance(item, sch.Junction) for item in after.values()) == (
-        sum(isinstance(item, sch.Junction) for item in baseline.values()) + 1)
+    _check(all(after[key] == value for key, value in baseline.items()), "manual content changed")
+    _check(sum(isinstance(item, sch.Junction) for item in after.values()) == (
+        sum(isinstance(item, sch.Junction) for item in baseline.values()) + 1), "expected one new junction")
     observed_pins = client.symbol_pins(doc)
     by_ref = {item["reference"]: {p["number"]: p for p in item["pins"]} for item in observed_pins}
     for key, ref in (("source", "R901"), ("load", "R902")):
         for number in ("1", "2"):
-            assert point(*by_ref[ref][number]["position_mm"]) == point(*first.pin(key, number))
-    assert by_ref["R901"]["2"]["net"] and by_ref["R901"]["2"]["net"] == by_ref["R902"]["1"]["net"]
-    assert by_ref["R901"]["2"]["net"] != by_ref["R902"]["2"]["net"]
+            _check(point(*by_ref[ref][number]["position_mm"]) == point(*first.pin(key, number)),
+                   f"{ref} pin {number} is not at its planned endpoint")
+    _check(by_ref["R901"]["2"]["net"] and by_ref["R901"]["2"]["net"] == by_ref["R902"]["1"]["net"],
+           "R901.2 and R902.1 should share a net")
+    _check(by_ref["R901"]["2"]["net"] != by_ref["R902"]["2"]["net"], "R902.2 should be on another net")
     repeated = plan(first, state, doc, client.items(doc).items)
-    assert not repeated.creates and not repeated.updates and not repeated.deletes
-    assert apply(client, doc, repeated) == state
+    _check(not repeated.creates and not repeated.updates and not repeated.deletes, "repeat was not a no-op")
+    _check(apply(client, doc, repeated) == state, "repeat apply changed the manifest")
     second = example_block(namespace, definitions[0], revised=True)
     revision = plan(second, state, doc, client.items(doc).items)
-    assert all(key.startswith(("route/", "junction/")) for key in revision.updates + revision.deletes + revision.creates)
+    _check(all(key.startswith(("route/", "junction/"))
+               for key in revision.updates + revision.deletes + revision.creates),
+           "revision touched more than routes and junctions")
     state = apply(client, doc, revision)
     by_ref = {item["reference"]: {p["number"]: p for p in item["pins"]}
               for item in client.symbol_pins(doc)}
-    assert by_ref["R901"]["2"]["net"] == by_ref["R902"]["2"]["net"]
-    assert by_ref["R901"]["2"]["net"] != by_ref["R902"]["1"]["net"]
+    _check(by_ref["R901"]["2"]["net"] == by_ref["R902"]["2"]["net"], "revised R901.2/R902.2 not joined")
+    _check(by_ref["R901"]["2"]["net"] != by_ref["R902"]["1"]["net"], "revised R902.1 still joined")
     revised_items = {item.id.value: item for item in _read(client, doc)}
-    assert all(revised_items[key] == value for key, value in baseline.items())
+    _check(all(revised_items[key] == value for key, value in baseline.items()), "manual content changed")
     # Exercise stale precondition without sending a stale helper mutation.
     stale = plan(second, state, doc, client.items(doc).items)
     note.text.text += " edited"
@@ -106,19 +110,25 @@ def run_probe(client, doc):
     except StaleState:
         pass
     else:
-        raise AssertionError("stale plan accepted")
+        raise RuntimeError("stale plan accepted")
     page = client.page_layout(doc)
-    assert page["fits"], page
+    _check(page["fits"], f"page does not fit: {page}")
     # No uncertain operation has occurred. Reconcile only the generated UUIDs away,
     # then remove the one synthetic manual note owned by this probe.
     apply(client, doc, plan(Block(namespace), state, doc, client.items(doc).items))
     client.delete(doc, [note.id.value])
-    assert fingerprint(client.items(doc).items) == original
+    _check(fingerprint(client.items(doc).items) == original, "cleanup did not restore the sheet")
     return {"passed": True, "namespace": namespace, "document": as_dict(doc),
             "checks": ["manual items preserved", "real pin endpoints", "one junction at T join",
                        "repeat is no-op", "revision changes intended net membership",
                        "stale fingerprint refused", "page fits", "exact cleanup; no save"],
             "revision": revision.report(), "independent_agent_evidence": False}
+
+
+def _check(condition, message):
+    # Explicit failure rather than assert, so `python -O` cannot report a passing probe.
+    if not condition:
+        raise RuntimeError(f"probe check failed: {message}")
 
 
 def _read(client, doc):

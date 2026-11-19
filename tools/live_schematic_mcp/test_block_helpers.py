@@ -365,18 +365,63 @@ def test_inline_wire_ends_that_kicad_would_merge_are_refused(routes):
     assert not report["valid"] and "merge" in report["errors"][0]
 
 
-def test_inline_wires_meeting_at_a_port_or_pin_get_a_junction_not_a_merge():
+def test_ports_and_nc_pins_are_not_wire_exits_like_kicad():
+    # JUNCTION_HELPERS::AnalyzePoint ignores labels, and SCH_SYMBOL skips NC pins.
     block = Block(NAMESPACE)
     block.wire("left", "SIGNAL", [(10, 10), (20, 10)])
     block.wire("right", "SIGNAL", [(20, 10), (30, 10)])
     block.port("port", "SIGNAL", (20, 10))
-    assert block.report()["junctions"] == 1
+    assert not block.report()["valid"]
+    corner = Block(NAMESPACE)
+    corner.wire("bend", "SIGNAL", [(10, 10), (20, 10), (20, 20)])
+    corner.port("port", "SIGNAL", (20, 10))
+    assert corner.report()["junctions"] == 0
+    symbol = definition()
+    pin = unpack(symbol.items[0].item)
+    pin.electrical_type = types.EPT_NO_CONNECT
+    symbol.items[0].item.Pack(pin)
+    nc = Block(NAMESPACE)
+    pins = nc.symbol("part", symbol, "U101", "1", (40, 50))
+    nc.wire("a", "SIGNAL", [(30, 50), pins["1"]])
+    nc.wire("b", "SIGNAL", [pins["1"], (40, 40)])
+    assert nc.report()["junctions"] == 0
+
+
+def test_inline_or_branching_wires_at_a_symbol_pin_get_a_junction_not_a_merge():
     block = Block(NAMESPACE)
     pins = block.symbol("part", definition(), "U101", "1", (40, 50))
     block.wire("a", "SIGNAL", [pins["1"], (30, 50)])
     block.wire("b", "SIGNAL", [pins["1"], (40, 60)])
     junctions = [i for i in block.items().values() if isinstance(i, sch.Junction)]
     assert [j.position for j in junctions] == [point(40, 50)]
+    inline = Block(NAMESPACE)
+    pins = inline.symbol("part", definition(), "U101", "2", (40, 50))
+    inline.wire("a", "SIGNAL", [(30, 50), pins["2"]])
+    inline.wire("b", "SIGNAL", [pins["2"], (50, 50)])
+    assert inline.report()["junctions"] == 1
+
+
+@pytest.mark.parametrize("revise", ["move", "delete"])
+def test_moving_or_removing_a_pin_with_manual_wiring_attached_is_refused(revise):
+    # CleanUp would drop the manual junction (and merge in-line manual wires) once
+    # the block pin no longer supplies the third exit.
+    client = Editor()
+    first = Block(NAMESPACE)
+    first.symbol("part", definition(), "U101", "1", (40, 50))
+    state = apply(client, doc(), plan(first, Manifest.empty(NAMESPACE, doc()), doc(), []))
+    assert Manifest.from_json(state.to_json()) == state
+    manual_items = [sch.SchematicLine(id=kiid(), type=sch.SLT_WIRE, start=point(40, 50), end=point(30, 50)),
+                    sch.SchematicLine(id=kiid(), type=sch.SLT_WIRE, start=point(40, 50), end=point(40, 40)),
+                    sch.Junction(id=kiid(), position=point(40, 50))]
+    client.live.update({item.id.value: pack(item) for item in manual_items})
+    same = Block(NAMESPACE)
+    same.symbol("part", definition(), "U102", "1", (40, 50))
+    assert plan(same, state, doc(), client.items(doc()).items).updates == ("part",)
+    revised = Block(NAMESPACE)
+    if revise == "move":
+        revised.symbol("part", definition(), "U101", "1", (40, 60))
+    with pytest.raises(ValueError, match="manual wiring attached"):
+        plan(revised, state, doc(), client.items(doc()).items)
 
 
 @pytest.mark.parametrize("item", [

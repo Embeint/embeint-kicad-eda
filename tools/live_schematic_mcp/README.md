@@ -271,6 +271,7 @@ UUID-scoped revisions through the existing Python client. Start with
 or read the bundled [helper API reference](skills/kicad-house-style/block-helpers.md).
 Stable ownership manifests, stale-state fingerprints and single-use plans preserve
 manual items and avoid blind mutation replay; planning refuses block wires that touch
-manual wires, since KiCad's commit cleanup would merge or split them. This is a scripting API; no new MCP
+manual wiring, and moving a block pin with manual wiring attached, since KiCad's commit
+cleanup could merge those wires or drop their junction. This is a scripting API; no new MCP
 helper execution tool is registered. Fingerprints do not provide atomic editor
 revision checks, and live use requires a single writer plus pin/net/page validation.
