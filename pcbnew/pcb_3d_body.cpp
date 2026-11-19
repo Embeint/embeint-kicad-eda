@@ -19,6 +19,8 @@
 
 #include <pcb_3d_body.h>
 
+#include <algorithm>
+
 #include <api/api_enums.h>
 #include <api/api_utils.h>
 #include <api/board/board_types.pb.h>
@@ -167,8 +169,17 @@ bool PCB_3D_BODY::Deserialize( const kiapi::board::types::Body3D& aInput )
     case types::EM_COPPER:  m_extruded.m_material = EXTRUSION_MATERIAL::COPPER;  break;
     }
 
+    // The board file saves this colour at full precision, unlike the 8-bit colours UnpackColor
+    // rounds to, so take the channels as sent
     if( extruded.has_color() )
-        m_extruded.m_color = kiapi::common::UnpackColor( extruded.color() );
+    {
+        const kiapi::common::types::Color& color = extruded.color();
+
+        m_extruded.m_color = KIGFX::COLOR4D( std::clamp( color.r(), 0.0, 1.0 ),
+                                             std::clamp( color.g(), 0.0, 1.0 ),
+                                             std::clamp( color.b(), 0.0, 1.0 ),
+                                             std::clamp( color.a(), 0.0, 1.0 ) );
+    }
     else
         m_extruded.m_color = KIGFX::COLOR4D::UNSPECIFIED;
 

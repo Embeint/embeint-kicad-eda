@@ -317,8 +317,10 @@ KICOMMON_API void PackColor( types::Color& aOutput, const KIGFX::COLOR4D& aInput
 
 KICOMMON_API KIGFX::COLOR4D UnpackColor( const types::Color& aInput )
 {
-    // Documents store each colour channel in 8 bits, so a finer value would change on reopening:
-    // apply the colour as it will be saved
+    // Schematics, strokes, fills, net classes and stackup layers store each colour channel in
+    // 8 bits, so a finer value would change on reopening: apply the colour as it will be saved.
+    // A footprint's extruded 3D body saves its colour at full precision, so PCB_3D_BODY reads
+    // the channels itself instead of calling this.
     auto channel =
             []( double aValue )
             {
