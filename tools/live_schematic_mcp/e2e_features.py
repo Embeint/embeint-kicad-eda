@@ -2,8 +2,9 @@
 """End-to-end check of the editing commands added on top of the base IPC API.
 
 Run against a development KiCad with a schematic open. Exercises annotate, pin lookup, wiring helpers,
-netlist, move-with-drag, undo/redo, update from library, autoplace, ERC, batch rollback, export and
-the generic execute path. Never saves; checks the files on disk are unchanged.
+netlist, move-with-drag, undo/redo, update from library, autoplace, ERC, full-symbol updates without
+library mismatches, batch rollback, export and the generic execute path. Never saves; checks the
+files on disk are unchanged.
 
     python e2e_features.py [output_dir]
 """
@@ -31,6 +32,82 @@ def check(condition, message):
     if not condition:
         raise SystemExit("FAILED: " + message)
     print("ok  ", message)
+
+
+def symbol_items(client, doc, ids):
+    found = {}
+    for packed in client.items(doc).items:
+        symbol = sch.SchematicSymbolInstance()
+        if packed.Unpack(symbol) and symbol.id.value in ids:
+            found[symbol.id.value] = symbol
+    check(set(found) == set(ids), f"read back {len(ids)} symbols")
+    return found
+
+
+def library_mismatches(client, doc, ids):
+    return [v for v in client.erc(doc)["violations"]
+            if v.get("error_type") == "ERCET_LIB_SYMBOL_MISMATCH"
+            and any(item.get("value") in ids for item in v.get("items", []))]
+
+
+def check_full_symbol_updates(client, root, ox, oy):
+    """Editing placement fields by sending back the whole symbol must leave its library copy alone.
+
+    Two resistors share one embedded library symbol, which is the case where a differing copy got
+    renamed (R_1) and the next update then replaced the symbol's library link with that name.
+    """
+    stock = {"Device:R": 0, "Device:C": 25, "Transistor_BJT:2N3904": 40, "74xx:74LS00": 60}
+    placed = {client.place_symbol(root, lib_id, 30 + x + ox, 110 + oy)["id"]: lib_id for lib_id, x in stock.items()}
+    placed[client.place_symbol(root, "Device:R", 30 + ox, 135 + oy)["id"]] = "Device:R"
+    ids = set(placed)
+
+    def links():
+        return {s["id"]: s["lib_id"] for s in client.symbol_pins(root, list(ids), with_nets=False)}
+
+    def pin_ids():
+        return {s["id"]: sorted(p["id"] for p in s["pins"]) for s in client.symbol_pins(root, list(ids), with_nets=False)}
+
+    check(not library_mismatches(client, root, ids), "freshly placed symbols match their libraries")
+    before, pins = symbol_items(client, root, ids), pin_ids()
+
+    client.mutate(root, list(before.values()), update=True)
+    after = symbol_items(client, root, ids)
+    check(all(after[i].definition == before[i].definition for i in ids),
+          "sending back unchanged symbols kept every definition")
+    check(pin_ids() == pins, "and kept every pin identity")
+    check(not library_mismatches(client, root, ids), "unchanged full-symbol update: no library mismatch")
+
+    for symbol in after.values():
+        symbol.value_field.text.text = "MCP-VALUE"
+        symbol.footprint_field.text.text = "Resistor_SMD:R_0603_1608Metric"
+        field = symbol.user_fields.add()
+        field.CopyFrom(symbol.value_field)
+        field.name, field.text.text, field.visible = "MPN", "MCP-MPN", False
+    client.mutate(root, list(after.values()), update=True)
+    edited = symbol_items(client, root, ids)
+    check(all(s.value_field.text.text == "MCP-VALUE" and any(f.name == "MPN" for f in s.user_fields)
+              for s in edited.values()), "Value, Footprint and a user field were applied")
+    check(not library_mismatches(client, root, ids), "edited instance fields: no library mismatch")
+    check(links() == placed, f"library links unchanged: {links()}")
+
+    # Rebuild the ordinary symbols from their definitions: reordered items are not the packed
+    # definition, so the editor replaces the embedded symbol with one built from the request
+    plain = {i for i in ids if placed[i] != "74xx:74LS00"}
+    for symbol_id in plain:
+        symbol = edited[symbol_id]
+        items = [type(child).FromString(child.SerializeToString()) for child in symbol.definition.items]
+        del symbol.definition.items[:]
+        symbol.definition.items.extend(reversed(items))
+    client.mutate(root, [edited[i] for i in plain], update=True)
+    check(not library_mismatches(client, root, plain), "a definition rebuilt from the request matches its library")
+    again = symbol_items(client, root, plain)
+    for symbol in again.values():
+        symbol.value_field.text.text = "MCP-AGAIN"
+    client.mutate(root, list(again.values()), update=True)
+    check(links() == placed and not library_mismatches(client, root, ids),
+          "a further update keeps the library links and matches")
+
+    client.delete(root, list(ids))
 
 
 def main():
@@ -101,6 +178,8 @@ def main():
 
     erc = client.erc(root)
     check("violation_count" in erc, f"ERC ran: {erc['violation_count']} violations")
+
+    check_full_symbol_updates(client, root, ox, oy)
 
     count = len(client.items(root).items)
     good = {"@type": "type.googleapis.com/kiapi.schematic.types.SchematicLine",

@@ -4,8 +4,10 @@
 Run `seed state.json`, stop only that app, launch it again with the same project,
 then run `verify state.json`. Requires KICAD_PERSISTENCE_ISOLATED=1 and an explicit
 KICAD_API_SOCKET. The seed stage requires an empty live-demo schematic and board.
-It saves a two-sheet circuit and a real schematic-to-board transfer. Verification
-checks saved UUIDs, cross-sheet pin connectivity and board pads without saving.
+It saves a two-sheet circuit and a real schematic-to-board transfer; the symbols' Value,
+Footprint and MPN are edited by sending back the whole symbol. Verification checks saved
+UUIDs, cross-sheet pin connectivity, board pads, library links and the absence of library
+mismatch findings without saving.
 """
 
 import argparse
@@ -41,11 +43,25 @@ def pin_net(client, doc, reference, number):
     raise AssertionError("persistence symbol missing")
 
 
+def library_state(client, root, child):
+    """Library links and mismatch findings of the persistence symbols, which full updates edited."""
+    symbols = {s["reference"]: s for doc in (root, child) for s in client.symbol_pins(doc, with_nets=False)}
+    ids = {symbols[ref]["id"] for ref in ("R101", "R102")}
+    mismatches = [v["description"] for v in client.erc(root)["violations"]
+                  if v.get("error_type") == "ERCET_LIB_SYMBOL_MISMATCH"
+                  and any(item.get("value") in ids for item in v.get("items", []))]
+    assert not mismatches, mismatches
+    links = {ref: symbols[ref]["lib_id"] for ref in ("R101", "R102")}
+    assert links == {"R101": "Device:R", "R102": "Device:R"}, links
+    return links
+
+
 def snapshot(client, root, board):
     child = child_document(client, root)
     root_net = pin_net(client, root, "R101", "2")
     child_net = pin_net(client, child, "R102", "1")
     assert root_net and root_net == child_net, (root_net, child_net)
+    links = library_state(client, root, child)
     refs = client.board_footprints(board, ["R101", "R102"], with_pads=True)
     assert len(refs) == 2
     pads = {f["reference"]: {p["number"]: p.get("net") for p in f["pads"]} for f in refs}
@@ -58,7 +74,7 @@ def snapshot(client, root, board):
         "root": as_dict(root), "child": as_dict(child), "board": as_dict(board),
         "root_items": sorted(get_id(item) for item in client.items(root).items),
         "child_items": sorted(get_id(item) for item in client.items(child).items),
-        "net": root_net, "pads": pads,
+        "net": root_net, "pads": pads, "library_links": links,
         "board_footprints": sorted((f["reference"], f["id"]) for f in refs),
         "files": {p.name: sha256(p.read_bytes()).hexdigest()
                   for pattern in ("*.kicad_sch", "*.kicad_pcb") for p in folder.glob(pattern)},
@@ -93,7 +109,12 @@ def seed(client, root, board):
         for packed in client.items(doc).items:
             symbol = sch.SchematicSymbolInstance()
             if packed.Unpack(symbol) and symbol.id.value == placed["id"]:
+                # The whole symbol as read, with only placement fields edited
+                symbol.value_field.text.text = "4k7"
                 symbol.footprint_field.text.text = "Resistor_SMD:R_0603_1608Metric"
+                field = symbol.user_fields.add()
+                field.CopyFrom(symbol.value_field)
+                field.name, field.text.text, field.visible = "MPN", "RC0603FR-074K7L", False
                 client.mutate(doc, [symbol], update=True)
                 break
         else:
