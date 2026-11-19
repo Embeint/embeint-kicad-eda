@@ -44,7 +44,7 @@ $arguments = @{
 
 $tests = @( 'e2e_symbols', 'e2e_footprints' )
 if( $env:SOLIDCRAFT_CLI ) { $tests += 'e2e_model_handoff' }
-$tests += @( 'e2e_smoke', 'e2e_features', 'e2e_pcb', 'e2e_design' )
+$tests += @( 'e2e_smoke', 'e2e_features', 'e2e_item_roundtrip', 'e2e_pcb', 'e2e_design', 'e2e_design_checks' )
 
 $env:PYTHONUTF8 = '1'
 $failed = 0
