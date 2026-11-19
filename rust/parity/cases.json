@@ -1,0 +1,146 @@
+[
+ {"name": "ldo_datasheet_style", "request": {"pins": [
+  {"number": "1", "name": "GND", "type": "power_in"}, {"number": "2", "name": "VOUT", "type": "power_out"},
+  {"number": "3", "name": "VIN", "type": "power_in"}, {"number": "4", "name": "EN", "type": "input"},
+  {"number": "5", "name": "ADJ", "type": "passive"}]}},
+ {"name": "ldo_group_gap_0", "request": {"group_gap": 0, "pins": [
+  {"number": "1", "name": "GND", "type": "power_in"}, {"number": "2", "name": "VOUT", "type": "power_out"},
+  {"number": "3", "name": "VIN", "type": "power_in"}, {"number": "4", "name": "EN", "type": "input"},
+  {"number": "5", "name": "ADJ", "type": "passive"}]}},
+ {"name": "ldo_group_gap_6_with_nc", "request": {"group_gap": 6, "pins": [
+  {"number": "1", "name": "GND", "type": "power_in"}, {"number": "2", "name": "VOUT", "type": "power_out"},
+  {"number": "3", "name": "VIN", "type": "power_in"}, {"number": "4", "name": "EN", "type": "input"},
+  {"number": "5", "name": "ADJ", "type": "passive"}, {"number": "6", "name": "NC", "type": "passive"}]}},
+ {"name": "as_given_with_explicit_gaps", "request": {"arrange": "as_given", "pins": [
+  {"number": "4", "name": "EN", "type": "input", "side": "left"}, {"gap": true, "side": "left"},
+  {"number": "3", "name": "VIN", "type": "power_in", "side": "left"},
+  {"number": "2", "name": "VOUT", "type": "power_out"}, {"gap": true}, {"gap": true, "side": "right"},
+  {"number": "1", "name": "GND", "type": "power_in"}]}},
+ {"name": "as_given_without_gaps", "request": {"arrange": "as_given", "pins": [
+  {"number": "1", "name": "~{RESET}", "type": "input"}, {"number": "2", "name": "VCC", "type": "power_in"},
+  {"number": "3", "name": "OUT", "type": "output"}, {"number": "4", "name": "GND", "type": "power_in"}]}},
+ {"name": "auto_side_with_explicit_gap_is_left_alone", "request": {"pins": [
+  {"number": "1", "name": "EN", "type": "input"}, {"gap": true, "side": "left"},
+  {"number": "2", "name": "VIN", "type": "power_in"}, {"number": "3", "name": "SW", "type": "output"},
+  {"number": "4", "name": "VOUT", "type": "power_out"}, {"number": "5", "name": "PGND", "type": "power_in"}]}},
+ {"name": "buck_converter", "request": {"pins": [
+  {"number": "1", "name": "BST", "type": "passive", "side": "right"}, {"number": "2", "name": "VIN", "type": "power_in"},
+  {"number": "3", "name": "~{SHDN}", "type": "input"}, {"number": "4", "name": "SS", "type": "passive"},
+  {"number": "5", "name": "FB", "type": "input"}, {"number": "6", "name": "/PG", "type": "open_collector"},
+  {"number": "7", "name": "AGND", "type": "power_in"}, {"number": "8", "name": "PGND", "type": "power_in"},
+  {"number": "9", "name": "SW", "type": "power_out"}, {"number": "10", "name": "EP", "type": "passive"},
+  {"number": "11", "name": "~{PGOOD}", "type": "output"}, {"number": "12", "name": "MODE", "type": "input"}]}},
+ {"name": "top_even_four", "request": {"pins": [
+  {"number": "1", "name": "P1", "side": "top"}, {"number": "2", "name": "P2", "side": "top"},
+  {"number": "3", "name": "P3", "side": "top"}, {"number": "4", "name": "P4", "side": "top"}]}},
+ {"name": "top_bottom_odd_with_gaps", "request": {"pins": [
+  {"number": "1", "name": "VCC", "type": "power_in", "side": "top"}, {"gap": true, "side": "top"},
+  {"number": "2", "name": "VDDIO", "type": "power_in", "side": "top"},
+  {"number": "3", "name": "GND", "type": "power_in"}, {"number": "4", "name": "GNDA", "type": "power_in"},
+  {"number": "5", "name": "VSS", "type": "power_in"}, {"gap": true, "side": "bottom"},
+  {"number": "6", "name": "A", "type": "input"}, {"number": "7", "name": "Y", "type": "output"}]}},
+ {"name": "single_pin", "request": {"pins": [{"number": "1"}]}},
+ {"name": "long_names_widen_the_body", "request": {"pins": [
+  {"number": "1", "name": "A_VERY_LONG_SUPPLY_INPUT_NAME", "type": "power_in"},
+  {"number": "2", "name": "ANOTHER_EXTREMELY_LONG_OUTPUT_NAME", "type": "output"},
+  {"number": "3", "name": "TOP_SIDE_SIGNAL_WITH_LONG_NAME", "side": "top"},
+  {"number": "4", "name": "BOTTOM_SIDE_SIGNAL_LONG", "side": "bottom"}]}},
+ {"name": "ground_and_feedback_classification", "request": {"pins": [
+  {"number": "1", "name": "GND2", "type": "passive"}, {"number": "2", "name": "GND", "type": "output"},
+  {"number": "3", "name": "0V", "type": "power_in"}, {"number": "4", "name": "PAD", "type": "passive"},
+  {"number": "5", "name": "SENSE", "type": "input"}, {"number": "6", "name": "~{FLAG}", "type": "input"},
+  {"number": "7", "name": "BYPASS"}, {"number": "8", "name": "gnd", "type": "power_in"},
+  {"number": "9", "name": "VSS", "type": "power_out"}, {"number": "10", "name": "D-", "type": "bidirectional"},
+  {"number": "11", "name": "!PG", "type": "input"}, {"number": "12", "name": "#FB", "type": "input"},
+  {"number": "13", "name": "!NC"}, {"number": "14", "name": "~GND!", "type": "power_in"}]}},
+ {"name": "nc_pins_hidden_and_shown", "request": {"pins": [
+  {"number": "1", "name": "VIN", "type": "power_in"}, {"number": "2", "name": "NC"},
+  {"number": "3", "name": "DNC", "type": "input"}, {"number": "4", "name": "X", "type": "no_connect"},
+  {"number": "5", "name": "N/C", "hidden": false}, {"number": "6", "name": "nc", "hidden": 0},
+  {"number": "7", "name": "~{NC}", "hidden": "no"}, {"number": "8", "name": "OUT", "type": "output"}]}},
+ {"name": "nc_pins_overflow_free_rows", "request": {"pins": [
+  {"number": "1", "name": "IN", "type": "input"}, {"number": "2", "name": "OUT", "type": "output"},
+  {"number": "3", "name": "NC"}, {"number": "4", "name": "NC"}, {"number": "5", "name": "NC"},
+  {"number": "6", "name": "NC"}, {"number": "7", "name": "NC"}, {"number": "8", "name": "NC"},
+  {"number": "9", "name": "NC"}, {"number": "10", "name": "NC"}, {"number": "11", "name": "NC"},
+  {"number": "12", "name": "NC"}, {"number": "13", "name": "NC"}]}},
+ {"name": "pass_through_fields_and_key_order", "request": {"pins": [
+  {"shape": "SPS_INVERTED", "name": "~{CS}", "number": "1", "type": "input", "custom": {"keep": [1, 2.5, null]}},
+  {"name": "CLK", "number": "2", "shape": "SPS_CLOCK", "orientation": "SPO_UP", "length": 5.08},
+  {"position": [9, 9], "number": "3", "name": "DOUT", "type": "tri_state", "electrical_type": "x"},
+  {"number": "4", "name": "NC", "length": 7, "orientation": "SPO_DOWN", "position": "here"}]}},
+ {"name": "non_string_field_values", "request": {"pins": [
+  {"number": 1, "name": "A", "type": "input"}, {"number": 2.0, "name": null}, {"number": 3e0, "name": 42},
+  {"number": true, "name": ["x", 1]}, {"number": null, "name": {"k": "v"}}, {"number": "6", "name": 1e16},
+  {"number": 123456789012345678901234567890, "name": 0.0001}, {"number": "8", "name": 1.5e-7, "side": 0},
+  {"number": "9", "name": false, "side": ""}, {"number": "10", "name": "B", "side": null}, {"number": "11", "gap": 0}]}},
+ {"name": "unicode_and_whitespace", "request": {"pins": [
+  {"number": " 1 ", "name": "µC_VDD", "type": "power_in"}, {"number": "　 2\t", "name": "Ω_SENSE"},
+  {"number": "\u001c3\u001f", "name": "VİN", "type": "power_in"}, {"number": "4", "name": "ﬁlter_ß", "type": "output"},
+  {"number": "5", "name": " ſ", "type": "input"}, {"number": "6", "name": "😀", "side": "bottom"}]}},
+ {"name": "gap_truthiness", "request": {"pins": [
+  {"number": "1", "name": "A"}, {"gap": "yes", "side": "left"}, {"gap": [0]}, {"gap": {"a": 1}, "side": "top"},
+  {"number": "2", "name": "B", "gap": ""}, {"number": "3", "name": "C", "gap": null}, {"gap": 0.5, "side": "bottom"}]}},
+ {"name": "multi_unit_dual_opamp_unit_a", "group": "multi_unit", "request": {"pins": [
+  {"number": "1", "name": "OUTA", "type": "output", "unit": 1}, {"number": "2", "name": "-INA", "type": "input", "unit": 1},
+  {"number": "3", "name": "+INA", "type": "input", "unit": 1}]}},
+ {"name": "multi_unit_dual_opamp_unit_b", "group": "multi_unit", "request": {"pins": [
+  {"number": "5", "name": "+INB", "type": "input", "unit": 2}, {"number": "6", "name": "-INB", "type": "input", "unit": 2},
+  {"number": "7", "name": "OUTB", "type": "output", "unit": 2}]}},
+ {"name": "multi_unit_dual_opamp_power_unit", "group": "multi_unit", "request": {"pins": [
+  {"number": "8", "name": "V+", "type": "power_in", "unit": 3, "side": "top"},
+  {"number": "4", "name": "V-", "type": "power_in", "unit": 3, "side": "bottom"}]}},
+ {"name": "multi_unit_dual_opamp_in_one_request", "group": "multi_unit", "request": {"pins": [
+  {"number": "1", "name": "OUTA", "type": "output", "unit": 1}, {"number": "2", "name": "-INA", "type": "input", "unit": 1},
+  {"number": "3", "name": "+INA", "type": "input", "unit": 1}, {"number": "4", "name": "V-", "type": "power_in", "unit": 3},
+  {"number": "5", "name": "+INB", "type": "input", "unit": 2}, {"number": "6", "name": "-INB", "type": "input", "unit": 2},
+  {"number": "7", "name": "OUTB", "type": "output", "unit": 2}, {"number": "8", "name": "V+", "type": "power_in", "unit": 3}]}},
+ {"name": "multi_unit_quad_nand_unit_with_shared_numbers_across_units", "group": "multi_unit", "request": {"pins": [
+  {"number": "1", "name": "A", "type": "input", "unit": 1}, {"number": "2", "name": "B", "type": "input", "unit": 1},
+  {"number": "3", "name": "Y", "type": "output", "unit": 1, "shape": "SPS_INVERTED"},
+  {"number": "1", "name": "A", "type": "input", "unit": 2}]}},
+
+ {"name": "error_empty_pins", "group": "malformed", "request": {"pins": []}},
+ {"name": "error_duplicate_number", "group": "malformed", "request": {"pins": [{"number": "1"}, {"number": " 1"}]}},
+ {"name": "error_unknown_type", "group": "malformed", "request": {"pins": [{"number": "1", "type": "magic"}]}},
+ {"name": "error_null_type", "group": "malformed", "request": {"pins": [{"number": "1", "type": null}]}},
+ {"name": "error_numeric_type", "group": "malformed", "request": {"pins": [{"number": "1", "type": 1}]}},
+ {"name": "error_list_type", "group": "malformed", "request": {"pins": [{"number": "1", "type": ["input"]}]}},
+ {"name": "error_dict_type", "group": "malformed", "request": {"pins": [{"number": "1", "type": {"t": "input"}}]}},
+ {"name": "error_unknown_side", "group": "malformed", "request": {"pins": [{"number": "1", "side": "middle"}]}},
+ {"name": "error_upper_case_side", "group": "malformed", "request": {"pins": [{"number": "1", "side": "LEFT"}]}},
+ {"name": "error_list_side", "group": "malformed", "request": {"pins": [{"number": "1", "side": ["left"]}]}},
+ {"name": "error_missing_number", "group": "malformed", "request": {"pins": [
+  {"name": "it's", "type": "input", "x": [1, 2.5, null, true, false, {"k": "\"q\"\n\\"}], "y": 1e-5}]}},
+ {"name": "error_blank_number", "group": "malformed", "request": {"pins": [{"number": "  \t", "name": "Ä\u0085"}]}},
+ {"name": "error_null_number", "group": "malformed", "request": {"pins": [{"number": "1"}, {"number": "", "name": " é​"}]}},
+ {"name": "error_gap_unknown_side", "group": "malformed", "request": {"pins": [{"number": "1"}, {"gap": true, "side": "middle"}]}},
+ {"name": "error_gap_null_side", "group": "malformed", "request": {"pins": [{"gap": true, "side": null}]}},
+ {"name": "error_gap_float_side", "group": "malformed", "request": {"pins": [{"gap": 1, "side": 1.5}]}},
+ {"name": "error_gap_bool_side", "group": "malformed", "request": {"pins": [{"gap": 1, "side": true}]}},
+ {"name": "error_gap_list_side", "group": "malformed", "request": {"pins": [{"gap": true, "side": ["left"]}]}},
+ {"name": "error_gap_dict_side", "group": "malformed", "request": {"pins": [{"gap": true, "side": {}}]}},
+ {"name": "error_arrange", "group": "malformed", "request": {"arrange": "spiral", "pins": []}},
+ {"name": "error_group_gap_7", "group": "malformed", "request": {"group_gap": 7, "pins": [{"number": "1"}]}},
+ {"name": "error_group_gap_negative", "group": "malformed", "request": {"group_gap": -1, "pins": [{"number": "1"}]}},
+ {"name": "error_group_gap_huge", "group": "malformed", "raw": "{\"group_gap\": 123456789012345678901234567890, \"pins\": [{\"number\": \"1\"}]}"},
+ {"name": "group_gap_negative_zero", "group": "edge", "raw": "{\"group_gap\": -0, \"pins\": [{\"number\": \"1\"}, {\"number\": \"2\", \"name\": \"VIN\", \"type\": \"power_in\"}]}"},
+ {"name": "error_group_gap_float", "group": "malformed", "request": {"group_gap": 2.0, "pins": [{"number": "1"}]}},
+ {"name": "error_group_gap_exponent", "group": "malformed", "raw": "{\"group_gap\": 2e0, \"pins\": [{\"number\": \"1\"}]}"},
+ {"name": "error_group_gap_bool", "group": "malformed", "request": {"group_gap": true, "pins": [{"number": "1"}]}},
+ {"name": "error_group_gap_string", "group": "malformed", "request": {"group_gap": "2", "pins": [{"number": "1"}]}},
+ {"name": "error_arrange_not_string", "group": "malformed", "request": {"arrange": 5, "pins": [{"number": "1"}]}},
+ {"name": "error_pins_missing", "group": "malformed", "request": {"arrange": "auto"}},
+ {"name": "error_pins_not_array", "group": "malformed", "request": {"pins": {"number": "1"}}},
+ {"name": "error_pin_not_object", "group": "malformed", "request": {"pins": [{"number": "1"}, "2"]}},
+ {"name": "error_unknown_field", "group": "malformed", "request": {"pins": [{"number": "1"}], "pin_length": 5.08}},
+ {"name": "error_request_array", "group": "malformed", "request": [{"number": "1"}]},
+ {"name": "error_request_null", "group": "malformed", "request": null},
+ {"name": "error_request_string", "group": "malformed", "request": "pins"},
+ {"name": "error_truncated_json", "group": "malformed", "raw": "{\"pins\": [{\"number\": \"1\"}"},
+ {"name": "error_empty_text", "group": "malformed", "raw": ""},
+ {"name": "error_nan_literal", "group": "malformed", "raw": "{\"pins\": [{\"number\": NaN}]}"},
+ {"name": "error_trailing_garbage", "group": "malformed", "raw": "{\"pins\": []} x"},
+ {"name": "duplicate_keys_keep_first_position_last_value", "group": "edge",
+  "raw": "{\"pins\": [{\"number\": \"1\", \"name\": \"A\", \"number\": \"2\"}], \"pins\": [{\"name\": \"B\", \"number\": \"9\", \"name\": \"VIN\", \"type\": \"power_in\"}]}"}
+]
