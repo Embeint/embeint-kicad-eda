@@ -119,6 +119,12 @@ def test_repeated_apply_normalized_editor_and_manual_item_preserved():
     assert client.live[note.id.value] == pack(note)
 
 
+def route(name, a, b):
+    """Logical key of a wire segment from a to b (mm); wire keys include geometry."""
+    (x1, y1), (x2, y2) = (tuple(round(v * 1e6) for v in p) for p in (a, b))
+    return f"route/{name}/{x1}/{y1}/{x2}/{y2}"
+
+
 def test_block_revision_changes_only_route_connectivity_and_keeps_frame_and_manual():
     note = manual()
     client = Editor([note])
@@ -126,9 +132,10 @@ def test_block_revision_changes_only_route_connectivity_and_keeps_frame_and_manu
     state = apply(client, doc(), plan(first, Manifest.empty(NAMESPACE, doc()), doc(), client.items(doc()).items))
     before = dict(client.live)
     pending = plan(revision(False), state, doc(), client.items(doc()).items)
-    assert pending.updates == ("route/trunk/0/0",)
-    assert set(pending.deletes) == {"route/branch/0/0", "route/trunk/0/1",
-                                    "junction/SIGNAL/55000000/50000000"}
+    # Wires are replaced rather than updated, so KiCad's mid-batch cleanup never runs.
+    assert pending.creates == (route("trunk", (40, 50), (70, 50)),) and not pending.updates
+    assert set(pending.deletes) == {route("branch", (55, 50), (55, 65)), route("trunk", (40, 50), (55, 50)),
+                                    route("trunk", (55, 50), (70, 50)), "junction/SIGNAL/55000000/50000000"}
     state2 = apply(client, doc(), pending)
     assert client.live[note.id.value] == before[note.id.value]
     for key in ("frame/box", "frame/title"):
@@ -196,11 +203,11 @@ def test_failed_or_unknown_apply_is_consumed_and_never_replayed(fail):
             plan(revision(), state, doc(), client.items(doc()).items)
 
 
-def test_failed_update_after_delete_rolls_back_entire_revision():
+def test_failed_create_after_delete_rolls_back_entire_revision():
     client = Editor([manual()])
     state = apply(client, doc(), plan(revision(), Manifest.empty(NAMESPACE, doc()), doc(), client.items(doc()).items))
     before = dict(client.live)
-    client.fail, client.failure_command = "reject", "UpdateItems"
+    client.fail, client.failure_command = "reject", "CreateItems"
     pending = plan(revision(False), state, doc(), client.items(doc()).items)
     with pytest.raises(ApplyUncertain):
         apply(client, doc(), pending)
@@ -438,6 +445,91 @@ def test_block_wires_touching_manual_wires_or_junctions_are_refused(item):
     assert not any(isinstance(r, editor.BeginCommit) for r in client.requests)
 
 
+def test_rerouting_a_leg_plans_no_wire_updates():
+    # A changed wire is a delete plus a create; UpdateItems would make KiCad clean up
+    # mid-batch on a screen where the old wires and junction are still present.
+    client = Editor()
+    state = apply(client, doc(), plan(revision(), Manifest.empty(NAMESPACE, doc()), doc(), []))
+    revised = Block(NAMESPACE)
+    revised.frame("frame", "Synthetic interface", (25, 25, 100, 80))
+    revised.wire("trunk", "SIGNAL", [(40, 45), (40, 50), (70, 50)])
+    revised.wire("branch", "SIGNAL", [(55, 50), (55, 65)])
+    pending = plan(revised, state, doc(), client.items(doc()).items)
+    assert not pending.updates and "junction/SIGNAL/55000000/50000000" not in pending.deletes
+    apply(client, doc(), pending)
+
+
+def two_wire_pin(client):
+    """Owned symbol whose pin 1 at (40, 50) is a branch of two owned wires."""
+    first = Block(NAMESPACE)
+    pins = first.symbol("part", definition(), "U101", "1", (40, 50))
+    first.wire("a", "SIGNAL", [pins["1"], (30, 50)])
+    first.wire("b", "SIGNAL", [pins["1"], (40, 40)])
+    return apply(client, doc(), plan(first, Manifest.empty(NAMESPACE, doc()), doc(), []))
+
+
+def test_moving_a_symbol_pin_at_a_wire_branch_is_refused_but_single_wire_moves_are_planned():
+    client = Editor()
+    state = two_wire_pin(client)
+    moved = Block(NAMESPACE)
+    pins = moved.symbol("part", definition(), "U101", "1", (40, 60))
+    moved.wire("a", "SIGNAL", [pins["1"], (30, 60)])
+    moved.wire("b", "SIGNAL", [pins["1"], (40, 70)])
+    with pytest.raises(ValueError, match="wire branch"):
+        plan(moved, state, doc(), client.items(doc()).items)
+    single = Editor()
+    first = Block(NAMESPACE)
+    first.wire("a", "SIGNAL", [first.symbol("part", definition(), "U101", "1", (40, 50))["1"], (30, 50)])
+    state = apply(single, doc(), plan(first, Manifest.empty(NAMESPACE, doc()), doc(), []))
+    moved = Block(NAMESPACE)
+    moved.wire("a", "SIGNAL", [moved.symbol("part", definition(), "U101", "1", (40, 60))["1"], (30, 60)])
+    pending = plan(moved, state, doc(), single.items(doc()).items)
+    assert pending.updates == ("part",)
+
+
+def test_removing_an_owned_wire_with_manual_wiring_attached_is_refused():
+    client = Editor()
+    state = apply(client, doc(), plan(revision(), Manifest.empty(NAMESPACE, doc()), doc(), []))
+    # The user later wired to the end of the block branch, with KiCad's junction.
+    attached = [sch.SchematicLine(id=kiid(), type=sch.SLT_WIRE, start=point(45, 65), end=point(55, 65)),
+                sch.SchematicLine(id=kiid(), type=sch.SLT_WIRE, start=point(55, 65), end=point(65, 65)),
+                sch.Junction(id=kiid(), position=point(55, 65))]
+    client.live.update({item.id.value: pack(item) for item in attached})
+    assert not plan(revision(), state, doc(), client.items(doc()).items).deletes
+    with pytest.raises(ValueError, match="manual wiring attached"):
+        plan(revision(False), state, doc(), client.items(doc()).items)
+    with pytest.raises(ValueError, match="manual wiring attached"):
+        plan(Block(NAMESPACE), state, doc(), client.items(doc()).items)
+
+
+@pytest.mark.parametrize("item", [
+    sch.SchematicLine(type=sch.SLT_WIRE), sch.SchematicLine(type=sch.SLT_BUS), sch.Junction(),
+    sch.SchematicSymbolInstance(), sch.SheetSymbol()])
+def test_add_refuses_items_the_cleanup_and_pin_model_must_build(item):
+    with pytest.raises(ValueError, match="wire\\(\\), symbol\\(\\) or sheet\\(\\)"):
+        Block(NAMESPACE).add("item", item)
+    Block(NAMESPACE).add("graphic", sch.SchematicLine(type=sch.SLT_GRAPHIC, start=point(0, 0), end=point(5, 0)))
+
+
+def test_duplicate_no_connect_markers_are_refused():
+    block = Block(NAMESPACE)
+    block.add("nc1", sch.NoConnectMarker(position=point(10, 10)))
+    block.add("nc2", sch.NoConnectMarker(position=point(10, 10)))
+    assert not block.report()["valid"]
+    existing = sch.NoConnectMarker(id=kiid(), position=point(20, 20))
+    single = Block(NAMESPACE)
+    single.add("nc", sch.NoConnectMarker(position=point(20, 20)))
+    with pytest.raises(ValueError, match="no-connect marker already exists"):
+        plan(single, Manifest.empty(NAMESPACE, doc()), doc(), [pack(existing)])
+
+
+def test_manifest_without_pin_points_is_refused_with_a_version_error():
+    state = apply(Editor(), doc(), plan(revision(), Manifest.empty(NAMESPACE, doc()), doc(), []))
+    old = state.to_json().replace('"version": 2', '"version": 1')
+    with pytest.raises(ValueError, match="version 1"):
+        Manifest.from_json(old)
+
+
 def test_plain_crossing_of_a_manual_wire_is_allowed_and_preserved():
     crossing = sch.SchematicLine(id=kiid(), type=sch.SLT_WIRE, start=point(65, 40), end=point(65, 60))
     client = Editor([crossing])
@@ -448,7 +540,7 @@ def test_plain_crossing_of_a_manual_wire_is_allowed_and_preserved():
 def test_stored_wire_geometry_differing_from_request_is_reported_uncertain():
     client = Editor()
     block = revision()
-    target = block.id("route/trunk/0/0")
+    target = block.id(route("trunk", (40, 50), (55, 50)))
     def shift(live):
         wire = unpack(live[target])
         wire.end.x_nm += 1270000
