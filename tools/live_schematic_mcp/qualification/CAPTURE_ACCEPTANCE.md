@@ -229,4 +229,6 @@ Earlier failed attempts remain separate. Save-file hashes cover schematic/PCB
 files; project preferences and local history are not compared. The coordinated
 helper probe's exact source commit/bytes and successful no-save cleanup are in
 the receipt. Installed-distribution qualification and independent fresh-agent
-evaluation remain separate; the latter is pending a separate evaluator.
+evaluation remained separate at run16. See the later
+[merged-main installed record](../MAIN_INSTALLED_QUALIFICATION_2026-11-19.md)
+for their actual outcomes and the API-save recovery fix.

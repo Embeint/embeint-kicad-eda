@@ -1,0 +1,811 @@
+{
+  "disposable_cleanup": {
+    "reason": "Own disposable exact archive extraction and duplicate native packaging/component staging; all corresponding sources, binary manifests, packages, installed roots and raw evidence retained.",
+    "removed": [
+      "/home/karlvonrichter/embeint-qualification/main-installed-b630c7b/src",
+      "/home/karlvonrichter/embeint-qualification/main-installed-b630c7b/save-fix-9af0ff1/stage",
+      "/home/karlvonrichter/embeint-qualification/main-installed-b630c7b/save-fix-9af0ff1/component-install"
+    ],
+    "source_checkout_removed": false
+  },
+  "final_scripted_native": {
+    "cleanup_errors": [],
+    "drc": {
+      "by_type": {
+        "unconnected_items": 18
+      },
+      "excluded": 0,
+      "ignored": 5,
+      "violation_count": 18,
+      "violations_truncated": false
+    },
+    "edit_invariants": {
+      "failed_batch": "exact items and pins restored",
+      "implicit_save": false,
+      "rejection": "step 1 (kiapi.common.commands.UpdateItems) rejected an item, batch rolled back: an item with UUID 20fe67c7-b2f3-4d1f-830b-ed9f91000dde does not exist",
+      "undo_redo": "exact items restored"
+    },
+    "erc": {
+      "excluded": 0,
+      "ignored_checks": 4,
+      "violation_count": 0,
+      "violations": []
+    },
+    "framed_render_review": {
+      "comparison": {
+        "interface-framed.png": {
+          "final_sha256": "1a55491e344b8f5f9ca85179f9811bb462919df430fd6799b1797c4a3b797b06",
+          "same_as_visually_reviewed_main": false
+        },
+        "mcu-framed.png": {
+          "final_sha256": "5d89720e4e8dcb9a73bad75099cec121b503dc83bf85b89762dd0fc7486d6ee4",
+          "same_as_visually_reviewed_main": true
+        },
+        "pcb-framed.png": {
+          "final_sha256": "d5e09212933666f54501510a15d7724bef3426ca8d234fa4355017fe3b42a161",
+          "same_as_visually_reviewed_main": true
+        },
+        "root-framed.png": {
+          "final_sha256": "228734534cef29dcbf8a63c95a8228e324d244af092710da3b025335ff8a28d0",
+          "same_as_visually_reviewed_main": true
+        }
+      },
+      "interface": "Changed Interface PNG visually inspected after final native run; functional frame and sheet border/title block fit.",
+      "scope": "Acceptance agent review, not driver output"
+    },
+    "helper_review_restrictions": {
+      "checks": [
+        {
+          "check": "in-line wire ends",
+          "native_items_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "reason": "In-line wires meet at (50.0, 50.0) with no pin there; KiCad would merge them. Use one straight leg",
+          "result": "refused before apply"
+        },
+        {
+          "check": "in-line wire ends with label",
+          "native_items_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "reason": "In-line wires meet at (50.0, 50.0) with no pin there; KiCad would merge them. Use one straight leg",
+          "result": "refused before apply"
+        },
+        {
+          "check": "move symbol pin at owned wire branch",
+          "native_items_sha256": "22dd4c9504b511b315470373877cd2ba9e869c54b39c3c8e23976fc99fffc89e",
+          "reason": "Moving a block pin at the wire branch (50.0, 50.0) in one apply lets KiCad clean up mid-batch; remove those wires first, then move",
+          "result": "refused before apply"
+        },
+        {
+          "check": "symbol pin branch and route-only revision",
+          "result": "passed",
+          "undo_redo": "one step; exact native items",
+          "wire_updates": []
+        },
+        {
+          "check": "move sheet pin at owned wire branch",
+          "native_items_sha256": "749bec09420654e297e255e0b498c1ab3570893931503c990855a86415683017",
+          "reason": "Moving a block pin at the wire branch (100.0, 60.0) in one apply lets KiCad clean up mid-batch; remove those wires first, then move",
+          "result": "refused before apply"
+        },
+        {
+          "check": "delete owned sheet",
+          "native_items_sha256": "749bec09420654e297e255e0b498c1ab3570893931503c990855a86415683017",
+          "reason": "Deleting a sheet could discard manual child content; refused",
+          "result": "refused before apply"
+        },
+        {
+          "check": "retarget owned sheet",
+          "native_items_sha256": "749bec09420654e297e255e0b498c1ab3570893931503c990855a86415683017",
+          "reason": "Retargeting a child sheet is outside block reconciliation",
+          "result": "refused before apply"
+        },
+        {
+          "check": "new block wire touches manual wire",
+          "native_items_sha256": "951d9dbe4a48d019d7ebecc20c91f183c3b21952c10ea761b634232530a2314c",
+          "reason": "Block wire route/touch/60000000/90000000/60000000/100000000 touches a manual wire or junction; connect through a label instead",
+          "result": "refused before apply"
+        },
+        {
+          "check": "plain wire interior crossing preserves manual wire",
+          "result": "passed"
+        },
+        {
+          "check": "move symbol pin with manual wire",
+          "native_items_sha256": "c6193536a81d99a4dead7ba6783493390d67557c5cc1ad3e5b2eb17c8168ab74",
+          "reason": "A moved or removed block pin or label at (50.0, 50.0) has manual wiring attached; reroute the manual wiring first",
+          "result": "refused before apply"
+        },
+        {
+          "check": "remove symbol pin with manual wire",
+          "native_items_sha256": "c6193536a81d99a4dead7ba6783493390d67557c5cc1ad3e5b2eb17c8168ab74",
+          "reason": "A moved or removed block pin or label at (50.0, 50.0) has manual wiring attached; reroute the manual wiring first",
+          "result": "refused before apply"
+        },
+        {
+          "check": "remove owned wire attached to manual wire",
+          "native_items_sha256": "52a42a3d7ca1c127651713f5ccecc3a6ed6f537c6f7ab8b7a72cf3783120a8f7",
+          "reason": "Removing block item route/owned/40000000/50000000/50000000/50000000 would change manual wiring attached to it; reroute the manual wiring first",
+          "result": "refused before apply"
+        },
+        {
+          "check": "move label on manual wire",
+          "native_items_sha256": "822d4095967a846ea18857f0be785a00e6f839b8280b454ec1483f5908225c09",
+          "reason": "A moved or removed block pin or label at (50.0, 50.0) has manual wiring attached; reroute the manual wiring first",
+          "result": "refused before apply"
+        },
+        {
+          "check": "remove label on manual wire",
+          "native_items_sha256": "822d4095967a846ea18857f0be785a00e6f839b8280b454ec1483f5908225c09",
+          "reason": "A moved or removed block pin or label at (50.0, 50.0) has manual wiring attached; reroute the manual wiring first",
+          "result": "refused before apply"
+        },
+        {
+          "check": "duplicate native no-connect marker",
+          "native_items_sha256": "45f9e52b3b1a1ab1b8d238475e34bdff66cc7f51317b52fc02972ea772ee53eb",
+          "reason": "Two no-connect markers would share (50.0, 50.0); KiCad would remove one",
+          "result": "refused before apply"
+        },
+        {
+          "check": "replace owned no-connect key at same point",
+          "result": "passed"
+        },
+        {
+          "check": "add bypass SchematicLine",
+          "result": "refused before apply"
+        },
+        {
+          "check": "add bypass Junction",
+          "result": "refused before apply"
+        },
+        {
+          "check": "add bypass SchematicSymbolInstance",
+          "result": "refused before apply"
+        },
+        {
+          "check": "add bypass SheetSymbol",
+          "result": "refused before apply"
+        }
+      ],
+      "cleanup": "exact original native items",
+      "explicit_save": false,
+      "independent_agent_evidence": false,
+      "limits": "Guard refusals use native readbacks; unsafe mutations are never sent.",
+      "result": "passed"
+    },
+    "negative_esd": {
+      "connectivity_findings": [
+        {
+          "kind": "split_net",
+          "net": "DM",
+          "parts": [
+            [
+              "J1.2",
+              "U3.1"
+            ],
+            [
+              "U1.3",
+              "U3.6"
+            ]
+          ]
+        },
+        {
+          "kind": "split_net",
+          "net": "DP",
+          "parts": [
+            [
+              "J1.3",
+              "U3.3"
+            ],
+            [
+              "U1.4",
+              "U3.4"
+            ]
+          ]
+        }
+      ],
+      "erc": {
+        "excluded": 0,
+        "ignored_checks": 4,
+        "violation_count": 0,
+        "violations": []
+      },
+      "restore": "exact items and native pins/nets",
+      "scope": "synthetic USBLC6 flow-through topology; not client design",
+      "status": "reproduced"
+    },
+    "normalized_snapshots_equal": true,
+    "pages_fit": {
+      "Interface": true,
+      "MCU": true,
+      "PCB": true,
+      "Root": true
+    },
+    "pcb_parity": "all numbered pads match all schematic pins",
+    "report_path": "/home/karlvonrichter/embeint-qualification/main-installed-b630c7b/save-fix-9af0ff1/capture-final-318dad0-01/report.json",
+    "report_sha256": "35f917661d8ed900f32c8ea93b476df6f4f3f209bc969e8b42787b3c5e623963",
+    "result": "passed",
+    "save_stop_restart_reopen": "passed",
+    "saved_file_sha256": {
+      "interface.kicad_sch": "6111bc6df5a17d6392dea734841b5732d6cd251f4193675e371fb40fa1ab9b51",
+      "live-demo.kicad_pcb": "fb34b4a0eaeae23abbf0113da60fb9cd5f52f0ae2d2d87a9a7b2bb9f151c5e6f",
+      "live-demo.kicad_sch": "53dea7418e465be90041a072d468d21c0ee8f327a3f48d50801807ff54956ae7",
+      "mcu.kicad_sch": "9bd089e4f3238331182fd2adf71c5e4ee85c8319dfaeb8e776a2ec12e7388dc1"
+    },
+    "source": {
+      "dirty": false,
+      "files_sha256_scope": "executed working-tree bytes; line endings follow this checkout",
+      "revision": "318dad0670d6e215e347800c6c2b4d5aa11076c8",
+      "status": []
+    },
+    "source_rechecked_at_end": true
+  },
+  "immutable_raw_evidence_index": {
+    "files": 1089,
+    "path": "/home/karlvonrichter/embeint-qualification/main-installed-b630c7b/raw-evidence-index.json",
+    "scope": "Completed main/raw capture/artifact/baseline files indexed, owned files marked read-only; root-owned non-group-writable logs retained. Installed runtime roots are excluded.",
+    "sha256": "0209e61f5a2c93dcc001b66190a000b311981196371cf72624438127e072da35"
+  },
+  "independent_original": {
+    "actual": "Two sheets, functional titles, real hierarchy, revised connection, manual annotation retained; all 10 physical pins exact; framed pages fit, live/cold CLI ERC0 with four ignored categories, explicit saves and byte-identical cold files; GUI reopen blocked AS_NOT_READY.",
+    "immutable_snapshot": {
+      "archive": "/home/karlvonrichter/embeint-qualification/main-installed-b630c7b/save-fix-9af0ff1/original-independent-trial.tar.gz",
+      "original_windows_report_sha256": "06758102064728b0aa238f4d9ed68abb84d95ea79eb815cd4a0234979d85db41",
+      "scope": "Original independent trial final files, full history/config, raw evidence, client/lifecycle and Windows requests/results/report; no source checkout or SDK dependencies. Preserved without replay or recovery dismissal.",
+      "sha256": "e3c1ab8e164f1e7ca35026046246f31d525b4973f6b9af18c99677c732a6722a"
+    },
+    "limits": [
+      "Full-symbol field updates produced four library-mismatch warnings; selective update_from_library(reset_field_text=false) cleared them. Underlying definition round-trip issue unresolved.",
+      "Typed root netlist is sheet-scoped; whole-hierarchy export required.",
+      "Numerical page containment alone misses local text overlaps."
+    ],
+    "outcome": "partial_pass",
+    "raw_manifest_sha256": "3657d95b5d741273ececb248867cffdf13918ec93a70a50b77d3e1f958c716cf",
+    "report_path": "/mnt/c/Users/KarlVonRichter/.t3/scratch/main-installed-trial-b630c7b/REPORT.md",
+    "report_sha256": "06758102064728b0aa238f4d9ed68abb84d95ea79eb815cd4a0234979d85db41",
+    "task": {
+      "childThreadId": "thread:delegated-task:command%3Amcp%3A7c9a46c9-9196-4cf7-bed1-58804a66b07c%3Adelegate-task%3A36b5d5c9-b19b-4d9a-a777-3f90a275be77",
+      "isolation": "shared",
+      "link": "[Installed KiCad forward-test evaluator](t3-thread://v2/41952155-64b5-4278-aa7a-2d21fe7c12c9/thread:delegated-task:command%3Amcp%3A7c9a46c9-9196-4cf7-bed1-58804a66b07c%3Adelegate-task%3A36b5d5c9-b19b-4d9a-a777-3f90a275be77)",
+      "model": "gpt-6.1-sol",
+      "options": [
+        {
+          "id": "reasoningEffort",
+          "value": "high"
+        },
+        {
+          "id": "serviceTier",
+          "value": "default"
+        }
+      ],
+      "providerInstanceId": "codex",
+      "role": "test",
+      "taskId": "node:delegated-task:command%3Amcp%3A7c9a46c9-9196-4cf7-bed1-58804a66b07c%3Adelegate-task%3A36b5d5c9-b19b-4d9a-a777-3f90a275be77"
+    }
+  },
+  "independent_recheck": {
+    "descriptor": "C:/Users/KarlVonRichter/.t3/scratch/main-installed-recheck-9af0ff1/TRIAL.md",
+    "deviation": "Initial harness metadata enumeration included descriptions of global KiCad tools; no global endpoint was invoked. Trial remained artifact-only and installed bridge used for all design operations.",
+    "evaluator_result_sha256": "3321f882a78fd72340d70d432e43b70efa6be8f3e97d22b09257e0eb75f1b823",
+    "exact_connectivity_and_saved_hashes": {
+      "acceptance": "PASS: all exported pin sets exact; no missing, extra, split or shorted intended nets",
+      "initial": {
+        "/LOAD/RETURN": [
+          "J1.3",
+          "R2.2"
+        ],
+        "/LOAD/SIGNAL": [
+          "R1.2",
+          "R2.1"
+        ],
+        "Net-(J1-Pin_2)": [
+          "J1.2",
+          "R1.1"
+        ],
+        "unconnected-(J1-Pin_1-Pad1)": [
+          "J1.1"
+        ]
+      },
+      "reopened": {
+        "/LOAD/RETURN": [
+          "J1.3",
+          "R2.2"
+        ],
+        "/LOAD/SIGNAL": [
+          "R1.2",
+          "R2.1"
+        ],
+        "Net-(J1-Pin_1)": [
+          "J1.1",
+          "R1.1"
+        ],
+        "unconnected-(J1-Pin_2-Pad2)": [
+          "J1.2"
+        ]
+      },
+      "revised_live": {
+        "/LOAD/RETURN": [
+          "J1.3",
+          "R2.2"
+        ],
+        "/LOAD/SIGNAL": [
+          "R1.2",
+          "R2.1"
+        ],
+        "Net-(J1-Pin_1)": [
+          "J1.1",
+          "R1.1"
+        ],
+        "unconnected-(J1-Pin_2-Pad2)": [
+          "J1.2"
+        ]
+      },
+      "saved_files": {
+        "load.kicad_sch": {
+          "bytes": 5890,
+          "sha256": "4e007b24fb17d8c1136086707decdddc058912f7440a6955c3357e28c0de369e"
+        },
+        "synthetic-trial.kicad_sch": {
+          "bytes": 11900,
+          "sha256": "d91d4c242f8ff2767e2cc6688f3c16b76119f9363ed540b7c5978a7561a0eb9e"
+        }
+      }
+    },
+    "extra_findings": [
+      "Two resistor/library mismatch warnings after full-item updates cleared by stock-library refresh; underlying cause not isolated.",
+      "No-connect marker size changed from 1.27 to 1.2192 mm after reopening; arbitrary field round-trip equality is not established."
+    ],
+    "final_owned_stop": "{\"action\": \"stop\", \"owned\": {}, \"socket\": \"ipc:///tmp/embeint-kicad-1000/kicad/api.sock\"}",
+    "handoff": "C:/Users/KarlVonRichter/.t3/scratch/main-installed-recheck-9af0ff1/HANDOFF.md",
+    "immutable_snapshot": {
+      "archive": "/home/karlvonrichter/embeint-qualification/main-installed-b630c7b/save-fix-9af0ff1/independent-recheck-trial.tar.gz",
+      "sha256": "f1f3ca862f32b3ec1463a2d1c8eb346922a2b782284cfa8fe856fa2772490a87"
+    },
+    "item_persistence_differences": {
+      "child": {
+        "added": [],
+        "changed_ids": [
+          "932be314-91a3-4ea5-9180-000000000120",
+          "932be314-91a3-4ea5-9180-000000000121",
+          "c18af648-6c1d-46d4-a005-95b7229624aa"
+        ],
+        "removed": []
+      },
+      "ignored_erc_checks": [
+        "footprint_filter",
+        "four_way_junction",
+        "simulation_model_issue",
+        "single_global_label"
+      ],
+      "root": {
+        "added": [],
+        "changed_ids": [
+          "68297931-d0ed-4a38-8721-6f2ee7f2ecb3",
+          "932be314-91a3-4ea5-9180-000000000001",
+          "932be314-91a3-4ea5-9180-000000000043",
+          "f55cd2f8-4f56-47df-bdee-c18d5c8ac67f"
+        ],
+        "removed": []
+      }
+    },
+    "outcome": "passed_with_limits",
+    "raw_index": {
+      "files": 135,
+      "path": "/home/karlvonrichter/embeint-qualification/main-installed-b630c7b/save-fix-9af0ff1/independent-recheck-raw-index.json",
+      "sha256": "7a237f253d559b8ad0006f686b646f9a389063b9097cbb06ada0791d80eab697"
+    },
+    "raw_manifest_sha256": "88249d8baac32029989688d4c3c8bc42be9c5be5ad8fd66c4b7625ac66eaca62",
+    "report_path": "C:/Users/KarlVonRichter/.t3/scratch/main-installed-recheck-9af0ff1/REPORT.md",
+    "report_sha256": "bc045ab8bf4dfd0b6affde12ce5f878ca50f469afe240630d859157b39fc1187",
+    "reported_acceptance": {
+      "bothFramedPagesFit": true,
+      "connectionRevised": true,
+      "erc": {
+        "exclusions": 0,
+        "ignoredChecks": 4,
+        "violations": 0
+      },
+      "exactConnectivityAfterRestartReopen": true,
+      "explicitSave": true,
+      "manualAnnotationAnchorMoved": true,
+      "manualAnnotationPreserved": true,
+      "realHierarchicalConnectivity": true,
+      "twoSheetSchematic": true
+    },
+    "reported_limits": [
+      "Initial harness metadata enumeration included descriptions of global KiCad tools; no global KiCad MCP endpoint was invoked.",
+      "Whole-design netlist export was required because root live_schematic_netlist omitted child component pins.",
+      "Failed attempts and corrected mutations are retained; partial-batch rollback behavior was not established.",
+      "Arbitrary item-field round-trip fidelity was not established; marker size changed after reopening.",
+      "Small passive connectivity exercise only; no production electrical design, PCB, concurrency or unknown-mutation recovery qualification."
+    ],
+    "task": {
+      "childRunId": "run:thread:thread%3Adelegated-task%3Acommand%253Amcp%253Ac5b19e4a-da16-4ca2-81f1-f1ab7c361227%253Adelegate-task%253Afa76bf51-2ba0-435b-9621-a5212e592c5c:ordinal:1",
+      "childThreadId": "thread:delegated-task:command%3Amcp%3Ac5b19e4a-da16-4ca2-81f1-f1ab7c361227%3Adelegate-task%3Afa76bf51-2ba0-435b-9621-a5212e592c5c",
+      "descriptorPath": "C:/Users/KarlVonRichter/.t3/scratch/main-installed-recheck-9af0ff1/evaluator-task.json",
+      "isolation": "shared",
+      "link": "[Act as the test sub-agent for this task. Read TRIAL.md in this artif...](t3-thread://v2/41952155-64b5-4278-aa7a-2d21fe7c12c9/thread:delegated-task:command%3Amcp%3Ac5b19e4a-da16-4ca2-81f1-f1ab7c361227%3Adelegate-task%3Afa76bf51-2ba0-435b-9621-a5212e592c5c)",
+      "mode": "async",
+      "model": "gpt-6.1-sol",
+      "next": "Completion wakes this thread. Do not wait on it or poll it. Continue other work, and end your turn when none is left.",
+      "options": [
+        {
+          "id": "reasoningEffort",
+          "value": "high"
+        },
+        {
+          "id": "serviceTier",
+          "value": "default"
+        }
+      ],
+      "providerInstanceId": "codex",
+      "role": "test",
+      "runtimeMode": "full-access",
+      "statusAtLaunch": "starting",
+      "taskId": "node:delegated-task:command%3Amcp%3Ac5b19e4a-da16-4ca2-81f1-f1ab7c361227%3Adelegate-task%3Afa76bf51-2ba0-435b-9621-a5212e592c5c"
+    }
+  },
+  "initial_scripted_native": {
+    "frozen_checks": {
+      "build_info_sha256": "7f4ac592d150fd23fa8d65fce5e39fcea6b78b8a3b22764b5e4c1189ac2035f1",
+      "checks": [
+        "offline_diagnostics",
+        "clean_eof",
+        "initialize",
+        "tools",
+        "capabilities",
+        "resource",
+        "describe",
+        "skill_discovery",
+        "skill_tools_and_resources_all_files",
+        "skill_hashes",
+        "missing_and_traversal_errors",
+        "invalid_arguments",
+        "unknown_tool",
+        "block_helpers_module_in_PYZ_archive"
+      ],
+      "command_count": 145,
+      "editor_contacted": false,
+      "executable_sha256": "af81300cb473fb232e9c36e7cceb58762ae99fec8ccec77c004cf96fdf9bcbd4",
+      "helper_source_sha256": {
+        "block_example.py": "2890e0f802cc4c975c9150bcf7a5a192093cbb8e89bc3d02f810eab712056448",
+        "block_helpers.py": "2ce9668fb48d1f09744c958557f58d4fb5f88ae33ca86c1dfe28ea843c459cd5"
+      },
+      "independent_agent_evidence": false,
+      "kind": "scripted_fresh_stdio_and_frozen_delivery_check",
+      "limitations": [
+        "No helper execution MCP tool added",
+        "No native editor mutation in this check",
+        "Independent fresh-session workflow awaits controller evaluator"
+      ],
+      "native_editor_contacted": false,
+      "result": "passed",
+      "revision_source": "caller-supplied archive revision; inspect source checksums",
+      "schema_sha256": "214ce118ab3b9bfa24fc06818000fb6443c8a4340976875bcc0569f96d9b5115",
+      "skills": {
+        "default": "kicad-house-style",
+        "manifest_version": 1,
+        "skill_content_sha256": "111b920c10f3a865b3ff25ef1fec3e3b80339ea62466e43648f4301c3c841c7a",
+        "skill_file_sha256": {
+          "kicad-house-style/SKILL.md": "1975d71a28ce98b8daa294cfee74bcf3a31a0b627cdc9bd85279d36223aa99e5",
+          "kicad-house-style/block-helpers.md": "94acfee9e92e9eb81fc8b96da9f73ea44a695cfe00579d8c1a2989d6944aac7e",
+          "kicad-house-style/design-review.md": "be051ad91580471e79aef1fe744196981fed106eedee28c3ec1affaae5bc955e",
+          "kicad-house-style/live-workflow.md": "6d6d007f796c7d00b399c776357e0482c7d1fdaa312817da920120c6672d83a3",
+          "kicad-house-style/parts-and-libraries.md": "d7ab2b2915a0e8e59de0fc9a4a596cd7331399646ca98b692d737346247a42b3",
+          "kicad-house-style/pcb.md": "928b9e78c3f2694ecec6ea89a350364f31fc2f476348f4a59cc710373f130109",
+          "kicad-house-style/schematic-style.md": "34f88b080d6d87fd546bf5bd60465dc21a275f62abff9531d225e65a7bbb21ee",
+          "kicad-house-style/workstation.md": "82eaf9c08692c9243ded37399d96494cd225130ffe5ff9a4c682be04cae13274"
+        },
+        "skill_versions": {
+          "kicad-house-style": "1.1.1"
+        }
+      },
+      "source_archive_sha256": "3c2039c54d2963bfe2fa2440b0208d6a79e45fd7a429c9385e9eec15eb9af4cb",
+      "source_dirty": null,
+      "source_revision": "b630c7bc794b854ce4823f9ca810fde38f032241",
+      "source_skill_manifest_compared": true,
+      "tool_count": 112
+    },
+    "installed_workflow": {
+      "checks": [
+        "install",
+        "first_launch",
+        "stdio",
+        "place_symbols",
+        "connect_pins",
+        "undo_redo",
+        "save_restart_reopen",
+        "connectivity"
+      ],
+      "host_source_mounted": false,
+      "network": "none",
+      "result": "passed",
+      "runtime": "bwrap",
+      "schema_sha256": "214ce118ab3b9bfa24fc06818000fb6443c8a4340976875bcc0569f96d9b5115",
+      "system_python_present": false,
+      "version": {
+        "full_version": "10.99.0-qualification-d880-loader-patch-dirty",
+        "major": 10,
+        "minor": 99
+      }
+    },
+    "main_native_rebuild": false,
+    "main_probe": {
+      "dirty": false,
+      "raw_report_sha256": "9f0941cf1280080ff1a0cb1221e45c6f6aa5bf6fb269aaaf11ecebfa22833579",
+      "result": "passed",
+      "revision": "b630c7bc794b854ce4823f9ca810fde38f032241"
+    },
+    "native_archive": {
+      "filename": "native-source-d880-supplied-loader.tar.gz",
+      "sha256": "60c2e8b89fcd96b904ea3f7c20e586932e873ed1e3b2a29038f6541db4c742cb"
+    },
+    "native_production_files_compared": 4852,
+    "native_provenance_sha256": "a1dd90cea9653f42b29e4fe8848c4f601d5ba0e09305201a49c1683ba1d55706",
+    "native_source": "d880b3be5dbf30003e4b0069262417d0278bf528",
+    "offline": {
+      "archived_main": {
+        "log_sha256": "14a591ec89b5c94c2792b086258aa38367a95a54ed1fb443f4143ff8c7d7e9da",
+        "passed": 340,
+        "xml_sha256": "2563912f9decbdce7acf3d48dd8c5adf4d8918a2451bfd844a82901009be3492"
+      },
+      "final_qualification_source": {
+        "log_sha256": "a51201dacfe944f8e732f60563f306e0cf08c14c8e0ae43e47624c6e5188f07c",
+        "passed": 340,
+        "revision": "e1aa1b6d36dd9e6f279c1891b272510324e36abc",
+        "xml_sha256": "36942864fcc6e89e0f152d47ffde2c101b0eba0ba2a105894d5ca05e4be80dd1"
+      },
+      "windows": {
+        "environment": "New task-owned Windows Python 3.12 venv with current requirements; initial reused venv lacked PyYAML and failed collection, retained separately.",
+        "log_sha256": "688dc91ba00a5d8506874b59228b4a8f2983909034bfa257d98e7d0952cd3c25",
+        "passed": 293,
+        "platform_skips": 47,
+        "revision": "e1aa1b6d36dd9e6f279c1891b272510324e36abc",
+        "xml_sha256": "61635e11eb9ce9fa84b09f774aa3aa3008b6e7518adc06d8fccc794306c36fef"
+      }
+    },
+    "raw_summary": "/home/karlvonrichter/embeint-qualification/main-installed-b630c7b/artifacts/main-installed-summary.json",
+    "source": {
+      "dirty": false,
+      "files_sha256_scope": "executed working-tree bytes; line endings follow this checkout",
+      "revision": "e1aa1b6d36dd9e6f279c1891b272510324e36abc",
+      "status": []
+    },
+    "summary_sha256": "c72fc0cd8a34a2047a3e3d429c560796ce92bfa1129e98bf7dc45d8741551b6c"
+  },
+  "kind": "merged_main_frozen_installed_and_independent_qualification",
+  "limits": [
+    "No native Windows editor/installer, WSLg, Docker or full native main rebuild qualification.",
+    "No atomic multi-document transaction or concurrent-writer guarantee; no cleanup guards relaxed.",
+    "ZIP sibling autosave recovery cleanup not separately exercised in this slice.",
+    "Synthetic designs and unrouted PCB; no production parts or electrical/manufacturing sign-off."
+  ],
+  "main_artifacts": {
+    "artifacts": {
+      "embeint-kicad_10.99.0~dev+d880.loader1.mcp.b630c7b_amd64.deb": {
+        "sha256": "2d3684dbe3d65cfc1680310dfa02c3286b699fa396865ecc178992dd1980b27c",
+        "size": 187301156
+      },
+      "frozen-check.json": {
+        "sha256": "30bb7030229702882e0f2840a6334c9519ced8ed0dba14653941e1777cddb163",
+        "size": 2725
+      },
+      "installed-workflow.json": {
+        "sha256": "efabe0a37c4e993a1aa5856558ee7e2540a7853feba09810c11d526276876ea9",
+        "size": 514
+      },
+      "installed-workflow.snapshots.json": {
+        "sha256": "8310f2acacb5fb4483933c7efa646b0ffa4c0d98af1cf143fcf381f85a758920",
+        "size": 47737
+      },
+      "main-b630c7bc794b854ce4823f9ca810fde38f032241.tar.gz": {
+        "sha256": "3c2039c54d2963bfe2fa2440b0208d6a79e45fd7a429c9385e9eec15eb9af4cb",
+        "size": 319427299
+      },
+      "native-provenance.json": {
+        "sha256": "a1dd90cea9653f42b29e4fe8848c4f601d5ba0e09305201a49c1683ba1d55706",
+        "size": 134341
+      },
+      "native-source-correspondence.json": {
+        "sha256": "c67f4ad31252494d9c8ffed418d972156c60d30a4809ed764dc2863f8af1dd3c",
+        "size": 1063074
+      },
+      "native-source-d880-supplied-loader.tar.gz": {
+        "sha256": "60c2e8b89fcd96b904ea3f7c20e586932e873ed1e3b2a29038f6541db4c742cb",
+        "size": 367491101
+      }
+    },
+    "build_info_sha256": "7f4ac592d150fd23fa8d65fce5e39fcea6b78b8a3b22764b5e4c1189ac2035f1",
+    "frozen_executable_sha256": "af81300cb473fb232e9c36e7cceb58762ae99fec8ccec77c004cf96fdf9bcbd4",
+    "package_version": "10.99.0~dev+d880.loader1.mcp.b630c7b",
+    "schema_sha256": "214ce118ab3b9bfa24fc06818000fb6443c8a4340976875bcc0569f96d9b5115",
+    "skills": {
+      "default": "kicad-house-style",
+      "manifest_version": 1,
+      "skill_content_sha256": "111b920c10f3a865b3ff25ef1fec3e3b80339ea62466e43648f4301c3c841c7a",
+      "skill_file_sha256": {
+        "kicad-house-style/SKILL.md": "1975d71a28ce98b8daa294cfee74bcf3a31a0b627cdc9bd85279d36223aa99e5",
+        "kicad-house-style/block-helpers.md": "94acfee9e92e9eb81fc8b96da9f73ea44a695cfe00579d8c1a2989d6944aac7e",
+        "kicad-house-style/design-review.md": "be051ad91580471e79aef1fe744196981fed106eedee28c3ec1affaae5bc955e",
+        "kicad-house-style/live-workflow.md": "6d6d007f796c7d00b399c776357e0482c7d1fdaa312817da920120c6672d83a3",
+        "kicad-house-style/parts-and-libraries.md": "d7ab2b2915a0e8e59de0fc9a4a596cd7331399646ca98b692d737346247a42b3",
+        "kicad-house-style/pcb.md": "928b9e78c3f2694ecec6ea89a350364f31fc2f476348f4a59cc710373f130109",
+        "kicad-house-style/schematic-style.md": "34f88b080d6d87fd546bf5bd60465dc21a275f62abff9531d225e65a7bbb21ee",
+        "kicad-house-style/workstation.md": "82eaf9c08692c9243ded37399d96494cd225130ffe5ff9a4c682be04cae13274"
+      },
+      "skill_versions": {
+        "kicad-house-style": "1.1.1"
+      }
+    }
+  },
+  "main_source_revision": "b630c7bc794b854ce4823f9ca810fde38f032241",
+  "offline_final": {
+    "source_revision": "318dad0670d6e215e347800c6c2b4d5aa11076c8",
+    "windows": {
+      "log_sha256": "0af13c944e9eaf5a38d0409a640d82529988dffa47e77a1a81dd047fa1436d1a",
+      "passed": 293,
+      "platform_skips": 47,
+      "xml_sha256": "9ff937f9f2dc1bd733cf6f5f5b172d5ededdbc35a7ab3bed28b900d5b6157395"
+    },
+    "wsl": {
+      "log_sha256": "098d097b3d1e9baec61900283dd4c428f8cb4020e7b788f440faa725eedb8b2b",
+      "passed": 340,
+      "xml_sha256": "d33f68eb28fc9544d5bd7472e3468e73c53bec6345b186cc493ce4154854218a"
+    }
+  },
+  "platform": "Linux x86_64 Ubuntu 26.04.1 WSL2, Xvfb, private Bubblewrap runtimes; Windows Python offline only",
+  "raw_evidence": {
+    "main": "/home/karlvonrichter/embeint-qualification/main-installed-b630c7b",
+    "original_trial_wsl": "/home/karlvonrichter/embeint-qualification/main-installed-trial-b630c7b",
+    "recheck_wsl": "/home/karlvonrichter/embeint-qualification/main-installed-recheck-9af0ff1",
+    "save_fix": "/home/karlvonrichter/embeint-qualification/main-installed-b630c7b/save-fix-9af0ff1",
+    "windows": "/mnt/c/Users/KarlVonRichter/.t3/scratch/main-installed-b630c7b"
+  },
+  "release_qualified": false,
+  "result": "bounded qualification completed with findings",
+  "save_fix": {
+    "baseline_regression": {
+      "log_sha256": "9dbc76e2f0a85f8f36c3020b2fdd8c70a7db7002a8eec48151a7474fd71380e6",
+      "result": "failed as expected: Last_Save_sch absent after real autosave and explicit API save",
+      "retained_project": "/home/karlvonrichter/embeint-qualification/main-installed-b630c7b/save-fix-9af0ff1/baseline-home/live-demo",
+      "snapshots_sha256": "a605512d9ebf8996ca9b9a84d61af532e4889cecead9e45f6e37d3d84dd16a0b"
+    },
+    "cause": "Successful GUI-context API save omitted manual-save history marker and scoped autosave cleanup; a recovery modal blocked manager readiness after restart.",
+    "diagnosis_raw": {
+      "original-history-tags.txt": {
+        "path": "/home/karlvonrichter/embeint-qualification/main-installed-b630c7b/save-fix-9af0ff1/logs/original-history-tags.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "original-history.txt": {
+        "path": "/home/karlvonrichter/embeint-qualification/main-installed-b630c7b/save-fix-9af0ff1/logs/original-history.txt",
+        "sha256": "50fee9053a7aaa9444c123c0e2e18a77a9ad6d8b726362036dea235bccf38067"
+      },
+      "original-recovery-dialog.txt": {
+        "path": "/home/karlvonrichter/embeint-qualification/main-installed-b630c7b/save-fix-9af0ff1/logs/original-recovery-dialog.txt",
+        "sha256": "db654879a26b50cb76adbf227811295067ad58352542c112f2a617c2721c4c75"
+      }
+    },
+    "fixed_regression": {
+      "history": {
+        "after_save_history": {
+          "heads/master": "0a89ccc96a54034c10cde2c5a11950adf0027049",
+          "tags/Last_Save_sch": "0a89ccc96a54034c10cde2c5a11950adf0027049"
+        },
+        "before_save_history": {
+          "heads/master": "4b181d4db3387ee3b24a0716bbe9970e56c5ba7b"
+        },
+        "later_unsaved_history": {
+          "heads/master": "6917746a854feba283d35e71ac5ba9aab3a2d291",
+          "tags/Last_Save_sch": "0a89ccc96a54034c10cde2c5a11950adf0027049"
+        }
+      },
+      "result": {
+        "checks": [
+          "install",
+          "first_launch",
+          "stdio",
+          "place_symbols",
+          "connect_pins",
+          "undo_redo",
+          "save_restart_reopen",
+          "connectivity"
+        ],
+        "host_source_mounted": false,
+        "network": "none",
+        "recovery_history_checked": true,
+        "result": "passed",
+        "runtime": "bwrap",
+        "schema_sha256": "214ce118ab3b9bfa24fc06818000fb6443c8a4340976875bcc0569f96d9b5115",
+        "system_python_present": false,
+        "version": {
+          "full_version": "10.99.0-qualification-d880-loader-patch-dirty",
+          "major": 10,
+          "minor": 99
+        }
+      },
+      "snapshot_sha256": "5f6842373f255ac5f0695e4a044de5d34254f2dee858e04dbfad0a2ffddce6d6",
+      "zip_sibling_cleanup_exercised": false
+    },
+    "full_qualification_git_archive": {
+      "path": "/home/karlvonrichter/embeint-qualification/main-installed-b630c7b/save-fix-9af0ff1/artifacts/source-318dad0670d6e215e347800c6c2b4d5aa11076c8.tar.gz",
+      "revision": "318dad0670d6e215e347800c6c2b4d5aa11076c8",
+      "sha256": "8f08a8180365286b53fe4f2761a2720ad0ab183859041455f7febacabf2675c4"
+    },
+    "native_build": "Incremental sch_context.cpp compilation and eeschema kiface relink in retained d880 loader build; CMake component staging; 896 retained native files unchanged. No full native main rebuild.",
+    "native_manifest_limit": "Packaged historical source_changes/source_description describe retained loader base; build.claim/production_correspondence and exact new archive identify incremental fix.",
+    "new_artifacts": {
+      "build_info_sha256": "7f4ac592d150fd23fa8d65fce5e39fcea6b78b8a3b22764b5e4c1189ac2035f1",
+      "changed_native_payload": [
+        "bin/_eeschema.kiface"
+      ],
+      "dpkg_audit": "",
+      "eeschema_kiface_sha256": "93496eed094247228f636b530735f1098b7187dff9b3b28c6908d14d07e4b3ce",
+      "frozen_executable_sha256": "af81300cb473fb232e9c36e7cceb58762ae99fec8ccec77c004cf96fdf9bcbd4",
+      "frozen_files_verified": 518,
+      "frozen_source_revision": "b630c7bc794b854ce4823f9ca810fde38f032241",
+      "installed_recovery": {
+        "checks": [
+          "install",
+          "first_launch",
+          "stdio",
+          "place_symbols",
+          "connect_pins",
+          "undo_redo",
+          "save_restart_reopen",
+          "connectivity"
+        ],
+        "host_source_mounted": false,
+        "network": "none",
+        "recovery_history_checked": true,
+        "result": "passed",
+        "runtime": "bwrap",
+        "schema_sha256": "214ce118ab3b9bfa24fc06818000fb6443c8a4340976875bcc0569f96d9b5115",
+        "system_python_present": false,
+        "version": {
+          "full_version": "10.99.0-qualification-d880-loader-patch-dirty",
+          "major": 10,
+          "minor": 99
+        }
+      },
+      "native_core_sha256": {
+        "bin/_eeschema.kiface": "93496eed094247228f636b530735f1098b7187dff9b3b28c6908d14d07e4b3ce",
+        "bin/_pcbnew.kiface": "aa9d3fedf7017f8dcd0ec8b8005a51baf2fff41df44ab62a29185f23aedab49c",
+        "bin/kicad": "f313b0e7b2be3989b336d834658fbbdbb4a40ab9850f42dee64ca47ebdb34359",
+        "bin/kicad-cli": "f7b77db7cf81f3d662ced7ee6ede358b60ad8fb8488fc334af2165c721eab3ab",
+        "lib/libkicommon.so.10.99.0": "506bb1dd51767bdf80e620670a931a5d0fd8c912d80b88653f98b5d982e0c1a1"
+      },
+      "native_payload_verified_files": 897,
+      "native_provenance_sha256": "daeb9dc5108b6fed0182fb469a06f98aebbdfd709cafcc0e4536d3e43843aea0",
+      "native_source_archive": {
+        "filename": "native-source-d880-loader-save-9af0ff1.tar.gz",
+        "sha256": "4faadc0727be8443a6af30a5819bed54d3e514b1b539c6789d93d7bb2cd5054c"
+      },
+      "native_source_revision": "9af0ff166ab15bc3adf27848cde067461c7fee6e",
+      "package": "/home/karlvonrichter/embeint-qualification/main-installed-b630c7b/save-fix-9af0ff1/artifacts/embeint-kicad_10.99.0~dev+d880.loader1.save.9af0ff1.mcp.b630c7b_amd64.deb",
+      "package_sha256": "fffe8574f3680024966436336beb22905b99fbcc5efb6d82f6698f85785891f8",
+      "package_version": "10.99.0~dev+d880.loader1.save.9af0ff1.mcp.b630c7b",
+      "runtime_root": "/home/karlvonrichter/embeint-qualification/main-installed-b630c7b/save-fix-9af0ff1/runtime-root",
+      "system_python_present": false
+    },
+    "new_source_production_files_compared": 4852,
+    "source_blob": "cc9612a6b99a0347e0dde4a31db3a03b122fcae1",
+    "source_revision": "9af0ff166ab15bc3adf27848cde067461c7fee6e"
+  },
+  "source_and_notices": {
+    "frozen_notices": "opt/embeint-kicad/libexec/mcp/licenses; Python and bundled dependency notices",
+    "mcp": "main-b630c7bc794b854ce4823f9ca810fde38f032241.tar.gz; exact merged main incl LICENSE, adapter and protocols",
+    "native": "native-source-d880-supplied-loader.tar.gz; exact retained build source incl loader patch, LICENSE and thirdparty tree",
+    "native_notice": "opt/embeint-kicad/libexec/mcp/licenses/KiCad-GPL.txt; full GPLv3 text also retained in both corresponding source archives",
+    "runtime_dependencies": "Ubuntu 26.04.1 packages in separate prepared root, copyright notices under usr/share/doc; not included in the application .deb"
+  },
+  "worktree_cleanup": {
+    "cleanup_sha256": "ace791ae22e017ced7ddc82f6d7ba200d4becf282f342e300fbe41018caac8b3",
+    "method": "git worktree remove after clean including untracked, exact merged PR head, no active process/task, verified full source archives and all ignored-file copies",
+    "preserved_ignored_files": 334,
+    "prs_removed": [
+      7,
+      8,
+      9
+    ],
+    "receipt_sha256": "ea3c331895487d4c24428def37e688e296dab996e10dfd493998e13cffefe231",
+    "retained": "Current open-PR checkout, old qualification worktree containing untracked evidence, historical dirty skill checkout, original qualification runtimes/artifacts",
+    "windows_receipt": "C:/Users/KarlVonRichter/.t3/scratch/main-installed-b630c7b/merged-worktree-preservation/receipts.json"
+  }
+}
