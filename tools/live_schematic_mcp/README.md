@@ -270,8 +270,12 @@ UUID-scoped revisions through the existing Python client. Start with
 `python tools/live_schematic_mcp/block_example.py` for an offline synthetic plan,
 or read the bundled [helper API reference](skills/kicad-house-style/block-helpers.md).
 Stable ownership manifests, stale-state fingerprints and single-use plans preserve
-manual items and avoid blind mutation replay; planning refuses block wires that touch
-manual wiring, and moving a block pin with manual wiring attached, since KiCad's commit
-cleanup could merge those wires or drop their junction. This is a scripting API; no new MCP
+manual items and avoid blind mutation replay. Because KiCad's connectivity cleanup
+could merge wires or drop junctions, planning refuses block wires touching manual
+wiring, removing a block wire or moving/removing a block pin or label with manual
+wiring attached, and moving a pin at a wire branch in one apply; wires are replaced
+rather than updated. Build wires, junctions, symbols and sheets with `wire()`,
+`symbol()` and `sheet()`, not `add()`. Manifests are version 2; version 1 manifests
+lack pin points and are refused. This is a scripting API; no new MCP
 helper execution tool is registered. Fingerprints do not provide atomic editor
 revision checks, and live use requires a single writer plus pin/net/page validation.

@@ -519,8 +519,37 @@ def test_duplicate_no_connect_markers_are_refused():
     existing = sch.NoConnectMarker(id=kiid(), position=point(20, 20))
     single = Block(NAMESPACE)
     single.add("nc", sch.NoConnectMarker(position=point(20, 20)))
-    with pytest.raises(ValueError, match="no-connect marker already exists"):
+    with pytest.raises(ValueError, match="would share"):
         plan(single, Manifest.empty(NAMESPACE, doc()), doc(), [pack(existing)])
+    # Renaming an owned marker's key at the same place is safe: the delete lands at the
+    # push, before the final cleanup, and the create never appears mid-batch.
+    client = Editor()
+    state = apply(client, doc(), plan(single, Manifest.empty(NAMESPACE, doc()), doc(), []))
+    renamed = Block(NAMESPACE)
+    renamed.add("nc-renamed", sch.NoConnectMarker(position=point(20, 20)))
+    pending = plan(renamed, state, doc(), client.items(doc()).items)
+    assert pending.creates == ("nc-renamed",) and pending.deletes == ("nc",)
+
+
+def test_moving_a_block_label_with_manual_wiring_through_it_is_refused():
+    # In KiCad's junction analysis a label makes wires passing through count twice,
+    # so it can be what keeps manual in-line wires from merging.
+    client = Editor()
+    first = Block(NAMESPACE)
+    first.port("port", "SIGNAL", (50, 50))
+    state = apply(client, doc(), plan(first, Manifest.empty(NAMESPACE, doc()), doc(), []))
+    for start, end in (((40, 50), (50, 50)), ((50, 50), (60, 50)), ((50, 40), (50, 60))):
+        wire = sch.SchematicLine(id=kiid(), type=sch.SLT_WIRE, start=point(*start), end=point(*end))
+        client.live[wire.id.value] = pack(wire)
+    moved = Block(NAMESPACE)
+    moved.port("port", "SIGNAL", (70, 70))
+    with pytest.raises(ValueError, match="pin or label"):
+        plan(moved, state, doc(), client.items(doc()).items)
+    with pytest.raises(ValueError, match="pin or label"):
+        plan(Block(NAMESPACE), state, doc(), client.items(doc()).items)
+    renamed = Block(NAMESPACE)
+    renamed.port("port", "OTHER", (50, 50))
+    assert plan(renamed, state, doc(), client.items(doc()).items).updates == ("port",)
 
 
 def test_manifest_without_pin_points_is_refused_with_a_version_error():

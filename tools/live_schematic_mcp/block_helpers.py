@@ -384,7 +384,8 @@ def _wiring(items):
     return wires, junctions
 
 
-def _refuse_cleanup_hazards(created, removed, vanished, moved, current, manual, markers):
+def _refuse_cleanup_hazards(created, removed, vanished, moved, current, manual, final_markers,
+                            intermediate_markers):
     """Refuse changes that KiCad's connectivity cleanup could turn into other edits.
 
     Cleanup merges touching in-line wires and removes junctions with fewer than three
@@ -392,10 +393,11 @@ def _refuse_cleanup_hazards(created, removed, vanished, moved, current, manual, 
     connectable item, also mid-batch on the original screen plus the updates.
 
     created: new block items; removed: old block wires/junctions being deleted;
-    vanished: old pin points of updated/deleted block symbols and sheets;
-    moved: the subset of vanished belonging to updated (not deleted) items;
-    current/manual: all and unowned items on the sheet; markers: (uuid, position) of
-    block no-connect markers being created or updated.
+    vanished: old pin points of updated/deleted block symbols and sheets, and old
+    positions of moved/deleted block labels (a label lets wires passing through
+    count twice in KiCad's junction analysis); moved: old pin points of updated items;
+    current/manual: all and unowned items on the sheet; final/intermediate_markers:
+    no-connect positions after the push and on the mid-batch screen.
     """
     manual_wires, manual_junctions = _wiring(manual)
 
@@ -416,18 +418,19 @@ def _refuse_cleanup_hazards(created, removed, vanished, moved, current, manual, 
                              "to it; reroute the manual wiring first")
     for pos in sorted(vanished):
         if manual_contact(pos, pos):
-            raise ValueError(f"A moved or removed block pin at {_mm(pos)} has manual wiring "
-                             "attached; reroute the manual wiring first")
+            raise ValueError(f"A moved or removed block pin or label at {_mm(pos)} has manual "
+                             "wiring attached; reroute the manual wiring first")
     # Mid-batch: the moved pin is gone but the old wires (deleted later) are still there.
     wires, junctions = _wiring(current)
     for pos in sorted(moved):
         if pos in junctions or sum(pos in (c, d) for c, d in wires) >= 2:
             raise ValueError(f"Moving a block pin at the wire branch {_mm(pos)} in one apply "
                              "lets KiCad clean up mid-batch; remove those wires first, then move")
-    for value, pos in markers:
-        if any(isinstance(i, sch.NoConnectMarker) and i.id.value != value and _xy(i.position) == pos
-               for i in current):
-            raise ValueError(f"A no-connect marker already exists at {_mm(pos)}; KiCad would remove one")
+    for markers in (intermediate_markers, final_markers):
+        positions = list(markers.values())
+        for pos in positions:
+            if positions.count(pos) > 1:
+                raise ValueError(f"Two no-connect markers would share {_mm(pos)}; KiCad would remove one")
 
 
 class StaleState(ValueError):
@@ -565,14 +568,30 @@ def plan(block, manifest, doc, current_items):
             removed[key] = (_xy(old.position), _xy(old.position))
         elif isinstance(old, sch.SchematicLine) and old.type != sch.SLT_GRAPHIC:
             removed[key] = (_xy(old.start), _xy(old.end))
+    labels = (sch.LocalLabel, sch.HierarchicalLabel)
+    for key in updates + deletes:
+        old = _unpack(current[block.id(key)])
+        if isinstance(old, labels) and (key in deletes or _xy(old.position) != _xy(
+                _unpack(desired[key]).position)):
+            vanished.add(_xy(old.position))
     owned_ids = {block.id(key) for key in previous} | {block.id(key) for key in desired}
     changed = {key: _unpack(desired[key]) for key in creates + updates}
-    markers = [(item.id.value, _xy(item.position)) for item in changed.values()
-               if isinstance(item, sch.NoConnectMarker)]
+    items = {value: _unpack(packed) for value, packed in current.items()}
+    # Staged creates and deletes apply at the push; updates apply in place at once.
+    intermediate = {value: _xy(item.position) for value, item in items.items()
+                    if isinstance(item, sch.NoConnectMarker)}
+    for key in updates:
+        intermediate.pop(block.id(key), None)
+        if isinstance(changed[key], sch.NoConnectMarker):
+            intermediate[block.id(key)] = _xy(changed[key].position)
+    final = {value: pos for value, pos in intermediate.items()
+             if value not in {block.id(key) for key in deletes}}
+    final.update({block.id(key): _xy(changed[key].position) for key in creates
+                  if isinstance(changed[key], sch.NoConnectMarker)})
     _refuse_cleanup_hazards({key: changed[key] for key in creates}, removed, vanished, moved,
-                            [_unpack(packed) for packed in current.values()],
-                            [_unpack(packed) for value, packed in current.items() if value not in owned_ids],
-                            markers)
+                            list(items.values()),
+                            [item for value, item in items.items() if value not in owned_ids],
+                            final, intermediate)
     return Plan(manifest, fingerprint(current.values()),
                 tuple((key, _bytes(value)) for key, value in sorted(desired.items())),
                 tuple(sorted(creates)), tuple(sorted(updates)), tuple(sorted(deletes)),
