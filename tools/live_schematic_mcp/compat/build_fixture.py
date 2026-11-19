@@ -177,16 +177,16 @@ def board(client, root, board_doc):
         {"name": "Power clearance", "condition": "A.NetClass == 'Power'",
          "constraints": [{"type": "clearance", "min": 0.25}]},
         {"name": "No vias under U1", "condition": "A.intersectsCourtyard('U1')",
-         "constraints": [{"type": "disallow", "items": ["via"]}], "severity": "warning"}])
+         "constraints": [{"type": "disallow", "items": ["through_vias"]}], "severity": "warning"}])
     imported = client.board_update_from_schematic(board_doc, root)
     check(imported["errors"] == 0 and imported["new_footprints"] == 5, f"board update from schematic: {imported}")
     client.board_outline(board_doc, 32, 20, 100, 80)
     client.board_move_footprints(board_doc, [
-        {"reference": "C1", "x_mm": 106, "y_mm": 86, "rotation": 90},
-        {"reference": "U1", "x_mm": 113, "y_mm": 86},
-        {"reference": "C2", "x_mm": 120, "y_mm": 86, "rotation": 90},
-        {"reference": "R1", "x_mm": 125, "y_mm": 92, "rotation": 90},
-        {"reference": "R2", "x_mm": 125, "y_mm": 96, "rotation": 90}])
+        {"reference": "C1", "x_mm": 104, "y_mm": 86, "rotation": 180},  # pad 1 faces U1
+        {"reference": "U1", "x_mm": 112, "y_mm": 86},
+        {"reference": "C2", "x_mm": 120, "y_mm": 86},
+        {"reference": "R1", "x_mm": 115, "y_mm": 94},
+        {"reference": "R2", "x_mm": 124, "y_mm": 94}])
     routed = {}
     for net in client.board_nets(board_doc):
         name = net["name"]
@@ -197,7 +197,8 @@ def board(client, root, board_doc):
             routed[name] = {"drc_clean": result.get("drc_clean"), "legs": len(result.get("legs", []))}
         except Exception as error:  # noqa: BLE001 - record and continue; DRC reports what is left
             routed[name] = {"error": str(error)}
-    client.board_add_zone(board_doc, "GND", layers=("F.Cu", "B.Cu"), inset=0.5, name="GND pour")
+    # Every GND pad is on F.Cu; a B.Cu pour without stitching vias would only be isolated copper
+    client.board_add_zone(board_doc, "GND", layers=("F.Cu",), inset=0.5, name="GND pour")
     return {"update": {k: imported[k] for k in ("errors", "warnings", "new_footprints")}, "routed": routed}
 
 

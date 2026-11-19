@@ -1,0 +1,32 @@
+{
+  "note": "reference-fixture output (written by KiCad 10.0.6) opened by the same reference: baseline",
+  "reference": "KiCad 10.0.6 (kicad-cli, Windows x64 release build)",
+  "checks": {
+    "fp read complex_hierarchy.pretty": "ok",
+    "pcb drc": "ok",
+    "pcb export drill": "ok",
+    "pcb export dsn": "not-available-in-reference-cli",
+    "pcb export dxf": "ok",
+    "pcb export gencad": "ok",
+    "pcb export gerbers": "ok",
+    "pcb export idf": "not-available-in-reference-cli",
+    "pcb export ipc2581": "ok",
+    "pcb export ipcd356": "ok",
+    "pcb export odb": "ok",
+    "pcb export pdf": "ok",
+    "pcb export position": "ok",
+    "pcb export stats": "ok",
+    "pcb export step": "ok",
+    "pcb export svg": "ok",
+    "sch erc": "ok",
+    "sch export bom": "ok",
+    "sch export dxf": "ok",
+    "sch export netlist": "ok",
+    "sch export pdf": "ok",
+    "sch export ps": "ok",
+    "sch export svg": "ok",
+    "sym read complex_hierarchy.kicad_sym": "ok",
+    "version": "ok"
+  },
+  "changed_inputs": []
+}

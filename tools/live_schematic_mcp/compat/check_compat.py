@@ -6,6 +6,7 @@ Subcommands (each writes a JSON report into a NEW --out folder and never edits i
   versions DIR...          format version headers declared by every KiCad file in each folder
   reference                run the reference kicad-cli (ERC, DRC, every export, library reads) on a
                            COPY of a project and classify each result; no development KiCad needed
+  reference-mixed          fork-written rules and project files beside reference-authored designs
   reference-fixture        build a reference-authored project: copies of reference demos rewritten by
                            the reference kicad-cli and its Python pcbnew module (pro/prl)
   fork-exports             LIVE: run every live_schematic_export / live_pcb_export kind twice on the
@@ -38,7 +39,7 @@ FIXTURE = HERE / "fixture" / "compat-fixture"
 SCH_EXPORTS = ("svg", "pdf", "dxf", "ps", "netlist", "bom")
 PCB_EXPORTS = ("gerbers", "drill", "position", "step", "pdf", "svg", "dxf", "ipc2581", "ipcd356", "odb",
                "stats", "dsn", "gencad", "idf")
-FUTURE = re.compile(r"newer version|future|too recent|created by a more recent", re.I)
+FUTURE = re.compile(r"newer version|future|too recent|more recent version", re.I)
 
 
 def write_json(path, value):
@@ -52,8 +53,15 @@ def new_folder(path):
 
 
 def file_hashes(folder):
-    return {p.relative_to(folder).as_posix(): sha256(p.read_bytes()).hexdigest()
-            for p in sorted(Path(folder).rglob("*")) if p.is_file()}
+    """Hashes of the project's files; KiCad's local-history repository (.history), lock files and
+    backups are not project content."""
+    result = {}
+    for path in sorted(Path(folder).rglob("*")):
+        relative = path.relative_to(folder).as_posix()
+        if (path.is_file() and not relative.startswith(".history/") and not path.name.startswith("~")
+                and not path.name.endswith(".lck") and "-backups/" not in relative):
+            result[relative] = sha256(path.read_bytes()).hexdigest()
+    return result
 
 
 # ---- Reference kicad-cli ---------------------------------------------------------------------------
@@ -166,10 +174,81 @@ def run_reference(args):
             entry["files"] = len([p for p in produced_path.rglob("*") if p.is_file()])
         report["checks"][name] = entry
         print(f"{name:28} {entry['result']:24} rc={completed.returncode}", flush=True)
-    report["input_unchanged"] = file_hashes(project) == before
+    after = file_hashes(project)
+    report["input_unchanged"] = after == before
+    # The reference may rewrite settings files even when it refuses the design (a downgrade)
+    report["changed_inputs"] = {
+        name: {"before": report["versions"].get(name), "after": project_versions(project).get(name)}
+        for name in sorted(set(before) | set(after)) if before.get(name) != after.get(name)}
+    for name in report["changed_inputs"]:
+        print(f"input rewritten by the reference: {name}", flush=True)
     write_json(out / "report.json", report)
     print("report:", out / "report.json")
-    return 0 if report["input_unchanged"] else 1
+    return compare_expected(report, args.expect)
+
+
+def compare_expected(report, expect_path):
+    """Exit status against a committed expectation: {"checks": {name: result}, "changed_inputs": [...]}."""
+    if not expect_path:
+        return 0
+    expected = json.loads(Path(expect_path).read_text(encoding="utf-8"))
+    mismatches = [f"{name}: expected {result}, got {report['checks'].get(name, {}).get('result')}"
+                  for name, result in expected["checks"].items()
+                  if report["checks"].get(name, {}).get("result") != result]
+    if sorted(expected.get("changed_inputs", [])) != sorted(report["changed_inputs"]):
+        mismatches.append(f"changed inputs: expected {expected.get('changed_inputs', [])}, "
+                          f"got {sorted(report['changed_inputs'])}")
+    for line in mismatches:
+        print("MISMATCH", line)
+    print("matches expectation" if not mismatches else f"{len(mismatches)} mismatch(es)")
+    return 1 if mismatches else 0
+
+
+def run_reference_mixed(args):
+    """Fork-written project-level files beside reference-authored designs: the rules file and the
+    project file, each placed alone in a copy of the reference project."""
+    out = new_folder(args.out)
+    reference, fork = Path(args.reference_project), Path(args.fork_project)
+    stem = next(reference.glob("*.kicad_pro")).stem
+    report = {"cli": str(args.cli), "cases": {}}
+    for case, source in (("fork rules", next(fork.glob("*.kicad_dru"))),
+                         ("fork project file", next(fork.glob("*.kicad_pro")))):
+        project = out / case.replace(" ", "-")
+        shutil.copytree(reference, project)
+        target = project / f"{stem}{source.suffix}"
+        shutil.copy(source, target)
+        before = sha256(target.read_bytes()).hexdigest()
+        entry = {"file": source.name, "declares": file_versions_safe(target), "checks": {}}
+        for name, cli_args, produced in (
+                ("sch erc", ["sch", "erc", "--format", "json", "-o", str(project / "erc.json"),
+                             str(project / f"{stem}.kicad_sch")], project / "erc.json"),
+                ("pcb drc", ["pcb", "drc", "--format", "json", "-o", str(project / "drc.json"),
+                             str(project / f"{stem}.kicad_pcb")], project / "drc.json"),
+                ("pcb export gerbers", ["pcb", "export", "gerbers", "-o", str(project / "gerbers") + os.sep,
+                                        str(project / f"{stem}.kicad_pcb")], project / "gerbers")):
+            completed = subprocess.run([str(args.cli), *cli_args], capture_output=True, text=True,
+                                       encoding="utf-8", errors="replace", timeout=600)
+            text = completed.stdout + completed.stderr
+            entry["checks"][name] = {"exit_code": completed.returncode,
+                                     "result": classify(completed.returncode, text, produced.exists()),
+                                     "rule_errors": bool(re.search(r"rule|\.kicad_dru", text, re.I)
+                                                         and completed.returncode),
+                                     "output_tail": text.strip().splitlines()[-4:]}
+        entry["file_unchanged"] = sha256(target.read_bytes()).hexdigest() == before
+        report["cases"][case] = entry
+        print(case, {k: v["result"] for k, v in entry["checks"].items()}, "unchanged:", entry["file_unchanged"])
+    write_json(out / "report.json", report)
+    ok = all(c["file_unchanged"] and all(v["result"] == "ok" for v in c["checks"].values())
+             for c in report["cases"].values())
+    return 0 if ok else 1
+
+
+def file_versions_safe(path):
+    from compat.formats import file_versions
+    try:
+        return file_versions(path)
+    except ValueError as error:
+        return {"error": str(error)}
 
 
 # ---- Reference-authored fixture --------------------------------------------------------------------
@@ -290,10 +369,11 @@ def run_fork_exports(args):
     if not report["project_unchanged"]:
         failures.append("project files changed")
     if args.update:
+        Path(args.golden).parent.mkdir(parents=True, exist_ok=True)
         write_json(Path(args.golden), {
             "fixture": "compat/fixture/compat-fixture",
             "note": "sha256 of normalized export trees (compat/formats.py); regenerate with fork-exports --update",
-            "application_version": report["application_version"].get("full_version"),
+            "application_version": report["application_version"].get("version", {}).get("full_version"),
             "exports": {k: {"tree_sha256": v["tree_sha256"], "files": v["files"]}
                         for k, v in sorted(report["exports"].items()) if v.get("tree_sha256")}})
     report["failures"] = failures
@@ -329,9 +409,52 @@ def snapshot(client, root, board):
     return result
 
 
+PIN_TYPE = "type.googleapis.com/kiapi.schematic.types.SchematicPin"
+
+
+def canonical(snapshot_value):
+    """Drop identities neither KiCad 10.0.6 nor the fork stores in the files: library-definition pin
+    UUIDs (generated on load, like the graphic UUIDs persisted_schematic_item already drops) and the
+    board root UUID that parents board-level items (also generated on load)."""
+    result = {"nets": snapshot_value["nets"], "schematics": {}}
+    for sheet, items in snapshot_value["schematics"].items():
+        cleaned = []
+        for text in items:
+            item = json.loads(text)
+            for child in item.get("definition", {}).get("items", []):
+                if child.get("item", {}).get("@type") == PIN_TYPE:
+                    child["item"].pop("id", None)
+            cleaned.append(json.dumps(item, sort_keys=True))
+        result["schematics"][sheet] = sorted(cleaned)
+    board = [json.loads(text) for text in snapshot_value["board"]]
+    known = {item.get("id", {}).get("value") for item in board}
+    for item in board:
+        parent = item.get("parent", {}).get("value")
+        if parent and parent not in known:  # the board itself, not an item in the file
+            item["parent"] = {"value": "board"}
+    # Teardrop zones are generated copper: neither version stores their UUIDs, and the fork writes
+    # their invisible border as "hatch none", which reads back as a solid border.  Compare their
+    # geometry and settings separately from the rest of the board.
+    teardrops = [item for item in board if item.get("type") == "ZT_TEARDROP"]
+    for item in teardrops:
+        item.pop("id", None)
+        item.get("border", {}).pop("style", None)
+    result["board"] = sorted(json.dumps(item, sort_keys=True) for item in board if item.get("type") != "ZT_TEARDROP")
+    result["teardrops"] = sorted(json.dumps(item, sort_keys=True) for item in teardrops)
+    return result
+
+
+def count_teardrops(board_file):
+    """Teardrop zones stored in a board file."""
+    text = Path(board_file).read_text(encoding="utf-8")
+    zones = re.findall(r"\n\t\(zone\n.*?\n\t\)", text, re.S)
+    return sum(1 for zone in zones if "(teardrop" in zone)
+
+
 def compare_snapshots(expected, actual):
+    expected, actual = canonical(expected), canonical(actual)
     differences = {}
-    for key in ("nets", "board"):
+    for key in ("nets", "board", "teardrops"):
         missing, extra = set(expected[key]) - set(actual[key]), set(actual[key]) - set(expected[key])
         if missing or extra:
             differences[key] = {"missing": len(missing), "extra": len(extra),
@@ -354,7 +477,10 @@ def run_fork_roundtrip(args):
     project_dir = Path(root.project.path)
     current = snapshot(client, root, board)
     if args.phase == "save":
-        before = {"versions": project_versions(project_dir), "sha256": file_hashes(project_dir)}
+        board_file = project_dir / board.board_filename
+        before = {"versions": project_versions(project_dir), "sha256": file_hashes(project_dir),
+                  "teardrop_zones_in_file": count_teardrops(board_file),
+                  "teardrop_zones_after_open": len(canonical(current)["teardrops"])}
         client.execute("SaveDocument", {"document": as_dict(root)})
         client.board_save(board)
         after = snapshot(client, root, board)
@@ -362,7 +488,8 @@ def run_fork_roundtrip(args):
                            "before": before, "snapshot": current,
                            "unchanged_by_save": not compare_snapshots(current, after),
                            "after": {"versions": project_versions(project_dir),
-                                     "sha256": file_hashes(project_dir)}})
+                                     "sha256": file_hashes(project_dir),
+                                     "teardrop_zones_in_file": count_teardrops(board_file)}})
         print("saved; versions after save:", json.dumps(project_versions(project_dir), indent=1))
         return 0
     saved = json.loads(state.read_text())
@@ -370,7 +497,11 @@ def run_fork_roundtrip(args):
     on_disk = file_hashes(project_dir) == saved["after"]["sha256"]
     write_json(state.with_name(state.stem + "-verify.json"),
                {"differences": differences, "reopen_left_files_unchanged": on_disk,
-                "unchanged_by_save": saved["unchanged_by_save"]})
+                "unchanged_by_save": saved["unchanged_by_save"],
+                "teardrop_zones": {"reference_file": saved["before"]["teardrop_zones_in_file"],
+                                   "after_fork_open": saved["before"]["teardrop_zones_after_open"],
+                                   "fork_file": saved["after"]["teardrop_zones_in_file"],
+                                   "after_reopen": len(canonical(current)["teardrops"])}})
     print("differences:", json.dumps(differences, indent=1) if differences else "none",
           "| files unchanged by reopen:", on_disk)
     return 1 if differences or not saved["unchanged_by_save"] else 0
@@ -386,6 +517,12 @@ def main(argv=None):
     reference.add_argument("--project", default=str(FIXTURE), help="project folder (copied, never edited)")
     reference.add_argument("--label", default="")
     reference.add_argument("--out", required=True)
+    reference.add_argument("--expect", help="JSON of expected results; exit 1 on any difference")
+    mixed = sub.add_parser("reference-mixed")
+    mixed.add_argument("--cli", required=True)
+    mixed.add_argument("--reference-project", required=True, help="reference-authored project folder")
+    mixed.add_argument("--fork-project", default=str(FIXTURE), help="project with fork-written rules/pro")
+    mixed.add_argument("--out", required=True)
     ref_fixture = sub.add_parser("reference-fixture")
     ref_fixture.add_argument("--cli", required=True)
     ref_fixture.add_argument("--python", required=True, help="reference KiCad's python (pcbnew module)")
@@ -402,7 +539,8 @@ def main(argv=None):
     if args.command == "versions":
         print(json.dumps({folder: project_versions(folder) for folder in args.folders}, indent=1, sort_keys=True))
         return 0
-    return {"reference": run_reference, "reference-fixture": run_reference_fixture,
+    return {"reference": run_reference, "reference-mixed": run_reference_mixed,
+            "reference-fixture": run_reference_fixture,
             "fork-exports": run_fork_exports, "fork-roundtrip": run_fork_roundtrip}[args.command](args)
 
 
