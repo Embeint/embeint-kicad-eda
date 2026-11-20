@@ -85,6 +85,20 @@ STATUS_ERRORS = {"AS_REVISION_MISMATCH": RevisionMismatch, "AS_DUPLICATE_OPERATI
 # commit none unless its client asks, so a killed MCP's open commit would otherwise stay open.
 DEFAULT_LEASE_S = 60
 
+# Reply timeout (ms) for each request, unless KICAD_API_TIMEOUT_MS sets another (the native Rust
+# MCP reads the same variable; the parity fixtures shorten it to exercise lost replies quickly).
+DEFAULT_TIMEOUT_MS = 15000
+
+
+def api_timeout_ms():
+    """KICAD_API_TIMEOUT_MS as a whole number of milliseconds from 1 to 600000, else the default."""
+    text = os.environ.get("KICAD_API_TIMEOUT_MS", "").strip()
+    if not text:
+        return DEFAULT_TIMEOUT_MS
+    if not text.isdigit() or not 1 <= int(text) <= 600_000:
+        raise ValueError("KICAD_API_TIMEOUT_MS must be a whole number of milliseconds from 1 to 600000")
+    return int(text)
+
 
 def new_operation_id():
     return f"mcp-{uuid.uuid4()}"
@@ -201,7 +215,7 @@ SPIN_FOR = {(-1, 0): sch.SLSS_LEFT, (1, 0): sch.SLSS_RIGHT, (0, 1): sch.SLSS_BOT
 
 
 class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
-    def __init__(self, socket_url=None, timeout_ms=15000):
+    def __init__(self, socket_url=None, timeout_ms=None):
         self.socket_url = socket_url or os.environ.get("KICAD_API_SOCKET")
         explicit_socket = bool(self.socket_url)
         # Linux/WSL (Unix sockets) and Windows (named pipes) discover the instance lazily;
@@ -215,7 +229,7 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
             local_socket_path(self.socket_url)
         self.token = os.environ.get("KICAD_API_TOKEN", "") if explicit_socket else ""
         self.client_name = "kicad.live-schematic-mcp-" + str(uuid.uuid4())
-        self.timeout_ms = timeout_ms
+        self.timeout_ms = api_timeout_ms() if timeout_ms is None else timeout_ms
         self._received_reply = False
         self.lock = threading.RLock()
         # (expected_revision, operation_id) for the next send(); set only by _send_with
