@@ -8,12 +8,16 @@ on:
     paths:
       - "rust/**"
       - "tools/live_schematic_mcp/symbol_layout.py"
+      - "tools/live_schematic_mcp/layout_backend.py"
+      - "tools/live_schematic_mcp/test_layout_backend.py"
       - ".github/workflows/rust-layout.yml"
   push:
     branches: [main, live-schematic-ipc]
     paths:
       - "rust/**"
       - "tools/live_schematic_mcp/symbol_layout.py"
+      - "tools/live_schematic_mcp/layout_backend.py"
+      - "tools/live_schematic_mcp/test_layout_backend.py"
       - ".github/workflows/rust-layout.yml"
   workflow_dispatch:
 
@@ -74,6 +78,15 @@ jobs:
       # cache can never be compared, and with --require-wasm a failed WASM build fails the run.
       - name: Python, native and WebAssembly parity
         run: python rust/parity/parity.py --build --require-wasm --bench 50 --report parity-report.json
+      # The MCP's opt-in backend against the runner the parity step just built in rust/target/release
+      # (mcp.yml has no runner and skips these cases; here a missing runner fails them).
+      - name: MCP layout backend against the native runner
+        working-directory: tools/live_schematic_mcp
+        env:
+          EMBEINT_LAYOUT_REQUIRE_RUNNER: "1"
+        run: |
+          python -m pip install pytest
+          python -m pytest -q -p no:cacheprovider test_layout_backend.py
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         if: always()
         with:

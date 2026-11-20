@@ -137,6 +137,30 @@ spacing) before the signals, so an LDO gets VIN over EN and VOUT over ADJ. The d
 the value at the body's bottom right. Pass sides with `arrange="as_given"` to follow a specific
 datasheet pinout exactly.
 
+#### Rust pin layout (opt-in)
+
+`live_symbol_add_pins` lays out pins with `symbol_layout.py`. The Rust port of that layout
+([rust/README.md](../../rust/README.md)) can be used instead, opt-in, through
+`layout_backend.py`:
+
+| `EMBEINT_LAYOUT_BACKEND` | Effect |
+| --- | --- |
+| `python` (default) | Python only. The tool result is unchanged. |
+| `shadow` | Python lays out the pins; the Rust runner is run as well and compared exactly. A difference is logged and reported, never used. |
+| `rust` | The Rust runner lays out the pins. Python is the fallback. |
+
+The runner is the `embeint-layout` binary (`cargo build --release` in `rust/`). It is found through
+`EMBEINT_LAYOUT_BIN`, then next to a bundled MCP executable, then in `rust/target/release` of this
+checkout, then on `PATH`. A runner built from older Rust sources is still used, so rebuild it after
+pulling. With `shadow` or `rust`, the tool result gains `layout_backend`: which implementation
+produced the layout, plus `fallback` (why Python was used) or `shadow` (`match` or `mismatch`).
+
+The runner is started once per call and exits with it, about 25 ms on Windows: small next to the
+IPC round trips of the same tool call. It falls back to Python, and says why, when there is no runner,
+it fails or times out (10 s), its output is not a response, or the request is outside its JSON
+boundary. A bad pin list raises the same exception, with the same text, as Python. `diagnose.py`
+reports the setting and the runner it would use under `runtime.layout`.
+
 ### Footprints, 3D models and embedded files
 
 | Tool | Purpose |

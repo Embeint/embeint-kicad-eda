@@ -3,8 +3,9 @@
 The first shared Rust component from roadmap delivery gate 3
 ([EMBEINT_FORK_ROADMAP.md](../tools/live_schematic_mcp/EMBEINT_FORK_ROADMAP.md)). It is a port of
 the symbol pin layout that runs natively and in a browser. **The Python implementation stays
-authoritative.** The MCP does not call this code. Parity has been measured but has not yet been
-reviewed.
+authoritative.** The MCP uses the native runner only when `EMBEINT_LAYOUT_BACKEND` opts in
+(`shadow` or `rust`; see [the MCP README](../tools/live_schematic_mcp/README.md#rust-pin-layout-opt-in)).
+Python remains the default.
 
 | Crate | Purpose |
 | --- | --- |
@@ -184,9 +185,14 @@ The JavaScript loader, the Node runner and the harness use only the platform's s
 
 ## Limitations and next steps
 
-- **Not wired into the MCP.** Switching would need a review of these results, then an opt-in path
-  in `client.symbol_add_pins` (for example, a native module or the CLI), with Python kept as the
-  fallback.
+- **Opt-in in the MCP, not the default.** `client.symbol_add_pins` goes through
+  `tools/live_schematic_mcp/layout_backend.py`, which starts this runner for each call when
+  `EMBEINT_LAYOUT_BACKEND` is `shadow` (Python used, Rust compared) or `rust` (Rust used, Python
+  the fallback). On 2026-11-20 on Windows, shadow mode matched Python on all 801 generated, typed
+  and 256-pin requests (562 layouts and 239 errors), with no fallbacks, at about 25 ms a call
+  (mostly process start). `test_layout_backend.py` checks the fixed cases against the real runner
+  whenever one is built. Making Rust the default needs shadow results from real design work,
+  and the runner in the bundled MCP package, which `package_mcp.py` does not ship yet.
 - **Python `repr()` of unassigned code points.** Rust has no Unicode category tables, so it treats
   unassigned code points as printable, where Python escapes them. This only affects the "needs a
   number" message for a pin whose strings contain such characters. `str.upper()` follows the Unicode

@@ -62,7 +62,13 @@ def runtime_status():
                          "Reinstall the Embeint KiCad MCP package." if bundled else
                          "Regenerate protocols with generate_proto.py and install requirements.txt "
                          "using this interpreter."}
-    return {"dependencies": dependencies, "dependency_actions": dependency_actions, "protocols": protocols}
+    try:
+        import layout_backend
+        layout = layout_backend.status()
+    except Exception:
+        layout = {"backend": "unavailable"}
+    return {"dependencies": dependencies, "dependency_actions": dependency_actions, "protocols": protocols,
+            "layout": layout}
 
 
 def _redact(value, secrets):
