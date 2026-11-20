@@ -882,33 +882,13 @@ class BoardTools:
                 raise RuntimeError(f"3D render failed: {_dict(response)}")
             return target.read_bytes()
 
-    def board_export(self, doc, kind, output_path):
-        """Fabrication and other outputs from the live board (unsaved edits included)."""
-        classes = {"gerbers": board_jobs.RunBoardJobExportGerbers, "drill": board_jobs.RunBoardJobExportDrill,
-                   "position": board_jobs.RunBoardJobExportPosition, "step": board_jobs.RunBoardJobExport3D,
-                   "pdf": board_jobs.RunBoardJobExportPdf, "svg": board_jobs.RunBoardJobExportSvg,
-                   "dxf": board_jobs.RunBoardJobExportDxf, "ipc2581": board_jobs.RunBoardJobExportIpc2581,
-                   "ipcd356": board_jobs.RunBoardJobExportIpcD356, "odb": board_jobs.RunBoardJobExportODB,
-                   "stats": board_jobs.RunBoardJobExportStats, "dsn": board_jobs.RunBoardJobExportSpecctraDsn,
-                   "gencad": board_jobs.RunBoardJobExportGencad, "idf": board_jobs.RunBoardJobExportIdf}
-        if kind not in classes:
-            raise ValueError(f"kind must be one of {sorted(classes)}")
-        request = classes[kind]()
+    def board_export(self, doc, kind, output_path, options=None):
+        """Fabrication and other outputs from the live board (unsaved edits included).  options
+        (protobuf JSON of the kind's RunBoardJobExport* message) are merged over the defaults."""
+        from fab_package import BOARD_EXPORT_DEFAULTS, BOARD_EXPORTS, export_request
+        request = export_request(BOARD_EXPORTS, BOARD_EXPORT_DEFAULTS, kind, options)
         request.job_settings.document.CopyFrom(doc)
         request.job_settings.output_path = str(output_path)
-        if kind == "gerbers":
-            request.use_board_plot_params = True
-            request.create_gerber_job_file = True
-        elif kind == "step":
-            request.format = board_jobs.B3D_STEP
-            request.overwrite = True
-            request.export_board_body = True
-            request.export_components = True
-            request.include_unspecified = True
-            request.substitute_models = True
-        elif kind in ("pdf", "svg", "dxf"):
-            request.plot_settings.layers.extend([bt.BL_F_Cu, bt.BL_B_Cu, bt.BL_F_SilkS, bt.BL_Edge_Cuts])
-            request.plot_settings.plot_drawing_sheet = True
         response = self.send(request, jobs.RunJobResponse)
         if response.status != jobs.JS_SUCCESS:
             raise RuntimeError(f"Export failed: {response.message}")

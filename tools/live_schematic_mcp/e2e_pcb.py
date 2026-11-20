@@ -34,6 +34,36 @@ def digest(path):
     return sha256(path.read_bytes()).hexdigest() if path.exists() else None
 
 
+def check_fab_package(client, board, schematic):
+    """The manufacturing package from the edited (unsaved) test board, into a scratch folder: refused
+    while unsaved, then exported with allow_unsaved and checked file by file."""
+    import io
+    import json
+    import zipfile
+    with tempfile.TemporaryDirectory(prefix="kicad-live-fab-") as folder:
+        blocked = client.fab_package(board, folder, schematic, outputs=["position"])
+        check(not blocked["exported"] and blocked["blocked_by"] == "unsaved" and not any(Path(folder).iterdir()),
+              "fab package refuses the unsaved board and writes nothing")
+        outputs = ["gerbers", "drill", "position", "step", "assembly_pdf", "ipc2581", "ipcd356", "bom",
+                   "schematic_pdf"]
+        result = client.fab_package(board, folder, schematic, outputs=outputs, checks=False, allow_unsaved=True)
+        check(result["exported"] and list(result["outputs"]) == outputs,
+              f"fab package exported {result['files']} files; warnings {result['warnings']}")
+        copper = client.board_layers(board)["copper_layers"]
+        check(result["verification"]["gerbers"]["copper_layers"] == copper,
+              f"Gerbers plot all {copper} copper layers and a profile: {result['verification']['gerbers']['functions']}")
+        check(result["verification"]["drill"]["files"], f"drill: {result['verification']['drill']}")
+        check(result["verification"]["position"]["parts"] > 0, f"placements: {result['verification']['position']}")
+        check("bom" in result["verification"], f"BOM: {result['verification']['bom']}")
+        root = Path(folder)
+        archive = zipfile.ZipFile(io.BytesIO((root / result["zip"]).read_bytes()))
+        check(archive.testzip() is None and len(archive.namelist()) == len(result["outputs"]["gerbers"])
+              + len(result["outputs"]["drill"]), f"Gerber zip holds {len(archive.namelist())} files")
+        manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+        check(all((root / f["path"]).stat().st_size == f["bytes"] for f in manifest["files"]),
+              "manifest lists every file with its size")
+
+
 def check_body_colour(client, board, footprint_id):
     """An extruded 3D body colour is saved at full precision, so the API keeps it exactly rather
     than rounding it to the 8 bits per channel other colours are saved with."""
@@ -188,6 +218,7 @@ def main():
         client.board_export(board, "gerbers", folder + "/")
         files = list(Path(folder).glob("*"))
         check(files, f"gerbers written: {len(files)} files")
+    check_fab_package(client, board, schematic)
 
     # Update PCB from schematic, dry run only
     update = client.board_update_from_schematic(board, schematic, dry_run=True)

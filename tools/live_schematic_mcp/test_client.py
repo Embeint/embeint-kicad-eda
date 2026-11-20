@@ -909,18 +909,48 @@ def test_board_page_reports_the_outline():
     assert page["board_outline_mm"] == [50.0, 50.0, 150.0, 120.0] and page["fits"]
 
 
-def test_bom_export_supplies_required_fields_and_csv_format(tmp_path):
+def test_bom_export_is_orderable_by_default(tmp_path):
     def reply(request, response_type):
         assert isinstance(request, sch_jobs.RunSchematicJobExportBOM)
-        assert request.fields.fields and request.format.preset_name == "CSV"
-        assert request.fields.sort_field == "Reference"
-        fields = [(field.name, field.label) for field in request.fields.fields]
-        assert fields == [(name, name) for name in ("Reference", "Value", "Footprint", "Datasheet")]
+        assert request.format.preset_name == "" and request.format.field_delimiter == ","
+        assert request.format.ref_delimiter == "," and request.format.ref_range_delimiter == ""
+        assert request.fields.sort_field == "Reference" and request.fields.sort_direction == sch_jobs.BSD_ASCENDING
+        fields = [(field.name, field.label, field.group_by) for field in request.fields.fields]
+        assert fields[:6] == [("Reference", "Reference", False), ("${QUANTITY}", "Qty", False),
+                              ("Value", "Value", True), ("Footprint", "Footprint", True),
+                              ("Manufacturer", "Manufacturer", True), ("MPN", "MPN", True)]
+        assert request.exclude_dnp and request.group_symbols
         return jobs.RunJobResponse(status=jobs.JS_SUCCESS, output_path=[request.job_settings.output_path])
     output = str(tmp_path / "bom.csv")
     client = FakeClient(reply)
     assert client.export(doc(), "bom", output) == {"outputs": [output]}
     assert len(client.requests) == 1
+
+
+def test_export_options_merge_over_the_defaults(tmp_path):
+    seen = []
+
+    def reply(request, response_type):
+        seen.append(request)
+        return jobs.RunJobResponse(status=jobs.JS_SUCCESS, output_path=[request.job_settings.output_path])
+    client = FakeClient(reply)
+    client.export(doc(), "bom", "/tmp/bom.csv", {"exclude_dnp": False,
+                                                 "fields": {"fields": [{"name": "Reference", "label": "Ref"}]}})
+    bom = seen[-1]
+    assert not bom.exclude_dnp and bom.group_symbols  # untouched defaults stay
+    assert [(f.name, f.label) for f in bom.fields.fields] == [("Reference", "Ref")]  # a list replaces
+    assert bom.fields.sort_field == "Reference" and bom.job_settings.output_path == "/tmp/bom.csv"
+    client.board_export(board_doc(), "position", "/tmp/p.csv", {"format": "PF_CSV", "side": "PS_BOTH"})
+    assert seen[-1].format == board_jobs.PF_CSV and seen[-1].side == board_jobs.PS_BOTH
+    client.board_export(board_doc(), "pdf", "/tmp/a.pdf", {"plotSettings": {"layers": ["BL_F_Fab"]}})
+    assert list(seen[-1].plot_settings.layers) == [bt.BL_F_Fab] and seen[-1].plot_settings.plot_drawing_sheet
+    for bad in ({"job_settings": {"output_path": "/etc"}}, {"jobSettings": {}}):
+        with pytest.raises(ValueError, match="job_settings"):
+            client.board_export(board_doc(), "drill", "/tmp/d", bad)
+    from google.protobuf.json_format import ParseError
+    with pytest.raises(ParseError, match="no field named"):
+        client.export(doc(), "bom", "/tmp/b.csv", {"absent": 1})
+    assert len(seen) == 3
 
 
 def test_update_from_schematic_exports_then_imports_the_netlist():
@@ -996,6 +1026,10 @@ def test_board_exports_and_3d_render_build_their_jobs():
         assert client.board_export(board_doc(), kind, "/tmp/out")["outputs"] == ["/tmp/out"]
     step = next(r for r in seen if type(r).__name__ == "RunBoardJobExport3D")
     assert step.format == board_jobs.B3D_STEP and step.export_components
+    gerbers = next(r for r in seen if type(r).__name__ == "RunBoardJobExportGerbers")
+    assert gerbers.use_board_plot_params and gerbers.create_gerber_job_file
+    pdf = next(r for r in seen if type(r).__name__ == "RunBoardJobExportPdf")
+    assert list(pdf.plot_settings.layers) == [bt.BL_F_Cu, bt.BL_B_Cu, bt.BL_F_SilkS, bt.BL_Edge_Cuts]
     assert client.board_render_3d(board_doc(), side="bottom") == b"PNG"
     assert seen[-1].side == board_jobs.RS_BOTTOM and seen[-1].format == board_jobs.RF_PNG
     with pytest.raises(ValueError):

@@ -9,8 +9,8 @@ KiCad's native engines and CLI may remain execution dependencies.
 ## Current gap
 
 The initial gate 4 slice is implemented, but full parity is not complete. The source
-inventory on 2026-11-20 now has 115 Python tools and 16 Rust tools: 99 tools remain to
-port. Those include 20 schematic, 42 PCB, 14 symbol and 17 footprint tools, plus
+inventory on 2026-11-20 now has 116 Python tools and 19 Rust tools: 97 tools remain to
+port. Those include 19 schematic, 41 PCB, 14 symbol and 17 footprint tools, plus
 6 shared tools for skills, embedded files, CLI execution and editor grid settings.
 Two skill resources and the skill-file resource template are also absent in Rust.
 Both generic registries contain the same 147 command definitions. Native list,

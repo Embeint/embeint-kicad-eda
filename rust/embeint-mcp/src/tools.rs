@@ -15,7 +15,7 @@ use embeint_ipc::registry;
 use serde_json::{json, Map, Value as Json};
 use tokio::sync::Mutex;
 
-use crate::capabilities;
+use crate::{capabilities, fab};
 
 static TOOLS_JSON: &str = include_str!("../tools.json");
 
@@ -50,6 +50,10 @@ enum Arg {
     Str,
     /// `str | None = None`
     OptionalStr,
+    /// `list[str] | None = None`
+    OptionalListOfStr,
+    /// `bool` with a default (see [`default_value`])
+    Bool,
 }
 
 /// Each implemented tool's arguments (name, type, required).
@@ -89,8 +93,63 @@ fn params(tool: &str) -> Option<&'static [(&'static str, Arg, bool)]> {
             ("expected_revision", Arg::OptionalStr, false),
             ("operation_id", Arg::OptionalStr, false),
         ],
+        "live_schematic_export" => &[
+            ("document_spec", Arg::Dict, true),
+            ("kind", Arg::Str, true),
+            ("output_path", Arg::Str, true),
+            ("options", Arg::OptionalDict, false),
+        ],
+        "live_pcb_export" => &[
+            ("board_document", Arg::Dict, true),
+            ("kind", Arg::Str, true),
+            ("output_path", Arg::Str, true),
+            ("options", Arg::OptionalDict, false),
+        ],
+        "live_pcb_fab_package" => &[
+            ("board_document", Arg::Dict, true),
+            ("output_dir", Arg::OptionalStr, false),
+            ("schematic_document", Arg::OptionalDict, false),
+            ("outputs", Arg::OptionalListOfStr, false),
+            ("options", Arg::OptionalDict, false),
+            ("checks", Arg::Bool, false),
+            ("allow_unsaved", Arg::Bool, false),
+            ("overwrite", Arg::Bool, false),
+            ("zip_gerbers", Arg::Bool, false),
+        ],
         _ => return None,
     })
+}
+
+/// The default of an optional argument, as the Python signature gives it.
+fn default_value(tool: &str, name: &str) -> Json {
+    match (tool, name) {
+        ("live_schematic_batch", "description") => json!("MCP: batch"),
+        ("live_pcb_fab_package", "checks" | "zip_gerbers") => json!(true),
+        ("live_pcb_fab_package", "allow_unsaved" | "overwrite") => json!(false),
+        _ => Json::Null,
+    }
+}
+
+/// pydantic's lax `bool`: booleans, 0 and 1, and the strings it accepts.
+fn lax_bool(value: &Json) -> Option<bool> {
+    match value {
+        Json::Bool(flag) => Some(*flag),
+        Json::Number(n) => n.as_f64().and_then(|v| {
+            if v == 0.0 {
+                Some(false)
+            } else if v == 1.0 {
+                Some(true)
+            } else {
+                None
+            }
+        }),
+        Json::String(text) => match text.to_ascii_lowercase().as_str() {
+            "0" | "off" | "f" | "false" | "n" | "no" => Some(false),
+            "1" | "on" | "t" | "true" | "y" | "yes" => Some(true),
+            _ => None,
+        },
+        _ => None,
+    }
 }
 
 fn type_name(value: &Json) -> &'static str {
@@ -126,12 +185,7 @@ fn validate(tool: &str, arguments: &Json) -> Result<Map<String, Json>, String> {
             if *required {
                 errors.push(format!("{name}\n  Field required [type=missing]"));
             } else {
-                let default = if tool == "live_schematic_batch" && *name == "description" {
-                    json!("MCP: batch")
-                } else {
-                    Json::Null
-                };
-                values.insert((*name).into(), default);
+                values.insert((*name).into(), default_value(tool, name));
             }
             continue;
         };
@@ -159,6 +213,19 @@ fn validate(tool: &str, arguments: &Json) -> Result<Map<String, Json>, String> {
                 .position(|item| !item.is_string())
                 .map(|index| format!("{index}: Input should be a valid string")),
             (Arg::ListOfStr, _) => Some("Input should be a valid list".to_owned()),
+            (Arg::OptionalListOfStr, Json::Null) => None,
+            (Arg::OptionalListOfStr, Json::Array(items)) => items
+                .iter()
+                .position(|item| !item.is_string())
+                .map(|index| format!("{index}: Input should be a valid string")),
+            (Arg::OptionalListOfStr, _) => Some("Input should be a valid list".to_owned()),
+            (Arg::Bool, _) => match lax_bool(&value) {
+                Some(flag) => {
+                    value = Json::Bool(flag);
+                    None
+                }
+                None => Some("Input should be a valid boolean".to_owned()),
+            },
             (Arg::Str, Json::String(_)) | (Arg::OptionalStr, Json::String(_) | Json::Null) => None,
             (Arg::Str | Arg::OptionalStr, _) => Some("Input should be a valid string".to_owned()),
         };
@@ -328,6 +395,61 @@ async fn run(
             };
             let operations = client.end_mutations();
             Output::Dict(with_operations(result?, operations))
+        }
+        "live_pcb_export" => {
+            let doc = client::board_document(&args["board_document"])?;
+            let mut client = client.lock().await;
+            Output::Dict(
+                fab::board_export(
+                    &mut client,
+                    &doc,
+                    args["kind"].as_str().expect("validated string"),
+                    args["output_path"].as_str().expect("validated string"),
+                    args.get("options"),
+                )
+                .await?,
+            )
+        }
+        "live_schematic_export" => {
+            let doc = client::schematic_document(&document())?;
+            let mut client = client.lock().await;
+            Output::Dict(
+                fab::schematic_export(
+                    &mut client,
+                    &doc,
+                    args["kind"].as_str().expect("validated string"),
+                    args["output_path"].as_str().expect("validated string"),
+                    args.get("options"),
+                )
+                .await?,
+            )
+        }
+        "live_pcb_fab_package" => {
+            let board = client::board_document(&args["board_document"])?;
+            let schematic = match &args["schematic_document"] {
+                Json::Null => None,
+                value => Some(client::schematic_document(value)?),
+            };
+            let outputs = args["outputs"].as_array().map(|items| {
+                items
+                    .iter()
+                    .map(|item| item.as_str().expect("validated string").to_owned())
+                    .collect()
+            });
+            let flag = |name: &str| args[name].as_bool().expect("validated bool");
+            let package = fab::PackageArgs {
+                board,
+                output_dir: str_arg(args, "output_dir"),
+                schematic,
+                outputs,
+                options: args.get("options"),
+                checks: flag("checks"),
+                allow_unsaved: flag("allow_unsaved"),
+                overwrite: flag("overwrite"),
+                zip_gerbers: flag("zip_gerbers"),
+            };
+            let mut client = client.lock().await;
+            Output::Dict(fab::fab_package(&mut client, package).await?)
         }
         _ => unreachable!("validated tool name"),
     })

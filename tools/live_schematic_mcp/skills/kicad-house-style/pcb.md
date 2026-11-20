@@ -34,9 +34,16 @@
    - `live_pcb_check` clean (clearance, silkscreen, courtyard, connectivity);
    - `live_pcb_drc` with schematic parity clean;
    - check the rendered view (`live_pcb_view`, `live_pcb_view_3d`) before saving.
-6. **Outputs** from the live board (`live_pcb_export`): gerbers + drill, position file, IPC-2581/ODB++ if
-   asked, STEP, PDF. Export the BOM from the schematic. Put them under the project's `Outputs/` (Gerbers,
-   PnP, BOM, Schematic, STEP), as in earlier Embeint projects.
+6. **Outputs:** save the board and schematic, then run `live_pcb_fab_package`. It refuses unsaved
+   designs and DRC errors (with schematic parity), and writes the project's `Outputs/`: Gerbers (with
+   drill, drill map and report, plus `<project>-gerbers.zip` for the fab), PnP (CSV), BOM (orderable
+   CSV), Schematic (PDF), STEP and Assembly (fab layers PDF), with a `manifest.json`. Add `ipc2581`,
+   `odb` or `ipcd356` to `outputs` if the fab or assembler asks for them.
+   - Read `warnings` before sending anything: plotted copper layers against the board, parts without
+     an MPN, and BOM parts with no placement.
+   - Change one output with `options` (for example `{"position": {"use_drill_place_file_origin":
+     true}}` if the assembler wants the drill/place origin) rather than exporting it by hand. Use
+     `live_pcb_export` or `live_schematic_export` for one-off files.
 
 ## Castellated modules
 
