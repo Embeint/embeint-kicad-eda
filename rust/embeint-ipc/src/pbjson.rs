@@ -281,8 +281,8 @@ pub fn from_json(
     Ok(message)
 }
 
-/// A Python-style description of a JSON value for error messages.
-fn py_repr(value: &Json) -> String {
+/// Python's representation of a JSON value, including dictionaries in error messages.
+pub fn py_repr(value: &Json) -> String {
     match value {
         Json::Null => "None".into(),
         Json::Bool(true) => "True".into(),

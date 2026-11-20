@@ -2,8 +2,8 @@
 //! `embeint-mcp`: the native MCP server for Embeint KiCad (roadmap delivery gate 4).
 //!
 //! It serves a subset of the Python server's `live_*` tools over stdio with the same names,
-//! schemas and results: instance discovery, the read-only document tools and one complete edit
-//! transaction (`live_schematic_create_items`).  The Python server stays the reference and serves
+//! schemas and results: instance discovery, document reads, schematic item edits, generic
+//! command execution/batches and schema inspection. The Python server stays the reference and serves
 //! every other tool.  See rust/README.md.
 //!
 //! Usage:

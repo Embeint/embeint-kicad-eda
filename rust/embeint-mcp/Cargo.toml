@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 [package]
 name = "embeint-mcp"
-description = "Native MCP server for Embeint KiCad: instance discovery, read-only tools and one edit transaction"
+description = "Native MCP server for Embeint KiCad: discovery, item edits, command execution and transactions"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

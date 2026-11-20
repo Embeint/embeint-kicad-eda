@@ -1,0 +1,1034 @@
+{
+  "generated_by": "rust/parity/mcp_parity.py --write-schemas",
+  "commands": [
+    {
+      "command": "kiapi.common.commands.GetOpenDocuments",
+      "returns": "kiapi.common.commands.GetOpenDocumentsResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.GetDocumentModifiedState",
+      "returns": "kiapi.common.commands.GetDocumentModifiedStateResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.GetDocumentRevision",
+      "returns": "kiapi.common.commands.DocumentRevisionResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.GetOperationStatus",
+      "returns": "kiapi.common.commands.OperationStatusResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.SaveDocument",
+      "returns": "google.protobuf.Empty",
+      "kind": "file",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.SaveDocumentAs",
+      "returns": "google.protobuf.Empty",
+      "kind": "file",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.SaveCopyOfDocument",
+      "returns": "google.protobuf.Empty",
+      "kind": "file",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.RevertDocument",
+      "returns": "google.protobuf.Empty",
+      "kind": "file",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.SaveDocumentToString",
+      "returns": "kiapi.common.commands.SavedDocumentResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.SaveSelectionToString",
+      "returns": "kiapi.common.commands.SavedSelectionResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.GetItems",
+      "returns": "kiapi.common.commands.GetItemsResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.GetItemsById",
+      "returns": "kiapi.common.commands.GetItemsResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.HitTest",
+      "returns": "kiapi.common.commands.HitTestResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.CreateItems",
+      "returns": "kiapi.common.commands.CreateItemsResponse",
+      "kind": "edit",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.UpdateItems",
+      "returns": "kiapi.common.commands.UpdateItemsResponse",
+      "kind": "edit",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.DeleteItems",
+      "returns": "kiapi.common.commands.DeleteItemsResponse",
+      "kind": "edit",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.schematic.commands.PlaceSymbolFromLibrary",
+      "returns": "kiapi.common.commands.PlaceFromLibraryResponse",
+      "kind": "edit",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.schematic.commands.AnnotateSchematic",
+      "returns": "kiapi.schematic.commands.AnnotateSchematicResponse",
+      "kind": "edit",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.schematic.commands.UpdateSymbolsFromLibrary",
+      "returns": "kiapi.schematic.commands.UpdateSymbolsFromLibraryResponse",
+      "kind": "edit",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.schematic.commands.AutoplaceFields",
+      "returns": "google.protobuf.Empty",
+      "kind": "edit",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.schematic.commands.TransformItems",
+      "returns": "kiapi.schematic.commands.TransformItemsResponse",
+      "kind": "edit",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.UndoLastChange",
+      "returns": "kiapi.common.commands.UndoRedoResponse",
+      "kind": "edit",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.RedoLastChange",
+      "returns": "kiapi.common.commands.UndoRedoResponse",
+      "kind": "edit",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.schematic.commands.GetSchematicHierarchy",
+      "returns": "kiapi.schematic.commands.SchematicHierarchyResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.schematic.commands.GetSchematicNetlist",
+      "returns": "kiapi.schematic.commands.SchematicNetlistResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.schematic.commands.GetSymbolPins",
+      "returns": "kiapi.schematic.commands.SymbolPinsResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.GetPageLayout",
+      "returns": "kiapi.common.commands.PageLayoutResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.schematic.tasks.StartErcTask",
+      "returns": "kiapi.common.tasks.StartTaskResponse",
+      "kind": "read",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.schematic.tasks.GetErcTaskResult",
+      "returns": "kiapi.schematic.tasks.ErcTaskResult",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.tasks.GetTaskStatus",
+      "returns": "kiapi.common.tasks.TaskStatusResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.GetSelection",
+      "returns": "kiapi.common.commands.SelectionResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.ClearSelection",
+      "returns": "google.protobuf.Empty",
+      "kind": "view",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.AddToSelection",
+      "returns": "kiapi.common.commands.SelectionResponse",
+      "kind": "view",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.RemoveFromSelection",
+      "returns": "kiapi.common.commands.SelectionResponse",
+      "kind": "view",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.FocusOnItems",
+      "returns": "google.protobuf.Empty",
+      "kind": "view",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.HighlightNets",
+      "returns": "kiapi.common.commands.HighlightNetsResponse",
+      "kind": "view",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.SyncSelection",
+      "returns": "kiapi.common.commands.SyncSelectionResponse",
+      "kind": "view",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.CrossProbeAnnounce",
+      "returns": "kiapi.common.commands.CrossProbeAnnounceResponse",
+      "kind": "view",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.GetPageSettings",
+      "returns": "kiapi.common.types.PageSettings",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.SetPageSettings",
+      "returns": "kiapi.common.types.PageSettings",
+      "kind": "edit",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.GetTitleBlockInfo",
+      "returns": "kiapi.common.types.TitleBlockInfo",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.GetGridSettings",
+      "returns": "kiapi.common.commands.GridSettings",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.SetGridSettings",
+      "returns": "kiapi.common.commands.GridSettings",
+      "kind": "view",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.SetTitleBlockInfo",
+      "returns": "google.protobuf.Empty",
+      "kind": "edit",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.ExpandTextVariables",
+      "returns": "kiapi.common.commands.ExpandTextVariablesResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.GetTextVariables",
+      "returns": "kiapi.common.project.TextVariables",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.SetTextVariables",
+      "returns": "google.protobuf.Empty",
+      "kind": "edit",
+      "batchable": false,
+      "project_edit": true
+    },
+    {
+      "command": "kiapi.common.commands.GetNetClasses",
+      "returns": "kiapi.common.commands.NetClassesResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.GetNetClassAssignments",
+      "returns": "kiapi.common.commands.NetClassAssignmentsResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.SetNetClasses",
+      "returns": "google.protobuf.Empty",
+      "kind": "edit",
+      "batchable": false,
+      "project_edit": true
+    },
+    {
+      "command": "kiapi.common.commands.SetNetClassAssignments",
+      "returns": "google.protobuf.Empty",
+      "kind": "edit",
+      "batchable": false,
+      "project_edit": true
+    },
+    {
+      "command": "kiapi.common.commands.GetVariants",
+      "returns": "kiapi.common.commands.VariantsResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.GetCurrentVariant",
+      "returns": "kiapi.common.commands.CurrentVariantResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.AddVariant",
+      "returns": "google.protobuf.Empty",
+      "kind": "edit",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.DeleteVariant",
+      "returns": "google.protobuf.Empty",
+      "kind": "edit",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.RenameVariant",
+      "returns": "google.protobuf.Empty",
+      "kind": "edit",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.CopyVariant",
+      "returns": "google.protobuf.Empty",
+      "kind": "edit",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.SetVariantDescription",
+      "returns": "google.protobuf.Empty",
+      "kind": "edit",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.SetCurrentVariant",
+      "returns": "google.protobuf.Empty",
+      "kind": "edit",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.GetLibraryTable",
+      "returns": "kiapi.common.commands.LibraryTableResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.AddLibraryTableEntry",
+      "returns": "kiapi.common.types.LibraryCommandStatus",
+      "kind": "file",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.UpdateLibraryTableEntry",
+      "returns": "kiapi.common.types.LibraryCommandStatus",
+      "kind": "file",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.DeleteLibraryTableEntry",
+      "returns": "kiapi.common.types.LibraryCommandStatus",
+      "kind": "file",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.GetLibraryStatuses",
+      "returns": "kiapi.common.commands.LibraryStatusResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.ReloadLibrary",
+      "returns": "kiapi.common.types.LibraryCommandStatus",
+      "kind": "view",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.GetLibraryItems",
+      "returns": "kiapi.common.commands.LibraryItemsResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.GetItemsFromLibrary",
+      "returns": "kiapi.common.commands.GetItemsResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.SearchLibraries",
+      "returns": "kiapi.common.commands.SearchLibrariesResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.schematic.commands.NewLibrarySymbol",
+      "returns": "kiapi.schematic.commands.LibrarySymbolResponse",
+      "kind": "view",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.schematic.commands.EditLibrarySymbol",
+      "returns": "kiapi.schematic.commands.LibrarySymbolResponse",
+      "kind": "view",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.schematic.commands.SetLibrarySymbolProperties",
+      "returns": "google.protobuf.Empty",
+      "kind": "edit",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.schematic.commands.RenderLibrarySymbol",
+      "returns": "kiapi.schematic.commands.RenderLibrarySymbolResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.schematic.commands.OpenFootprintEditor",
+      "returns": "google.protobuf.Empty",
+      "kind": "view",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.NewLibraryFootprint",
+      "returns": "kiapi.board.commands.LibraryFootprintResponse",
+      "kind": "view",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.EditLibraryFootprint",
+      "returns": "kiapi.board.commands.LibraryFootprintResponse",
+      "kind": "view",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.SetLibraryFootprintProperties",
+      "returns": "google.protobuf.Empty",
+      "kind": "edit",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.RenderLibraryFootprint",
+      "returns": "kiapi.board.commands.RenderLibraryFootprintResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.EmbedFileFromPath",
+      "returns": "kiapi.common.commands.EmbedFileFromPathResponse",
+      "kind": "edit",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.GetEmbeddedFileList",
+      "returns": "kiapi.common.commands.EmbeddedFileListResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.RemoveEmbeddedFile",
+      "returns": "google.protobuf.Empty",
+      "kind": "edit",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.schematic.jobs.RunSchematicJobExportSvg",
+      "returns": "kiapi.common.types.RunJobResponse",
+      "kind": "job",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.schematic.jobs.RunSchematicJobExportPdf",
+      "returns": "kiapi.common.types.RunJobResponse",
+      "kind": "job",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.schematic.jobs.RunSchematicJobExportDxf",
+      "returns": "kiapi.common.types.RunJobResponse",
+      "kind": "job",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.schematic.jobs.RunSchematicJobExportPs",
+      "returns": "kiapi.common.types.RunJobResponse",
+      "kind": "job",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.schematic.jobs.RunSchematicJobExportPng",
+      "returns": "kiapi.common.types.RunJobResponse",
+      "kind": "job",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.schematic.jobs.RunSchematicJobExportNetlist",
+      "returns": "kiapi.common.types.RunJobResponse",
+      "kind": "job",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.schematic.jobs.RunSchematicJobExportBOM",
+      "returns": "kiapi.common.types.RunJobResponse",
+      "kind": "job",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.OpenDocument",
+      "returns": "kiapi.common.commands.OpenDocumentResponse",
+      "kind": "file",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.GetBoardStackup",
+      "returns": "kiapi.board.commands.BoardStackupResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.UpdateBoardStackup",
+      "returns": "kiapi.board.commands.BoardStackupResponse",
+      "kind": "edit",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.GetBoardEnabledLayers",
+      "returns": "kiapi.board.commands.BoardEnabledLayersResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.SetBoardEnabledLayers",
+      "returns": "kiapi.board.commands.BoardEnabledLayersResponse",
+      "kind": "edit",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.GetGraphicsDefaults",
+      "returns": "kiapi.board.commands.GraphicsDefaultsResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.GetEmbeddedFiles",
+      "returns": "kiapi.common.types.EmbeddedFiles",
+      "kind": "read",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.GetBoardOrigin",
+      "returns": "kiapi.common.types.Vector2",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.SetBoardOrigin",
+      "returns": "google.protobuf.Empty",
+      "kind": "edit",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.GetBoardLayerName",
+      "returns": "kiapi.board.commands.BoardLayerNameResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.GetBoardLayerByName",
+      "returns": "kiapi.board.commands.BoardLayerResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.GetNets",
+      "returns": "kiapi.board.commands.NetsResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.GetConnectedItems",
+      "returns": "kiapi.common.commands.GetItemsResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.GetItemsByNet",
+      "returns": "kiapi.common.commands.GetItemsResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.GetItemsByNetClass",
+      "returns": "kiapi.common.commands.GetItemsResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.GetNetClassForNets",
+      "returns": "kiapi.board.commands.NetClassForNetsResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.GetBoardDesignRules",
+      "returns": "kiapi.board.commands.BoardDesignRulesResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.SetBoardDesignRules",
+      "returns": "kiapi.board.commands.BoardDesignRulesResponse",
+      "kind": "edit",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.GetCustomDesignRules",
+      "returns": "kiapi.board.commands.CustomRulesResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.SetCustomDesignRules",
+      "returns": "kiapi.board.commands.CustomRulesResponse",
+      "kind": "edit",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.GetBoundingBox",
+      "returns": "kiapi.common.commands.GetBoundingBoxResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.GetBoardBoundingBox",
+      "returns": "kiapi.board.commands.BoardBoundingBoxResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.GetPadShapeAsPolygon",
+      "returns": "kiapi.board.commands.PadShapeAsPolygonResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.CheckPadstackPresenceOnLayers",
+      "returns": "kiapi.board.commands.PadstackPresenceResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.PlaceFootprintFromLibrary",
+      "returns": "kiapi.common.commands.PlaceFromLibraryResponse",
+      "kind": "edit",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.FlipItems",
+      "returns": "kiapi.board.commands.FlipItemsResponse",
+      "kind": "edit",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.TransformBoardItems",
+      "returns": "kiapi.board.commands.TransformBoardItemsResponse",
+      "kind": "edit",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.RefillZones",
+      "returns": "google.protobuf.Empty",
+      "kind": "edit",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.ImportNetlist",
+      "returns": "kiapi.board.commands.ImportNetlistResponse",
+      "kind": "edit",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.ImportSpecctraSession",
+      "returns": "kiapi.board.commands.ImportSpecctraSessionResponse",
+      "kind": "edit",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.SetBoardPlotSettings",
+      "returns": "google.protobuf.Empty",
+      "kind": "edit",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.GetBoardPlotSettings",
+      "returns": "kiapi.board.commands.BoardPlotSettingsResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.common.commands.RunAction",
+      "returns": "kiapi.common.commands.RunActionResponse",
+      "kind": "edit",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.tasks.StartDrcTask",
+      "returns": "kiapi.common.tasks.StartTaskResponse",
+      "kind": "read",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.tasks.GetDrcTaskResult",
+      "returns": "kiapi.board.tasks.DrcTaskResult",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.tasks.StartRefillZonesTask",
+      "returns": "kiapi.common.tasks.StartTaskResponse",
+      "kind": "edit",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.GetVisibleLayers",
+      "returns": "kiapi.board.commands.BoardLayers",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.SetVisibleLayers",
+      "returns": "google.protobuf.Empty",
+      "kind": "view",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.GetActiveLayer",
+      "returns": "kiapi.board.commands.BoardLayerResponse",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.SetActiveLayer",
+      "returns": "google.protobuf.Empty",
+      "kind": "view",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.GetBoardEditorAppearanceSettings",
+      "returns": "kiapi.board.commands.BoardEditorAppearanceSettings",
+      "kind": "read",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.SetBoardEditorAppearanceSettings",
+      "returns": "google.protobuf.Empty",
+      "kind": "view",
+      "batchable": true,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.commands.InteractiveMoveItems",
+      "returns": "google.protobuf.Empty",
+      "kind": "view",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.jobs.RunBoardJobExport3D",
+      "returns": "kiapi.common.types.RunJobResponse",
+      "kind": "job",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.jobs.RunBoardJobExportRender",
+      "returns": "kiapi.common.types.RunJobResponse",
+      "kind": "job",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.jobs.RunBoardJobExportSvg",
+      "returns": "kiapi.common.types.RunJobResponse",
+      "kind": "job",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.jobs.RunBoardJobExportDxf",
+      "returns": "kiapi.common.types.RunJobResponse",
+      "kind": "job",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.jobs.RunBoardJobExportPdf",
+      "returns": "kiapi.common.types.RunJobResponse",
+      "kind": "job",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.jobs.RunBoardJobExportPs",
+      "returns": "kiapi.common.types.RunJobResponse",
+      "kind": "job",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.jobs.RunBoardJobExportPng",
+      "returns": "kiapi.common.types.RunJobResponse",
+      "kind": "job",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.jobs.RunBoardJobExportGerbers",
+      "returns": "kiapi.common.types.RunJobResponse",
+      "kind": "job",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.jobs.RunBoardJobExportDrill",
+      "returns": "kiapi.common.types.RunJobResponse",
+      "kind": "job",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.jobs.RunBoardJobExportPosition",
+      "returns": "kiapi.common.types.RunJobResponse",
+      "kind": "job",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.jobs.RunBoardJobExportSpecctraDsn",
+      "returns": "kiapi.common.types.RunJobResponse",
+      "kind": "job",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.jobs.RunBoardJobExportGencad",
+      "returns": "kiapi.common.types.RunJobResponse",
+      "kind": "job",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.jobs.RunBoardJobExportIpc2581",
+      "returns": "kiapi.common.types.RunJobResponse",
+      "kind": "job",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.jobs.RunBoardJobExportIpcD356",
+      "returns": "kiapi.common.types.RunJobResponse",
+      "kind": "job",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.jobs.RunBoardJobExportODB",
+      "returns": "kiapi.common.types.RunJobResponse",
+      "kind": "job",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.jobs.RunBoardJobExportStats",
+      "returns": "kiapi.common.types.RunJobResponse",
+      "kind": "job",
+      "batchable": false,
+      "project_edit": false
+    },
+    {
+      "command": "kiapi.board.jobs.RunBoardJobExportIdf",
+      "returns": "kiapi.common.types.RunJobResponse",
+      "kind": "job",
+      "batchable": false,
+      "project_edit": false
+    }
+  ]
+}

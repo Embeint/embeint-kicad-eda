@@ -11,6 +11,7 @@
 use std::sync::{Arc, OnceLock};
 
 use embeint_ipc::client::{self, Client, Error};
+use embeint_ipc::registry;
 use serde_json::{json, Map, Value as Json};
 use tokio::sync::Mutex;
 
@@ -39,8 +40,12 @@ pub fn list() -> &'static [Json] {
 enum Arg {
     /// `dict`
     Dict,
+    /// `dict | None = None`
+    OptionalDict,
     /// `list[dict]`
     ListOfDict,
+    /// `list[str]`
+    ListOfStr,
     /// `str`
     Str,
     /// `str | None = None`
@@ -51,12 +56,36 @@ enum Arg {
 fn params(tool: &str) -> Option<&'static [(&'static str, Arg, bool)]> {
     const DOCUMENT: &[(&str, Arg, bool)] = &[("document_spec", Arg::Dict, true)];
     Some(match tool {
-        "live_mcp_capabilities" | "live_schematic_documents" | "live_pcb_documents" => &[],
+        "live_mcp_capabilities"
+        | "live_schematic_documents"
+        | "live_pcb_documents"
+        | "live_schematic_list_commands" => &[],
+        "live_schematic_describe_command" => &[("command", Arg::Str, true)],
+        "live_schematic_item_schema" | "live_pcb_item_schema" => &[("type_name", Arg::Str, true)],
+        "live_schematic_execute" => &[
+            ("command", Arg::Str, true),
+            ("payload", Arg::OptionalDict, false),
+            ("expected_revision", Arg::OptionalStr, false),
+            ("operation_id", Arg::OptionalStr, false),
+        ],
+        "live_schematic_batch" => &[
+            ("document_spec", Arg::Dict, true),
+            ("steps", Arg::ListOfDict, true),
+            ("description", Arg::Str, false),
+            ("expected_revision", Arg::OptionalStr, false),
+            ("operation_id", Arg::OptionalStr, false),
+        ],
         "live_schematic_hierarchy" | "live_schematic_items" | "live_document_revision" => DOCUMENT,
         "live_operation_status" => &[("operation_id", Arg::Str, true)],
-        "live_schematic_create_items" => &[
+        "live_schematic_create_items" | "live_schematic_update_items" => &[
             ("document_spec", Arg::Dict, true),
             ("items", Arg::ListOfDict, true),
+            ("expected_revision", Arg::OptionalStr, false),
+            ("operation_id", Arg::OptionalStr, false),
+        ],
+        "live_schematic_delete_items" => &[
+            ("document_spec", Arg::Dict, true),
+            ("ids", Arg::ListOfStr, true),
             ("expected_revision", Arg::OptionalStr, false),
             ("operation_id", Arg::OptionalStr, false),
         ],
@@ -97,7 +126,12 @@ fn validate(tool: &str, arguments: &Json) -> Result<Map<String, Json>, String> {
             if *required {
                 errors.push(format!("{name}\n  Field required [type=missing]"));
             } else {
-                values.insert((*name).into(), Json::Null);
+                let default = if tool == "live_schematic_batch" && *name == "description" {
+                    json!("MCP: batch")
+                } else {
+                    Json::Null
+                };
+                values.insert((*name).into(), default);
             }
             continue;
         };
@@ -113,11 +147,18 @@ fn validate(tool: &str, arguments: &Json) -> Result<Map<String, Json>, String> {
         let problem = match (kind, &value) {
             (Arg::Dict, Json::Object(_)) => None,
             (Arg::Dict, _) => Some("Input should be a valid dictionary".to_owned()),
+            (Arg::OptionalDict, Json::Object(_) | Json::Null) => None,
+            (Arg::OptionalDict, _) => Some("Input should be a valid dictionary".to_owned()),
             (Arg::ListOfDict, Json::Array(items)) => items
                 .iter()
                 .position(|item| !item.is_object())
                 .map(|index| format!("{index}: Input should be a valid dictionary")),
             (Arg::ListOfDict, _) => Some("Input should be a valid list".to_owned()),
+            (Arg::ListOfStr, Json::Array(items)) => items
+                .iter()
+                .position(|item| !item.is_string())
+                .map(|index| format!("{index}: Input should be a valid string")),
+            (Arg::ListOfStr, _) => Some("Input should be a valid list".to_owned()),
             (Arg::Str, Json::String(_)) | (Arg::OptionalStr, Json::String(_) | Json::Null) => None,
             (Arg::Str | Arg::OptionalStr, _) => Some("Input should be a valid string".to_owned()),
         };
@@ -193,6 +234,48 @@ async fn run(
     let document = || args.get("document_spec").cloned().unwrap_or(Json::Null);
     Ok(match name {
         "live_mcp_capabilities" => Output::Dict(capabilities::manifest()),
+        "live_schematic_list_commands" => Output::List(registry::list()),
+        "live_schematic_describe_command" => Output::Dict(registry::describe(registry::resolve(
+            args["command"].as_str().expect("validated string"),
+        )?)),
+        "live_schematic_item_schema" | "live_pcb_item_schema" => {
+            Output::Dict(registry::item_schema(
+                args["type_name"].as_str().expect("validated string"),
+                name == "live_pcb_item_schema",
+            )?)
+        }
+        "live_schematic_execute" => {
+            let mut client = client.lock().await;
+            client.begin_mutations(
+                str_arg(args, "expected_revision"),
+                str_arg(args, "operation_id"),
+            );
+            let result = client
+                .execute(
+                    args["command"].as_str().expect("validated string"),
+                    &args["payload"],
+                )
+                .await;
+            let operations = client.end_mutations();
+            Output::Dict(with_operations(result?, operations))
+        }
+        "live_schematic_batch" => {
+            let doc = client::editor_document(&document())?;
+            let mut client = client.lock().await;
+            client.begin_mutations(
+                str_arg(args, "expected_revision"),
+                str_arg(args, "operation_id"),
+            );
+            let result = client
+                .batch(
+                    &doc,
+                    args["steps"].as_array().expect("validated list"),
+                    args["description"].as_str().expect("validated description"),
+                )
+                .await;
+            let operations = client.end_mutations();
+            Output::Dict(with_operations(result?, operations))
+        }
         "live_schematic_documents" => Output::Dict(client.lock().await.documents().await?),
         "live_pcb_documents" => match client.lock().await.boards().await? {
             Json::Array(items) => Output::List(items),
@@ -214,7 +297,9 @@ async fn run(
             let operation_id = str_arg(args, "operation_id").unwrap_or_default();
             Output::Dict(client.lock().await.operation_status(&operation_id).await?)
         }
-        "live_schematic_create_items" => {
+        "live_schematic_create_items"
+        | "live_schematic_update_items"
+        | "live_schematic_delete_items" => {
             // Arguments are checked before the editor is contacted, as in server.py
             let spec = client::schematic_document(&document())?;
             let values = match args.get("items") {
@@ -228,17 +313,32 @@ async fn run(
                 str_arg(args, "expected_revision"),
                 str_arg(args, "operation_id"),
             );
-            let result = client.create_items(&spec, &items).await;
+            let result = match name {
+                "live_schematic_update_items" => client.update_items(&spec, &items).await,
+                "live_schematic_delete_items" => {
+                    let ids = args["ids"]
+                        .as_array()
+                        .expect("validated list")
+                        .iter()
+                        .map(|id| id.as_str().expect("validated string").to_owned())
+                        .collect::<Vec<_>>();
+                    client.delete_items(&spec, &ids).await
+                }
+                _ => client.create_items(&spec, &items).await,
+            };
             let operations = client.end_mutations();
-            let mut result = result?;
-            if let (Json::Object(map), Some(last)) = (&mut result, operations.last()) {
-                map.insert("revision".into(), last["revision"].clone());
-                map.insert("operations".into(), Json::Array(operations.clone()));
-            }
-            Output::Dict(result)
+            Output::Dict(with_operations(result?, operations))
         }
         _ => unreachable!("validated tool name"),
     })
+}
+
+fn with_operations(mut result: Json, operations: Vec<Json>) -> Json {
+    if let (Json::Object(map), Some(last)) = (&mut result, operations.last()) {
+        map.insert("revision".into(), last["revision"].clone());
+        map.insert("operations".into(), Json::Array(operations));
+    }
+    result
 }
 
 #[cfg(test)]

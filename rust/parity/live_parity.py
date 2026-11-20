@@ -19,6 +19,7 @@ edit is undone afterwards and nothing is saved; the schematic file must be uncha
 """
 
 import asyncio
+import copy
 import json
 import os
 from pathlib import Path
@@ -148,10 +149,13 @@ class DroppingProxy:
 
 
 def run(binary, failures, servers, run_session, server_env, test_document):
+    from mcp_parity import build_evidence
+
     checker = LiveSchematic()
     doc = test_document(checker)
     spec = as_json(doc)
-    report = {"project": spec.get("project", {}).get("name"), "checks": []}
+    report = {"project": spec.get("project", {}).get("name"), "checks": [],
+              "build": build_evidence(binary), "application_version": checker.documents()["version"]}
     endpoint = checker.socket_url
 
     def check(label, ok, detail=""):
@@ -180,6 +184,8 @@ def run(binary, failures, servers, run_session, server_env, test_document):
         assert not result.get("isError"), result
         return json.loads(result["content"][0]["text"])
 
+    report["schema_sha256"] = payload(session("rust", [("live_mcp_capabilities", {})])[0])["schema_sha256"]
+
     original_ids = item_ids()
     undo_steps = populate(checker, doc)
     try:
@@ -197,6 +203,7 @@ def run(binary, failures, servers, run_session, server_env, test_document):
         for index, (label, _) in enumerate(servers):
             transaction(label, index, spec, doc, checker, session, payload, check, revision, item_ids, base_id)
             lost_replies(label, index, spec, doc, checker, session, payload, check, revision, item_ids, endpoint)
+            item_edits(label, spec, doc, checker, session, payload, check, revision, base_id, endpoint)
     finally:
         undo_created(checker, doc, item_ids, [base_id], original_ids)
     check("the base item is removed again", item_ids() == original_ids)
@@ -300,6 +307,79 @@ def transaction(label, index, spec, doc, checker, session, payload, check, revis
     after = revision()
     check(f"{label}: nothing changed and no commit is open", item_ids() == ids_before and after["open_commits"] == 0,
           f"rev {rev1} -> {after}")
+
+
+def item_edits(label, spec, doc, checker, session, payload, check, revision, base_id, endpoint):
+    """Update/delete/batch change exactly the intended item; undo restores every field.
+
+    Refuse cleanup when the document has changed beyond the expected edit. These checks
+    deliberately need exclusive access to the guarded disposable project.
+    """
+    def snapshot():
+        return {item["id"]["value"]: item for item in as_json(checker.items(doc)).get("items", [])}
+
+    baseline = snapshot()
+    updated = copy.deepcopy(baseline[base_id])
+    updated["text"]["text"] = f"PARITY {label} replacement"
+    missing = copy.deepcopy(updated)
+    missing["id"]["value"] = str(uuid.uuid4())
+
+    for verb in ("update", "delete", "batch"):
+        tool = "live_schematic_batch" if verb == "batch" else f"live_schematic_{verb}_items"
+        if verb == "delete":
+            args, rejected = {"ids": [base_id]}, {"ids": [base_id, missing["id"]["value"]]}
+            expected = {key: value for key, value in baseline.items() if key != base_id}
+        elif verb == "update":
+            args, rejected = {"items": [updated]}, {"items": [updated, missing]}
+            expected = {**baseline, base_id: updated}
+        else:
+            step = {"command": "UpdateItems", "payload": {"items": [updated]}}
+            args = {"steps": [step]}
+            rejected = {"steps": [step, {"command": "CreateItems", "payload": {"items": [baseline[base_id]]}}]}
+            expected = {**baseline, base_id: updated}
+
+        for lost in (False, True):
+            op = f"parity-{label}-{verb}-{uuid.uuid4()}"
+            proxy = DroppingProxy(endpoint, ["EndCommit"]) if lost else None
+            try:
+                results = session(label, [(tool, {"document_spec": spec, **args, "operation_id": op,
+                                                 "expected_revision": revision()["revision"]})],
+                                  proxy.url if proxy else None)
+            finally:
+                if proxy:
+                    proxy.stop()
+            title = f"{label}: {verb}" + (" lost reply" if lost else "")
+            try:
+                result = {} if results[0].get("isError") else payload(results[0])
+                status = checker.operation_status(op)
+                check(title + " commits exactly the expected content", snapshot() == expected, json.dumps(results[0])[:300])
+                check(title + " records its revision", status["state"] == "OPS_COMMITTED"
+                      and status.get("revision_after") == result.get("revision"))
+                if proxy:
+                    check(title + " reconciles without resend", proxy.dropped == ["EndCommit"]
+                          and proxy.log.count("BeginCommit") == 1 and proxy.log.count("EndCommit") == 1
+                          and proxy.log[-1] == "GetOperationStatus" and not proxy.errors
+                          and result.get("operations", [{}])[0].get("reconciled") is True)
+            finally:
+                current = snapshot()
+                if current != baseline:
+                    if current != expected or revision()["open_commits"]:
+                        raise RuntimeError("unexpected live edit state; refusing to undo unrelated content")
+                    undo = session(label, [("live_schematic_execute", {"command": "UndoLastChange", "payload": {"document": spec}})])
+                    payload(undo[0])
+            check(title + " is one undo step", snapshot() == baseline)
+
+        op = f"parity-{label}-{verb}-rejected-{uuid.uuid4()}"
+        rejected_result = session(label, [(tool, {"document_spec": spec, **rejected, "operation_id": op})])[0]
+        check(f"{label}: {verb} partial failure rolls back every field", rejected_result.get("isError")
+              and checker.operation_status(op)["state"] == "OPS_ROLLED_BACK" and snapshot() == baseline
+              and revision()["open_commits"] == 0, json.dumps(rejected_result)[:300])
+        if snapshot() != baseline:
+            raise RuntimeError("failed batch changed the live baseline; inspect test project")
+        op = f"parity-{label}-{verb}-stale-{uuid.uuid4()}"
+        stale = session(label, [(tool, {"document_spec": spec, **args, "operation_id": op, "expected_revision": "stale-0"})])[0]
+        check(f"{label}: {verb} refuses stale revisions", stale.get("isError")
+              and checker.operation_status(op)["state"] == "OPS_REJECTED" and snapshot() == baseline)
 
 
 def lost_replies(label, index, spec, doc, checker, session, payload, check, revision, item_ids, endpoint):

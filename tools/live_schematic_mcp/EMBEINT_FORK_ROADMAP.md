@@ -6,6 +6,13 @@ runtime. Estimates below are planning ranges, not measured delivery commitments.
 
 ## Decision
 
+Priority update, 2026-11-20: the initial Rust MCP slice exists. The next milestone is
+complete native Rust parity with the Python MCP, plus an explicit inventory and
+implementation of remaining KiCad function gaps, before browser work. Python
+forwarding is not an accepted replacement for native implementations. See the
+[native parity plan](../../rust/MCP_PARITY_PLAN.md) for current gaps and acceptance
+criteria. The original assessment and estimates below are historical context.
+
 Maintain an Embeint distribution of this fork, with live AI schematic generation
 as a supported workflow. Keep KiCad's desktop editors and electrical engines while
 introducing Rust behind explicit interfaces. Compile suitable Rust components to
@@ -140,7 +147,9 @@ does not port wxWidgets, the PCB editor or the manufacturing pipeline.
 4. **Bundled Rust MCP.** Port discovery and read-only tools first, then one complete
    edit transaction. Compare old and new clients against the same protocol fixtures
    and disposable live projects. Verify rollback, timeout reconciliation and schema
-   compatibility before migrating the remaining tools.
+   compatibility before migrating the remaining tools. Complete all Python tools,
+   resources and generic commands natively, qualify without Python installed, and
+   audit and close broader KiCad function gaps before treating this gate as complete.
 
 5. **Browser preview, then editing.** Reuse the Rust layout component in a small
    browser viewer before building interaction and persistence. Demonstrate a browser
