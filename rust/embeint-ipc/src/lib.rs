@@ -6,8 +6,10 @@
 //! local IPC, protobuf envelopes, and commits with rollback and timeout reconciliation.  The
 //! Python implementation remains the reference; `rust/parity/mcp_parity.py` compares the two.
 
+pub mod batch;
 pub mod client;
 pub mod discovery;
 pub mod nng;
 pub mod pbjson;
 pub mod proto;
+pub mod registry;

@@ -45,9 +45,10 @@ The current source identifies as the **10.99 development line**. Compatibility w
 KiCad 10.0.6, particularly saving files that 10.0.6 can reopen, has not been qualified.
 Use copies of production designs when evaluating the fork.
 
-Bundled installers, a Rust MCP runtime, shared Rust engines and a browser editor are
-**planned work**. The current MCP server runs in Python; this repository does not
-yet provide an entirely Rust application or a browser-only KiCad replacement.
+The bundled Python MCP remains the default. An opt-in Rust MCP server implements
+the first discovery/read/edit subset, and a shared Rust layout component has
+native/WASM parity checks. Full native MCP parity, release-qualified installers
+and a browser editor remain work in progress; see [current Rust MCP evidence](rust/MCP.md).
 
 ## Roadmap
 
@@ -60,8 +61,11 @@ yet provide an entirely Rust application or a browser-only KiCad replacement.
 
 See the [engineering roadmap](tools/live_schematic_mcp/EMBEINT_FORK_ROADMAP.md) for
 architecture, delivery gates, compatibility requirements and planning assumptions.
-The immediate priority is [complete, qualified MCP support](tools/live_schematic_mcp/MCP_SUPPORT_PLAN.md)
-for the desktop workflows before Rust or WebAssembly migration.
+The immediate priority is [complete native Rust MCP parity](rust/MCP_PARITY_PLAN.md),
+including all Python tools and resources, followed by closing the broader KiCad
+function-coverage gaps before browser work. Every operation must execute natively;
+forwarding unported tools to Python does not meet this target. The
+[desktop support gates](tools/live_schematic_mcp/MCP_SUPPORT_PLAN.md) still apply.
 
 ## Build and use the development version
 

@@ -3,93 +3,13 @@
 //! of this server's tools and the IPC commands they send, in the Python manifest's format
 //! (support.py `local_capabilities`).  Nothing here contacts KiCad.
 
-use prost_reflect::{FieldDescriptor, Kind};
+use embeint_ipc::registry;
 use serde_json::{json, Map, Value as Json};
 use sha2::{Digest, Sha256};
-
-use embeint_ipc::proto;
 
 use crate::tools;
 
 pub const CAPABILITIES_URI: &str = "embeint://mcp/capabilities";
-
-/// The registry entries (commands.py `COMMANDS`) of the commands this server's tools send:
-/// (command, response, kind).  GetVersion, BeginCommit and EndCommit are plumbing and are not
-/// in the Python registry either.
-const COMMANDS: &[(&str, &str, &str)] = &[
-    (
-        "kiapi.common.commands.CreateItems",
-        "kiapi.common.commands.CreateItemsResponse",
-        "edit",
-    ),
-    (
-        "kiapi.common.commands.GetDocumentRevision",
-        "kiapi.common.commands.DocumentRevisionResponse",
-        "read",
-    ),
-    (
-        "kiapi.common.commands.GetItems",
-        "kiapi.common.commands.GetItemsResponse",
-        "read",
-    ),
-    (
-        "kiapi.common.commands.GetOpenDocuments",
-        "kiapi.common.commands.GetOpenDocumentsResponse",
-        "read",
-    ),
-    (
-        "kiapi.common.commands.GetOperationStatus",
-        "kiapi.common.commands.OperationStatusResponse",
-        "read",
-    ),
-    (
-        "kiapi.schematic.commands.GetSchematicHierarchy",
-        "kiapi.schematic.commands.SchematicHierarchyResponse",
-        "read",
-    ),
-];
-
-/// `FieldDescriptor.type`, the protobuf field type number Python reports for scalar fields.
-fn type_number(field: &FieldDescriptor) -> i64 {
-    match field.kind() {
-        Kind::Double => 1,
-        Kind::Float => 2,
-        Kind::Int64 => 3,
-        Kind::Uint64 => 4,
-        Kind::Int32 => 5,
-        Kind::Fixed64 => 6,
-        Kind::Fixed32 => 7,
-        Kind::Bool => 8,
-        Kind::String => 9,
-        Kind::Message(_) => 11,
-        Kind::Bytes => 12,
-        Kind::Uint32 => 13,
-        Kind::Enum(_) => 14,
-        Kind::Sfixed32 => 15,
-        Kind::Sfixed64 => 16,
-        Kind::Sint32 => 17,
-        Kind::Sint64 => 18,
-    }
-}
-
-/// commands.py `describe()` for one registered command.
-fn describe(command: &str, response: &str, kind: &str) -> Json {
-    let descriptor = proto::descriptor(command);
-    proto::descriptor(response);
-    let fields: Vec<Json> = descriptor
-        .fields()
-        .map(|field| {
-            let field_type = match field.kind() {
-                Kind::Message(message) => json!(message.full_name()),
-                Kind::Enum(values) => json!(values.values().map(|v| v.name().to_owned()).collect::<Vec<_>>()),
-                _ => json!(type_number(&field)),
-            };
-            json!({"name": field.name(), "repeated": field.is_list() || field.is_map(), "type": field_type})
-        })
-        .collect();
-    // Every command here is a read, or an edit that takes part in the editor's commit
-    json!({"command": command, "kind": kind, "batchable": true, "returns": response, "fields": fields})
-}
 
 /// Python's `json.dumps(value, sort_keys=True)` (spaced) or with `separators=(",", ":")`
 /// (compact): sorted keys and non-ASCII characters escaped, so hashes match Python's.
@@ -170,7 +90,8 @@ pub fn manifest() -> Json {
         })
         .collect();
     tool_schemas.sort_by(|a, b| a["name"].as_str().cmp(&b["name"].as_str()));
-    let command_schemas: Vec<Json> = COMMANDS.iter().map(|(c, r, k)| describe(c, r, k)).collect();
+    let mut command_schemas: Vec<Json> = registry::all().iter().map(registry::describe).collect();
+    command_schemas.sort_by(|a, b| a["command"].as_str().cmp(&b["command"].as_str()));
     let inventory = json!({"tools": tool_schemas, "commands": command_schemas});
     let fingerprint = Sha256::digest(canonical_json(&inventory, false).as_bytes());
     let fingerprint: String = fingerprint.iter().map(|b| format!("{b:02x}")).collect();
@@ -236,8 +157,13 @@ mod tests {
     #[test]
     fn commands_are_described() {
         let manifest = manifest();
-        assert_eq!(manifest["command_count"], 6);
-        let create = &manifest["commands"][0];
+        assert_eq!(manifest["command_count"], registry::all().len());
+        let create = manifest["commands"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|entry| entry["command"] == "kiapi.common.commands.CreateItems")
+            .unwrap();
         assert_eq!(
             create["fields"][0],
             json!({"name": "header", "repeated": false, "type": "kiapi.common.types.ItemHeader"})

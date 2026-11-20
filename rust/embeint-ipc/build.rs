@@ -41,6 +41,10 @@ fn main() {
         println!("cargo:rerun-if-changed={}", root.join(file).display());
     }
 
+    // Several IPC handlers reply with Empty without importing it in a request
+    // declaration. Generic command dispatch must be able to decode those replies.
+    files.push("google/protobuf/empty.proto".into());
+
     let set = protox::compile(&files, [&root]).unwrap_or_else(|e| panic!("protox: {e:?}"));
     let out = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR")).join("kiapi_descriptors.bin");
     fs::write(&out, set.encode_to_vec()).expect("write the descriptor set");

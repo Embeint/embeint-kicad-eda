@@ -495,6 +495,84 @@ impl Client {
         }
     }
 
+    /// One edit outside a commit, such as undo or settings. Reconcile a lost reply once;
+    /// the original response cannot be recovered, so Python returns an empty response too.
+    pub async fn send_mutation(
+        &mut self,
+        request: &DynamicMessage,
+        response_type: &str,
+    ) -> Result<DynamicMessage, Error> {
+        let (expected, operation_id) = self.next_mutation();
+        match self
+            .send_with(request, response_type, expected, Some(operation_id.clone()))
+            .await
+        {
+            Ok(response) => {
+                self.mutation_done(&operation_id, "committed", false);
+                Ok(response)
+            }
+            Err(Error::ReplyTimeout(error)) => {
+                let status = self.reconcile(&operation_id, &error).await?;
+                if status["state"] != "OPS_COMMITTED" {
+                    return Err(Error::OutcomeUnknown { message: format!(
+                        "{error}. Operation {operation_id} is {}; do not resend it. Query live_operation_status again.",
+                        status["state"].as_str().unwrap_or("OPS_UNKNOWN")), operation_id });
+                }
+                self.mutation_done(&operation_id, "committed", true);
+                Ok(DynamicMessage::new(proto::descriptor(response_type)))
+            }
+            Err(error) => Err(error),
+        }
+    }
+
+    /// Execute only curated commands, preserving each command's file/edit/read semantics.
+    pub async fn execute(&mut self, name: &str, payload: &Json) -> Result<Json, Error> {
+        let command = crate::registry::resolve(name)?;
+        let payload = crate::registry::request_payload(Some(payload));
+        let request = pbjson::from_json(&payload, &proto::descriptor(&command.name))?;
+        let response = if command.kind == "edit" && !command.project_edit {
+            self.send_mutation(&request, &command.response).await?
+        } else {
+            self.send(&request, &command.response).await?
+        };
+        Ok(json!({"command": command.name, "kind": command.kind, "result": reply_json(&response)?}))
+    }
+
+    /// Validate every step before opening one commit for the batch.
+    pub async fn batch(
+        &mut self,
+        doc: &DynamicMessage,
+        steps: &[Json],
+        description: &str,
+    ) -> Result<Json, Error> {
+        let steps = crate::batch::prepare(doc, steps)?;
+        let header = item_header(doc);
+        let (id, operation_id) = self.begin_transaction(&header).await?;
+        let result = self.batch_steps(&steps).await;
+        let outcome = result.as_ref().map(|_| ()).map_err(Clone::clone);
+        self.finish_transaction(&header, &id, &operation_id, description, outcome)
+            .await?;
+        Ok(json!({"committed": true, "steps": result?}))
+    }
+
+    async fn batch_steps(&mut self, steps: &[crate::batch::Step]) -> Result<Vec<Json>, Error> {
+        let mut results = Vec::new();
+        for (index, step) in steps.iter().enumerate() {
+            let response = self
+                .send(&step.request, &step.command.response)
+                .await
+                .map_err(|error| {
+                    Error::Runtime(format!(
+                        "step {index} ({}) failed: {error}",
+                        step.command.name
+                    ))
+                })?;
+            crate::batch::check_result(index, step, &response)?;
+            results.push(json!({"command": step.command.name, "result": reply_json(&response)?}));
+        }
+        Ok(results)
+    }
+
     fn end_commit(
         header: &DynamicMessage,
         id: Option<&DynamicMessage>,
@@ -687,14 +765,33 @@ impl Client {
         doc: &DynamicMessage,
         items: &[DynamicMessage],
     ) -> Result<Json, Error> {
+        self.mutate_items(doc, items, false).await
+    }
+
+    /// Replace complete items, preserving the same batch and transaction guarantees as create.
+    pub async fn update_items(
+        &mut self,
+        doc: &DynamicMessage,
+        items: &[DynamicMessage],
+    ) -> Result<Json, Error> {
+        self.mutate_items(doc, items, true).await
+    }
+
+    async fn mutate_items(
+        &mut self,
+        doc: &DynamicMessage,
+        items: &[DynamicMessage],
+        update: bool,
+    ) -> Result<Json, Error> {
         if items.is_empty() || items.len() > MAX_ITEMS {
             return Err(Error::Value(format!(
                 "Supply between 1 and {MAX_ITEMS} items"
             )));
         }
         let header = item_header(doc);
+        let command = if update { "UpdateItems" } else { "CreateItems" };
         let mut request = with_field(
-            build(&format!("{C}CreateItems"), json!({})),
+            build(&format!("{C}{command}"), json!({})),
             "header",
             header.clone(),
         );
@@ -708,26 +805,86 @@ impl Client {
             ),
         );
 
-        let (id, operation_id) = self.begin_transaction(&header).await?;
-        let step = self.create_step(&request, items.len()).await;
+        let description = if update {
+            "MCP: update items"
+        } else {
+            "MCP: create items"
+        };
+        self.item_transaction(&header, &request, items.len(), command, description)
+            .await
+    }
+
+    /// Delete UUIDs as one undo step; validate the whole input before opening a commit.
+    pub async fn delete_items(
+        &mut self,
+        doc: &DynamicMessage,
+        ids: &[String],
+    ) -> Result<Json, Error> {
+        if ids.is_empty() || ids.len() > MAX_ITEMS {
+            return Err(Error::Value(format!(
+                "Supply between 1 and {MAX_ITEMS} UUIDs"
+            )));
+        }
+        let ids = ids
+            .iter()
+            .map(|id| canonical_uuid(id).map(|id| json!({"value": id})))
+            .collect::<Result<Vec<_>, _>>()?;
+        let header = item_header(doc);
+        let request = with_field(
+            build(&format!("{C}DeleteItems"), json!({"item_ids": ids})),
+            "header",
+            header.clone(),
+        );
+        self.item_transaction(
+            &header,
+            &request,
+            ids.len(),
+            "DeleteItems",
+            "MCP: delete items",
+        )
+        .await
+    }
+
+    async fn item_transaction(
+        &mut self,
+        header: &DynamicMessage,
+        request: &DynamicMessage,
+        count: usize,
+        command: &str,
+        description: &str,
+    ) -> Result<Json, Error> {
+        let (id, operation_id) = self.begin_transaction(header).await?;
+        let step = self.item_step(request, count, command).await;
         let (outcome, response) = match step {
             Ok(response) => (Ok(()), Some(response)),
             Err(error) => (Err(error), None),
         };
-        self.finish_transaction(&header, &id, &operation_id, "MCP: create items", outcome)
+        self.finish_transaction(header, &id, &operation_id, description, outcome)
             .await?;
         reply_json(&response.expect("a committed transaction has a response"))
     }
 
-    async fn create_step(
+    async fn item_step(
         &mut self,
         request: &DynamicMessage,
         count: usize,
+        command: &str,
     ) -> Result<DynamicMessage, Error> {
-        let response = self
-            .send(request, &format!("{C}CreateItemsResponse"))
-            .await?;
-        let results = proto::list_field(&response, "created_items");
+        let response = self.send(request, &format!("{C}{command}Response")).await?;
+        let field = match command {
+            "UpdateItems" => "updated_items",
+            "DeleteItems" => "deleted_items",
+            _ => "created_items",
+        };
+        let results = proto::list_field(&response, field);
+        if command == "DeleteItems" {
+            if int_field(&response, "status") != 1 || results.len() != count
+                || results.iter().any(|value| !matches!(value, Value::Message(item) if int_field(item, "status") == 1))
+            {
+                return Err(Error::Runtime(format!("Deletion rejected: {}", pbjson::py_repr(&reply_json(&response)?))));
+            }
+            return Ok(response);
+        }
         if int_field(&response, "status") != 1 || results.len() != count {
             return Err(Error::Runtime(
                 "KiCad did not acknowledge the entire item batch".into(),
@@ -754,6 +911,22 @@ impl Client {
         }
         Ok(response)
     }
+}
+
+/// Python uuid.UUID's string forms, normalized before any editor request is sent.
+pub fn canonical_uuid(value: &str) -> Result<String, Error> {
+    let hex = value.replace("urn:", "").replace("uuid:", "");
+    let hex = hex.trim_matches(['{', '}']).replace('-', "");
+    if hex.chars().count() != 32 {
+        return Err(Error::Value("badly formed hexadecimal UUID string".into()));
+    }
+    let number = u128::from_str_radix(&hex, 16).map_err(|_| {
+        Error::Value(format!(
+            "invalid literal for int() with base 16: {}",
+            pbjson::py_repr(&json!(hex))
+        ))
+    })?;
+    Ok(uuid::Uuid::from_u128(number).to_string())
 }
 
 /// `ItemHeader(document=doc)`.

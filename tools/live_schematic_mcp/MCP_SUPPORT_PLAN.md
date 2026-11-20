@@ -1,8 +1,11 @@
 # MCP support delivery plan
 
-Priority: complete and qualify the desktop IPC/MCP workflow before starting the
-Rust or WebAssembly migration. This plan defines support gates, not a claim that
-every KiCad feature is exposed or validated today.
+Priority update, 2026-11-20: the Rust migration has started. Complete native Rust
+parity with every Python MCP operation and resource, and audit and close remaining
+KiCad function gaps, before browser work. Python forwarding does not satisfy parity.
+See the [native parity plan](../../rust/MCP_PARITY_PLAN.md). The P0/P1 qualification
+criteria below still apply; their original baseline is historical context. This plan
+does not claim that every KiCad feature is exposed or validated today.
 
 ## Baseline and meaning of full support
 

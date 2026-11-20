@@ -22,7 +22,8 @@ const PROTOCOL_VERSIONS: [&str; 4] = ["2024-11-05", "2025-03-26", "2025-06-18", 
 pub const SERVER_NAME: &str = "KiCad Live";
 
 pub const INSTRUCTIONS: &str = "These tools drive Embeint KiCad over IPC. This native server implements instance \
-discovery, the read-only document tools and live_schematic_create_items; the Python server provides the other \
+discovery, document reads, schematic item create/update/delete, generic command execution and batches, \
+and command/item schemas; the Python server provides the other \
 live_* tools and the bundled Embeint house style (kicad-skill:// resources). \
 Follow the user's current intent and existing authorization; coordinate shared editor use. \
 Preserve manual edits, verify mutation outcomes, and save explicitly. \

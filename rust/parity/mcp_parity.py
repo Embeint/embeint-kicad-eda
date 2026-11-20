@@ -4,6 +4,9 @@
 
 Both servers run as real MCP stdio subprocesses driven by the same MCP client.  Checks:
 
+This suite covers the ported subset, not the full Python MCP surface. Run
+surface_coverage.py --require-complete separately to detect missing tools/resources/commands.
+
   schema      Every Rust tool is advertised with the Python tool's exact name, description and
               input/output schema; the initialize replies are compatible.
   manifest    live_mcp_capabilities: Rust's command entries equal commands.describe(), and its
@@ -24,13 +27,14 @@ Both servers run as real MCP stdio subprocesses driven by the same MCP client.  
 Run with the MCP interpreter (it needs mcp, pynng, protobuf and the generated protocol code):
 
   python rust/parity/mcp_parity.py --build [--live] [--report report.json]
-  python rust/parity/mcp_parity.py --write-schemas    # refresh rust/embeint-mcp/tools.json
+  python rust/parity/mcp_parity.py --write-schemas    # refresh tool schemas and the command registry
 """
 
 import argparse
 import asyncio
 import contextlib
 import copy
+import hashlib
 import json
 import os
 from pathlib import Path, PureWindowsPath
@@ -69,6 +73,14 @@ PORTED = [
     "live_document_revision",
     "live_operation_status",
     "live_schematic_create_items",
+    "live_schematic_update_items",
+    "live_schematic_delete_items",
+    "live_schematic_list_commands",
+    "live_schematic_describe_command",
+    "live_schematic_execute",
+    "live_schematic_batch",
+    "live_schematic_item_schema",
+    "live_pcb_item_schema",
     "live_pcb_documents",
 ]
 
@@ -89,6 +101,14 @@ def binary_path():
 
 def build_binary():
     subprocess.run(["cargo", "build", "--locked", "--release", "-p", "embeint-mcp"], cwd=RUST_DIR, check=True)
+
+
+def build_evidence(binary):
+    """Identify the tested development binary without implying a clean/released build."""
+    return {"source_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
+            "source_dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True).strip()),
+            "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
+            "host": sys.platform, "python_version": sys.version.split()[0]}
 
 
 def server_env(extra=None):
@@ -144,12 +164,20 @@ def python_tools():
     return init, {tool.name: tool_entry(tool) for tool in tools.tools}
 
 
+def registry_entries():
+    return {"generated_by": "rust/parity/mcp_parity.py --write-schemas", "commands": [
+        {"command": name, "returns": response, "kind": kind,
+         "batchable": registry.describe(name)["batchable"], "project_edit": name in registry.PROJECT_EDITS}
+        for name, (response, kind) in registry.COMMANDS.items()]}
+
+
 def write_schemas():
     _, tools = python_tools()
     missing = [name for name in PORTED if name not in tools]
     if missing:
         raise SystemExit(f"Python server has no tool {missing}")
     TOOLS_JSON.write_text(json.dumps([tools[name] for name in PORTED], indent=2) + "\n", encoding="utf-8")
+    (RUST_DIR / "embeint-ipc/commands.json").write_text(json.dumps(registry_entries(), indent=2) + "\n", encoding="utf-8")
     print(f"wrote {TOOLS_JSON.relative_to(ROOT)} ({len(PORTED)} tools)")
 
 
@@ -165,12 +193,16 @@ def check_schema(binary, failures):
     stored = json.loads(TOOLS_JSON.read_text(encoding="utf-8"))
     if stored != [py_tools.get(name) for name in PORTED]:
         failures.append("schema: tools.json is out of date; run mcp_parity.py --write-schemas")
+    if json.loads((RUST_DIR / "embeint-ipc/commands.json").read_text(encoding="utf-8")) != registry_entries():
+        failures.append("schema: commands.json is out of date; run mcp_parity.py --write-schemas")
     for key in ("protocolVersion", "capabilities"):
         if py_init[key] != rs_init[key]:
             failures.append(f"schema: initialize {key} differs: {py_init[key]} != {rs_init[key]}")
     if rs_init["serverInfo"]["name"] != py_init["serverInfo"]["name"]:
         failures.append("schema: serverInfo name differs")
-    return {"python_tools": len(py_tools), "rust_tools": len(rs_tools), "compared": sorted(rs_tools)}
+    return {"python_tools": len(py_tools), "rust_tools": len(rs_tools), "compared": sorted(rs_tools),
+            "missing_python_tools": sorted(py_tools.keys() - rs_tools.keys()),
+            "scope": "ported_subset"}
 
 
 # ---- The --parity interface: pure functions ---------------------------------------------------
@@ -736,6 +768,139 @@ SCENARIOS = [
 ]
 
 
+def item_edit_scenarios():
+    """Exercise every transaction fault with update and delete as well as create.
+
+    Reuse the scripted fault locations, but decode real request/response messages
+    for each command. The peers still compare every request byte through protobuf JSON.
+    """
+    ids = ["11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"]
+
+    def adapt_reply(handler, command):
+        def respond(request):
+            edit = getattr(editor, command)()
+            request.message.Unpack(edit)
+            source = editor.CreateItems(header=edit.header)
+            if command == "UpdateItems":
+                source.items.extend(edit.items)
+            else:
+                for item_id in edit.item_ids:
+                    source.items.add().Pack(sch.SchematicText(id=item_id))
+            converted = envelope.ApiRequest()
+            converted.CopyFrom(request)
+            converted.message.Pack(source)
+            response = handler(converted)
+            if response is DROP or response is CLOSE:
+                return response
+            original = editor.CreateItemsResponse()
+            if not response.message.Unpack(original):
+                return response
+            target = getattr(editor, command + "Response")(header=original.header, status=original.status)
+            if command == "UpdateItems":
+                for item in original.created_items:
+                    target.updated_items.add(status=item.status, item=item.item)
+            else:
+                for item_id, item in zip(edit.item_ids, original.created_items):
+                    target.deleted_items.add(id=item_id, status=editor.IDS_OK if item.status.code == editor.ISC_OK
+                                             else editor.IDS_NONEXISTENT)
+            response.message.Pack(target)
+            return response
+        return respond
+
+    for command, verb in (("UpdateItems", "update"), ("DeleteItems", "delete")):
+        for original in SCENARIOS:
+            if not original["name"].startswith("create_"):
+                continue
+            if verb == "delete" and ("refuses_" in original["name"] or "args_as_json_text" in original["name"]):
+                continue
+            item = dict(original, name=original["name"].replace("create_", verb + "_", 1))
+            item["steps"] = []
+            for tool, args in original["steps"]:
+                args = copy.deepcopy(args)
+                if verb == "delete":
+                    args.pop("items", None)
+                    args["ids"] = ids
+                item["steps"].append((tool.replace("create_items", verb + "_items"), args))
+            item["script"] = [(command, adapt_reply(handler, command)) if name == "CreateItems" else (name, handler)
+                              for name, handler in original["script"]]
+            yield item
+
+    for suffix, values in (("empty", []), ("too_many", ids * 101), ("invalid_uuid", ["not-a-uuid"]),
+                           ("bad_hex", ["g" * 32]), ("invalid_list", [12]), ("not_a_list", "hello")):
+        yield scenario("delete_" + suffix, [("live_schematic_delete_items", {"document_spec": SHEET_DOC, "ids": values})],
+                       [], **({"compare": "error_prefix"} if suffix in {"invalid_list", "not_a_list"} else {}))
+    yield scenario("delete_uuid_forms", [("live_schematic_delete_items", {
+        "document_spec": json.dumps(SHEET_DOC), "ids": json.dumps(["{ABCDEFAB-CDEF-4ABC-8DEF-ABCDEFABCDEF}",
+                                                                   "urn:uuid:22222222222242228222222222222222"])})],
+        [BEGIN, ("DeleteItems", adapt_reply(created(1, 1)[1], "DeleteItems")), END_OK])
+
+
+SCENARIOS.extend(list(item_edit_scenarios()))
+
+
+def generic_scenarios():
+    # One session tests all registered descriptors and dispatch paths without invoking
+    # real editor actions. Each reply is a real instance of the declared protobuf type.
+    commands = list(registry.COMMANDS.items())
+    yield scenario("generic_all_registered_commands", [
+        ("live_schematic_execute", {"command": name, "operation_id": f"generic-{index}"})
+        for index, (name, _) in enumerate(commands)], [
+        (name.rsplit(".", 1)[-1], lambda r, response=response: reply(registry.message_class(response)(), revision="fx-3"))
+        for name, (response, _) in commands])
+    yield scenario("generic_command_discovery", [("live_schematic_list_commands", {})] + [
+        ("live_schematic_describe_command", {"command": name}) for name, _ in commands], [])
+    yield scenario("generic_schema_inspection", [
+        (tool, {"type_name": name})
+        for tool, names in (("live_schematic_item_schema", ["SheetSymbol", "SheetPin", "SchematicLine",
+                                                          "kiapi.common.types.ItemHeader", "Missing", "kiapi.board.types.Track"]),
+                            ("live_pcb_item_schema", ["Track", "Zone", "Pad", "FootprintInstance",
+                                                     "kiapi.board.commands.GetNets", "Missing", "kiapi.schematic.types.SheetPin"]))
+        for name in names], [])
+    yield scenario("generic_invalid_commands", [
+        (tool, {"command": name}) for tool in ("live_schematic_execute", "live_schematic_describe_command")
+        for name in ("Missing", "quote'and\"both", "")], [])
+    yield scenario("generic_bad_payload", [("live_schematic_execute", {"command": "GetItems", "payload": {"absent": 1}})], [])
+    for state in ("OPS_COMMITTED", "OPS_UNKNOWN", "OPS_ROLLED_BACK"):
+        yield scenario("generic_lost_edit_" + state, [("live_schematic_execute", {
+            "command": "UndoLastChange", "payload": {"document": SHEET_DOC}, "expected_revision": "fx-1",
+            "operation_id": "op-fixture-1"})], [("UndoLastChange", lambda r: DROP), ("GetOperationStatus", status(state, revision_after="fx-3"))])
+    yield scenario("generic_lost_edit_status_refused", [("live_schematic_execute", {
+        "command": "UndoLastChange", "operation_id": "op-fixture-1"})],
+        [("UndoLastChange", lambda r: DROP), ("GetOperationStatus", lambda r: failure(envelope.AS_BUSY, "busy"))])
+    yield scenario("generic_project_edit_has_no_document_revision", [("live_schematic_execute", {
+        "command": "SetTextVariables", "payload": {}, "expected_revision": "fx-1", "operation_id": "project-op"})],
+        [("SetTextVariables", lambda r: reply(registry.message_class("google.protobuf.Empty")()))])
+    base = {"document_spec": SHEET_DOC, "operation_id": "op-fixture-1", "expected_revision": "fx-1"}
+    create = {"command": "CreateItems", "payload": {"items": [LINE, TEXT]}}
+    for name, codes in (("committed", (1, 1)), ("partial", (1,)), ("rejected", (1, editor.ISC_INVALID_DATA))):
+        yield scenario("batch_" + name, [("live_schematic_batch", dict(base, steps=[create]))],
+                       [BEGIN, created(*codes), END_OK if name == "committed" else DROP_OK])
+    yield scenario("batch_later_step_fails", [("live_schematic_batch", dict(base, steps=[create, {"command": "GetItems"}]))],
+                   [BEGIN, created(1, 1), ("GetItems", lambda r: failure(envelope.AS_BUSY, "busy")), DROP_OK])
+    yield scenario("batch_wrong_document", [("live_schematic_batch", dict(base, steps=[
+        create, {"command": "UpdateItems", "payload": {"header": {"document": BOARD_DOC}}}]))], [])
+    yield scenario("batch_wrong_direct_document", [("live_schematic_batch", dict(base, steps=[
+        {"command": "AutoplaceFields", "payload": {"document": BOARD_DOC}}]))], [])
+    for name, entry in registry.COMMANDS.items():
+        if not registry.describe(name)["batchable"]:
+            yield scenario("batch_refuses_" + name, [("live_schematic_batch", dict(base, steps=[create, {"command": name}]))], [])
+    yield scenario("batch_empty", [("live_schematic_batch", dict(base, steps=[]))], [])
+    yield scenario("batch_over_limit", [("live_schematic_batch", dict(base, steps=[create] * 101))], [])
+    yield scenario("batch_missing_command", [("live_schematic_batch", dict(base, steps=[{}]))], [])
+    yield scenario("batch_falsey_payloads", [("live_schematic_batch", dict(base, steps=[
+        {"command": "GetItems", "payload": value} for value in (None, {}, [], "", False, 0)]))],
+        [BEGIN] + [("GetItems", lambda r: reply(editor.GetItemsResponse(status=types.IRS_OK)))] * 6 + [END_OK])
+    yield scenario("batch_invalid_command_types", [("live_schematic_batch", dict(base, steps=[{"command": value}]))
+                                                 for value in ([], {}, 7, None)], [])
+    yield scenario("batch_lost_end_committed", [("live_schematic_batch", dict(base, steps=[create]))],
+                   [BEGIN, created(1, 1), ("EndCommit", lambda r: DROP), ("GetOperationStatus", status("OPS_COMMITTED", revision_after="fx-3"))])
+    yield scenario("batch_read_board", [("live_schematic_batch", {"document_spec": BOARD_DOC, "steps": [{"command": "GetItems"}]})],
+                   [BEGIN, ("GetItems", lambda r: reply(editor.GetItemsResponse(status=types.IRS_OK))), END_OK])
+
+
+SCENARIOS.extend(list(generic_scenarios()))
+
+
 class Peer:
     """A disposable NNG REP0 endpoint answering with a scenario's script."""
 
@@ -912,7 +1077,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--build", action="store_true", help="build embeint-mcp (release) first")
     parser.add_argument("--binary", type=Path, help="embeint-mcp to test (default: rust/target/release)")
-    parser.add_argument("--write-schemas", action="store_true", help="refresh tools.json from the Python server")
+    parser.add_argument("--write-schemas", action="store_true", help="refresh tools.json and commands.json from Python")
     parser.add_argument("--live", action="store_true", help="also compare against a running KiCad")
     parser.add_argument("--only", nargs="*", help="run only the fixtures whose name contains one of these")
     parser.add_argument("--report", type=Path, help="write the detailed results as JSON")
@@ -926,8 +1091,8 @@ def main():
     if not binary.exists():
         raise SystemExit(f"{binary} does not exist; run with --build")
 
-    failures, report = [], {}
-    print("schema", flush=True)
+    failures, report = [], {"build": build_evidence(binary), "fixture_filter": args.only}
+    print("schema (ported subset; full MCP coverage is checked by surface_coverage.py)", flush=True)
     report["schema"] = check_schema(binary, failures)
     print("codec and manifest", flush=True)
     report["codec"] = compare_codec(binary, failures)

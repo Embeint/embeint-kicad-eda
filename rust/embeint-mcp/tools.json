@@ -140,6 +140,294 @@
     }
   },
   {
+    "name": "live_schematic_update_items",
+    "description": "Replace live items in one undo step without saving. Supply complete items from live_schematic_items.\n\nPreserve IDs and unrelated fields; omitted fields are not a partial update. To add sheet pins,\nmodify the parent SheetSymbol.pins and return its complete item. Hierarchical labels must match.",
+    "inputSchema": {
+      "properties": {
+        "document_spec": {
+          "additionalProperties": true,
+          "title": "Document Spec",
+          "type": "object"
+        },
+        "items": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "expected_revision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Revision"
+        },
+        "operation_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operation Id"
+        }
+      },
+      "required": [
+        "document_spec",
+        "items"
+      ],
+      "title": "live_schematic_update_itemsArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_schematic_delete_items",
+    "description": "Delete the specified UUIDs on one live sheet as one undo step, without saving.",
+    "inputSchema": {
+      "properties": {
+        "document_spec": {
+          "additionalProperties": true,
+          "title": "Document Spec",
+          "type": "object"
+        },
+        "ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Ids",
+          "type": "array"
+        },
+        "expected_revision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Revision"
+        },
+        "operation_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operation Id"
+        }
+      },
+      "required": [
+        "document_spec",
+        "ids"
+      ],
+      "title": "live_schematic_delete_itemsArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_schematic_list_commands",
+    "description": "List every KiCad IPC command these tools know (schematic, PCB, libraries), its kind\n(read/edit/view/file/job) and reply type.",
+    "inputSchema": {
+      "properties": {},
+      "title": "live_schematic_list_commandsArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Result",
+          "type": "array"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "live_schematic_list_commandsOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_schematic_describe_command",
+    "description": "Show the fields of a command from live_schematic_list_commands, for use with execute or batch.",
+    "inputSchema": {
+      "properties": {
+        "command": {
+          "title": "Command",
+          "type": "string"
+        }
+      },
+      "required": [
+        "command"
+      ],
+      "title": "live_schematic_describe_commandArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_schematic_execute",
+    "description": "Run any KiCad IPC command (schematic or PCB) by name with a protobuf-JSON payload.\n\nPrefer the typed tools. Most commands need a document (or header.document) from\nlive_schematic_documents. File-kind commands (SaveDocument, RevertDocument, ...) change or discard\nfiles: run them only when the user asks. An edit command is not retried if the reply is lost:\nit carries an operation id for live_operation_status. expected_revision applies to document edits.",
+    "inputSchema": {
+      "properties": {
+        "command": {
+          "title": "Command",
+          "type": "string"
+        },
+        "payload": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Payload"
+        },
+        "expected_revision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Revision"
+        },
+        "operation_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operation Id"
+        }
+      },
+      "required": [
+        "command"
+      ],
+      "title": "live_schematic_executeArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_schematic_batch",
+    "description": "Run supported item edits as ONE undo step; failed steps roll back those item edits.\n\ndocument_spec is a schematic, board (DOCTYPE_PCB), symbol or footprint document.\n\nsteps: [{\"command\": \"CreateItems\", \"payload\": {...}}, ...] using names from live_schematic_list_commands.\nOnly edits marked batchable participate in rollback; settings, editor replacement,\nasynchronous work, undo/redo and file/job commands are refused. Omitted document\ntargets inherit this batch's document; explicit targets must match it exactly.\nSelection and zoom changes are not rolled back. With expected_revision, KiCad also rolls the\nbatch back if anyone else changes the document while it runs.",
+    "inputSchema": {
+      "properties": {
+        "document_spec": {
+          "additionalProperties": true,
+          "title": "Document Spec",
+          "type": "object"
+        },
+        "steps": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Steps",
+          "type": "array"
+        },
+        "description": {
+          "default": "MCP: batch",
+          "title": "Description",
+          "type": "string"
+        },
+        "expected_revision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Revision"
+        },
+        "operation_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operation Id"
+        }
+      },
+      "required": [
+        "document_spec",
+        "steps"
+      ],
+      "title": "live_schematic_batchArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_schematic_item_schema",
+    "description": "Describe a schematic protobuf item and nested fields, including enum choices.\n\nStart with SheetSymbol, SheetPin, HierarchicalLabel or SchematicLine. Use returned message names\nin further calls. Protobuf JSON uses snake_case fields here and UUIDs as {value: UUID}.",
+    "inputSchema": {
+      "properties": {
+        "type_name": {
+          "title": "Type Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type_name"
+      ],
+      "title": "live_schematic_item_schemaArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_item_schema",
+    "description": "Describe a board protobuf type and its fields (Track, Via, Arc, Zone, BoardGraphicShape, BoardText,\nFootprintInstance, Pad, ...), including enum choices.",
+    "inputSchema": {
+      "properties": {
+        "type_name": {
+          "title": "Type Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type_name"
+      ],
+      "title": "live_pcb_item_schemaArguments",
+      "type": "object"
+    }
+  },
+  {
     "name": "live_pcb_documents",
     "description": "List boards open in the PCB editor (board documents for the live_pcb_* tools).",
     "inputSchema": {

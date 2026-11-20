@@ -36,8 +36,13 @@ These tools have the Python tools' names, schemas and results.
 | `live_schematic_hierarchy`, `live_schematic_items` | read |
 | `live_document_revision`, `live_operation_status` | read (revision contract) |
 | `live_schematic_create_items` | edit: one commit, with rollback and reconciliation |
+| `live_schematic_update_items`, `live_schematic_delete_items` | edit: the same commit and reconciliation contract |
+| `live_schematic_list_commands`, `live_schematic_describe_command` | offline curated command registry and descriptor fields |
+| `live_schematic_execute` | native dispatch of every curated command, preserving its edit/file/read semantics |
+| `live_schematic_batch` | preflight all steps, then one commit; reject mismatched documents and non-transactional edits |
+| `live_schematic_item_schema`, `live_pcb_item_schema` | offline protobuf item descriptors and enum choices |
 
-`live_schematic_create_items` covers the whole transaction contract in
+The item edits and batches use the transaction contract in
 [REVISIONS.md](../tools/live_schematic_mcp/REVISIONS.md):
 
 - `expected_revision` and `operation_id` are sent on `BeginCommit`, with a 60 s lease.
@@ -62,7 +67,7 @@ for example `C:\kb\install\mcp\embeint-mcp.exe`.
 
 The server finds KiCad as the Python server does. `KICAD_API_SOCKET` and `KICAD_API_TOKEN` select
 an instance explicitly. `KICAD_API_TIMEOUT_MS` sets the reply timeout (1 to 600000 ms, default
-15000); both servers read it. Register it next to the Python server, not instead of it: it has 8 of
+15000); both servers read it. Register it next to the Python server: it has 16 of
 the 115 tools.
 
 ## How parity is checked
@@ -87,7 +92,7 @@ MCP client.
   temp-directory rule. Refusals must match too, message included.
 - **Discovery.** `instance_discovery.py` and `embeint-mcp --discover` must give the same inventory
   on the host's real endpoints.
-- **Protocol fixtures.** There are 72 scenarios, each served by a disposable NNG REP0 peer that
+- **Protocol fixtures.** Scenarios are served by a disposable NNG REP0 peer that
   answers with real protobuf envelopes. The requests the peer receives must be identical from both
   servers, and so must the tool results, text included. Client names and generated operation ids
   are normalised. The scenarios cover:
@@ -102,6 +107,13 @@ MCP client.
   - argument validation;
   - endpoint discovery: no editor, one instance, a `api-<pid>` endpoint, two instances
     (ambiguous), and a pinned instance that has gone.
+
+  The shared-command expansion repeats the transaction faults for update and delete,
+  dispatches every curated registry command against its declared protobuf reply, compares
+  command and item-schema discovery, and checks batch refusals, document binding, partial
+  acknowledgements and standalone mutation reconciliation. The command registry is compiled
+  from `embeint-ipc/commands.json`, regenerated with `--write-schemas` and checked against Python
+  on every parity run. The native runtime does not load or execute Python.
 
   The three validation scenarios compare only the failure and its tool, not pydantic's wording.
 - **Live** (`--live`). This runs against a running KiCad on the disposable `live-demo` project
@@ -120,8 +132,31 @@ MCP client.
     lost, the server must drop the commit KiCad opened, and KiCad must record it rolled back.
   - At the end every edit has been undone, no commit is open, and the schematic file has not been
     written.
+  - Update, delete and generic batches are checked against complete item snapshots: one undo
+    through generic `UndoLastChange` restores every field, partial failures roll back, stale
+    revisions fail, and real lost commit replies reconcile without resending edits.
 
 ## Results (2026-11-20)
+
+The table below records the original eight-tool slice. The later shared-command expansion
+has 16 tools and all 147 generic command definitions. Its native Windows live comparison
+passed **100/100 checks**, including update/delete/batch rollback, full-content undo and
+lost-reply reconciliation. It used a separate disposable `live-demo`, private configuration
+and a private named-pipe endpoint with the installed `C:\kb\install` KiCad 10.99.0 build;
+the user's open project was not edited. All test edits were undone, no commit remained
+open and the schematic file was not written. Linux live and installed-package qualification
+have not been repeated for this expansion. One repeat against a restarted test instance
+was interrupted when that KiCad process exited; no matching Windows crash event was found.
+It was not counted as a passing run. A fresh disposable project with the process owned by
+the test controller then passed all 100 checks on the final binary.
+
+The Windows protocol run passed 244 scenarios and 109 codec cases. Two additional
+batch-input regression scenarios also passed, covering empty payload values and invalid command types.
+The registry comparison checks every command definition and exercises every generic
+dispatch path against a synthetic peer; this is not live qualification of all 147 handlers.
+Rust unit tests, clippy with `-D warnings`, formatting and the Rust 1.85 build check pass.
+Parity reports identify the native executable by SHA-256, record the source revision and
+dirty state, and live reports include the application version and schema fingerprint.
 
 | Host | Python | Rust | Fixtures | Codec | Live |
 | --- | --- | --- | --- | --- | --- |
@@ -144,7 +179,7 @@ invalid float strings, nested `Any` bounds, token changes after pinning and ten 
 transaction/disconnect scenarios. Codec refusal differences now fail the run. The live harness
 records forwarding failures and refuses undo cleanup when other test additions remain.
 
-The schema check compares the 8 ported tools against the Python server's 115. The unit tests
+The original schema check compared 8 ported tools against the Python server's 115. The unit tests
 (`cargo test -p embeint-ipc -p embeint-mcp`) pass on both hosts; clippy with `-D warnings` and
 `cargo check` with Rust 1.85 pass. CI runs the unit tests and the offline comparison in
 `.github/workflows/rust-mcp.yml`. The live comparison needs a KiCad, so it is run by hand.
@@ -187,13 +222,18 @@ Responsiveness against the live KiCad on Windows (median of 40 calls, same sessi
 
 ## Next steps
 
-- Move further tools over in groups, each with fixtures that both servers pass. Start with the
-  other item edits (`update_items`, `delete_items`), which reuse the transaction, then the PCB
-  reads.
-- Making the native server the default needs every tool to have moved, or a front end that routes
-  the tools that have not moved to Python.
-- Run the live comparison as part of the release qualification, against the KiCad build the
-  package ships with.
+The next milestone is **complete native Rust parity**, followed by closing the broader KiCad
+function-coverage gaps, before browser work. Python forwarding does not satisfy this milestone.
+The implementation order and acceptance criteria are in [MCP_PARITY_PLAN.md](MCP_PARITY_PLAN.md).
+Update/delete are an early slice of that work. Making Rust the default requires every Python MCP
+operation and resource to have moved and passed qualification, including the generic command
+registry, higher-level helpers and installed operation without Python.
+
+`python rust/parity/surface_coverage.py --require-complete` compares the complete advertised
+Python and Rust surfaces and currently fails on missing entries. The existing passing parity
+fixtures cover only the ported subset. Complete advertisements still require behavioral and
+live evidence, including comparison against the KiCad build the package ships with. The wider
+function audit must cover features without IPC handlers as well as existing registered commands.
 
 ## Packaging and release
 
