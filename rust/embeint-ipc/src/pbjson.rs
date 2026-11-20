@@ -281,6 +281,14 @@ pub fn from_json(
     Ok(message)
 }
 
+/// `ParseDict(value, message)` on an existing message: fields in `value` are merged into it (a
+/// repeated or map field replaces the existing one, a message field merges), as Python does.
+pub fn merge_json(value: &Json, message: &mut DynamicMessage) -> Result<(), ParseError> {
+    let name = message.descriptor().name().to_owned();
+    let mut parser = Parser { depth: 0 };
+    parser.convert_message(value, message, &name)
+}
+
 /// Python's representation of a JSON value, including dictionaries in error messages.
 pub fn py_repr(value: &Json) -> String {
     match value {

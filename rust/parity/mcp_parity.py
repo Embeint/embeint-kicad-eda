@@ -82,6 +82,9 @@ PORTED = [
     "live_schematic_item_schema",
     "live_pcb_item_schema",
     "live_pcb_documents",
+    "live_schematic_export",
+    "live_pcb_export",
+    "live_pcb_fab_package",
 ]
 
 # Short reply timeout for the fixtures, so lost replies are quick to exercise
@@ -901,6 +904,168 @@ def generic_scenarios():
 SCENARIOS.extend(list(generic_scenarios()))
 
 
+# ---- Manufacturing outputs (fab_package.py and fab.rs) ------------------------------------------
+
+def job_reply(status=None, message=""):
+    """A RunJobResponse after writing what KiCad would write for the export request."""
+    import fab_fixture
+    from board_client import bt
+
+    def respond(request):
+        export = registry.message_class(request.message.TypeName())()
+        request.message.Unpack(export)
+        names = {value.number: value.name for value in bt.BoardLayer.DESCRIPTOR.values}
+        if status is None:
+            fab_fixture.write_outputs(export, names)
+        result = registry.message_class("kiapi.common.types.RunJobResponse")(
+            status=status or 1, message=message)
+        result.output_path.append(export.job_settings.output_path)
+        return reply(result)
+    return respond
+
+
+def revision(modified=False, name="fx-1"):
+    return lambda r: reply(parse(editor.DocumentRevisionResponse, {"revision": name, "modified": modified}),
+                           revision=name)
+
+
+def drc_script(violations=(), state="TS_COMPLETED", error=""):
+    from board_client import board_tasks, tasks
+    script = [("StartDrcTask", lambda r: reply(tasks.StartTaskResponse(token=tasks.TaskToken(value="drc-1")))),
+              ("GetTaskStatus", lambda r: reply(tasks.TaskStatusResponse(state=tasks.TaskState.Value(state),
+                                                                         error_message=error)))]
+    if state == "TS_COMPLETED":
+        result = board_tasks.DrcTaskResult(ignored_count=2, excluded_count=1)
+        for kind, severity, text in violations:
+            result.violations.add(error_type=kind, severity=types.RuleSeverity.Value(severity), description=text)
+        script.append(("GetDrcTaskResult", lambda r: reply(result)))
+    return script
+
+
+def copper(count):
+    from board_client import bc
+    return ("GetBoardEnabledLayers", lambda r: reply(bc.BoardEnabledLayersResponse(copper_layer_count=count)))
+
+
+DEFAULT_JOBS = ["RunBoardJobExportGerbers", "RunBoardJobExportDrill", "RunBoardJobExportPosition",
+                "RunBoardJobExport3D", "RunBoardJobExportPdf", "RunSchematicJobExportBOM", "RunSchematicJobExportPdf"]
+PACKAGE = {"board_document": BOARD_DOC, "output_dir": "<out>"}
+
+
+def prepare_existing(out):
+    (out / "PnP").mkdir(parents=True)
+    (out / "PnP" / "old-pos.csv").write_text("old", newline="")
+    (out / "manifest.json").write_text("{}", newline="")
+
+
+def fab_scenarios():
+    yield scenario("pcb_export_kinds", [
+        ("live_pcb_export", {"board_document": BOARD_DOC, "kind": kind, "output_path": "<out>/x"})
+        for kind in ("gerbers", "drill", "position", "step", "pdf", "svg", "dxf", "ipc2581", "ipcd356", "odb",
+                     "stats", "dsn", "gencad", "idf")], [
+        (f"RunBoardJobExport{name}", lambda r: reply(registry.message_class("kiapi.common.types.RunJobResponse")(
+            status=1, output_path=["out"])))
+        for name in ("Gerbers", "Drill", "Position", "3D", "Pdf", "Svg", "Dxf", "Ipc2581", "IpcD356", "ODB", "Stats",
+                     "SpecctraDsn", "Gencad", "Idf")])
+    yield scenario("pcb_export_options", [
+        ("live_pcb_export", {"board_document": BOARD_DOC, "kind": "drill", "output_path": "<out>/",
+                             "options": {"units": "U_MM", "map_format": "DMF_PDF", "excellon": {"combine_pth_npth": False}}}),
+        ("live_pcb_export", {"board_document": BOARD_DOC, "kind": "pdf", "output_path": "<out>/a.pdf",
+                             "options": {"plotSettings": {"layers": ["BL_F_Fab"]}, "page_mode": None}}),
+        ("live_pcb_export", {"board_document": BOARD_DOC, "kind": "position", "output_path": "<out>/p.csv",
+                             "options": None})],
+        [("RunBoardJobExportDrill", job_reply()), ("RunBoardJobExportPdf", job_reply()),
+         ("RunBoardJobExportPosition", job_reply(status=3, message="no footprints"))])
+    yield scenario("export_refusals", [
+        ("live_pcb_export", {"board_document": BOARD_DOC, "kind": "brd", "output_path": "x"}),
+        ("live_pcb_export", {"board_document": BOARD_DOC, "kind": "drill", "output_path": "x",
+                             "options": {"job_settings": {"output_path": "/etc"}}}),
+        ("live_pcb_export", {"board_document": BOARD_DOC, "kind": "drill", "output_path": "x",
+                             "options": {"units": "U_FURLONG"}}),
+        ("live_pcb_export", {"board_document": BOARD_DOC, "kind": "gerbers", "output_path": "x",
+                             "options": {"absent": 1}}),
+        ("live_pcb_export", {"board_document": SHEET_DOC, "kind": "gerbers", "output_path": "x"}),
+        ("live_schematic_export", {"document_spec": SHEET_DOC, "kind": "brd", "output_path": "x"}),
+        ("live_schematic_export", {"document_spec": BOARD_DOC, "kind": "bom", "output_path": "x"}),
+        ("live_schematic_export", {"document_spec": SHEET_DOC, "kind": "bom", "output_path": "x",
+                                   "options": {"jobSettings": {}}})], [])
+    yield scenario("schematic_exports", [
+        ("live_schematic_export", {"document_spec": SHEET_DOC, "kind": kind, "output_path": "<out>/s",
+                                   **({"options": options} if options is not None else {})})
+        for kind, options in (("bom", None), ("bom", {"exclude_dnp": False, "fields": {"fields": [
+            {"name": "Reference", "label": "Ref"}]}}), ("netlist", None), ("pdf", {}), ("svg", None))],
+        [("RunSchematicJobExportBOM", job_reply()), ("RunSchematicJobExportBOM", job_reply()),
+         ("RunSchematicJobExportNetlist", job_reply()), ("RunSchematicJobExportPdf", job_reply()),
+         ("RunSchematicJobExportSvg", job_reply(status=3, message="plot failed"))])
+    full = [("GetDocumentRevision", revision()), ("GetOpenDocuments", lambda r: documents(SHEET_DOC)),
+            ("GetDocumentRevision", revision(name="fx-sch"))]
+    yield scenario("fab_package_full", [("live_pcb_fab_package", PACKAGE)],
+                   full + drc_script([(5, "RS_WARNING", "Silkscreen clipped")]) + [copper(4)]
+                   + [(name, job_reply()) for name in DEFAULT_JOBS])
+    yield scenario("fab_package_unsaved", [("live_pcb_fab_package", PACKAGE)],
+                   [("GetDocumentRevision", revision(True)), ("GetOpenDocuments", lambda r: documents(SHEET_DOC)),
+                    ("GetDocumentRevision", revision(True, "fx-sch"))])
+    yield scenario("fab_package_unsaved_allowed", [("live_pcb_fab_package", dict(
+        PACKAGE, outputs=["position", "bom"], allow_unsaved="yes", checks="false"))],
+        [("GetDocumentRevision", revision(True)), ("GetOpenDocuments", lambda r: documents(SHEET_DOC)),
+         ("GetDocumentRevision", revision(name="fx-sch")),
+         ("RunBoardJobExportPosition", job_reply()), ("RunSchematicJobExportBOM", job_reply())])
+    yield scenario("fab_package_drc_errors", [("live_pcb_fab_package", dict(PACKAGE, outputs=["gerbers", "drill"]))],
+                   [("GetDocumentRevision", revision())]
+                   + drc_script([(5, "RS_ERROR", "Clearance violation (0.1 mm < 0.2 mm)"),
+                                 (5, "RS_WARNING", "Clearance"), (12, "RS_ERROR", "Unconnected items")]))
+    yield scenario("fab_package_drc_failed", [("live_pcb_fab_package", dict(PACKAGE, outputs=["gerbers"]))],
+                   [("GetDocumentRevision", revision())]
+                   + drc_script(state="TS_FAILED", error="Zones need refilling"))
+    yield scenario("fab_package_options", [("live_pcb_fab_package", dict(
+        PACKAGE, outputs=["ipcd356", "gerbers", "odb", "ipc2581", "position"], checks=False, zip_gerbers=False,
+        options={"gerbers": {"plot_settings": {"layers": ["BL_F_Cu", "BL_Edge_Cuts"]}},
+                 "position": {"side": "PS_FRONT"}}))],
+        [("GetDocumentRevision", revision()), copper(2)]
+        + [(name, job_reply()) for name in ("RunBoardJobExportGerbers", "RunBoardJobExportPosition",
+                                            "RunBoardJobExportIpc2581", "RunBoardJobExportODB",
+                                            "RunBoardJobExportIpcD356")])
+    yield scenario("fab_package_export_fails", [("live_pcb_fab_package", dict(PACKAGE, outputs=["gerbers"],
+                                                                              checks=False))],
+                   [("GetDocumentRevision", revision()), copper(2),
+                    ("RunBoardJobExportGerbers", job_reply(status=3, message="Plot failed"))])
+    yield scenario("fab_package_no_schematic", [("live_pcb_fab_package", dict(PACKAGE, outputs=["bom"]))],
+                   [("GetDocumentRevision", revision()), ("GetOpenDocuments", lambda r: documents())])
+    trailing = dict(SHEET_DOC, project={"name": "parity", "path": "C:/fixture/parity\\"})
+    yield scenario("fab_package_schematic_path_separator", [("live_pcb_fab_package", dict(
+        PACKAGE, outputs=["bom"], checks=False))],
+        [("GetDocumentRevision", revision()),
+         ("GetOpenDocuments", lambda r: documents(dict(SHEET_DOC, project={"name": "other", "path": "C:/other"}),
+                                                  trailing)),
+         ("GetDocumentRevision", revision(name="fx-sch")), ("RunSchematicJobExportBOM", job_reply())])
+    yield scenario("fab_package_schematic_closed", [("live_pcb_fab_package", dict(PACKAGE, outputs=["bom"]))],
+                   [("GetDocumentRevision", revision()),
+                    ("GetOpenDocuments", lambda r: failure(envelope.AS_UNHANDLED, "no handler"))])
+    yield scenario("fab_package_given_schematic", [("live_pcb_fab_package", dict(
+        PACKAGE, outputs=["schematic_pdf"], schematic_document=SHEET_DOC, checks=0))],
+        [("GetDocumentRevision", revision()), ("GetDocumentRevision", revision(name="fx-sch")),
+         ("RunSchematicJobExportPdf", job_reply())])
+    yield scenario("fab_package_existing_outputs", [
+        ("live_pcb_fab_package", dict(PACKAGE, outputs=["position"], checks=False)),
+        ("live_pcb_fab_package", dict(PACKAGE, outputs=["position"], checks=False, overwrite=True))],
+        [("GetDocumentRevision", revision()), ("RunBoardJobExportPosition", job_reply())],
+        prepare=prepare_existing)
+    yield scenario("fab_package_refusals", [
+        ("live_pcb_fab_package", dict(PACKAGE, **arguments)) for arguments in (
+            {"outputs": ["gerber", "drill"]}, {"outputs": []}, {"options": {"odb": {}}},
+            {"options": {"drill": 3}}, {"options": {"drill": {"job_settings": {}}}},
+            {"options": {"drill": {"units": "U_FURLONG"}}}, {"output_dir": None, "board_document": dict(
+                BOARD_DOC, project={"name": "parity"})},
+            {"board_document": SHEET_DOC}, {"schematic_document": BOARD_DOC})], [])
+    yield scenario("fab_package_validation", [
+        ("live_pcb_fab_package", dict(PACKAGE, checks="maybe")),
+        ("live_pcb_fab_package", dict(PACKAGE, outputs="gerbers")),
+        ("live_pcb_fab_package", {"output_dir": "x"})], [], compare="error_prefix")
+
+
+SCENARIOS.extend(list(fab_scenarios()))
+
+
 class Peer:
     """A disposable NNG REP0 endpoint answering with a scenario's script."""
 
@@ -996,8 +1161,18 @@ async def run_scenario(item, make_params):
     between = {}
     if "stop_before" in item:
         between[item["stop_before"]] = peers[0].stop
+    # Outputs (exports) go to <dir>/out; "<out>" in the arguments names it
+    out = directory / "out"
+    steps = json.loads(json.dumps(item["steps"]).replace("<out>", json.dumps(str(out))[1:-1]))
+    if "prepare" in item:
+        item["prepare"](out)
+    written = {}
     try:
-        _, _, results = await run_session(make_params(server_env(env)), item["steps"], between)
+        _, _, results = await run_session(make_params(server_env(env)), steps, between)
+        # Everything the server wrote (manifest, zip), by content: both servers must write the same bytes
+        if out.is_dir():
+            written = {path.relative_to(out).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+                       for path in sorted(out.rglob("*")) if path.is_file()}
     finally:
         for peer in peers:
             if not peer.stop_event.is_set():
@@ -1007,10 +1182,12 @@ async def run_scenario(item, make_params):
     requests = [request_log(peer.requests, ids) for peer in peers]
     errors = [e for peer in peers for e in peer.errors]
     results = normalize(results, ids)
-    text = json.dumps(results)
-    if str(directory) in text:
-        results = json.loads(text.replace(json.dumps(str(directory))[1:-1], "<dir>"))
-    return {"requests": requests, "results": results, "errors": errors}
+    escaped = json.dumps(str(directory))[1:-1]
+    results = json.loads(json.dumps(results).replace(escaped, "<dir>"))
+    # The text of a tool result is JSON itself, so the directory appears escaped twice there
+    results = json.loads(json.dumps(results).replace(json.dumps(escaped)[1:-1], "<dir>"))
+    requests = json.loads(json.dumps(requests).replace(escaped, "<dir>"))
+    return {"requests": requests, "results": results, "errors": errors, "written": written}
 
 
 def results_match(item, python, rust):
@@ -1046,6 +1223,8 @@ def run_fixtures(binary, failures, only=None):
             problems.append("requests differ")
         if not results_match(item, python["results"], rust["results"]):
             problems.append("results differ")
+        if python["written"] != rust["written"]:
+            problems.append("written files differ")
         expected_requests = sum(1 for _ in item["script"])
         if len(python["requests"][0] if python["requests"] else []) != expected_requests:
             problems.append(f"Python sent {len(python['requests'][0]) if python['requests'] else 0} requests, "

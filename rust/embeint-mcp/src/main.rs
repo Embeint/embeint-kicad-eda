@@ -13,6 +13,7 @@
 //!   embeint-mcp --parity     JSON-lines interface for rust/parity/mcp_parity.py (internal)
 
 mod capabilities;
+mod fab;
 mod parity;
 mod server;
 mod tools;

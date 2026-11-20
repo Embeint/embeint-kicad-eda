@@ -41,6 +41,8 @@ These tools have the Python tools' names, schemas and results.
 | `live_schematic_execute` | native dispatch of every curated command, preserving its edit/file/read semantics |
 | `live_schematic_batch` | preflight all steps, then one commit; reject mismatched documents and non-transactional edits |
 | `live_schematic_item_schema`, `live_pcb_item_schema` | offline protobuf item descriptors and enum choices |
+| `live_schematic_export`, `live_pcb_export` | job: one export from the live design, defaults with caller `options` merged over them |
+| `live_pcb_fab_package` | job: saved-state and DRC checks, every fab and assembly output, verification of the files, manifest and Gerber zip |
 
 The item edits and batches use the transaction contract in
 [REVISIONS.md](../tools/live_schematic_mcp/REVISIONS.md):
@@ -67,8 +69,8 @@ for example `C:\kb\install\mcp\embeint-mcp.exe`.
 
 The server finds KiCad as the Python server does. `KICAD_API_SOCKET` and `KICAD_API_TOKEN` select
 an instance explicitly. `KICAD_API_TIMEOUT_MS` sets the reply timeout (1 to 600000 ms, default
-15000); both servers read it. Register it next to the Python server: it has 16 of
-the 115 tools.
+15000); both servers read it. Register it next to the Python server: it has 19 of
+the 116 tools.
 
 ## How parity is checked
 
@@ -137,6 +139,21 @@ MCP client.
     revisions fail, and real lost commit replies reconcile without resending edits.
 
 ## Results (2026-11-20)
+
+### Manufacturing outputs
+
+`live_schematic_export`, `live_pcb_export` and `live_pcb_fab_package` are ported natively
+(`embeint-mcp/src/fab.rs`, a port of `tools/live_schematic_mcp/fab_package.py`). The package's
+pre-checks, request order, file checks, warnings and result keys are Python's. Its manifest and
+the stored (uncompressed), reproducible Gerber zip are byte-identical between the two servers. The
+fixture peers write realistic outputs (`fab_fixture.py`: Gerber job file, Excellon, placement
+CSV and BOM). The harness compares the hashes of every file each server writes, as well as the
+requests and results. The fixtures cover every export kind, options, refusals, the full package,
+unsaved and DRC blocks, a failed DRC task, export failures, schematic matching (including KiCad's
+trailing separator on the schematic's project path), existing outputs with and without
+`overwrite`, and argument validation. On Windows the full offline run passed 263/263 scenarios;
+after the fix for the trailing separator, the 18 export and package scenarios (one of them new)
+were run again and passed. These tools have not yet been compared against a live KiCad.
 
 The table below records the original eight-tool slice. The later shared-command expansion
 has 16 tools and all 147 generic command definitions. Its native Windows live comparison

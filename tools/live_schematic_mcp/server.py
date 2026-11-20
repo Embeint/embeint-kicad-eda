@@ -369,9 +369,17 @@ def live_schematic_highlight_nets(document_spec: dict, nets: list[str]) -> dict:
 
 
 @mcp.tool()
-def live_schematic_export(document_spec: dict, kind: str, output_path: str) -> dict:
-    """Export the unsaved schematic as svg, pdf, dxf, ps, netlist or bom to a path KiCad can write."""
-    return client.export(document(document_spec), kind, output_path)
+def live_schematic_export(document_spec: dict, kind: str, output_path: str, options: dict | None = None) -> dict:
+    """Export the unsaved schematic as svg, pdf, dxf, ps, netlist or bom to a path KiCad can write.
+
+    The bom is orderable by default: CSV, one line per part grouped by Value, Footprint,
+    Manufacturer and MPN, every reference listed, DNP parts left out (columns Reference, Qty, Value,
+    Footprint, Manufacturer, MPN, Alt Manufacturer, Alt MPN, Description, Datasheet). options is
+    protobuf JSON of the kind's RunSchematicJobExport* message (live_schematic_describe_command),
+    merged over the defaults; a list replaces the default list, e.g. {"exclude_dnp": false} or
+    {"fields": {"fields": [{"name": "Reference", "label": "Ref"}]}}. job_settings is not accepted.
+    """
+    return client.export(document(document_spec), kind, output_path, options)
 
 
 @mcp.tool()
@@ -1260,13 +1268,51 @@ def live_pcb_focus(board_document: dict, references: list[str] | None = None,
 
 
 @mcp.tool()
-def live_pcb_export(board_document: dict, kind: str, output_path: str) -> dict:
+def live_pcb_export(board_document: dict, kind: str, output_path: str, options: dict | None = None) -> dict:
     """Export from the live board (unsaved edits included) to a folder or file KiCad can write.
 
     kind: gerbers | drill | position | step | pdf | svg | dxf | ipc2581 | ipcd356 | odb | stats | dsn |
-    gencad | idf. Gerbers and drill take an output folder.
+    gencad | idf. Gerbers and drill take an output folder. options is protobuf JSON of the kind's
+    RunBoardJobExport* message (live_schematic_describe_command), merged over the defaults; a list
+    replaces the default list. Examples: drill {"units": "U_MM", "map_format": "DMF_PDF",
+    "excellon": {"combine_pth_npth": false}}; position {"format": "PF_CSV", "side": "PS_BOTH",
+    "single_file": true, "exclude_dnp": true}; pdf {"plot_settings": {"layers": ["BL_F_Fab",
+    "BL_Edge_Cuts"]}}; step {"format": "B3D_GLB"}; ipc2581 {"manufacturer_part_number_column":
+    "MPN"}. job_settings is not accepted. For a complete fab and assembly set use
+    live_pcb_fab_package.
     """
-    return client.board_export(board(board_document), kind, output_path)
+    return client.board_export(board(board_document), kind, output_path, options)
+
+
+@mcp.tool()
+def live_pcb_fab_package(board_document: dict, output_dir: str | None = None, schematic_document: dict | None = None,
+                         outputs: list[str] | None = None, options: dict | None = None, checks: bool = True,
+                         allow_unsaved: bool = False, overwrite: bool = False, zip_gerbers: bool = True) -> dict:
+    """Build the manufacturing package: check the design, export every fab and assembly output, check
+    what was written, and write a manifest and a zip of the Gerbers folder.
+
+    output_dir defaults to <project>/Outputs. Folders: Gerbers (X2 Gerbers of every copper layer,
+    mask, paste, silkscreen and Edge.Cuts with a job file; Excellon drill in mm with separate
+    PTH/NPTH, drill map PDF and drill report), PnP (<project>-pos.csv:
+    CSV, mm, both sides, DNP left out), STEP, Assembly (fab layers PDF, one page per side), BOM
+    (orderable CSV as live_schematic_export bom), Schematic (PDF); optional IPC-2581 (with MPN and
+    Manufacturer), ODB (zip) and Netlist (IPC-D-356). outputs selects from gerbers, drill, position,
+    step, assembly_pdf, ipc2581, odb, ipcd356, bom, schematic_pdf (default: all but ipc2581, odb
+    and ipcd356). options maps an output to protobuf JSON merged over its default (as for
+    live_pcb_export). Files come from the absolute board origin.
+
+    Before exporting: the board (and schematic, for bom/schematic_pdf; the project's open schematic
+    unless schematic_document is given) must be saved unless allow_unsaved, and with checks DRC
+    with schematic parity must report no errors (zones must be filled). A blocked package returns
+    exported=false with blocked_by (unsaved or drc) and writes nothing. Existing outputs are
+    replaced only with overwrite. After exporting, verification reports the plotted copper layers
+    against the board, drill holes, placements per side, BOM lines, parts without an MPN and parts
+    in the BOM without a placement; warnings lists what a fab or assembler would query.
+    """
+    spec = board(board_document)
+    sheet = document(schematic_document) if schematic_document is not None else None
+    return client.fab_package(spec, output_dir, sheet, outputs, options, checks, allow_unsaved, overwrite,
+                              zip_gerbers)
 
 
 def any_editor_document(spec):

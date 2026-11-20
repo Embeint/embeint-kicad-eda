@@ -15,6 +15,7 @@ from google.protobuf import json_format
 
 from board_client import BoardTools, board_document  # noqa: F401
 from board_design import BoardDesignTools
+from fab_package import FabPackageTools
 from footprint_client import FootprintTools, footprint_document, library_kind  # noqa: F401
 from instance_discovery import (DiscoveryError, default_socket_url, local_socket_path,
                                 select_instance, socket_reachability)
@@ -215,7 +216,7 @@ OUTWARD = {sch.SPO_RIGHT: (-1, 0), sch.SPO_LEFT: (1, 0), sch.SPO_UP: (0, 1), sch
 SPIN_FOR = {(-1, 0): sch.SLSS_LEFT, (1, 0): sch.SLSS_RIGHT, (0, 1): sch.SLSS_BOTTOM, (0, -1): sch.SLSS_UP}
 
 
-class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
+class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools, FabPackageTools):
     def __init__(self, socket_url=None, timeout_ms=None):
         self.socket_url = socket_url or os.environ.get("KICAD_API_SOCKET")
         explicit_socket = bool(self.socket_url)
@@ -779,22 +780,12 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
         response = self.send(cross_probe.HighlightNets(net_name=list(nets)), cross_probe.HighlightNetsResponse)
         return as_dict(response)
 
-    def export(self, doc, kind, output_path):
-        """Export the unsaved design (svg, pdf, dxf, ps, netlist, bom) to a file KiCad can write."""
-        classes = {"svg": sch_jobs.RunSchematicJobExportSvg, "pdf": sch_jobs.RunSchematicJobExportPdf,
-                   "dxf": sch_jobs.RunSchematicJobExportDxf, "ps": sch_jobs.RunSchematicJobExportPs,
-                   "netlist": sch_jobs.RunSchematicJobExportNetlist,
-                   "bom": sch_jobs.RunSchematicJobExportBOM}
-        if kind not in classes:
-            raise ValueError(f"kind must be one of {list(classes)}")
-        request = classes[kind]()
-        if kind == "netlist":
-            request.format = sch_jobs.SNF_KICAD_SEXPR
-        elif kind == "bom":
-            request.format.preset_name = "CSV"
-            request.fields.sort_field = "Reference"
-            for name in ("Reference", "Value", "Footprint", "Datasheet"):
-                request.fields.fields.add(name=name, label=name)
+    def export(self, doc, kind, output_path, options=None):
+        """Export the unsaved design (svg, pdf, dxf, ps, netlist, bom) to a file KiCad can write.
+        options (protobuf JSON of the kind's RunSchematicJobExport* message) are merged over the
+        defaults; the BOM default is orderable (fab_package.BOM_DEFAULT)."""
+        from fab_package import SCHEMATIC_EXPORT_DEFAULTS, SCHEMATIC_EXPORTS, export_request
+        request = export_request(SCHEMATIC_EXPORTS, SCHEMATIC_EXPORT_DEFAULTS, kind, options)
         request.job_settings.document.CopyFrom(doc)
         request.job_settings.output_path = str(output_path)
         response = self.send(request, jobs.RunJobResponse)

@@ -94,7 +94,7 @@ This is scoped route validation, not a claim that the whole board is DRC-clean.
 | `live_schematic_netlist` | Live nets with their `REF.PIN` members across every sheet, and the pins on each sheet path (`scope="sheet"`: pins of the given sheet only) |
 | `live_schematic_erc` | Electrical rules check of the unsaved design |
 | `live_schematic_select` / `_highlight_nets` | Show items or nets to the user in the editor |
-| `live_schematic_export` | SVG, PDF, DXF, PS, netlist or BOM from the unsaved design |
+| `live_schematic_export` | SVG, PDF, DXF, PS, netlist or BOM from the unsaved design; the BOM is orderable by default (grouped by value, footprint, manufacturer and MPN, DNP left out), and `options` changes any field of the export job |
 | `live_kicad_cli` | Read-only kicad-cli on saved files (ERC, DRC, netlist and other exports) in the environment the running KiCad was launched with; see [kicad-cli](#kicad-cli) for what it refuses |
 | `live_schematic_list_commands` / `_describe_command` / `_execute` | Every IPC command KiCad registers, by name |
 | `live_schematic_batch` | Several commands as one undo step, all rolled back if any fails |
@@ -244,7 +244,8 @@ hosts the schematic and PCB editors in one process; `live_pcb_open` opens the pr
 | `live_pcb_impedance_width` / `live_pcb_rf_net` | Controlled-impedance width (microstrip, CPWG) from the stackup; RF/antenna net class, assignment and isolation rule |
 | `live_pcb_drc` / `live_pcb_check` | Design rules check; the same grouped as clearance, keepout, silkscreen, courtyard, connectivity, manufacturing, schematic |
 | `live_pcb_select` / `live_pcb_focus` / `live_pcb_undo` | Show footprints or items in the editor; undo and redo |
-| `live_pcb_export` | Gerbers, drill, position, STEP, PDF, SVG, DXF, IPC-2581, IPC-D-356, ODB++, DSN and more from the live board |
+| `live_pcb_export` | Gerbers, drill, position, STEP, PDF, SVG, DXF, IPC-2581, IPC-D-356, ODB++, DSN and more from the live board; `options` sets any field of the export job (units, formats, layers, origins) |
+| `live_pcb_fab_package` | The manufacturing package in `<project>/Outputs`: refuses unsaved designs and DRC errors, exports Gerbers and drill (with a Gerber zip), placement CSV, orderable BOM, schematic and assembly PDFs and STEP (IPC-2581, ODB++ and IPC-D-356 on request), checks them (copper layers, holes, placements against the BOM, missing MPNs) and writes a manifest |
 | `live_pcb_save` | Explicit save, only when asked |
 
 `live_schematic_execute` and `live_schematic_batch` also take every board command (see
