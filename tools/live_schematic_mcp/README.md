@@ -339,7 +339,12 @@ the API in Preferences > Plugins (Enable KiCad API). The MCP finds the pipe in y
 directory; to name an instance explicitly, set `KICAD_API_SOCKET` to the exact endpoint
 `scripts\wait_ready.ps1` prints (pipe names are literal: `C:\Users\LONGNA~1\...` and
 `C:\Users\LongName\...` are different pipes). `python diagnose.py --probe` lists and probes
-the candidates.
+the candidates. `KICAD_API_TIMEOUT_MS` sets how long a request waits for its reply (1 to 600000 ms,
+default 15000). A lost reply is never resent: edits are reconciled as described in REVISIONS.md.
+
+A native Rust server with the same names and results for discovery, the read-only document tools
+and `live_schematic_create_items` is in `rust/` ([rust/MCP.md](../../rust/MCP.md)). It is compared
+with this server, which stays the reference and provides every tool.
 
 Register the MCP server (stdout carries only MCP messages):
 

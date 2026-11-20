@@ -31,6 +31,7 @@ requests (see the root `AGENTS.md`).
 | Client: rules, net classes, stackup, RF, checks, routing | `tools/live_schematic_mcp/board_design.py` |
 | Router (shapely grid A*, no KiCad calls) / impedance maths | `board_router.py`, `board_rf.py` |
 | Symbol pin layout / footprint generator / SolidCraft plans | `symbol_layout.py`, `footprint_gen.py`, `model_handoff.py` |
+| Native Rust MCP (gate 4: discovery, reads, create_items) and its parity harness | `rust/embeint-ipc`, `rust/embeint-mcp`, `rust/parity/mcp_parity.py` ([rust/MCP.md](../../rust/MCP.md)) |
 | Generic command registry (execute/batch) | `tools/live_schematic_mcp/commands.py` |
 | Protocol additions | `api/proto/schematic/schematic_commands.proto`, `api/proto/board/board_commands.proto`, `api/proto/common/commands/{editor,library}_commands.proto` |
 | Schematic editor commands | `eeschema/api/api_handler_sch.cpp` |

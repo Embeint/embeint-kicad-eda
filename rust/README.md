@@ -13,10 +13,11 @@ Python remains the default.
 | `embeint-web` | Thin WebAssembly binding (`cdylib`): a three-function C-style ABI plus `js/embeint_layout.mjs`, which loads it in a browser, a Web Worker or Node.js without a binding generator. The ABI packs a 32-bit pointer into its return value, so the functions are only exported on 32-bit targets such as wasm32; a native build exports nothing. |
 | `embeint-layout-cli` | Native runner (`embeint-layout` binary): one JSON request per stdin line, used by the parity harness. Process I/O lives here so the library stays portable. |
 | `parity/` | `parity.py` (harness and Python reference adapter), `cases.json` (fixed examples), `run_wasm.mjs` (Node runner). |
+| `embeint-ipc`, `embeint-mcp` | Roadmap gate 4: a native MCP server with instance discovery, the read-only document tools and `live_schematic_create_items`, compared with the Python server by `parity/mcp_parity.py`. See [MCP.md](MCP.md). |
 
 The workspace is a top-level `rust/` directory, not part of `tools/live_schematic_mcp`. The
-roadmap's later crates (`embeint-design`, `embeint-ipc`, `embeint-mcp`) belong to the product, not
-to the Python MCP tool. Upstream KiCad has no `rust/` directory, so upstream merges cannot conflict
+roadmap's later crates (`embeint-design`, and now `embeint-ipc` and `embeint-mcp`) belong to the
+product, not to the Python MCP tool. Upstream KiCad has no `rust/` directory, so upstream merges cannot conflict
 with it. It is also outside KiCad's CMake build and outside the directory where pytest collects
 `test_*.py`.
 
@@ -191,8 +192,8 @@ The JavaScript loader, the Node runner and the harness use only the platform's s
   the fallback). On 2026-11-20 on Windows, shadow mode matched Python on all 801 generated, typed
   and 256-pin requests (562 layouts and 239 errors), with no fallbacks, at about 25 ms a call
   (mostly process start). `test_layout_backend.py` checks the fixed cases against the real runner
-  whenever one is built. Making Rust the default needs shadow results from real design work,
-  and the runner in the bundled MCP package, which `package_mcp.py` does not ship yet.
+  whenever one is built. Making Rust the default needs shadow results from real design work.
+  `package_mcp.py --rust` ships the runner in the bundled MCP package (see [MCP.md](MCP.md#packaging-and-release)).
 - **Python `repr()` of unassigned code points.** Rust has no Unicode category tables, so it treats
   unassigned code points as printable, where Python escapes them. This only affects the "needs a
   number" message for a pin whose strings contain such characters. `str.upper()` follows the Unicode
