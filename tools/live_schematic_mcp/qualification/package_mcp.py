@@ -91,6 +91,9 @@ def main():
     parser.add_argument("--source-revision", help="source archive's full commit hash when Git metadata is absent")
     parser.add_argument("--application-version",
                         help="version of the KiCad build this package ships with (e.g. kicad-cli version)")
+    parser.add_argument("--rust", action="store_true",
+                        help="also build and bundle the native Rust MCP server and layout runner "
+                             "(needs cargo; see rust_bundle.py)")
     args = parser.parse_args()
     if not sys.flags.isolated or sys.prefix == sys.base_prefix:
         parser.error("use a dedicated virtual environment and invoke python -I")
@@ -101,6 +104,8 @@ def main():
     output = args.output.resolve()
     if output.exists():
         parser.error("output already exists; choose a new directory")
+    if args.rust and shutil.which("cargo") is None:
+        parser.error("--rust needs cargo (a Rust toolchain) on PATH")
     import ssl
     installed = {dist.metadata["Name"]: dist.version for dist in importlib.metadata.distributions()}
     problems = notice_mismatches(notice_manifest(), installed, ssl.OPENSSL_VERSION_INFO)
@@ -186,6 +191,12 @@ def main():
         protocol_sources = {str(path.relative_to(MCP.parents[1])): sha256(path.read_bytes()).hexdigest()
                             for path in sorted((MCP.parents[1] / "api/proto").rglob("*.proto"))}
         mcp_version = f"{ADAPTER_VERSION}+g{revision[:10]}" + (".dirty" if dirty else "")
+        rust = None
+        if args.rust:
+            sys.path.insert(0, str(Path(__file__).resolve().parent))  # -I leaves the script's folder out
+            import rust_bundle
+            rust = rust_bundle.bundle(package, os.name == "nt",
+                                      f"g{revision[:10]}" + (".dirty" if dirty else ""))
         info = {"mcp_version": mcp_version, "application_version": args.application_version,
                 "source_revision": revision, "source_dirty": dirty, "source_sha256": sources,
                 "revision_source": revision_source, "protocol_source_sha256": protocol_sources,
@@ -194,6 +205,8 @@ def main():
                 "skills": skill_content,
                 "dependencies": dict(sorted(distributions.items())),
                 "openssl_version": ssl.OPENSSL_VERSION, "third_party_notices": notice_manifest()}
+        if rust is not None:
+            info["rust"] = rust
         (package / "build-info.json").write_text(json.dumps(info, indent=2, sort_keys=True) + "\n")
         shutil.move(str(package), output)
     print(output)

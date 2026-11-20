@@ -347,3 +347,38 @@ def test_stdio_sdk_can_close_its_buffers_without_closing_process_streams(monkeyp
         stdout.flush()
         stdout.seek(0)
         assert stdout.read() == '{"jsonrpc":"2.0"}\n'
+
+
+def test_rust_bundle_reads_cargo_tree_and_ships_every_licence(tmp_path):
+    """The crates linked into the bundled Rust binaries each ship their licence files, plus the
+    standard library's notices; a crate without one stops the build."""
+    from qualification import rust_bundle
+
+    tree = "embeint-mcp v0.1.0 (C:\src\rust\embeint-mcp)\ntokio v1.54.1\nbytes v1.12.2 (*)\n\nmemchr v2.8.3\n"
+    assert rust_bundle.parse_tree(tree) == {("embeint-mcp", "0.1.0"), ("tokio", "1.54.1"),
+                                            ("bytes", "1.12.2"), ("memchr", "2.8.3")}
+    tokio = tmp_path / "registry/tokio-1.54.1"
+    memchr = tmp_path / "registry/memchr-2.8.3"
+    for root, names in ((tokio, ["LICENSE", "README.md"]), (memchr, ["COPYING", "UNLICENSE", "LICENSE-MIT"])):
+        root.mkdir(parents=True)
+        for name in names:
+            (root / name).write_text(name)
+    sysroot = tmp_path / "sysroot"
+    (sysroot / "share/doc/rust/licenses").mkdir(parents=True)
+    (sysroot / "share/doc/rust/COPYRIGHT-library.html").write_text("std")
+    (sysroot / "share/doc/rust/licenses/MIT.txt").write_text("MIT")
+    crates = [{"name": "tokio", "version": "1.54.1", "license": "MIT", "root": tokio},
+              {"name": "memchr", "version": "2.8.3", "license": "Unlicense OR MIT", "root": memchr}]
+    listed = rust_bundle.copy_notices(crates, tmp_path / "out", sysroot)
+    assert [entry["files"] for entry in listed] == [["LICENSE"], ["COPYING", "LICENSE-MIT", "UNLICENSE"]]
+    assert (tmp_path / "out/tokio-1.54.1/LICENSE").read_text() == "LICENSE"
+    assert (tmp_path / "out/rust-standard-library/licenses/MIT.txt").is_file()
+    assert "memchr 2.8.3: Unlicense OR MIT" in (tmp_path / "out/README.txt").read_text()
+
+    bare = tmp_path / "registry/bare-1.0.0"
+    bare.mkdir()
+    with pytest.raises(RuntimeError, match="bare 1.0.0 has no licence file"):
+        rust_bundle.copy_notices([{"name": "bare", "version": "1.0.0", "license": "MIT", "root": bare}],
+                                 tmp_path / "out2", sysroot)
+    with pytest.raises(RuntimeError, match="COPYRIGHT-library.html"):
+        rust_bundle.copy_notices([], tmp_path / "out3", tmp_path / "no-sysroot")

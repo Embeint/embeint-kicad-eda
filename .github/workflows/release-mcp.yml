@@ -1,0 +1,171 @@
+name: MCP release bundle
+
+# Builds the MCP package (tools/live_schematic_mcp/qualification/README.md, "Freeze and check
+# MCP") on each platform: the frozen Python server with its runtime, plus the native Rust server
+# (embeint-mcp) and layout runner (embeint-layout), with all licence notices and build-info.json.
+# Every package is checked from an empty directory with check_package.py, after the Python/Rust
+# parity suite has passed on that platform.  KiCad itself is not built here: a KiCad build does not
+# fit a hosted runner, so the application is built and qualified separately and the package is
+# installed beside it (build_windows.ps1 installs it as install\mcp).
+#
+# A tag mcp-v* (or a manual run with release_tag) also creates a *draft* GitHub release with the
+# archives and their SHA-256 sums.  A person reviews and publishes it.
+on:
+  push:
+    tags: ["mcp-v*"]
+  pull_request:
+    paths:
+      - "tools/live_schematic_mcp/qualification/package_mcp.py"
+      - "tools/live_schematic_mcp/qualification/rust_bundle.py"
+      - "tools/live_schematic_mcp/qualification/check_package.py"
+      - "tools/live_schematic_mcp/qualification/packaged_main.py"
+      - "tools/live_schematic_mcp/qualification/notices/**"
+      - "tools/live_schematic_mcp/requirements.txt"
+      - ".github/workflows/release-mcp.yml"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Create a draft release for this existing tag (empty: build and check only)"
+        required: false
+        default: ""
+      application_version:
+        description: "KiCad version the package is meant for (recorded in build-info.json)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+env:
+  # The same pinned toolchain as rust-layout.yml and rust-mcp.yml
+  RUST_TOOLCHAIN: "1.99.1"
+
+jobs:
+  bundle:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-2022, platform: windows-x86_64, exe: ".exe", archive: zip }
+          - { os: ubuntu-24.04, platform: linux-x86_64, exe: "", archive: gztar }
+          - { os: ubuntu-24.04-arm, platform: linux-arm64, exe: "", archive: gztar }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Install the Rust toolchain
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
+          rustup default "$RUST_TOOLCHAIN"
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4.3.0
+        with:
+          path: |
+            ~/.cargo/registry
+            rust/target
+          key: release-mcp-${{ matrix.platform }}-${{ env.RUST_TOOLCHAIN }}-${{ hashFiles('rust/Cargo.lock') }}
+      # A dedicated virtual environment, as package_mcp.py requires (it refuses the base interpreter).
+      # It and every output live outside the checkout: an untracked file there would mark the
+      # package's version .dirty.
+      - name: Create the build environment
+        run: |
+          python -m venv "$RUNNER_TEMP/build-venv"
+          if [ -x "$RUNNER_TEMP/build-venv/Scripts/python.exe" ]; then
+            echo "PY=$RUNNER_TEMP/build-venv/Scripts/python.exe" >> "$GITHUB_ENV"
+          else
+            echo "PY=$RUNNER_TEMP/build-venv/bin/python" >> "$GITHUB_ENV"
+          fi
+          echo "OUT=$RUNNER_TEMP/out" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/out"
+      - name: Install the MCP and PyInstaller
+        run: |
+          "$PY" -m pip install --disable-pip-version-check -r tools/live_schematic_mcp/requirements.txt "pyinstaller>=6.16,<7"
+          "$PY" tools/live_schematic_mcp/generate_proto.py
+      - name: Rust unit tests
+        working-directory: rust
+        run: cargo test --locked --release -p embeint-ipc -p embeint-mcp -p embeint-layout
+      - name: Python and Rust MCP parity on this platform
+        run: '"$PY" rust/parity/mcp_parity.py --build --report "$OUT/parity-${{ matrix.platform }}.json"'
+      - name: Freeze the package
+        env:
+          APPLICATION_VERSION: ${{ inputs.application_version }}
+        run: |
+          args=("$RUNNER_TEMP/dist/embeint-kicad-mcp" --rust)
+          if [ -n "$APPLICATION_VERSION" ]; then args+=(--application-version "$APPLICATION_VERSION"); fi
+          "$PY" -I tools/live_schematic_mcp/qualification/package_mcp.py "${args[@]}"
+      - name: Check the package from an empty directory
+        run: |
+          "$PY" -I tools/live_schematic_mcp/qualification/check_package.py \
+              "$RUNNER_TEMP/dist/embeint-kicad-mcp/embeint-kicad-mcp${{ matrix.exe }}" > "$OUT/check-${{ matrix.platform }}.json"
+          cat "$OUT/check-${{ matrix.platform }}.json"
+          cp "$RUNNER_TEMP/dist/embeint-kicad-mcp/build-info.json" "$OUT/build-info-${{ matrix.platform }}.json"
+      - name: Archive
+        run: |
+          "$PY" - <<'EOF'
+          import json, os, shutil
+          dist = os.path.join(os.environ["RUNNER_TEMP"], "dist")
+          info = json.load(open(os.path.join(dist, "embeint-kicad-mcp", "build-info.json"), encoding="utf-8"))
+          # 0.1.0+gabcdef0123 -> 0.1.0-gabcdef0123 (a + is awkward in file names and URLs)
+          version = info["mcp_version"].replace("+", "-")
+          name = f"embeint-kicad-mcp-{version}-${{ matrix.platform }}"
+          print(shutil.make_archive(os.path.join(os.environ["OUT"], name), "${{ matrix.archive }}", dist,
+                                    "embeint-kicad-mcp"))
+          EOF
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: embeint-kicad-mcp-${{ matrix.platform }}
+          path: ${{ runner.temp }}/out/
+          if-no-files-found: error
+
+  release:
+    needs: bundle
+    if: startsWith(github.ref, 'refs/tags/mcp-v') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        with:
+          path: artifacts
+      - name: Create a draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          mkdir release
+          find artifacts -name 'embeint-kicad-mcp-*' \( -name '*.zip' -o -name '*.tar.gz' \) -exec cp {} release/ \;
+          for platform in windows-x86_64 linux-x86_64 linux-arm64; do
+            cp "artifacts/embeint-kicad-mcp-$platform/check-$platform.json" \
+               "artifacts/embeint-kicad-mcp-$platform/build-info-$platform.json" release/
+          done
+          (cd release && sha256sum embeint-kicad-mcp-* > SHA256SUMS)
+          info=artifacts/embeint-kicad-mcp-linux-x86_64/build-info-linux-x86_64.json
+          python3 - "$info" > notes.md <<'EOF'
+          import json, sys
+          info = json.load(open(sys.argv[1], encoding="utf-8"))
+          rust = info.get("rust", {})
+          # Fields of the Python package and of the native server, for the release text
+          print(f"""Embeint KiCad MCP package {info['mcp_version']}, built from {info['source_revision']}.
+
+          Each archive holds the frozen Python MCP server (`embeint-kicad-mcp`, {info['tool_count']} tools,
+          schema `{info['schema_sha256']}`) with its own Python runtime, and the native Rust server
+          (`embeint-mcp` {rust.get('mcp', {}).get('server_version')}, {rust.get('mcp', {}).get('tool_count')} tools)
+          and pin layout runner (`embeint-layout`), built with {rust.get('rustc')}. Licence notices are in
+          `licenses/`; `build-info.json` records versions, hashes and sources.
+
+          The Python server remains the default and provides every tool. Register `embeint-mcp`
+          separately to use the native server for the tools it implements (rust/MCP.md).
+
+          KiCad itself is not included; install the package beside the matching Embeint KiCad build.
+          Each platform's package was checked from an empty directory (check-*.json) after the
+          Python/Rust parity suite passed on that platform.""")
+          EOF
+          gh release create "$TAG" --repo "$REPO" --draft --verify-tag \
+              --title "Embeint KiCad MCP $TAG" --notes-file notes.md release/*
