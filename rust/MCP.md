@@ -80,14 +80,14 @@ MCP client.
 - **Manifest.** Each Rust command entry equals `commands.describe()`. Its `schema_sha256` is
   Python's hash of the same inventory: `canonical_json` reproduces `json.dumps(sort_keys=True)`,
   including the ASCII escaping.
-- **Codec.** 101 fixed cases go through `embeint-mcp --parity` and through the Python functions it
+- **Codec.** 109 fixed cases go through `embeint-mcp --parity` and through the Python functions it
   ports, and must match exactly. They cover protobuf JSON in both directions (well-formed and
   malformed: unknown fields, bad integers, enums, oneofs, maps, `Any`, `FieldMask`), `parse_items`,
   the document checks, endpoint URL validation for both platforms, Windows pipe candidates and the
   temp-directory rule. Refusals must match too, message included.
 - **Discovery.** `instance_discovery.py` and `embeint-mcp --discover` must give the same inventory
   on the host's real endpoints.
-- **Protocol fixtures.** There are 62 scenarios, each served by a disposable NNG REP0 peer that
+- **Protocol fixtures.** There are 72 scenarios, each served by a disposable NNG REP0 peer that
   answers with real protobuf envelopes. The requests the peer receives must be identical from both
   servers, and so must the tool results, text included. Client names and generated operation ids
   are normalised. The scenarios cover:
@@ -97,7 +97,7 @@ MCP client.
   - the transaction: commit, rejected items, a partial acknowledgement, a refused step, an
     unconfirmed rollback, a lost step reply, stale revision, duplicate operation, and a conflict at
     commit;
-  - every lost-reply path for `BeginCommit` and `EndCommit`, including in-progress commits settled
+  - lost-reply paths for `BeginCommit` and `EndCommit`, including in-progress commits settled
     by a drop, a lost drop, and a lost or refused status query;
   - argument validation;
   - endpoint discovery: no editor, one instance, a `api-<pid>` endpoint, two instances
@@ -125,20 +125,24 @@ MCP client.
 
 | Host | Python | Rust | Fixtures | Codec | Live |
 | --- | --- | --- | --- | --- | --- |
-| Windows 11, x86_64 MSVC | 3.12.0 | 1.99.0 | 62/62 identical | 101/101, refusal texts included | 45/45 checks |
-| WSL Ubuntu, x86_64 | 3.14.4 | 1.99.1 | 62/62 identical | 101/101, refusal texts included | 45/45 checks |
+| Windows 11, x86_64 MSVC | 3.12.0 | 1.99.0 | 72/72 identical | 109/109, refusal texts included | 45/45 before review fixes |
+| WSL Ubuntu, x86_64 | 3.14.4 | 1.99.1 | 72/72 identical | 109/109, refusal texts included | 46/46 after review fixes |
 
 The Windows live run used the native build installed from `main` (`C:\kb\install`, 10.99.0), started
 with `run_kicad_windows.ps1`. It read 11 items of 7 types, including two placed `Device` symbols.
-Two small changes came after it: the server now ignores JSON-RPC responses, and the harness removes
-its scratch directories. Neither changes a tool path. The offline suites were run again on both hosts
-after them. A repeat Windows live run was interrupted: something asked the test KiCad to close, and
-its "Save Changes?" dialog made the API answer `AS_BUSY`.
+The later review fixes were checked offline on Windows and live on Linux. A repeat Windows live
+run was interrupted earlier: something asked the test KiCad to close, and its "Save Changes?"
+dialog made the API answer `AS_BUSY`. The Windows live count therefore describes the earlier code.
 
-The Linux live run came after those changes. It used the WSL build in `~/kicad-live/install`
+The Linux live run after the review fixes used the WSL build in `~/kicad-live/install`
 (10.99.0), started with `run_kicad_wsl.sh` under a private `TMPDIR`, so other MCP servers in WSL
 could not find it. It read 10 items of 7 types, and the lost replies were real KiCad replies over a
 Unix socket.
+
+Review regression coverage includes disconnected Windows pipes, decimal/exponent integer strings,
+invalid float strings, nested `Any` bounds, token changes after pinning and ten additional
+transaction/disconnect scenarios. Codec refusal differences now fail the run. The live harness
+records forwarding failures and refuses undo cleanup when other test additions remain.
 
 The schema check compares the 8 ported tools against the Python server's 115. The unit tests
 (`cargo test -p embeint-ipc -p embeint-mcp`) pass on both hosts; clippy with `-D warnings` and
@@ -161,9 +165,19 @@ Responsiveness against the live KiCad on Windows (median of 40 calls, same sessi
 - **Validation text.** Arguments that fail FastMCP's pydantic validation are refused with an error
   in the same form (`Error executing tool <name>: N validation error(s) for <name>Arguments ...`).
   pydantic's exact wording is not reproduced.
-- **A connection closed before the reply** is the same error class as a lost reply, and is
-  reconciled the same way. The Rust message says the connection was closed. pynng waits for the
-  timeout and then reports a timeout.
+- **JSON-RPC edge cases.** Unknown methods, requests before initialization, and malformed
+  `tools/call` envelopes can produce different JSON-RPC error codes than the Python SDK.
+  Rust ignores cancellation notifications and finishes calls already received on EOF. Its
+  transaction lock serializes calls to KiCad, while pings and tool listings remain responsive;
+  Python's synchronous tools block its event loop. These differences are outside the compared
+  tool-call contract.
+- **Connection failures.** Both servers reconcile a closed connection as a lost reply. Rust also
+  treats malformed reply frames as lost replies. A non-retryable failure opening an endpoint
+  (such as access denied) fails immediately in Rust; pynng can wait until its timeout.
+- **Protobuf edge cases.** Uncommon FieldMask validation errors and some error text for control
+  characters or integers beyond 128 bits are not reproduced exactly. Printing nested `Any`
+  values is limited to 100 levels in Rust; Python's recursion limit differs. Unknown or malformed
+  `Any` payloads are refused rather than returned as opaque data.
 - **`-0.0`.** It is printed as Python prints it. When a request *sent* to KiCad contains `-0.0`
   in a double field, `prost-reflect` sends it as 0.0, the field's default.
 - **Lone surrogate escapes** in a request are a JSON-RPC parse error. The Python server reports
@@ -193,7 +207,8 @@ Python server (`tools/live_schematic_mcp/qualification/rust_bundle.py`). The fro
   edges and no proc macros, for the host. The Rust standard library's notices come from the
   toolchain. A crate without a licence file stops the build.
 - **Provenance.** `build-info.json` gains `rust`: the binaries' SHA-256, `rustc`, the target, the
-  `Cargo.lock` hash, the crates with their licences, and the native server's version, tools and
+  Cargo version, Rust flags and source hashes, `Cargo.lock` hash, the crates with their licences,
+  and the native server's version, tools and
   schema hash. Its version carries the source revision (`0.1.0+rust.g<revision>`), as the Python
   package's does.
 - **Check.** `check_package.py` verifies the hashes and notices. It then runs the native server from
@@ -201,6 +216,10 @@ Python server (`tools/live_schematic_mcp/qualification/rust_bundle.py`). The fro
   must initialise, offer exactly the recorded tools with the same schemas as the bundled Python
   server, report the recorded manifest hash, refuse invalid arguments and unknown tools, and exit
   cleanly on EOF. The layout runner must answer, and the frozen server must find it.
+- **Windows runtime.** Packaged MSVC binaries use a statically linked CRT. Both packaging and
+  package checking inspect ordinary and delayed PE imports and refuse a VC++ runtime DLL
+  dependency, even when that DLL happens to be installed on the build machine. The Windows
+  build environment gets the PE reader (`pefile`) from PyInstaller.
 
 `build_windows.ps1` passes `--rust` when cargo is on PATH, so `install\mcp` gets both servers.
 
@@ -208,12 +227,18 @@ Python server (`tools/live_schematic_mcp/qualification/rust_bundle.py`). The fro
 and Linux arm64, after the parity suite has passed on that platform. Each platform's archive, check
 report, parity report and `build-info.json` are uploaded as artifacts. A tag `mcp-v*`, or a manual
 run with `release_tag`, creates a **draft** GitHub release with the archives and `SHA256SUMS`, for a
-person to review and publish. KiCad itself is not built there: a KiCad build does not fit a hosted
+person to review and publish. A manual release builds that existing tag, and the release job
+checks all three packages against the tag's commit and version and requires clean Git provenance.
+An empty manual `release_tag` only builds and checks. Release builds do not restore the PR build
+cache. KiCad itself is not built there: a KiCad build does not fit a hosted
 runner. The package is installed beside the Embeint KiCad build it is meant for; a manual run can
 record that version with `application_version`.
 
-On 2026-11-20 a Windows package built this way passed `check_package.py`, including the native
-checks. It held 30 linked crates and both servers' 8 shared tools with identical schemas.
+On 2026-11-20 a Windows package rebuilt after the review fixes passed `check_package.py`, including
+the native checks and PE import checks. The previous package fails the new runtime dependency
+check, confirming that it detects the missing-DLL problem. The rebuilt package held 30 linked
+crates and both servers' 8 shared tools with identical schemas. The Python suite passed 617 tests
+(50 skipped); release provenance tests reject mismatched commits, versions and dirty builds.
 
 ## Dependencies
 
