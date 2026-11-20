@@ -133,6 +133,31 @@ native editing, or electrical acceptance; those require separate evaluation.
 without dialing them. Add `--probe` only when opt-in version/document reads are
 appropriate; the existing Linux/WSL limitations and token redaction still apply.
 
+### Native Rust server in the package
+
+Add `--rust` to `package_mcp.py` (it needs cargo) to bundle the native Rust MCP server
+`embeint-mcp` and the pin layout runner `embeint-layout` beside `embeint-kicad-mcp`. `rust_bundle.py`
+builds them from this checkout with `cargo build --locked`. It copies the licence files of every
+statically linked crate, and the Rust standard library's notices, into `licenses/rust/`, and records
+the binaries' hashes, the toolchain, `Cargo.lock` and the native server's schema hash under `rust`
+in `build-info.json`.
+
+When that section is present, `check_package.py` also checks the native server from the same
+restricted environment: its tools must be the recorded ones, with schemas identical to the bundled
+Python server's. The layout runner must answer, and the frozen server must find it next to its
+executable. `scripts/build_windows.ps1` adds `--rust` when cargo is available. The native server
+covers a subset of the tools and is used only when a client registers it (rust/MCP.md).
+
+### Release workflow
+
+`.github/workflows/release-mcp.yml` builds and checks the package with `--rust` on Windows x86_64,
+Linux x86_64 and Linux arm64 hosted runners. The Python/Rust parity suite must pass on each platform
+first. The workflow uploads each archive with its `check_package.py` report, parity report and
+`build-info.json`. Pushing a tag `mcp-v*` (or a manual run with `release_tag`) also creates a draft
+GitHub release with the archives and `SHA256SUMS`. Review and publish it by hand. The workflow does
+not build KiCad: record the KiCad build a package is meant for with the manual run's
+`application_version`, and qualify the pair natively as described above.
+
 ## Linux package and clean installation
 
 After native and MCP validation, run in the Linux build environment:
