@@ -1,0 +1,168 @@
+[
+  {
+    "name": "live_mcp_capabilities",
+    "description": "Inspect local MCP tools and command schemas without connecting to KiCad.\n\nThis inventory describes the loaded adapter, not negotiated support in a live\neditor. Document availability, command support and undo behavior still depend\non the connected KiCad version and editor.",
+    "inputSchema": {
+      "properties": {},
+      "title": "live_mcp_capabilitiesArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_schematic_documents",
+    "description": "List open live schematic documents and KiCad version. Requires development KiCad 10.99/11+.",
+    "inputSchema": {
+      "properties": {},
+      "title": "live_schematic_documentsArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_schematic_hierarchy",
+    "description": "Read the live hierarchy, including unsaved child sheets. Use UUID sheet paths to target instances.",
+    "inputSchema": {
+      "properties": {
+        "document_spec": {
+          "additionalProperties": true,
+          "title": "Document Spec",
+          "type": "object"
+        }
+      },
+      "required": [
+        "document_spec"
+      ],
+      "title": "live_schematic_hierarchyArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_schematic_items",
+    "description": "Read unsaved items on one sheet as protobuf JSON. Positions are nanometers (1 mm = 1000000 nm).\n\nPreserve the returned @type and all fields when updating an item. SheetSymbol includes its pins.",
+    "inputSchema": {
+      "properties": {
+        "document_spec": {
+          "additionalProperties": true,
+          "title": "Document Spec",
+          "type": "object"
+        }
+      },
+      "required": [
+        "document_spec"
+      ],
+      "title": "live_schematic_itemsArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_document_revision",
+    "description": "Read an open document's live revision (schematic, board, symbol or footprint document).\n\nThe editor advances it on every change: manual edits, API edits, undo/redo, reloads. Pass it as\nexpected_revision to an edit so KiCad refuses the edit if anything changed in between. Also\nreports open API commits (from any client) and unsaved changes.",
+    "inputSchema": {
+      "properties": {
+        "document_spec": {
+          "additionalProperties": true,
+          "title": "Document Spec",
+          "type": "object"
+        }
+      },
+      "required": [
+        "document_spec"
+      ],
+      "title": "live_document_revisionArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_operation_status",
+    "description": "After a timed-out or uncertain edit: ask KiCad what happened to it. Never resends anything.\n\nstate: OPS_COMMITTED, OPS_ROLLED_BACK (dropped, conflicting or abandoned; nothing applied),\nOPS_REJECTED (refused before changing anything), OPS_IN_PROGRESS (its commit is still open;\nask again), OPS_FAILED (an error after it may have changed the document; inspect it) or\nOPS_UNKNOWN (not received yet, or older than the last history_capacity operations).\nDo not resend an edit while its outcome is unknown.",
+    "inputSchema": {
+      "properties": {
+        "operation_id": {
+          "title": "Operation Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "operation_id"
+      ],
+      "title": "live_operation_statusArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_schematic_create_items",
+    "description": "Create up to 200 items in the live editor as one undo step, without saving.\n\nEach item is protobuf JSON with @type=type.googleapis.com/kiapi.schematic.types.TYPE.\nTypes include SchematicLine, HierarchicalLabel, Junction, SheetSymbol and SchematicText.\nUse live_schematic_item_schema for field definitions. Coordinates are nanometers.\nNew sheets need a unique filename_field, name_field, size, position and page_number;\nset visible=true on name_field and filename_field (otherwise the sheet is drawn unlabeled)\nand fields_autoplaced=true so KiCad positions them at the sheet border.\nPins belong in SheetSymbol.pins, positioned on the sheet edge given by side.\nUse live_schematic_place_symbol for library symbols.",
+    "inputSchema": {
+      "properties": {
+        "document_spec": {
+          "additionalProperties": true,
+          "title": "Document Spec",
+          "type": "object"
+        },
+        "items": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "expected_revision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Revision"
+        },
+        "operation_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operation Id"
+        }
+      },
+      "required": [
+        "document_spec",
+        "items"
+      ],
+      "title": "live_schematic_create_itemsArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_documents",
+    "description": "List boards open in the PCB editor (board documents for the live_pcb_* tools).",
+    "inputSchema": {
+      "properties": {},
+      "title": "live_pcb_documentsArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Result",
+          "type": "array"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "live_pcb_documentsOutput",
+      "type": "object"
+    }
+  }
+]
