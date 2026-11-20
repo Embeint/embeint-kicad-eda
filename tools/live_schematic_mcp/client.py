@@ -923,8 +923,9 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
 
     def symbol_add_pins(self, doc, pins, draw_body=True, replace=False, arrange="auto", group_gap=2):
         """Add pins (and a body rectangle) laid out around a box, as one undo step."""
-        from symbol_layout import layout_box
-        layout = layout_box(pins, arrange=arrange, group_gap=group_gap)
+        # Python unless EMBEINT_LAYOUT_BACKEND opts in to the Rust port (see layout_backend.py)
+        import layout_backend
+        layout, backend = layout_backend.layout(pins, arrange=arrange, group_gap=group_gap)
         items = []
         if replace:
             existing = [i for i in self.symbol_items(doc).items
@@ -960,9 +961,12 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
             check_item_statuses(0, "CreateItems", response)
             if draw_body:
                 self.send(commands.SetLibrarySymbolProperties(document=doc, place_fields_around_body=True), empty())
-        return {"body_mm": list(layout["body"]),
-                "pins": [{"number": p["number"], "name": p.get("name", ""), "side": p["side"],
-                          "position_mm": list(p["position"])} for p in layout["pins"]]}
+        result = {"body_mm": list(layout["body"]),
+                  "pins": [{"number": p["number"], "name": p.get("name", ""), "side": p["side"],
+                            "position_mm": list(p["position"])} for p in layout["pins"]]}
+        if backend:
+            result["layout_backend"] = backend
+        return result
 
     def symbol_delete(self, doc, ids):
         request = editor.DeleteItems(header=types.ItemHeader(document=doc))
