@@ -84,7 +84,10 @@ then refuses before touching `install\mcp` (the old package stays complete) and 
   test in `test_client.py` and an end-to-end check in the matching `e2e_*.py`.
 - **Never block the UI thread or open a dialog from a handler.**  An API client cannot answer a
   modal dialog and the editor freezes.  Check up front and return `AS_BUSY`/`AS_BAD_REQUEST`
-  instead (see `openSymbolEditor`, `CanOpenFootprintWithoutPrompt`).  Do not make all libraries
+  instead (see `openSymbolEditor`, `CanOpenFootprintWithoutPrompt`).  wxLogWarning/wxLogError become
+  a modal dialog at the next idle event, so code that may log runs under `API_JOB_LOG_CAPTURE`
+  (`include/api/api_job_log.h`, used by the export job runners) and reports the messages in the reply
+  (`JS_WARNING` for a job that succeeded with warnings).  Do not make all libraries
   load synchronously (search only covers loaded libraries for that reason).
 - **Edits are undoable**: use `getCurrentCommit(aCtx.ClientName)` and push only when the client
   has no open commit, so batches stay one undo step.

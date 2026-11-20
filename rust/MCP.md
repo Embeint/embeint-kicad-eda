@@ -151,9 +151,19 @@ CSV and BOM). The harness compares the hashes of every file each server writes, 
 requests and results. The fixtures cover every export kind, options, refusals, the full package,
 unsaved and DRC blocks, a failed DRC task, export failures, schematic matching (including KiCad's
 trailing separator on the schematic's project path), existing outputs with and without
-`overwrite`, and argument validation. On Windows the full offline run passed 263/263 scenarios;
-after the fix for the trailing separator, the 18 export and package scenarios (one of them new)
-were run again and passed. These tools have not yet been compared against a live KiCad.
+`overwrite`, KiCad's `JS_WARNING` replies (including a STEP export that warns and writes nothing),
+and argument validation. On Windows the full offline run passed 263/263 scenarios before the last
+fixes, and the 21 export and package scenarios passed after them.
+
+`live_parity.py` now also runs both servers' export tools and the fab package (checked and
+unchecked) on the test board. KiCad stamps Gerber and drill files with the time, so it compares
+the placement CSV and BOM bytes and everything else through the tool results. On WSL Ubuntu
+(10.99.0 rebuilt with the API job log capture) all four manufacturing checks, the reads,
+transactions and lost-reply checks passed, with 266/267 fixtures identical. The one difference,
+`batch_invalid_command_types`, predates these tools: Python 3.14 words the unhashable-key
+`TypeError` differently from the 3.12 text the Rust server reproduces. The native Windows live
+comparison is still to be run: its install could not be replaced while a user's KiCad ran from
+it.
 
 The table below records the original eight-tool slice. The later shared-command expansion
 has 16 tools and all 147 generic command definitions. Its native Windows live comparison

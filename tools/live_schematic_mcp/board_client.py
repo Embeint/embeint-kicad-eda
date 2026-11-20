@@ -31,6 +31,9 @@ from common.types import jobs_pb2 as jobs             # noqa: E402
 
 _ = board_pb, board_rules  # registered for GetBoardStackup / DRC replies
 
+# A job that wrote its outputs; JS_WARNING carries the warnings KiCad logged in its message
+JOB_OK = (jobs.JS_SUCCESS, jobs.JS_WARNING)
+
 LIMIT_MM = 10000
 
 
@@ -746,7 +749,7 @@ class BoardTools:
             request.job_settings.document.CopyFrom(schematic_doc)
             request.job_settings.output_path = str(path)
             response = self.send(request, jobs.RunJobResponse)
-            if response.status != jobs.JS_SUCCESS or not path.is_file():
+            if response.status not in JOB_OK or not path.is_file():
                 raise RuntimeError(f"Could not export the schematic netlist: {response.message}")
             imported = self.send(bc.ImportNetlist(
                 board=doc, netlist_path=str(path), dry_run=dry_run,
@@ -856,7 +859,7 @@ class BoardTools:
             response = self.send(request, jobs.RunJobResponse)
             outputs = [Path(p) for p in response.output_path] or [target]
             produced = next((p for p in outputs if p.is_file()), None)
-            if response.status != jobs.JS_SUCCESS or produced is None:
+            if response.status not in JOB_OK or produced is None:
                 raise RuntimeError(f"Board render failed: {_dict(response)}")
             return produced.read_bytes()
 
@@ -878,7 +881,7 @@ class BoardTools:
             request.job_settings.document.CopyFrom(doc)
             request.job_settings.output_path = str(target)
             response = self.send(request, jobs.RunJobResponse)
-            if response.status != jobs.JS_SUCCESS or not target.is_file():
+            if response.status not in JOB_OK or not target.is_file():
                 raise RuntimeError(f"3D render failed: {_dict(response)}")
             return target.read_bytes()
 
@@ -890,7 +893,7 @@ class BoardTools:
         request.job_settings.document.CopyFrom(doc)
         request.job_settings.output_path = str(output_path)
         response = self.send(request, jobs.RunJobResponse)
-        if response.status != jobs.JS_SUCCESS:
+        if response.status not in JOB_OK:
             raise RuntimeError(f"Export failed: {response.message}")
         return {"outputs": list(response.output_path), "message": response.message}
 

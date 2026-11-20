@@ -98,9 +98,9 @@
     },
     "sch/bom": {
       "files": {
-        "bom.csv": "913a2fea5b348088c934296f93f454e4a9ce7d5be2591d53ecb7c7389f842f47"
+        "bom.csv": "a7993654f5e99cbc2ffa914eca3cca6712cb81e4934c4d17d2fd1b787849ec59"
       },
-      "tree_sha256": "bf6d7857866ac320f1d47993b5a4ebc69e959007d438a5d618144e3e50961563"
+      "tree_sha256": "0f71bcfda553bb4dc32414a4b4023d90e26011e20569595ee715c31b807c4eba"
     },
     "sch/dxf": {
       "files": {

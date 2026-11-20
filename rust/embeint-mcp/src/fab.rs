@@ -188,7 +188,7 @@ pub async fn board_export(
     )?;
     set_job(&mut request, doc, output_path);
     let response = client.send(&request, RUN_JOB_RESPONSE).await?;
-    if int_field(&response, "status") != 1 {
+    if !job_ok(&response) {
         return Err(Error::Runtime(format!(
             "Export failed: {}",
             str_field(&response, "message")
@@ -214,13 +214,22 @@ pub async fn schematic_export(
     )?;
     set_job(&mut request, doc, output_path);
     let response = client.send(&request, RUN_JOB_RESPONSE).await?;
-    if int_field(&response, "status") != 1 {
-        return Err(Error::Runtime(format!(
-            "Export failed: {}",
-            str_field(&response, "message")
-        )));
+    let message = str_field(&response, "message");
+    if !job_ok(&response) {
+        return Err(Error::Runtime(format!("Export failed: {message}")));
     }
-    Ok(json!({"outputs": output_paths(&response)}))
+    // Warnings KiCad logged while exporting (JS_WARNING)
+    let mut result = Map::new();
+    result.insert("outputs".into(), json!(output_paths(&response)));
+    if !message.is_empty() {
+        result.insert("message".into(), json!(message));
+    }
+    Ok(Json::Object(result))
+}
+
+/// `JOB_OK`: a job that wrote its outputs (JS_SUCCESS, or JS_WARNING with KiCad's warnings).
+fn job_ok(response: &DynamicMessage) -> bool {
+    matches!(int_field(response, "status"), 1 | 2)
 }
 
 fn output_paths(response: &DynamicMessage) -> Vec<Json> {
@@ -289,8 +298,9 @@ fn plan() -> Vec<Output> {
             name: "position",
             folder: "PnP",
             message: board("position"),
+            // naked_filename: KiCad writes the given name, not <name>-pos-all-pos.csv
             default: json!({"use_drill_place_file_origin": false, "exclude_dnp": true, "single_file": true,
-                            "side": "PS_BOTH", "units": "U_MM", "format": "PF_CSV"}),
+                            "naked_filename": true, "side": "PS_BOTH", "units": "U_MM", "format": "PF_CSV"}),
             file: Some("{name}-pos.csv"),
         },
         Output {
@@ -880,6 +890,7 @@ pub async fn fab_package(client: &mut Client, args: PackageArgs<'_>) -> Result<J
         std::fs::create_dir_all(root.join(folder)).map_err(io_error)?;
     }
     let mut produced: Vec<(&str, Vec<String>)> = Vec::new();
+    let mut kicad_warnings: Vec<String> = Vec::new();
     for (index, name_of_output) in selected.iter().enumerate() {
         let planned = output(&plan, name_of_output);
         let target = match planned.file {
@@ -902,10 +913,10 @@ pub async fn fab_package(client: &mut Client, args: PackageArgs<'_>) -> Result<J
             .map(|(n, _)| n)
             .collect();
         let response = client.send(request, RUN_JOB_RESPONSE).await?;
-        if int_field(&response, "status") != 1 {
+        let message = str_field(&response, "message");
+        if !job_ok(&response) {
             return Err(Error::Runtime(format!(
-                "{name_of_output} export failed: {}",
-                str_field(&response, "message")
+                "{name_of_output} export failed: {message}"
             )));
         }
         let new: Vec<String> = sorted_entries(&folder)?
@@ -914,8 +925,13 @@ pub async fn fab_package(client: &mut Client, args: PackageArgs<'_>) -> Result<J
             .map(|(n, _)| n)
             .collect();
         if new.is_empty() {
+            let kicad = if message.is_empty() {
+                String::new()
+            } else {
+                format!("; KiCad: {message}")
+            };
             return Err(Error::Runtime(format!(
-                "{name_of_output} export reported success but wrote nothing in {}",
+                "{name_of_output} export reported success but wrote nothing in {}{kicad}",
                 join(&output_dir, &[planned.folder])
             )));
         }
@@ -925,9 +941,14 @@ pub async fn fab_package(client: &mut Client, args: PackageArgs<'_>) -> Result<J
                 .map(|n| format!("{}/{n}", planned.folder))
                 .collect(),
         ));
+        if !message.is_empty() {
+            kicad_warnings.push(format!("{name_of_output}: KiCad: {message}"));
+        }
     }
 
-    let (verification, warnings) = verify(root, &plan, &produced, copper_layers, &name)?;
+    let (verification, verify_warnings) = verify(root, &plan, &produced, copper_layers, &name)?;
+    let mut warnings = kicad_warnings;
+    warnings.extend(verify_warnings);
     let mut files: Vec<String> = produced
         .iter()
         .flat_map(|(_, paths)| paths.iter().cloned())
@@ -1249,6 +1270,21 @@ fn check_magic(
     Ok(())
 }
 
+/// `csv_file`: the expected name, else the only CSV written, else None.
+fn csv_file<'a>(names: &'a [String], expected: &str) -> Option<&'a str> {
+    if let Some(name) = names.iter().find(|n| *n == expected) {
+        return Some(name);
+    }
+    let tables: Vec<&String> = names
+        .iter()
+        .filter(|n| n.to_lowercase().ends_with(".csv"))
+        .collect();
+    match tables.as_slice() {
+        [only] => Some(only.as_str()),
+        _ => None,
+    }
+}
+
 /// `verify`: what each output contains, and warnings.
 fn verify(
     root: &Path,
@@ -1291,16 +1327,22 @@ fn verify(
             "drill" => {
                 result.insert("drill".into(), check_drill(&folder, &names, &mut warnings)?);
             }
-            "position" if names.contains(&target) => {
-                let (summary, refs) = check_position(&folder.join(&target), &mut warnings)?;
-                result.insert("position".into(), summary);
-                pnp_refs = Some(refs);
-            }
-            "bom" if names.contains(&target) => {
-                let (summary, refs) = check_bom(&folder.join(&target), &mut warnings)?;
-                result.insert("bom".into(), summary);
-                bom_refs = Some(refs);
-            }
+            "position" | "bom" => match csv_file(&names, &target) {
+                None => warnings.push(format!(
+                    "{output_name}: no single CSV file to check ({})",
+                    names.join(", ")
+                )),
+                Some(file) if *output_name == "position" => {
+                    let (summary, refs) = check_position(&folder.join(file), &mut warnings)?;
+                    result.insert("position".into(), summary);
+                    pnp_refs = Some(refs);
+                }
+                Some(file) => {
+                    let (summary, refs) = check_bom(&folder.join(file), &mut warnings)?;
+                    result.insert("bom".into(), summary);
+                    bom_refs = Some(refs);
+                }
+            },
             "assembly_pdf" | "schematic_pdf" => {
                 for item in &names {
                     check_magic(&folder.join(item), "%PDF", output_name, &mut warnings)?;

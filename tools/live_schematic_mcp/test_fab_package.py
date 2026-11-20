@@ -193,6 +193,40 @@ def test_schematic_path_with_a_trailing_separator_matches(tmp_path):
     assert result["exported"] and result["outputs"]["bom"] == ["BOM/demo-bom.csv"]
 
 
+def test_placement_file_named_by_kicad_is_still_checked(tmp_path):
+    # Without naked_filename KiCad writes demo-pos-all-pos.csv; the only CSV written is checked
+    result = FakeKiCad(tmp_path).fab_package(board_doc(tmp_path), outputs=["position"], checks=False,
+                                             options={"position": {"naked_filename": False}})
+    assert result["outputs"]["position"] == ["PnP/demo-pos-all-pos.csv"]
+    assert result["verification"]["position"]["parts"] == 4 and result["warnings"] == []
+    assert fab_package.csv_file(["a.csv", "b.csv"], "c.csv") is None
+    assert fab_package.csv_file(["x.txt", "b.CSV"], "c.csv") == "b.CSV"
+
+
+class WarningKiCad(FakeKiCad):
+    """KiCad warnings (JS_WARNING): the outputs are written, except STEP of a malformed outline."""
+
+    def send(self, request, response_type):
+        response = super().send(request, response_type)
+        name = type(request).__name__
+        if name == "RunBoardJobExport3D":
+            Path(request.job_settings.output_path).unlink()
+            return jobs.RunJobResponse(status=jobs.JS_WARNING,
+                                       message="Board outline is malformed. Run DRC for a full analysis.")
+        if name == "RunBoardJobExportPosition":
+            response.status, response.message = jobs.JS_WARNING, "Odd footprint"
+        return response
+
+
+def test_kicad_warnings_are_reported_and_an_empty_export_fails(tmp_path):
+    result = WarningKiCad(tmp_path).fab_package(board_doc(tmp_path), outputs=["position"], checks=False)
+    assert result["exported"] and result["warnings"][0] == "position: KiCad: Odd footprint"
+    with pytest.raises(RuntimeError, match="step export reported success but wrote nothing.*Board outline"):
+        WarningKiCad(tmp_path).fab_package(board_doc(tmp_path), outputs=["step"], checks=False, overwrite=True)
+    single = WarningKiCad(tmp_path).board_export(board_doc(tmp_path), "position", str(tmp_path / "p.csv"))
+    assert single["message"] == "Odd footprint"
+
+
 def test_verification_flags_missing_layers(tmp_path):
     kicad = FakeKiCad(tmp_path, copper=2, drop_profile=True)
     options = {"gerbers": {"plot_settings": {"layers": ["BL_F_Cu", "BL_Edge_Cuts"]}}}

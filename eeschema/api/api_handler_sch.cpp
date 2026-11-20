@@ -20,6 +20,7 @@
 
 #include <api/api_handler_sch.h>
 #include <api/api_enums.h>
+#include <api/api_job_log.h>
 #include <api/api_sch_utils.h>
 #include <api/api_utils.h>
 #include <api/api_server.h>
@@ -140,21 +141,35 @@ HANDLER_RESULT<types::RunJobResponse> ExecuteSchematicJob( KIWAY* aKiway, JOB& a
 {
     types::RunJobResponse response;
     WX_STRING_REPORTER reporter;
-    int exitCode = aKiway->ProcessJob( KIWAY::FACE_SCH, &aJob, &reporter );
+    int                exitCode = 0;
+    wxString           logged;
+
+    {
+        // Exporter warnings would otherwise open a modal dialog after this reply, blocking the API
+        API_JOB_LOG_CAPTURE logCapture;
+        exitCode = aKiway->ProcessJob( KIWAY::FACE_SCH, &aJob, &reporter );
+        logged = logCapture.Finish();
+    }
 
     for( const JOB_OUTPUT& output : aJob.GetOutputs() )
         response.add_output_path( output.m_outputPath.ToUTF8() );
 
     if( exitCode == 0 )
     {
-        response.set_status( types::JobStatus::JS_SUCCESS );
+        response.set_status( logged.IsEmpty() ? types::JobStatus::JS_SUCCESS
+                                              : types::JobStatus::JS_WARNING );
+        response.set_message( logged.ToUTF8().data() );
         return response;
     }
 
+    wxString messages = reporter.GetMessages();
+
+    if( !logged.IsEmpty() )
+        messages << wxS( "\n" ) << logged;
+
     response.set_status( types::JobStatus::JS_ERROR );
     response.set_message( fmt::format( "Schematic export job '{}' failed with exit code {}: {}",
-                                       aJob.GetType(), exitCode,
-                                       reporter.GetMessages().ToStdString() ) );
+                                       aJob.GetType(), exitCode, messages.ToStdString() ) );
     return response;
 }
 

@@ -13,7 +13,7 @@ import uuid
 import pynng
 from google.protobuf import json_format
 
-from board_client import BoardTools, board_document  # noqa: F401
+from board_client import JOB_OK, BoardTools, board_document  # noqa: F401
 from board_design import BoardDesignTools
 from fab_package import FabPackageTools
 from footprint_client import FootprintTools, footprint_document, library_kind  # noqa: F401
@@ -789,9 +789,10 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools, FabPackageTool
         request.job_settings.document.CopyFrom(doc)
         request.job_settings.output_path = str(output_path)
         response = self.send(request, jobs.RunJobResponse)
-        if response.status != jobs.JS_SUCCESS:
+        if response.status not in JOB_OK:
             raise RuntimeError(f"Export failed: {response.message}")
-        return {"outputs": list(response.output_path)}
+        # Warnings KiCad logged while exporting (JS_WARNING)
+        return {"outputs": list(response.output_path), **({"message": response.message} if response.message else {})}
 
     def execute(self, name, payload=None):
         from commands import PROJECT_EDITS, build_request
@@ -1162,7 +1163,7 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools, FabPackageTool
             request.plot_settings.sheet_mode = sch_jobs.SJSM_SINGLE_SHEET
             request.plot_settings.plot_drawing_sheet = frame
             response = self.send(request, jobs.RunJobResponse)
-            if response.status != jobs.JS_SUCCESS or not target.is_file():
+            if response.status not in JOB_OK or not target.is_file():
                 raise RuntimeError(f"Live rendering failed: {as_dict(response)}")
             return target.read_bytes()
 

@@ -104,8 +104,10 @@ PLAN = {
                "excellon": {"mirror_y": False, "minimal_header": False, "combine_pth_npth": False},
                "map_format": "DMF_PDF", "report_format": "DRF_STANDARD"}, None),
     "position": ("PnP", BOARD_EXPORTS["position"],
+                 # naked_filename: KiCad writes the given name, not <name>-pos-all-pos.csv
                  {"use_drill_place_file_origin": False, "exclude_dnp": True, "single_file": True,
-                  "side": "PS_BOTH", "units": "U_MM", "format": "PF_CSV"}, "{name}-pos.csv"),
+                  "naked_filename": True, "side": "PS_BOTH", "units": "U_MM", "format": "PF_CSV"},
+                 "{name}-pos.csv"),
     "step": ("STEP", BOARD_EXPORTS["step"], BOARD_EXPORT_DEFAULTS["step"], "{name}.step"),
     "assembly_pdf": ("Assembly", BOARD_EXPORTS["pdf"],
                      {"plot_settings": {"layers": ["BL_F_Fab", "BL_B_Fab"], "common_layers": ["BL_Edge_Cuts"],
@@ -411,6 +413,15 @@ def check_magic(path, magic, label, warnings):
         warnings.append(f"{label}: {Path(path).name} is not a {magic.decode()} file")
 
 
+def csv_file(names, expected):
+    """The file to check: the expected name, else the only CSV written (options can change how
+    KiCad names it), else None."""
+    if expected in names:
+        return expected
+    tables = [n for n in names if n.lower().endswith(".csv")]
+    return tables[0] if len(tables) == 1 else None
+
+
 def verify(output_dir, outputs, copper_layers, name):
     """What each output contains, and warnings for anything a fab or assembler would reject."""
     warnings, result = [], {}
@@ -427,13 +438,13 @@ def verify(output_dir, outputs, copper_layers, name):
             result[output] = check_gerbers(folder, names, copper_layers, warnings)
         elif output == "drill":
             result[output] = check_drill(folder, names, warnings)
-        elif output == "position":
-            target = PLAN[output][3].format(name=name)
-            if target in names:
+        elif output in ("position", "bom"):
+            target = csv_file(names, PLAN[output][3].format(name=name))
+            if target is None:
+                warnings.append(f"{output}: no single CSV file to check ({', '.join(names)})")
+            elif output == "position":
                 result[output], pnp_refs = check_position(folder / target, warnings)
-        elif output == "bom":
-            target = PLAN[output][3].format(name=name)
-            if target in names:
+            else:
                 result[output], bom_refs = check_bom(folder / target, warnings)
         elif output in ("assembly_pdf", "schematic_pdf"):
             for item in names:
@@ -542,7 +553,7 @@ class FabPackageTools:
                 (root / item).unlink()
             for folder in folders:
                 (root / folder).mkdir(parents=True, exist_ok=True)
-            produced = {}
+            produced, kicad_warnings = {}, []
             for output in selected:
                 folder, _, _, file_name = PLAN[output]
                 request = requests[output]
@@ -551,15 +562,19 @@ class FabPackageTools:
                                                     else join(output_dir, folder) + "/")
                 before = {p.name for p in (root / folder).iterdir()}
                 response = self.send(request, jobs.RunJobResponse)
-                if response.status != jobs.JS_SUCCESS:
+                if response.status not in (jobs.JS_SUCCESS, jobs.JS_WARNING):
                     raise RuntimeError(f"{output} export failed: {response.message}")
                 new = sorted(p.name for p in (root / folder).iterdir() if p.name not in before and p.is_file())
                 if not new:
                     raise RuntimeError(f"{output} export reported success but wrote nothing in "
-                                       f"{join(output_dir, folder)}")
+                                       f"{join(output_dir, folder)}"
+                                       + (f"; KiCad: {response.message}" if response.message else ""))
                 produced[output] = [f"{folder}/{n}" for n in new]
+                if response.message:
+                    kicad_warnings.append(f"{output}: KiCad: {response.message}")
 
         verification, warnings = verify(output_dir, produced, copper_layers, name)
+        warnings = kicad_warnings + warnings
         files = sorted(p for paths in produced.values() for p in paths)
         archive = None
         if zip_gerbers:

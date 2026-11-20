@@ -207,10 +207,53 @@ def run(binary, failures, servers, run_session, server_env, test_document):
     finally:
         undo_created(checker, doc, item_ids, [base_id], original_ids)
     check("the base item is removed again", item_ids() == original_ids)
+    manufacturing(checker, spec, session, payload, check)
     check("open commits are all closed", revision()["open_commits"] == 0)
     if stamp is not None:
         check("the schematic file was not written", sch_file.stat().st_mtime_ns == stamp)
     return report
+
+
+def manufacturing(checker, spec, session, payload, check):
+    """The export tools and the fab package through both servers on the test board.  KiCad stamps
+    Gerber and drill files with the time, so file contents are compared only for the placement CSV
+    and the BOM; everything else is compared through the tool results (files written, verification,
+    warnings, DRC summary).  Outputs go to scratch folders; the board file is never written."""
+    from e2e_guard import test_board
+    board = as_json(test_board(checker))
+    board_file = Path(board["project"]["path"]) / board["board_filename"]
+    stamp = board_file.stat().st_mtime_ns if board_file.exists() else None
+    position = {"format": "PF_CSV", "single_file": True, "naked_filename": True, "units": "U_MM"}
+    package = {"board_document": board, "schematic_document": spec, "allow_unsaved": True,
+               "outputs": ["gerbers", "drill", "position", "step", "assembly_pdf", "bom", "schematic_pdf"]}
+    results, contents = {}, {}
+    with tempfile.TemporaryDirectory(prefix="parity-fab-") as scratch:
+        for label in ("python", "rust"):
+            root = Path(scratch) / label
+            root.mkdir()
+            steps = [("live_pcb_export", {"board_document": board, "kind": "position",
+                                          "output_path": str(root / "single" / "board-pos.csv"), "options": position}),
+                     ("live_schematic_export", {"document_spec": spec, "kind": "bom",
+                                                "output_path": str(root / "single" / "bom.csv")}),
+                     ("live_pcb_fab_package", dict(package, output_dir=str(root / "checked"))),
+                     ("live_pcb_fab_package", dict(package, output_dir=str(root / "package"), checks=False))]
+            replies = session(label, steps)
+            text = json.dumps([r["content"][0]["text"] for r in replies])
+            results[label] = json.loads(text.replace(json.dumps(str(root))[1:-1].replace("\\", "\\\\"), "<out>")
+                                        .replace(json.dumps(str(root))[1:-1], "<out>"))
+            contents[label] = {name: (root / "single" / name).read_bytes() if (root / "single" / name).exists()
+                               else None for name in ("board-pos.csv", "bom.csv")}
+    python, rust = results["python"], results["rust"]
+    check("manufacturing: export results are identical", python[:2] == rust[:2], json.dumps(results)[:600])
+    check("manufacturing: placement CSV and BOM contents are identical",
+          contents["python"] == contents["rust"] and all(contents["python"].values()))
+    check("manufacturing: the checked package (DRC with parity) gives the same result", python[2] == rust[2],
+          json.dumps([python[2][:400], rust[2][:400]]))
+    package_python = json.loads(python[3]) if python[3].startswith("{") else {}
+    check("manufacturing: the package exports and verifies identically",
+          python[3] == rust[3] and package_python.get("exported") is True, json.dumps([python[3][:400], rust[3][:400]]))
+    if stamp is not None:
+        check("manufacturing: the board file was not written", board_file.stat().st_mtime_ns == stamp)
 
 
 def undo_created(checker, doc, item_ids, created, before):
