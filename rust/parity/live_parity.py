@@ -108,7 +108,7 @@ class DroppingProxy:
             base.mkdir()  # Windows pipes need no directory
         self.base = base
         self.url = "ipc://" + str(base / "api.sock")
-        self.log, self.dropped = [], []
+        self.log, self.dropped, self.errors = [], [], []
         self.stop_event = threading.Event()
         self.socket = pynng.Rep0(listen=self.url, recv_timeout=50, send_timeout=2000)
         self.thread = threading.Thread(target=self.serve, daemon=True)
@@ -123,9 +123,16 @@ class DroppingProxy:
             except pynng.exceptions.Closed:
                 return
             kind = envelope.ApiRequest.FromString(raw).message.TypeName().rsplit(".", 1)[-1]
-            with pynng.Req0(dial=self.target, send_timeout=10000, recv_timeout=10000, resend_time=-1) as up:
-                up.send(raw)
-                answer = up.recv()
+            try:
+                with pynng.Req0(dial=self.target, send_timeout=10000, recv_timeout=10000,
+                                resend_time=-1) as up:
+                    up.send(raw)
+                    answer = up.recv()
+            except pynng.NNGException as error:
+                # Recorded and checked, so a KiCad that stopped answering is reported as such
+                self.errors.append(f"{kind}: {error}")
+                self.log.append(kind)
+                continue
             self.log.append(kind)
             if self.drop and self.drop[0] == kind:
                 self.drop.pop(0)
@@ -191,11 +198,31 @@ def run(binary, failures, servers, run_session, server_env, test_document):
             transaction(label, index, spec, doc, checker, session, payload, check, revision, item_ids, base_id)
             lost_replies(label, index, spec, doc, checker, session, payload, check, revision, item_ids, endpoint)
     finally:
-        checker.undo(doc)  # the base item
+        undo_created(checker, doc, item_ids, [base_id], original_ids)
+    check("the base item is removed again", item_ids() == original_ids)
     check("open commits are all closed", revision()["open_commits"] == 0)
     if stamp is not None:
         check("the schematic file was not written", sch_file.stat().st_mtime_ns == stamp)
     return report
+
+
+def undo_created(checker, doc, item_ids, created, before):
+    """Clean up a test step only while its items are the sole additions to its baseline.
+
+    The disposable editor must be used exclusively during the run. Refuse cleanup if an earlier
+    failed test left other items behind, rather than undoing that step in place of this one.
+    """
+    current = set(item_ids())
+    present = set(created) & current
+    if not present:
+        return False
+    if current != set(before) | present or checker.document_revision(doc)["open_commits"]:
+        raise RuntimeError("document differs from the test cleanup baseline; inspect live-demo before undoing")
+    checker.undo(doc)
+    remaining = present & set(item_ids())
+    if remaining:
+        raise RuntimeError(f"undo did not remove the test items {sorted(remaining)}; inspect live-demo")
+    return True
 
 
 def compare_reads(spec, servers, session, payload, check, revision, report, binary):
@@ -234,21 +261,23 @@ def transaction(label, index, spec, doc, checker, session, payload, check, revis
     op = f"parity-{label}-{uuid.uuid4()}"
     created = [text_item(f"PARITY {label}", 40 + 30 * index), line_item(40 + 30 * index)]
     rejected_op, stale_op = f"{op}-rejected", f"{op}-stale"
-    results = session(label, [
-        ("live_schematic_create_items", {"document_spec": spec, "items": created,
-                                         "expected_revision": rev0, "operation_id": op}),
-        ("live_operation_status", {"operation_id": op}),
-    ])
-    result = payload(results[0])
-    status = payload(results[1])
-    ops = result.get("operations", [])
-    check(f"{label}: create_items commits one operation",
-          len(ops) == 1 and ops[0]["state"] == "committed" and ops[0]["operation_id"] == op, json.dumps(ops))
-    check(f"{label}: KiCad records it committed", status["state"] == "OPS_COMMITTED"
-          and status.get("revision_after") == result["revision"], json.dumps(status))
-    check(f"{label}: the items exist", sorted(set(item_ids()) - set(ids_before)) ==
-          sorted(i["id"]["value"] for i in created))
-    checker.undo(doc)
+    created_ids = [i["id"]["value"] for i in created]
+    try:
+        results = session(label, [
+            ("live_schematic_create_items", {"document_spec": spec, "items": created,
+                                             "expected_revision": rev0, "operation_id": op}),
+            ("live_operation_status", {"operation_id": op}),
+        ])
+        result = payload(results[0])
+        status = payload(results[1])
+        ops = result.get("operations", [])
+        check(f"{label}: create_items commits one operation",
+              len(ops) == 1 and ops[0]["state"] == "committed" and ops[0]["operation_id"] == op, json.dumps(ops))
+        check(f"{label}: KiCad records it committed", status["state"] == "OPS_COMMITTED"
+              and status.get("revision_after") == result["revision"], json.dumps(status))
+        check(f"{label}: the items exist", sorted(set(item_ids()) - set(ids_before)) == sorted(created_ids))
+    finally:
+        undo_created(checker, doc, item_ids, created_ids, ids_before)
     check(f"{label}: one undo removes them", item_ids() == ids_before)
 
     # A rejected item rolls the whole batch back
@@ -284,30 +313,37 @@ def lost_replies(label, index, spec, doc, checker, session, payload, check, revi
                                    {"document_spec": spec, "items": [item], "operation_id": op})], proxy.url)
     finally:
         proxy.stop()
-    result = payload(results[0]) if not results[0].get("isError") else {}
-    ops = result.get("operations", [])
-    check(f"{label}: lost EndCommit reply is reconciled as committed",
-          proxy.dropped == ["EndCommit"] and len(ops) == 1 and ops[0].get("reconciled") is True
-          and ops[0]["state"] == "committed", json.dumps(results[0])[:400])
-    check(f"{label}: nothing was resent", proxy.log == ["BeginCommit", "CreateItems", "EndCommit",
-                                                         "GetOperationStatus"], json.dumps(proxy.log))
-    check(f"{label}: the item was committed once", sorted(set(item_ids()) - set(ids_before)) == [item["id"]["value"]])
-    checker.undo(doc)
+    try:
+        result = payload(results[0]) if not results[0].get("isError") else {}
+        ops = result.get("operations", [])
+        check(f"{label}: lost EndCommit reply is reconciled as committed",
+              proxy.dropped == ["EndCommit"] and len(ops) == 1 and ops[0].get("reconciled") is True
+              and ops[0]["state"] == "committed", json.dumps(results[0])[:400])
+        check(f"{label}: nothing was resent", proxy.log == ["BeginCommit", "CreateItems", "EndCommit",
+                                                             "GetOperationStatus"] and not proxy.errors,
+              json.dumps([proxy.log, proxy.errors]))
+        check(f"{label}: the item was committed once",
+              sorted(set(item_ids()) - set(ids_before)) == [item["id"]["value"]])
+    finally:
+        undo_created(checker, doc, item_ids, [item["id"]["value"]], ids_before)
 
     # BeginCommit's reply lost: KiCad opened a commit; the server must drop it
     proxy = DroppingProxy(endpoint, ["BeginCommit"])
     op = f"parity-{label}-lost-begin-{uuid.uuid4()}"
+    never = text_item("PARITY never", 40)
     try:
         results = session(label, [("live_schematic_create_items",
-                                   {"document_spec": spec, "items": [text_item("PARITY never", 40)],
+                                   {"document_spec": spec, "items": [never],
                                     "operation_id": op})], proxy.url)
     finally:
         proxy.stop()
     text = results[0]["content"][0]["text"]
     check(f"{label}: lost BeginCommit reply drops the open commit",
           results[0].get("isError") and "it was dropped and nothing was changed" in text, text[:400])
-    check(f"{label}: no edit was sent after it", proxy.log == ["BeginCommit", "GetOperationStatus", "EndCommit"],
-          json.dumps(proxy.log))
+    check(f"{label}: no edit was sent after it",
+          proxy.log == ["BeginCommit", "GetOperationStatus", "EndCommit"] and not proxy.errors,
+          json.dumps([proxy.log, proxy.errors]))
     check(f"{label}: KiCad has it rolled back", checker.operation_status(op)["state"] == "OPS_ROLLED_BACK")
     check(f"{label}: nothing changed and no commit is open",
           item_ids() == ids_before and revision()["open_commits"] == 0)
+    undo_created(checker, doc, item_ids, [never["id"]["value"]], ids_before)  # only if wrongly applied

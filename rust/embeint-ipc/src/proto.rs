@@ -145,7 +145,10 @@ mod tests {
             "kiapi.common.commands.GetOpenDocuments"
         );
         let back = unpack(&any, "kiapi.common.commands.GetOpenDocuments").unwrap();
-        assert_eq!(pbjson::to_json(&back), json!({"type": "DOCTYPE_PCB"}));
+        assert_eq!(
+            pbjson::to_json(&back).unwrap(),
+            json!({"type": "DOCTYPE_PCB"})
+        );
         assert!(unpack(&any, "kiapi.common.commands.GetItems").is_none());
         assert_eq!(
             enum_name("kiapi.common.ApiStatusCode", 100),

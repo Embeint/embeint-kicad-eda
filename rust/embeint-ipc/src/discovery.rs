@@ -602,8 +602,23 @@ async fn unix_reachability(_path: &str) -> &'static str {
     "unknown"
 }
 
-/// The command that explains discovery problems, as the Python MCP names it.
-pub const DIAGNOSE_COMMAND: &str = "diagnose.py";
+/// The command that explains discovery problems, as the Python MCP names it: the bundled server's
+/// `--diagnose` when this executable sits in an MCP package beside it, else the checkout's script.
+pub fn diagnose_command() -> &'static str {
+    let bundled = std::env::current_exe().ok().and_then(|exe| {
+        let name = if cfg!(windows) {
+            "embeint-kicad-mcp.exe"
+        } else {
+            "embeint-kicad-mcp"
+        };
+        exe.parent().map(|folder| folder.join(name).is_file())
+    });
+    if bundled == Some(true) {
+        "embeint-kicad-mcp --diagnose"
+    } else {
+        "diagnose.py"
+    }
+}
 
 /// `select_instance()`: (url, selection) for the instance to use.  selection is "explicit",
 /// "single_candidate" or "default_missing"; the last means no instance was found and the url is
@@ -619,7 +634,10 @@ pub async fn select_instance(
     if require_listener && inventory.selection == "default_missing" {
         return Err(DiscoveryError::new(
             "no_editor",
-            format!("{NO_EDITOR_ACTION} Nothing was sent. Run {DIAGNOSE_COMMAND} for details."),
+            format!(
+                "{NO_EDITOR_ACTION} Nothing was sent. Run {} for details.",
+                diagnose_command()
+            ),
         ));
     }
     if check_liveness && inventory.selection != "explicit" && inventory.selection != "unavailable" {
@@ -654,7 +672,7 @@ pub async fn select_instance(
         None => Err(DiscoveryError::new(
             &inventory.selection,
             format!(
-                "KiCad socket selection is {}. Run {DIAGNOSE_COMMAND} (optionally --probe) and set \
+                "KiCad socket selection is {}. Run diagnose.py (optionally --probe) and set \
                  KICAD_API_SOCKET to the intended instance. Stale sockets are never removed by MCP.",
                 inventory.selection
             ),
