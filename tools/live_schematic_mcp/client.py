@@ -91,11 +91,12 @@ DEFAULT_TIMEOUT_MS = 15000
 
 
 def api_timeout_ms():
-    """KICAD_API_TIMEOUT_MS as a whole number of milliseconds from 1 to 600000, else the default."""
+    """The reply timeout: KICAD_API_TIMEOUT_MS when set (ASCII digits, 1 to 600000 ms; anything else
+    raises ValueError), else DEFAULT_TIMEOUT_MS."""
     text = os.environ.get("KICAD_API_TIMEOUT_MS", "").strip()
     if not text:
         return DEFAULT_TIMEOUT_MS
-    if not text.isdigit() or not 1 <= int(text) <= 600_000:
+    if not (text.isascii() and text.isdigit()) or not 1 <= int(text) <= 600_000:
         raise ValueError("KICAD_API_TIMEOUT_MS must be a whole number of milliseconds from 1 to 600000")
     return int(text)
 
@@ -281,6 +282,12 @@ class LiveSchematic(FootprintTools, BoardTools, BoardDesignTools):
             except pynng.Timeout as error:
                 raise ReplyTimeout(f"No reply from KiCad to {command.DESCRIPTOR.name} within "
                                    f"{self.timeout_ms} ms; KiCad may still apply it",
+                                   getattr(error, "errno", 5)) from error
+            except pynng.ConnectionReset as error:
+                # KiCad closed the connection (it exited or crashed) after the request may have
+                # reached it: a lost reply, reconciled like a timeout, never a resend
+                raise ReplyTimeout(f"KiCad closed the connection before replying to "
+                                   f"{command.DESCRIPTOR.name}; KiCad may still apply it",
                                    getattr(error, "errno", 5)) from error
             reply = envelope.ApiResponse.FromString(raw)
             self.last_revision = reply.header.document_revision or None

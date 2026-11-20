@@ -75,6 +75,7 @@ PORTED = [
 # Short reply timeout for the fixtures, so lost replies are quick to exercise
 FIXTURE_TIMEOUT_MS = "400"
 DROP = object()  # a fixture action: receive the request and never reply
+CLOSE = object()  # a fixture action: receive the request, then close the endpoint without replying
 TOKEN = "fixture-token-A"
 OP_PATTERN = re.compile(r"mcp-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 
@@ -297,6 +298,14 @@ CODEC_CASES = [
     ("kiapi.common.types.Vector2", {"x_nm": "-9223372036854775808", "y_nm": 9223372036854775807}),
     ("kiapi.common.types.Vector2", {"x_nm": 1e3, "y_nm": "+12"}),
     ("kiapi.common.types.Vector2", {"x_nm": "1_000"}),
+    ("kiapi.common.types.Vector2", {"x_nm": "2540000.0", "y_nm": "1e6"}),
+    ("kiapi.common.types.Vector2", {"x_nm": "2.5"}),
+    ("kiapi.common.types.Color", {"r": "+-inf"}),
+    ("kiapi.common.types.Color", {"r": "--inf"}),
+    ("kiapi.common.types.Color", {"r": "1_e5"}),
+    ("kiapi.common.types.Color", {"r": "1_0.5_0e+0_2"}),
+    ("kiapi.common.types.DocumentSpecifier", {"sheet_path": []}),
+    ("kiapi.common.types.DocumentSpecifier", {"sheet_path": ""}),
     ("kiapi.common.types.Color", {"r": "NaN", "g": "Infinity", "b": "-Infinity", "a": 1e-7}),
     ("kiapi.common.types.Color", {"r": 123456789.123456789, "g": -0.0}),
     ("kiapi.common.types.TextAttributes", {"line_spacing": 0, "bold": False, "italic": True}),
@@ -397,6 +406,7 @@ def compare_codec(binary, failures):
             elif native["error"] != python["error"]:
                 counts["message_differences"].append({"case": label, "python": python["error"],
                                                       "rust": native["error"]})
+                failures.append(f"codec {label}: refusals differ: Python {python['error']} != Rust {native['error']}")
 
     try:
         for type_name, value in CODEC_CASES:
@@ -512,11 +522,17 @@ END_OK = ("EndCommit", lambda r: reply(editor.EndCommitResponse(), revision="fx-
 DROP_OK = ("EndCommit", lambda r: reply(editor.EndCommitResponse(), revision="fx-4"))
 
 
-def created(*codes, message=""):
+def retoken(response, token):
+    """The reply with another instance token: a client must keep the token it pinned first."""
+    response.header.kicad_token = token
+    return response
+
+
+def created(*codes, message="", status=None):
     def respond(request):
         create = editor.CreateItems()
         request.message.Unpack(create)
-        result = editor.CreateItemsResponse(status=types.IRS_OK)
+        result = editor.CreateItemsResponse(status=types.IRS_OK if status is None else status)
         result.header.CopyFrom(create.header)
         for packed, code in zip(create.items, codes):
             entry = result.created_items.add()
@@ -569,8 +585,9 @@ SCENARIOS = [
       [("GetVersion", lambda r: reply(editor.EndCommitResponse()))]),
     S("documents_lost_reply", [("live_schematic_documents", {})], [("GetVersion", lambda r: DROP)]),
     S("token_pinned_after_first_reply", [("live_schematic_documents", {}), ("live_pcb_documents", {})],
-      [("GetVersion", lambda r: version()), ("GetOpenDocuments", lambda r: documents(SHEET_DOC)),
-       ("GetOpenDocuments", lambda r: documents(BOARD_DOC, BOARD_DOC))]),
+      [("GetVersion", lambda r: version()),
+       ("GetOpenDocuments", lambda r: retoken(documents(SHEET_DOC), "fixture-token-B")),
+       ("GetOpenDocuments", lambda r: retoken(documents(BOARD_DOC, BOARD_DOC), "fixture-token-C"))]),
     S("pcb_documents_closed", [("live_pcb_documents", {})],
       [("GetOpenDocuments", lambda r: failure(envelope.AS_UNHANDLED, "no PCB editor"))]),
     S("pcb_documents_none", [("live_pcb_documents", {})], [("GetOpenDocuments", lambda r: documents())]),
@@ -671,6 +688,28 @@ SCENARIOS = [
     S("create_begin_reply_lost_drop_refused", [("live_schematic_create_items", CREATE)],
       [("BeginCommit", lambda r: DROP), ("GetOperationStatus", status("OPS_IN_PROGRESS")),
        ("EndCommit", lambda r: failure(envelope.AS_BAD_REQUEST, "nothing open"))]),
+    S("create_begin_reply_lost_status_lost", [("live_schematic_create_items", CREATE_GUARDED)],
+      [("BeginCommit", lambda r: DROP), ("GetOperationStatus", lambda r: DROP)]),
+    S("create_begin_reply_lost_status_refused", [("live_schematic_create_items", CREATE)],
+      [("BeginCommit", lambda r: DROP), ("GetOperationStatus", lambda r: failure(envelope.AS_BUSY, "busy"))]),
+    S("create_begin_reply_lost_drop_lost", [("live_schematic_create_items", CREATE)],
+      [("BeginCommit", lambda r: DROP), ("GetOperationStatus", status("OPS_IN_PROGRESS")),
+       ("EndCommit", lambda r: DROP)]),
+    S("create_begin_reply_lost_reported_committed", [("live_schematic_create_items", CREATE_GUARDED)],
+      [("BeginCommit", lambda r: DROP), ("GetOperationStatus", status("OPS_COMMITTED", revision_after="fx-5"))]),
+    S("create_begin_reply_lost_rolled_back", [("live_schematic_create_items", CREATE)],
+      [("BeginCommit", lambda r: DROP), ("GetOperationStatus", status("OPS_ROLLED_BACK", message="lease"))]),
+    S("create_commit_settle_second_query_lost", [("live_schematic_create_items", CREATE_GUARDED)],
+      [BEGIN, created(1, 1), ("EndCommit", lambda r: DROP),
+       ("GetOperationStatus", status("OPS_IN_PROGRESS")), DROP_OK, ("GetOperationStatus", lambda r: DROP)]),
+    S("create_commit_settle_still_in_progress", [("live_schematic_create_items", CREATE)],
+      [BEGIN, created(1, 1), ("EndCommit", lambda r: DROP),
+       ("GetOperationStatus", status("OPS_IN_PROGRESS")), DROP_OK, ("GetOperationStatus", status("OPS_IN_PROGRESS"))]),
+    S("create_batch_status_refused_rolls_back", [("live_schematic_create_items", CREATE)],
+      [BEGIN, created(1, 1, status=types.IRS_DOCUMENT_NOT_FOUND), DROP_OK]),
+    S("documents_connection_closed", [("live_schematic_documents", {})], [("GetVersion", lambda r: CLOSE)]),
+    S("create_connection_closed_mid_batch", [("live_schematic_create_items", CREATE_GUARDED)],
+      [BEGIN, ("CreateItems", lambda r: CLOSE)]),
     S("create_two_calls_number_nothing_across_calls",
       [("live_schematic_create_items", CREATE_GUARDED),
        ("live_schematic_create_items", dict(CREATE, operation_id="op-fixture-2"))],
@@ -725,6 +764,11 @@ class Peer:
                     response = self.script[index][1](request)
                 else:
                     response = failure(envelope.AS_BAD_REQUEST, f"fixture: unexpected {kind} at step {index}")
+                if response is CLOSE:
+                    # KiCad exits after receiving: the endpoint goes away with the request unanswered
+                    self.stop_event.set()
+                    self.socket.close()
+                    return
                 if response is not DROP:
                     self.socket.send(response.SerializeToString())
             except Exception as error:  # noqa: BLE001 - reported with the scenario
@@ -813,7 +857,7 @@ def results_match(item, python, rust):
             prefix = p["content"][0]["text"].split(":", 1)[0]
             if not r["content"][0]["text"].startswith(prefix + ": "):
                 return False
-            if "validation error" not in r["content"][0]["text"]:
+            if not all("validation error" in x["content"][0]["text"] for x in (p, r)):
                 return False
         return len(python) == len(rust)
     return python == rust

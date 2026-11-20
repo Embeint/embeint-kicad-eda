@@ -1528,7 +1528,39 @@ def test_reply_timeout_comes_from_the_environment(monkeypatch):
     monkeypatch.setenv("KICAD_API_TIMEOUT_MS", " 400 ")
     assert LiveSchematic(unused_socket("unused-test-socket")).timeout_ms == 400
     assert LiveSchematic(unused_socket("unused-test-socket"), timeout_ms=50).timeout_ms == 50
-    for invalid in ("0", "600001", "1.5", "-5", "soon"):
+    for invalid in ("0", "600001", "1.5", "-5", "soon", "５００", "²"):
         monkeypatch.setenv("KICAD_API_TIMEOUT_MS", invalid)
         with pytest.raises(ValueError, match="KICAD_API_TIMEOUT_MS"):
             LiveSchematic(unused_socket("unused-test-socket"))
+
+
+def test_connection_reset_after_sending_is_a_lost_reply(monkeypatch):
+    """KiCad closing the connection before it replies is a lost reply: ReplyTimeout, so edits are
+    reconciled instead of the reset escaping as an unknown error."""
+    import client as client_module
+    from client import ReplyTimeout
+
+    class Reset:
+        def __init__(self, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def dial(self, url, block=False):
+            pass
+
+        def send(self, raw):
+            pass
+
+        def recv(self):
+            raise client_module.pynng.ConnectionReset("Connection reset", 31)
+
+    monkeypatch.setattr(client_module.pynng, "Req0", Reset)
+    with pytest.raises(ReplyTimeout) as error:
+        LiveSchematic(unused_socket("unused-test-socket")).send(editor.BeginCommit(), editor.BeginCommitResponse)
+    assert str(error.value) == ("KiCad closed the connection before replying to BeginCommit; "
+                                "KiCad may still apply it")

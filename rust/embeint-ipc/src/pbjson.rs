@@ -46,12 +46,23 @@ const TYPE_KEY: &str = "@type";
 
 // ---- Message to JSON ----------------------------------------------------------------------------
 
-/// `MessageToDict(message, preserving_proto_field_name=True)`.
-pub fn to_json(message: &DynamicMessage) -> Json {
+/// `MessageToDict(message, preserving_proto_field_name=True)`.  Fails like Python for an `Any`
+/// whose type is not in the protocol or whose payload does not decode, and for messages nested
+/// more than [`MAX_DEPTH`] deep (only possible through `Any`, which is decoded level by level).
+pub fn to_json(message: &DynamicMessage) -> Result<Json, ParseError> {
+    message_to_json(message, 0)
+}
+
+fn message_to_json(message: &DynamicMessage, depth: usize) -> Result<Json, ParseError> {
+    if depth > MAX_DEPTH {
+        return Err(ParseError(format!(
+            "Message too deep to convert to JSON: more than {MAX_DEPTH} nested messages"
+        )));
+    }
     match message.descriptor().full_name() {
-        ANY => any_to_json(message),
-        FIELD_MASK => Json::String(field_mask_to_json(message)),
-        _ => regular_to_json(message, Map::new()),
+        ANY => any_to_json(message, depth),
+        FIELD_MASK => Ok(Json::String(field_mask_to_json(message))),
+        _ => regular_to_json(message, Map::new(), depth),
     }
 }
 
@@ -61,7 +72,11 @@ fn sorted_fields(descriptor: &MessageDescriptor) -> Vec<FieldDescriptor> {
     fields
 }
 
-fn regular_to_json(message: &DynamicMessage, mut js: Map<String, Json>) -> Json {
+fn regular_to_json(
+    message: &DynamicMessage,
+    mut js: Map<String, Json>,
+    depth: usize,
+) -> Result<Json, ParseError> {
     for field in sorted_fields(&message.descriptor()) {
         if !message.has_field(&field) && !negative_zero(&message.get_field(&field)) {
             continue;
@@ -75,10 +90,10 @@ fn regular_to_json(message: &DynamicMessage, mut js: Map<String, Json>) -> Json 
             let Value::Map(map) = value.as_ref() else {
                 unreachable!("map field value")
             };
-            let mut entries: Vec<_> = map
-                .iter()
-                .map(|(key, item)| (map_key_text(key), value_to_json(&value_kind, item)))
-                .collect();
+            let mut entries = Vec::with_capacity(map.len());
+            for (key, item) in map {
+                entries.push((map_key_text(key), value_to_json(&value_kind, item, depth)?));
+            }
             entries.sort_by(|a, b| a.0.cmp(&b.0));
             Json::Object(entries.into_iter().collect())
         } else if field.is_list() {
@@ -86,18 +101,17 @@ fn regular_to_json(message: &DynamicMessage, mut js: Map<String, Json>) -> Json 
                 unreachable!("list field value")
             };
             let kind = field.kind();
-            Json::Array(
-                items
-                    .iter()
-                    .map(|item| value_to_json(&kind, item))
-                    .collect(),
-            )
+            let mut converted = Vec::with_capacity(items.len());
+            for item in items {
+                converted.push(value_to_json(&kind, item, depth)?);
+            }
+            Json::Array(converted)
         } else {
-            value_to_json(&field.kind(), value.as_ref())
+            value_to_json(&field.kind(), value.as_ref(), depth)?
         };
         js.insert(field.name().to_owned(), converted);
     }
-    Json::Object(js)
+    Ok(Json::Object(js))
 }
 
 /// Python's protobuf treats a float field holding -0.0 as set (it compares bits), so it prints it.
@@ -131,9 +145,9 @@ fn float_json(value: f64) -> Json {
     }
 }
 
-fn value_to_json(kind: &Kind, value: &Value) -> Json {
-    match value {
-        Value::Message(message) => to_json(message),
+fn value_to_json(kind: &Kind, value: &Value, depth: usize) -> Result<Json, ParseError> {
+    Ok(match value {
+        Value::Message(message) => message_to_json(message, depth + 1)?,
         Value::EnumNumber(number) => match kind {
             Kind::Enum(descriptor) => descriptor.get_value(*number).map_or_else(
                 || Json::from(*number),
@@ -161,39 +175,33 @@ fn value_to_json(kind: &Kind, value: &Value) -> Json {
             }
         }
         Value::List(_) | Value::Map(_) => unreachable!("nested repeated values"),
-    }
+    })
 }
 
-fn any_to_json(message: &DynamicMessage) -> Json {
+fn any_to_json(message: &DynamicMessage, depth: usize) -> Result<Json, ParseError> {
     let type_url = string_field(message, "type_url");
     let bytes = bytes_field(message, "value");
     if type_url.is_empty() && bytes.is_empty() {
-        return Json::Object(Map::new());
+        return Ok(Json::Object(Map::new()));
     }
     let mut js = Map::new();
     js.insert(TYPE_KEY.into(), Json::String(type_url.clone()));
     let name = type_url.rsplit('/').next().unwrap_or_default();
+    // Python raises TypeError and DecodeError here, which the MCP reports as the tool's error
     let Some(descriptor) = proto::pool().get_message_by_name(name) else {
-        // Python raises TypeError here; an unknown type can only come from a newer KiCad.
-        js.insert(
-            "value".into(),
-            Json::String(base64::engine::general_purpose::STANDARD.encode(&bytes)),
-        );
-        return Json::Object(js);
+        return Err(ParseError(format!(
+            "Can not find message descriptor by type_url: {type_url}"
+        )));
     };
     let Ok(sub) = DynamicMessage::decode(descriptor, bytes.as_slice()) else {
-        js.insert(
-            "value".into(),
-            Json::String(base64::engine::general_purpose::STANDARD.encode(&bytes)),
-        );
-        return Json::Object(js);
+        return Err(ParseError("Error parsing message".into()));
     };
     match name {
         ANY | FIELD_MASK => {
-            js.insert("value".into(), to_json(&sub));
-            Json::Object(js)
+            js.insert("value".into(), message_to_json(&sub, depth + 1)?);
+            Ok(Json::Object(js))
         }
-        _ => regular_to_json(&sub, js),
+        _ => regular_to_json(&sub, js, depth + 1),
     }
 }
 
@@ -426,6 +434,12 @@ impl Parser {
         skip: Option<&str>,
     ) -> Result<(), ParseError> {
         let descriptor = message.descriptor();
+        // Python iterates the value for field names, so an empty list or string is an empty message
+        if matches!(value, Json::Array(items) if items.is_empty())
+            || matches!(value, Json::String(text) if text.is_empty())
+        {
+            return Ok(());
+        }
         let Json::Object(map) = value else {
             return Err(ParseError(format!(
                 "Failed to parse {} at {path}: expected an object, not {}",
@@ -711,6 +725,51 @@ fn python_int(text: &str) -> Option<i128> {
     Some(if negative { -magnitude } else { magnitude })
 }
 
+/// Python's `float(text)`: surrounding whitespace, a sign, `inf`/`infinity`/`nan` in any case, or
+/// a decimal with an optional exponent whose digits may be grouped with single underscores.
+fn python_float(text: &str) -> Option<f64> {
+    let trimmed = text.trim();
+    let (negative, body) = match trimmed.as_bytes().first() {
+        Some(b'-') => (true, &trimmed[1..]),
+        Some(b'+') => (false, &trimmed[1..]),
+        _ => (false, trimmed),
+    };
+    let sign = if negative { -1.0 } else { 1.0 };
+    match body.to_ascii_lowercase().as_str() {
+        "inf" | "infinity" => return Some(sign * f64::INFINITY),
+        "nan" => return Some(f64::NAN),
+        _ => {}
+    }
+    // An underscore must sit between two digits
+    let bytes = body.as_bytes();
+    for (index, byte) in bytes.iter().enumerate() {
+        if *byte == b'_'
+            && !(index > 0
+                && bytes[index - 1].is_ascii_digit()
+                && bytes.get(index + 1).is_some_and(u8::is_ascii_digit))
+        {
+            return None;
+        }
+    }
+    let plain = body.replace('_', "");
+    let (mantissa, exponent) = match plain.find(['e', 'E']) {
+        Some(at) => (&plain[..at], Some(&plain[at + 1..])),
+        None => (plain.as_str(), None),
+    };
+    let (whole, fraction) = mantissa.split_once('.').unwrap_or((mantissa, ""));
+    let digits = |part: &str| part.bytes().all(|b| b.is_ascii_digit());
+    if (whole.is_empty() && fraction.is_empty()) || !digits(whole) || !digits(fraction) {
+        return None;
+    }
+    if let Some(exponent) = exponent {
+        let unsigned = exponent.strip_prefix(['+', '-']).unwrap_or(exponent);
+        if unsigned.is_empty() || !digits(unsigned) {
+            return None;
+        }
+    }
+    plain.parse::<f64>().ok().map(|v| sign * v)
+}
+
 /// `_ConvertInteger`.
 fn integer(value: &Json) -> Result<i128, FieldError> {
     match value {
@@ -740,12 +799,20 @@ fn integer(value: &Json) -> Result<i128, FieldError> {
                     "Couldn't parse integer: \"{text}\""
                 )));
             }
-            python_int(text).ok_or_else(|| {
-                FieldError::Value(format!(
+            if let Some(number) = python_int(text) {
+                return Ok(number);
+            }
+            // Not an integer literal: Python then accepts a float literal with a whole value
+            match python_float(text) {
+                None => Err(FieldError::Value(format!(
                     "invalid literal for int() with base 10: {}",
                     py_repr(value)
-                ))
-            })
+                ))),
+                Some(v) if !v.is_finite() || v.fract() != 0.0 => Err(FieldError::Parse(format!(
+                    "Couldn't parse non-integer string: \"{text}\""
+                ))),
+                Some(v) => Ok(v as i128),
+            }
         }
         Json::Bool(flag) => Err(FieldError::Parse(format!(
             "Bool value {} is not acceptable for integer field",
@@ -789,36 +856,8 @@ fn float(value: &Json, single: bool) -> Result<f64, FieldError> {
                     "Couldn't parse float \"nan\", use \"NaN\" instead".into(),
                 ));
             }
-            let trimmed = text.trim();
-            let lowered = trimmed.to_ascii_lowercase();
-            let unsigned = lowered.trim_start_matches(['+', '-']);
-            let negative = lowered.starts_with('-');
-            let special = match unsigned {
-                "inf" | "infinity" => Some(if negative {
-                    f64::NEG_INFINITY
-                } else {
-                    f64::INFINITY
-                }),
-                "nan" => Some(f64::NAN),
-                _ => None,
-            };
-            if let Some(v) = special {
-                return Ok(v);
-            }
-            let plain = trimmed.replace('_', "");
-            let valid =
-                !trimmed.contains("__") && !trimmed.starts_with('_') && !trimmed.ends_with('_');
-            match plain.parse::<f64>() {
-                Ok(v)
-                    if valid
-                        && plain
-                            .bytes()
-                            .all(|b| b.is_ascii_digit() || b"+-.eE".contains(&b)) =>
-                {
-                    Ok(v)
-                }
-                _ => Err(FieldError::Parse(format!("Couldn't parse float: {text}"))),
-            }
+            python_float(text)
+                .ok_or_else(|| FieldError::Parse(format!("Couldn't parse float: {text}")))
         }
         other => Err(FieldError::Value(format!(
             "float() argument must be a string or a real number, not '{}'",
@@ -932,7 +971,7 @@ mod tests {
         });
         let message =
             from_json(&spec, &descriptor("kiapi.common.types.DocumentSpecifier")).unwrap();
-        assert_eq!(to_json(&message), spec);
+        assert_eq!(to_json(&message).unwrap(), spec);
     }
 
     #[test]
@@ -941,7 +980,7 @@ mod tests {
         let message =
             from_json(&spec, &descriptor("kiapi.common.types.DocumentSpecifier")).unwrap();
         assert_eq!(
-            to_json(&message),
+            to_json(&message).unwrap(),
             json!({"type": "DOCTYPE_SCHEMATIC", "sheet_path": {}})
         );
     }
@@ -964,16 +1003,35 @@ mod tests {
             "y_nm": "-2540000"
         });
         let message = from_json(&item, &descriptor(ANY)).unwrap();
-        assert_eq!(to_json(&message), item);
+        assert_eq!(to_json(&message).unwrap(), item);
         let missing = from_json(&json!({"x_nm": 1}), &descriptor(ANY)).unwrap_err();
         assert_eq!(
             missing.0,
             "@type is missing when parsing any message at Any"
         );
         assert_eq!(
-            to_json(&from_json(&json!({}), &descriptor(ANY)).unwrap()),
+            to_json(&from_json(&json!({}), &descriptor(ANY)).unwrap()).unwrap(),
             json!({})
         );
+    }
+
+    #[test]
+    fn any_printing_refuses_unknown_types_and_excessive_nesting() {
+        let mut unknown = DynamicMessage::new(descriptor(ANY));
+        unknown.set_field_by_name(
+            "type_url",
+            Value::String("type.googleapis.com/unknown.Type".into()),
+        );
+        assert!(to_json(&unknown)
+            .unwrap_err()
+            .0
+            .contains("Can not find message descriptor"));
+
+        let mut nested = DynamicMessage::new(descriptor("kiapi.common.types.Vector2"));
+        for _ in 0..MAX_DEPTH + 2 {
+            nested = proto::pack(&nested);
+        }
+        assert!(to_json(&nested).unwrap_err().0.contains("Message too deep"));
     }
 
     #[test]
@@ -982,7 +1040,20 @@ mod tests {
         let parsed = from_json(&json!({"x_nm": 5.0, "y_nm": " 7 "}), &vector);
         assert!(parsed.is_err(), "a string with a space is refused");
         let parsed = from_json(&json!({"x_nm": 5.0, "y_nm": "1_000"}), &vector).unwrap();
-        assert_eq!(to_json(&parsed), json!({"x_nm": "5", "y_nm": "1000"}));
+        assert_eq!(
+            to_json(&parsed).unwrap(),
+            json!({"x_nm": "5", "y_nm": "1000"})
+        );
+        let parsed = from_json(&json!({"x_nm": "2540000.0", "y_nm": "1e3"}), &vector).unwrap();
+        assert_eq!(
+            to_json(&parsed).unwrap(),
+            json!({"x_nm": "2540000", "y_nm": "1000"})
+        );
+        let error = from_json(&json!({"x_nm": "2.5"}), &vector).unwrap_err();
+        assert_eq!(
+            error.0,
+            "Failed to parse x_nm field: Couldn't parse non-integer string: \"2.5\" at Vector2.x_nm."
+        );
         let error = from_json(&json!({"x_nm": 1.5}), &vector).unwrap_err();
         assert_eq!(
             error.0,
@@ -1001,22 +1072,31 @@ mod tests {
         )
         .unwrap();
         assert_eq!(
-            to_json(&message),
+            to_json(&message).unwrap(),
             json!({"r": 0.1, "g": 1.0, "b": 0.5, "a": 1.0})
         );
         let message = from_json(&json!({"r": "-Infinity", "g": "NaN"}), &descriptor).unwrap();
-        assert_eq!(to_json(&message), json!({"r": "-Infinity", "g": "NaN"}));
+        assert_eq!(
+            to_json(&message).unwrap(),
+            json!({"r": "-Infinity", "g": "NaN"})
+        );
     }
 
     #[test]
     fn single_precision_prints_the_shortest_round_trip_decimal() {
         let kind = Kind::Float;
-        assert_eq!(value_to_json(&kind, &Value::F32(0.1)), json!(0.1));
         assert_eq!(
-            value_to_json(&kind, &Value::F32(1.0 / 3.0)),
+            value_to_json(&kind, &Value::F32(0.1), 0).unwrap(),
+            json!(0.1)
+        );
+        assert_eq!(
+            value_to_json(&kind, &Value::F32(1.0 / 3.0), 0).unwrap(),
             json!(0.33333334)
         );
-        assert_eq!(value_to_json(&kind, &Value::F32(2.0)), json!(2.0));
+        assert_eq!(
+            value_to_json(&kind, &Value::F32(2.0), 0).unwrap(),
+            json!(2.0)
+        );
     }
 
     #[test]
@@ -1038,7 +1118,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(
-            to_json(&message),
+            to_json(&message).unwrap(),
             json!({"variables": {"variables": {"A": "1", "B": "2"}}})
         );
     }

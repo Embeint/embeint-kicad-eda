@@ -27,6 +27,13 @@ fn error(class: &str, message: impl Into<String>) -> Json {
     json!({"error": {"class": class, "message": message.into()}})
 }
 
+fn printed(result: Result<Json, pbjson::ParseError>) -> Json {
+    match result {
+        Ok(value) => json!({"ok": value}),
+        Err(e) => error("ParseError", e.0),
+    }
+}
+
 fn client_error(e: Error) -> Json {
     error(e.class(), e.to_string())
 }
@@ -40,7 +47,7 @@ fn handle(request: &Json) -> Json {
                 return error("KeyError", name);
             };
             match pbjson::from_json(&request["value"], &descriptor) {
-                Ok(message) => json!({"ok": pbjson::to_json(&message)}),
+                Ok(message) => printed(pbjson::to_json(&message)),
                 Err(e) => error("ParseError", e.0),
             }
         }
@@ -48,7 +55,14 @@ fn handle(request: &Json) -> Json {
             let values = request["values"].as_array().cloned().unwrap_or_default();
             match client::parse_schematic_items(&values) {
                 Ok(items) => {
-                    json!({"ok": items.iter().map(|m| pbjson::to_json(&proto::pack(m))).collect::<Vec<_>>()})
+                    let printed: Result<Vec<_>, _> = items
+                        .iter()
+                        .map(|m| pbjson::to_json(&proto::pack(m)))
+                        .collect();
+                    match printed {
+                        Ok(values) => json!({"ok": values}),
+                        Err(e) => error("ParseError", e.0),
+                    }
                 }
                 Err(e) => client_error(e),
             }
@@ -61,7 +75,7 @@ fn handle(request: &Json) -> Json {
                 _ => client::editor_document(value),
             };
             match result {
-                Ok(message) => json!({"ok": pbjson::to_json(&message)}),
+                Ok(message) => printed(pbjson::to_json(&message)),
                 Err(e) => client_error(e),
             }
         }

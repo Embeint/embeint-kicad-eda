@@ -6,7 +6,8 @@
 //!   never replaced.  The instance token is pinned after the first reply.
 //! - Mutations are never resent.  A lost reply is reconciled with `GetOperationStatus` once.
 //! - Every transaction carries an operation id and asks for a commit lease; a failed step drops
-//!   the commit (rollback), and a refused `EndCommit` is reported as rolled back.
+//!   the commit (rollback).  An `EndCommit` refused for a revision conflict is recorded as rolled
+//!   back (KiCad rolled it back); other refusals are reported as they are, as in Python.
 //!
 //! Error texts are the Python client's, so MCP tool errors stay the same.
 
@@ -115,6 +116,12 @@ impl From<pbjson::ParseError> for Error {
     fn from(error: pbjson::ParseError) -> Self {
         Error::Parse(error.0)
     }
+}
+
+/// A reply message as protobuf JSON.  Python raises (TypeError, DecodeError, RecursionError) for
+/// an `Any` it cannot print; that becomes the tool's error, and so does this.
+fn reply_json(message: &DynamicMessage) -> Result<Json, Error> {
+    pbjson::to_json(message).map_err(|error| Error::Decode(error.0))
 }
 
 /// `new_operation_id()`.
@@ -240,6 +247,11 @@ impl Client {
                 "KiCad closed the connection before replying to {name}; KiCad may still apply it"
             )))
             }
+            Err(TransportError::Lost(detail)) => {
+                return Err(Error::ReplyTimeout(format!(
+                    "KiCad's reply to {name} could not be read ({detail}); KiCad may still apply it"
+                )))
+            }
             Err(TransportError::Protocol(detail)) => {
                 return Err(Error::Runtime(format!(
                     "Cannot talk to KiCad at the selected endpoint: {detail}"
@@ -299,7 +311,7 @@ impl Client {
             ));
         }
         let documents = self.open_documents("DOCTYPE_SCHEMATIC").await?;
-        Ok(json!({"version": pbjson::to_json(&version), "documents": documents}))
+        Ok(json!({"version": reply_json(&version)?, "documents": documents}))
     }
 
     /// `boards()`: the boards open in the PCB editor (none when it is closed).
@@ -313,7 +325,7 @@ impl Client {
             .send(&request, &format!("{C}GetOpenDocumentsResponse"))
             .await
         {
-            Ok(opened) => Ok(pbjson::to_json(&opened)
+            Ok(opened) => Ok(reply_json(&opened)?
                 .get("documents")
                 .cloned()
                 .unwrap_or_else(|| json!([]))),
@@ -337,7 +349,7 @@ impl Client {
         let response = self
             .send(&request, &format!("{S}SchematicHierarchyResponse"))
             .await?;
-        Ok(pbjson::to_json(&response))
+        reply_json(&response)
     }
 
     /// `items(doc)`: every item on one sheet, unsaved changes included.
@@ -355,7 +367,7 @@ impl Client {
                 enum_name(&format!("{T}ItemRequestStatus"), status)
             )));
         }
-        Ok(pbjson::to_json(&response))
+        reply_json(&response)
     }
 
     /// `document_revision(doc)`: the live revision, open API commits and unsaved state.
@@ -387,7 +399,7 @@ impl Client {
         let response = self
             .send(&request, &format!("{C}OperationStatusResponse"))
             .await?;
-        let mut result = pbjson::to_json(&response);
+        let mut result = reply_json(&response)?;
         result["state"] = json!(enum_name(
             &format!("{C}OperationState"),
             int_field(&response, "state")
@@ -704,9 +716,7 @@ impl Client {
         };
         self.finish_transaction(&header, &id, &operation_id, "MCP: create items", outcome)
             .await?;
-        Ok(pbjson::to_json(
-            &response.expect("a committed transaction has a response"),
-        ))
+        reply_json(&response.expect("a committed transaction has a response"))
     }
 
     async fn create_step(

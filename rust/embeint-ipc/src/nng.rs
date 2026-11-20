@@ -32,8 +32,12 @@ pub enum TransportError {
     Timeout,
     /// The peer closed the connection before replying.  The request may have reached KiCad.
     Closed,
-    /// The peer is not an NNG REP0 endpoint, or sent a malformed frame.
+    /// Before the request was sent: the endpoint could not be opened, or is not an NNG REP0 peer.
+    /// Nothing reached KiCad.
     Protocol(String),
+    /// After the request was sent: the reply could not be read (a malformed frame or another I/O
+    /// error).  The request may have reached KiCad, so this is a lost reply, like Timeout.
+    Lost(String),
 }
 
 fn header(protocol: u16) -> [u8; 8] {
@@ -48,6 +52,11 @@ fn request_id() -> u32 {
 
 fn closed(error: &std::io::Error) -> bool {
     use std::io::ErrorKind::*;
+    // Windows does not map ERROR_NO_DATA and ERROR_PIPE_NOT_CONNECTED to BrokenPipe.
+    #[cfg(windows)]
+    if matches!(error.raw_os_error(), Some(232 | 233)) {
+        return true;
+    }
     matches!(
         error.kind(),
         UnexpectedEof | ConnectionReset | ConnectionAborted | BrokenPipe
@@ -94,11 +103,12 @@ pub async fn request(
     let receive_deadline = Instant::now() + timeout;
     timeout_at(receive_deadline, async {
         loop {
-            let message = read_frame(&mut stream).await?;
+            let message = read_frame(&mut stream).await.map_err(|error| match error {
+                TransportError::Protocol(detail) => TransportError::Lost(detail),
+                other => other,
+            })?;
             if message.len() < 4 {
-                return Err(TransportError::Protocol(
-                    "reply without a request id".into(),
-                ));
+                return Err(TransportError::Lost("reply without a request id".into()));
             }
             // A reply to an earlier request id cannot arrive on a fresh connection; skip it anyway
             if message[..4] == id.to_be_bytes() {
@@ -206,6 +216,18 @@ pub(crate) mod testing {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(windows)]
+    #[test]
+    fn closed_named_pipe_errors_are_lost_replies() {
+        for code in [109, 232, 233] {
+            assert!(matches!(
+                io_error(std::io::Error::from_raw_os_error(code)),
+                TransportError::Closed
+            ));
+        }
+        assert!(!closed(&std::io::Error::from_raw_os_error(5)));
+    }
 
     #[test]
     fn headers_and_ids() {
