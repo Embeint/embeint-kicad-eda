@@ -142,7 +142,7 @@ function Update-Folder( [string] $New, [string] $Destination )
         if( $busy.Count -gt 0 )
         {
             throw "Cannot replace $( $Destination ): $( $busy.Count ) file(s) are in use, e.g. $( $busy[0] ). " +
-                  'Close the MCP client running embeint-kicad-mcp.exe from it and run again; nothing was changed.'
+                  'Close the MCP client running embeint-kicad-mcp.exe or embeint-mcp.exe from it and run again; nothing was changed.'
         }
 
         $aside = "$Destination.old-" + ( Get-Date -Format 'yyyyMMddHHmmss' )
@@ -214,6 +214,24 @@ function Install-Mcp( [string[]] $BasePython )
 # Check the MCP build Python before anything slow
 $McpBasePython = $null
 if( -not $NoMcp ) { $McpBasePython = Resolve-McpBasePython }
+if( -not $NoMcp -and ( Get-Command cargo -ErrorAction SilentlyContinue ) )
+{
+    # Fail before the KiCad compile when an installed Rust toolchain cannot bundle the MCP.
+    $rustVersion = @( & rustc --version )
+    if( $LASTEXITCODE -ne 0 -or $rustVersion[0] -notmatch '^rustc (\d+\.\d+\.\d+)' )
+    {
+        throw 'Cannot determine the installed Rust compiler version'
+    }
+    if( [version] $Matches[1] -lt [version] '1.85.0' ) { throw 'The MCP bundle requires Rust 1.85 or newer' }
+    $rustSysroot = ( & rustc --print sysroot ).Trim()
+    foreach( $notice in @( 'COPYRIGHT-library.html', 'licenses' ) )
+    {
+        if( -not ( Test-Path -LiteralPath ( Join-Path $rustSysroot "share\doc\rust\$notice" ) ) )
+        {
+            throw "The Rust toolchain is missing $notice; install its documentation before building"
+        }
+    }
+}
 
 if( $McpOnly )
 {

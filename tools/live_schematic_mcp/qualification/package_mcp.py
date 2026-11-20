@@ -207,6 +207,8 @@ def main():
                 "openssl_version": ssl.OPENSSL_VERSION, "third_party_notices": notice_manifest()}
         if rust is not None:
             info["rust"] = rust
+        if source_identity(args.source_revision) != (revision, dirty, revision_source):
+            raise RuntimeError("source revision or dirty status changed during packaging; rebuild from stable sources")
         (package / "build-info.json").write_text(json.dumps(info, indent=2, sort_keys=True) + "\n")
         shutil.move(str(package), output)
     print(output)

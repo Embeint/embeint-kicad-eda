@@ -54,13 +54,22 @@ def tool_definition(tool):
 
 def check_rust_files(package, rust):
     """The bundled Rust executables are the ones recorded, and their notices are present."""
+    windows = rust["target"].endswith("-windows-msvc")
+    suffix = ".exe" if windows else ""
+    assert set(rust["binaries"]) == {"embeint-mcp" + suffix, "embeint-layout" + suffix}
     for name, digest in rust["binaries"].items():
         assert sha256((package / name).read_bytes()).hexdigest() == digest, f"{name} is not the recorded build"
+        if windows:
+            from qualification.rust_bundle import check_windows_runtime
+            check_windows_runtime(package / name)
     notices = package / "licenses" / "rust"
     assert (notices / "README.txt").is_file(), "missing licenses/rust/README.txt"
     assert (notices / "rust-standard-library" / "COPYRIGHT-library.html").is_file(), (
         "missing the Rust standard library notice")
+    assert any((notices / "rust-standard-library" / "licenses").glob("*")), "missing standard library licences"
+    assert rust["crates"], "missing third-party Rust crate notices"
     for crate in rust["crates"]:
+        assert crate["files"], f"missing licence list for {crate['name']}"
         for name in crate["files"]:
             assert (notices / f"{crate['name']}-{crate['version']}" / name).is_file(), (
                 f"missing licence file {name} of {crate['name']} {crate['version']}")
@@ -232,4 +241,5 @@ def main():
 
 
 if __name__ == "__main__":
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     main()

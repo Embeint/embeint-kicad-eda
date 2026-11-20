@@ -354,7 +354,7 @@ def test_rust_bundle_reads_cargo_tree_and_ships_every_licence(tmp_path):
     standard library's notices; a crate without one stops the build."""
     from qualification import rust_bundle
 
-    tree = "embeint-mcp v0.1.0 (C:\src\rust\embeint-mcp)\ntokio v1.54.1\nbytes v1.12.2 (*)\n\nmemchr v2.8.3\n"
+    tree = "embeint-mcp v0.1.0 (C:/src/rust/embeint-mcp)\ntokio v1.54.1\nbytes v1.12.2 (*)\n\nmemchr v2.8.3\n"
     assert rust_bundle.parse_tree(tree) == {("embeint-mcp", "0.1.0"), ("tokio", "1.54.1"),
                                             ("bytes", "1.12.2"), ("memchr", "2.8.3")}
     tokio = tmp_path / "registry/tokio-1.54.1"
@@ -382,3 +382,74 @@ def test_rust_bundle_reads_cargo_tree_and_ships_every_licence(tmp_path):
                                  tmp_path / "out2", sysroot)
     with pytest.raises(RuntimeError, match="COPYRIGHT-library.html"):
         rust_bundle.copy_notices([], tmp_path / "out3", tmp_path / "no-sysroot")
+
+
+@pytest.mark.parametrize("field,value,error", [
+    ("source_dirty", True, "clean Git"),
+    ("source_dirty", None, "clean Git"),
+    ("revision_source", "archive", "clean Git"),
+    ("source_revision", "b" * 40, "revision differs"),
+    ("mcp_version", "0.2.0+gaaaaaaaaaa", "version differs"),
+    ("rust", {}, "native server version"),
+])
+def test_release_refuses_untraceable_or_mismatched_platform(field, value, error):
+    from qualification.check_release import PLATFORMS, validate
+
+    info = {"source_dirty": False, "revision_source": "git", "source_revision": "a" * 40,
+            "mcp_version": "0.1.0+gaaaaaaaaaa",
+            "rust": {"mcp": {"server_version": "0.1.0+rust.gaaaaaaaaaa"}}}
+    packages = {platform: dict(info) for platform in PLATFORMS}
+    validate("mcp-v0.1.0", "a" * 40, packages)
+    packages["windows-x86_64"][field] = value
+    with pytest.raises(ValueError, match=error):
+        validate("mcp-v0.1.0", "a" * 40, packages)
+
+
+@pytest.mark.parametrize("tag", ["master", "v0.1.0", "--help", "mcp-v../main", "mcp-v0.1.0\n"])
+def test_release_rejects_non_release_tag(tag):
+    from qualification.check_release import validate
+    with pytest.raises(ValueError, match="release tag"):
+        validate(tag, "a" * 40, {})
+
+
+def test_rust_bundle_uses_reported_target_executables_and_static_crt(monkeypatch, tmp_path):
+    import json
+    from qualification import rust_bundle
+
+    monkeypatch.setenv("RUSTFLAGS", "-C debuginfo=1")
+    monkeypatch.delenv("CARGO_ENCODED_RUSTFLAGS", raising=False)
+    monkeypatch.setattr(rust_bundle, "host_triple", lambda: "x86_64-pc-windows-msvc")
+
+    def cargo(command, **kwargs):
+        assert command[command.index("--target") + 1] == "x86_64-pc-windows-msvc"
+        assert kwargs["env"]["CARGO_ENCODED_RUSTFLAGS"] == "-C\x1fdebuginfo=1\x1f-Ctarget-feature=+crt-static"
+        assert kwargs["env"]["EMBEINT_SOURCE_REVISION"] == "g1234"
+        return SimpleNamespace(stdout="\n".join(json.dumps({"reason": "compiler-artifact",
+                               "target": {"name": name}, "executable": str(tmp_path / name)})
+                               for name in rust_bundle.PACKAGES.values()))
+
+    monkeypatch.setattr(rust_bundle.subprocess, "run", cargo)
+    assert rust_bundle.build(tmp_path, "g1234") == {name: tmp_path / name for name in rust_bundle.PACKAGES.values()}
+
+
+def test_rust_bundle_rejects_empty_notice_inventory(monkeypatch, tmp_path):
+    from qualification import rust_bundle
+    monkeypatch.setattr(rust_bundle, "host_triple", lambda: "x86_64-unknown-linux-gnu")
+    monkeypatch.setattr(rust_bundle.subprocess, "run", lambda command, **kwargs:
+                        SimpleNamespace(stdout='{"packages": []}' if "metadata" in command else ""))
+    with pytest.raises(RuntimeError, match="no crates"):
+        rust_bundle.linked_crates(tmp_path)
+
+
+@pytest.mark.parametrize("table", ["DIRECTORY_ENTRY_IMPORT", "DIRECTORY_ENTRY_DELAY_IMPORT"])
+def test_rust_bundle_rejects_external_vc_runtime(monkeypatch, tmp_path, table):
+    import sys
+    from contextlib import nullcontext
+    from qualification import rust_bundle
+
+    imports = SimpleNamespace(**{table: [SimpleNamespace(dll=b"VCRUNTIME140.dll")]})
+    monkeypatch.setitem(sys.modules, "pefile", SimpleNamespace(PE=lambda path: nullcontext(imports)))
+    with pytest.raises(RuntimeError, match="unbundled VC"):
+        rust_bundle.check_windows_runtime(tmp_path / "embeint-mcp.exe")
+    setattr(imports, table, [SimpleNamespace(dll=b"KERNEL32.dll")])
+    assert rust_bundle.check_windows_runtime(tmp_path / "embeint-mcp.exe") == ["kernel32.dll"]

@@ -17,6 +17,7 @@ own capability manifest; check_package.py verifies all of it.
 
 from hashlib import sha256
 import json
+import os
 from pathlib import Path
 import re
 import shutil
@@ -25,7 +26,7 @@ import subprocess
 RUST = Path(__file__).resolve().parents[3] / "rust"
 # cargo package -> executable it builds
 PACKAGES = {"embeint-mcp": "embeint-mcp", "embeint-layout-cli": "embeint-layout"}
-LICENCE_FILE = re.compile(r"(licen[cs]e|copying|notice|unlicense)", re.IGNORECASE)
+LICENCE_FILE = re.compile(r"(?:^|[-_.])(licen[cs]e|copying|copyright|notice|unlicense)(?:$|[-_.])", re.IGNORECASE)
 # Standard library notices in <sysroot>/share/doc/rust (installed with the rustc component)
 STD_NOTICES = ("COPYRIGHT-library.html", "licenses")
 
@@ -39,13 +40,26 @@ def host_triple():
     return re.search(r"^host: (\S+)$", text, re.MULTILINE).group(1)
 
 
+def build_environment(revision, target):
+    """Preserve caller flags, but link the MSVC runtime into shipped executables."""
+    environment = dict(os.environ, EMBEINT_SOURCE_REVISION=revision or "")
+    flags = (environment["CARGO_ENCODED_RUSTFLAGS"].split("\x1f")
+             if "CARGO_ENCODED_RUSTFLAGS" in environment else environment.get("RUSTFLAGS", "").split())
+    if target.endswith("-windows-msvc"):
+        flags.append("-Ctarget-feature=+crt-static")
+        environment["CARGO_ENCODED_RUSTFLAGS"] = "\x1f".join(flags)
+    return environment
+
+
 def build(rust=RUST, revision=None):
     """Build the executables with --locked and return {executable name: path} from cargo's own
     report of what it built, so a stale file in target/ can never be bundled.  revision (e.g.
     g0123456789) becomes part of embeint-mcp's version."""
-    import os
-    environment = dict(os.environ, EMBEINT_SOURCE_REVISION=revision or "")
-    command = ["cargo", "build", "--locked", "--release", "--message-format=json-render-diagnostics"]
+    target = host_triple()
+    environment = build_environment(revision, target)
+    # An explicit target keeps crt-static off host proc macros and build scripts.
+    command = ["cargo", "build", "--locked", "--release", "--target", target,
+               "--message-format=json-render-diagnostics"]
     for package in PACKAGES:
         command += ["-p", package]
     output = subprocess.run(command, cwd=rust, stdout=subprocess.PIPE, text=True, check=True,
@@ -82,15 +96,22 @@ def linked_crates(rust=RUST):
     metadata = json.loads(subprocess.run(["cargo", "metadata", "--locked", "--format-version", "1"], cwd=rust,
                                          capture_output=True, text=True, check=True).stdout)
     crates = []
+    if not names:
+        raise RuntimeError("cargo tree reported no crates; cannot establish licence coverage")
+    known = {(package["name"], package["version"]) for package in metadata["packages"]}
+    if names - known:
+        raise RuntimeError(f"cargo tree crates missing from metadata: {sorted(names - known)}")
     for package in metadata["packages"]:
         if (package["name"], package["version"]) in names and package["source"] is not None:
             crates.append({"name": package["name"], "version": package["version"],
                            "license": package["license"], "root": Path(package["manifest_path"]).parent})
+    if not crates:
+        raise RuntimeError("cargo tree reported no third-party crates to license")
     return sorted(crates, key=lambda crate: (crate["name"], crate["version"]))
 
 
 def licence_files(root):
-    return sorted(path for path in root.iterdir() if path.is_file() and LICENCE_FILE.match(path.name))
+    return sorted(path for path in root.iterdir() if path.is_file() and LICENCE_FILE.search(path.name))
 
 
 def copy_notices(crates, destination, sysroot):
@@ -137,11 +158,29 @@ def native_manifest(executable):
     return json.loads(reply)["ok"]
 
 
+def check_windows_runtime(executable):
+    """Inspect imports instead of relying on the build host's installed VC++ runtime.
+
+    pefile is installed by PyInstaller on Windows in the package build environment.
+    """
+    import pefile
+    with pefile.PE(str(executable)) as pe:
+        imports = [entry.dll.decode("ascii").lower() for table in
+                   ("DIRECTORY_ENTRY_IMPORT", "DIRECTORY_ENTRY_DELAY_IMPORT")
+                   for entry in getattr(pe, table, [])]
+    external = [name for name in imports if name.startswith(("vcruntime", "msvcp", "concrt"))]
+    if external:
+        raise RuntimeError(f"{executable.name} requires an unbundled VC++ runtime: {external}")
+    return sorted(imports)
+
+
 def bundle(package, windows, revision=None, rust=RUST):
     """Build, copy the executables into package and write their notices; build-info's "rust"."""
     built = build(rust, revision)
     binaries = {}
     for name, source in built.items():
+        if windows:
+            check_windows_runtime(source)
         target = package / executable_name(name, windows)
         shutil.copy2(source, target)
         binaries[target.name] = sha256(target.read_bytes()).hexdigest()
@@ -150,7 +189,18 @@ def bundle(package, windows, revision=None, rust=RUST):
     crates = copy_notices(linked_crates(rust), package / "licenses" / "rust", sysroot)
     manifest = native_manifest(package / executable_name("embeint-mcp", windows))
     rustc = subprocess.run(["rustc", "--version"], capture_output=True, text=True, check=True).stdout.strip()
-    return {"binaries": binaries, "rustc": rustc, "target": host_triple(),
+    target = host_triple()
+    environment = build_environment(revision, target)
+    sources = {path.relative_to(rust).as_posix(): sha256(path.read_bytes()).hexdigest()
+               for folder in sorted(rust.glob("embeint-*"))
+               for path in sorted(folder.rglob("*")) if path.is_file() and path.suffix in (".rs", ".toml", ".json")}
+    for name in ("Cargo.toml", "Cargo.lock", ".cargo/config.toml"):
+        if (rust / name).is_file():
+            sources[name] = sha256((rust / name).read_bytes()).hexdigest()
+    return {"binaries": binaries, "rustc": rustc, "target": target, "source_sha256": sources,
+            "cargo": subprocess.run(["cargo", "--version"], capture_output=True, text=True, check=True).stdout.strip(),
+            "rustflags": environment.get("RUSTFLAGS"),
+            "encoded_rustflags": environment.get("CARGO_ENCODED_RUSTFLAGS"),
             "cargo_lock_sha256": sha256((rust / "Cargo.lock").read_bytes()).hexdigest(),
             "crates": crates,
             "mcp": {"server_version": manifest["server_version"], "schema_sha256": manifest["schema_sha256"],
