@@ -1519,3 +1519,16 @@ def test_execute_tags_document_edits_but_not_project_settings():
     client.execute("UndoLastChange", {"document": as_dict(doc())})
     assert client.headers[0] is None
     assert client.headers[1][1].startswith("mcp-")
+
+
+def test_reply_timeout_comes_from_the_environment(monkeypatch):
+    """KICAD_API_TIMEOUT_MS sets the reply timeout (the native Rust MCP reads the same variable)."""
+    monkeypatch.delenv("KICAD_API_TIMEOUT_MS", raising=False)
+    assert LiveSchematic(unused_socket("unused-test-socket")).timeout_ms == 15000
+    monkeypatch.setenv("KICAD_API_TIMEOUT_MS", " 400 ")
+    assert LiveSchematic(unused_socket("unused-test-socket")).timeout_ms == 400
+    assert LiveSchematic(unused_socket("unused-test-socket"), timeout_ms=50).timeout_ms == 50
+    for invalid in ("0", "600001", "1.5", "-5", "soon"):
+        monkeypatch.setenv("KICAD_API_TIMEOUT_MS", invalid)
+        with pytest.raises(ValueError, match="KICAD_API_TIMEOUT_MS"):
+            LiveSchematic(unused_socket("unused-test-socket"))
