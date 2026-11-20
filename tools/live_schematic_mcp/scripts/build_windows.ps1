@@ -196,8 +196,13 @@ function Install-Mcp( [string[]] $BasePython )
 
     Get-ChildItem $work -Directory -Filter 'package-*' | Remove-Item -Recurse -Force
     $package = Join-Path $work ( 'package-' + ( Get-Date -Format 'yyyyMMddHHmmss' ) )
-    Invoke-Checked $python @( '-I', ( Join-Path $mcp 'qualification\package_mcp.py' ), $package,
-                              '--application-version', $version )
+    # With a Rust toolchain, the package also carries the native MCP server and the layout runner
+    # (qualification\rust_bundle.py); the release workflow (release-mcp.yml) always includes them
+    $packageArgs = @( '-I', ( Join-Path $mcp 'qualification\package_mcp.py' ), $package,
+                      '--application-version', $version )
+    if( Get-Command cargo -ErrorAction SilentlyContinue ) { $packageArgs += '--rust' }
+    else { Write-Warning 'cargo not found: the MCP package will not include embeint-mcp and embeint-layout' }
+    Invoke-Checked $python $packageArgs
     Invoke-Checked $python @( '-I', ( Join-Path $mcp 'qualification\check_package.py' ),
                               ( Join-Path $package 'embeint-kicad-mcp.exe' ) )
 

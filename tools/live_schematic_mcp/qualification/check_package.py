@@ -41,11 +41,85 @@ def check_notices(package, build_info):
         f"{openssl['major_version']}.x")
 
 
+def tool_definition(tool):
+    """A tool as advertised, with its description as inspect.cleandoc gives it: Python 3.13 and
+    later strip docstring indentation, so only that form is comparable across interpreters."""
+    import inspect
+    entry = {"name": tool.name, "description": inspect.cleandoc(tool.description or ""),
+             "inputSchema": tool.inputSchema}
+    if tool.outputSchema is not None:
+        entry["outputSchema"] = tool.outputSchema
+    return entry
+
+
+def check_rust_files(package, rust):
+    """The bundled Rust executables are the ones recorded, and their notices are present."""
+    for name, digest in rust["binaries"].items():
+        assert sha256((package / name).read_bytes()).hexdigest() == digest, f"{name} is not the recorded build"
+    notices = package / "licenses" / "rust"
+    assert (notices / "README.txt").is_file(), "missing licenses/rust/README.txt"
+    assert (notices / "rust-standard-library" / "COPYRIGHT-library.html").is_file(), (
+        "missing the Rust standard library notice")
+    for crate in rust["crates"]:
+        for name in crate["files"]:
+            assert (notices / f"{crate['name']}-{crate['version']}" / name).is_file(), (
+                f"missing licence file {name} of {crate['name']} {crate['version']}")
+
+
+async def check_rust(package, rust, folder, environment, python_tools, layout):
+    """The native server starts from the package alone and offers the Python server's tools, with
+    the same schemas; the layout runner answers and the frozen server finds it."""
+    windows = sys.platform == "win32"
+    native = package / ("embeint-mcp.exe" if windows else "embeint-mcp")
+    runner = package / ("embeint-layout.exe" if windows else "embeint-layout")
+    version = subprocess.run([str(native), "--version"], cwd=folder, env=environment, capture_output=True,
+                             text=True, check=True, timeout=20).stdout.split()
+    assert version == ["embeint-mcp", rust["mcp"]["server_version"]], version
+    request = json.dumps({"pins": [{"number": "1", "name": "VIN", "type": "power_in"},
+                                   {"number": "2", "name": "GND", "type": "power_in"},
+                                   {"number": "3", "name": "VOUT", "type": "power_out"}]})
+    laid_out = json.loads(subprocess.run([str(runner)], input=request + "\n", cwd=folder, env=environment,
+                                         capture_output=True, text=True, check=True, timeout=20).stdout)
+    assert len(laid_out.get("pins", [])) == 3 and "body" in laid_out, laid_out
+    assert layout.get("runner") and Path(layout["runner"]).resolve() == runner.resolve(), (
+        f"the frozen server does not find the bundled layout runner: {layout}")
+    params = StdioServerParameters(command=str(native), cwd=folder, env=environment)
+    async with stdio_client(params) as (reader, writer):
+        async with ClientSession(reader, writer) as session:
+            initialized = await session.initialize()
+            assert initialized.serverInfo.version == rust["mcp"]["server_version"], initialized.serverInfo
+            tools = (await session.list_tools()).tools
+            names = sorted(tool.name for tool in tools)
+            assert names == sorted(rust["mcp"]["tools"]), names
+            for tool in tools:
+                assert tool_definition(tool) == python_tools.get(tool.name), (
+                    f"{tool.name} differs from the bundled Python server's tool")
+            reply = await session.call_tool("live_mcp_capabilities", {})
+            assert not reply.isError, reply
+            inventory = json.loads(reply.content[0].text)
+            assert inventory["schema_sha256"] == rust["mcp"]["schema_sha256"], inventory["schema_sha256"]
+            assert inventory["tool_count"] == len(tools) == rust["mcp"]["tool_count"]
+            invalid = await session.call_tool("live_operation_status", {"operation_id": []})
+            assert invalid.isError, invalid
+            unknown = await session.call_tool("unknown_embeint_tool", {})
+            assert unknown.isError, unknown
+    eof = subprocess.run([str(native)], input="", cwd=folder, env=environment, capture_output=True,
+                         text=True, check=True, timeout=20)
+    assert not eof.stdout, "the native server wrote unsolicited protocol output on EOF"
+    return {"server_version": rust["mcp"]["server_version"], "tools": names,
+            "schema_sha256": rust["mcp"]["schema_sha256"], "crates": len(rust["crates"]),
+            "checks": ["binaries", "notices", "version", "layout_runner", "runner_found_by_python",
+                       "initialize", "tools_match_python", "capabilities", "invalid_arguments",
+                       "unknown_tool", "clean_eof"]}
+
+
 async def check(executable, expected_skill_manifest=None):
     expected = json.loads((executable.parent / "build-info.json").read_text())
     if expected_skill_manifest is not None:
         assert expected["skills"] == expected_skill_manifest, "source and build skill manifests differ"
     check_notices(executable.parent, expected)
+    if "rust" in expected:
+        check_rust_files(executable.parent, expected["rust"])
     with tempfile.TemporaryDirectory(prefix="embeint-mcp-install-check-") as folder:
         environment = {"PATH": folder, "HOME": folder,
                        "PYTHONPATH": str(Path(folder) / "absent-source"),
@@ -129,16 +203,21 @@ async def check(executable, expected_skill_manifest=None):
                 assert invalid.isError
                 unknown = await session.call_tool("unknown_embeint_tool", {})
                 assert unknown.isError
-                return {"result": "passed", "schema_sha256": inventory["schema_sha256"],
-                        "server_version": version["server_version"],
-                        "application_version": version["application_version"],
-                        "skills": skill_manifest,
-                        "source_skill_manifest_compared": expected_skill_manifest is not None,
-                        "tool_count": len(tools), "command_count": inventory["command_count"],
-                        "checks": ["offline_diagnostics", "version", "clean_eof", "initialize", "tools", "capabilities", "resource", "describe",
-                                   "skill_discovery", "skill_tools_and_resources_all_files", "skill_hashes",
-                                   "missing_and_traversal_errors", "invalid_arguments", "unknown_tool"],
-                        "editor_contacted": False}
+        native = None
+        if "rust" in expected:
+            native = await check_rust(executable.parent, expected["rust"], folder, environment,
+                                      {tool.name: tool_definition(tool) for tool in tools},
+                                      report["runtime"].get("layout", {}))
+        return {"result": "passed", "schema_sha256": inventory["schema_sha256"],
+                "server_version": version["server_version"],
+                "application_version": version["application_version"],
+                "skills": skill_manifest,
+                "source_skill_manifest_compared": expected_skill_manifest is not None,
+                "tool_count": len(tools), "command_count": inventory["command_count"],
+                "checks": ["offline_diagnostics", "version", "clean_eof", "initialize", "tools", "capabilities",
+                           "resource", "describe", "skill_discovery", "skill_tools_and_resources_all_files",
+                           "skill_hashes", "missing_and_traversal_errors", "invalid_arguments", "unknown_tool"],
+                "native_rust": native, "editor_contacted": False}
 
 
 def main():
