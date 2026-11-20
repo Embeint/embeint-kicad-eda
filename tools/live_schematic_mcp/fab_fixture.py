@@ -30,9 +30,10 @@ def layer_file(name, layer):
 
 
 def gerber_function(layer):
-    names = {"BL_F_Mask": "Soldermask,Top", "BL_B_Mask": "Soldermask,Bot", "BL_F_Paste": "Paste,Top",
-             "BL_B_Paste": "Paste,Bot", "BL_F_SilkS": "Legend,Top", "BL_B_SilkS": "Legend,Bot",
-             "BL_Edge_Cuts": "Profile,NP"}
+    # As KiCad 10.99 writes them in the job file
+    names = {"BL_F_Mask": "SolderMask,Top", "BL_B_Mask": "SolderMask,Bot", "BL_F_Paste": "SolderPaste,Top",
+             "BL_B_Paste": "SolderPaste,Bot", "BL_F_SilkS": "Legend,Top", "BL_B_SilkS": "Legend,Bot",
+             "BL_Edge_Cuts": "Profile"}
     return names.get(layer, "Other,User")
 
 
@@ -76,7 +77,11 @@ def write_outputs(request, layer_names, drop_profile=False):
         (folder / f"{name}-NPTH-drl_map.pdf").write_bytes(b"%PDF-1.5\nfixture\n")
         (folder / f"{name}-drl.rpt").write_text("Drill report fixture\n", newline="")
     elif kind == "RunBoardJobExportPosition":
-        Path(target).write_text(POSITION, newline="")
+        path = Path(target)
+        if not request.naked_filename:
+            # KiCad decorates the name unless told not to: demo-pos.csv -> demo-pos-all-pos.csv
+            path = path.with_name(f"{path.stem}-all-pos{path.suffix}")
+        path.write_text(POSITION, newline="")
     elif kind == "RunSchematicJobExportBOM":
         Path(target).write_text(BOM, newline="")
     elif kind in ("RunBoardJobExportPdf", "RunSchematicJobExportPdf"):

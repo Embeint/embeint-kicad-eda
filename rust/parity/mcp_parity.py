@@ -906,8 +906,9 @@ SCENARIOS.extend(list(generic_scenarios()))
 
 # ---- Manufacturing outputs (fab_package.py and fab.rs) ------------------------------------------
 
-def job_reply(status=None, message=""):
-    """A RunJobResponse after writing what KiCad would write for the export request."""
+def job_reply(status=None, message="", write=None):
+    """A RunJobResponse after writing what KiCad would write for the export request (by default
+    for a success or a warning; KiCad's STEP export of a malformed outline warns and writes nothing)."""
     import fab_fixture
     from board_client import bt
 
@@ -915,7 +916,7 @@ def job_reply(status=None, message=""):
         export = registry.message_class(request.message.TypeName())()
         request.message.Unpack(export)
         names = {value.number: value.name for value in bt.BoardLayer.DESCRIPTOR.values}
-        if status is None:
+        if write if write is not None else status in (None, 2):
             fab_fixture.write_outputs(export, names)
         result = registry.message_class("kiapi.common.types.RunJobResponse")(
             status=status or 1, message=message)
@@ -997,6 +998,22 @@ def fab_scenarios():
         [("RunSchematicJobExportBOM", job_reply()), ("RunSchematicJobExportBOM", job_reply()),
          ("RunSchematicJobExportNetlist", job_reply()), ("RunSchematicJobExportPdf", job_reply()),
          ("RunSchematicJobExportSvg", job_reply(status=3, message="plot failed"))])
+    outline = "Board outline is malformed. Run DRC for a full analysis."
+    yield scenario("export_warnings", [
+        ("live_pcb_export", {"board_document": BOARD_DOC, "kind": "step", "output_path": "<out>/b.step"}),
+        ("live_schematic_export", {"document_spec": SHEET_DOC, "kind": "pdf", "output_path": "<out>/s.pdf"}),
+        ("live_schematic_export", {"document_spec": SHEET_DOC, "kind": "bom", "output_path": "<out>/b.csv"})],
+        [("RunBoardJobExport3D", job_reply(status=2, message=outline, write=False)),
+         ("RunSchematicJobExportPdf", job_reply(status=2, message="Font substituted")),
+         ("RunSchematicJobExportBOM", job_reply())])
+    yield scenario("fab_package_kicad_warnings", [("live_pcb_fab_package", dict(
+        PACKAGE, outputs=["position", "assembly_pdf"], checks=False))],
+        [("GetDocumentRevision", revision()), ("RunBoardJobExportPosition", job_reply(status=2, message="Odd footprint")),
+         ("RunBoardJobExportPdf", job_reply(status=2, message="Missing font\nSecond line"))])
+    yield scenario("fab_package_step_writes_nothing", [("live_pcb_fab_package", dict(
+        PACKAGE, outputs=["position", "step"], checks=False))],
+        [("GetDocumentRevision", revision()), ("RunBoardJobExportPosition", job_reply()),
+         ("RunBoardJobExport3D", job_reply(status=2, message=outline, write=False))])
     full = [("GetDocumentRevision", revision()), ("GetOpenDocuments", lambda r: documents(SHEET_DOC)),
             ("GetDocumentRevision", revision(name="fx-sch"))]
     yield scenario("fab_package_full", [("live_pcb_fab_package", PACKAGE)],
@@ -1020,7 +1037,7 @@ def fab_scenarios():
     yield scenario("fab_package_options", [("live_pcb_fab_package", dict(
         PACKAGE, outputs=["ipcd356", "gerbers", "odb", "ipc2581", "position"], checks=False, zip_gerbers=False,
         options={"gerbers": {"plot_settings": {"layers": ["BL_F_Cu", "BL_Edge_Cuts"]}},
-                 "position": {"side": "PS_FRONT"}}))],
+                 "position": {"side": "PS_FRONT", "naked_filename": False}}))],
         [("GetDocumentRevision", revision()), copper(2)]
         + [(name, job_reply()) for name in ("RunBoardJobExportGerbers", "RunBoardJobExportPosition",
                                             "RunBoardJobExportIpc2581", "RunBoardJobExportODB",

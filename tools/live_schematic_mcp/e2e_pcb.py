@@ -64,6 +64,23 @@ def check_fab_package(client, board, schematic):
               "manifest lists every file with its size")
 
 
+def check_export_warning_does_not_block(client, board):
+    """An exporter warning (STEP of an open board outline) comes back in the reply instead of a
+    modal dialog that would leave the editor answering AS_BUSY."""
+    import time
+    stray = client.board_add_graphics(board, [{"kind": "line", "start": [20, 20], "end": [40, 25],
+                                               "layer": "Edge.Cuts"}])
+    try:
+        with tempfile.TemporaryDirectory(prefix="kicad-live-step-") as folder:
+            reply = client.board_export(board, "step", folder + "/board.step")
+            check("malformed" in reply["message"], f"the STEP export reports KiCad's warning: {reply}")
+            time.sleep(3)  # a dialog would open at the next idle event
+            client.board_export(board, "stats", folder + "/stats.txt")
+            check(True, "the editor still accepts API commands after the warning")
+    finally:
+        client.delete(board, stray["items"])
+
+
 def check_body_colour(client, board, footprint_id):
     """An extruded 3D body colour is saved at full precision, so the API keeps it exactly rather
     than rounding it to the 8 bits per channel other colours are saved with."""
@@ -219,6 +236,7 @@ def main():
         files = list(Path(folder).glob("*"))
         check(files, f"gerbers written: {len(files)} files")
     check_fab_package(client, board, schematic)
+    check_export_warning_does_not_block(client, board)
 
     # Update PCB from schematic, dry run only
     update = client.board_update_from_schematic(board, schematic, dry_run=True)

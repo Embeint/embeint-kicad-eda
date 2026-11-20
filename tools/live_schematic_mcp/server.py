@@ -378,6 +378,7 @@ def live_schematic_export(document_spec: dict, kind: str, output_path: str, opti
     protobuf JSON of the kind's RunSchematicJobExport* message (live_schematic_describe_command),
     merged over the defaults; a list replaces the default list, e.g. {"exclude_dnp": false} or
     {"fields": {"fields": [{"name": "Reference", "label": "Ref"}]}}. job_settings is not accepted.
+    Warnings KiCad logged while exporting are returned in message.
     """
     return client.export(document(document_spec), kind, output_path, options)
 
@@ -1278,8 +1279,9 @@ def live_pcb_export(board_document: dict, kind: str, output_path: str, options: 
     "excellon": {"combine_pth_npth": false}}; position {"format": "PF_CSV", "side": "PS_BOTH",
     "single_file": true, "exclude_dnp": true}; pdf {"plot_settings": {"layers": ["BL_F_Fab",
     "BL_Edge_Cuts"]}}; step {"format": "B3D_GLB"}; ipc2581 {"manufacturer_part_number_column":
-    "MPN"}. job_settings is not accepted. For a complete fab and assembly set use
-    live_pcb_fab_package.
+    "MPN"}. job_settings is not accepted. message carries warnings KiCad logged while exporting
+    (check outputs: a STEP export of a malformed outline warns and writes nothing). For a complete
+    fab and assembly set use live_pcb_fab_package.
     """
     return client.board_export(board(board_document), kind, output_path, options)
 
@@ -1307,7 +1309,8 @@ def live_pcb_fab_package(board_document: dict, output_dir: str | None = None, sc
     exported=false with blocked_by (unsaved or drc) and writes nothing. Existing outputs are
     replaced only with overwrite. After exporting, verification reports the plotted copper layers
     against the board, drill holes, placements per side, BOM lines, parts without an MPN and parts
-    in the BOM without a placement; warnings lists what a fab or assembler would query.
+    in the BOM without a placement; warnings lists these and KiCad's own export warnings, what a fab
+    or assembler would query.
     """
     spec = board(board_document)
     sheet = document(schematic_document) if schematic_document is not None else None
