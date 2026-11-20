@@ -118,15 +118,48 @@ def test_a_missing_runner_falls_back_to_python(monkeypatch, tmp_path):
     monkeypatch.setenv(layout_backend.ENV_BIN, str(tmp_path / "missing"))
     assert layout_backend.find_runner() is None
     result, info = layout_backend.layout(LDO)
-    assert result == layout_box(LDO) and "no embeint-layout" in info["fallback"]
+    assert result == layout_box(LDO) and "EMBEINT_LAYOUT_BIN=" in info["fallback"]
+    assert "is not a file" in info["fallback"]
+    monkeypatch.delenv(layout_backend.ENV_BIN)
+    monkeypatch.setenv("PATH", "")
+    monkeypatch.setattr(layout_backend, "HERE", tmp_path / "a" / "b")
+    assert "no embeint-layout" in layout_backend.layout(LDO)[1]["fallback"]
 
 
-def test_a_request_that_is_not_json_falls_back_without_starting_the_runner(monkeypatch, runner):
-    use(monkeypatch, "rust")
-    pins = [{"number": "1", "name": "A", "note": float("nan")}]
+def test_a_quoted_runner_setting_is_found(monkeypatch, runner):
+    path = os.environ[layout_backend.ENV_BIN]
+    monkeypatch.setenv(layout_backend.ENV_BIN, f' "{path}" ')
+    assert str(layout_backend.find_runner()) == path
+
+
+def test_the_working_directory_is_not_searched(monkeypatch, tmp_path):
+    monkeypatch.delenv(layout_backend.ENV_BIN, raising=False)
+    monkeypatch.setenv("PATH", "")
+    monkeypatch.setattr(layout_backend, "HERE", tmp_path / "a" / "b")
+    (tmp_path / layout_backend.RUNNER).write_bytes(b"")
+    monkeypatch.chdir(tmp_path)
+    assert layout_backend.find_runner() is None
+
+
+@pytest.mark.parametrize("backend", ["rust", "shadow"])
+@pytest.mark.parametrize("pins", [
+    [{"number": "1", "name": "A", "note": float("nan")}],  # NaN is not JSON
+    [{"number": "1", "name": "A", "at": (1, 2)}],         # JSON would turn the tuple into a list
+    [{"number": "1", 7: "seven"}],                        # and the key 7 into "7"
+])
+def test_a_request_json_cannot_carry_falls_back_without_starting_the_runner(monkeypatch, runner, pins, backend):
+    use(monkeypatch, backend)
     result, info = layout_backend.layout(pins)
     assert runner[0] == [] and "not JSON" in info["fallback"]
     assert result == layout_box(pins)
+
+
+def test_shadow_ignores_python_3_14_wording_of_unhashable_types(monkeypatch):
+    def unhashable(*args, **kwargs):
+        raise TypeError("cannot use 'list' as a dict key (unhashable type: 'list')")
+    monkeypatch.setattr(layout_backend, "layout_box", unhashable)
+    response = layout_backend.python_layout([], "auto", 2)[1]
+    assert response == {"error": {"type": "TypeError", "message": "unhashable type: 'list'"}}
 
 
 def test_shadow_uses_python_and_reports_a_match(monkeypatch, runner):
@@ -184,22 +217,26 @@ def real_runner(monkeypatch):
     return found
 
 
+@pytest.mark.parametrize("backend", ["rust", "shadow"])
+def test_a_lone_surrogate_falls_back_instead_of_failing_to_encode(monkeypatch, real_runner, backend):
+    # Sent as an ASCII escape; the runner's JSON parser rejects it, so Python lays it out
+    use(monkeypatch, backend)
+    pins = [{"number": "1", "name": "A" + chr(0xD800)}]
+    result, info = layout_backend.layout(pins)
+    assert result == layout_box(pins) and "boundary" in info["fallback"]
+
+
 @pytest.mark.parametrize("request_", list(parity_requests()))
-def test_real_runner_matches_python(monkeypatch, real_runner, request_):
-    kwargs = {"arrange": request_.get("arrange", "auto"), "group_gap": request_.get("group_gap", 2)}
+def test_real_runner_matches_python(monkeypatch, real_runner, request_, caplog):
+    pins, arrange, gap = request_["pins"], request_.get("arrange", "auto"), request_.get("group_gap", 2)
+    caplog.set_level("WARNING", logger=layout_backend.log.name)
+    # The runner itself answers (RunnerUnavailable fails the test), with Python's response
+    response = layout_backend.run_rust(pins, arrange, gap, runner=real_runner)
+    assert layout_backend.same(layout_backend.python_layout(pins, arrange, gap)[1], response)
     use(monkeypatch, "python")
-    expected = outcome(lambda: as_response(layout_backend.layout(request_["pins"], **kwargs)[0]))
-    use(monkeypatch, "rust")
-    infos = []
-
-    def rust():
-        result, info = layout_backend.layout(request_["pins"], **kwargs)
-        infos.append(info)
-        return result
-
-    assert outcome(rust) == expected
-    assert not infos or infos[0]["backend"] == "rust"
-    use(monkeypatch, "shadow")
-    shadow = []
-    outcome(lambda: shadow.append(layout_backend.layout(request_["pins"], **kwargs)[1]))
-    assert not shadow or shadow[0]["shadow"] == "match"
+    expected = outcome(lambda: as_response(layout_backend.layout(pins, arrange, gap)[0]))
+    # Through layout(), layouts and errors alike, with no fallback and no shadow difference
+    for backend in ("rust", "shadow"):
+        use(monkeypatch, backend)
+        assert outcome(lambda: as_response(layout_backend.layout(pins, arrange, gap)[0])) == expected
+    assert caplog.records == []

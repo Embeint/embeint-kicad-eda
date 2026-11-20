@@ -11,21 +11,24 @@ the MCP use it, opt-in, without making it a dependency:
                                   so every real request checks parity; a difference is logged
                                   and reported, never used
 
-  EMBEINT_LAYOUT_BIN              path of the ``embeint-layout`` runner (otherwise: next to a
-                                  bundled MCP executable, then rust/target/release in this
-                                  checkout, then PATH)
+  EMBEINT_LAYOUT_BIN              path of the ``embeint-layout`` runner.  When it is not set:
+                                  next to a bundled MCP executable, then rust/target/release in
+                                  this checkout, then the PATH directories
 
 The runner is started for each call (one JSON line in, one out), so no child process outlives a
 tool call.  Anything that stops the Rust side answering (no runner, a crash, a timeout, output that
 is not a response, or a request outside its JSON boundary) falls back to Python, and the result
-says so.  A layout error from Rust (a bad pin list) is raised like Python's, with Python's text.
+says so.  A request that JSON cannot carry unchanged (a tuple, a non-string key, NaN) never
+reaches the runner; it is sent as ASCII, so a lone surrogate gets there and is refused.  A layout error from Rust (a bad pin list) is raised as the
+same exception with Python's text, within the limits rust/README.md lists (repr() of unassigned
+code points, the Unicode version of str.upper(), Python 3.14's "unhashable type" wording).
 """
 
 import ast
 import json
 import logging
 import os
-import shutil
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -58,20 +61,27 @@ def mode():
     return "python", f"{ENV_MODE}={value!r} is not one of {', '.join(MODES)}; using python"
 
 
+def configured_runner():
+    """EMBEINT_LAYOUT_BIN without surrounding quotes, or "" when it is not set."""
+    return os.environ.get(ENV_BIN, "").strip().strip("\"'").strip()
+
+
 def find_runner():
-    """Path of the embeint-layout runner, or None."""
-    configured = os.environ.get(ENV_BIN, "").strip()
+    """Path of the embeint-layout runner, or None.  A set EMBEINT_LAYOUT_BIN is the only place."""
+    configured = configured_runner()
     if configured:
         return Path(configured) if Path(configured).is_file() else None
     candidates = []
     if getattr(sys, "frozen", False):
         candidates.append(Path(sys.executable).resolve().parent / RUNNER)
     candidates.append(HERE.parent.parent / "rust" / "target" / "release" / RUNNER)
+    # PATH directories only: shutil.which() on Windows also searches the working directory first
+    candidates.extend(Path(directory) / RUNNER for directory in os.environ.get("PATH", "").split(os.pathsep)
+                      if directory.strip())
     for candidate in candidates:
         if candidate.is_file():
             return candidate
-    found = shutil.which("embeint-layout")
-    return Path(found) if found else None
+    return None
 
 
 def status():
@@ -83,16 +93,22 @@ def status():
 
 def run_rust(pins, arrange, group_gap, runner=None):
     """The runner's response object for one request.  Raises RunnerUnavailable."""
+    arguments = {"pins": pins, "arrange": arrange, "group_gap": group_gap}
     try:
-        request = json.dumps({"pins": pins, "arrange": arrange, "group_gap": group_gap},
-                             ensure_ascii=False, allow_nan=False)
-    except (TypeError, ValueError) as exc:
+        # ASCII, with everything else escaped: a lone surrogate cannot be encoded as UTF-8
+        request = json.dumps(arguments, allow_nan=False)
+        # Tuples, non-string keys and other values JSON would quietly change stay with Python
+        if json.loads(request) != arguments:
+            raise ValueError("JSON would change it")
+    except (TypeError, ValueError, RecursionError) as exc:
         raise RunnerUnavailable(f"request is not JSON: {exc}") from None
     runner = runner or find_runner()
     if runner is None:
-        raise RunnerUnavailable(f"no {RUNNER} runner (set {ENV_BIN})")
+        configured = configured_runner()
+        raise RunnerUnavailable(f"{ENV_BIN}={configured!r} is not a file" if configured else
+                                f"no {RUNNER} runner (set {ENV_BIN})")
     try:
-        done = subprocess.run([str(runner)], input=(request + "\n").encode("utf-8"), capture_output=True,
+        done = subprocess.run([str(runner)], input=(request + "\n").encode("ascii"), capture_output=True,
                               timeout=TIMEOUT_S, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     except subprocess.TimeoutExpired:
         raise RunnerUnavailable(f"runner timed out after {TIMEOUT_S} s") from None
@@ -138,7 +154,12 @@ def python_layout(pins, arrange, group_gap):
     try:
         result = layout_box(pins, arrange=arrange, group_gap=group_gap)
     except (ValueError, KeyError, TypeError) as exc:
-        return None, {"error": {"type": type(exc).__name__, "message": str(exc)}}, exc
+        message = str(exc)
+        if isinstance(exc, TypeError):
+            # As parity.py does: Python 3.14 words this "cannot use 'list' as a dict key (...)"
+            found = re.search(r"unhashable type: '\w+'", message)
+            message = found.group(0) if found else message
+        return None, {"error": {"type": type(exc).__name__, "message": message}}, exc
     return result, json.loads(json.dumps(result, ensure_ascii=False)), None
 
 
