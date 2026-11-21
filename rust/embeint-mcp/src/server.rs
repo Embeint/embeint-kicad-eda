@@ -87,7 +87,24 @@ async fn dispatch(message: Json, client: &Arc<Mutex<Client>>, out: &mpsc::Unboun
                     .get("arguments")
                     .cloned()
                     .unwrap_or_else(|| json!({}));
-                let result = tools::call(&name, arguments, &client).await;
+                // The call runs as its own task so that a panic in a tool still gets a reply
+                // (and leaves no mutation options behind) instead of leaving the client waiting
+                let task = {
+                    let (name, client) = (name.clone(), Arc::clone(&client));
+                    tokio::spawn(async move { tools::call(&name, arguments, &client).await })
+                };
+                let result = match task.await {
+                    Ok(result) => result,
+                    Err(error) => {
+                        tools::clear_mutations(&client).await;
+                        let reason = if error.is_panic() {
+                            "internal error"
+                        } else {
+                            "cancelled"
+                        };
+                        tools::error_result(format!("Error executing tool {name}: {reason}"))
+                    }
+                };
                 let _ = out.send(response(&id, result));
             });
             return;

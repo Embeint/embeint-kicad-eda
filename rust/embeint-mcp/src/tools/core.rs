@@ -198,7 +198,7 @@ async fn run_tool(name: &str, args: &Args, ctx: &Ctx<'_>) -> Result<Output, Erro
             let mut client = client.lock().await;
             Output::Dict(fab::fab_package(&mut client, package).await?)
         }
-        _ => unreachable!("validated tool name"),
+        _ => return Err(Error::Runtime(format!("{name} is not a core tool"))),
     })
 }
 

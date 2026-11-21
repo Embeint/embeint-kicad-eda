@@ -123,7 +123,7 @@ impl Args {
             .unwrap_or_else(|| panic!("{name} is not a validated int"))
     }
 
-    /// Python ints are unbounded; one beyond i64 is None here and the tool refuses it.
+    /// Validation already refused an int beyond i64 (Python's are unbounded).
     pub fn opt_int(&self, name: &str) -> Option<i64> {
         self.get(name).as_i64()
     }
@@ -234,41 +234,84 @@ pub fn lax_bool(value: &Json) -> Option<bool> {
     }
 }
 
-/// pydantic's lax `int`: bools, integral floats, and strings holding an integer (surrounding
-/// whitespace allowed, a zero fraction such as "5.0" accepted).
+const INT_PARSING: &str = "Input should be a valid integer, unable to parse string as an integer";
+/// Python ints are unbounded and pydantic accepts any size; the tools here take i64 values, so a
+/// larger one is refused (a documented difference).
+const INT_TOO_LARGE: &str = "Input should be an integer that fits in 64 bits";
+
+/// Digits with single underscores between them, as Python's int() reads them ("1_000"; not
+/// "_1", "1_" or "1__0").  Returns the digits without underscores.
+fn underscored_digits(text: &str) -> Option<String> {
+    let bytes = text.as_bytes();
+    let well_formed = !bytes.is_empty()
+        && bytes.iter().enumerate().all(|(index, b)| {
+            b.is_ascii_digit()
+                || (*b == b'_'
+                    && index > 0
+                    && bytes.get(index + 1).is_some_and(u8::is_ascii_digit)
+                    && bytes[index - 1].is_ascii_digit())
+        });
+    well_formed.then(|| text.replace('_', ""))
+}
+
+/// pydantic's lax `int`: bools, integral floats below 2**63, and strings holding an integer
+/// (surrounding whitespace, a sign, leading zeros and single underscores allowed, and a fraction
+/// of one or more zeros such as "5.0"; not "5.", "1e3" or "0x10").
 fn lax_int(value: &Json) -> Result<Json, &'static str> {
     match value {
         Json::Bool(flag) => Ok(Json::from(i64::from(*flag))),
-        Json::Number(n) if !is_float(n) => Ok(value.clone()),
+        Json::Number(n) if !is_float(n) => n.as_i64().map(Json::from).ok_or(INT_TOO_LARGE),
         Json::Number(n) => match n.as_f64() {
-            Some(v) if v.fract() == 0.0 && v.is_finite() && v.abs() < 9.0e15 => {
+            // pydantic converts an integral float only below 2**63 in magnitude
+            Some(v) if v.fract() == 0.0 && v.abs() < 9_223_372_036_854_775_808.0 => {
                 Ok(Json::from(v as i64))
             }
+            Some(v) if v.fract() == 0.0 && v.is_finite() => Err(INT_PARSING),
             _ => Err("Input should be a valid integer, got a number with a fractional part"),
         },
         Json::String(text) => {
             let text = text.trim();
-            let (whole, fraction) = text.split_once('.').unwrap_or((text, ""));
-            let digits = whole.strip_prefix(['-', '+']).unwrap_or(whole);
-            let integral = !digits.is_empty()
-                && digits.bytes().all(|b| b.is_ascii_digit() || b == b'_')
-                && !digits.starts_with('_')
-                && !digits.ends_with('_')
-                && fraction.bytes().all(|b| b == b'0');
-            if !integral {
-                return Err(
-                    "Input should be a valid integer, unable to parse string as an integer",
-                );
-            }
-            let clean: String = whole.chars().filter(|c| *c != '_' && *c != '+').collect();
-            serde_json::from_str::<Number>(&clean)
-                .map(Json::Number)
-                .map_err(|_| {
-                    "Input should be a valid integer, unable to parse string as an integer"
-                })
+            let whole = match text.split_once('.') {
+                Some((whole, fraction))
+                    if !fraction.is_empty() && fraction.bytes().all(|b| b == b'0') =>
+                {
+                    whole
+                }
+                Some(_) => return Err(INT_PARSING),
+                None => text,
+            };
+            let (negative, unsigned) = match whole.as_bytes().first() {
+                Some(b'-') => (true, &whole[1..]),
+                Some(b'+') => (false, &whole[1..]),
+                _ => (false, whole),
+            };
+            let digits = underscored_digits(unsigned).ok_or(INT_PARSING)?;
+            let digits = digits.trim_start_matches('0');
+            let magnitude: i128 = if digits.is_empty() {
+                0
+            } else if digits.len() > 20 {
+                return Err(INT_TOO_LARGE);
+            } else {
+                digits.parse().map_err(|_| INT_PARSING)?
+            };
+            let number = if negative { -magnitude } else { magnitude };
+            i64::try_from(number)
+                .map(Json::from)
+                .map_err(|_| INT_TOO_LARGE)
         }
         _ => Err("Input should be a valid integer"),
     }
+}
+
+/// The text Python's float() reads, with pydantic's underscore rule: underscores are dropped, but
+/// a leading, trailing or doubled underscore is refused.
+fn float_text(text: &str) -> Option<String> {
+    let text = text.trim();
+    let unsigned = text.strip_prefix(['-', '+']).unwrap_or(text);
+    if unsigned.starts_with('_') || text.ends_with('_') || text.contains("__") {
+        return None;
+    }
+    Some(text.replace('_', ""))
 }
 
 /// pydantic's lax `float`: bools, numbers, and strings Python's float() reads.
@@ -279,9 +322,9 @@ fn lax_float(value: &Json) -> Result<Json, &'static str> {
         Json::String(text) => {
             // Python reads "nan", "inf" and "1e400" too; they have no JSON form, so float_json
             // refuses them below (a documented difference)
-            match text.trim().parse::<f64>() {
-                Ok(v) => Some(v),
-                Err(_) => {
+            match float_text(text).and_then(|clean| clean.parse::<f64>().ok()) {
+                Some(v) => Some(v),
+                None => {
                     return Err(
                         "Input should be a valid number, unable to parse string as a number",
                     )
@@ -469,6 +512,38 @@ mod tests {
         assert_eq!(one(Arg::Int, json!(" 7 ")), Ok(json!(7)));
         assert!(one(Arg::Int, json!("1e3")).is_err());
         assert!(one(Arg::Int, json!("x")).is_err());
+        assert!(one(Arg::Int, json!("5.")).is_err());
+        assert!(one(Arg::Int, json!(".0")).is_err());
+        assert!(one(Arg::Int, json!("0x10")).is_err());
+        assert!(one(Arg::Int, json!("1 000")).is_err());
+        assert_eq!(one(Arg::Int, json!("5.00")), Ok(json!(5)));
+        assert_eq!(one(Arg::Int, json!("+5")), Ok(json!(5)));
+        assert_eq!(one(Arg::Int, json!("-007")), Ok(json!(-7)));
+        assert_eq!(one(Arg::Int, json!("00")), Ok(json!(0)));
+        assert_eq!(one(Arg::Int, json!("1_0")), Ok(json!(10)));
+        for refused in ["_1", "1_", "1__0", "5.0_0"] {
+            assert!(one(Arg::Int, json!(refused)).is_err(), "{refused}");
+        }
+        assert_eq!(
+            one(Arg::Int, json!(1e16)),
+            Ok(json!(10_000_000_000_000_000_i64))
+        );
+        assert!(one(Arg::Int, json!(9.223_372_036_854_776e18)).is_err());
+        // Beyond i64: pydantic accepts, this server refuses (documented)
+        assert!(one(Arg::Int, json!("9999999999999999999999999")).is_err());
+        assert_eq!(one(Arg::Float, json!("1_000")), Ok(json!(1000.0)));
+        assert_eq!(one(Arg::Float, json!("1_000.000_1")), Ok(json!(1000.0001)));
+        assert_eq!(one(Arg::Float, json!("1e1_0")), Ok(json!(1e10)));
+        assert_eq!(one(Arg::Float, json!("+.5")), Ok(json!(0.5)));
+        assert_eq!(one(Arg::Float, json!("5.")), Ok(json!(5.0)));
+        assert_eq!(one(Arg::Float, json!("  -1.5e3 ")), Ok(json!(-1500.0)));
+        for refused in ["_1", "1__0"] {
+            assert!(one(Arg::Float, json!(refused)).is_err(), "{refused}");
+        }
+        assert_eq!(
+            one(Arg::OptListFloat, json!(["1_000"])),
+            Ok(json!([1000.0]))
+        );
         assert!(one(Arg::Int, Json::Null).is_err());
         assert_eq!(one(Arg::Float, json!(true)), Ok(json!(1.0)));
         assert_eq!(one(Arg::Float, json!(1)), Ok(json!(1.0)));
