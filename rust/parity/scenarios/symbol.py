@@ -7,10 +7,10 @@ table code (library_table, add_library, remove_library, reload_library with kind
 
 from google.protobuf import empty_pb2
 
-PIN_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
-PIN_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
-SHAPE = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
-TEXT_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
+PIN_A = "aaaaaaaa-aaaa-1aaa-8aaa-aaaaaaaaaaaa"
+PIN_B = "bbbbbbbb-bbbb-1bbb-8bbb-bbbbbbbbbbbb"
+SHAPE = "cccccccc-cccc-1ccc-8ccc-cccccccccccc"
+TEXT_ID = "dddddddd-dddd-1ddd-8ddd-dddddddddddd"
 
 LDO_PINS = [{"number": "1", "name": "VIN", "type": "power_in"},
             {"number": "2", "name": "GND", "type": "power_in"},
@@ -341,6 +341,18 @@ def scenarios(h):
             ("live_symbol_add_pins", dict(add_pins, pins=[{"number": "1", "shape": None}])),
             ("live_symbol_add_pins", dict(add_pins, pins=[{"number": "1", "shape": ["SPS_LINE"]}])),
             ("live_symbol_add_pins", dict(add_pins, pins=[{"number": "1", "shape": {"a": 1}}]))], []),
+        # A pin's own orientation and length go through SchematicPinOrientation.Value() and
+        # round(length * 1_000_000), with Python's errors for every JSON type
+        S("symbol_add_pins_bad_orientation_length", [
+            ("live_symbol_add_pins", dict(add_pins, pins=[{"number": "1", "orientation": value}]))
+            for value in (2, None, "bogus", ["SPO_LEFT"])] + [
+            ("live_symbol_add_pins", dict(add_pins, pins=[{"number": "1", "length": value}]))
+            for value in ("3.81", None, [1], {"a": 1}, 1e300, 10_000_000_000_000)], []),
+        S("symbol_add_pins_own_orientation_length", [
+            ("live_symbol_add_pins", dict(add_pins, pins=[
+                {"number": "1", "orientation": "SPO_UP", "length": True},
+                {"number": "2", "length": 2.5e-7}, {"number": "3", "length": 3}]))],
+          [begin, created(4), place, end_ok], random_ids=True),
         S("symbol_add_pins_bad_shape_after_replace", [("live_symbol_add_pins", dict(
             add_pins, replace=True, pins=[{"number": "1", "shape": "bad"}]))],
           [("GetItems", editor_items(pin_item)), begin, deleted(editor.IDS_OK), end_ok], random_ids=True),

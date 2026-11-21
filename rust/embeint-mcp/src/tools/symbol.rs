@@ -1162,17 +1162,27 @@ async fn symbol_save(client: &mut Client, doc: &DynamicMessage) -> Result<Json, 
     Ok(json!({"saved": lib_id_text(&lib_id)}))
 }
 
-/// `SchematicPinShape.Value(shape)`: Python raises ValueError for an unknown name and TypeError
-/// for an unhashable value.
-fn pin_shape(shape: Option<&Json>) -> Result<i32, Error> {
+/// `<Enum>.Value(value)` for a pin key: Python raises ValueError for an unknown name (including
+/// numbers and None, which are not names) and TypeError for an unhashable value; a missing key
+/// (no `default`) is the KeyError `pin["key"]` raises.
+fn pin_enum(
+    enum_full_name: &str,
+    pin: &Json,
+    key: &str,
+    default: Option<&str>,
+) -> Result<i32, Error> {
     let descriptor = proto::pool()
-        .get_enum_by_name(&format!("{ST}SchematicPinShape"))
-        .expect("SchematicPinShape in the protocol");
-    let shape = shape.cloned().unwrap_or_else(|| json!("SPS_LINE"));
-    match &shape {
+        .get_enum_by_name(enum_full_name)
+        .unwrap_or_else(|| panic!("{enum_full_name} is not in the KiCad protocol"));
+    let value = match (pin.get(key), default) {
+        (Some(value), _) => value.clone(),
+        (None, Some(default)) => json!(default),
+        (None, None) => return Err(Error::Value(format!("'{key}'"))),
+    };
+    match &value {
         Json::String(name) => {
-            if let Some(value) = descriptor.get_value_by_name(name) {
-                return Ok(value.number());
+            if let Some(found) = descriptor.get_value_by_name(name) {
+                return Ok(found.number());
             }
         }
         Json::Array(_) => return Err(Error::Value("unhashable type: 'list'".into())),
@@ -1180,9 +1190,102 @@ fn pin_shape(shape: Option<&Json>) -> Result<i32, Error> {
         _ => {}
     }
     Err(Error::Value(format!(
-        "Enum SchematicPinShape has no value defined for name {}",
-        repr(&shape)
+        "Enum {} has no value defined for name {}",
+        descriptor.name(),
+        repr(&value)
     )))
+}
+
+/// The decimal digits of an integral f64, as Python prints int(value) (exact, however large).
+fn exact_integer(value: f64) -> String {
+    let negative = value < 0.0;
+    let bits = value.abs().to_bits();
+    let exponent = ((bits >> 52) & 0x7ff) as i32;
+    let mut mantissa = bits & ((1 << 52) - 1);
+    if exponent > 0 {
+        mantissa |= 1 << 52;
+    }
+    let shift = exponent.max(1) - 1075;
+    // Little-endian base-1e9 digits of the mantissa, then doubled `shift` times
+    let mut limbs: Vec<u64> = vec![
+        mantissa % 1_000_000_000,
+        mantissa / 1_000_000_000 % 1_000_000_000,
+        mantissa / 1_000_000_000_000_000_000,
+    ];
+    if shift < 0 {
+        // Integral values below 2**53 fit the mantissa: divide exactly
+        let whole = mantissa >> (-shift).min(63);
+        limbs = vec![
+            whole % 1_000_000_000,
+            whole / 1_000_000_000 % 1_000_000_000,
+            whole / 1_000_000_000_000_000_000,
+        ];
+    } else {
+        for _ in 0..shift {
+            let mut carry = 0;
+            for limb in &mut limbs {
+                let doubled = *limb * 2 + carry;
+                *limb = doubled % 1_000_000_000;
+                carry = doubled / 1_000_000_000;
+            }
+            if carry > 0 {
+                limbs.push(carry);
+            }
+        }
+    }
+    while limbs.len() > 1 && limbs.last() == Some(&0) {
+        limbs.pop();
+    }
+    let mut text = limbs.last().map(u64::to_string).unwrap_or_default();
+    for limb in limbs.iter().rev().skip(1) {
+        text.push_str(&format!("{limb:09}"));
+    }
+    if negative && text != "0" {
+        text.insert(0, '-');
+    }
+    text
+}
+
+/// `message.length.value_nm = round(pin["length"] * 1_000_000)`, with Python's results for every
+/// JSON value: a bool counts as 0 or 1, an int is exact, a float rounds half to even, a str or
+/// list repeats and then cannot be rounded, None and dict cannot be multiplied, and protobuf
+/// refuses a result outside int64.
+fn pin_length_nm(pin: &Json) -> Result<i64, Error> {
+    let out_of_range = |digits: String| Error::Value(format!("Value out of range: {digits}"));
+    match pin.get("length") {
+        None => Err(Error::Value("'length'".into())),
+        Some(Json::Bool(flag)) => Ok(if *flag { 1_000_000 } else { 0 }),
+        Some(Json::Number(number)) => {
+            let text = number.to_string();
+            if !text.contains(['.', 'e', 'E']) {
+                // An int: exact, so the product is the digits with six zeros appended
+                let digits = text.trim_start_matches('-');
+                if digits.trim_start_matches('0').is_empty() {
+                    return Ok(0);
+                }
+                let product = format!("{text}000000");
+                return product.parse::<i64>().map_err(|_| out_of_range(product));
+            }
+            let rounded = (number.as_f64().unwrap_or(f64::NAN) * 1_000_000.0).round_ties_even();
+            if (-9_223_372_036_854_775_808.0..9_223_372_036_854_775_808.0).contains(&rounded) {
+                Ok(rounded as i64)
+            } else {
+                Err(out_of_range(exact_integer(rounded)))
+            }
+        }
+        Some(Json::String(_)) => Err(Error::Value(
+            "type str doesn't define __round__ method".into(),
+        )),
+        Some(Json::Array(_)) => Err(Error::Value(
+            "type list doesn't define __round__ method".into(),
+        )),
+        Some(Json::Null) => Err(Error::Value(
+            "unsupported operand type(s) for *: 'NoneType' and 'int'".into(),
+        )),
+        Some(Json::Object(_)) => Err(Error::Value(
+            "unsupported operand type(s) for *: 'dict' and 'int'".into(),
+        )),
+    }
 }
 
 fn number_list(value: &Json) -> Vec<f64> {
@@ -1249,16 +1352,34 @@ async fn add_pins(client: &mut Client, doc: &DynamicMessage, args: &Args) -> Res
             position.first().copied().unwrap_or(f64::NAN),
             position.get(1).copied().unwrap_or(f64::NAN),
         )?;
-        let shape = pin_shape(pin.get("shape"))?;
-        let length = pin["length"].as_f64().unwrap_or_default();
+        // In Python's order: orientation, electrical type, shape, then the length
+        let orientation = pin_enum(
+            &format!("{ST}SchematicPinOrientation"),
+            pin,
+            "orientation",
+            None,
+        )?;
+        let electrical_type = pin_enum(
+            &format!("{T}ElectricalPinType"),
+            pin,
+            "electrical_type",
+            None,
+        )?;
+        let shape = pin_enum(
+            &format!("{ST}SchematicPinShape"),
+            pin,
+            "shape",
+            Some("SPS_LINE"),
+        )?;
+        let length = pin_length_nm(pin)?;
         let message = json!({
             "id": id,
             "name": name,
             "number": pin["number"],
             "position": position,
-            "length": {"value_nm": nm(length)},
-            "orientation": pin["orientation"],
-            "electrical_type": pin["electrical_type"],
+            "length": {"value_nm": length},
+            "orientation": orientation,
+            "electrical_type": electrical_type,
             "shape": shape,
             "visible": !truthy(pin.get("hidden").unwrap_or(&Json::Null)),
             // 1.27 mm (50 mil) is KiCad's standard pin text; zero would hide names and numbers
@@ -1353,15 +1474,93 @@ mod tests {
         assert!(lib_identifier("Lib").is_err());
         assert!(lib_identifier(":R").is_err());
         assert!(lib_identifier("Lib:R:x").is_ok());
-        assert_eq!(pin_shape(None).unwrap(), 1);
+        let shape = |pin: Json| {
+            pin_enum(
+                &format!("{ST}SchematicPinShape"),
+                &pin,
+                "shape",
+                Some("SPS_LINE"),
+            )
+            .map_err(|e| e.to_string())
+        };
+        assert_eq!(shape(json!({})), Ok(1));
         assert_eq!(
-            pin_shape(Some(&json!("X"))).unwrap_err().to_string(),
-            "Enum SchematicPinShape has no value defined for name 'X'"
+            shape(json!({"shape": "X"})),
+            Err("Enum SchematicPinShape has no value defined for name 'X'".into())
         );
         assert_eq!(
-            pin_shape(Some(&json!([1]))).unwrap_err().to_string(),
-            "unhashable type: 'list'"
+            shape(json!({"shape": [1]})),
+            Err("unhashable type: 'list'".into())
         );
+        // Python's SchematicPinOrientation.Value() takes names only, and pin["orientation"] is
+        // a KeyError when missing (texts from the MCP interpreter, protobuf 6)
+        let orientation = |pin: Json| {
+            pin_enum(
+                &format!("{ST}SchematicPinOrientation"),
+                &pin,
+                "orientation",
+                None,
+            )
+            .map_err(|e| e.to_string())
+        };
+        assert_eq!(orientation(json!({"orientation": "SPO_LEFT"})), Ok(2));
+        for (value, text) in [
+            (json!(2), "2"),
+            (Json::Null, "None"),
+            (json!("bogus"), "'bogus'"),
+        ] {
+            assert_eq!(
+                orientation(json!({"orientation": value})),
+                Err(format!(
+                    "Enum SchematicPinOrientation has no value defined for name {text}"
+                ))
+            );
+        }
+        assert_eq!(orientation(json!({})), Err("'orientation'".into()));
+        let length =
+            |value: Json| pin_length_nm(&json!({"length": value})).map_err(|e| e.to_string());
+        assert_eq!(length(json!(3.81)), Ok(3_810_000));
+        assert_eq!(length(json!(true)), Ok(1_000_000));
+        assert_eq!(length(json!(2.5e-7)), Ok(0));
+        assert_eq!(length(json!(0)), Ok(0));
+        assert_eq!(
+            length(json!(9_223_372_036_854_i64)),
+            Ok(9_223_372_036_854_000_000)
+        );
+        assert_eq!(
+            length(json!(9_223_372_036_855_i64)),
+            Err("Value out of range: 9223372036855000000".into())
+        );
+        assert_eq!(
+            length(json!(10_000_000_000_000_i64)),
+            Err("Value out of range: 10000000000000000000".into())
+        );
+        assert_eq!(
+            length(json!(1e300)),
+            Err(format!(
+                "Value out of range: {}",
+                "1000000000000000017216064596736454828831087825013238982328892017892380671244575047987920451875459594568606138861698291060311049225532948520696938805711440650122628514669428460356992624968028329550689224175284346730060716088829214255439694630119794546505512415617982143262670862918816362862119154749127262208"
+            ))
+        );
+        assert_eq!(
+            length(json!("3.81")),
+            Err("type str doesn't define __round__ method".into())
+        );
+        assert_eq!(
+            length(json!([1])),
+            Err("type list doesn't define __round__ method".into())
+        );
+        assert_eq!(
+            length(Json::Null),
+            Err("unsupported operand type(s) for *: 'NoneType' and 'int'".into())
+        );
+        assert_eq!(
+            length(json!({"a": 1})),
+            Err("unsupported operand type(s) for *: 'dict' and 'int'".into())
+        );
+        assert_eq!(exact_integer(9_007_199_254_740_993.0), "9007199254740992");
+        assert_eq!(exact_integer(-1e20), "-100000000000000000000");
+        assert_eq!(exact_integer(123.0), "123");
         assert_eq!(
             enum_name("kiapi.common.types.ElectricalPinType", 99)
                 .unwrap_err()
