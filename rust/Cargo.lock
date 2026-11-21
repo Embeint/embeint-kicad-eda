@@ -124,10 +124,12 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "embeint-ipc",
+ "embeint-layout",
  "prost-reflect",
  "serde_json",
  "sha2",
  "tokio",
+ "uuid",
 ]
 
 [[package]]
