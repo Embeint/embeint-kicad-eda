@@ -813,7 +813,8 @@ impl Client {
             ),
         );
 
-        let description = description.unwrap_or(if update {
+        // Python's `description or default`: an empty description takes the default too
+        let description = description.filter(|d| !d.is_empty()).unwrap_or(if update {
             "MCP: update items"
         } else {
             "MCP: create items"

@@ -2673,7 +2673,10 @@ pub(crate) async fn board_stackup_layers(
 /// `copper_layer_names(count)`: F.Cu, In1.Cu ... In<count-2>.Cu, B.Cu.
 pub(crate) fn copper_layer_names(count: i64) -> Vec<String> {
     let mut names = vec!["F.Cu".to_owned()];
-    names.extend((1..count - 1).map(|i| format!("In{i}.Cu")));
+    // KiCad has In1.Cu to In30.Cu: every caller looks the names up in order and fails at In31.Cu,
+    // so names past it are never used.  Stopping there keeps an absurd count (a client's
+    // copper_layers) from allocating without bound; Python builds them all first.
+    names.extend((1..count - 1).take(31).map(|i| format!("In{i}.Cu")));
     names.push("B.Cu".into());
     names
 }

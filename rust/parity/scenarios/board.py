@@ -556,5 +556,11 @@ def scenarios(h):
                           ("live_pcb_focus", {"board_document": B, "ids": ["x"]})],
           [footprints, ok("FocusOnItems"), ok("FocusOnItems"),
            ("FocusOnItems", lambda r: failure(envelope.AS_BAD_REQUEST, "no such item"))]),
+        # Enums with aliases (DrcErrorType 53, CustomRuleConstraintType 10): values in declaration
+        # order, as Python lists them
+        S("board_item_schema_aliased_enums", [
+            ("live_pcb_item_schema", {"type_name": name})
+            for name in ("kiapi.board.DrcMarker", "kiapi.board.DrcSeveritySetting",
+                         "kiapi.board.CustomRuleConstraint")], []),
     ]
     return result
