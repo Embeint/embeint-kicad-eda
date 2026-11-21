@@ -591,7 +591,9 @@ impl Client {
     }
 
     /// Opens a commit for one transaction (`transaction()` up to its `yield`): returns the commit
-    /// id and the transaction's operation id.
+    /// id and the transaction's operation id.  `header` is [`item_header`] of the document.  The
+    /// caller sends the transaction's steps, then always ends it with
+    /// [`Client::finish_transaction`].
     pub async fn begin_transaction(
         &mut self,
         header: &DynamicMessage,
@@ -623,6 +625,8 @@ impl Client {
     }
 
     /// Ends a transaction: commits after `outcome` succeeded, drops (rolls back) after it failed.
+    /// A failed `outcome` comes back as the error (or as the unconfirmed rollback), so `Ok` means
+    /// the steps succeeded and the commit was made.
     pub async fn finish_transaction(
         &mut self,
         header: &DynamicMessage,
@@ -765,7 +769,7 @@ impl Client {
         doc: &DynamicMessage,
         items: &[DynamicMessage],
     ) -> Result<Json, Error> {
-        self.mutate_items(doc, items, false).await
+        self.mutate(doc, items, false, None).await
     }
 
     /// Replace complete items, preserving the same batch and transaction guarantees as create.
@@ -774,14 +778,18 @@ impl Client {
         doc: &DynamicMessage,
         items: &[DynamicMessage],
     ) -> Result<Json, Error> {
-        self.mutate_items(doc, items, true).await
+        self.mutate(doc, items, true, None).await
     }
 
-    async fn mutate_items(
+    /// `mutate(doc, items, update, description)`: creates (or with `update` replaces) items of
+    /// any editor as one commit.  `description` names the undo step; None gives "MCP: create
+    /// items" or "MCP: update items", as in Python.
+    pub async fn mutate(
         &mut self,
         doc: &DynamicMessage,
         items: &[DynamicMessage],
         update: bool,
+        description: Option<&str>,
     ) -> Result<Json, Error> {
         if items.is_empty() || items.len() > MAX_ITEMS {
             return Err(Error::Value(format!(
@@ -805,11 +813,11 @@ impl Client {
             ),
         );
 
-        let description = if update {
+        let description = description.unwrap_or(if update {
             "MCP: update items"
         } else {
             "MCP: create items"
-        };
+        });
         self.item_transaction(&header, &request, items.len(), command, description)
             .await
     }
