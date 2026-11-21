@@ -873,9 +873,16 @@ bool PCB_EDIT_FRAME::OpenProjectFiles( const std::vector<wxString>& aFileSet, in
                     if( layer == renamedLayer || loadedBoard->GetLayerName( layer ) != name )
                         continue;
 
-                    progressReporter.Hide();
-                    DisplayErrorMessage( this, _( "Duplicate imported layer name" ),
-                                         wxString::Format( _( "Layer name '%s' is already in use." ), name ) );
+                    if( progressReporter )
+                        progressReporter->Hide();
+
+                    if( !nonInteractive )
+                    {
+                        DisplayErrorMessage( this, _( "Duplicate imported layer name" ),
+                                             wxString::Format( _( "Layer name '%s' is already in use." ),
+                                                               name ) );
+                    }
+
                     delete loadedBoard;
                     Clear_Pcb( false );
                     return false;
