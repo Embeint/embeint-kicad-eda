@@ -39,8 +39,8 @@ fork overlay copied by rsync. `prepare.py` requires no third-party Python packag
 
 The build compiles all sources in the upstream `kimath` archive, six `core`
 sources and three Clipper2 sources; the static linker pulls only needed objects.
-Initially this was 52 translation units including the example/driver; the
-dispatch regression executable adds a few small overlay compilations. Adding a
+The final compile database has 57 translation units, including the example,
+driver and separate dispatch regression executable. Adding a
 shim does not build an editor. Some geometry objects refer to code in `common`:
 a shim reaching those symbols needs an explicitly reviewed dependency extension,
 not mock implementations. Pure `transform`, `math/util` and `geometry/distribute`
