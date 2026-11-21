@@ -106,30 +106,16 @@ set( KICOMMON_SRCS
     # Git
     git/git_branch_handler.cpp
     git/git_clone_handler.cpp
-    git/git_commit_handler.cpp
     git/git_config_handler.cpp
     git/git_compare_handler.cpp
     git/kigit_driver_registry.cpp
     git/kigit_merge_blob_utils.cpp
+    git/kigit_platform_install.cpp
     git/git_init_handler.cpp
-    git/project_git_utils.cpp
-    git/git_pull_handler.cpp
-    git/git_push_handler.cpp
+    git/project_git_hash.cpp
     git/git_remove_vcs_handler.cpp
-    git/git_repo_mixin.cpp
-    git/git_status_handler.cpp
     git/git_switch_branch_handler.cpp
-    git/git_transfer_busy.cpp
-    git/kicad_git_common.cpp
-    git/kicad_git_errors.cpp
     git/text_diff.cpp
-    git/git_backend.cpp
-    git/kigit_orphan_registry.cpp
-    git/kigit_failure.cpp
-    git/kigit_known_hosts.cpp
-    git/kigit_ssh_keys.cpp
-    git/kigit_transport.cpp
-    git/libgit_backend.cpp
 
     # Diff/merge engine
     diff_merge/auto_resolution.cpp
@@ -162,6 +148,7 @@ set( KICOMMON_SRCS
     jobs/job_export_pcb_gerber.cpp
     jobs/job_export_pcb_gerbers.cpp
     jobs/job_export_pcb_hpgl.cpp
+    jobs/job_export_pcb_hyperlynx.cpp
     jobs/job_export_pcb_ipc2581.cpp
     jobs/job_export_pcb_fab.cpp
     jobs/job_export_pcb_ipcd356.cpp
@@ -282,6 +269,7 @@ set( KICOMMON_SRCS
     widgets/html_window.cpp
     widgets/indicator_icon.cpp
     widgets/kistatusbar.cpp
+    widgets/kistatusbar_popup.cpp
     widgets/number_badge.cpp
     widgets/progress_reporter_base.cpp
     widgets/report_severity.cpp
@@ -425,6 +413,60 @@ endif()
 list( APPEND KICOMMON_SRCS
     navlib_safe_init.cpp
 )
+
+# Git plumbing the Version Control pane shares with the kicad-mdw-git backend. It links neither
+# kicommon nor KIPLATFORM::SECRETS, so the backend can link it without reaching the vault. kicommon
+# compiles the same sources rather than linking the archive, so its exports stay its own
+set( KIGIT_SRCS
+    git/git_backend.cpp
+    git/git_commit_handler.cpp
+    git/git_pull_handler.cpp
+    git/git_push_handler.cpp
+    git/git_repo_mixin.cpp
+    git/git_status_handler.cpp
+    git/git_transfer_busy.cpp
+    git/kicad_git_common.cpp
+    git/kicad_git_errors.cpp
+    git/kigit_author.cpp
+    git/kigit_failure.cpp
+    git/kigit_ignore.cpp
+    git/kigit_known_hosts.cpp
+    git/kigit_lock_retry.cpp
+    git/kigit_orphan_registry.cpp
+    git/kigit_platform.cpp
+    git/kigit_remote_url.cpp
+    git/kigit_ssh_keys.cpp
+    git/kigit_transport.cpp
+    git/libgit_backend.cpp
+    git/libgit_backend_history.cpp
+    git/libgit_backend_refs.cpp
+    git/project_git_utils.cpp
+    )
+
+list( APPEND KICOMMON_SRCS ${KIGIT_SRCS} )
+
+# The git core reports transfers through UTIL::OBSERVABLE, whose core library would bring wx's GUI libraries along
+add_library( kigit STATIC
+    ${KIGIT_SRCS}
+    ${CMAKE_SOURCE_DIR}/libs/core/observable.cpp
+    )
+
+# It needs wxBase alone, which each executable that links it finds for itself
+target_link_libraries( kigit
+    PUBLIC
+        ${LIBGIT2_LIBRARIES}
+        Boost::headers
+    PRIVATE
+        nlohmann_json
+        picosha2
+    )
+
+target_include_directories( kigit
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/libs/core/include
+    )
 
 add_library( kicommon SHARED
     ${KICOMMON_SRCS}
@@ -711,8 +753,6 @@ set( COMMON_DLG_SRCS
     dialogs/panel_toolbar_customization.cpp
     dialogs/panel_toolbar_customization_base.cpp
 
-    dialogs/rule_editor_dialog_base.cpp
-
     libraries/lib_table_grid_data_model.cpp
     )
 
@@ -929,6 +969,7 @@ set( COMMON_SRCS
     ${COMMON_TRANSLINE_CALCULATION_SRCS}
     track_width_calculations.cpp
     pth_hole_size.cpp
+    r_divider_solver.cpp
     base_screen.cpp
     bin_mod.cpp
     bitmap_base.cpp

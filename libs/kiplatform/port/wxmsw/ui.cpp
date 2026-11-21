@@ -85,12 +85,6 @@ bool KIPLATFORM::UI::IsWindowActive( wxWindow* aWindow )
 }
 
 
-void KIPLATFORM::UI::EnsureVisible( wxWindow* aWindow )
-{
-    // Not needed on this platform
-}
-
-
 void KIPLATFORM::UI::StabilizeWindowPosition( wxWindow* aWindow )
 {
     // Not needed on this platform
@@ -306,4 +300,10 @@ void KIPLATFORM::UI::PrepareForExternalRendering( wxWindow* aWindow )
 void KIPLATFORM::UI::KeepAboveExternalRendering( wxWindow* aChild )
 {
     // Child windows are native and clip their parent's surface
+}
+
+
+void KIPLATFORM::UI::RebindOnRealize( wxWindow* aWindow )
+{
+    // Win32 windows keep their HWND when reparented
 }

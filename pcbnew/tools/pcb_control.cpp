@@ -84,6 +84,7 @@
 #include <core/kicad_algo.h>
 #include <dialogs/hotkey_cycle_popup.h>
 #include <dialogs/dialog_map_layers.h>
+#include <pcbnew_settings.h>
 #include <drc/drc_engine.h>
 #include <drc/drc_rule.h>
 #include <pcb_io/common/plugin_common_layer_mapping.h>
@@ -1480,6 +1481,24 @@ int PCB_CONTROL::AppendDesignBlock( const TOOL_EVENT& aEvent )
     return ret;
 }
 
+// Reverting the temporary design block append drops its items but not its nets
+void PCB_CONTROL::PruneOrphanNets( BOARD* aBoard, BOARD_COMMIT* aCommit )
+{
+    for( NETINFO_ITEM* net : aBoard->GetNetInfo() )
+        net->SetIsCurrent( net->GetNetCode() == 0 );
+
+    // Tracks, vias and zones keep a net alive too, not just pads
+    for( BOARD_CONNECTED_ITEM* item : aBoard->AllConnectedItems() )
+    {
+        if( item->GetNet() )
+            item->GetNet()->SetIsCurrent( true );
+    }
+
+    aBoard->BuildConnectivity();
+    aBoard->RemoveUnusedNets( aCommit );
+}
+
+
 int PCB_CONTROL::ApplyDesignBlockLayout( const TOOL_EVENT& aEvent )
 {
     PCB_EDIT_FRAME* editFrame = dynamic_cast<PCB_EDIT_FRAME*>( m_frame );
@@ -1743,6 +1762,12 @@ int PCB_CONTROL::ApplyDesignBlockLayout( const TOOL_EVENT& aEvent )
         for( NETINFO_ITEM* net : isolatedNets )
             tempCommit.Added( net );
 
+        for( const auto& [item, change] : tempCommit.StagedItems() )
+        {
+            if( item && ( change & CHT_TYPE ) == CHT_ADD && item->Type() == PCB_NETINFO_T )
+                dbRA.m_temporaryNets.insert( static_cast<NETINFO_ITEM*>( item ) );
+        }
+
         wxString repeatErr;
         int      result = mct->RepeatLayout( aEvent, dbRA, destRA, options, &sharedCommit, &repeatErr );
 
@@ -1801,6 +1826,8 @@ int PCB_CONTROL::ApplyDesignBlockLayout( const TOOL_EVENT& aEvent )
 
     if( applied > 0 )
     {
+        PruneOrphanNets( brd, &sharedCommit );
+
         sharedCommit.Push( _( "Apply Design Block Layout" ) );
 
         if( netlessCopperPlaced )
@@ -2176,6 +2203,13 @@ int PCB_CONTROL::AppendBoard( PCB_IO& pi, const wxString& fileName, DESIGN_BLOCK
     // Keep also the count of copper layers, to adjust if necessary
     int  initialCopperLayerCount = brd->GetCopperLayerCount();
     LSET initialEnabledLayers = brd->GetEnabledLayers();
+    std::map<PCB_LAYER_ID, wxString> initialLayerNames;
+
+    for( PCB_LAYER_ID layer : initialEnabledLayers )
+        initialLayerNames.emplace( layer, brd->GetLayerName( layer ) );
+
+    bool                             layerMappingShown = false;
+    std::map<PCB_LAYER_ID, wxString> renamedLayers;
 
     // Load the data
     try
@@ -2205,9 +2239,11 @@ int PCB_CONTROL::AppendBoard( PCB_IO& pi, const wxString& fileName, DESIGN_BLOCK
         if( LAYER_MAPPABLE_PLUGIN* mappable = dynamic_cast<LAYER_MAPPABLE_PLUGIN*>( &pi ) )
         {
             mappable->RegisterCallback(
-                    [editFrame]( const std::vector<INPUT_LAYER_DESC>& aLayerDescs )
+                    [editFrame, brd, &layerMappingShown,
+                     &renamedLayers]( const std::vector<INPUT_LAYER_DESC>& aLayerDescs )
                     {
-                        return DIALOG_MAP_LAYERS::RunModal( editFrame, aLayerDescs );
+                        layerMappingShown = true;
+                        return DIALOG_MAP_LAYERS::RunModal( editFrame, aLayerDescs, &renamedLayers, brd );
                     } );
         }
 
@@ -2215,6 +2251,31 @@ int PCB_CONTROL::AppendBoard( PCB_IO& pi, const wxString& fileName, DESIGN_BLOCK
 
         pi.SetProgressReporter( &progressReporter );
         pi.LoadAndAppendBoard( fileName, *brd, &props, nullptr );
+
+        if( layerMappingShown && editFrame->GetPcbNewSettings()->m_ImportKeepKiCadLayerNames )
+        {
+            for( PCB_LAYER_ID layer : brd->GetEnabledLayers() )
+            {
+                auto it = initialLayerNames.find( layer );
+                brd->SetLayerName( layer, it != initialLayerNames.end() ? it->second : wxString() );
+            }
+        }
+        else
+        {
+            for( const auto& [layer, name] : renamedLayers )
+                brd->SetLayerName( layer, name );
+        }
+    }
+    catch( const IO_CANCELLED& )
+    {
+        if( brd->GetCopperLayerCount() != initialCopperLayerCount )
+            brd->SetCopperLayerCount( initialCopperLayerCount );
+
+        if( brd->GetEnabledLayers() != initialEnabledLayers )
+            brd->SetEnabledLayers( initialEnabledLayers );
+        clearSkipStructOnExistingItems();
+
+        return 1;
     }
     catch( const IO_ERROR& ioe )
     {

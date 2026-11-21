@@ -27,7 +27,6 @@
 #include <map>
 #include <core/map_helpers.h>
 #include <fmt/core.h>
-#include <ki_exception.h>
 #include <macros.h>
 #include <core/kicad_algo.h>
 #include <string_utils.h>
@@ -1765,14 +1764,25 @@ wxString ConvertPathToFileUri( const wxString& aPath, const PROJECT* aProject )
         resolved = fname.GetFullPath();
     }
 
+#ifdef __WINDOWS__
+    // A rooted path names no drive, so it lives on the current one
+    if( !fname.IsAbsolute() && aPath.StartsWith( wxS( "/" ) ) )
+    {
+        fname.MakeAbsolute();
+        resolved = fname.GetFullPath();
+    }
+#endif
+
     // Only convert if the file actually exists
     bool isUNC = resolved.StartsWith( wxS( "\\\\" ) );
 
     if( !isUNC && !wxFileExists( resolved ) && !wxDirExists( resolved ) )
         return aPath;
 
+#ifndef __WINDOWS__
     if( aPath.StartsWith( wxS( "/" ) ) )
         return wxS( "file://" ) + aPath;
+#endif
 
     if( aPath.StartsWith( wxS( "${" ) ) )
         return wxS( "file://" ) + aPath;
@@ -1788,9 +1798,10 @@ wxString ConvertPathToFileUri( const wxString& aPath, const PROJECT* aProject )
         return wxS( "file://" ) + path;
     }
 
-    if( aPath.Length() >= 2 && wxIsalpha( aPath[0] ) && aPath[1] == ':' )
+    if( aPath.StartsWith( wxS( "/" ) ) || ( aPath.Length() >= 2 && wxIsalpha( aPath[0] ) && aPath[1] == ':' ) )
     {
-        wxString path = aPath;
+        // A rooted path needs the resolved drive, while a drive path keeps its variables as typed
+        wxString path = aPath.StartsWith( wxS( "/" ) ) ? resolved : aPath;
         path.Replace( wxS( "\\" ), wxS( "/" ) );
         return wxS( "file:///" ) + path;
     }
@@ -2154,33 +2165,6 @@ int SortVariantNames( const wxString& aLhs, const wxString& aRhs )
         return 1;
 
     return StrNumCmp( aLhs, aRhs );
-}
-
-
-wxString ExtractLibraryLoadException( const IO_ERROR& aException )
-{
-    wxString err;
-
-    // Errors are separated by newlines. We want to keep:
-    // - Lines starting with "Library '" (library-level errors)
-    // - Lines containing "Expecting" (file error location)
-    // And strip:
-    // - Lines starting with "from " (internal code location info)
-    wxStringTokenizer tokenizer( aException.What(), wxS( "\n" ), wxTOKEN_STRTOK );
-#if 0
-    while( tokenizer.HasMoreTokens() )
-    {
-        wxString line = tokenizer.GetNextToken();
-
-        // Skip internal code location lines (e.g., "from pcb_io_kicad_sexpr_parser.cpp : ...")
-        if( line.StartsWith( wxS( "from " ) ) )
-            continue;
-
-        if( line.StartsWith( wxS( "Library '" ) ) || line.Contains( wxS( "Expecting" ) ) )
-        messages.push_back( KI_ERROR( static_cast<SEVERITY>( aSeverity ), line ) );
-    }
-#endif
-    return err;
 }
 
 

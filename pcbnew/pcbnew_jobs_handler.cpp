@@ -24,8 +24,10 @@
 #include <string_utils.h>
 #include <wx/crt.h>
 #include <wx/dir.h>
+#include <wx/filedlg.h>
 #include <wx/zipstrm.h>
 #include <wx/filename.h>
+#include <wx/scopeguard.h>
 #include <wx/tokenzr.h>
 #include <wx/wfstream.h>
 
@@ -72,6 +74,7 @@
 #include <jobs/job_export_pcb_ps.h>
 #include <jobs/job_export_pcb_stats.h>
 #include <jobs/job_export_pcb_stackup.h>
+#include <jobs/job_export_pcb_hyperlynx.h>
 #include <jobs/job_export_pcb_svg.h>
 #include <jobs/job_export_pcb_3d.h>
 #include <jobs/job_pcb_render.h>
@@ -107,6 +110,7 @@
 #include <project/project_file.h>
 #include <exporters/export_idf.h>
 #include <exporters/export_gencad_writer.h>
+#include <exporters/export_hyperlynx.h>
 #include <exporters/export_d356.h>
 #include <kiface_services.h>
 #include <netlist_reader/pcb_netlist.h>
@@ -128,6 +132,7 @@
 #include <wildcards_and_files_ext.h>
 #include <export_vrml.h>
 #include <kiplatform/io.h>
+#include <kiplatform/ui.h>
 #include <settings/settings_manager.h>
 #include <dialogs/dialog_gendrill.h>
 #include <dialogs/dialog_gen_footprint_position.h>
@@ -354,6 +359,68 @@ PCBNEW_JOBS_HANDLER::PCBNEW_JOBS_HANDLER( KIWAY* aKiway ) :
 
                   return dlg.ShowModal() == wxID_OK;
               } );
+    Register( "hyperlynx", std::bind( &PCBNEW_JOBS_HANDLER::JobExportHyperlynx, this, std::placeholders::_1 ),
+              [aKiway]( JOB* job, wxWindow* aParent ) -> bool
+              {
+                  JOB_EXPORT_PCB_HYPERLYNX* hyperlynxJob = dynamic_cast<JOB_EXPORT_PCB_HYPERLYNX*>( job );
+
+                  PCB_EDIT_FRAME* editFrame =
+                          dynamic_cast<PCB_EDIT_FRAME*>( aKiway->Player( FRAME_PCB_EDITOR, false ) );
+
+                  wxCHECK( hyperlynxJob && editFrame, false );
+
+                  if( hyperlynxJob->m_filename.IsEmpty() && editFrame->GetBoard() )
+                  {
+                      wxFileName boardName = editFrame->GetBoard()->GetFileName();
+                      hyperlynxJob->m_filename = boardName.GetFullPath();
+                  }
+
+                  wxWindow* parent = aParent ? aParent : static_cast<wxWindow*>( editFrame );
+
+                  const wxString& configuredPath = hyperlynxJob->GetConfiguredOutputPath();
+                  wxFileName      outputPath( configuredPath );
+
+                  if( configuredPath.IsEmpty() )
+                  {
+                      outputPath = hyperlynxJob->m_filename;
+                      outputPath.SetExt( FILEEXT::HyperlynxFileExtension );
+                  }
+
+                  wxFileName       configuredFile( configuredPath );
+                  wxString         initialDirectory = outputPath.GetPath();
+
+                  if( !outputPath.IsAbsolute() )
+                  {
+                      if( initialDirectory.IsEmpty() )
+                          initialDirectory = wxS( "." );
+
+                      initialDirectory = ResolveProjectPath( initialDirectory, &editFrame->Prj() );
+                  }
+
+                  wxFileDialog dlg( parent, _( "Export Hyperlynx Layout" ), initialDirectory,
+                                    outputPath.GetFullName(), FILEEXT::HyperlynxFileWildcard(),
+                                    wxFD_SAVE | wxFD_OVERWRITE_PROMPT );
+
+                  KIPLATFORM::UI::AllowNetworkFileSystems( &dlg );
+
+                  if( dlg.ShowModal() != wxID_OK )
+                      return false;
+
+                  outputPath = dlg.GetPath();
+                  outputPath.SetExt( FILEEXT::HyperlynxFileExtension );
+
+                  // Keep the jobset destination when the user accepts the starting directory.
+                  if( ( configuredPath.IsEmpty() || !configuredFile.IsAbsolute() )
+                      && wxFileName::DirName( dlg.GetDirectory() ).SameAs( wxFileName::DirName( initialDirectory ) ) )
+                  {
+                      configuredFile.SetFullName( outputPath.GetFullName() );
+                      outputPath = configuredFile;
+                  }
+
+                  hyperlynxJob->SetConfiguredOutputPath( outputPath.GetFullPath() );
+
+                  return true;
+              } );
     Register( "gerber", std::bind( &PCBNEW_JOBS_HANDLER::JobExportGerber, this, std::placeholders::_1 ),
               [aKiway]( JOB* job, wxWindow* aParent ) -> bool
               {
@@ -449,13 +516,16 @@ PCBNEW_JOBS_HANDLER::PCBNEW_JOBS_HANDLER( KIWAY* aKiway ) :
                   return true;
               } );
     Register( "drc", std::bind( &PCBNEW_JOBS_HANDLER::JobExportDrc, this, std::placeholders::_1 ),
-              []( JOB* job, wxWindow* aParent ) -> bool
+              [aKiway]( JOB* job, wxWindow* aParent ) -> bool
               {
                   JOB_PCB_DRC* drcJob = dynamic_cast<JOB_PCB_DRC*>( job );
 
-                  wxCHECK( drcJob, false );
+                  PCB_EDIT_FRAME* editFrame =
+                          dynamic_cast<PCB_EDIT_FRAME*>( aKiway->Player( FRAME_PCB_EDITOR, false ) );
 
-                  DIALOG_DRC_JOB_CONFIG dlg( aParent, drcJob );
+                  wxCHECK( drcJob && editFrame, false );
+
+                  DIALOG_DRC_JOB_CONFIG dlg( aParent, drcJob, editFrame );
                   return dlg.ShowModal() == wxID_OK;
               } );
     Register( "ipc2581", std::bind( &PCBNEW_JOBS_HANDLER::JobExportIpc2581, this, std::placeholders::_1 ),
@@ -2249,11 +2319,26 @@ int PCBNEW_JOBS_HANDLER::JobExportGerber( JOB* aJob )
 
     TOOL_MANAGER* toolManager = getToolManager( brd );
 
+    bool hasLayerListSpecified = false; // will be true if the user layer list is not empty
+
     if( aGerberJob->m_argLayers )
-        aGerberJob->m_plotLayerSequence = convertLayerArg( aGerberJob->m_argLayers.value(), brd );
+    {
+        if( !aGerberJob->m_argLayers.value().empty() )
+        {
+            aGerberJob->m_plotLayerSequence = convertLayerArg( aGerberJob->m_argLayers.value(), brd );
+            hasLayerListSpecified = true;
+        }
+        else
+        {
+            aGerberJob->m_plotLayerSequence = LSET::AllLayersMask().SeqStackupForPlotting();
+        }
+    }
 
     if( aGerberJob->m_argCommonLayers )
         aGerberJob->m_plotOnAllLayersSequence = convertLayerArg( aGerberJob->m_argCommonLayers.value(), brd );
+
+    if( aGerberJob->m_plotLayerSequence.empty() && !hasLayerListSpecified && aGerberJob->m_plotAllCopperLayers )
+        aGerberJob->m_plotLayerSequence = brd->GetEnabledLayers().SeqStackupForPlotting();
 
     if( aGerberJob->m_plotLayerSequence.size() < 1 )
     {
@@ -2881,6 +2966,18 @@ int PCBNEW_JOBS_HANDLER::JobExportDrc( JOB* aJob )
     if( !brd )
         return CLI::EXIT_CODES::ERR_INVALID_INPUT_FILE;
 
+    if( !drcJob->m_variant.IsEmpty() && drcJob->m_variant.CmpNoCase( GetDefaultVariantName() ) != 0
+        && !brd->HasVariant( drcJob->m_variant ) )
+    {
+        m_reporter->Report( wxString::Format( _( "The board has no variant named '%s'.\n" ), drcJob->m_variant ),
+                            RPT_SEVERITY_ERROR );
+        return CLI::EXIT_CODES::ERR_ARGS;
+    }
+
+    // The board is cached across jobs, so put its variant back
+    wxON_BLOCK_EXIT_OBJ1( *brd, BOARD::SetCurrentVariant, brd->GetCurrentVariant() );
+    brd->SetCurrentVariant( drcJob->m_variant );
+
     // Running DRC requires libraries be loaded, so make sure they have been
     FOOTPRINT_LIBRARY_ADAPTER* adapter = PROJECT_PCB::FootprintLibAdapter( brd->GetProject() );
     adapter->AsyncLoad();
@@ -2960,6 +3057,10 @@ int PCBNEW_JOBS_HANDLER::JobExportDrc( JOB* aJob )
         else
         {
             wxFileName schematicPath( drcJob->m_filename );
+
+            if( drcJob->m_filename.IsEmpty() )
+                schematicPath.Assign( brd->GetProject()->GetProjectFullName() );
+
             schematicPath.MakeAbsolute();
             schematicPath.SetExt( FILEEXT::KiCadSchematicFileExtension );
 
@@ -2976,8 +3077,12 @@ int PCBNEW_JOBS_HANDLER::JobExportDrc( JOB* aJob )
                 KIFACE_NETLIST_SCHEMATIC_SERVICE::Type netlister =
                         GetKifaceService<KIFACE_NETLIST_SCHEMATIC_SERVICE>( m_kiway->KiFACE( KIWAY::FACE_SCH ) );
 
-                if( netlister )
-                    ( *netlister )( schematicPath.GetFullPath(), netlist_str, m_kiway );
+                if( !netlister || !( *netlister )( schematicPath.GetFullPath(), netlist_str, m_kiway ) )
+                {
+                    m_reporter->Report( _( "Failed to fetch schematic netlist for parity tests.\n" ),
+                                        RPT_SEVERITY_ERROR );
+                    checkParity = false;
+                }
             }
         }
 
@@ -3169,6 +3274,48 @@ int PCBNEW_JOBS_HANDLER::JobExportIpc2581( JOB* aJob )
 
     if( !GenerateIpc2581File( *job, brd, m_progressReporter, m_reporter ) )
         return CLI::EXIT_CODES::ERR_UNKNOWN;
+
+    return CLI::EXIT_CODES::SUCCESS;
+}
+
+
+int PCBNEW_JOBS_HANDLER::JobExportHyperlynx( JOB* aJob )
+{
+    JOB_EXPORT_PCB_HYPERLYNX* job = dynamic_cast<JOB_EXPORT_PCB_HYPERLYNX*>( aJob );
+
+    if( job == nullptr )
+        return CLI::EXIT_CODES::ERR_UNKNOWN;
+
+    BOARD* brd = getBoard( job->m_filename );
+
+    if( !brd )
+        return CLI::EXIT_CODES::ERR_INVALID_INPUT_FILE;
+
+    if( job->GetConfiguredOutputPath().IsEmpty() )
+    {
+        wxFileName fn = brd->GetFileName();
+        fn.SetExt( FILEEXT::HyperlynxFileExtension );
+
+        job->SetWorkingOutputPath( fn.GetFullName() );
+    }
+
+    wxString outPath = resolveJobOutputPath( aJob, brd );
+
+    if( !PATHS::EnsurePathExists( outPath, true ) )
+    {
+        m_reporter->Report( _( "Failed to create output directory\n" ), RPT_SEVERITY_ERROR );
+        return CLI::EXIT_CODES::ERR_INVALID_OUTPUT_CONFLICT;
+    }
+
+    if( !ExportBoardToHyperlynxFile( brd, outPath ) )
+    {
+        m_reporter->Report( wxString::Format( _( "Failed to write Hyperlynx file '%s'.\n" ), outPath ),
+                            RPT_SEVERITY_ERROR );
+        return CLI::EXIT_CODES::ERR_INVALID_OUTPUT_CONFLICT;
+    }
+
+    job->AddOutput( outPath );
+    m_reporter->Report( wxString::Format( _( "Wrote Hyperlynx file to '%s'.\n" ), outPath ), RPT_SEVERITY_ACTION );
 
     return CLI::EXIT_CODES::SUCCESS;
 }
@@ -4510,6 +4657,7 @@ int PCBNEW_JOBS_HANDLER::runPcbMerge( const wxString& aAncestor, const wxString&
         const KICAD_DIFF::DIFF_COLOR_THEME        theme;
         DIALOG_KICAD_MERGE_3WAY::CONFLICT_CONTEXT ctx;
         ctx.formatNotice = formatNotice;
+        ctx.units = std::make_shared<UNITS_PROVIDER>( pcbIUScale, EDA_UNITS::MM );
         ctx.ancestorGeometry = KICAD_DIFF::ExtractBoardGeometry( *ancestor, theme.reference );
         ctx.oursGeometry = KICAD_DIFF::ExtractBoardGeometry( *ours, theme.reference );
         ctx.theirsGeometry = KICAD_DIFF::ExtractBoardGeometry( *theirs, theme.comparison );
@@ -4518,13 +4666,13 @@ int PCBNEW_JOBS_HANDLER::runPcbMerge( const wxString& aAncestor, const wxString&
         // at its theirs-side coordinates when the user previews Theirs.
         KICAD_DIFF::CollectChangeBBoxes( ourDocDiff, ctx.oursBBoxes );
         KICAD_DIFF::CollectChangeBBoxes( theirDocDiff, ctx.theirsBBoxes );
+        ctx.oursChanges = KICAD_DIFF::IndexChangesByKiid( ourDocDiff );
+        ctx.theirsChanges = KICAD_DIFF::IndexChangesByKiid( theirDocDiff );
 
-        ctx.describeItem = [ours, theirs, ancestor]( const KIID_PATH& aId ) -> wxString
+        ctx.describeItem = [ours, theirs, ancestor, units = ctx.units]( const KIID_PATH& aId ) -> wxString
         {
             if( aId.empty() )
                 return wxEmptyString;
-
-            UNITS_PROVIDER units( pcbIUScale, EDA_UNITS::MM );
 
             for( BOARD* board : { ours, theirs, ancestor } )
             {
@@ -4532,7 +4680,7 @@ int PCBNEW_JOBS_HANDLER::runPcbMerge( const wxString& aAncestor, const wxString&
                     continue;
 
                 if( BOARD_ITEM* item = board->ResolveItem( aId.back(), true ) )
-                    return item->GetItemDescription( &units, false );
+                    return item->GetItemDescription( units.get(), false );
             }
 
             return wxEmptyString;

@@ -49,6 +49,7 @@
 #include <eda_base_frame.h>
 #include <frame_type.h>
 #include <git/kicad_git_common.h>
+#include <git/kigit_ignore.h>
 #include <git/git_status_handler.h>
 #include <git/project_git_utils.h>
 #include <i18n_utility.h>
@@ -134,28 +135,18 @@ std::vector<FILE_CHECKLIST_ENTRY> BuildGitChangeEntries( KIGIT_COMMON& aCommon, 
         relativePath.Replace( wxS( "\\" ), wxS( "/" ) );
 #endif
 
-        // Only files git does not know at all are hidden. One that is tracked, or staged to be,
-        // is carried by a commit and blocks a merge, so hiding it would leave the user with
-        // nothing to commit and no way forward.
-        bool untracked = ( fileStatus.gitStatus & GIT_STATUS_WT_NEW )
-                         && !( fileStatus.gitStatus & GIT_STATUS_INDEX_NEW );
-
-        if( untracked )
+        if( KIGIT::PROJECT_GIT_UTILS::IsHiddenTransient( relativePath, *prefix, fileStatus.gitStatus,
+                                                         fileStatus.isDirectory ) )
         {
-            // Use the session prefix so a project opened through a symlink has the same paths.
-            const wxString pathPrefix = relativePath.Left( prefix->length() );
+            continue;
+        }
 
-#ifdef __WINDOWS__
-            bool inProject = pathPrefix.CmpNoCase( *prefix ) == 0;
-#else
-            bool inProject = pathPrefix == *prefix;
-#endif
-
-            if( inProject
-                && KIGIT::PROJECT_GIT_UTILS::IsTransientGitFile( wxFileName( relativePath.Mid( prefix->length() ) ) ) )
-            {
-                continue;
-            }
+        // Committing the row removes the gitlink from the index and keeps the folder on disk
+        if( fileStatus.isDirectory && KIGIT::PROJECT_GIT_UTILS::IsTransientGitlink( aCommon.GetRepo(), relativePath ) )
+        {
+            word = _( "Stop Tracking" );
+            icon = BITMAPS::git_delete;
+            colour = theme.removed.ToColour();
         }
 
         FILE_CHECKLIST_ENTRY entry;
@@ -337,7 +328,10 @@ void ReloadOpenEditors( KIWAY& aKiway, const EDITOR_SNAPSHOT& aBefore )
 
     for( const EDITOR_DOC& doc : g_editorDocs )
     {
-        if( !aKiway.Player( doc.frameType, false ) )
+        KIWAY_PLAYER* player = aKiway.Player( doc.frameType, false );
+
+        // A frame that is quitting would reopen its file and leave a lock behind
+        if( !player || player->IsClosing() )
             continue;
 
         // Reloading throws away undo history and the view state, so only do it for a document
@@ -517,7 +511,7 @@ void SwitchProjectToBranch( EDA_BASE_FRAME* aFrame, wxWindow* aParent, const wxS
                 KIGIT_ERROR_MESSAGE resultError;
 
                 {
-                    std::unique_lock<std::mutex> lock = KIGIT::TryLockAction( *common, parent );
+                    KIGIT::ACTION_LOCK lock = KIGIT::TryLockAction( *common, parent );
 
                     if( !lock.owns_lock() )
                         return;
@@ -777,7 +771,7 @@ wxString GIT_WORKTREE_STATUS::RefusalMessage( const std::vector<wxString>& aUnsa
 
         wxString message = aAllowTrackedChanges
                                    ? _( "The following editors have unsaved changes:%s\n\n"
-                                        "Save or discard those changes before stashing." )
+                                        "Save or discard those changes before continuing." )
                                    : _( "The following editors have unsaved changes:%s\n\n"
                                         "Save or discard those changes first. If saving leaves uncommitted "
                                         "files, commit or stash them before trying again." );
@@ -1087,6 +1081,80 @@ void loadModalGitDiff( const std::shared_ptr<MODAL_GIT_DIFF_REQUEST>& aRequest, 
 }
 
 } // namespace
+
+
+void ChangeGitIgnore( EDA_BASE_FRAME* aFrame, wxWindow* aParent, GIT_IGNORE_CHANGE aChange,
+                      const std::vector<GIT_IGNORE_TARGET>& aTargets )
+{
+    std::shared_ptr<KIGIT_COMMON> common = aFrame->Prj().GetGitCommon();
+
+    if( !common->GetRepo() || aTargets.empty() )
+        return;
+
+    const bool ignoring = aChange == GIT_IGNORE_CHANGE::IGNORE_PATH || aChange == GIT_IGNORE_CHANGE::IGNORE_EXTENSION;
+    const bool byExtension =
+            aChange == GIT_IGNORE_CHANGE::IGNORE_EXTENSION || aChange == GIT_IGNORE_CHANGE::KEEP_EXTENSION;
+    const wxFileName ignoreFile = KIGIT::ProjectIgnoreFile( aFrame->Prj().GetProjectPath() );
+
+    std::vector<wxString> rules;
+
+    for( const GIT_IGNORE_TARGET& target : aTargets )
+    {
+        wxString rule = byExtension ? KIGIT::ExtensionIgnoreRule( target.path )
+                                    : KIGIT::PathIgnoreRule( target.path, target.isDirectory );
+
+        if( !rule.IsEmpty() )
+            rules.push_back( rule );
+    }
+
+    if( rules.empty() )
+        return;
+
+    wxString error;
+    bool     written = ignoring ? KIGIT::AddIgnoreRules( ignoreFile, rules, wxEmptyString, error )
+                                : KIGIT::RemoveIgnoreRules( ignoreFile, rules, error );
+
+    if( !written )
+    {
+        DisplayErrorMessage( aParent, _( "Could not change which files are ignored." ), error );
+        return;
+    }
+
+    common->NotifyRefreshListeners();
+
+    if( ignoring )
+        return;
+
+    std::vector<wxString> stillIgnored;
+
+    {
+        // Only to explain the result, so a busy repository is not worth waiting for.
+        KIGIT::ACTION_LOCK lock = common->TryLockAction();
+
+        if( !lock.owns_lock() )
+            return;
+
+        for( const GIT_IGNORE_TARGET& target : aTargets )
+        {
+            if( KIGIT::IgnoreState( *common, target.path, target.isDirectory ).ignored )
+                stillIgnored.push_back( target.path );
+        }
+    }
+
+    if( stillIgnored.empty() )
+        return;
+
+    const wxString message =
+            stillIgnored.size() == 1
+                    ? wxString::Format( _( "'%s' is still ignored by another rule." ), stillIgnored.front() )
+                    : wxString::Format( _( "%zu of the selected files are still ignored by another rule." ),
+                                        stillIgnored.size() );
+
+    DisplayInfoMessage( aParent, message,
+                        wxString::Format( _( "That rule covers more than this, so it was left in "
+                                             "place. Edit '%s' to change it." ),
+                                          ignoreFile.GetFullPath() ) );
+}
 
 
 void ShowGitFileDiff( EDA_BASE_FRAME* aFrame, const wxString& aRelativePath )

@@ -1116,7 +1116,12 @@ bool SETTINGS_MANAGER::LoadProject( const wxString& aFullPath, bool aSetActive, 
 
     wxString fn( path.GetName() );
 
-    PROJECT_LOCAL_SETTINGS* settings = new PROJECT_LOCAL_SETTINGS( m_projects[fullPath], fn );
+    BOARD_OPACITY_DEFAULTS opacityDefaults;
+
+    if( m_common_settings )
+        opacityDefaults = m_common_settings->m_BoardOpacityDefaults;
+
+    PROJECT_LOCAL_SETTINGS* settings = new PROJECT_LOCAL_SETTINGS( m_projects[fullPath], fn, opacityDefaults );
 
     if( aSetActive )
         settings = RegisterSettings( settings );
@@ -1379,7 +1384,7 @@ void SETTINGS_MANAGER::SaveProjectAs( const wxString& aFullPath, PROJECT* aProje
     aProject->GetLocalSettings().SetReadOnly( aProject->IsReadOnly() );
 
     project->SetFilename( fn.GetName() );
-    project->SaveToFile( fn.GetPath() );
+    project->SaveToFile( fn.GetPath(), true );
 
     aProject->GetLocalSettings().SetFilename( fn.GetName() );
     aProject->GetLocalSettings().SaveToFile( fn.GetPath() );
@@ -1405,7 +1410,7 @@ bool SETTINGS_MANAGER::SaveProjectCopy( const wxString& aFullPath, PROJECT* aPro
     project->SetReadOnly( false );
 
     project->SetFilename( fn.GetName() );
-    const bool projectOk = project->SaveToFile( fn.GetPath() );
+    const bool projectOk = project->SaveToFile( fn.GetPath(), true );
     project->SetFilename( oldName );
 
     // PROJECT_LOCAL_SETTINGS save is best-effort: SaveToFile returns false for

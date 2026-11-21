@@ -51,6 +51,7 @@ set( QA_COMMON_SRCS
     test_desktop_app_id.cpp
     test_dialog_kicad_merge_3way.cpp
     test_dialog_shim.cpp
+    test_eda_item.cpp
     test_eda_shape.cpp
     test_eda_text.cpp
     test_editor_tabs_panel.cpp
@@ -68,6 +69,7 @@ set( QA_COMMON_SRCS
     test_drawing_sheet_reactive.cpp
     test_file_history.cpp
     test_filename_resolver.cpp
+    test_frame_close_block.cpp
     test_hashtables.cpp
     test_hotkey_store.cpp
     test_increment.cpp
@@ -99,6 +101,7 @@ set( QA_COMMON_SRCS
     test_lset.cpp
     test_markup_parser.cpp
     test_notifications_manager.cpp
+    test_paged_dialog.cpp
     test_project_archiver.cpp
     test_property.cpp
     test_svg_plotter.cpp
@@ -125,8 +128,11 @@ set( QA_COMMON_SRCS
     test_tool_dispatcher.cpp
     test_tool_prime.cpp
     git/test_libgit_backend.cpp
+    git/test_git_clone_handler.cpp
     git/test_git_compare_handler.cpp
+    git/test_kigit_ignore.cpp
     git/test_text_diff.cpp
+    git/test_kigit_failure.cpp
     text_eval/test_text_eval_parser.cpp
     text_eval/test_text_eval_parser_core.cpp
     text_eval/test_text_eval_parser_datetime.cpp
@@ -137,6 +143,7 @@ set( QA_COMMON_SRCS
     test_title_block.cpp
     test_track_width_calculations.cpp
     test_pth_hole_size.cpp
+    test_r_divider_solver.cpp
     test_types.cpp
     test_utf8.cpp
     test_wildcards_and_files_ext.cpp

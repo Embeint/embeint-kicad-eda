@@ -1746,18 +1746,18 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
                     {
                         switch( a->Type() )
                         {
-                        case PCB_TRACE_T:     mask = DRC_DISALLOW_TRACKS;     break;
-                        case PCB_ARC_T:       mask = DRC_DISALLOW_TRACKS;     break;
-                        case PCB_PAD_T:       mask = DRC_DISALLOW_PADS;       break;
-                        case PCB_FOOTPRINT_T: mask = DRC_DISALLOW_FOOTPRINTS; break;
-                        case PCB_SHAPE_T:     mask = DRC_DISALLOW_GRAPHICS;   break;
-                        case PCB_BARCODE_T:   mask = DRC_DISALLOW_GRAPHICS;   break;
-                        case PCB_FIELD_T:     mask = DRC_DISALLOW_TEXTS;      break;
-                        case PCB_TEXT_T:      mask = DRC_DISALLOW_TEXTS;      break;
-                        case PCB_TEXTBOX_T:   mask = DRC_DISALLOW_TEXTS;      break;
+                        case PCB_TRACE_T:         mask = DRC_DISALLOW_TRACKS;     break;
+                        case PCB_ARC_T:           mask = DRC_DISALLOW_TRACKS;     break;
+                        case PCB_PAD_T:           mask = DRC_DISALLOW_PADS;       break;
+                        case PCB_FOOTPRINT_T:     mask = DRC_DISALLOW_FOOTPRINTS; break;
+                        case PCB_SHAPE_T:         mask = DRC_DISALLOW_GRAPHICS;   break;
+                        case PCB_BARCODE_T:       mask = DRC_DISALLOW_GRAPHICS;   break;
+                        case PCB_FIELD_T:         mask = DRC_DISALLOW_TEXTS;      break;
+                        case PCB_TEXT_T:          mask = DRC_DISALLOW_TEXTS;      break;
+                        case PCB_TEXTBOX_T:       mask = DRC_DISALLOW_TEXTS;      break;
                         case PCB_TABLE_T:
                         case PCB_DRILL_CHART_T:
-                        case PCB_STACKUP_TABLE_T: mask = DRC_DISALLOW_TEXTS;  break;
+                        case PCB_STACKUP_TABLE_T: mask = DRC_DISALLOW_TEXTS;      break;
 
                         case PCB_ZONE_T:
                             // Treat teardrop areas as tracks for DRC purposes
@@ -1768,8 +1768,13 @@ DRC_CONSTRAINT DRC_ENGINE::EvalRules( DRC_CONSTRAINT_T aConstraintType, const BO
 
                             break;
 
-                        case PCB_LOCATE_HOLE_T: mask = DRC_DISALLOW_HOLES; break;
-                        default: mask = 0; break;
+                        case PCB_LOCATE_HOLE_T:
+                            mask = DRC_DISALLOW_HOLES;
+                            break;
+
+                        default:
+                            mask = 0;
+                            break;
                         }
                     }
 
@@ -2399,8 +2404,6 @@ void DRC_ENGINE::ReportViolation( const std::shared_ptr<DRC_ITEM>& aItem, const 
             msg += wxString::Format( wxT( ", violating rule: '%s'" ), rule->m_Name );
 
         m_logReporter->Report( msg );
-
-        wxString violatingItemsStr = wxT( "Violating items: " );
 
         m_logReporter->Report( wxString::Format( wxT( "  |- violating position (%d, %d)" ),
                                               aPos.x,

@@ -22,7 +22,6 @@
 #include "drc_rule_editor_utils.h"
 #include "drc_re_validator_numeric_ctrl.h"
 
-#include <dialogs/rule_editor_dialog_base.h>
 #include <eda_base_frame.h>
 #include <base_units.h>
 #include <i18n_utility.h>
@@ -31,8 +30,9 @@
 #include <wx/textctrl.h>
 
 
-DRC_RE_NUMERIC_INPUT_OVERLAY_PANEL::DRC_RE_NUMERIC_INPUT_OVERLAY_PANEL(
-        wxWindow* aParent, DRC_RE_NUMERIC_INPUT_CONSTRAINT_DATA* aData, EDA_UNITS aUnits ) :
+DRC_RE_NUMERIC_INPUT_OVERLAY_PANEL::DRC_RE_NUMERIC_INPUT_OVERLAY_PANEL( wxWindow* aParent,
+                                                                        DRC_RE_NUMERIC_INPUT_CONSTRAINT_DATA* aData,
+                                                                        EDA_UNITS aUnits ) :
         DRC_RE_BITMAP_OVERLAY_PANEL( aParent ),
         m_data( aData ),
         m_unitsProvider( pcbIUScale, aUnits )
@@ -59,25 +59,8 @@ DRC_RE_NUMERIC_INPUT_OVERLAY_PANEL::DRC_RE_NUMERIC_INPUT_OVERLAY_PANEL(
 
     valueField->GetControl()->SetValidator( VALIDATOR_NUMERIC_CTRL( false, m_data->IsIntegerOnly() ) );
 
-    auto notifyModified = [this]( wxCommandEvent& )
-    {
-        RULE_EDITOR_DIALOG_BASE* dlg = RULE_EDITOR_DIALOG_BASE::GetDialog( this );
-        if( dlg )
-            dlg->SetModified();
-    };
-
-    auto notifySave = [this]( wxCommandEvent& aEvent )
-    {
-        RULE_EDITOR_DIALOG_BASE* dlg = RULE_EDITOR_DIALOG_BASE::GetDialog( this );
-        if( dlg )
-            dlg->OnSave( aEvent );
-    };
-
-    valueField->GetControl()->Bind( wxEVT_TEXT, notifyModified );
-    valueField->GetControl()->Bind( wxEVT_TEXT_ENTER, notifySave );
-
-    PositionFields();
     TransferDataToWindow();
+    PositionFields();
 }
 
 
@@ -130,8 +113,7 @@ bool DRC_RE_NUMERIC_INPUT_OVERLAY_PANEL::TransferDataFromWindow()
             }
             else
             {
-                double val = 0.0;
-                text.ToDouble( &val );
+                double val = EDA_UNIT_UTILS::UI::DoubleValueFromString( pcbIUScale, EDA_UNITS::UNSCALED, text );
                 m_data->SetNumericInputValue( val );
             }
         }
@@ -166,7 +148,9 @@ bool DRC_RE_NUMERIC_INPUT_OVERLAY_PANEL::ValidateInputs( int* aErrorCount,
 
                 switch( numValidator->GetValidationState() )
                 {
-                case VALIDATOR_NUMERIC_CTRL::VALIDATION_STATE::Empty: errorMsg = _( "Value is required." ); break;
+                case VALIDATOR_NUMERIC_CTRL::VALIDATION_STATE::Empty:
+                    errorMsg = _( "Value is required." );
+                    break;
                 case VALIDATOR_NUMERIC_CTRL::VALIDATION_STATE::NotNumeric:
                     errorMsg = _( "Value must be a number." );
                     break;
@@ -176,7 +160,8 @@ bool DRC_RE_NUMERIC_INPUT_OVERLAY_PANEL::ValidateInputs( int* aErrorCount,
                 case VALIDATOR_NUMERIC_CTRL::VALIDATION_STATE::NotGreaterThanZero:
                     errorMsg = _( "Value must be greater than 0." );
                     break;
-                default: break;
+                default:
+                    break;
                 }
 
                 if( !errorMsg.IsEmpty() )

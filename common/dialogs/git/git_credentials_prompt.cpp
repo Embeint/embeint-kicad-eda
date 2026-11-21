@@ -21,6 +21,7 @@
 #include <dialogs/git/dialog_git_credentials.h>
 #include <dialogs/git/dialog_git_identity.h>
 #include <dialogs/git/git_ui_utils.h>
+#include <wx/msgdlg.h>
 #include <confirm.h>
 #include <eda_base_frame.h>
 #include <wx/app.h>
@@ -47,7 +48,7 @@ static void resolveMissingRemote( KIGIT_COMMON* aCommon )
 
     // A status read holds the lock for moments at a time, so a short wait usually gets it
     wxBusyCursor                 busy;
-    std::unique_lock<std::mutex> lock = aCommon->TryLockActionFor( KIGIT_COMMON::ACTION_LOCK_WAIT );
+    KIGIT::ACTION_LOCK lock = aCommon->TryLockActionFor( KIGIT_COMMON::ACTION_LOCK_WAIT );
 
     if( !lock.owns_lock() )
     {
@@ -327,38 +328,19 @@ KIGIT::GIT_IDENTITY KIGIT::ReadGitIdentity( KIGIT_COMMON& aCommon )
 {
     GIT_IDENTITY identity;
 
-    if( !aCommon.GetRepo() )
-        return identity;
-
-    GIT_CONFIG_HANDLER handler( &aCommon );
-    identity.config.hasName = GetGitBackend()->GetConfigString( &handler, "user.name", identity.config.authorName );
-    identity.config.hasEmail = GetGitBackend()->GetConfigString( &handler, "user.email", identity.config.authorEmail );
-
-    git_signature* signature = nullptr;
-    identity.configured = git_signature_default( &signature, aCommon.GetRepo() ) == GIT_OK;
-    GitSignaturePtr signaturePtr( signature );
+    ReadAuthorConfig( aCommon.GetRepo(), identity.local, identity.global );
     return identity;
 }
 
 
-GitUserConfig KIGIT::ResolveGitIdentity( const GIT_IDENTITY& aIdentity, const COMMON_SETTINGS::GIT& aPreferences,
-                                         const wxString& aUserName )
+GitUserConfig KIGIT::PrefillAuthor( const GIT_IDENTITY& aIdentity )
 {
-    GitUserConfig config = aIdentity.config;
+    GitUserConfig author = ResolveAuthor( Pgm().GetCommonSettings()->m_Git, aIdentity.local, aIdentity.global );
 
-    if( !aPreferences.useDefaultAuthor )
-    {
-        if( config.authorName.IsEmpty() )
-            config.authorName = aPreferences.authorName;
+    if( author.authorName.IsEmpty() )
+        author.authorName = wxGetUserName();
 
-        if( config.authorEmail.IsEmpty() )
-            config.authorEmail = aPreferences.authorEmail;
-    }
-
-    if( config.authorName.IsEmpty() )
-        config.authorName = aUserName;
-
-    return config;
+    return author;
 }
 
 
@@ -383,7 +365,7 @@ bool KIGIT::EditGitIdentity( wxWindow* aParent, EDA_BASE_FRAME* aFrame, const st
 
     wxWeakRef<EDA_BASE_FRAME> frame( aFrame );
     wxWeakRef<wxWindow>       parent( aParent );
-    GitUserConfig config = ResolveGitIdentity( aIdentity, Pgm().GetCommonSettings()->m_Git, wxGetUserName() );
+    GitUserConfig config = PrefillAuthor( aIdentity );
 
     {
         DIALOG_GIT_IDENTITY dlg( aParent, _( "Set Author" ), config.authorName, config.authorEmail );
@@ -401,7 +383,7 @@ bool KIGIT::EditGitIdentity( wxWindow* aParent, EDA_BASE_FRAME* aFrame, const st
     bool saved = false;
 
     {
-        std::unique_lock<std::mutex> lock = KIGIT::WaitForActionLock( *aCommon, aParent );
+        KIGIT::ACTION_LOCK lock = KIGIT::WaitForActionLock( *aCommon, aParent );
 
         if( !lock.owns_lock() )
             return false;
@@ -429,5 +411,7 @@ bool KIGIT::EnsureGitIdentity( wxWindow* aParent, EDA_BASE_FRAME* aFrame, const 
     if( !identitySessionCurrent( aFrame, aCommon ) )
         return false;
 
-    return aIdentity.configured || EditGitIdentity( aParent, aFrame, aCommon, aIdentity );
+    GitUserConfig author = ResolveAuthor( Pgm().GetCommonSettings()->m_Git, aIdentity.local, aIdentity.global );
+
+    return ( author.hasName && author.hasEmail ) || EditGitIdentity( aParent, aFrame, aCommon, aIdentity );
 }

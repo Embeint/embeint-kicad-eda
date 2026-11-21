@@ -61,6 +61,7 @@
 #include <project/project_file.h>
 #include <project/net_settings.h>
 #include <sch_edit_frame.h>
+#include <eeschema_helpers.h>
 #include <symbol_chooser_frame.h>
 #include <sch_painter.h>
 #include <sch_marker.h>
@@ -612,6 +613,9 @@ void SCH_EDIT_FRAME::OnCrossProbeFlashTimer( wxTimerEvent& aEvent )
 
 SCH_EDIT_FRAME::~SCH_EDIT_FRAME()
 {
+    // The loader hands this frame's schematic to callers, so it must not outlive the frame
+    EESCHEMA_HELPERS::SetSchEditFrame( nullptr );
+
     m_crossProbeFlashing = false;
     m_crossProbeFlashTimer.Stop();
 
@@ -1207,11 +1211,8 @@ bool SCH_EDIT_FRAME::canCloseWindow( wxCloseEvent& aEvent )
         m_toolManager->RunAction( ACTIONS::cancelInteractive );
 
     // Shutdown blocks must be determined and vetoed as early as possible
-    if( KIPLATFORM::APP::SupportsShutdownBlockReason() && aEvent.GetId() == wxEVT_QUERY_END_SESSION
-            && IsContentModified() )
-    {
+    if( isBlockableSessionEnd() && IsContentModified() )
         return false;
-    }
 
     if( Kiface().IsSingle() )
     {
@@ -1962,6 +1963,12 @@ bool SCH_EDIT_FRAME::RecalculateConnections( SCH_COMMIT* aCommit, SCH_CLEANUP_FL
             {
                 itemsChanged = true;
                 GetCanvas()->GetView()->Update( aChangedItem, KIGFX::REPAINT );
+
+                if( aChangedItem->Type() == SCH_PIN_T || aChangedItem->Type() == SCH_SHEET_PIN_T )
+                {
+                    if( EDA_ITEM* parent = aChangedItem->GetParent() )
+                        GetCanvas()->GetView()->Update( parent, KIGFX::REPAINT );
+                }
 
                 if( ADVANCED_CFG::GetCfg().m_ConnectivityEngine )
                     return;

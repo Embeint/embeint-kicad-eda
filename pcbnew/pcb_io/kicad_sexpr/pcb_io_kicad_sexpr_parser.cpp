@@ -88,6 +88,7 @@
 #include <wx/base64.h>
 #include <wx/log.h>
 #include <wx/mstream.h>
+#include <wx/window.h>
 
 // We currently represent board units as integers.  Any values that are
 // larger or smaller than those board units represent undefined behavior for
@@ -2358,8 +2359,6 @@ void PCB_IO_KICAD_SEXPR_PARSER::parseBoardStackup()
         bool has_next_sublayer = true;
         int sublayer_idx = 0;       // the index of dielectric sub layers
                                     // sublayer 0 is always existing (main sublayer)
-        wxString specFreqUnits;
-        wxString dielectricModel;
 
         while( has_next_sublayer )
         {
@@ -2769,6 +2768,9 @@ void PCB_IO_KICAD_SEXPR_PARSER::remapAppendedLayers( const std::vector<LAYER>& a
 
     if( progressWindow )
         progressWindow->Show();
+
+    if( remap.empty() )
+        THROW_IO_CANCELLED();
 
     LSET enabled = m_board->GetEnabledLayers();
 
@@ -7639,7 +7641,8 @@ PAD* PCB_IO_KICAD_SEXPR_PARSER::parsePAD( FOOTPRINT* aParent )
                 token = NextTok();
             }
 
-            if( !IsSymbol( token ) )
+            // Legacy net names are unquoted, so a name like +12 lexes as a number
+            if( !IsSymbol( token ) && !IsNumber( token ) )
             {
                 Expecting( "net name" );
                 break;

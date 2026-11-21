@@ -2405,6 +2405,7 @@ DrcErrorType ToProtoEnum( PCB_DRC_CODE aValue )
     case DRCE_MICROVIA_STACK_DEPTH:          return DrcErrorType::DRCET_MICROVIA_STACK_DEPTH;
     case DRCE_HOLE_ASPECT_RATIO:             return DrcErrorType::DRCET_HOLE_ASPECT_RATIO;
     case DRCE_MICROVIA_CROSSES_CORE:         return DrcErrorType::DRCET_MICROVIA_CROSSES_CORE;
+    case DRCE_MICROVIA_SPANS_DIELECTRICS: return DrcErrorType::DRCET_MICROVIA_SPANS_DIELECTRICS;
     case DRCE_COPPER_OUTSIDE_BOARD:          return DrcErrorType::DRCET_COPPER_OUTSIDE_BOARD;
     case DRCE_OVERLAPPING_FOOTPRINTS:        return DrcErrorType::DRCET_OVERLAPPING_FOOTPRINTS;
     case DRCE_MISSING_COURTYARD:             return DrcErrorType::DRCET_MISSING_COURTYARD;
@@ -2493,6 +2494,7 @@ PCB_DRC_CODE FromProtoEnum( DrcErrorType aValue )
     case DrcErrorType::DRCET_MICROVIA_STACK_DEPTH:                return DRCE_MICROVIA_STACK_DEPTH;
     case DrcErrorType::DRCET_HOLE_ASPECT_RATIO:                   return DRCE_HOLE_ASPECT_RATIO;
     case DrcErrorType::DRCET_MICROVIA_CROSSES_CORE:               return DRCE_MICROVIA_CROSSES_CORE;
+    case DrcErrorType::DRCET_MICROVIA_SPANS_DIELECTRICS:          return DRCE_MICROVIA_SPANS_DIELECTRICS;
     case DrcErrorType::DRCET_COPPER_OUTSIDE_BOARD:                return DRCE_COPPER_OUTSIDE_BOARD;
     case DrcErrorType::DRCET_OVERLAPPING_FOOTPRINTS:              return DRCE_OVERLAPPING_FOOTPRINTS;
     case DrcErrorType::DRCET_MISSING_COURTYARD:                   return DRCE_MISSING_COURTYARD;
@@ -2680,9 +2682,6 @@ LENGTH_TUNING_MODE FromProtoEnum( types::TuningPatternMode aValue )
     default:
     case types::TuningPatternMode::TPM_UNKNOWN:        return LENGTH_TUNING_MODE::SINGLE;
     }
-
-    wxCHECK_MSG( false, LENGTH_TUNING_MODE::SINGLE,
-                 "Unhandled case in FromProtoEnum<types::TuningPatternMode>" );
 }
 
 
@@ -2715,9 +2714,6 @@ PNS::MEANDER_SIDE FromProtoEnum( types::TuningPatternMeanderSide aValue )
     default:
     case types::TuningPatternMeanderSide::TPMS_UNKNOWN: return PNS::MEANDER_SIDE_DEFAULT;
     }
-
-    wxCHECK_MSG( false, PNS::MEANDER_SIDE_DEFAULT,
-                 "Unhandled case in FromProtoEnum<types::TuningPatternMeanderSide>" );
 }
 
 template<>
@@ -2746,9 +2742,6 @@ PNS::MEANDER_STYLE FromProtoEnum( types::TuningPatternCornerStyle aValue )
     default:
     case types::TuningPatternCornerStyle::TPCS_UNKNOWN:   return PNS::MEANDER_STYLE_CHAMFER;
     }
-
-    wxCHECK_MSG( false, PNS::MEANDER_STYLE_CHAMFER,
-                 "Unhandled case in FromProtoEnum<types::TuningPatternCornerStyle>" );
 }
 
 template<>
@@ -2779,9 +2772,6 @@ PNS::MEANDER_PLACER_BASE::TUNING_STATUS FromProtoEnum( types::TuningPatternStatu
     default:
     case types::TuningPatternStatus::TPS_UNKNOWN:   return PNS::MEANDER_PLACER_BASE::TUNED;
     }
-
-    wxCHECK_MSG( false, PNS::MEANDER_PLACER_BASE::TUNED,
-                 "Unhandled case in FromProtoEnum<types::TuningPatternStatus>" );
 }
 
 
@@ -2813,9 +2803,6 @@ PCB_VIA_STITCH_LAYOUT FromProtoEnum( types::ViaStitchLayout aValue )
     default:
     case types::ViaStitchLayout::VSL_UNKNOWN:   return PCB_VIA_STITCH_LAYOUT::PLAIN;
     }
-
-    wxCHECK_MSG( false, PCB_VIA_STITCH_LAYOUT::PLAIN,
-                 "Unhandled case in FromProtoEnum<types::ViaStitchLayout>" );
 }
 
 
@@ -2845,9 +2832,6 @@ PCB_VIA_STITCH_MODE FromProtoEnum( types::ViaStitchMode aValue )
     default:
     case types::ViaStitchMode::VSM_UNKNOWN: return PCB_VIA_STITCH_MODE::STITCH;
     }
-
-    wxCHECK_MSG( false, PCB_VIA_STITCH_MODE::STITCH,
-                 "Unhandled case in FromProtoEnum<types::ViaStitchMode>" );
 }
 
 
@@ -2877,9 +2861,6 @@ VIA_STACK_STYLE FromProtoEnum( types::ViaStackStyle aValue )
     default:
     case types::ViaStackStyle::VSK_UNKNOWN:   return VIA_STACK_STYLE::STACKED;
     }
-
-    wxCHECK_MSG( false, VIA_STACK_STYLE::STACKED,
-                 "Unhandled case in FromProtoEnum<types::ViaStackStyle>" );
 }
 
 

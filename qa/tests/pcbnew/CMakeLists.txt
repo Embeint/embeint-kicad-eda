@@ -41,6 +41,7 @@ set( QA_PCBNEW_SRCS
     test_board_design_settings.cpp
     test_board_item_index.cpp
     test_board_loader.cpp
+    test_project_file_implicit_save.cpp
     test_board_item.cpp
     test_drill_chart.cpp
     test_board_commit.cpp
@@ -83,6 +84,7 @@ set( QA_PCBNEW_SRCS
     test_footprint_net_tie.cpp
     test_footprint_pad_fixup.cpp
     test_footprint_realignment.cpp
+    test_exchange_pad_changes.cpp
     test_cross_probe_selection.cpp
     test_footprint_transform_sync.cpp
     test_ref_suffix_split.cpp
@@ -92,6 +94,7 @@ set( QA_PCBNEW_SRCS
     test_issue24967.cpp
     test_issue25010.cpp
     test_issue25880.cpp
+    test_issue26111.cpp
     test_issue25110_bezier_line_style.cpp
     test_issue25521.cpp
     test_issue25621_via_flashing_contact_layer.cpp
@@ -274,6 +277,7 @@ set( QA_PCBNEW_SRCS
     drc/test_drc_issue24211.cpp
     drc/test_drc_physical_clearance.cpp
     drc/test_drc_prepared_candidates.cpp
+    drc/test_drc_rule_document.cpp
     drc/test_drc_rule_editor.cpp
     drc/test_drc_violation_layers_issue24941.cpp
     drc/test_drc_net_chain_tuning_profiles.cpp
@@ -448,6 +452,7 @@ endif()
 
 # Keep build-system dependencies from the original single-entry registration
 add_dependencies( qa_all_tests qa_pcbnew )
+kicad_qa_fail_fast( qa_pcbnew )
 
 if( NOT KICAD_BUILD_QA_TESTS )
     set_target_properties( qa_pcbnew PROPERTIES EXCLUDE_FROM_ALL TRUE )

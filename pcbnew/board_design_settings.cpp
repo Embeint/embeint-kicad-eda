@@ -181,6 +181,7 @@ BOARD_DESIGN_SETTINGS::BOARD_DESIGN_SETTINGS( JSON_SETTINGS* aParent, const std:
     m_DRCSeverities[ DRCE_COPPER_OUTSIDE_BOARD ] = RPT_SEVERITY_WARNING;
 
     m_DRCSeverities[DRCE_MICROVIA_CROSSES_CORE] = RPT_SEVERITY_WARNING;
+    m_DRCSeverities[DRCE_MICROVIA_SPANS_DIELECTRICS] = RPT_SEVERITY_WARNING;
     m_DRCSeverities[DRCE_MICROVIA_STACK_NOT_FILLED] = RPT_SEVERITY_WARNING;
 
     m_DRCSeverities[ DRCE_COPPER_SLIVER ] = RPT_SEVERITY_WARNING;
@@ -1552,8 +1553,6 @@ bool BOARD_DESIGN_SETTINGS::migrateSchema3to4()
 
 bool BOARD_DESIGN_SETTINGS::LoadFromFile( const wxString& aDirectory )
 {
-    bool ret = NESTED_SETTINGS::LoadFromFile( aDirectory );
-
     // A number of things won't have been translated by the PROJECT_FILE migration because of
     // descoped objects required to decode this data.  So, it will be in the legacy.pcbnew
     // section and needs to be pulled out here
@@ -1561,9 +1560,7 @@ bool BOARD_DESIGN_SETTINGS::LoadFromFile( const wxString& aDirectory )
     PROJECT_FILE* project = dynamic_cast<PROJECT_FILE*>( GetParent() );
 
     if( !project )
-        return ret;
-
-    bool migrated = false;
+        return NESTED_SETTINGS::LoadFromFile( aDirectory );
 
     auto drcName =
             []( int aCode ) -> std::string
@@ -1571,10 +1568,10 @@ bool BOARD_DESIGN_SETTINGS::LoadFromFile( const wxString& aDirectory )
                 return std::string( DRC_ITEM::Create( aCode )->GetSettingsKey().ToUTF8() );
             };
 
-    const std::string rs = "rule_severities.";
     const std::string no_courtyard_key = "legacy_no_courtyard_defined";
     const std::string courtyard_overlap_key = "legacy_courtyards_overlap";
 
+    // Translate in the parent first, since the load settles what it read back into the parent
     try
     {
         nlohmann::json& severities =
@@ -1583,41 +1580,40 @@ bool BOARD_DESIGN_SETTINGS::LoadFromFile( const wxString& aDirectory )
         if( severities.contains( no_courtyard_key ) )
         {
             if( severities[no_courtyard_key].get<bool>() )
-                Set( rs + drcName( DRCE_MISSING_COURTYARD ), "error" );
+                severities[drcName( DRCE_MISSING_COURTYARD )] = "error";
             else
-                Set( rs + drcName( DRCE_MISSING_COURTYARD ), "ignore" );
-
-            severities.erase( no_courtyard_key );
-            migrated = true;
+                severities[drcName( DRCE_MISSING_COURTYARD )] = "ignore";
         }
 
         if( severities.contains( courtyard_overlap_key ) )
         {
             if( severities[courtyard_overlap_key].get<bool>() )
-                Set( rs + drcName( DRCE_OVERLAPPING_FOOTPRINTS ), "error" );
+                severities[drcName( DRCE_OVERLAPPING_FOOTPRINTS )] = "error";
             else
-                Set( rs + drcName( DRCE_OVERLAPPING_FOOTPRINTS ), "ignore" );
-
-            severities.erase( courtyard_overlap_key );
-            migrated = true;
+                severities[drcName( DRCE_OVERLAPPING_FOOTPRINTS )] = "ignore";
         }
     }
     catch( ... )
     {
     }
 
-    if( Contains( "legacy" ) )
+    bool ret = NESTED_SETTINGS::LoadFromFile( aDirectory );
+
+    // Erase only these keys from the baseline, since the flushed store lacks severities from newer versions
+    for( const std::string& key : { no_courtyard_key, courtyard_overlap_key, std::string( "hole_near_hole" ) } )
+        dropFromParentOriginal( "rule_severities." + key );
+
+    // A 5.1 import wrote these without a separator. Nothing reads them, so the parent copy goes too
+    for( const char* key :
+         { "rule_severitieslegacy_no_courtyard_defined", "rule_severitieslegacy_courtyards_overlap" } )
     {
-        // This defaults to false for new boards, but version 5.1.x and prior kept the fillets
-        // so we do the same for legacy boards.
-        m_ZoneKeepExternalFillets = true;
+        Internals()->erase( key );
 
-        project->At( "legacy" ).erase( "pcbnew" );
+        if( project->Contains( "board.design_settings" ) )
+            project->At( "board.design_settings" ).erase( key );
+
+        dropFromParentOriginal( key );
     }
-
-    // Now that we have everything, we need to load again
-    if( migrated )
-        Load();
 
     return ret;
 }

@@ -237,11 +237,10 @@ KIFACE* KIWAY::KiFACE( FACE_T aFaceId, bool doLoad )
         wxString dname = dso_search_path( aFaceId );
 
         // Insert DLL search path for kicad_3dsg from build dir
-        const wxString& buildRoot = PATHS::GetBuildRoot();
-
         if( PATHS::RunningFromBuildDir() )
         {
-            wxFileName myPath;
+            const wxString& buildRoot = PATHS::GetBuildRoot();
+            wxFileName      myPath;
 
             if( !buildRoot.IsEmpty() )
                 myPath.AssignDir( buildRoot );
@@ -481,13 +480,8 @@ bool KIWAY::PlayerClose( FRAME_T aFrameType, bool doForce )
     wxString msg = wxString::Format( "Closing window type %d", aFrameType );
     APP_MONITOR::AddNavigationBreadcrumb( msg, "kiway.playerclose" );
 
-    if( frame->NonUserClose( doForce ) )
-    {
-        m_playerFrameId[aFrameType] = wxID_NONE;
-        return true;
-    }
-
-    return false;
+    // A forced close that a blocking dialog refused still reports success, so ask whether the entry was cleared
+    return frame->NonUserClose( doForce ) && !GetPlayerFrame( aFrameType );
 }
 
 

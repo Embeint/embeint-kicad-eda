@@ -168,21 +168,25 @@ public:
 
     void SetValue( const wxString& aValue ) { m_value = aValue; }
     const wxString& GetValue() const { return m_value; }
+    wxString        GetValue( const wxString& aVariantName ) const;
 
     void SetFields( nlohmann::ordered_map<wxString, wxString> aFields )
     {
         m_fields = std::move( aFields );
     }
     const nlohmann::ordered_map<wxString, wxString>& GetFields() const { return m_fields; }
+    nlohmann::ordered_map<wxString, wxString>        GetFields( const wxString& aVariantName ) const;
 
     void SetProperties( std::map<wxString, wxString> aProps )
     {
         m_properties = std::move( aProps );
     }
     const std::map<wxString, wxString>& GetProperties() const { return m_properties; }
+    std::map<wxString, wxString>        GetProperties( const wxString& aVariantName ) const;
 
     void SetFPID( const LIB_ID& aFPID ) { m_fpid = aFPID;  }
     const LIB_ID& GetFPID() const { return m_fpid; }
+    LIB_ID        GetFPID( const wxString& aVariantName ) const;
 
     void SetAltFPID( const LIB_ID& aFPID ) { m_altFpid = aFPID; }
     const LIB_ID& GetAltFPID() const { return m_altFpid; }
@@ -464,6 +468,15 @@ public:
      * @return a pointer to the #NETLIST_GROUP that matches \a aPath if found.  Otherwise NULL.
      */
     NETLIST_GROUP* GetGroupByPath( const KIID_PATH& aPath );
+
+    /**
+     * @brief Return the #NETLIST_GROUP that lists \a aMemberPath among its members.
+     *
+     * @param aMemberPath is the KIID_PATH of a symbol or of a nested group.
+     *
+     * @return a pointer to the #NETLIST_GROUP holding \a aMemberPath if found. Otherwise NULL.
+     */
+    NETLIST_GROUP* GetParentGroup( const KIID_PATH& aMemberPath );
 
     /**
      * After groups and components are parsed, apply the group memberships to the

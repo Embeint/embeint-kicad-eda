@@ -34,6 +34,7 @@
 #include <wx/translation.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <filesystem>
 #include <memory>
@@ -175,7 +176,11 @@ static KIGIT_FAILURE classifyGitFailure( const KIGIT_ERROR_INFO& aError, const K
     if( !aContext.pushRefusal.IsEmpty() )
         return KIGIT_FAILURE::SERVER_REFUSED;
 
-    if( aError.code == GIT_EAUTH )
+    // WinHTTP reports a rejected password as an OS error, with localized system text after this prefix
+    const bool winHttpRejected = aError.klass == GIT_ERROR_OS
+                                 && lower.Contains( wxS( "failed to parse supported auth schemes" ) );
+
+    if( aError.code == GIT_EAUTH || winHttpRejected )
     {
         if( aError.klass == GIT_ERROR_HTTP && lower.Contains( wxS( "proxy" ) ) )
             return KIGIT_FAILURE::PROXY;
@@ -234,7 +239,8 @@ static KIGIT_FAILURE classifyGitFailure( const KIGIT_ERROR_INFO& aError, const K
 namespace
 {
 
-wxString summaryFor( KIGIT_FAILURE aKind, const KIGIT_AUTH_ATTEMPT& aAuth, const KIGIT_FAILURE_CONTEXT& aContext )
+wxString summaryFor( KIGIT_FAILURE aKind, const KIGIT_AUTH_ATTEMPT& aAuth, const KIGIT_FAILURE_CONTEXT& aContext,
+                     const wxString& aServerLine = wxString() )
 {
     const KIGIT_COMMON::REMOTE_URL parsed = KIGIT_COMMON::ParseRemoteURL( aContext.url );
     const wxString                 key = aKind == KIGIT_FAILURE::AUTH_SSH_KEY_REJECTED
@@ -319,6 +325,15 @@ wxString summaryFor( KIGIT_FAILURE aKind, const KIGIT_AUTH_ATTEMPT& aAuth, const
                                  host );
 
     case KIGIT_FAILURE::HOST_UNREACHABLE:
+#ifdef __APPLE__
+        if( KIGIT::IsLocalNetworkHost( parsed.hostname ) )
+        {
+            return wxString::Format( _( "%s did not answer. Check your network connection, and that KiCad is "
+                                        "allowed in System Settings > Privacy & Security > Local Network." ),
+                                     host );
+        }
+#endif
+
         return wxString::Format( _( "%s did not answer. Check your network or VPN connection, then try again." ),
                                  host );
 
@@ -351,6 +366,13 @@ wxString summaryFor( KIGIT_FAILURE aKind, const KIGIT_AUTH_ATTEMPT& aAuth, const
                                  host );
 
     case KIGIT_FAILURE::SERVER_REFUSED:
+        if( !aServerLine.IsEmpty() )
+        {
+            return wxString::Format( aContext.operation == KIGIT_OPERATION::PUSH ? _( "%s refused the push: %s" )
+                                                                                 : _( "%s refused the request: %s" ),
+                                     host, aServerLine );
+        }
+
         if( aContext.operation == KIGIT_OPERATION::PUSH )
             return wxString::Format( _( "%s refused the push. The server's reason is shown in the details." ), host );
 
@@ -444,7 +466,18 @@ KIGIT_FAILURE_REPORT KIGIT::DescribeGitFailure( const KIGIT_ERROR_INFO& aError, 
 {
     KIGIT_FAILURE_REPORT report;
     report.kind = classifyGitFailure( aError, aAuth, aContext );
-    report.summary = summaryFor( report.kind, aAuth, aContext );
+
+    wxString serverLine;
+
+    for( const wxString* text : { &aContext.serverMessage, &aContext.pushRefusal, &aError.message } )
+    {
+        serverLine = serverText( *text ).BeforeFirst( '\n' );
+
+        if( !serverLine.IsEmpty() )
+            break;
+    }
+
+    report.summary = summaryFor( report.kind, aAuth, aContext, KIGIT::StripEmbeddedUserinfo( serverLine ) );
     report.details = detailsFor( aError, aAuth, aContext );
     return report;
 }
@@ -459,89 +492,63 @@ wxString KIGIT::UnexplainedFailure( KIGIT_OPERATION aOperation, const wxString& 
 }
 
 
+bool KIGIT::IsLocalNetworkHost( const wxString& aHost )
+{
+    const std::string host = aHost.Lower().ToStdString();
+
+    if( host.size() > 6 && host.compare( host.size() - 6, 6, ".local" ) == 0 )
+        return true;
+
+    if( host.find( ':' ) != std::string::npos )
+    {
+        // Only the first group decides fc00::/7 and fe80::/10
+        const std::string first = host.substr( 0, host.find( ':' ) );
+        const auto        isHex = []( unsigned char c ) { return std::isxdigit( c ) != 0; };
+
+        if( first.size() > 4 || !std::all_of( first.begin(), first.end(), isHex ) )
+            return false;
+
+        const unsigned long group = first.empty() ? 0 : std::strtoul( first.c_str(), nullptr, 16 );
+
+        return ( group & 0xfe00 ) == 0xfc00 || ( group & 0xffc0 ) == 0xfe80;
+    }
+
+    int octets[4] = { 0, 0, 0, 0 };
+    int count = 0;
+    int digits = 0;
+
+    for( char c : host )
+    {
+        if( c == '.' )
+        {
+            if( digits == 0 || ++count > 3 )
+                return false;
+
+            digits = 0;
+        }
+        else if( c >= '0' && c <= '9' && ++digits <= 3 )
+        {
+            octets[count] = octets[count] * 10 + ( c - '0' );
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    if( count != 3 || digits == 0 || octets[0] > 255 || octets[1] > 255 )
+        return false;
+
+    return octets[0] == 10 || ( octets[0] == 172 && octets[1] >= 16 && octets[1] <= 31 )
+           || ( octets[0] == 192 && octets[1] == 168 ) || ( octets[0] == 169 && octets[1] == 254 );
+}
+
+
 bool KIGIT::IsCredentialFailure( KIGIT_FAILURE aKind )
 {
     return aKind == KIGIT_FAILURE::AUTH_SSH_KEY_REJECTED || aKind == KIGIT_FAILURE::AUTH_NO_SSH_KEY
            || aKind == KIGIT_FAILURE::AUTH_HTTPS_REJECTED || aKind == KIGIT_FAILURE::AUTH_HTTPS_NEEDED
            || aKind == KIGIT_FAILURE::KEY_LOAD_FAILED;
-}
-
-
-wxString KIGIT::DecodeServerText( const char* aData, size_t aLength )
-{
-    wxString text = wxString::FromUTF8( aData, aLength );
-
-    // An empty result would drop the line, and with it the scheme the scrub looks for
-    if( text.IsEmpty() && aLength > 0 )
-        text = wxString::From8BitData( aData, aLength );
-
-    return text;
-}
-
-
-wxString KIGIT::StripEmbeddedUserinfo( const wxString& aText )
-{
-    wxString result;
-    size_t   lineStart = 0;
-
-    result.reserve( aText.length() );
-
-    while( true )
-    {
-        size_t lineEnd = aText.find_first_of( wxS( "\r\n" ), lineStart );
-
-        if( lineEnd == wxString::npos )
-            lineEnd = aText.length();
-
-        // A password can hold anything but a line break, even what looks like another URL, so the whole line from
-        // its first "://" to its last "@" goes
-        wxString     line = aText.Mid( lineStart, lineEnd - lineStart );
-        const size_t sep = line.find( wxS( "://" ) );
-        const size_t at = line.rfind( '@' );
-
-        if( sep != wxString::npos && at != wxString::npos && at >= sep + 3 )
-            line.erase( sep + 3, at - sep - 2 );
-
-        result << line;
-
-        if( lineEnd == aText.length() )
-            return result;
-
-        result << aText[lineEnd];
-        lineStart = lineEnd + 1;
-    }
-}
-
-
-wxString KIGIT::PrintableServerText( const wxString& aText )
-{
-    static thread_local const wxRegEx escapes( wxS( "\x1B\\[[0-?]*[ -/]*[@-~]" ), wxRE_ADVANCED );
-
-    wxString text = aText;
-
-    // wxRegEx stops replacing at a NUL, which would leave the rest of a password in place
-    text.Replace( wxString( wxUniChar( 0 ) ), wxEmptyString );
-
-    // An escape can end in the "@" that closes a userinfo, so the raw text is scrubbed first
-    text = StripEmbeddedUserinfo( text );
-    escapes.ReplaceAll( &text, wxEmptyString );
-
-    wxString printable;
-
-    for( wxUniChar c : text )
-    {
-        const wxUint32 code = c.GetValue();
-        const bool     control = code < 0x20 || code == 0x7F || ( code >= 0x80 && code <= 0x9F );
-        const bool     bidi = ( code >= 0x202A && code <= 0x202E ) || ( code >= 0x2066 && code <= 0x2069 );
-
-        if( code == '\t' )
-            printable << wxS( " " );
-        else if( ( !control && !bidi ) || code == '\n' || code == '\r' )
-            printable << c;
-    }
-
-    // Removing escapes and controls can join a "://" the raw text split
-    return StripEmbeddedUserinfo( printable );
 }
 
 
@@ -617,6 +624,7 @@ static bool isRootedLikeLibgit2( const wxString& aPath )
 
 KIGIT_OWNERSHIP_REFUSAL KIGIT::DescribeOwnershipRefusal( const wxString& aStartDir, const wxString& aGitDir )
 {
+    LIBGIT2_SCOPE    libgit2;
     const wxFileName gitDir = wxFileName::DirName( aGitDir );
     wxFileName       trusted = gitDir;
     wxFileName       dir = resolveLikeLibgit2( aStartDir );

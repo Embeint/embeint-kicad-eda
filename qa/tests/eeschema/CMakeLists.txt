@@ -73,6 +73,8 @@ set( QA_EESCHEMA_SRCS
     sch_io/easyeda/test_easyeda_sch_import.cpp
     sch_io/orcad/test_orcad_sch_import.cpp
     sch_io/cadstar/test_issue14447_arc_connection.cpp
+    sch_io/cadstar/test_issue26025_pin_renumber.cpp
+    sch_io/cadstar/test_issue26030_net_label_split.cpp
     sch_io/cadstar/test_issue26031_wire_over_pin.cpp
     sch_io/kicad_sexpr/test_sch_io_kicad_sexpr_leak_cache.cpp
 
@@ -225,6 +227,7 @@ set( QA_EESCHEMA_SRCS
     test_lib_part.cpp
     test_issue23743_sync_derived_fields.cpp
     test_ee_grid_helper.cpp
+    test_ee_snap_pipeline.cpp
     test_netlist_exporter_kicad.cpp
     test_issue24330_netlist_pin_truncation.cpp
     test_ee_item.cpp
@@ -271,6 +274,7 @@ set( QA_EESCHEMA_SRCS
     test_sch_ellipse_roundtrip.cpp
     test_project_name_instances.cpp
     test_legacy_load.cpp
+    test_outdated_symbols.cpp
     test_symbol_library_adapter.cpp
     test_symbol_library_manager.cpp
     test_symbol_editor_tabs.cpp

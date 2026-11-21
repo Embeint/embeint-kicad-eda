@@ -51,6 +51,7 @@
 #include <kiplatform/ui.h>
 #include <kiplatform/policy.h>
 #include <build_version.h>
+#include <jobs/scratch_doc.h>
 #include <kiway.h>
 #include <kiway_mail.h>
 #include <launch_ext.h>
@@ -731,6 +732,24 @@ void KICAD_MANAGER_FRAME::DoWithAcceptedFiles()
 
 bool KICAD_MANAGER_FRAME::canCloseWindow( wxCloseEvent& aEvent )
 {
+    // Shutdown blocks must be determined and vetoed as early as possible, before any jobset prompt
+    if( isBlockableSessionEnd() )
+    {
+        for( size_t i = 0; i < m_notebook->GetPageCount(); i++ )
+        {
+            PANEL_JOBSET* jobset = dynamic_cast<PANEL_JOBSET*>( m_notebook->GetPage( i ) );
+
+            if( jobset && jobset->GetJobsFile()->GetDirty() )
+            {
+                KIPLATFORM::APP::SetShutdownBlockReason( this, _( "Jobset changes are unsaved" ) );
+                return false;
+            }
+        }
+
+        // Drop the reason a cancelled logoff left behind once its jobset has been saved
+        KIPLATFORM::APP::RemoveShutdownBlockReason( this );
+    }
+
     KICAD_SETTINGS* settings = kicadSettings();
     settings->m_OpenProjects = GetSettingsManager()->GetOpenProjects();
 
@@ -818,7 +837,7 @@ void KICAD_MANAGER_FRAME::SaveOpenJobSetsToLocalSettings( bool aIsExplicitUserSa
 
 void KICAD_MANAGER_FRAME::OnExit( wxCommandEvent& event )
 {
-    Close( true );
+    Close( false );
 }
 
 
@@ -1115,18 +1134,24 @@ void KICAD_MANAGER_FRAME::CreateNewProject( const wxFileName& aProjectFileName, 
             wxFileName destFileName( aProjectFileName );
             destFileName.SetExt( FILEEXT::ProjectFileExtension );
 
-            // Create a minimal project file if the template project file could not be copied
-            if( !wxFileName::FileExists( srcFileName )
-                || !wxCopyFile( srcFileName, destFileName.GetFullPath() ) )
-            {
-                wxFFile file( destFileName.GetFullPath(), "wb" );
-
-                if( file.IsOpened() )
-                    file.Write( wxT( "{\n}\n") );
-
-                // wxFFile dtor will close the file
-            }
+            // Without the template, the full write below creates the file from defaults
+            if( wxFileName::FileExists( srcFileName ) && !wxCopyFile( srcFileName, destFileName.GetFullPath() ) )
+                wxRemoveFile( destFileName.GetFullPath() );
         }
+    }
+
+    // Nothing else writes a project file until a real change, so a new one is written in full now.
+    // A slot already loaded holds another project's settings, which must not land in the new file
+    wxFileName projectFn( aProjectFileName );
+    projectFn.SetExt( FILEEXT::ProjectFileExtension );
+    projectFn.MakeAbsolute();
+
+    if( !GetSettingsManager()->GetProject( projectFn.GetFullPath() ) )
+    {
+        SCRATCH_PROJECT scratch( *GetSettingsManager(), projectFn.GetFullPath() );
+
+        if( scratch.IsValid() )
+            scratch.GetProject()->GetProjectFile().SaveToFile( projectFn.GetPath(), true );
     }
 
     // Create a "stub" for a schematic root sheet and a board if requested.
@@ -1215,7 +1240,7 @@ void KICAD_MANAGER_FRAME::OnCompareProjectBranches( wxCommandEvent& event )
 
     // libgit2 is not safe for concurrent use of one repository, so read the refs under the git
     // action lock. If a background operation holds it, fall back to HEAD.
-    if( std::unique_lock<std::mutex> lock = gitCommon->TryLockAction(); lock.owns_lock() )
+    if( KIGIT::ACTION_LOCK lock = gitCommon->TryLockAction(); lock.owns_lock() )
         refs = KIGIT::CompareBranchRefs( repo );
 
     if( refs.empty() )

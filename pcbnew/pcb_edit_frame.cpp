@@ -116,7 +116,6 @@
 #include <tools/diff_phase_skew_tool.h>
 #include <generators/via_stitch_tool.h>
 #include <tools/drc_tool.h>
-#include <tools/drc_rule_editor_tool.h>
 #include <tools/global_edit_tool.h>
 #include <tools/convert_tool.h>
 #include <tools/constraint_edit_tool.h>
@@ -161,7 +160,6 @@
 #include <footprint_viewer_frame.h>
 #include <footprint_chooser_frame.h>
 #include <toolbars_pcb_editor.h>
-#include <drc/rule_editor/dialog_drc_rule_editor.h>
 
 #include <richio.h>
 
@@ -572,6 +570,9 @@ PCB_EDIT_FRAME::PCB_EDIT_FRAME( KIWAY* aKiway, wxWindow* aParent ) :
     resolveCanvasType();
     ActivateGalCanvas();
 
+    // Starting without a file still shows a board, so give it the project settings as File > New does
+    LoadProjectSettings();
+
     // Default shutdown reason until a file is loaded
     KIPLATFORM::APP::SetShutdownBlockReason( this, _( "New PCB file is unsaved" ) );
 
@@ -826,11 +827,6 @@ PCB_EDIT_FRAME::~PCB_EDIT_FRAME()
 
     if( drcDlg )
         drcDlg->Close( true );
-
-    wxWindow* ruleEditorDlg = wxWindow::FindWindowByName( DIALOG_DRC_RULE_EDITOR_WINDOW_NAME );
-
-    if( ruleEditorDlg )
-        ruleEditorDlg->Close( true );
 
     // Shutdown all running tools
     if( m_toolManager )
@@ -1151,7 +1147,6 @@ void PCB_EDIT_FRAME::setupTools()
     m_toolManager->RegisterTool( new MATCH_PROPERTIES_TOOL );
     m_toolManager->RegisterTool( new GRAPHIC_EDIT_TOOL );
     m_toolManager->RegisterTool( new EMBED_TOOL );
-    m_toolManager->RegisterTool( new DRC_RULE_EDITOR_TOOL );
     m_toolManager->RegisterTool( new DIFF_PHASE_SKEW_TOOL );
     m_toolManager->InitTools();
 
@@ -1661,11 +1656,8 @@ void PCB_EDIT_FRAME::addExclusionMarkers( const std::vector<PCB_MARKER*>& aMarke
 bool PCB_EDIT_FRAME::canCloseWindow( wxCloseEvent& aEvent )
 {
     // Shutdown blocks must be determined and vetoed as early as possible
-    if( KIPLATFORM::APP::SupportsShutdownBlockReason() && aEvent.GetId() == wxEVT_QUERY_END_SESSION
-                                                       && IsContentModified() )
-    {
+    if( isBlockableSessionEnd() && IsContentModified() )
         return false;
-    }
 
     ZONE_FILLER_TOOL* zoneFillerTool = m_toolManager->GetTool<ZONE_FILLER_TOOL>();
 
@@ -1789,11 +1781,6 @@ void PCB_EDIT_FRAME::doCloseWindow()
 
     if( drcDlg )
         drcDlg->Close( true );
-
-    wxWindow* ruleEditorDlg = wxWindow::FindWindowByName( DIALOG_DRC_RULE_EDITOR_WINDOW_NAME );
-
-    if( ruleEditorDlg )
-        ruleEditorDlg->Close( true );
 
     if( m_findDialog )
     {

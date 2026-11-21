@@ -21,6 +21,7 @@
  */
 
 #include <atomic>
+#include <map>
 #include <stack>
 #include <vector>
 #include <wx/filefn.h>
@@ -1120,7 +1121,8 @@ void SCH_SCREEN::Plot( PLOTTER* aPlotter, const SCH_PLOT_OPTS& aPlotOpts, const 
                 std::vector<VECTOR3I> curr_wire_shape = aLine->BuildWireWithHopShape( this, arcRadius );
 
                 // The hop pieces are standalone copies/shapes without the connection map, so
-                // resolve the net-class color and style from the original wire and reuse them.
+                // resolve the net-class width, color and style from the original wire and reuse them.
+                int        penWidth = aLine->GetPenWidth();
                 COLOR4D    lineColor = aLine->GetLineColor();
                 LINE_STYLE lineStyle = aLine->GetEffectiveLineStyle();
 
@@ -1136,6 +1138,7 @@ void SCH_SCREEN::Plot( PLOTTER* aPlotter, const SCH_PLOT_OPTS& aPlotOpts, const 
                         SCH_LINE curr_line( *aLine );
                         curr_line.SetStartPoint( start );
                         curr_line.SetEndPoint( end );
+                        curr_line.SetLineWidth( penWidth );
                         curr_line.SetLineColor( lineColor );
                         curr_line.SetLineStyle( lineStyle );
                         curr_line.Plot( aPlotter, !background, aPlotOpts, 0, 0, { 0, 0 }, false );
@@ -2526,6 +2529,38 @@ int SCH_SCREENS::ChangeSymbolLibNickname( const wxString& aFrom, const wxString&
     }
 
     return cnt;
+}
+
+
+std::vector<SCH_SYMBOL*> SCH_SCREENS::OutdatedSymbols( SYMBOL_LIBRARY_ADAPTER& aLibraries, int aCompareFlags )
+{
+    std::vector<SCH_SYMBOL*>                      outdated;
+    std::map<LIB_ID, std::unique_ptr<LIB_SYMBOL>> flattened;
+
+    for( SCH_SCREEN* screen = GetFirst(); screen; screen = GetNext() )
+    {
+        for( SCH_ITEM* item : screen->Items().OfType( SCH_SYMBOL_T ) )
+        {
+            SCH_SYMBOL*       symbol = static_cast<SCH_SYMBOL*>( item );
+            const LIB_SYMBOL* embedded = symbol->GetLibSymbolRef().get();
+
+            if( !embedded )
+                continue;
+
+            auto it = flattened.find( symbol->GetLibId() );
+
+            if( it == flattened.end() )
+            {
+                LIB_SYMBOL* libSymbol = aLibraries.LoadSymbol( symbol->GetLibId() );
+                it = flattened.emplace( symbol->GetLibId(), libSymbol ? libSymbol->Flatten() : nullptr ).first;
+            }
+
+            if( it->second && it->second->Compare( *embedded, aCompareFlags ) != 0 )
+                outdated.push_back( symbol );
+        }
+    }
+
+    return outdated;
 }
 
 

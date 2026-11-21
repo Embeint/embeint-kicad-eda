@@ -28,6 +28,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 
 #include <wx/app.h>
 #include <wx/aui/floatpane.h>
@@ -62,6 +63,7 @@
 #include <diff_merge/diff_scene.h>
 #include <reporter.h>
 #include <git/kicad_git_common.h>
+#include <git/kigit_ignore.h>
 #include <git/project_git_utils.h>
 #include <git/git_branch_handler.h>
 #include <git/git_commit_handler.h>
@@ -825,13 +827,23 @@ void GIT_COMMIT_PANE::updateDockMinHeight()
     if( !pane.IsOk() )
         return;
 
-    // A refresh passes through shorter states, so compare with what the manager already has
-    const bool changed = pane.min_size.y != m_dockMinHeight;
+    wxAuiFloatingFrame* floating = wxDynamicCast( pane.frame, wxAuiFloatingFrame );
+    int                 minHeight = m_dockMinHeight;
 
-    pane.MinSize( pane.min_size.x, m_dockMinHeight );
+    if( manager->GetManagedWindow() )
+        m_dockFrameHeight = manager->GetManagedWindow()->GetClientSize().y;
+
+    // A minimum taller than the frame makes AUI place the pane past the bottom, so let the pane scroll instead
+    if( !floating && m_dockFrameHeight >= 0 )
+        minHeight = std::min( minHeight, m_dockFrameHeight );
+
+    // A refresh passes through shorter states, so compare with what the manager already has
+    const bool changed = pane.min_size.y != minHeight;
+
+    pane.MinSize( pane.min_size.x, minHeight );
 
     // A floating pane is laid out by a copy of its info in the floating frame's own manager
-    if( wxAuiFloatingFrame* floating = wxDynamicCast( pane.frame, wxAuiFloatingFrame ) )
+    if( floating )
     {
         wxAuiManager&  inner = floating->GetAuiManager();
         wxAuiPaneInfo& innerPane = inner.GetPane( this );
@@ -890,6 +902,15 @@ void GIT_COMMIT_PANE::onThemeChanged( wxSysColourChangedEvent& aEvent )
 void GIT_COMMIT_PANE::onIdle( wxIdleEvent& aEvent )
 {
     aEvent.Skip();
+
+    // The clamp follows the frame, which resizes without the pane's layout changing
+    wxAuiManager* manager = wxAuiManager::GetManager( this );
+
+    if( manager && manager->GetManagedWindow()
+        && manager->GetManagedWindow()->GetClientSize().y != m_dockFrameHeight )
+    {
+        m_dockUpdatePending = true;
+    }
 
     // Update() from inside Layout() would recurse, and during a sash drag it would drop the drag
     if( m_dockUpdatePending && !wxWindow::GetCapture() )
@@ -1356,10 +1377,42 @@ void GIT_COMMIT_PANE::onChecklistContextMenu( wxDataViewEvent& aEvent )
     if( path.IsEmpty() )
         return;
 
+    // The list holds only files, so the target is never a directory.
+    GIT_IGNORE_TARGET target;
+
+    // Git keeps tracking a file it already knows, so ignoring is only offered for one it does not.
+    bool canIgnore = false;
+
+    {
+        std::shared_ptr<KIGIT_COMMON> common = m_frame->Prj().GetGitCommon();
+        KIGIT::ACTION_LOCK  lock = common->TryLockAction();
+
+        if( lock.owns_lock() )
+        {
+            const std::optional<wxString> prefix = common->GetProjectPrefix();
+
+            if( prefix && path.StartsWith( *prefix ) )
+                target.path = path.Mid( prefix->length() );
+
+            canIgnore = !target.path.IsEmpty() && !KIGIT::IgnoreState( *common, target.path, false ).tracked;
+        }
+    }
+
+    const wxString extensionRule = KIGIT::ExtensionIgnoreRule( target.path );
+
     wxMenu menu;
     menu.Append( 1, _( "Show History for This File" ) );
     menu.AppendSeparator();
     menu.Append( 2, _( "Discard Changes" ) );
+
+    if( canIgnore )
+    {
+        menu.AppendSeparator();
+        menu.Append( 3, _( "Ignore This File" ) );
+
+        if( !extensionRule.IsEmpty() )
+            menu.Append( 4, wxString::Format( _( "Ignore All '%s' Files" ), extensionRule ) );
+    }
 
     switch( GetPopupMenuSelectionFromUser( menu ) )
     {
@@ -1375,6 +1428,10 @@ void GIT_COMMIT_PANE::onChecklistContextMenu( wxDataViewEvent& aEvent )
     case 2:
         discardFile( m_frame->Prj().GetGitCommon(), path );
         break;
+
+    case 3: ChangeGitIgnore( m_frame, this, GIT_IGNORE_CHANGE::IGNORE_PATH, { target } ); break;
+
+    case 4: ChangeGitIgnore( m_frame, this, GIT_IGNORE_CHANGE::IGNORE_EXTENSION, { target } ); break;
 
     default:
         break;
@@ -1466,7 +1523,7 @@ void GIT_COMMIT_PANE::confirmDiscardFile( std::shared_ptr<KIGIT_COMMON> aCommon,
 
     // Dropping the staged entry before touching the file means a contended lock or an index
     // failure leaves everything unchanged.
-    std::unique_lock<std::mutex> lock = KIGIT::TryLockAction( *aCommon, this );
+    KIGIT::ACTION_LOCK lock = KIGIT::TryLockAction( *aCommon, this );
 
     if( !lock.owns_lock() )
         return;
@@ -1746,7 +1803,7 @@ void GIT_COMMIT_PANE::finishAbandonOperation( std::shared_ptr<KIGIT_COMMON> aCom
     bool            ok = false;
 
     {
-        std::unique_lock<std::mutex> lock = KIGIT::TryLockAction( *aCommon, this );
+        KIGIT::ACTION_LOCK lock = KIGIT::TryLockAction( *aCommon, this );
 
         if( !lock.owns_lock() )
             return;
@@ -1802,7 +1859,7 @@ void GIT_COMMIT_PANE::onUndoCommit( wxCommandEvent& aEvent )
     wxString            message;
 
     {
-        std::unique_lock<std::mutex> lock = KIGIT::TryLockAction( *common, this );
+        KIGIT::ACTION_LOCK lock = KIGIT::TryLockAction( *common, this );
 
         if( !lock.owns_lock() )
             return;
@@ -2137,7 +2194,7 @@ void GIT_COMMIT_PANE::finishCommit( std::shared_ptr<KIGIT_COMMON> common, const 
     {
         // Keep the lock through branch creation and the commit. Closing the identity prompt wakes a
         // status read, so a bare try loses to it
-        std::unique_lock<std::mutex> lock = KIGIT::WaitForActionLock( *common, this );
+        KIGIT::ACTION_LOCK lock = KIGIT::WaitForActionLock( *common, this );
 
         if( !lock.owns_lock() )
             return;
@@ -2618,8 +2675,8 @@ void GIT_COMMIT_PANE::onPushDone( std::shared_ptr<KIGIT_COMMON> aCommon, int aRe
     // again, rather than force over them.
     if( result == PushResult::NonFastForward )
     {
-        // Getting their changes needs a clean tree. Files left unticked at the commit, or edits
-        // still in an editor, block it, and offering the click anyway would only fail later.
+        // Edits still in an editor block getting their changes, and offering the click anyway would only fail
+        // later. Uncommitted files are left to the pull, as a merge keeps unrelated ones and a rebase refuses
         auto     worktree = std::make_shared<GIT_WORKTREE_STATUS>();
         wxString projectPath = m_frame->Prj().GetProjectPath();
 
@@ -2631,7 +2688,7 @@ void GIT_COMMIT_PANE::onPushDone( std::shared_ptr<KIGIT_COMMON> aCommon, int aRe
                 },
                 [this, aCommon, worktree]()
                 {
-                    if( !ProjectSafeToRewrite( m_frame, this, *worktree ) )
+                    if( !ProjectSafeToRewrite( m_frame, this, *worktree, true ) )
                         return;
 
                     if( IsOK( this, _( "Someone else pushed changes first.\n\n"
@@ -2983,7 +3040,7 @@ void GIT_COMMIT_PANE::finishPullConflictPreparation( std::shared_ptr<KIGIT_COMMO
             return;
         }
 
-        std::unique_lock<std::mutex> lock;
+        KIGIT::ACTION_LOCK lock;
 
         // Saving the copies into the project wakes a status read, so give it time to let go
         {
@@ -3062,7 +3119,8 @@ void GIT_COMMIT_PANE::submitPull( std::shared_ptr<KIGIT_COMMON> aCommon, bool aT
             },
             [this, aCommon, aThenPush, aRetriedAfterTrust, result]()
             {
-                if( !ProjectSafeToRewrite( m_frame, this, result->worktree ) )
+                // The backend decides, refusing a fast-forward only over files it changes
+                if( !ProjectSafeToRewrite( m_frame, this, result->worktree, true ) )
                     return;
 
                 // A non-fast-forward pull creates a commit, so obtain its identity before
@@ -3074,7 +3132,7 @@ void GIT_COMMIT_PANE::submitPull( std::shared_ptr<KIGIT_COMMON> aCommon, bool aT
                     return;
 
                 // The identity prompt can allow new editor changes while it is open.
-                if( !ProjectSafeToRewrite( m_frame, this, result->worktree ) )
+                if( !ProjectSafeToRewrite( m_frame, this, result->worktree, true ) )
                     return;
 
                 startPull( aCommon, aThenPush, aRetriedAfterTrust );
@@ -3235,8 +3293,8 @@ void GIT_COMMIT_PANE::onPullDone( std::shared_ptr<KIGIT_COMMON> aCommon, int aRe
         return;
     }
 
-    // Something uncommitted appeared after the pre-pull check, or an untracked file collides
-    // with an incoming one. This is the panel's own job to fix, not the command line's.
+    // An uncommitted change is in the way of the incoming files, or an untracked file collides
+    // with an incoming one. This is the panel's own job to fix, not the command line's
     if( result == PullResult::DirtyWorkdir )
     {
         setBusy( false, _( "Commit your changes first." ) );

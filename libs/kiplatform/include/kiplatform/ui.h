@@ -218,14 +218,6 @@ namespace KIPLATFORM
         void InfiniteDragReleaseWindow();
 
         /**
-         * Ensure that a window is visible on the screen.  On MacOS, this will make it visible
-         * in all Spaces.  Other platforms are nops.
-         *
-         * @param aWindow window to make visible
-         */
-        void EnsureVisible( wxWindow* aWindow );
-
-        /**
          * Prepare a top-level window for reliable position round-tripping.
          *
          * On GTK/X11, default window gravity lets window-manager decorations affect the
@@ -362,6 +354,16 @@ namespace KIPLATFORM
          * This makes the realized child's window native so the present is clipped around it.
          */
         void KeepAboveExternalRendering( wxWindow* aChild );
+
+        /**
+         * Make wx rebind \a aWindow to its native window every time the toolkit recreates it.
+         *
+         * Before wxWidgets 3.3.3, wxGTK only does this for a window created inside an unrealized
+         * parent.  A window created inside a realized one, such as a wxNotebook page added after
+         * the dialog is shown, loses its native window when it is reparented, and an EGL canvas
+         * keeps presenting to the destroyed one.  Wayland and other platforms need nothing.
+         */
+        void RebindOnRealize( wxWindow* aWindow );
     }
 }
 
