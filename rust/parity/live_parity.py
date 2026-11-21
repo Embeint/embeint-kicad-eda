@@ -2,7 +2,8 @@
 """The --live part of mcp_parity.py: both MCP servers against a running KiCad.
 
 Only the disposable test project is touched (e2e_guard.test_document refuses any other).  Every
-edit is undone afterwards and nothing is saved; the schematic file must be unchanged at the end.
+edit is undone afterwards and the schematic is never saved; the schematic file must be unchanged
+at the end.  The board is saved once, unchanged, only if it has no file yet (kicad-cli reads it).
 
   reads        live_schematic_documents, live_pcb_documents, live_schematic_hierarchy,
                live_schematic_items, live_document_revision and live_operation_status return
@@ -16,6 +17,9 @@ edit is undone afterwards and nothing is saved; the schematic file must be uncha
                EndCommit reply (KiCad committed; the server must reconcile it as committed) and
                the BeginCommit reply (KiCad opened a commit; the server must drop it and report
                that nothing changed).  KiCad's own operation history decides the outcome.
+  workflows    live_workflows.py: the schematic, library, board and shared tools through both
+               servers, call by call, with KiCad's undo checked on every edit
+               (LIVE_PARITY_AREAS=schematic,board limits the areas).
 """
 
 import asyncio
@@ -208,6 +212,11 @@ def run(binary, failures, servers, run_session, server_env, test_document):
         undo_created(checker, doc, item_ids, [base_id], original_ids)
     check("the base item is removed again", item_ids() == original_ids)
     manufacturing(checker, spec, session, payload, check)
+    # The workflows of every tool area (live_workflows.py), both servers in turn
+    import live_workflows
+    from mcp_parity import DEVNULL
+    areas = [a for a in os.environ.get("LIVE_PARITY_AREAS", "").split(",") if a] or None
+    live_workflows.run_workflows(checker, spec, doc, servers, server_env, endpoint, DEVNULL, check, report, areas)
     check("open commits are all closed", revision()["open_commits"] == 0)
     if stamp is not None:
         check("the schematic file was not written", sch_file.stat().st_mtime_ns == stamp)
