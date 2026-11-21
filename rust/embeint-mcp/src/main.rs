@@ -12,6 +12,7 @@
 //!   embeint-mcp --version    print the server version
 //!   embeint-mcp --parity     JSON-lines interface for rust/parity/mcp_parity.py (internal)
 
+mod board_client;
 mod capabilities;
 mod fab;
 mod parity;
