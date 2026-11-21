@@ -64,6 +64,12 @@ synthetic callback enters the production oracle. All heavy reference work
 finished before the extractor acquired the shared lock; no new heavy build was
 started while it held that lock.
 
+The final committed-provenance check caught and fixed a Ninja dependency issue:
+the audit's generated header is now an explicit byproduct, so metadata changes
+recompile the embedding source in the same build. The protocol test compares
+the binary's `--provenance` result to the audit sidecar to reject stale embedded
+metadata. Warm builds must pass that check too.
+
 The first Clang 21 configure exposed an incomplete system GCC 16 toolchain:
 Clang could not find `libstdc++`. The installed GCC 15 toolchain built successfully.
 No system package or existing KiCad installation was changed.

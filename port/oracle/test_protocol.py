@@ -13,6 +13,8 @@ from pin import KICAD_PIN
 def main():
     binary = str(Path(sys.argv[1]).resolve())
     provenance = json.loads(subprocess.check_output([binary, "--provenance"], text=True))
+    sidecar = json.loads(Path(binary).with_name("oracle-provenance.json").read_text(encoding="utf-8"))
+    assert provenance == sidecar, "binary embeds stale build provenance"
     assert provenance["kicad_pin"] == KICAD_PIN
     assert provenance["floating_point"] == {"contract": "off", "fast_math": False}
     units = json.loads(subprocess.check_output([binary, "--list"], text=True))
