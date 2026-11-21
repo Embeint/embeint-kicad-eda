@@ -159,6 +159,44 @@ MCP client.
   - Update, delete and generic batches are checked against complete item snapshots: one undo
     through generic `UndoLastChange` restores every field, partial failures roll back, stale
     revisions fail, and real lost commit replies reconcile without resending edits.
+  - The workflows (`parity/live_workflows.py`) then drive both servers, in turn, through the same
+    tool sequences in four areas (schematic, libraries, board, shared) and compare them call by
+    call; see that module's docstring for what is compared exactly and what by behaviour.
+
+## Live workflows (2026-11-21)
+
+On native Windows (`C:\kb\install` 10.99.0, a fresh disposable `live-demo` started with
+`run_kicad_windows.ps1 -Fresh` under a private `TEMP`, Python 3.12.0) `mcp_parity.py --live` passed
+**362/362 checks**. The workflows made **230 compared calls of 102 tools**, and every one agreed:
+schematic 41 calls, libraries 91, board 84, shared 14. Together with the earlier live checks, 114
+of the 116 tools ran live through both servers. Not run live: `live_schematic_save` and
+`live_pcb_save` (the schematic must stay unwritten; the harness saves the board once, unchanged,
+for kicad-cli). The library save tools ran, into scratch libraries. The same build passed
+643/643 fixtures.
+
+- **Exact** for 201 calls; 15 images, 8 route/path/DRC steps and 6 order-free comparisons are the
+  rest. Images: valid PNGs of the same size; 2D views and the board's 3D
+  view were pixel-identical, the footprint 3D render (kicad-cli) is not repeatable even from one
+  server. Routes by behaviour: the same routes (`/VOUT` 15.41 mm, `/VIN` in two legs), path
+  conflicts and refusals, and DRC after each route reports no copper clearance violation for
+  either server. KiCad's update report, net codes, and the order of ERC/DRC violations and their
+  items follow ids generated at random or KiCad's internal item order and are compared order-free.
+- **Revision contract**: every edit is undone and redone by KiCad and compared with full item
+  snapshots, no commit stays open, and both servers need the same number of undo steps (the
+  harness, not the server under test, sends the undo). `live_pcb_place_footprint`,
+  `live_pcb_add_zone` and `live_symbol_add_pins` with `replace` take two undo steps in both servers
+  (Python's design).
+- **Found and fixed in Rust**: a crashed kicad-cli's exit code was printed signed on Windows
+  (-1073741819 instead of Python's 3221225477), in `live_kicad_cli` and the render and STEP export
+  errors (scenarios `footprint_view_3d_render_crashes`, `footprint_kicad_cli_crash`).
+- **KiCad behaviour seen with both servers** (not server differences): undoing a
+  `live_footprint_generate` commit opens a modal "Incomplete undo/redo operation: some items not
+  found" in the Footprint Editor, which blocks the API (Footprint Editor edits are therefore only
+  checked for open commits); redoing an update from the schematic drops pad nets; annotation
+  re-places global labels' intersheet references outside the undo step; ERC/DRC markers are not
+  undoable; the DRC severities are listed in another order once design rules have been set; a new
+  grid size becomes a preset for good; removed libraries stay buffered under their nickname; and
+  net classes can only be added through the tools (the harness restores them with `MMM_REPLACE`).
 
 ## Results (2026-11-21, complete surface)
 

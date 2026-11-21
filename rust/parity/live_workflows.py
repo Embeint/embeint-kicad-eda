@@ -1,0 +1,1264 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""Live workflows for mcp_parity.py --live: both MCP servers through the same tool sequences.
+
+live_parity.run calls run_workflows after its transaction and manufacturing checks.  Each
+workflow runs once per server, in turn, through one MCP session that stays open for the whole
+workflow, from the same document state.  Every tool call is recorded with its arguments and
+result, and the two recordings are compared call by call after normalisation (ids KiCad generates,
+revisions and operation ids are named by order of first appearance), exactly unless the step says
+otherwise:
+
+  png         image results: both valid PNGs of the same size; identical pixels are reported, not
+              required (3D views are rendered twice per server to show whether KiCad repeats them)
+  route       routing and path checks, compared by behaviour (rust/MCP_PARITY_PLAN.md, Decisions
+              2026-11-21): the same success or refusal, pads, layers, vias and conflicts, lengths
+              within the tolerance of scenarios/board_design.py, and no copper clearance violation
+              in KiCad's DRC for either server's routes
+  report      KiCad's update-from-schematic report as a set of lines; nets without net codes;
+  violations  ERC, checks and DRC without the order of a violation's items or a missing connection's pads: values
+              KiCad orders by ids it or the servers generate at random (see each comparator)
+
+The revision contract is checked on every edit: KiCad's undo (sent by the harness, not by the
+server under test) restores the document exactly, redo restores the edit exactly, and no commit
+stays open.  The number of undo steps an edit takes is recorded and must be the same for both
+servers.  Two kinds of edit are only checked for open commits: Footprint Editor edits (KiCad
+opens a modal "Incomplete undo/redo" when a generated footprint is undone) and the update from
+the schematic (KiCad's redo drops pad nets; board_prepare records it once).  Settings that are
+not undoable (page, grid, origins, layers, stackup, rules) are put back by the workflow itself;
+net classes and custom rules, which the tools can only add to, by the harness.  Before the next
+server starts, the harness checks that the documents and their settings are as they were, and
+reruns ERC and DRC so both servers start with the same (not undoable) markers.
+
+  schematic  place, connect pins and a pin to a net, move/rotate with drag, annotate, update from
+             library, autoplace, symbol pins, netlist (hierarchy and sheet), ERC, page and
+             set_page, select/highlight/focus, view, undo/redo
+  libraries  scratch symbol and footprint libraries in a temporary folder (project scope): symbol
+             new, add_pins (with replace), set_properties, summary, view, delete_items, save; footprint
+             new, generate (several packages), set_properties, attach_step (a STEP written here),
+             embedded files, summary, view, save, view_3d, check_model; search and get on the stock
+             libraries; the editor grid in both library editors; unregistered and deleted afterwards
+  board      update from schematic (dry run and real), placement, moves, outlines, via, zone and
+             refill, graphics, keepouts, layers, origins, stackup, rules, custom rules, net classes,
+             RF, impedance, path check, tracks, routing, checks, DRC, views, selection,
+             delete_routing, undo/redo
+  shared     the editor grid in the schematic and PCB editors; live_kicad_cli (version, ERC and DRC
+             on the saved files, into a temporary folder, and a refused output path)
+"""
+
+import asyncio
+import base64
+import concurrent.futures
+import copy
+import hashlib
+import importlib.util
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import struct
+import tempfile
+import threading
+import time
+import uuid
+
+UUID_PATTERN = re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b")
+REVISION_KEYS = ("revision", "revision_after", "revision_before", "expected_revision")
+# A live document revision: the document's session prefix and a counter (applied after the UUIDs)
+REVISION_PATTERN = re.compile(r"\b[0-9a-f]{8}-\d+\b")
+VERBOSE = bool(os.environ.get("LIVE_PARITY_VERBOSE"))  # print each call as it is made
+
+
+# ---- MCP session and recording ---------------------------------------------------------------
+
+class McpSession:
+    """One MCP stdio session kept open across calls: a thread runs the client's event loop and
+    owns the session (anyio needs one task to enter and leave it); call() hands it requests."""
+
+    def __init__(self, params, devnull):
+        from mcp import ClientSession
+        from mcp.client.stdio import stdio_client
+        self.ready = concurrent.futures.Future()
+        self.done = concurrent.futures.Future()
+
+        async def main():
+            self.loop = asyncio.get_running_loop()
+            self.queue = asyncio.Queue()
+            try:
+                async with stdio_client(params, errlog=devnull) as (read, write):
+                    async with ClientSession(read, write) as session:
+                        await session.initialize()
+                        self.ready.set_result(True)
+                        while True:
+                            item = await self.queue.get()
+                            if item is None:
+                                break
+                            tool, arguments, future = item
+                            try:
+                                result = await session.call_tool(tool, arguments)
+                                future.set_result(result.model_dump(mode="json", exclude_none=True))
+                            except Exception as error:  # noqa: BLE001 - handed to the caller
+                                future.set_exception(error)
+            except BaseException as error:  # noqa: BLE001 - reported to whoever waits
+                if not self.ready.done():
+                    self.ready.set_exception(error)
+            finally:
+                self.done.set_result(True)
+
+        self.thread = threading.Thread(target=lambda: asyncio.run(main()), daemon=True)
+        self.thread.start()
+        self.ready.result(timeout=120)
+
+    def call(self, tool, arguments, timeout=900):
+        future = concurrent.futures.Future()
+        self.loop.call_soon_threadsafe(self.queue.put_nowait, (tool, arguments, future))
+        return future.result(timeout=timeout)
+
+    def close(self):
+        if not self.done.done():
+            self.loop.call_soon_threadsafe(self.queue.put_nowait, None)
+            self.done.result(timeout=60)
+        self.thread.join(timeout=10)
+
+
+class WorkflowError(RuntimeError):
+    pass
+
+
+def png_size(data):
+    """(width, height) of a PNG, or None when the bytes are not one."""
+    if data[:8] != b"\x89PNG\r\n\x1a\n" or data[12:16] != b"IHDR":
+        return None
+    return list(struct.unpack(">II", data[16:24]))
+
+
+def text_of(result):
+    """The tool result's text content, parsed when it is JSON; a list (FastMCP sends one text
+    content per element) when there is more than one."""
+    values = []
+    for content in result.get("content", []):
+        if content.get("type") == "text":
+            try:
+                values.append(json.loads(content["text"]))
+            except ValueError:
+                values.append(content["text"])
+    return values[0] if len(values) == 1 else (values or None)
+
+
+def summarise_images(result):
+    """The result with each image replaced by its PNG size and hash (the report stays small)."""
+    out = copy.deepcopy(result)
+    for content in out.get("content", []):
+        if content.get("type") == "image":
+            data = base64.b64decode(content.pop("data"))
+            content.update(png=png_size(data), bytes=len(data), sha256=hashlib.sha256(data).hexdigest())
+    return out
+
+
+class Tracked:
+    """A document the revision contract is checked on: its content snapshot and KiCad's undo."""
+
+    def __init__(self, name, checker, doc, snapshot, undoable=True):
+        self.name, self.checker, self.doc, self._snapshot = name, checker, doc, snapshot
+        self.undoable = undoable
+
+    def snapshot(self):
+        return self._snapshot()
+
+    def undo(self, redo=False):
+        return self.checker.undo(self.doc, redo=redo)
+
+    def open_commits(self):
+        return self.checker.document_revision(self.doc)["open_commits"]
+
+
+class Recording:
+    """The calls one server makes in a workflow, with the revision contract of each edit."""
+
+    def __init__(self, label, session):
+        self.label, self.session, self.calls, self.contract = label, session, [], []
+
+    def __call__(self, tool, arguments, mode="exact", doc=None, expect_error=False):
+        before = doc.snapshot() if doc else None
+        if VERBOSE:
+            print(f"     {self.label} {len(self.calls):02d} {tool}", flush=True)
+        started = time.monotonic()
+        result = self.session.call(tool, arguments)
+        entry = {"tool": tool, "arguments": arguments, "result": result, "mode": mode,
+                 "seconds": round(time.monotonic() - started, 2)}
+        self.calls.append(entry)
+        failed = bool(result.get("isError"))
+        if expect_error is not None and failed != expect_error:
+            raise WorkflowError(f"{self.label} {tool}: {'failed' if failed else 'did not fail'}: "
+                                f"{json.dumps(text_of(result))[:600]}")
+        if doc and not failed:
+            entry["contract"] = self.check_contract(tool, doc, before)
+        return text_of(result) if not failed else result
+
+    def check_contract(self, tool, doc, before):
+        """Undo with KiCad until the document is as it was, then redo as often: both must
+        restore the snapshots exactly, and no commit may stay open."""
+        after = doc.snapshot()
+        outcome = {"tool": tool, "changed": after != before, "open_commits": doc.open_commits()}
+        if outcome["changed"] and not doc.undoable:
+            outcome["undo_not_checked"] = True
+        elif outcome["changed"]:
+            undos = 0
+            while undos < 4:
+                if VERBOSE:
+                    print(f"       KiCad undo {undos + 1} in the {doc.name}", flush=True)
+                doc.undo()
+                undos += 1
+                if doc.snapshot() == before:
+                    break
+            undone = doc.snapshot()
+            outcome["undos"], outcome["restored"] = undos, undone == before
+            if not outcome["restored"]:
+                outcome["edit"], outcome["not_undone"] = describe_diff(before, after), describe_diff(before, undone)
+            for _ in range(undos):
+                doc.undo(redo=True)
+            redone = doc.snapshot()
+            outcome["redone"] = redone == after
+            if not outcome["redone"]:
+                outcome["not_redone"] = describe_diff(after, redone)
+                if VERBOSE:
+                    detail = {json.dumps(i.get("id")): i for i in after}
+                    for item in redone:
+                        old = detail.get(json.dumps(item.get("id")))
+                        if old and old != item:
+                            print("       redo differs:", first_difference(old, item))
+                self.contract.append(outcome)
+                raise WorkflowError(f"{self.label} {tool}: redo did not restore the edit: {outcome}")
+        self.contract.append(outcome)
+        return outcome
+
+
+def first_difference(a, b, path=""):
+    """Where two JSON values first differ: (path, a's value, b's value), shortened."""
+    if isinstance(a, dict) and isinstance(b, dict):
+        for key in sorted(set(a) | set(b)):
+            if a.get(key) != b.get(key):
+                return first_difference(a.get(key), b.get(key), f"{path}.{key}")
+    if isinstance(a, list) and isinstance(b, list) and len(a) == len(b):
+        for index, (x, y) in enumerate(zip(a, b)):
+            if x != y:
+                return first_difference(x, y, f"{path}[{index}]")
+    return path, json.dumps(a)[:200], json.dumps(b)[:200]
+
+
+def paired(before, after):
+    """The items of two snapshots paired by id (None for an item only one of them has)."""
+    a = {json.dumps(item.get("id")): item for item in before}
+    b = {json.dumps(item.get("id")): item for item in after}
+    return [(a.get(key), b.get(key)) for key in sorted(set(a) | set(b))]
+
+
+def describe_diff(before, after):
+    """What differs between two item snapshots: items added, removed, and changed (which keys)."""
+    def by_id(items):
+        return {json.dumps(item.get("id")): item for item in items}
+    a, b = by_id(before), by_id(after)
+    out = []
+    for key in sorted(set(a) | set(b)):
+        if key not in a:
+            out.append(f"+{b[key].get('@type', '?').rsplit('.', 1)[-1]}")
+        elif key not in b:
+            out.append(f"-{a[key].get('@type', '?').rsplit('.', 1)[-1]}")
+        elif a[key] != b[key]:
+            keys = sorted(k for k in set(a[key]) | set(b[key]) if a[key].get(k) != b[key].get(k))
+            out.append(f"~{a[key].get('@type', '?').rsplit('.', 1)[-1]}{keys}")
+    return out
+
+
+# ---- Normalisation and comparison ------------------------------------------------------------
+
+class Normaliser:
+    """Gives the values that differ between runs by nature the same names in both recordings: ids
+    KiCad generates (any UUID, in order of first appearance; operation ids include one) and
+    revisions.  With register=False, ids not seen before become <new> and are not numbered, so a
+    step whose items may legitimately differ (a route) does not shift the names of later ids."""
+
+    def __init__(self):
+        self.ids, self.revisions = {}, {}
+
+    def __call__(self, value, register=True, key=None):
+        if isinstance(value, dict):
+            return {k: self(v, register, k) for k, v in value.items()}
+        if isinstance(value, list):
+            return [self(v, register, key) for v in value]
+        if isinstance(value, str):
+            if key in REVISION_KEYS and value:
+                return self.revisions.setdefault(value, f"<rev{len(self.revisions) + 1}>")
+            if key == "text" and value[:1] in "{[":
+                try:
+                    return json.dumps(self(json.loads(value), register))
+                except ValueError:
+                    pass
+            value = SERVER_TAG_PATTERN.sub(r"\1_sN", value)
+            value = UUID_PATTERN.sub(lambda m: self.name(m.group(0), register), value)
+            # Revisions quoted in messages (AS_REVISION_MISMATCH: "the document is at revision ...")
+            return REVISION_PATTERN.sub(lambda m: self.revisions.setdefault(
+                m.group(0), f"<rev{len(self.revisions) + 1}>"), value)
+        return value
+
+    def name(self, value, register):
+        if value in self.ids or register:
+            return self.ids.setdefault(value, f"<id{len(self.ids) + 1}>")
+        return "<new>"
+
+
+def _scenario_module(name):
+    path = Path(__file__).resolve().parent / "scenarios" / f"{name}.py"
+    spec = importlib.util.spec_from_file_location(f"live_scenarios_{name}", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _error_text(result):
+    return result["content"][0]["text"] if result.get("content") else ""
+
+
+def compare_exact(python, rust):
+    return [] if python == rust else ["results differ"]
+
+
+def compare_png(python, rust):
+    """Valid PNGs of the same size, and the same text content (if any)."""
+    problems = []
+    if bool(python.get("isError")) != bool(rust.get("isError")):
+        return ["one server failed"]
+    if python.get("isError"):
+        return [] if python == rust else ["errors differ"]
+    images = [[c for c in r.get("content", []) if c.get("type") == "image"] for r in (python, rust)]
+    texts = [[c for c in r.get("content", []) if c.get("type") != "image"] for r in (python, rust)]
+    if len(images[0]) != len(images[1]) or not images[0]:
+        problems.append(f"image counts differ or none: {len(images[0])} | {len(images[1])}")
+    for a, b in zip(*images):
+        if not a.get("png") or not b.get("png"):
+            problems.append("not a valid PNG")
+        elif a["png"] != b["png"]:
+            problems.append(f"image sizes differ: {a['png']} | {b['png']}")
+    if texts[0] != texts[1]:
+        problems.append("text content differs")
+    return problems
+
+
+def compare_route(python, rust):
+    """Routes and path checks by behaviour (scenarios/board_design.py's criteria), and DRC
+    results by their clearance violations: none for either server."""
+    design = _scenario_module("board_design")
+    if bool(python.get("isError")) != bool(rust.get("isError")):
+        return [f"one server failed: {_error_text(python)[:200]} | {_error_text(rust)[:200]}"]
+    if python.get("isError"):
+        if "conflicts with other copper" in _error_text(python):
+            return design._conflicts_agree(
+                {"clear": False, "conflicts": design._conflicts_in_error(_error_text(python))},
+                {"clear": False, "conflicts": design._conflicts_in_error(_error_text(rust))}, "refusal")
+        return [] if _error_text(python) == _error_text(rust) else ["errors differ"]
+    p, r = text_of(python), text_of(rust)
+    if isinstance(p, dict) and "conflicts" in p:
+        return design._conflicts_agree(p, r, "path")
+    if isinstance(p, dict) and "violation_count" in p:
+        problems = [f"{label}: clearance violations {v}" for label, v in
+                    (("python", clearance_violations(p)), ("rust", clearance_violations(r))) if v]
+        if violation_types(p) != violation_types(r):
+            problems.append(f"DRC violation types differ: {violation_types(p)} | {violation_types(r)}")
+        return problems
+    if isinstance(p, dict) and ("segments" in p or "legs" in p):
+        problems = []
+        if design._route_summary(p) != design._route_summary(r):
+            problems.append(f"routes differ: {design._route_summary(p)} | {design._route_summary(r)}")
+        for a, b in zip(design._lengths(p), design._lengths(r)):
+            if abs(a - b) > max(0.1, design.ROUTE_LENGTH_TOLERANCE * a):
+                problems.append(f"lengths differ beyond tolerance: {a} | {b}")
+        return problems
+    return compare_exact(python, rust)
+
+
+def violation_types(drc):
+    counts = {}
+    for violation in drc.get("violations", []):
+        kind = violation.get("type") or violation.get("error_type") or "?"
+        counts[kind] = counts.get(kind, 0) + 1
+    return dict(sorted(counts.items()))
+
+
+COPPER_VIOLATIONS = {"clearance", "copper_edge_clearance", "hole_clearance", "shorting_items", "tracks_crossing"}
+
+
+def clearance_violations(drc):
+    """Copper clearance, shorts and crossings (KiCad's DRC types); silkscreen and courtyard
+    findings are not about the routes."""
+    return [v for v in drc.get("violations", []) if (v.get("type") or v.get("error_type")) in COPPER_VIOLATIONS]
+
+
+def compare_report(python, rust):
+    """Exactly, except that KiCad's update report is compared as a set of lines: KiCad lists the
+    nets it adds in an order that changes from run to run (seen live: the same requests from both
+    servers, the same lines, nets in another order)."""
+    def unordered(result):
+        value = text_of(result)
+        if isinstance(value, dict) and isinstance(value.get("report"), str):
+            value = dict(value, report=sorted(value["report"].splitlines()))
+        return {**result, "content": [{"type": "text", "text": json.dumps(value)}]}
+    return compare_exact(unordered(python), unordered(rust))
+
+
+def compare_nets(python, rust):
+    """Exactly, except the net codes: KiCad numbers nets in the order an update adds them, which
+    changes from run to run (see compare_report).  Each server's codes must still be distinct."""
+    def without_codes(result):
+        values = text_of(result)
+        values = values if isinstance(values, list) else [values]
+        codes = [v.get("code") for v in values if isinstance(v, dict)]
+        return [{k: x for k, x in v.items() if k != "code"} if isinstance(v, dict) else v for v in values], \
+            len(codes) == len(set(codes))
+    (p, p_ok), (r, r_ok) = without_codes(python), without_codes(rust)
+    problems = [] if p == r and bool(python.get("isError")) == bool(rust.get("isError")) else ["nets differ"]
+    return problems + ([] if p_ok and r_ok else ["net codes are not distinct"])
+
+
+def compare_violations(python, rust):
+    """Exactly, except the order of the items within one violation: KiCad names the two items of a
+    pair in an order that follows their ids, and the items a server creates get random ids (seen
+    live: a silkscreen clearance pair listed either way round).  A missing connection is compared
+    by its position, not the pads it names: KiCad's ratsnest picks among equally near pads by their
+    ids, which KiCad itself generated at random in the update from the schematic."""
+    def unordered(value):
+        if isinstance(value, dict):
+            if value.get("type") == "unconnected_items":
+                value = {k: v for k, v in value.items() if k != "items"}
+            return {k: sorted(v) if k == "items" and all(isinstance(x, str) for x in v) else unordered(v)
+                    for k, v in value.items()}
+        if isinstance(value, list):
+            values = [unordered(v) for v in value]
+            # A list of violations as a set: KiCad reports them in its item order, which undo and
+            # redo change (seen live: the same ERC violations of one type in either order)
+            if values and all(isinstance(v, dict) and ("type" in v or "error_type" in v) for v in values):
+                values.sort(key=lambda v: json.dumps(v, sort_keys=True))
+            return values
+        return value
+
+    def parsed(result):
+        return {**result, "content": [{"type": "text", "text": json.dumps(unordered(text_of(result)))}]}
+    return compare_exact(parsed(python), parsed(rust))
+
+
+COMPARE = {"exact": compare_exact, "report": compare_report, "nets": compare_nets, "violations": compare_violations,
+           "png": compare_png, "route": compare_route}
+
+
+def compare_recordings(area, python, rust, check, entries):
+    """Call by call: the same tools with the same (normalised) arguments, results per mode, and
+    the same number of undo steps per edit."""
+    names = {"python": Normaliser(), "rust": Normaliser()}
+    count = max(len(python.calls), len(rust.calls))
+    for index in range(count):
+        p = python.calls[index] if index < len(python.calls) else None
+        r = rust.calls[index] if index < len(rust.calls) else None
+        if p is None or r is None:
+            present = p or r
+            entries.append({"step": index, "tool": present["tool"], "agree": False,
+                            "why": f"only {'python' if p else 'rust'} made this call"})
+            check(f"{area}: {index:02d} {present['tool']} made by both servers", False,
+                  f"only {'python' if p else 'rust'} made it")
+            continue
+        mode = p["mode"]
+        register = mode not in ("route", "violations")
+        pa, ra = names["python"](p["arguments"]), names["rust"](r["arguments"])
+        pres = names["python"](summarise_images(p["result"]), register)
+        rres = names["rust"](summarise_images(r["result"]), register)
+        problems = []
+        if p["tool"] != r["tool"] or pa != ra:
+            problems.append(f"different calls: {p['tool']} {json.dumps(pa)[:200]} | {r['tool']} {json.dumps(ra)[:200]}")
+        problems += COMPARE[mode](pres, rres)
+        pc, rc = p.get("contract"), r.get("contract")
+        if (pc or {}).get("undos") != (rc or {}).get("undos") or (pc or {}).get("changed") != (rc or {}).get("changed"):
+            problems.append(f"undo steps differ: {pc} | {rc}")
+        entry = {"step": index, "tool": p["tool"], "mode": mode, "arguments": pa, "agree": not problems,
+                 "python": pres, "rust": rres, "seconds": [p["seconds"], r["seconds"]]}
+        if pc:
+            entry["undos"] = pc.get("undos", 0)
+        if mode == "png":
+            def hashes(result):
+                return [c.get("sha256") for c in result.get("content", []) if c.get("png")]
+            entry["identical_pixels"] = hashes(pres) == hashes(rres)
+            previous = entries[-1] if entries else None
+            if previous and previous.get("tool") == p["tool"] and previous.get("arguments") == pa:
+                # The same view again from the same server: does KiCad itself repeat its pixels?
+                entry["repeat_identical"] = {"python": hashes(previous["python"]) == hashes(pres),
+                                             "rust": hashes(previous["rust"]) == hashes(rres)}
+        if problems:
+            entry["why"] = problems
+        entries.append(entry)
+        args_text = json.dumps({k: v for k, v in pa.items() if not k.endswith("document") and k != "document_spec"})
+        check(f"{area}: {index:02d} {p['tool']} {args_text[:90]}", not problems,
+              "; ".join(problems)[:300] + f" | python {json.dumps(pres)[:400]} | rust {json.dumps(rres)[:400]}")
+
+
+# ---- A STEP model ----------------------------------------------------------------------------
+
+def box_step(width, length, height, name="parity_box"):
+    """A minimal AP214 STEP file of one box (a manifold solid B-rep), centred on the origin in X
+    and Y, standing on Z = 0.  Written here so the test needs no model from elsewhere."""
+    lines, counter = [], [0]
+
+    def add(text):
+        counter[0] += 1
+        lines.append(f"#{counter[0]}={text};")
+        return f"#{counter[0]}"
+
+    def point(p):
+        return add("CARTESIAN_POINT('',({:.6f},{:.6f},{:.6f}))".format(*p))
+
+    def direction(d):
+        return add("DIRECTION('',({:.6f},{:.6f},{:.6f}))".format(*d))
+
+    context_app = add("APPLICATION_CONTEXT('automotive design')")
+    add(f"APPLICATION_PROTOCOL_DEFINITION('international standard','automotive_design',2000,{context_app})")
+    product_context = add(f"PRODUCT_CONTEXT('',{context_app},'mechanical')")
+    product = add(f"PRODUCT('{name}','{name}','',({product_context}))")
+    formation = add(f"PRODUCT_DEFINITION_FORMATION('','',{product})")
+    definition_context = add(f"PRODUCT_DEFINITION_CONTEXT('part definition',{context_app},'design')")
+    definition = add(f"PRODUCT_DEFINITION('design','',{formation},{definition_context})")
+    shape = add(f"PRODUCT_DEFINITION_SHAPE('','',{definition})")
+    length_unit = add("(LENGTH_UNIT() NAMED_UNIT(*) SI_UNIT(.MILLI.,.METRE.))")
+    angle_unit = add("(NAMED_UNIT(*) PLANE_ANGLE_UNIT() SI_UNIT($,.RADIAN.))")
+    solid_unit = add("(NAMED_UNIT(*) SI_UNIT($,.STERADIAN.) SOLID_ANGLE_UNIT())")
+    uncertainty = add(f"UNCERTAINTY_MEASURE_WITH_UNIT(LENGTH_MEASURE(1.E-07),{length_unit},"
+                      "'distance_accuracy_value','confusion accuracy')")
+    context = add(f"(GEOMETRIC_REPRESENTATION_CONTEXT(3) GLOBAL_UNCERTAINTY_ASSIGNED_CONTEXT(({uncertainty})) "
+                  f"GLOBAL_UNIT_ASSIGNED_CONTEXT(({length_unit},{angle_unit},{solid_unit})) "
+                  "REPRESENTATION_CONTEXT('Context #1','3D Context with UNIT and UNCERTAINTY'))")
+    corner = {(i, j, k): (i * width - width / 2, j * length - length / 2, k * height)
+              for i in (0, 1) for j in (0, 1) for k in (0, 1)}
+    vertex = {key: add(f"VERTEX_POINT('',{point(p)})") for key, p in corner.items()}
+    edges = {}
+
+    def edge(a, b):
+        key = tuple(sorted((a, b)))
+        if key not in edges:
+            start, end = corner[key[0]], corner[key[1]]
+            delta = [e - s for s, e in zip(start, end)]
+            size = max(abs(d) for d in delta)
+            vector = add(f"VECTOR('',{direction([d / size for d in delta])},{size:.6f})")
+            line = add(f"LINE('',{point(start)},{vector})")
+            edges[key] = add(f"EDGE_CURVE('',{vertex[key[0]]},{vertex[key[1]]},{line},.T.)")
+        return add(f"ORIENTED_EDGE('',*,*,{edges[key]},{'.T.' if (a, b) == key else '.F.'})")
+
+    # Each face's corners counter-clockwise seen from outside, its outward normal and a direction in it
+    faces_spec = [([(0, 0, 0), (0, 1, 0), (1, 1, 0), (1, 0, 0)], (0, 0, -1), (1, 0, 0)),
+                  ([(0, 0, 1), (1, 0, 1), (1, 1, 1), (0, 1, 1)], (0, 0, 1), (1, 0, 0)),
+                  ([(0, 0, 0), (1, 0, 0), (1, 0, 1), (0, 0, 1)], (0, -1, 0), (1, 0, 0)),
+                  ([(0, 1, 0), (0, 1, 1), (1, 1, 1), (1, 1, 0)], (0, 1, 0), (1, 0, 0)),
+                  ([(0, 0, 0), (0, 0, 1), (0, 1, 1), (0, 1, 0)], (-1, 0, 0), (0, 1, 0)),
+                  ([(1, 0, 0), (1, 1, 0), (1, 1, 1), (1, 0, 1)], (1, 0, 0), (0, 1, 0))]
+    faces = []
+    for ring, normal, reference in faces_spec:
+        oriented = [edge(ring[n], ring[(n + 1) % 4]) for n in range(4)]
+        loop = add(f"EDGE_LOOP('',({','.join(oriented)}))")
+        bound = add(f"FACE_OUTER_BOUND('',{loop},.T.)")
+        placement = add(f"AXIS2_PLACEMENT_3D('',{point(corner[ring[0]])},{direction(normal)},{direction(reference)})")
+        plane = add(f"PLANE('',{placement})")
+        faces.append(add(f"ADVANCED_FACE('',({bound}),{plane},.T.)"))
+    shell = add(f"CLOSED_SHELL('',({','.join(faces)}))")
+    solid = add(f"MANIFOLD_SOLID_BREP('{name}',{shell})")
+    origin = add(f"AXIS2_PLACEMENT_3D('',{point((0, 0, 0))},{direction((0, 0, 1))},{direction((1, 0, 0))})")
+    representation = add(f"ADVANCED_BREP_SHAPE_REPRESENTATION('{name}',({solid},{origin}),{context})")
+    add(f"SHAPE_DEFINITION_REPRESENTATION({shape},{representation})")
+    header = ["ISO-10303-21;", "HEADER;", f"FILE_DESCRIPTION(('{name}'),'2;1');",
+              f"FILE_NAME('{name}.step','2026-01-01T00:00:00',(''),(''),'','','');",
+              "FILE_SCHEMA(('AUTOMOTIVE_DESIGN { 1 0 10303 214 1 1 1 1 }'));", "ENDSEC;", "DATA;"]
+    return "\n".join(header + lines + ["ENDSEC;", "END-ISO-10303-21;", ""])
+
+
+# ---- Running the workflows -------------------------------------------------------------------
+
+def as_json(message):
+    from google.protobuf import json_format
+    return json_format.MessageToDict(message, preserving_proto_field_name=True)
+
+
+def sorted_items(messages):
+    """Items as JSON, in a stable order.  A global label's intersheet reference field and its
+    fields-autoplaced flag are left out: KiCad recomputes and re-places that field after edits
+    (annotation, for one) outside any undo step, so undo cannot restore them (seen live with both
+    servers alike; a KiCad behaviour, not a server's)."""
+    items = []
+    for message in messages:
+        item = as_json(message)
+        if item.get("@type", "").endswith(".GlobalLabel"):
+            item.pop("intersheet_refs_field", None)
+            item.pop("fields_autoplaced", None)
+        # KiCad's undo of a footprint edit gives back its pads and drawings in another order
+        children = item.get("definition", {}).get("items")
+        if isinstance(children, list):
+            children.sort(key=lambda child: (json.dumps(child.get("id")), json.dumps(child, sort_keys=True)))
+        items.append(item)
+    return sorted(items, key=lambda item: json.dumps(item, sort_keys=True))
+
+
+class Context:
+    """What the workflows share: the KiCad client the harness checks with, the documents, a
+    scratch folder (the same path for both servers, emptied between them)."""
+
+    def __init__(self, checker, spec, doc, board, board_doc, scratch):
+        self.checker, self.spec, self.doc, self.board, self.board_doc = checker, spec, doc, board, board_doc
+        self.scratch = scratch
+        self.schematic = Tracked("schematic", checker, doc, lambda: sorted_items(checker.items(doc).items))
+        self.pcb = Tracked("board", checker, board_doc, self.board_items)
+
+    def board_items(self):
+        from board_client import ITEM_TYPES
+        return sorted_items(self.checker.board_items(self.board_doc, [k for k in ITEM_TYPES if k != "pads"]))
+
+    def board_settings(self):
+        c, b = self.checker, self.board_doc
+        return {"layers": c.board_layers(b), "stackup": c.board_stackup_layers(b), "rules": c.board_rules(b),
+                "custom_rules": c.board_custom_rules(b), "netclasses": c.board_netclasses(b),
+                "origins": c.board_origins(b), "page": c.page_layout(b), "grid": c.editor_grid(b)}
+
+    def schematic_settings(self):
+        return {"page": self.checker.page_layout(self.doc), "grid": self.checker.editor_grid(self.doc)}
+
+
+def _project(ctx):
+    """The project as the net class commands match it: with its trailing separator."""
+    from client import types
+    project = types.ProjectSpecifier()
+    project.CopyFrom(ctx.board_doc.project)
+    if project.path and not project.path.endswith(("/", "\\")):
+        project.path += "\\" if "\\" in project.path and "/" not in project.path else "/"
+    return project
+
+
+def capture_project_settings(ctx):
+    """The raw net classes, net class assignments and custom rules, to put back exactly: the
+    tools only merge net classes (none can remove one), so the harness restores them itself."""
+    from board_design import bc, project_cmds
+    c, project = ctx.checker, _project(ctx)
+    return (c.send(project_cmds.GetNetClasses(project=project), project_cmds.NetClassesResponse),
+            c.send(project_cmds.GetNetClassAssignments(project=project), project_cmds.NetClassAssignmentsResponse),
+            c.send(bc.GetCustomDesignRules(board=ctx.board_doc), bc.CustomRulesResponse))
+
+
+def restore_project_settings(ctx, saved):
+    from google.protobuf import empty_pb2
+    from board_design import bc, project_cmds, types
+    c, project = ctx.checker, _project(ctx)
+    classes, assignments, rules = saved
+    c.send(project_cmds.SetNetClasses(project=project, net_classes=list(classes.net_classes),
+                                      merge_mode=types.MMM_REPLACE), empty_pb2.Empty)
+    request = project_cmds.SetNetClassAssignments(project=project, merge_mode=types.MMM_REPLACE)
+    request.assignments.extend(assignments.assignments)
+    request.pattern_assignments.extend(assignments.pattern_assignments)
+    c.send(request, empty_pb2.Empty)
+    if list(c.send(bc.GetCustomDesignRules(board=ctx.board_doc), bc.CustomRulesResponse).rules) != list(rules.rules):
+        c.send(bc.SetCustomDesignRules(board=ctx.board_doc, rules=list(rules.rules)), bc.CustomRulesResponse)
+
+
+def restore_settings(ctx, baseline):
+    """Put back the settings a failed workflow left changed (copper layers, origins, pages, grids);
+    other settings are left as they are and reported by the state check."""
+    c, b = ctx.checker, ctx.board_doc
+    board = baseline["board settings"]
+    if c.board_layers(b)["copper_layers"] != board["layers"]["copper_layers"]:
+        c.board_layers(b, copper_layers=board["layers"]["copper_layers"])
+    c.board_origins(b, grid=board["origins"]["grid_origin_mm"], drill=board["origins"]["drill_origin_mm"])
+    for doc, settings in ((b, board), (ctx.doc, baseline["schematic settings"])):
+        page, grid = settings["page"], settings["grid"]
+        block = page["title_block"]
+        c.set_page(doc, size=page["paper"], orientation=page["orientation"], title=block["title"],
+                   date=block["date"], revision=block["revision"], company=block["company"],
+                   comments=block["comments"])
+        c.editor_grid(doc, preset_index=grid["preset_index"], style=grid["style"], visible=grid["visible"])
+
+
+def restore(tracked, baseline, limit=80):
+    """Undo with KiCad until the document equals its baseline; how many undo steps it took."""
+    for step in range(limit + 1):
+        if tracked.snapshot() == baseline:
+            return step
+        if not tracked.undo().get("performed", True):
+            break
+    raise WorkflowError(f"{tracked.name}: undo did not return to the baseline")
+
+
+def state_of(ctx):
+    """The documents and their settings.  ERC and DRC run first: their markers are not undoable
+    and the page check counts them, so each server starts with the markers of the same document."""
+    ctx.checker.erc(ctx.doc)
+    ctx.checker.board_drc(ctx.board_doc, parity=False, refill=False)
+    return {"schematic": ctx.schematic.snapshot(), "board": ctx.pcb.snapshot(),
+            "schematic settings": ctx.schematic_settings(), "board settings": ctx.board_settings()}
+
+
+def run_workflows(checker, spec, doc, servers, server_env, endpoint, devnull, check, report, areas=None):
+    from e2e_guard import test_board
+    from client import board_document
+    board = as_json(test_board(checker))
+    board_doc = board_document(board)
+    scratch = Path(tempfile.gettempdir()) / "embeint-parity-live"
+    shutil.rmtree(scratch, ignore_errors=True)
+    scratch.mkdir(parents=True)
+    ctx = Context(checker, spec, doc, board, board_doc, scratch)
+    report.setdefault("workflows", {})
+    try:
+        for area, workflow, prepare, finish in AREAS:
+            if areas and area not in areas:
+                continue
+            print(f"  -- {area}", flush=True)
+            entries = report["workflows"].setdefault(area, {"calls": [], "contract": {}, "notes": []})
+            state = prepare(ctx, entries) if prepare else None
+            try:
+                recordings = {}
+                for label, make in servers:
+                    baseline = state_of(ctx)
+                    project_settings = capture_project_settings(ctx)
+                    session = McpSession(make(server_env({"KICAD_API_SOCKET": endpoint})), devnull)
+                    recording = Recording(label, session)
+                    error = None
+                    try:
+                        workflow(recording, ctx, state)
+                    except Exception as failure:  # noqa: BLE001 - reported, then the document is restored
+                        error = f"{type(failure).__name__}: {failure}"
+                    finally:
+                        session.close()
+                    left = finish(ctx, label) if finish else ""
+                    steps = {"schematic": restore(ctx.schematic, baseline["schematic"]),
+                             "board": restore(ctx.pcb, baseline["board"])}
+                    if capture_project_settings(ctx) != project_settings:
+                        restore_project_settings(ctx, project_settings)
+                        entries["notes"].append(f"{label}: net classes, assignments and custom rules put back by "
+                                                "the harness (the tools only merge net classes)")
+                    after = state_of(ctx)
+                    entries["notes"].append(f"{label}: {len(recording.calls)} calls; KiCad undo steps back to the "
+                                            f"baseline: {steps}")
+                    check(f"{area}: {label} ran the whole workflow ({len(recording.calls)} calls)", error is None,
+                          error or "")
+                    check(f"{area}: {label}'s edits undone ({steps}); settings and libraries put back",
+                          after == baseline and not left,
+                          f"differs: {[k for k in baseline if after[k] != baseline[k]]}; {left}")
+                    if after != baseline:
+                        # So the next server still starts where this one did
+                        restore_settings(ctx, baseline)
+                        entries["notes"].append(f"{label}: settings put back by the harness: "
+                                                f"{[k for k in baseline if after[k] != baseline[k]]}")
+                    contract = recording.contract
+                    bad = [c for c in contract if c.get("open_commits")
+                           or (c["changed"] and not c.get("undo_not_checked") and not c.get("restored"))]
+                    unchecked = sum(bool(c.get("undo_not_checked")) for c in contract)
+                    check(f"{area}: {label} every edit undone and redone exactly by KiCad, no commit left open "
+                          f"({sum(c['changed'] for c in contract) - unchecked} edits"
+                          + (f"; {unchecked} more checked for open commits only" if unchecked else "")
+                          + ")", not bad, json.dumps(bad)[:400])
+                    entries["contract"][label] = contract
+                    several = sorted({(c["tool"], c["undos"]) for c in contract if c.get("undos", 1) > 1})
+                    if several:
+                        # Reported, not failed: Python's tools are the reference (both servers alike)
+                        entries["notes"].append(f"{label}: edits that took more than one KiCad undo step: {several}")
+                    entries.setdefault("undo_steps", {})[label] = steps
+                    recordings[label] = recording
+                check(f"{area}: both servers' edits took the same number of undo steps",
+                      entries["undo_steps"]["python"] == entries["undo_steps"]["rust"], json.dumps(entries["undo_steps"]))
+                compare_recordings(area, recordings["python"], recordings["rust"], check, entries["calls"])
+            finally:
+                if state and "cleanup" in state:
+                    state["cleanup"]()
+    finally:
+        shutil.rmtree(scratch, ignore_errors=True)
+
+
+# ---- Schematic -------------------------------------------------------------------------------
+
+def schematic_workflow(call, ctx, state):
+    spec, S = ctx.spec, ctx.schematic
+    d = {"document_spec": spec}
+    call("live_schematic_open", {})
+    call("live_schematic_list_commands", {})
+    call("live_schematic_describe_command", {"command": "CreateItems"})
+    call("live_schematic_item_schema", {"type_name": "SchematicText"})
+    page0 = call("live_schematic_page", d)
+    r1 = call("live_schematic_place_symbol", {**d, "lib_id": "Device:R", "x_mm": 101.6, "y_mm": 101.6,
+                                              "reference": "R101"}, doc=S)
+    r2 = call("live_schematic_place_symbol", {**d, "lib_id": "Device:R", "x_mm": 127, "y_mm": 101.6}, doc=S)
+    c1 = call("live_schematic_place_symbol", {**d, "lib_id": "Device:C", "x_mm": 114.3, "y_mm": 127,
+                                              "rotation": 90}, doc=S)
+    call("live_schematic_symbol_pins", d)
+    call("live_schematic_symbol_pins", {**d, "symbols": [r1["id"]]})
+    call("live_schematic_connect_pins", {**d, "from_reference": "R101", "from_pin": "2",
+                                         "to_reference": r2["reference"], "to_pin": "1"}, doc=S)
+    call("live_schematic_connect_pin_to_net", {**d, "reference": r2["reference"], "pin": "2", "net": "PAR_NET"}, doc=S)
+    call("live_schematic_connect_pin_to_net", {**d, "reference": c1["reference"], "pin": "1", "net": "PAR_NET",
+                                               "label": "global", "stub_mm": 5.08}, doc=S)
+    call("live_schematic_move", {**d, "ids": [r1["id"]], "dy_mm": -5.08, "rotation": 90}, doc=S)
+    call("live_schematic_move", {**d, "ids": [c1["id"]], "dx_mm": 5.08, "drag_wires": False,
+                                 "mirror_horizontally": True}, doc=S)
+    call("live_schematic_annotate", d, doc=S)
+    call("live_schematic_annotate", {**d, "reset_existing": True, "order": "y", "start_number": 10}, doc=S)
+    call("live_schematic_update_from_library", {**d, "symbols": [r1["id"]], "reset_field_text": True}, doc=S)
+    call("live_schematic_update_from_library", d, doc=S)
+    call("live_schematic_autoplace_fields", {**d, "ids": [r1["id"]]}, doc=S)
+    call("live_schematic_autoplace_fields", d, doc=S)
+    call("live_schematic_symbol_pins", d)
+    call("live_schematic_netlist", d)
+    call("live_schematic_netlist", {**d, "scope": "sheet"})
+    call("live_schematic_hierarchy", d)
+    call("live_schematic_erc", d, mode="violations")
+    block = page0["title_block"]
+    page = call("live_schematic_set_page", {**d, "size": "A3", "orientation": "portrait",
+                                            "title": "live-demo - Parity", "date": "2026-11-21", "revision": "B",
+                                            "company": "Embeint Pty Ltd", "comments": ["Live parity check"]})
+    if not page.get("fits"):
+        raise WorkflowError(f"the page does not fit after set_page: {page}")
+    call("live_schematic_page", d)
+    call("live_schematic_set_page", {**d, "size": page0["paper"], "orientation": page0["orientation"],
+                                     "title": block["title"], "date": block["date"], "revision": block["revision"],
+                                     "company": block["company"], "comments": block["comments"]})
+    call("live_schematic_select", {**d, "ids": [r1["id"], c1["id"]]})
+    call("live_schematic_select", {**d, "ids": [r2["id"]], "add": True})
+    call("live_schematic_highlight_nets", {**d, "nets": ["PAR_NET"]})
+    call("live_schematic_highlight_nets", {**d, "nets": []})
+    call("live_schematic_focus", {**d, "ids": [c1["id"]]})
+    call("live_schematic_select", {**d, "ids": []})
+    call("live_schematic_view", {**d, "dpi": 72}, mode="png")
+    call("live_schematic_view", {**d, "dpi": 100, "frame": False}, mode="png")
+    call("live_schematic_undo", d)
+    call("live_schematic_undo", {**d, "redo": True})
+    call("live_schematic_undo", {**d, "expected_revision": "stale-0"}, expect_error=True)
+    call("live_document_revision", d)
+
+
+# ---- Libraries -------------------------------------------------------------------------------
+
+def grid_round_trip(call, document, size):
+    """Read an editor's grid, set another size and style, then put the grid back as it was."""
+    d = {"document_spec": document}
+    grid = call("live_editor_grid", d)
+    call("live_editor_grid", {**d, "size_mm": size, "style": "lines"})
+    call("live_editor_grid", {**d, "preset_index": grid["preset_index"], "style": grid["style"],
+                              "visible": grid["visible"]})
+    call("live_editor_grid", d)
+
+
+SOIC8 = {"pins": 8, "pitch": 1.27, "body_width": 3.9, "body_length": 4.9, "pad_length": 1.95, "pad_width": 0.6,
+         "row_pitch": 4.95}
+STOCK_FOOTPRINT = "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
+
+
+def library_prepare(ctx, entries):
+    step = ctx.scratch / "parity_box.step"
+    step.write_text(box_step(3.9, 4.9, 1.5), encoding="ascii")
+    pdf = ctx.scratch / "parity_note.txt"
+    pdf.write_text("Parity check attachment\n", encoding="ascii")
+    # Libraries load in the background after startup: wait until searches cover them all
+    for _ in range(180):
+        if not ctx.checker.search_symbols("regulator 3.3", limit=5).get("libraries_still_loading"):
+            break
+        time.sleep(1)
+    for _ in range(180):
+        if not ctx.checker.footprint_search("SOIC-8_3.9x4.9mm_P1.27mm").get("libraries_still_loading"):
+            break
+        time.sleep(1)
+    return {"step": step, "attachment": pdf}
+
+
+def library_finish(ctx, label):
+    """Unregistered by the workflow; the files are deleted here.  Both library editors are parked
+    on stock parts first (deleting the folder the Footprint Editor watches opens a modal error on
+    Windows).  Returns what the workflow left registered (removed here), or an empty string."""
+    from e2e_guard import park_footprint_editor
+    park_footprint_editor(ctx.checker)
+    ctx.checker.edit_symbol("Device:R")
+    tables = {kind: [r["nickname"] for r in ctx.checker.library_table("project", kind)] for kind in ("symbol", "footprint")}
+    leftover = [n for names in tables.values() for n in names if n.startswith("parity_")]
+    for kind in ("symbol", "footprint"):
+        for nickname in [n for n in tables[kind] if n.startswith("parity_")]:
+            ctx.checker.remove_library(nickname, scope="project", kind=kind)
+    shutil.rmtree(ctx.scratch / f"parity_libs_{SERVER_TAGS[label]}", ignore_errors=True)
+    return f"{label} left scratch libraries registered: {leftover}" if leftover else ""
+
+
+# Each server, in each run, gets its own scratch library names and folder: KiCad keeps a removed
+# library's symbols buffered under its nickname, so a later library of the same name would see
+# them.  The comparison names them alike (parity_<name>_sN).
+RUN_TOKEN = uuid.uuid4().hex[:6]
+SERVER_TAGS = {"python": "s1" + RUN_TOKEN, "rust": "s2" + RUN_TOKEN}
+SERVER_TAG_PATTERN = re.compile(r"\b(parity_[a-z]+)_s[12][0-9a-f]{6}\b")
+
+
+def library_workflow(call, ctx, state):
+    from client import footprint_document, symbol_document
+    tag = SERVER_TAGS[call.label]
+    folder, step = ctx.scratch / f"parity_libs_{tag}", state["step"]
+    folder.mkdir()
+    sym_lib, fp_lib = f"parity_sym_{tag}", f"parity_fp_{tag}"
+    sym_path, fp_path = str(folder / f"{sym_lib}.kicad_sym"), str(folder / f"{fp_lib}.pretty")
+
+    # Stock libraries
+    call("live_symbol_search", {"query": "regulator 3.3", "limit": 5})
+    call("live_symbol_get", {"lib_id": "Device:R"})
+    call("live_symbol_get", {"lib_id": "Regulator_Linear:AP2112K-3.3"})
+    call("live_footprint_search", {"query": "SOIC-8_3.9x4.9mm_P1.27mm", "limit": 5})
+    call("live_footprint_get", {"lib_id": STOCK_FOOTPRINT})
+
+    # Symbol library and symbol
+    call("live_symbol_libraries", {"scope": "project"})
+    call("live_symbol_create_library", {"nickname": sym_lib, "path": sym_path, "scope": "project",
+                                        "description": "Parity scratch"})
+    call("live_symbol_libraries", {"scope": "project"})
+    created = call("live_symbol_new", {"library": sym_lib, "name": "PARITY_REG", "reference_prefix": "U",
+                                       "manufacturer": "Parity Semiconductor", "mpn": "PR-1"})
+    sym = created
+    tracked = Tracked("symbol", ctx.checker, symbol_document(sym),
+                      lambda: sorted_items(ctx.checker.items(symbol_document(sym)).items))
+    s = {"symbol_document": sym}
+    pins = [{"number": "1", "name": "GND", "type": "power_in"}, {"number": "2", "name": "VOUT", "type": "power_out"},
+            {"number": "3", "name": "VIN", "type": "power_in"}, {"number": "4", "name": "EN", "type": "input"},
+            {"number": "5", "name": "ADJ", "type": "passive"}, {"number": "6", "name": "NC", "type": "passive"}]
+    call("live_symbol_add_pins", {**s, "pins": pins}, doc=tracked)
+    call("live_symbol_add_pins", {**s, "pins": pins[:4], "replace": True}, doc=tracked)
+    call("live_symbol_set_properties", {**s, "value": "PARITY_REG", "footprint": "Package_TO_SOT_SMD:SOT-223-3_TabPin2",
+                                        "datasheet": "https://example.com/parity.pdf", "description": "Parity LDO",
+                                        "keywords": "ldo parity", "footprint_filters": ["SOT?223*"],
+                                        "user_fields": [{"name": "Grade", "value": "A"}]}, doc=tracked)
+    summary = call("live_symbol_summary", s)
+    call("live_symbol_view", {**s, "dpi": 300}, mode="png")
+    shapes = summary.get("graphic_shape_ids") or []
+    if shapes:
+        call("live_symbol_delete_items", {**s, "ids": shapes[:1]}, doc=tracked)
+    call("live_symbol_summary", s)
+    grid_round_trip(call, sym, 2.54)
+    call("live_symbol_save", s)
+    call("live_symbol_get", {"lib_id": f"{sym_lib}:PARITY_REG"})
+    call("live_symbol_search", {"query": "parity", "limit": 5})
+
+    # Footprint library and footprints of several packages
+    call("live_footprint_libraries", {"scope": "project"})
+    call("live_footprint_create_library", {"nickname": fp_lib, "path": fp_path, "scope": "project",
+                                           "description": "Parity scratch"})
+    packages = [("PARITY_SOIC8", "smd", "soic", SOIC8),
+                ("PARITY_0603", "smd", "chip", {"size": "0603", "prefix": "R"}),
+                ("PARITY_SOT235", "smd", "sot", {"variant": "23-5"}),
+                ("PARITY_QFN16", "smd", "qfn", {"pins_x": 4, "pins_y": 4, "pitch": 0.5, "body_x": 3, "body_y": 3,
+                                                "exposed_pad": [1.7, 1.7]}),
+                ("PARITY_HDR4", "tht", "pin_header", {"pins_per_row": 4})]
+    docs = {}
+    for name, mounting, package, params in packages:
+        fp = call("live_footprint_new", {"library": fp_lib, "name": name, "mounting": mounting})
+        docs[name] = fp
+        # Not undone here: undoing a live_footprint_generate commit in the Footprint Editor makes
+        # KiCad open a modal "Incomplete undo/redo operation: some items not found" (seen live with
+        # both servers), which blocks the API; only the open commits are checked
+        fp_tracked = Tracked("footprint", ctx.checker, footprint_document(fp),
+                             lambda fp=fp: sorted_items(ctx.checker.footprint_items(footprint_document(fp))),
+                             undoable=False)
+        f = {"footprint_document": fp}
+        call("live_footprint_generate", {**f, "package": package, "params": params}, doc=fp_tracked)
+        if name == "PARITY_SOIC8":
+            call("live_footprint_generate", {**f, "package": "tssop",
+                                             "params": dict(SOIC8, pitch=0.65, pad_width=0.4)}, doc=fp_tracked)
+            call("live_footprint_generate", {**f, "package": "soic", "params": dict(SOIC8, pins=14, body_length=8.7),
+                                             "replace": True}, doc=fp_tracked)
+            call("live_footprint_generate", {**f, "package": "soic", "params": SOIC8, "replace": True}, doc=fp_tracked)
+            call("live_footprint_set_properties", {**f, "description": "SOIC-8 parity", "keywords": "SOIC parity",
+                                                   "datasheet": "https://example.com/parity.pdf", "value": "PARITY"},
+                 doc=fp_tracked)
+            call("live_footprint_attach_step", {**f, "step_path": str(step)}, doc=fp_tracked)
+            call("live_embedded_files", {"document_spec": fp})
+            call("live_embed_file", {"document_spec": fp, "path": str(state["attachment"])}, doc=fp_tracked)
+            call("live_embed_file", {"document_spec": fp, "path": str(state["attachment"])}, expect_error=True)
+            call("live_embedded_files", {"document_spec": fp})
+            call("live_remove_embedded_file", {"document_spec": fp, "name": state["attachment"].name}, doc=fp_tracked)
+            call("live_embedded_files", {"document_spec": fp})
+            grid_round_trip(call, fp, 0.05)
+        call("live_footprint_summary", f)
+        call("live_footprint_view", {**f, "dpi": 600}, mode="png")
+        call("live_footprint_save", f)
+        call("live_footprint_get", {"lib_id": f"{fp_lib}:{name}"})
+    call("live_footprint_set_properties", {"footprint_document": docs["PARITY_HDR4"], "mounting": "tht",
+                                           "exclude_from_bom": True, "exclude_from_position_files": True})
+    call("live_footprint_save", {"footprint_document": docs["PARITY_HDR4"]})
+    # kicad-cli's 3D render may crash on this host (seen live with both servers): compared either way
+    # Each 3D view twice: whether KiCad renders the same pixels twice from one server
+    for _ in range(2):
+        call("live_footprint_view_3d", {"lib_id": f"{fp_lib}:PARITY_SOIC8"}, mode="png", expect_error=None)
+    call("live_footprint_view_3d", {"lib_id": f"{fp_lib}:PARITY_0603", "rotate": "0,0,0", "zoom": 2},
+         mode="png", expect_error=None)
+    call("live_footprint_check_model", {"lib_id": f"{fp_lib}:PARITY_SOIC8", "source_path": str(step)},
+         expect_error=None)
+    call("live_footprint_search", {"query": "PARITY", "limit": 10})
+    call("live_footprint_model_plan", {"package": "soic", "params": SOIC8, "body_height": 1.5,
+                                       "export_path": str(folder / "PARITY_SOIC8.step")})
+    call("live_footprint_libraries", {"scope": "project"})
+
+    # Park both library editors on stock parts before their scratch libraries go away
+    call("live_footprint_edit", {"lib_id": STOCK_FOOTPRINT})
+    call("live_symbol_edit", {"lib_id": "Device:R"})
+    call("live_symbol_unregister_library", {"nickname": sym_lib, "scope": "project"})
+    call("live_footprint_unregister_library", {"nickname": fp_lib, "scope": "project"})
+    # Registered again from the saved files, then removed for good
+    call("live_symbol_register_library", {"nickname": sym_lib, "path": sym_path, "scope": "project"})
+    call("live_footprint_register_library", {"nickname": fp_lib, "path": fp_path, "scope": "project"})
+    call("live_symbol_get", {"lib_id": f"{sym_lib}:PARITY_REG"})
+    call("live_footprint_get", {"lib_id": f"{fp_lib}:PARITY_0603"})
+    call("live_symbol_unregister_library", {"nickname": sym_lib, "scope": "project"})
+    call("live_footprint_unregister_library", {"nickname": fp_lib, "scope": "project"})
+    call("live_symbol_libraries", {"scope": "project"})
+    call("live_footprint_libraries", {"scope": "project"})
+
+
+# ---- Board -----------------------------------------------------------------------------------
+
+# Schematic content the board workflow transfers (added once for both servers, removed after)
+BOARD_PARTS = [("Regulator_Linear:AP2112K-3.3", 101.6, 76.2), ("Diode:1N4148W", 139.7, 76.2),
+               ("Diode:1N4148W", 139.7, 101.6)]
+
+
+def board_prepare(ctx, entries):
+    """Symbols with footprints and nets in the schematic, through the Python server's tools (setup,
+    not compared); undone after both servers have run."""
+    from mcp_parity import DEVNULL, server_env, servers, binary_path
+    make = dict(servers(binary_path()))["python"]
+    baseline = ctx.schematic.snapshot()
+    session = McpSession(make(server_env({"KICAD_API_SOCKET": ctx.checker.socket_url})), DEVNULL)
+    d = {"document_spec": ctx.spec}
+    try:
+        def tool(name, arguments):
+            result = session.call(name, arguments)
+            if result.get("isError"):
+                raise WorkflowError(f"board setup {name}: {text_of(result)}")
+            # A list comes back as one text content per element
+            values = [json.loads(c["text"]) for c in result.get("content", []) if c.get("type") == "text"]
+            return values if len(values) != 1 else values[0]
+        refs = [tool("live_schematic_place_symbol", {**d, "lib_id": lib, "x_mm": x, "y_mm": y})["reference"]
+                for lib, x, y in BOARD_PARTS]
+        listed = tool("live_schematic_symbol_pins", d)
+        pins = {p["reference"]: {pin["name"] or pin["number"]: pin["number"] for pin in p["pins"]}
+                for p in (listed if isinstance(listed, list) else [listed])}
+        u1, d1, d2 = refs
+        tool("live_schematic_connect_pin_to_net", {**d, "reference": u1, "pin": pins[u1]["VIN"], "net": "VIN"})
+        tool("live_schematic_connect_pin_to_net", {**d, "reference": u1, "pin": pins[u1]["EN"], "net": "VIN"})
+        tool("live_schematic_connect_pin_to_net", {**d, "reference": u1, "pin": pins[u1]["GND"], "net": "GND"})
+        tool("live_schematic_connect_pin_to_net", {**d, "reference": u1, "pin": pins[u1]["VOUT"], "net": "VOUT"})
+        tool("live_schematic_connect_pin_to_net", {**d, "reference": d1, "pin": pins[d1]["A"], "net": "VOUT"})
+        tool("live_schematic_connect_pin_to_net", {**d, "reference": d1, "pin": pins[d1]["K"], "net": "OUT"})
+        tool("live_schematic_connect_pin_to_net", {**d, "reference": d2, "pin": pins[d2]["A"], "net": "OUT"})
+        tool("live_schematic_connect_pin_to_net", {**d, "reference": d2, "pin": pins[d2]["K"], "net": "VIN"})
+        entries["notes"].append(f"setup: {refs} placed and connected in the schematic")
+        # KiCad lists the DRC severities in another order once design rules have been set: set them
+        # once (unchanged) so the first server does not read the fresh board's order and the second
+        # the order the first one's edits left
+        rules = ctx.checker.board_rules(ctx.board_doc)
+        ctx.checker.board_rules(ctx.board_doc, min_clearance=rules["min_clearance"])
+        # KiCad's undo and redo of an update from the schematic, once, outside the comparison
+        board_before = ctx.pcb.snapshot()
+        tool("live_pcb_update_from_schematic", {"board_document": ctx.board, "schematic_document": ctx.spec})
+        board_after = ctx.pcb.snapshot()
+        ctx.pcb.undo()
+        undone = ctx.pcb.snapshot()
+        ctx.pcb.undo(redo=True)
+        redone = ctx.pcb.snapshot()
+        lost = [first_difference(a, b) for a, b in paired(board_after, redone) if a != b]
+        entries["notes"].append(
+            f"KiCad: undo of live_pcb_update_from_schematic restores the board: {undone == board_before}; redo "
+            f"restores the update: {redone == board_after}" + (f" (differs: {lost})" if lost else ""))
+        entries["kicad_update_redo_ok"] = redone == board_after
+        restore(ctx.pcb, board_before)
+    except Exception:
+        session.close()
+        restore(ctx.schematic, baseline)
+        raise
+    session.close()
+    added = ctx.schematic.snapshot()
+
+    def cleanup():
+        if ctx.schematic.snapshot() != added:
+            raise WorkflowError("the board workflow changed the schematic setup")
+        restore(ctx.schematic, baseline)
+
+    return {"refs": refs, "cleanup": cleanup}
+
+
+def board_workflow(call, ctx, state):
+    spec, B = ctx.board, ctx.pcb
+    b = {"board_document": spec}
+    u1, d1, d2 = state["refs"]
+    call("live_pcb_open", {})
+    call("live_pcb_documents", {})
+    call("live_pcb_summary", b)
+    call("live_pcb_item_schema", {"type_name": "BoardText"})
+    page0 = call("live_pcb_page", b)
+    call("live_pcb_update_from_schematic", {**b, "schematic_document": ctx.spec, "dry_run": True}, mode="report")
+    # Not undone and redone here: KiCad's redo of an update loses pad nets (board_prepare records it)
+    call("live_pcb_update_from_schematic", {**b, "schematic_document": ctx.spec},
+         mode="report", doc=Tracked("board", ctx.checker, ctx.board_doc, ctx.board_items, undoable=False))
+    call("live_pcb_footprints", {**b, "pads": True})
+    call("live_pcb_nets", b, mode="nets")
+    call("live_pcb_place_footprint", {**b, "lib_id": "MountingHole:MountingHole_3.2mm_M3", "x_mm": 105,
+                                      "y_mm": 66, "reference": "H1"}, doc=B)
+    call("live_pcb_move", {**b, "moves": [{"reference": u1, "x_mm": 115, "y_mm": 75},
+                                          {"reference": d1, "x_mm": 130, "y_mm": 72, "rotation": 90},
+                                          {"reference": d2, "x_mm": 130, "y_mm": 82, "rotation": 90}]}, doc=B)
+    call("live_pcb_footprints", {**b, "references": [u1, d1, d2], "pads": True})
+    call("live_pcb_outline", {**b, "width_mm": 50, "height_mm": 35, "x_mm": 100, "y_mm": 60}, doc=B)
+    call("live_pcb_outline", {**b, "width_mm": 50, "height_mm": 35, "x_mm": 100, "y_mm": 60,
+                              "corner_radius_mm": 2}, doc=B)
+    call("live_pcb_page", b)
+    page = call("live_pcb_set_page", {**b, "size": "A4", "orientation": "landscape", "title": "live-demo - PCB",
+                                      "date": "2026-11-21", "revision": "B", "company": "Embeint Pty Ltd",
+                                      "comments": ["Live parity board"]})
+    if not page.get("fits"):
+        raise WorkflowError(f"the board page does not fit: {page}")
+    block = page0["title_block"]
+    call("live_pcb_set_page", {**b, "size": page0["paper"], "orientation": page0["orientation"],
+                               "title": block["title"], "date": block["date"], "revision": block["revision"],
+                               "company": block["company"], "comments": block["comments"]})
+
+    # Settings, each put back
+    origins = call("live_pcb_origins", b)
+    call("live_pcb_origins", {**b, "grid_origin_mm": [100, 60], "drill_origin_mm": [100, 95]})
+    call("live_pcb_origins", {**b, "grid_origin_mm": origins["grid_origin_mm"],
+                              "drill_origin_mm": origins["drill_origin_mm"]})
+    call("live_pcb_layers", b)
+    call("live_pcb_layers", {**b, "copper_layers": 4})
+    call("live_pcb_stackup", b)
+    call("live_pcb_impedance_width", {**b, "impedance_ohm": 50, "layer": "F.Cu"})
+    call("live_pcb_impedance_width", {**b, "impedance_ohm": 50, "layer": "In1.Cu"}, expect_error=None)
+    call("live_pcb_impedance_width", {**b, "impedance_ohm": 50, "layer": "F.Cu", "structure": "cpwg", "gap_mm": 0.2})
+    call("live_pcb_impedance_width", {**b, "impedance_ohm": 50, "structure": "stripline"}, expect_error=True)
+    call("live_pcb_layers", {**b, "copper_layers": 2})
+    stackup = call("live_pcb_stackup", b)
+    # A colour name is refused (colours are hex); colours are not changed: the stackup read does
+    # not report them, so they could not be put back
+    call("live_pcb_set_stackup", {**b, "soldermask_color": "Blue"}, expect_error=True)
+    call("live_pcb_set_stackup", {**b, "board_thickness_mm": 1.2, "finish": "ENIG", "impedance_controlled": True})
+    call("live_pcb_stackup", b)
+    call("live_pcb_set_stackup", {**b, "board_thickness_mm": stackup.get("board_thickness_mm"),
+                                  "finish": stackup.get("finish") or "None",
+                                  "impedance_controlled": bool(stackup.get("impedance_controlled"))})
+    rules = call("live_pcb_design_rules", b)
+    call("live_pcb_design_rules", {**b, "min_clearance": 0.15, "min_track_width": 0.15,
+                                   "track_widths_mm": [0.2, 0.4], "via_sizes_mm": [[0.6, 0.3]]})
+    call("live_pcb_design_rules", {**b, **{k: rules[k] for k in ("min_clearance", "min_track_width") if k in rules},
+                                   "track_widths_mm": rules.get("track_widths_mm", []),
+                                   "via_sizes_mm": rules.get("via_sizes_mm", [])})
+    call("live_pcb_custom_rules", b)
+    call("live_pcb_custom_rules", {**b, "action": "set", "rules": [
+        {"name": "parity_power", "condition": "A.NetName == '/VIN'", "constraints": [
+            {"type": "track_width", "min_mm": 0.3}]}]})
+    call("live_pcb_custom_rules", {**b, "action": "remove", "names": ["parity_power"]})
+    classes = call("live_pcb_netclasses", b)
+    call("live_pcb_netclasses", {**b, "classes": [{"name": "Power", "track_width_mm": 0.4, "clearance_mm": 0.2}],
+                                 "assign": {"/VIN": "Power", "/VOUT": "Power"}})
+    call("live_pcb_netclasses", b)
+    call("live_pcb_rf_net", {**b, "nets": ["/OUT"], "clearance_mm": 0.3, "keep_others_away_mm": 0.5})
+    call("live_pcb_netclasses", b)
+    call("live_pcb_custom_rules", b)
+    call("live_pcb_custom_rules", {**b, "action": "remove", "names": ["RF isolation"]})
+
+    # Copper: path check, tracks, routes, via, zone, graphics, keepouts
+    pads = {f["reference"]: {p["number"]: p for p in f["pads"]}
+            for f in call("live_pcb_footprints", {**b, "references": [u1, d1, d2], "pads": True})}
+    a = pads[d1]["2"]["position_mm"]
+    k = pads[d2]["1"]["position_mm"]
+    call("live_pcb_check_path", {**b, "points": [a, [a[0] + 5, a[1]]], "net": pads[d1]["2"].get("net", "")},
+         mode="route")
+    call("live_pcb_check_path", {**b, "points": [a, k], "net": ""}, mode="route")
+    call("live_pcb_add_tracks", {**b, "points": [a, k], "width_mm": 0.25}, mode="route", expect_error=None)
+    call("live_pcb_route", {**b, "from_reference": u1, "from_pad": "5", "to_reference": d1, "to_pad": "2",
+                            "width_mm": 0.25}, mode="route", doc=B)
+    call("live_pcb_drc", {**b, "schematic_parity": False}, mode="route")
+    call("live_pcb_undo", b)
+    call("live_pcb_route_net", {**b, "net": "/VIN", "width_mm": 0.3}, mode="route", doc=B)
+    call("live_pcb_drc", {**b, "schematic_parity": False}, mode="route")
+    call("live_pcb_check", {**b, "categories": ["clearance", "connectivity"]}, mode="route")
+    call("live_pcb_delete_routing", {**b, "net": "/VIN"}, doc=B)
+    call("live_pcb_add_via", {**b, "x_mm": 140, "y_mm": 90, "net": "/GND", "size_mm": 0.6, "drill_mm": 0.3}, doc=B)
+    call("live_pcb_add_tracks", {**b, "points": [[136, 90], [140, 90]], "net": "/GND", "width_mm": 0.3,
+                                 "check": False}, doc=B)
+    call("live_pcb_add_zone", {**b, "net": "/GND", "layers": ["B.Cu"], "inset_mm": 1.0, "name": "GND pour"}, doc=B)
+    call("live_pcb_refill_zones", b)
+    call("live_pcb_add_graphics", {**b, "shapes": [
+        {"kind": "text", "text": "PARITY", "position": [110, 90], "layer": "F.SilkS"},
+        {"kind": "line", "start": [102, 62], "end": [110, 62], "layer": "F.SilkS", "width": 0.15},
+        {"kind": "arc", "start": [112, 62], "mid": [114, 63], "end": [116, 62], "layer": "F.Fab"},
+        {"kind": "rect", "box": [140, 62, 146, 66], "layer": "F.Fab"},
+        {"kind": "circle", "center": [143, 85], "radius": 1.5, "layer": "F.SilkS"},
+        {"kind": "polygon", "points": [[118, 86], [122, 86], [120, 90]], "layer": "F.Fab"}]}, doc=B)
+    call("live_pcb_add_graphics", {**b, "shapes": [{"kind": "spline", "layer": "F.Fab"}]}, expect_error=True)
+    call("live_pcb_add_keepout", {**b, "points": [[102, 85], [108, 85], [108, 92], [102, 92]],
+                                  "name": "parity keepout"}, doc=B)
+    call("live_pcb_add_keepout", {**b, "around_reference": u1, "margin_mm": 0.5, "layers": ["B.Cu"]}, doc=B)
+    # Generic item edits on the board: create, update, delete (each one undo step)
+    text = {"@type": "type.googleapis.com/kiapi.board.types.BoardText", "id": {"value": str(uuid.uuid4())},
+            "text": {"position": {"x_nm": "125000000", "y_nm": "92000000"}, "text": "PARITY ITEM"},
+            "layer": "BL_F_SilkS"}
+    call("live_pcb_create_items", {**b, "items": [text]}, doc=B)
+    call("live_pcb_update_items", {**b, "items": [dict(text, text=dict(text["text"], text="PARITY ITEM 2"))]}, doc=B)
+    call("live_pcb_delete_items", {**b, "ids": [text["id"]["value"]]}, doc=B)
+    call("live_pcb_summary", b)
+    call("live_pcb_items", {**b, "kinds": ["vias", "zones"]})
+    call("live_pcb_check", b, mode="violations")
+    call("live_pcb_drc", b, mode="violations")
+    call("live_pcb_page", b)
+    call("live_pcb_view", {**b, "dpi": 72}, mode="png")
+    call("live_pcb_view", {**b, "layers": ["F.Cu", "Edge.Cuts"], "dpi": 100, "frame": False}, mode="png")
+    for _ in range(2):  # twice: whether KiCad renders the same pixels twice from one server
+        call("live_pcb_view_3d", {**b, "width": 600, "height": 400}, mode="png")
+    call("live_pcb_select", {**b, "references": [u1, d1]})
+    call("live_pcb_select", {**b, "references": [d2], "add": True})
+    call("live_pcb_focus", {**b, "references": [u1]})
+    call("live_pcb_select", {**b, "references": []})
+    call("live_pcb_delete_routing", {**b, "net": "/GND", "kinds": ["tracks"]}, doc=B)
+    call("live_pcb_undo", b)
+    call("live_pcb_undo", {**b, "redo": True})
+
+
+# ---- Shared ----------------------------------------------------------------------------------
+
+def shared_prepare(ctx, entries):
+    board_file = Path(ctx.board["project"]["path"]) / ctx.board["board_filename"]
+    if not board_file.exists():
+        # kicad-cli reads the saved board: save the (still empty) test board once, into live-demo
+        ctx.checker.board_save(ctx.board_doc)
+        entries["notes"].append(f"saved the unchanged test board to {board_file.name} for kicad-cli")
+    out = ctx.scratch / "cli"
+    out.mkdir()
+    return {"board_file": board_file, "out": out}
+
+
+def shared_finish(ctx, label):
+    out = ctx.scratch / "cli"
+    shutil.rmtree(out, ignore_errors=True)
+    out.mkdir()
+    return ""
+
+
+def shared_workflow(call, ctx, state):
+    for document in (ctx.spec, ctx.board):
+        d = {"document_spec": document}
+        grid = call("live_editor_grid", d)
+        # A preset size only: a new size becomes a preset for good, which the tools cannot remove
+        call("live_editor_grid", {**d, "size_mm": 0.635, "style": "lines", "visible": True})
+        call("live_editor_grid", {**d, "preset_index": grid["preset_index"], "style": grid["style"],
+                                  "visible": grid["visible"]})
+        call("live_editor_grid", d)
+    project = Path(ctx.spec["project"]["path"])
+    sch_file = project / f"{ctx.spec['project']['name']}.kicad_sch"
+    out = state["out"]
+    call("live_skill_reference", {})
+    call("live_skill_reference", {"skill": "kicad-house-style"})
+    call("live_kicad_cli", {"args": ["version"]})
+    call("live_kicad_cli", {"args": ["sch", "erc", "--format", "json", "-o", str(out / "erc.json"), str(sch_file)]})
+    call("live_kicad_cli", {"args": ["pcb", "drc", "--format", "json", "-o", str(out / "drc.json"),
+                                     str(state["board_file"])]})
+    call("live_kicad_cli", {"args": ["sch", "export", "netlist", "-o", str(project / "x.kicad_sch."),
+                                     str(sch_file)]}, expect_error=True)
+
+
+AREAS = [("schematic", schematic_workflow, None, None),
+         ("libraries", library_workflow, library_prepare, library_finish),
+         ("board", board_workflow, board_prepare, None),
+         ("shared", shared_workflow, shared_prepare, shared_finish)]
