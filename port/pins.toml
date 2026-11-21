@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Canonical source revisions. west.yml is a checked projection of [solidcore].
+schema_version = 1
+
+[kicad]
+url = "https://github.com/KiCad/kicad-source-mirror.git"
+revision = "4cf939778df04d2b747bb2c4714fc5014a7565c7"
+
+[fork]
+url = "https://github.com/Embeint/embeint-kicad-eda.git"
+initial_rust_revision = "3cd2c9afc6d2749b7d3a79fd1deaa86ac51cb3a7"
+
+[solidcore]
+url = "https://github.com/tangency-labs/solidcore.git"
+revision = "7a588fa284765a83823293ae20b84da8356ab479"
+solidcraft_revision = "93d5492ef295a1124664d36e967f58a81a76d7d2"
+path = ".port-deps/solidcore"
+
+[tools]
+west_version = "1.5.0"
