@@ -3,6 +3,7 @@
 import importlib.util
 import gzip
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -12,7 +13,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 from extractor.model import PIN, classify, digest, expand_virtual, materialize_definitions, layers, weighted_dag, write_json, write_graph, write_cache, read_json, wx_class
-from split_units import dump, split
+from split_units import dump, normalize_eof_ranges, split
 from validate_units import validate
 import drift_report
 from extractor.reconcile_database import compare, cmake_options
@@ -52,6 +53,25 @@ def save_fixture(root, graph, inventory, target=1):
 
 
 class GraphTests(unittest.TestCase):
+    def test_exclusive_eof_recovery_counts_only_verified_physical_lines(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            graph, inventory = fixture(root)
+            fn = graph["functions"]["a.cpp"]
+            data = (root / "a.cpp").read_bytes()
+            fn.update(end=2, start_offset=0, end_offset=len(data), range_kind="enclosing-declaration",
+                      sha256=digest(data.replace(b"\r\n", b"\n")))
+            corrections = normalize_eof_ranges(graph, inventory, root)
+            self.assertEqual(fn["end"], 1)
+            self.assertEqual(fn["clang_end_line"], 2)
+            self.assertEqual(corrections[0]["source_bytes_sha256"], digest(data))
+            units, report = split(graph, inventory)
+            self.assertEqual(report["accounted_lines"], 2)
+            self.assertEqual(normalize_eof_ranges(graph, inventory, root), [])
+            fn.update(end=2, end_offset=len(data) - 1)
+            with self.assertRaisesRegex(ValueError, "Unproven"):
+                normalize_eof_ranges(graph, inventory, root)
+
     def test_same_usr_in_separate_executables_keeps_each_body_owned(self):
         first = {"file": "one.cpp", "start": 1, "end": 2, "wx": []}
         second = {"file": "two.cpp", "start": 3, "end": 4, "wx": ["wxString"]}
@@ -117,6 +137,7 @@ class GraphTests(unittest.TestCase):
             path = cache / "key.json"
             original = b'{ "status": "parse-error", "functions": {}, "diagnostics": ["failure"] }\n'
             path.write_bytes(original)
+            os.utime(path, (1, 1))
             (cache / "pending.json").write_text('{"status":')
             result = compact(cache, 0)
             self.assertEqual(len(result["entries"]), 1)

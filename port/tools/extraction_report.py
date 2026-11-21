@@ -112,8 +112,13 @@ def main():
     units = [tomllib.loads(path.read_text(encoding="utf-8")) for path in sorted(a.units_dir.glob("*.toml"))]
     if not units:
         raise ValueError("no unit records to measure")
+    unit_report = read_json(a.units_report)
     result = {"schema_version": 1, "runs": runs,
-              "units": measure_units(units, read_json(a.units_report)),
+              "units": measure_units(units, unit_report),
+              "canonical": {"artifacts": [fingerprint(a.units_report.parent / f"{file}.json")
+                                          for file in ("graph", "inventory", "units")],
+                            "range_normalizations": unit_report.get("range_normalizations", []),
+                            "range_postprocessing": unit_report.get("range_postprocessing")},
               "reconciliation": reconciliation,
               "interpretation": "Raw exclusions remain non-successes; reconciled coverage is independent. Linux active branches only. No port or oracle parity is claimed."}
     write_json(a.output, result)

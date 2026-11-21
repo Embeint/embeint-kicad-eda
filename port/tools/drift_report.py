@@ -57,6 +57,7 @@ def report(root, graph, units, target="HEAD", include_todo=False):
     git(root, "rev-parse", "--verify", pin + "^{commit}")
     git(root, "rev-parse", "--verify", base + "^{commit}")
     target_sha = git(root, "rev-parse", "--verify", target + "^{commit}").strip()
+    changed_paths = set(git(root, "diff", "--name-only", "--no-renames", "-z", pin, target_sha).split("\0")) - {""}
     by_file = defaultdict(list)
     for unit in units:
         if not include_todo and unit["status"] not in ("partial", "green"):
@@ -67,6 +68,8 @@ def report(root, graph, units, target="HEAD", include_todo=False):
             by_file[graph["functions"][usr]["file"]].append((unit["id"], usr))
     affected, files = [], []
     for path, entries in sorted(by_file.items()):
+        if path not in changed_paths:
+            continue
         diff = git(root, "diff", "--no-ext-diff", "--no-renames", "--unified=0", pin, target_sha, "--", path)
         if not diff:
             continue
@@ -101,12 +104,10 @@ def report(root, graph, units, target="HEAD", include_todo=False):
             continue
         function_files = {graph["functions"][usr]["file"] for usr in unit["functions"]}
         for path in unit["upstream"]:
-            if (unit["id"], path) in seen or path in function_files:
+            if path not in changed_paths or (unit["id"], path) in seen or path in function_files:
                 continue
-            if git(root, "diff", "--name-only", pin, target_sha, "--", path).strip():
-                affected.append({"unit": unit["id"], "file": path, "function": None,
-                                 "reason": "owned declarations/source changed; unit review required"})
-    changed_paths = set(git(root, "diff", "--name-only", "--no-renames", "-z", pin, target_sha).split("\0")) - {""}
+            affected.append({"unit": unit["id"], "file": path, "function": None,
+                             "reason": "owned declarations/source changed; unit review required"})
     input_changes = defaultdict(set)
     for tu in graph.get("translation_units", []):
         included = set(tu.get("includes", [])) | {tu["file"]}

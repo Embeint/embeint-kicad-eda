@@ -50,6 +50,12 @@ failed commands, including worker errors, remain visible. A missing source or
 unreadable manifest fails extraction instead of silently reducing its scope.
 `--match` and `--limit` are diagnostic subsets and explicitly set
 `compile_database_complete=false`.
+Build-generated and external headers are outside the tracked-source fingerprint;
+keep them frozen throughout extraction and cache reuse. Regenerating those inputs
+requires a separate cache or explicit invalidation. The private build-input
+fingerprints and observed tool environment in `generated/evidence/` supplement
+the source inventory; historical raw cache observations remain identified
+separately.
 
 ## Outputs and limits
 
@@ -71,6 +77,13 @@ enclosing declaration supplies a conservative range, tagged
 own location. Its fingerprint and drift scope cover that wider range. The
 measurement reports how many definitions needed this recovery rather than
 inventing token offsets or dropping them.
+An enclosing translation-unit extent may end at the empty position after its
+last newline. The splitter converts that exclusive EOF to an inclusive physical
+line only after checking the original byte length, source and body hashes.
+`range_normalizations` retains the original clang end line and byte fingerprint;
+`range_postprocessing` records the input graph and splitter hashes. Original
+reconciled extraction artifacts remain separate from this canonical graph, and
+the measurement fingerprints both stages.
 Separate executables can define the same USR at different source locations
 (KiCad has three observed `main` bodies). Additional locations get stable
 `@definition:<hash>` keys, retain the original `clang_usr`, and appear in
