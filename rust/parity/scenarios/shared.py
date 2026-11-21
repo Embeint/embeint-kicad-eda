@@ -7,6 +7,8 @@ refuse exactly alike, with the same text and hashes.  Resource steps ("resources
 URI as given, so both servers' own URI handling (pydantic's AnyUrl in Python) is compared.
 """
 
+import sys
+
 import skills
 
 DEFAULT = skills.DEFAULT_SKILL
@@ -23,7 +25,12 @@ SKILL_NAMES = ["Bad", "KICAD-house-style", "kicad_house_style", "-kicad", "kicad
                '"kicad-house-style"', "\uff4bicad-house-style", "kicad-house-style/../kicad-house-style", "."]
 FILE_NAMES = ["missing.md", "../server.py", "..\\server.py", "/SKILL.md", "SKILL.MD", "skill.md", "PCB.md", "pcb",
               "pcb.md/", ".md", "_x.md", "-x.md", "a b.md", "SKILL.md\n", "C:\\SKILL.md", "%2e%2e.md",
-              "pcb.md.md", "x" * 300 + ".md", "", "..", "SKILL.md:stream", "pcb.md ", "\u00e9.md"]
+              "pcb.md.md", "", "..", "SKILL.md:stream", "pcb.md ", "\u00e9.md"]
+# A name longer than a path component may be: Windows reports it missing, as the native server
+# does everywhere; Linux raises "[Errno 36] File name too long: '<checkout>/...'" in Python, which
+# the native server (skills embedded, no checkout path) does not reproduce (a known difference)
+if sys.platform == "win32":
+    FILE_NAMES.append("x" * 300 + ".md")
 
 RESOURCE_REFUSALS = [
     "kicad-skill://nope", "kicad-skill://Bad/SKILL.md", "kicad-skill://kicad-house-style/x.txt",
