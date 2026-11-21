@@ -8,6 +8,7 @@ No network, clock, working-tree designs or executable Markdown are used in the b
 
 import argparse
 from collections import Counter
+import gzip
 import html
 import json
 from pathlib import Path, PurePosixPath
@@ -44,6 +45,9 @@ def read_text(root, relative):
     resolved = path.resolve()
     if not resolved.is_relative_to(root.resolve()):
         raise ValueError(f"{relative}: source escapes the repository")
+    if path.suffix == ".gz":
+        with gzip.open(path, "rt", encoding="utf-8") as stream:
+            return stream.read()
     return path.read_text(encoding="utf-8")
 
 
@@ -191,7 +195,7 @@ def record_counts(root, uid, directory):
                     errors += 1
         ids.add(case)
         count += 1
-    return {"path": path, "records": count, "deferred": deferred, "domain_errors": errors}
+    return {"path": path, "records": count, "deferred": deferred, "failures": errors}
 
 
 def summary(units):
@@ -203,14 +207,17 @@ def summary(units):
 
 
 def load_extraction(root):
-    artifacts = {}
+    artifacts, paths = {}, {}
     for name in ("graph", "inventory", "units"):
         path = f"port/extractor/generated/{name}.json"
+        if name == "graph" and not (root / path).exists():
+            path += ".gz"
         if (root / path).exists():
             data = json_load(read_text(root, path))
             if not isinstance(data, dict) or data.get("schema_version") != 1:
                 raise ValueError(f"{path}: unsupported extraction schema")
             artifacts[name] = data
+            paths[name] = path
     if not artifacts:
         return None
     provenance = artifacts.get("inventory", artifacts.get("graph", {})).get("provenance", {})
@@ -232,7 +239,7 @@ def load_extraction(root):
         if any(not isinstance(edge.get(k), str) or not UNIT_ID.fullmatch(edge[k])
                for k in ("caller", "callee")):
             raise ValueError("back-edge caller/callee must be unit ids")
-    return {"artifacts": sorted(artifacts), "provenance": provenance, "files": entries,
+    return {"artifacts": sorted(artifacts), "paths": paths, "provenance": provenance, "files": entries,
             "function_count": len(functions) if "graph" in artifacts else None,
             "edge_count": len(graph.get("edges", [])) if "graph" in artifacts else None,
             "function_wx": dict(Counter(f.get("wx_class", "unknown") for f in functions.values())),
@@ -354,7 +361,7 @@ def inventory_body(extraction, units, details=False):
     body += 'It does not establish Windows, macOS or inactive-branch coverage. These diagnostics do not redefine the plan phase 0 gate.</p>'
     body += '<p>Back-edges recorded by the weighted cycle breaker: ' + (
         str(len(extraction["back_edges"])) if "units" in extraction["artifacts"] else "Not available") + '.</p>'
-    body += '<p>' + " · ".join(source_link(f"port/extractor/generated/{name}.json", name + ".json")
+    body += '<p>' + " · ".join(source_link(extraction["paths"][name], Path(extraction["paths"][name]).name)
                                 for name in extraction["artifacts"]) + '</p>'
     if not details:
         return body + '<p><a href="inventory.html">Inspect coverage, source accounting and limitations</a>.</p>'
@@ -396,9 +403,11 @@ def build(root, out):
     for unit in declared_units:
         unit = dict(unit, declared_status=unit["status"])
         stored = goldens[unit["id"]]
-        if unit["status"] == "green" and (unit.get("coverage_gaps") or not unit["tests"]
-                                         or (stored and stored["deferred"])):
-            unit["status"] = "partial"
+        if unit["status"] == "green":
+            if stored and stored["failures"]:
+                unit["status"] = "blocked"
+            elif unit.get("coverage_gaps") or not unit["tests"] or (stored and stored["deferred"]):
+                unit["status"] = "partial"
         units.append(unit)
     stats = summary(units)
     out.mkdir(parents=True, exist_ok=True)
@@ -437,6 +446,7 @@ def build(root, out):
 <p><strong>{stats['count']['green']:,} / {stats['units']:,} units declared green without recorded contradictions</strong>.
 {stats['count']['partial']:,} partial units remain incomplete. Deferred cases never qualify as green.</p>
 <p>A green declaration contradicted by stored deferrals, coverage gaps or missing tests is reported as partial here;
+stored failed replies are reported as blocked.
 the original declaration remains visible on its unit page.</p>
 <p>{stats['green_lines']:,} / {stats['total_lines']:,} estimated upstream lines in green units;
 {stats['partial_lines']:,} lines in partial units, shown separately.</p></section>
@@ -449,7 +459,7 @@ Zero records cannot satisfy it. Unit status, case counts, golden records and ble
 <section><h2>Inventory coverage</h2>{inventory_body(extraction, units)}</section>
 <section><h2>Comparison contract</h2><p>Unit oracle results compare exactly, with no tolerance.
 Stored goldens record expectations; they prove neither correctness nor a current runtime pass.
-Unported or deferred replies remain incomplete. Domain errors are recorded outcomes, distinct from harness failures and deferrals.</p>
+Unported or deferred replies remain incomplete. Other error replies are failures; legitimate upstream operation statuses belong inside result.</p>
 <p>Public test data only: KiCad QA data, demos, official libraries and generated cases.</p></section>'''
     write("index.html", "Progress overview", overview)
     rows, layer_rows, back_rows = [], [], []
@@ -474,7 +484,10 @@ Unported or deferred replies remain incomplete. Domain errors are recorded outco
         stored = goldens[uid]
         warning = ""
         if unit["declared_status"] != unit["status"]:
-            warning += '<p class="warning">Declared status: green. Reported as partial because recorded evidence cannot support green.</p>'
+            warning += f'<p class="warning">Declared status: green. Reported as {unit["status"]} because recorded evidence cannot support green.</p>'
+        if stored and stored["failures"]:
+            warning += (f'<p class="warning">{stored["failures"]} stored failed replies: this evidence cannot support green. '
+                        'Failures are separate from deferrals.</p>')
         if stored and stored["deferred"]:
             warning += (f'<p class="warning">{stored["deferred"]} stored deferred replies: this evidence cannot support green. '
                        'The declared status above is preserved for audit.</p>')
