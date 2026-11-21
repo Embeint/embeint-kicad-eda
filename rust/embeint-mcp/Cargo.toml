@@ -22,11 +22,13 @@ embeint-ipc.workspace = true
 embeint-layout.workspace = true
 prost-reflect = "0.16"
 regex = { version = "1.11", default-features = false, features = ["std", "unicode"] }
+# Held at 0.8.1: 0.8.2 and later need Rust 1.87, above the declared minimum of 1.85
+ruzstd = "=0.8.1"
 serde_json.workspace = true
 sha2 = "0.10"
 # The private preview directory of live_schematic_view (Python's tempfile.TemporaryDirectory)
 tempfile = "3.20"
-tokio = { version = "1", features = ["rt", "io-std", "io-util", "sync", "macros", "time"] }
+tokio = { version = "1", features = ["rt", "io-std", "io-util", "sync", "macros", "time", "process"] }
 url = "2.5"
 uuid = { version = "1", features = ["v4"] }
 yaml-rust2 = { version = "0.13.1", default-features = false }
