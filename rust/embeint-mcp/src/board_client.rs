@@ -135,8 +135,14 @@ fn py_enum_name(full_name: &str, number: i64) -> Result<String, Error> {
     let short = full_name.rsplit('.').next().unwrap_or(full_name);
     proto::pool()
         .get_enum_by_name(full_name)
-        .and_then(|e| i32::try_from(number).ok().and_then(|n| e.get_value(n)))
-        .map(|v| v.name().to_owned())
+        // The first value declared with the number (file order), as Python names an aliased one
+        .and_then(|e| {
+            e.enum_descriptor_proto()
+                .value
+                .iter()
+                .find(|v| i64::from(v.number()) == number)
+                .map(|v| v.name().to_owned())
+        })
         .ok_or_else(|| {
             Error::Value(format!(
                 "Enum {short} has no name defined for value {number}"
