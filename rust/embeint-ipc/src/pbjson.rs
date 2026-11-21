@@ -296,7 +296,7 @@ pub fn py_repr(value: &Json) -> String {
         Json::Bool(true) => "True".into(),
         Json::Bool(false) => "False".into(),
         Json::Number(n) => n.to_string(),
-        Json::String(s) => str_repr(s),
+        Json::String(s) => py_str_repr(s),
         Json::Array(items) => {
             format!(
                 "[{}]",
@@ -313,10 +313,11 @@ pub fn py_repr(value: &Json) -> String {
     }
 }
 
-/// Python's `repr(text)`: single quotes unless the text holds only single quotes, with
-/// backslashes, the quote and ASCII control characters escaped (a Windows path's backslashes are
-/// doubled).  Other characters are kept, as Python keeps every printable one.
-fn str_repr(text: &str) -> String {
+/// Python's `repr(text)`: single quotes unless the text has a single quote and no double quote;
+/// the quote, backslashes, tabs, newlines and carriage returns escaped, other control characters
+/// as `\xNN`.  (Python also escapes the other non-printable Unicode characters; those are rare in
+/// names and messages and are kept as they are here.)
+fn py_str_repr(text: &str) -> String {
     let quote = if text.contains('\'') && !text.contains('"') {
         '"'
     } else {
@@ -330,14 +331,14 @@ fn str_repr(text: &str) -> String {
             '\t' => out.push_str("\\t"),
             '\n' => out.push_str("\\n"),
             '\r' => out.push_str("\\r"),
-            _ if ch == quote => {
+            c if c == quote => {
                 out.push('\\');
-                out.push(ch);
+                out.push(c);
             }
-            _ if (ch as u32) < 0x20 || ch as u32 == 0x7f => {
-                out.push_str(&format!("\\x{:02x}", ch as u32));
+            c if (c as u32) < 0x20 || (0x7f..=0xa0).contains(&(c as u32)) || c == '\u{ad}' => {
+                let _ = write!(out, "\\x{:02x}", c as u32);
             }
-            _ => out.push(ch),
+            c => out.push(c),
         }
     }
     out.push(quote);
@@ -995,9 +996,22 @@ mod tests {
         proto::pool().get_message_by_name(name).expect(name)
     }
 
-    /// Python 3.12's repr() of the same strings.
+    /// repr() as Python 3 writes it (checked in the MCP interpreter).
     #[test]
     fn repr_escapes_like_python() {
+        assert_eq!(py_repr(&json!("a'b")), r#""a'b""#);
+        assert_eq!(py_repr(&json!("a'b\"c")), r#"'a\'b"c'"#);
+        assert_eq!(py_repr(&json!(r"C:\tmp\x")), r"'C:\\tmp\\x'");
+        assert_eq!(py_repr(&json!("l1\nl2\t\r\u{1}\u{7f}é")), r"'l1\nl2\t\r\x01\x7fé'");
+        assert_eq!(
+            py_repr(&json!({"path": ["C:\\a"], "n": 1, "ok": true, "x": null})),
+            r"{'path': ['C:\\a'], 'n': 1, 'ok': True, 'x': None}"
+        );
+    }
+
+    /// Python 3.12's repr() of the same strings.
+    #[test]
+    fn repr_escapes_windows_paths_like_python() {
         assert_eq!(
             py_repr(&json!(r"C:\Temp\a.png")),
             r"'C:\\Temp\\a.png'".to_owned()
