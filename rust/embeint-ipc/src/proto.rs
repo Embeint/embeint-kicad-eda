@@ -4,7 +4,9 @@
 use std::sync::OnceLock;
 
 use prost::Message as _;
-use prost_reflect::{DescriptorPool, DynamicMessage, MessageDescriptor, ReflectMessage, Value};
+use prost_reflect::{
+    DescriptorPool, DynamicMessage, EnumDescriptor, MessageDescriptor, ReflectMessage, Value,
+};
 use serde_json::Value as Json;
 
 use crate::pbjson;
@@ -124,14 +126,54 @@ pub fn list_field(message: &DynamicMessage, name: &str) -> Vec<Value> {
 pub fn enum_name(enum_full_name: &str, number: i64) -> String {
     pool()
         .get_enum_by_name(enum_full_name)
-        .and_then(|e| i32::try_from(number).ok().and_then(|n| e.get_value(n)))
-        .map_or_else(|| number.to_string(), |v| v.name().to_owned())
+        .and_then(|e| i32::try_from(number).ok().and_then(|n| value_name(&e, n)))
+        .unwrap_or_else(|| number.to_string())
+}
+
+/// The name Python gives an enum number: the first value declared with it, in file order.  (An
+/// enum with aliases declares several names for one number; prost-reflect's `get_value` may
+/// return any of them.)
+pub fn value_name(descriptor: &EnumDescriptor, number: i32) -> Option<String> {
+    descriptor
+        .enum_descriptor_proto()
+        .value
+        .iter()
+        .find(|value| value.number() == number)
+        .map(|value| value.name().to_owned())
+}
+
+/// Every value name in declaration order, as Python's `enum_type.values` lists them
+/// (prost-reflect's `values()` orders aliases differently).
+pub fn value_names(descriptor: &EnumDescriptor) -> Vec<String> {
+    descriptor
+        .enum_descriptor_proto()
+        .value
+        .iter()
+        .map(|value| value.name().to_owned())
+        .collect()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
+
+    /// DrcErrorType declares DRCET_LINE_WIDTH and later DRCET_TEXT_THICKNESS as 53; Python names
+    /// 53 by the first and lists the values in declaration order.
+    #[test]
+    fn aliased_enum_values_are_named_as_python_names_them() {
+        assert_eq!(
+            enum_name("kiapi.board.DrcErrorType", 53),
+            "DRCET_LINE_WIDTH"
+        );
+        let names = value_names(&pool().get_enum_by_name("kiapi.board.DrcErrorType").unwrap());
+        let line = names.iter().position(|n| n == "DRCET_LINE_WIDTH").unwrap();
+        let text = names
+            .iter()
+            .position(|n| n == "DRCET_TEXT_THICKNESS")
+            .unwrap();
+        assert!(line < text);
+    }
 
     #[test]
     fn the_protocol_compiles_and_packs() {
