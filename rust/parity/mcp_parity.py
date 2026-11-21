@@ -74,9 +74,10 @@ DROP = object()  # a fixture action: receive the request and never reply
 CLOSE = object()  # a fixture action: receive the request, then close the endpoint without replying
 TOKEN = "fixture-token-A"
 OP_PATTERN = re.compile(r"mcp-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
-# Random UUIDs (version 4) a server generates for new items, as uuid.uuid4() does; scenarios with
-# random_ids=True compare them by order of appearance (see normalize_uuids)
-UUID4_PATTERN = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}")
+# uuid.uuid4() as a server writes it (scenarios with random_ids=True)
+ITEM_ID_PATTERN = re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b")
+# The random part of the temporary directories the servers create (prefix, then 8 characters)
+TEMP_NAME_PATTERN = re.compile(r"(kicad-live-[a-z0-9]+-)[A-Za-z0-9_]{8}")
 
 DEVNULL = open(os.devnull, "w")  # noqa: SIM115 - the servers' stderr, for the whole run
 
@@ -1214,31 +1215,31 @@ def endpoint_dir(label):
     return Path(tempfile.mkdtemp(prefix="emb-"))
 
 
-def normalize(value, ids):
-    """Replace generated operation ids (mcp-<uuid>) with <op1>, <op2>... in order of appearance."""
+def normalize(value, ids, generated=None):
+    """Replace generated operation ids (mcp-<uuid>) with <op1>, <op2>... in order of appearance.
+    With generated (a dict, for scenarios with random_ids=True), also replace version-4 UUIDs
+    (the ids a server gives the items it builds) with <id1>, <id2>...; such scenarios give their
+    own fixture items ids that are not version 4, so those stay as they are."""
     if isinstance(value, dict):
-        return {k: normalize(v, ids) for k, v in value.items()}
+        return {k: normalize(v, ids, generated) for k, v in value.items()}
     if isinstance(value, list):
-        return [normalize(v, ids) for v in value]
+        return [normalize(v, ids, generated) for v in value]
     if isinstance(value, str):
-        return OP_PATTERN.sub(lambda m: ids.setdefault(m.group(0), f"<op{len(ids) + 1}>"), value)
+        value = OP_PATTERN.sub(lambda m: ids.setdefault(m.group(0), f"<op{len(ids) + 1}>"), value)
+        if generated is not None:
+            value = ITEM_ID_PATTERN.sub(
+                lambda m: generated.setdefault(m.group(0), f"<id{len(generated) + 1}>"), value)
+        return value
     return value
 
 
-def normalize_uuids(value, uuids):
-    """Replace version 4 UUIDs with <uuid1>, <uuid2>... in order of appearance: for edits that
-    create items with new random ids (uuid.uuid4() in Python), so both servers' requests compare."""
-    return json.loads(UUID4_PATTERN.sub(lambda m: uuids.setdefault(m.group(0), f"<uuid{len(uuids) + 1}>"),
-                                        json.dumps(value)))
-
-
-def request_log(requests, ids):
+def request_log(requests, ids, generated=None):
     log = []
     for request in requests:
         entry = json_format.MessageToDict(request, preserving_proto_field_name=True)
         if entry.get("header", {}).get("client_name"):
             entry["header"]["client_name"] = "<client>"
-        log.append(normalize(entry, ids))
+        log.append(normalize(entry, ids, generated))
     return log
 
 
@@ -1281,11 +1282,13 @@ async def run_scenario(item, make_params):
                 peer.stop()
         shutil.rmtree(directory, ignore_errors=True)
     ids = {}
-    requests = [request_log(peer.requests, ids) for peer in peers]
-    if item.get("random_ids"):
-        requests = normalize_uuids(requests, {})
+    generated = {} if item.get("random_ids") else None
+    requests = [request_log(peer.requests, ids, generated) for peer in peers]
     errors = [e for peer in peers for e in peer.errors]
-    results = normalize(results, ids)
+    results = normalize(results, ids, generated)
+    # Temporary directories (tempfile.TemporaryDirectory(prefix=...)) end in random characters
+    requests = json.loads(TEMP_NAME_PATTERN.sub(r"\1<tmp>", json.dumps(requests)))
+    results = json.loads(TEMP_NAME_PATTERN.sub(r"\1<tmp>", json.dumps(results)))
     escaped = json.dumps(str(directory))[1:-1]
     results = json.loads(json.dumps(results).replace(escaped, "<dir>"))
     # The text of a tool result is JSON itself, so the directory appears escaped twice there
