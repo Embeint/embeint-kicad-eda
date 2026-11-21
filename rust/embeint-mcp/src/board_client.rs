@@ -3319,19 +3319,21 @@ mod tests {
             Box::new(move |_| build(full_name, value.clone()))
         }
 
+        /// Answers one connection; None when it closes before sending a request (the client's
+        /// reachability probe connects and closes on Unix sockets).
         async fn serve<S: AsyncRead + AsyncWrite + Unpin>(
             stream: &mut S,
             kind: &str,
             respond: &Respond,
-        ) -> DynamicMessage {
+        ) -> Option<DynamicMessage> {
             stream
                 .write_all(&[0, b'S', b'P', 0, 0, 0x31, 0, 0])
                 .await
-                .unwrap();
+                .ok()?;
             let mut head = [0u8; 8];
-            stream.read_exact(&mut head).await.unwrap();
+            stream.read_exact(&mut head).await.ok()?;
             let mut frame = [0u8; 9];
-            stream.read_exact(&mut frame).await.unwrap();
+            stream.read_exact(&mut frame).await.ok()?;
             let length = u64::from_be_bytes(frame[1..].try_into().unwrap()) as usize;
             let mut message = vec![0u8; length];
             stream.read_exact(&mut message).await.unwrap();
@@ -3359,7 +3361,7 @@ mod tests {
             out.extend_from_slice(&message[..4]);
             out.extend_from_slice(&reply);
             stream.write_all(&out).await.unwrap();
-            command
+            Some(command)
         }
 
         /// Starts the endpoint; returns a client connected to it and the task that ends with the
@@ -3387,7 +3389,7 @@ mod tests {
                         let mut connected = server;
                         // The next instance is listed before this reply, as KiCad's endpoint is
                         server = ServerOptions::new().create(&name).unwrap();
-                        commands.push(serve(&mut connected, kind, &respond).await);
+                        commands.push(serve(&mut connected, kind, &respond).await.unwrap());
                     }
                     commands
                 })
@@ -3398,8 +3400,14 @@ mod tests {
                 tokio::spawn(async move {
                     let mut commands = Vec::new();
                     for (kind, respond) in script {
-                        let (mut stream, _) = listener.accept().await.unwrap();
-                        commands.push(serve(&mut stream, kind, &respond).await);
+                        // Connections that close unanswered are reachability probes: skip them
+                        loop {
+                            let (mut stream, _) = listener.accept().await.unwrap();
+                            if let Some(command) = serve(&mut stream, kind, &respond).await {
+                                commands.push(command);
+                                break;
+                            }
+                        }
                     }
                     commands
                 })
