@@ -221,7 +221,7 @@ def check_schema(binary, failures):
         failures.append("schema: commands.json is out of date; run mcp_parity.py --write-schemas")
     for key in ("protocolVersion", "capabilities", "instructions"):
         if py_init.get(key) != rs_init.get(key):
-            failures.append(f"schema: initialize {key} differs: {py_init[key]} != {rs_init[key]}")
+            failures.append(f"schema: initialize {key} differs: {py_init.get(key)} != {rs_init.get(key)}")
     if rs_init["serverInfo"]["name"] != py_init["serverInfo"]["name"]:
         failures.append("schema: serverInfo name differs")
     return {"python_tools": len(py_tools), "rust_tools": len(rs_tools), "compared": sorted(rs_tools),

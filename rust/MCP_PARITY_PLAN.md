@@ -12,7 +12,7 @@ Every Python tool, resource, resource template and generic command is implemente
 `surface_coverage.py --require-complete` passes (116 tools, 2 resources, 1 template, 147
 commands; nothing missing or different) and all 641 offline fixtures compare identical on
 Windows and in CI on Linux x86_64 and arm64. The remaining 97 tools were ported in six areas
-(PRs #25 to #31); [MCP.md](MCP.md) records the results, the known differences and the
+(PRs #26 to #31, after the split in #25); [MCP.md](MCP.md) records the results, the known differences and the
 dependencies.
 
 Against the completion criteria below:
@@ -24,7 +24,8 @@ Against the completion criteria below:
 3. **Behavioural evidence per operation**: offline, every tool has fixtures (success, refusals,
    KiCad errors, lost replies and reconciliation for edits); live evidence is still limited to
    the first 19 tools and the manufacturing tools.
-4. **Live workflow qualification**: in progress across every area, on a disposable project.
+4. **Live workflow qualification**: not yet recorded for the new areas; it is the next step
+   (see [MCP.md](MCP.md), Next steps).
 5. **All KiCad functions have a coverage decision**: not started beyond the IPC operation audit.
 
 The previous inventory (2026-11-20, 19 of 116 tools) is in the git history of this file.

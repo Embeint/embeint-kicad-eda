@@ -30,7 +30,8 @@ As in the Python client, every request uses a new connection and is never resent
 ### Tools
 
 Every Python tool, with its name, schema and results. Each area of tools is a module in
-`embeint-mcp/src/tools/` with its fixtures in `parity/scenarios/<area>.py`:
+`embeint-mcp/src/tools/` with its fixtures in `parity/scenarios/<area>.py` (the core tools'
+fixtures are in `mcp_parity.py` itself):
 
 | Area (module) | Tools | Ported from |
 | --- | --- | --- |
@@ -161,7 +162,7 @@ MCP client.
 
 ## Results (2026-11-21, complete surface)
 
-The remaining 97 tools were ported in six areas (PRs #25 to #31), each reviewed by a separate
+The remaining 97 tools were ported in six areas (PRs #26 to #31, after the split in #25), each reviewed by a separate
 agent and its findings fixed before merging; CI ran the offline suite on Windows and Linux
 (x86_64 and arm64) for every PR.
 
@@ -260,9 +261,11 @@ Responsiveness against the live KiCad on Windows (median of 40 calls, same sessi
 
 ## Known differences
 
-- **Server identity.** `serverInfo.version` is `0.1.0+rust`; the instructions are the Python
-  server's, word for word. The manifest adds `"implementation": "rust"` and reports
-  `"distribution": "source build"`.
+- **Server identity.** `serverInfo.version` is `0.1.0+rust` (`0.1.0+rust.g<revision>` in a
+  package build); the instructions are the Python server's, word for word. The manifest adds
+  `"implementation": "rust"`, reports `"distribution": "source build"` and leaves
+  `application_version` and `source_revision` null, which the bundled Python server fills in; its
+  limitations say so.
 - **Arguments beyond JSON.** NaN and infinite numbers, which Python accepts as text such as
   `"nan"` or `"1e400"`, are refused; integers of any size are kept exactly, as pydantic does.
 - **Validation text.** Arguments that fail FastMCP's pydantic validation are refused with an error
@@ -307,7 +310,11 @@ Responsiveness against the live KiCad on Windows (median of 40 calls, same sessi
   ignored (Python adds a `layout_backend` key only when it is set); `board_layers`' unused `enable`
   argument is not ported; a few type-error, base64 and zstd error texts differ; backslashes in a
   footprint lib_id are inserted literally; the packaged kicad-cli location is tried even when not
-  frozen.
+  frozen; absurd integers (a priority, size or layer count beyond 64 bits) are refused before KiCad
+  is contacted where Python fails after its first requests, with the same message; a placed symbol
+  that KiCad returns undecodable reports a different message; Python 3.14 words one unpacking
+  error differently from the 3.12 text reproduced. The 60 s ERC deadline is ported but has no
+  fixture (it would take 60 s).
 - **Python quirks reproduced on purpose** (worth fixing in Python, then in both): an empty id is
   turned into a new random UUID instead of being refused; an unknown pin orientation fails
   connect_pins with "0"; set_page is not atomic; live_schematic_focus does not normalise ids;
@@ -378,7 +385,8 @@ crates and both servers' 8 shared tools with identical schemas. The Python suite
 
 ## Dependencies
 
-All are compatible with GPL-3.0-or-later. These are linked into `embeint-mcp`:
+All are compatible with GPL-3.0-or-later. These are linked into `embeint-mcp` and the
+`embeint-layout` runner, the two binaries the package ships:
 
 | Licence | Crates |
 | --- | --- |
@@ -394,11 +402,12 @@ All are compatible with GPL-3.0-or-later. These are linked into `embeint-mcp`:
 
 92 crates, from `rust_bundle.linked_crates` on Windows x86_64 (normal edges, no proc macros).
 
-On Linux, `rustix`, `linux-raw-sys`, `errno`, `bitflags`, `libc` and `signal-hook-registry` replace the
-Windows crates. `geo` 0.32.0, `rstar` 0.12.2 and `i_overlay` 4.0.7 publish no licence file; their
+On Linux, `windows-sys` and `windows-link` give way to `rustix`, `linux-raw-sys`, `errno`,
+`bitflags`, `libc`, `signal-hook-registry` and `iana-time-zone` (chrono's local time zone). `geo` 0.32.0, `rstar` 0.12.2 and `i_overlay` 4.0.7 publish no licence file; their
 upstream texts are kept in `tools/live_schematic_mcp/qualification/notices/rust/`. `ruzstd` is held at
 0.8.1 and `uuid` at 1.18.1 because later releases need a newer Rust than the workspace's 1.85.
 
 Build-time only (`build.rs` compiles the protocol): protox 0.9.1, protox-parse 0.9.0, logos,
-regex-automata, regex-syntax, thiserror, semver, rustc_version (MIT OR Apache-2.0); miette 7.6.0
-(Apache-2.0); aho-corasick (Unlicense OR MIT); fnv, version_check (MIT/Apache-2.0).
+semver, rustc_version (MIT OR Apache-2.0); miette 7.6.0 (Apache-2.0); aho-corasick (Unlicense OR
+MIT); fnv, version_check (MIT/Apache-2.0). regex-automata, regex-syntax and thiserror are used at
+build time too and are also linked (above).

@@ -84,7 +84,8 @@ then refuses before touching `install\mcp` (the old package stays complete) and 
   test in `test_client.py` and an end-to-end check in the matching `e2e_*.py`.
 - **Both MCP servers serve the same surface.**  A tool added to or changed in `server.py` also
   goes into the native server's area module (`rust/embeint-mcp/src/tools/<area>.rs`), with
-  fixtures in `rust/parity/scenarios/<area>.py` and `mcp_parity.py --write-schemas`; CI runs
+  fixtures in `rust/parity/scenarios/<area>.py` (core tools: in `mcp_parity.py`) and
+  `mcp_parity.py --write-schemas`; CI runs
   `surface_coverage.py --require-complete` and the parity fixtures (see `rust/MCP.md`).
 - **Never block the UI thread or open a dialog from a handler.**  An API client cannot answer a
   modal dialog and the editor freezes.  Check up front and return `AS_BUSY`/`AS_BAD_REQUEST`
