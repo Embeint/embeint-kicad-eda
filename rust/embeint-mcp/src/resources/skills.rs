@@ -165,6 +165,11 @@ fn front_matter(text: &str, folder_name: &str) -> Result<(String, String), Strin
         .position(|line| *line == "---")
         .map(|index| index + 1)
         .ok_or("'---' is not in list")?;
+    // yaml-rust2 reads YAML 1.2 where PyYAML reads 1.1: plain yes/on, dates, 12:30 and 1_000 are
+    // strings here but bool/date/int there, 0o17 is the reverse, duplicate keys are refused rather
+    // than the last kept, and parse errors are worded differently.  The bundled skills use none
+    // of these (bundled_front_matter_reads_alike checks); a new skill shows up in the parity
+    // fixtures, which read every file Python's index lists.
     let mut documents =
         YamlLoader::load_from_str(&lines[1..end].join("\n")).map_err(|error| error.to_string())?;
     // yaml.safe_load: an empty stream is None, and it wants at most one document
@@ -372,6 +377,72 @@ mod tests {
             "x"
         )
         .is_ok());
+    }
+
+    /// The embedded table is exactly the Markdown files of the skills directory on disk.
+    #[test]
+    fn embedded_skills_equal_the_files() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tools/live_schematic_mcp/skills");
+        let mut on_disk = Vec::new();
+        for skill in std::fs::read_dir(&root).unwrap() {
+            let skill = skill.unwrap().path();
+            if !skill.is_dir() {
+                continue;
+            }
+            for file in std::fs::read_dir(&skill).unwrap() {
+                let file = file.unwrap().path();
+                if file.extension().and_then(|e| e.to_str()) == Some("md") {
+                    let key = format!(
+                        "{}/{}",
+                        skill.file_name().unwrap().to_str().unwrap(),
+                        file.file_name().unwrap().to_str().unwrap()
+                    );
+                    on_disk.push((key, std::fs::read(&file).unwrap()));
+                }
+            }
+        }
+        on_disk.sort();
+        let manifest = skill_manifest().unwrap();
+        let hashes = manifest["skill_file_sha256"].as_object().unwrap();
+        let mut listed: Vec<&String> = hashes.keys().collect();
+        listed.sort();
+        assert_eq!(
+            listed,
+            on_disk.iter().map(|(key, _)| key).collect::<Vec<_>>()
+        );
+        for (key, bytes) in &on_disk {
+            let digest: String = Sha256::digest(bytes)
+                .iter()
+                .map(|b| format!("{b:02x}"))
+                .collect();
+            assert_eq!(hashes[key], digest.as_str(), "{key}");
+        }
+    }
+
+    /// The bundled front matter has no plain scalar that YAML 1.1 (PyYAML) reads differently.
+    #[test]
+    fn bundled_front_matter_reads_alike() {
+        for (name, _) in SKILLS {
+            let read = read_skill(name, "SKILL.md").unwrap();
+            let text = read["text"].as_str().unwrap();
+            let front = text.split("---").nth(1).unwrap();
+            for line in front.lines() {
+                let Some((_, value)) = line.split_once(':') else {
+                    continue;
+                };
+                let value = value.trim().to_ascii_lowercase();
+                let words = [
+                    "yes", "no", "on", "off", "y", "n", "true", "false", "~", "null",
+                ];
+                let ambiguous = words.contains(&value.as_str())
+                    || (value.contains('_')
+                        && value.chars().all(|c| c.is_ascii_digit() || c == '_'))
+                    || value.starts_with("0o")
+                    || (value.len() == 10 && value.as_bytes().get(4) == Some(&b'-'));
+                assert!(!ambiguous, "{name}: {line} reads differently in YAML 1.1");
+            }
+        }
     }
 
     #[test]
