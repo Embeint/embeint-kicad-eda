@@ -260,3 +260,27 @@ def test_revisions_are_named_only_where_kicad_quotes_them():
     assert names("the document is at revision 0a1b2c3d-5, not stale-0") == "the document is at revision <rev1>, not stale-0"
     assert names("(revision 0a1b2c3d-5 to 0a1b2c3d-7)") == "(revision <rev1> to <rev2>)"
     assert names({"revision": "0a1b2c3d-7"}) == {"revision": "<rev2>"}
+
+
+def test_scratch_folder_is_kept_when_an_editor_is_not_released(tmp_path, monkeypatch):
+    """Deleting a scratch library an editor still watches opens a modal error in KiCad."""
+    import e2e_guard
+
+    def park_fails(checker):
+        raise RuntimeError("AS_BUSY")
+
+    monkeypatch.setattr(e2e_guard, "park_footprint_editor", park_fails)
+    monkeypatch.setattr(lw, "remove_scratch_libraries", lambda ctx: [])
+    monkeypatch.setattr(lw, "restore_library_tables", lambda ctx, tables: None)
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    ctx = SimpleNamespace(libraries_used=True, scratch=scratch,
+                          checker=SimpleNamespace(edit_symbol=lambda lib_id: None))
+    problems = lw.final_cleanup(ctx, {})
+    assert scratch.is_dir()
+    assert any("parking the Footprint Editor" in p for p in problems)
+    assert any("was kept" in p for p in problems)
+    # Released editors: the folder goes
+    monkeypatch.setattr(e2e_guard, "park_footprint_editor", lambda checker: None)
+    assert lw.final_cleanup(ctx, {}) == []
+    assert not scratch.exists()
