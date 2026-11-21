@@ -15,12 +15,16 @@ path = "src/main.rs"
 
 [dependencies]
 base64 = "0.22"
+# Local date for set_page date="today" (Python's datetime.date.today())
+chrono = { version = "0.4.42", default-features = false, features = ["clock", "std"] }
 embeint-ipc.workspace = true
 embeint-layout.workspace = true
 prost-reflect = "0.16"
 regex = { version = "1.11", default-features = false, features = ["std", "unicode"] }
 serde_json.workspace = true
 sha2 = "0.10"
+# The private preview directory of live_schematic_view (Python's tempfile.TemporaryDirectory)
+tempfile = "3.20"
 tokio = { version = "1", features = ["rt", "io-std", "io-util", "sync", "macros", "time"] }
 url = "2.5"
 uuid = { version = "1", features = ["v4"] }
