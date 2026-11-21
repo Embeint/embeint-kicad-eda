@@ -38,11 +38,31 @@ tree and preservation of another worker's busy build lock. The shell script
 also passes `bash -n`; Python files compile and the staged diff has no whitespace
 errors.
 
-The final C++ dispatch refactor and its separate regression executable still
-await a build while the extractor holds the shared lock. That test covers the
-exact deferred envelope, ordinary execution failures, non-finite/invalid-string
-results and duplicate registrations; no synthetic callbacks enter the production
-oracle. Final build timing is pending that validation run.
+The final C++ dispatch refactor and separate regression executable were then
+built serially after a dry run confirmed **only eight overlay compilations and
+two links**, with no reference-library work. This lightweight check left the
+extractor's heavy-build lock untouched. It took **21.28 seconds**, peak RSS
+**351196 KB**. The complete compile database has **57 translation units**, all
+audited for the pin and fixed flags. The original successful reference build's
+Ninja log reached `libkimath.a` after **17.83 seconds** at `-j8`; this measures
+compilation through archive creation, not apt installation/configuration or a
+hosted cold-build wall time.
+
+Final results:
+
+```text
+oracle-protocol      Passed
+oracle-build-guards  Passed
+oracle-dispatch      Passed
+100% tests passed, 0 tests failed out of 3
+Oracle protocol: 263 actual kimath calls, 21 refusals, streaming OK
+```
+
+The dispatch test verifies the exact deferred envelope, ordinary execution
+failures, non-finite/invalid-string results and duplicate registration. No
+synthetic callback enters the production oracle. All heavy reference work
+finished before the extractor acquired the shared lock; no new heavy build was
+started while it held that lock.
 
 The first Clang 21 configure exposed an incomplete system GCC 16 toolchain:
 Clang could not find `libstdc++`. The installed GCC 15 toolchain built successfully.
