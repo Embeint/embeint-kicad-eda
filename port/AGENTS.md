@@ -58,11 +58,12 @@ an owner and timestamp; green requires nonempty tests and no coverage gaps.
 
 Run `python port/tools/validate_units.py` once the extractor is integrated. Default
 validation can accept an honestly incomplete graph; `--require-complete` also
-rejects incomplete configurations/parsing. Preserve provenance flags for inventory,
-parsing, compile database, all configurations and the full gate. A Linux-only graph
-has `all_configurations_complete = false` and `gate_complete = false`. Uncompiled
-application sources remain accounted for by blocked records. Valid TOML and a
-green pilot do not establish all-configuration completeness.
+rejects incomplete WSL command processing or parsing. Preserve separate provenance
+flags for inventory, parsing, compile database and all configurations. A Linux-only
+graph has `all_configurations_complete = false`; `gate_complete` is the WSL
+extractor completeness diagnostic, separate from the plan's phase 0 gate.
+Uncompiled application sources remain accounted for by blocked records. Valid
+TOML and a green pilot do not establish all-configuration completeness.
 
 Each finding is a new `port/findings/<slug>.md`; each reference defect is a new
 `port/upstream-issues/<slug>.md` with location, trigger, reproduction, evidence and
