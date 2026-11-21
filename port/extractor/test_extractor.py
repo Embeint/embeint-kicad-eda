@@ -202,6 +202,23 @@ class GraphTests(unittest.TestCase):
 
 
 class ValidationTests(unittest.TestCase):
+    def test_inventory_coverage_and_categories_cannot_be_hidden_by_unit_edits(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            graph, inventory = fixture(root)
+            inventory["files"][0]["coverage"] = "uncompiled"
+            units, _ = save_fixture(root, graph, inventory)
+            unit = next(u for u in units.values() if "a.cpp" in u["upstream"])
+            unit.update(coverage_gaps=[], status="green", tests=["case"], wx_class="pure")
+            path = root / "port/units" / (unit["id"] + ".toml")
+            path.write_text(dump(unit))
+            errors = validate(root)
+            self.assertTrue(any("coverage gaps differ" in e for e in errors))
+            self.assertTrue(any("conservative UI" in e for e in errors))
+            unit.update(coverage_gaps=["a.cpp"], status="blocked", wx_class="UI", source_category="generated")
+            path.write_text(dump(unit))
+            self.assertTrue(any("source category differs" in e for e in validate(root)))
+
     def test_manifest_fingerprint_survives_checkout_line_endings(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -302,6 +319,8 @@ class DriftTests(unittest.TestCase):
                 git("add", "a.cpp")
                 git("commit", "-qm", "test fixture removed")
                 self.assertTrue(any(a.get("function") == "a" for a in drift_report.report(root, graph, units)["affected"]))
+                units.append({"id": "declarations", "status": "partial", "functions": [], "upstream": ["a.cpp"]})
+                self.assertIn("declarations", drift_report.report(root, graph, units)["affected_units"])
             finally:
                 drift_report.PIN = original
 

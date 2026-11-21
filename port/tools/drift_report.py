@@ -99,8 +99,9 @@ def report(root, graph, units, target="HEAD", include_todo=False):
     for unit in sorted(units, key=lambda u: u["id"]):
         if not include_todo and unit["status"] not in ("partial", "green"):
             continue
+        function_files = {graph["functions"][usr]["file"] for usr in unit["functions"]}
         for path in unit["upstream"]:
-            if (unit["id"], path) in seen or path in by_file:
+            if (unit["id"], path) in seen or path in function_files:
                 continue
             if git(root, "diff", "--name-only", pin, target_sha, "--", path).strip():
                 affected.append({"unit": unit["id"], "file": path, "function": None,
