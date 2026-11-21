@@ -88,6 +88,11 @@ Implicit template instances resolve to the primary body at the same source
 location, so their static calls reach its owning unit. Explicit specializations
 retain their distinct bodies. `template_aliases` preserves the instance-to-body
 USR mapping. Missing compilation sources are reported without calling clang.
+Graph alias values are sorted lists: clang can spell a primary-template USR
+differently across translation units (including expression whitespace). All
+observed owners remain recorded; each TU's calls already use its actual resolved
+owner. Aggregation failures cancel queued work instead of silently draining the
+executor before reporting the error.
 
 Per-TU caches accept both historical `.json` and compressed `.json.gz` records.
 New entries publish atomically after compression. On a space-constrained host,
