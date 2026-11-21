@@ -475,11 +475,33 @@ pub fn embedded_file_bytes(footprint_text: &str, name: &str) -> Result<Vec<u8>, 
     let compressed = base64::engine::general_purpose::STANDARD
         .decode(&cleaned)
         .map_err(|error| Error::Runtime(format!("Invalid base64-encoded string: {error}")))?;
-    let mut decoder = ruzstd::decoding::StreamingDecoder::new(compressed.as_slice())
-        .map_err(|error| Error::Runtime(format!("zstd decompression error: {error}")))?;
+    // zstandard's decompress(max_output_size=1 << 30): a crafted file (4 GiB of zeros compresses
+    // to about 131 KB) must not exhaust memory
+    zstd_decompress(&compressed, 1 << 30)
+}
+
+/// Every frame of a zstd stream, refused once the output passes `limit` bytes.
+fn zstd_decompress(compressed: &[u8], limit: u64) -> Result<Vec<u8>, Error> {
+    let zstd_error = |error: &dyn std::fmt::Display| {
+        Error::Runtime(format!("zstd decompression error: {error}"))
+    };
+    let mut source: &[u8] = compressed;
     let mut data = Vec::new();
-    std::io::Read::read_to_end(&mut decoder, &mut data)
-        .map_err(|error| Error::Runtime(format!("zstd decompression error: {error}")))?;
+    loop {
+        let decoder =
+            ruzstd::decoding::StreamingDecoder::new(&mut source).map_err(|e| zstd_error(&e))?;
+        let room = limit - data.len() as u64;
+        std::io::Read::read_to_end(&mut std::io::Read::take(decoder, room + 1), &mut data)
+            .map_err(|e| zstd_error(&e))?;
+        if data.len() as u64 > limit {
+            return Err(zstd_error(&format!(
+                "decompressed data exceeds {limit} bytes"
+            )));
+        }
+        if source.is_empty() {
+            break;
+        }
+    }
     Ok(data)
 }
 
@@ -715,6 +737,22 @@ mod tests {
 
     /// Expected plans and boards, generated once with the Python module (see generated_by).
     static EXPECTED: &str = include_str!("../testdata/model_handoff.json");
+
+    #[test]
+    fn zstd_output_is_bounded_and_every_frame_decoded() {
+        use ruzstd::encoding::{compress_to_vec, CompressionLevel};
+        let frame = |bytes: &[u8]| compress_to_vec(bytes, CompressionLevel::Fastest);
+        let mut two = frame(b"first ");
+        two.extend(frame(b"second"));
+        assert_eq!(zstd_decompress(&two, 100).unwrap(), b"first second");
+        let zeros = frame(&[0u8; 5000]);
+        assert_eq!(zstd_decompress(&zeros, 5000).unwrap().len(), 5000);
+        assert_eq!(
+            zstd_decompress(&zeros, 4999).unwrap_err().to_string(),
+            "zstd decompression error: decompressed data exceeds 4999 bytes"
+        );
+        assert!(zstd_decompress(b"not zstd", 100).is_err());
+    }
 
     #[test]
     fn plans_and_boards_match_python() {

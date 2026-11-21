@@ -156,32 +156,32 @@ def scenarios(h):
     # Items in an open footprint: KiCad's default ${REFERENCE} fab text, the two fields, a pad,
     # graphics and a 3D-less group KiCad might hold
     REF_TEXT = any_of("kiapi.board.types.BoardText", {
-        "id": {"value": "aaaaaaaa-0000-4000-8000-000000000001"}, "layer": "BL_F_Fab",
+        "id": {"value": "aaaaaaaa-0000-1000-8000-000000000001"}, "layer": "BL_F_Fab",
         "text": {"text": "${REFERENCE}", "position": {"x_nm": "0", "y_nm": "1000000"},
                  "attributes": {"font_name": "KiCad Font", "italic": True}}})
     USER_TEXT = any_of("kiapi.board.types.BoardText", {
-        "id": {"value": "aaaaaaaa-0000-4000-8000-000000000002"}, "layer": "BL_F_SilkS", "text": {"text": "note"}})
+        "id": {"value": "aaaaaaaa-0000-1000-8000-000000000002"}, "layer": "BL_F_SilkS", "text": {"text": "note"}})
     REFERENCE = any_of("kiapi.board.types.Field", {
         "id": {"id": 1}, "name": "Reference", "visible": False,
-        "text": {"id": {"value": "aaaaaaaa-0000-4000-8000-000000000003"}, "layer": "BL_F_SilkS",
+        "text": {"id": {"value": "aaaaaaaa-0000-1000-8000-000000000003"}, "layer": "BL_F_SilkS",
                  "text": {"text": "REF**", "position": {"x_nm": "0", "y_nm": "-1000000"}}}})
     VALUE = any_of("kiapi.board.types.Field", {
         "id": {"id": 2}, "name": "Value",
         "text": {"layer": "BL_F_Fab", "text": {"text": "R_0603", "attributes": {"bold": True}}}})
     DATASHEET = any_of("kiapi.board.types.Field", {"id": {"id": 3}, "name": "Datasheet"})
     PAD = any_of("kiapi.board.types.Pad", {
-        "id": {"value": "aaaaaaaa-0000-4000-8000-000000000004"}, "number": "1", "type": "PT_SMD",
+        "id": {"value": "aaaaaaaa-0000-1000-8000-000000000004"}, "number": "1", "type": "PT_SMD",
         "position": {"x_nm": "-825000", "y_nm": "0"},
         "pad_stack": {"copper_layers": [{"layer": "BL_F_Cu", "shape": "PSS_ROUNDRECT",
                                          "size": {"x_nm": "800000", "y_nm": "950000"}}]}})
     PAD_BARE = any_of("kiapi.board.types.Pad", {"number": "2", "type": "PT_NPTH"})
     LINE = any_of("kiapi.board.types.BoardGraphicShape", {
-        "id": {"value": "aaaaaaaa-0000-4000-8000-000000000005"}, "layer": "BL_F_Fab",
+        "id": {"value": "aaaaaaaa-0000-1000-8000-000000000005"}, "layer": "BL_F_Fab",
         "shape": {"segment": {"start": {"x_nm": "1"}, "end": {"x_nm": "2"}}}})
     LINE_NO_ID = any_of("kiapi.board.types.BoardGraphicShape", {"layer": "BL_F_SilkS"})
     COURTYARD = any_of("kiapi.board.types.BoardGraphicShape", {
-        "id": {"value": "aaaaaaaa-0000-4000-8000-000000000006"}, "layer": "BL_F_CrtYd"})
-    ZONE = any_of("kiapi.board.types.Zone", {"id": {"value": "aaaaaaaa-0000-4000-8000-000000000007"}})
+        "id": {"value": "aaaaaaaa-0000-1000-8000-000000000006"}, "layer": "BL_F_CrtYd"})
+    ZONE = any_of("kiapi.board.types.Zone", {"id": {"value": "aaaaaaaa-0000-1000-8000-000000000007"}})
 
     def render_reply(request):
         return reply(bc.RenderLibraryFootprintResponse(image=b"\x89PNG fixture image", mime_type="image/png"))
@@ -329,15 +329,15 @@ def scenarios(h):
             OPEN, ("EditLibraryFootprint", lambda r: failure(envelope.AS_BAD_REQUEST, "no footprint Lib:"))]),
 
         # ---- Generation (one transaction) --------------------------------------------------
-        S("footprint_generate", [("live_footprint_generate", SOT23)], generate_script(), uuids=True),
+        S("footprint_generate", [("live_footprint_generate", SOT23)], generate_script(), random_ids=True),
         S("footprint_generate_replace", [("live_footprint_generate", SOIC)], [
             BEGIN, ("GetItems", items(PAD, PAD_BARE, LINE, LINE_NO_ID, COURTYARD, USER_TEXT, REFERENCE, VALUE, ZONE)),
             ("DeleteItems", deleted), ("GetItems", items(PAD)), created(), ("GetItems", items(PAD)),
-            ("SetLibraryFootprintProperties", empty), END_OK], uuids=True),
+            ("SetLibraryFootprintProperties", empty), END_OK], random_ids=True),
         S("footprint_generate_replace_only_fields", [("live_footprint_generate", dict(SOT23, replace=True))], [
             BEGIN, ("GetItems", items(REFERENCE, VALUE)), ("GetItems", items()), created(),
             ("GetItems", items(VALUE)), ("UpdateItems", updated), ("SetLibraryFootprintProperties", empty), END_OK],
-          uuids=True),
+          random_ids=True),
         S("footprint_generate_packages", [
             ("live_footprint_generate", {"footprint_document": DOC, "package": "pin_header",
                                          "params": {"pins_per_row": 3, "rows": 2, "pitch": 2, "drill": 0.9}}),
@@ -350,13 +350,13 @@ def scenarios(h):
                                          "params": "{\"pins_y\": 3, \"pitch\": 0.95, \"body_x\": 2, \"body_y\": 2}"})],
           [step for _ in range(4) for step in
            [BEGIN, ("GetItems", items()), created(), ("GetItems", items()), ("SetLibraryFootprintProperties", empty),
-            END_OK]], uuids=True),
+            END_OK]], random_ids=True),
         S("footprint_generate_rejected", [("live_footprint_generate", SOT23)], generate_script(
             create=created({2: (editor.ISC_INVALID_DATA, "pad 3 overlaps"), 4: (editor.ISC_EXISTING, "")}),
-            after_create=False) + [DROP_OK], uuids=True),
+            after_create=False) + [DROP_OK], random_ids=True),
         S("footprint_generate_unconfirmed_rollback", [("live_footprint_generate", SOT23)], generate_script(
             create=created({0: (editor.ISC_INVALID_TYPE, "")}), after_create=False) + [
-            ("EndCommit", lambda r: failure(envelope.AS_BAD_REQUEST, "no such commit"))], uuids=True),
+            ("EndCommit", lambda r: failure(envelope.AS_BAD_REQUEST, "no such commit"))], random_ids=True),
         S("footprint_generate_fails_inside", [
             ("live_footprint_generate", {"footprint_document": DOC, "package": "soic",
                                          "params": {"pins": 4, "pitch": 1.27, "body_width": 3.9, "body_length": 4.9,
@@ -366,15 +366,15 @@ def scenarios(h):
             BEGIN, ("GetItems", lambda r: failure(envelope.AS_BUSY, "editor busy")), DROP_OK]),
         S("footprint_generate_lost_commit", [("live_footprint_generate", SOT23)],
           generate_script(end=("EndCommit", lambda r: h.DROP)) + [
-              ("GetOperationStatus", h.status("OPS_COMMITTED", revision_after="fx-9"))], uuids=True),
+              ("GetOperationStatus", h.status("OPS_COMMITTED", revision_after="fx-9"))], random_ids=True),
         S("footprint_generate_lost_commit_rolled_back", [("live_footprint_generate", SOT23)],
           generate_script(end=("EndCommit", lambda r: h.DROP)) + [
-              ("GetOperationStatus", h.status("OPS_ROLLED_BACK", "lease expired"))], uuids=True),
+              ("GetOperationStatus", h.status("OPS_ROLLED_BACK", "lease expired"))], random_ids=True),
         S("footprint_generate_lost_begin", [("live_footprint_generate", SOT23)], [
             ("BeginCommit", lambda r: h.DROP), ("GetOperationStatus", h.status("OPS_IN_PROGRESS")), DROP_OK]),
         S("footprint_generate_stale_commit", [("live_footprint_generate", SOT23)],
           generate_script(end=("EndCommit", lambda r: failure(envelope.AS_REVISION_MISMATCH, "document changed"))),
-          uuids=True),
+          random_ids=True),
         S("footprint_generate_refusals", [
             ("live_footprint_generate", {"footprint_document": DOC, "package": "bga", "params": {}}),
             ("live_footprint_generate", {"footprint_document": DOC, "package": "soic", "params": {"pins": 8}}),
@@ -594,6 +594,18 @@ def scenarios(h):
                 ["pcb", "drc", "--report-path", "fp-lib-table"], ["pcb", "drc", "--report-path=/p/x.kicad_pro"],
                 ["sch", "export", "pdf", "-o", "/p/sym-lib-table"], ["sch", "erc", "--output", "x.kicad_dru"])]
           + [("live_kicad_cli", {"args": ["pcb", "drc", "--drc-severity", "-1", "-o", "/tmp/ok.json", "--save-board"]})],
+          []),
+        # Names Windows rewrites (trailing dots and spaces, stream suffixes) and footprint-library
+        # working directories, refused before KiCad is asked.  (Short 8.3 aliases of existing files
+        # are resolved too; the unit tests of both servers cover them with real files.)
+        S("footprint_kicad_cli_windows_names", [
+            ("live_kicad_cli", {"args": ["sch", "export", "netlist", "-o", output, "C:\\p\\design.kicad_sch"]})
+            for output in ("C:\\p\\design.kicad_sch.", "C:\\p\\design.kicad_sch ", "C:\\p\\design.kicad_sch::$DATA",
+                           "/p/design.kicad_sch . .", "C:\\libs\\Lib.pretty.\\x.net",
+                           "C:\\libs\\Lib.pretty::$INDEX_ALLOCATION\\x.net")]
+          + [("live_kicad_cli", {"args": ["sch", "export", "netlist", "--output=C:\\p\\design.kicad_sch:x", "d"]})]
+          + [("live_kicad_cli", {"args": ["version"], "working_directory": cwd})
+             for cwd in ("C:\\libs\\Lib.pretty", "/libs/x.Pretty/sub", "C:\\libs\\Lib.pretty.")],
           []),
 
         # ---- Argument validation (pydantic's wording is not compared) -----------------------
