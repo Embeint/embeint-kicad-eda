@@ -21,6 +21,9 @@ product, not to the Python MCP tool. Upstream KiCad has no `rust/` directory, so
 with it. It is also outside KiCad's CMake build and outside the directory where pytest collects
 `test_*.py`.
 
+[PORT_PLAN.md](PORT_PLAN.md) is the plan for porting the whole KiCad application to Rust, for the
+desktop and the browser. The port is developed on the `rust` branch; `main` keeps the plan.
+
 ## The ported operation
 
 `layout_box(pins, arrange, group_gap)` is the one function in `symbol_layout.py` that the MCP
