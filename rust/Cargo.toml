@@ -6,7 +6,7 @@
 
 [workspace]
 resolver = "2"
-members = ["embeint-layout", "embeint-web", "embeint-layout-cli", "embeint-ipc", "embeint-mcp"]
+members = ["embeint-layout", "embeint-web", "embeint-layout-cli", "embeint-ipc", "embeint-mcp", "kicad-difftest"]
 
 [workspace.package]
 version = "0.1.0"
@@ -19,6 +19,7 @@ publish = false
 [workspace.dependencies]
 embeint-layout = { path = "embeint-layout" }
 embeint-ipc = { path = "embeint-ipc" }
+solidcore = { path = "../.port-deps/solidcore/crates/solidcore", default-features = false }
 serde_json = { version = "1", default-features = false, features = ["std", "preserve_order", "arbitrary_precision"] }
 
 [profile.release]

@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[package]
+name = "kicad-difftest"
+description = "Native exact JSONL oracle comparison and reviewed golden updates"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = { workspace = true, features = ["raw_value"] }
+sha2 = "0.10"
+tempfile = "3"

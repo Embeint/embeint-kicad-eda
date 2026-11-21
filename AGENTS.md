@@ -17,6 +17,11 @@ and license requirements below also apply within this fork.
 integration updates; `master` is an upstream mirror. Do not commit to `master`,
 force-push shared branches, or treat automatically merged upstream code as tested.
 
+`rust` is the long-lived Rust port branch. Port topic branches start from `rust`,
+and port PRs target `rust`; the port plan and native MCP work remain on `main`.
+Merge `main` into `rust` regularly with merge commits. Never rebase or force-push
+`rust` or `main`. Upstream changes reach `rust` only through `main`.
+
 ## Upstream KiCad policy
 
 KiCad allows for responsible AI agent code assistance in development, however AI agent interaction outside local development is forbidden.

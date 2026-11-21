@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Keep in sync with port/pins.toml; bootstrap checks before updating any project.
+manifest:
+  version: "1.2"
+  projects:
+    - name: solidcore
+      url: https://github.com/tangency-labs/solidcore.git
+      revision: 7a588fa284765a83823293ae20b84da8356ab479
+      path: .port-deps/solidcore
+  self:
+    path: .
