@@ -106,8 +106,18 @@ EXPORT_STEP = (b"ISO-10303-21;\r\nDATA;\r\n#1=MANIFOLD_SOLID_BREP('a',#3);\r\n#2
 PNG = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDRfixture-render"
 
 
+def zstd_compress(data, level=3):
+    """A zstd frame of data: compression.zstd on Python 3.14 and later, zstandard before (as
+    model_handoff.py decodes, and as requirements.txt installs)."""
+    try:
+        from compression import zstd
+        return zstd.compress(data, level=level)
+    except ImportError:
+        import zstandard
+        return zstandard.ZstdCompressor(level=level).compress(data)
+
+
 def scenarios(h):
-    import zstandard
     from google.protobuf import empty_pb2
     import footprint_client as fc
 
@@ -209,9 +219,9 @@ def scenarios(h):
     # ---- the fake kicad-cli and the saved library ------------------------------------------
 
     def footprint_file():
-        compressed = base64.b64encode(zstandard.ZstdCompressor(level=3).compress(MODEL_STEP)).decode()
+        compressed = base64.b64encode(zstd_compress(MODEL_STEP)).decode()
         chunks = " ".join(f"|{compressed[i:i + 60]}|" for i in range(0, len(compressed), 60))
-        notes = base64.b64encode(zstandard.ZstdCompressor().compress(b"  not a model")).decode()
+        notes = base64.b64encode(zstd_compress(b"  not a model")).decode()
         return ('(footprint "R_0603"\r\n\t(version 20241229)\r\n\t(generator "pcbnew")\r\n'
                 '\t(generator_version "9.0")\r\n\t(layer "F.Cu")\r\n'
                 '\t(property "Reference" "REF**" (at 0 -1.43 0) (layer "F.SilkS"))\r\n'
