@@ -631,6 +631,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "kicad-iec60664"
+version = "0.1.0"
+
+[[package]]
+name = "kicad-iec60664-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-iec60664",
+ "serde_json",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

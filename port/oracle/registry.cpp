@@ -4,6 +4,7 @@
 namespace oracle
 {
 void RegisterExample( REGISTRY& aRegistry );
+void RegisterIec60664( REGISTRY& aRegistry );
 
 
 void REGISTRY::Add( const std::string& aUnit, const std::string& aUpstream, SHIM aShim )
@@ -20,6 +21,7 @@ REGISTRY MakeRegistry()
 {
     REGISTRY registry;
     RegisterExample( registry );
+    RegisterIec60664( registry );
     return registry;
 }
 
