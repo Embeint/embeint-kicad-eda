@@ -17,6 +17,7 @@ path = "src/main.rs"
 base64 = "0.22"
 # Local date for set_page date="today" (Python's datetime.date.today())
 chrono = { version = "0.4.42", default-features = false, features = ["clock", "std"] }
+geo = { version = "0.32", default-features = false }
 embeint-ipc.workspace = true
 embeint-layout.workspace = true
 prost-reflect = "0.16"

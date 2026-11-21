@@ -13,6 +13,9 @@
 //!   embeint-mcp --parity     JSON-lines interface for rust/parity/mcp_parity.py (internal)
 
 mod board_client;
+mod board_design;
+mod board_rf;
+mod board_router;
 mod capabilities;
 mod fab;
 mod parity;
