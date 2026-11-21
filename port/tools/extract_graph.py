@@ -102,9 +102,7 @@ def main():
         calls.update(tuple(c) for c in result["calls"])
         overrides.update(tuple(c) for c in result["overrides"])
         for instance, primary in result.get("template_aliases", {}).items():
-            if instance in template_aliases and template_aliases[instance] != primary:
-                raise ValueError(f"Conflicting template owner for {instance}")
-            template_aliases[instance] = primary
+            template_aliases.setdefault(instance, set()).add(primary)
         unresolved.update((c["caller"], result["file"], c["line"], c["expression"]) for c in result["unresolved"])
         if result["status"] == "ok":
             observed.update(f["file"] for f in result["functions"].values())
@@ -117,11 +115,20 @@ def main():
 
     pending = {}
     with ProcessPoolExecutor(max_workers=a.jobs, max_tasks_per_child=1) as pool:
+        def consume_safely(result):
+            try:
+                consume(result)
+            except BaseException:
+                # Do not silently drain thousands of queued parses while the
+                # executor context waits to expose an aggregation failure.
+                pool.shutdown(wait=False, cancel_futures=True)
+                raise
+
         for job in jobs:
             key = digest(json.dumps([snapshot, job], sort_keys=True).encode())
             cache = a.cache / (key + ".json")
             if cache.exists() or cache.with_suffix(".json.gz").exists():
-                consume(read_json(cache))
+                consume_safely(read_json(cache))
             else:
                 pending[pool.submit(extract_translation_unit, job)] = (cache, job)
         for future in as_completed(pending):
@@ -136,7 +143,7 @@ def main():
             source = Path(job["file"].replace(a.original_source_root, str(root)))
             result["source_sha256"] = digest(source.read_bytes()) if source.is_file() else None
             write_cache(cache, result)
-            consume(result)
+            consume_safely(result)
             print(f"{len(results)}/{len(jobs)} {result['status']} {result['file']}", flush=True)
     calls, overrides, definition_copies = materialize_definitions(functions, calls, overrides, locations)
     edges = expand_virtual(calls, overrides)
@@ -174,10 +181,13 @@ def main():
                   "unresolved_call_count": len(unresolved),
                   "definition_variant_count": len(variants),
                   "additional_definition_body_count": len(definition_copies),
+                  "template_alias_variant_count": sum(len(v) > 1 for v in template_aliases.values()),
+                  "cache_reused_commands": sum(bool(r.get("cache_reused_from")) for r in results),
                   "counts": dict(Counter(e["category"] for e in inventory))}
     translation_units = [{"file": r["file"], "status": r["status"],
                           "category": "generated-build" if Path(r["file"]).is_absolute() else "tracked-source",
                           "command_sha256": r.get("command_sha256"), "source_sha256": r.get("source_sha256"),
+                          "cache_reused_from": r.get("cache_reused_from"),
                           "function_count": r["function_count"], "includes": r.get("includes", []),
                           "diagnostics": r["diagnostics"]} for r in sorted(results, key=lambda r: (r["file"], r.get("command_sha256", "")))]
     graph = {"schema_version": 1, "provenance": provenance, "functions": functions,
@@ -185,7 +195,7 @@ def main():
              "unresolved_calls": [{"caller": c, "file": f, "line": line, "expression": e}
                                   for c, f, line, e in sorted(unresolved)],
              "translation_units": translation_units,
-             "template_aliases": dict(sorted(template_aliases.items())),
+             "template_aliases": {k: sorted(v) for k, v in sorted(template_aliases.items())},
              "definition_copies": dict(sorted(definition_copies.items())),
              "definition_variants": {k: sorted(v) for k, v in sorted(variants.items())}}
     from extractor.model import write_graph

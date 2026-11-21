@@ -44,6 +44,8 @@ def summarize(graph, inventory, stale=()):
         "edge_kinds": dict(sorted(Counter(e[2] for e in graph["edges"]).items())),
         "override_relationships": len(graph["overrides"]),
         "template_aliases": len(graph.get("template_aliases", {})),
+        "template_alias_variants": provenance.get("template_alias_variant_count", 0),
+        "cache_reused_commands": provenance.get("cache_reused_commands", 0),
         "additional_definition_bodies": len(graph.get("definition_copies", {})),
         "conservative_range_count": sum(f.get("range_kind", "function") != "function"
                                         for f in graph["functions"].values()),
