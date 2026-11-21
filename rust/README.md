@@ -13,7 +13,7 @@ Python remains the default.
 | `embeint-web` | Thin WebAssembly binding (`cdylib`): a three-function C-style ABI plus `js/embeint_layout.mjs`, which loads it in a browser, a Web Worker or Node.js without a binding generator. The ABI packs a 32-bit pointer into its return value, so the functions are only exported on 32-bit targets such as wasm32; a native build exports nothing. |
 | `embeint-layout-cli` | Native runner (`embeint-layout` binary): one JSON request per stdin line, used by the parity harness. Process I/O lives here so the library stays portable. |
 | `parity/` | `parity.py` (harness and Python reference adapter), `cases.json` (fixed examples), `run_wasm.mjs` (Node runner). |
-| `embeint-ipc`, `embeint-mcp` | Roadmap gate 4: a native MCP server with instance discovery, the read-only document tools and `live_schematic_create_items`, compared with the Python server by `parity/mcp_parity.py`. See [MCP.md](MCP.md). |
+| `embeint-ipc`, `embeint-mcp` | Roadmap gate 4: the native MCP server, with every tool, resource and command of the Python server (one module per area in `embeint-mcp/src/tools/`), compared with it by `parity/mcp_parity.py` and `parity/surface_coverage.py`. See [MCP.md](MCP.md). |
 
 The workspace is a top-level `rust/` directory, not part of `tools/live_schematic_mcp`. The
 roadmap's later crates (`embeint-design`, and now `embeint-ipc` and `embeint-mcp`) belong to the

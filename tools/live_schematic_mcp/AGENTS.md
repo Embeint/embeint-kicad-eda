@@ -31,7 +31,7 @@ requests (see the root `AGENTS.md`).
 | Client: rules, net classes, stackup, RF, checks, routing | `tools/live_schematic_mcp/board_design.py` |
 | Router (shapely grid A*, no KiCad calls) / impedance maths | `board_router.py`, `board_rf.py` |
 | Symbol pin layout / footprint generator / SolidCraft plans | `symbol_layout.py`, `footprint_gen.py`, `model_handoff.py` |
-| Native Rust MCP (gate 4: discovery, reads, create_items) and its parity harness | `rust/embeint-ipc`, `rust/embeint-mcp`, `rust/parity/mcp_parity.py` ([rust/MCP.md](../../rust/MCP.md)) |
+| Native Rust MCP (every tool; one module per area in `src/tools/`, scenarios in `rust/parity/scenarios/`) and its parity harness | `rust/embeint-ipc`, `rust/embeint-mcp`, `rust/parity/mcp_parity.py` ([rust/MCP.md](../../rust/MCP.md)) |
 | Generic command registry (execute/batch) | `tools/live_schematic_mcp/commands.py` |
 | Protocol additions | `api/proto/schematic/schematic_commands.proto`, `api/proto/board/board_commands.proto`, `api/proto/common/commands/{editor,library}_commands.proto` |
 | Schematic editor commands | `eeschema/api/api_handler_sch.cpp` |
@@ -82,6 +82,10 @@ then refuses before touching `install\mcp` (the old package stays complete) and 
 - **Adding a command** touches four places: the `.proto` message, the C++ handler and its
   `registerHandler` line, a client method, and a server tool (plus `commands.py`).  Add a unit
   test in `test_client.py` and an end-to-end check in the matching `e2e_*.py`.
+- **Both MCP servers serve the same surface.**  A tool added to or changed in `server.py` also
+  goes into the native server's area module (`rust/embeint-mcp/src/tools/<area>.rs`), with
+  fixtures in `rust/parity/scenarios/<area>.py` and `mcp_parity.py --write-schemas`; CI runs
+  `surface_coverage.py --require-complete` and the parity fixtures (see `rust/MCP.md`).
 - **Never block the UI thread or open a dialog from a handler.**  An API client cannot answer a
   modal dialog and the editor freezes.  Check up front and return `AS_BUSY`/`AS_BAD_REQUEST`
   instead (see `openSymbolEditor`, `CanOpenFootprintWithoutPrompt`).  wxLogWarning/wxLogError become

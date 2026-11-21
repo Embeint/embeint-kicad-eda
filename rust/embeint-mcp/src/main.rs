@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! `embeint-mcp`: the native MCP server for Embeint KiCad (roadmap delivery gate 4).
 //!
-//! It serves a subset of the Python server's `live_*` tools over stdio with the same names,
-//! schemas and results: instance discovery, document reads, schematic item edits, generic
-//! command execution/batches and schema inspection. The Python server stays the reference and serves
-//! every other tool.  See rust/README.md.
+//! It serves every `live_*` tool, resource and generic command of the Python server over stdio
+//! with the same names, schemas and results (rust/parity checks them), without Python.  See
+//! rust/MCP.md for how parity is qualified.
 //!
 //! Usage:
 //!   embeint-mcp              serve MCP over stdio
