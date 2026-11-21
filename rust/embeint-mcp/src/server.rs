@@ -21,10 +21,16 @@ const PROTOCOL_VERSIONS: [&str; 4] = ["2024-11-05", "2025-03-26", "2025-06-18", 
 
 pub const SERVER_NAME: &str = "KiCad Live";
 
-pub const INSTRUCTIONS: &str = "These tools drive Embeint KiCad over IPC. This native server implements instance \
-discovery, document reads, schematic item create/update/delete, generic command execution and batches, \
-command/item schemas, and manufacturing exports and the fab package; the Python server provides the other \
-live_* tools and the bundled Embeint house style (kicad-skill:// resources). \
+/// The Python server's instructions (naming the house-style skill the same way), with which tools
+/// this native server implements: it is still a subset.
+pub const INSTRUCTIONS: &str = "These tools drive Embeint KiCad over IPC. For schematic capture/review, \
+part selection, symbols, footprints or boards, load the bundled Embeint house style before editing: \
+live_skill_reference {\"skill\":\"kicad-house-style\"} or kicad-skill://kicad-house-style/SKILL.md. \
+Read the linked reference for the current task. \
+Skill discovery, file reads, content manifest and local capabilities work offline. \
+This native server implements instance discovery, document reads, schematic item create/update/delete, \
+generic command execution and batches, command/item schemas, manufacturing exports and the fab package, \
+and the bundled skills; the Python server provides the other live_* tools. \
 Follow the user's current intent and existing authorization; coordinate shared editor use. \
 Preserve manual edits, verify mutation outcomes, and save explicitly. \
 Local schemas and historical version notes do not prove current live editor support.";
@@ -116,9 +122,8 @@ async fn dispatch(message: Json, client: &Arc<Mutex<Client>>, out: &mpsc::Unboun
         "resources/read" => {
             let uri = params.get("uri").and_then(Json::as_str).unwrap_or_default();
             match resources::read(uri) {
-                Some(Ok(contents)) => response(&id, contents),
-                Some(Err(message)) => error_response(&id, 0, &message),
-                None => error_response(&id, 0, &format!("Unknown resource: {uri}")),
+                Ok(contents) => response(&id, contents),
+                Err(error) => json!({"jsonrpc": "2.0", "id": id, "error": error}),
             }
         }
         "prompts/list" => response(&id, json!({"prompts": []})),
