@@ -74,6 +74,9 @@ DROP = object()  # a fixture action: receive the request and never reply
 CLOSE = object()  # a fixture action: receive the request, then close the endpoint without replying
 TOKEN = "fixture-token-A"
 OP_PATTERN = re.compile(r"mcp-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+# Random UUIDs (version 4) a server generates for new items, as uuid.uuid4() does; scenarios with
+# random_ids=True compare them by order of appearance (see normalize_uuids)
+UUID4_PATTERN = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}")
 
 DEVNULL = open(os.devnull, "w")  # noqa: SIM115 - the servers' stderr, for the whole run
 
@@ -1195,6 +1198,13 @@ def normalize(value, ids):
     return value
 
 
+def normalize_uuids(value, uuids):
+    """Replace version 4 UUIDs with <uuid1>, <uuid2>... in order of appearance: for edits that
+    create items with new random ids (uuid.uuid4() in Python), so both servers' requests compare."""
+    return json.loads(UUID4_PATTERN.sub(lambda m: uuids.setdefault(m.group(0), f"<uuid{len(uuids) + 1}>"),
+                                        json.dumps(value)))
+
+
 def request_log(requests, ids):
     log = []
     for request in requests:
@@ -1245,6 +1255,8 @@ async def run_scenario(item, make_params):
         shutil.rmtree(directory, ignore_errors=True)
     ids = {}
     requests = [request_log(peer.requests, ids) for peer in peers]
+    if item.get("random_ids"):
+        requests = normalize_uuids(requests, {})
     errors = [e for peer in peers for e in peer.errors]
     results = normalize(results, ids)
     escaped = json.dumps(str(directory))[1:-1]
