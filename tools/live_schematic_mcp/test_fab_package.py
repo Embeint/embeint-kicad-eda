@@ -32,11 +32,13 @@ def schematic_json(path):
 class FakeKiCad(LiveSchematic):
     """Answers the package's requests and writes the outputs KiCad would."""
 
-    def __init__(self, project, modified=(), violations=(), copper=4, drop_profile=False, schematics=None):
+    def __init__(self, project, modified=(), violations=(), copper=4, drop_profile=False, schematics=None,
+                 edited=()):
         super().__init__(unused_socket("unused-fab-socket"))
         self.project, self.modified, self.violations = project, modified, violations
         self.copper, self.drop_profile = copper, drop_profile
         self.schematics = [schematic_json(project)] if schematics is None else schematics
+        self.edited, self.revision_reads = edited, {}
         self.requests = []
 
     def send(self, request, response_type):
@@ -44,7 +46,10 @@ class FakeKiCad(LiveSchematic):
         name = type(request).__name__
         if name == "GetDocumentRevision":
             kind = "board" if request.document.type == types.DOCTYPE_PCB else "schematic"
-            return editor.DocumentRevisionResponse(revision=f"{kind}-rev", modified=kind in self.modified)
+            reads = self.revision_reads[kind] = self.revision_reads.get(kind, 0) + 1
+            # A document in edited is changed by someone else after its first read
+            revision = f"{kind}-rev" + ("-edited" if kind in self.edited and reads > 1 else "")
+            return editor.DocumentRevisionResponse(revision=revision, modified=kind in self.modified)
         if name == "GetOpenDocuments":
             from google.protobuf import json_format
             return json_format.ParseDict({"documents": self.schematics}, editor.GetOpenDocumentsResponse())
@@ -78,7 +83,7 @@ def test_package_exports_checks_and_records_everything(tmp_path):
                              "GetTaskStatus", "GetDrcTaskResult", "GetBoardEnabledLayers",
                              "RunBoardJobExportGerbers", "RunBoardJobExportDrill", "RunBoardJobExportPosition",
                              "RunBoardJobExport3D", "RunBoardJobExportPdf", "RunSchematicJobExportBOM",
-                             "RunSchematicJobExportPdf"]
+                             "RunSchematicJobExportPdf", "GetDocumentRevision", "GetDocumentRevision"]
     gerbers = kicad.requests[7]
     assert not gerbers.use_board_plot_params and gerbers.use_x2_format and gerbers.create_gerber_job_file
     assert [LAYER_NAMES[v] for v in gerbers.plot_settings.layers][:5] == ["BL_F_Cu", "BL_In1_Cu", "BL_In2_Cu",
@@ -146,17 +151,53 @@ def test_drc_errors_block_unless_checks_are_off(tmp_path):
 
 def test_existing_outputs_are_replaced_only_with_overwrite(tmp_path):
     out = tmp_path / "Outputs"
-    (out / "Gerbers").mkdir(parents=True)
-    (out / "Gerbers" / "old-F_Cu.gbr").write_text("old")
+    first = FakeKiCad(tmp_path).fab_package(board_doc(tmp_path))
     (out / "notes.txt").write_text("kept")
     with pytest.raises(ValueError, match="overwrite=true"):
         FakeKiCad(tmp_path).fab_package(board_doc(tmp_path), outputs=["gerbers"])
-    result = FakeKiCad(tmp_path).fab_package(board_doc(tmp_path), outputs=["gerbers"], overwrite=True)
-    assert result["exported"] and not (out / "Gerbers" / "old-F_Cu.gbr").exists()
+    # Overwrite removes every file of the previous package, not only those in the selected folders
+    result = FakeKiCad(tmp_path).fab_package(board_doc(tmp_path), outputs=["gerbers"], overwrite=True,
+                                             zip_gerbers=False)
+    assert result["exported"] and result["zip"] is None
+    assert not (out / first["zip"]).exists() and not any((out / "PnP").iterdir())
     assert (out / "notes.txt").read_text() == "kept"
+    manifest = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
+    assert {f["path"] for f in manifest["files"]} == set(result["outputs"]["gerbers"])
     (out / "Gerbers" / "sub").mkdir()
     with pytest.raises(ValueError, match="contains folders"):
         FakeKiCad(tmp_path).fab_package(board_doc(tmp_path), outputs=["gerbers"], overwrite=True)
+
+
+def test_overwrite_leaves_files_no_package_wrote(tmp_path):
+    out = tmp_path / "Outputs"
+    (out / "STEP").mkdir(parents=True)
+    (out / "STEP" / "enclosure.step").write_text("the user's model")
+    with pytest.raises(ValueError, match="manifest does not list.*STEP/enclosure.step"):
+        FakeKiCad(tmp_path).fab_package(board_doc(tmp_path), outputs=["step"], overwrite=True)
+    assert (out / "STEP" / "enclosure.step").exists() and not (out / "manifest.json").exists()
+    # A manifest cannot name files outside the output folders
+    (out / "STEP" / "enclosure.step").unlink()
+    (tmp_path / "board.txt").write_text("outside")
+    (out / "manifest.json").write_text(json.dumps({"generator": "live_pcb_fab_package", "files": [
+        {"path": "../board.txt"}, {"path": "Gerbers/../../board.txt"}, {"path": "C:/board.txt"}]}))
+    assert FakeKiCad(tmp_path).fab_package(board_doc(tmp_path), outputs=["step"], overwrite=True)["exported"]
+    assert (tmp_path / "board.txt").exists()
+    assert fab_package.package_path("STEP/demo.step") and fab_package.package_path("demo-gerbers.zip")
+    assert not any(fab_package.package_path(p) for p in ("STEP", "STEP/", "STEP/..", "Other/a", "STEP\\a",
+                                                          "Gerbers/x/y", "notes.txt", None))
+
+
+def test_a_failed_or_outdated_package_leaves_no_outputs(tmp_path):
+    out = tmp_path / "Outputs"
+    with pytest.raises(RuntimeError, match=r"The board \(revision board-rev, now board-rev-edited\) changed"):
+        FakeKiCad(tmp_path, edited=("board",)).fab_package(board_doc(tmp_path), outputs=["gerbers", "bom"])
+    assert not any(p.is_file() for p in out.rglob("*"))
+    with pytest.raises(RuntimeError, match="The schematic .* changed"):
+        FakeKiCad(tmp_path, edited=("schematic",)).fab_package(board_doc(tmp_path), outputs=["position", "bom"])
+    assert not any(p.is_file() for p in out.rglob("*"))
+    # A board-only package does not read the schematic again
+    assert FakeKiCad(tmp_path, edited=("schematic",)).fab_package(board_doc(tmp_path), outputs=["position"],
+                                                                  checks=False)["exported"]
 
 
 def test_arguments_are_checked_before_kicad_is_asked(tmp_path):
@@ -222,7 +263,10 @@ def test_kicad_warnings_are_reported_and_an_empty_export_fails(tmp_path):
     result = WarningKiCad(tmp_path).fab_package(board_doc(tmp_path), outputs=["position"], checks=False)
     assert result["exported"] and result["warnings"][0] == "position: KiCad: Odd footprint"
     with pytest.raises(RuntimeError, match="step export reported success but wrote nothing.*Board outline"):
-        WarningKiCad(tmp_path).fab_package(board_doc(tmp_path), outputs=["step"], checks=False, overwrite=True)
+        WarningKiCad(tmp_path).fab_package(board_doc(tmp_path), outputs=["position", "step"], checks=False,
+                                           overwrite=True)
+    # What the package wrote before the failure is removed with the previous package
+    assert not any(p.is_file() for p in (tmp_path / "Outputs").rglob("*"))
     single = WarningKiCad(tmp_path).board_export(board_doc(tmp_path), "position", str(tmp_path / "p.csv"))
     assert single["message"] == "Odd footprint"
 

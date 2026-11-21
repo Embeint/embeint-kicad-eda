@@ -499,7 +499,86 @@ fn io_error(error: std::io::Error) -> Error {
     Error::Runtime(error.to_string())
 }
 
-/// `check_output_dir`: (folders, existing files).
+/// `package_path`: a path a package can have written (a file in an output folder or a Gerber zip).
+fn package_path(plan: &[Output], path: &str) -> bool {
+    if path.contains('\\') || path.contains(':') {
+        return false;
+    }
+    let parts: Vec<&str> = path.split('/').collect();
+    match parts.as_slice() {
+        [single] => single.ends_with("-gerbers.zip"),
+        [folder, file] => {
+            plan.iter().any(|o| o.folder == *folder) && !matches!(*file, "" | "." | "..")
+        }
+        _ => false,
+    }
+}
+
+/// `previous_outputs`: the files the previous package's manifest lists (none if it is unreadable
+/// or not a package's).
+fn previous_outputs(plan: &[Output], root: &Path) -> BTreeSet<String> {
+    let Ok(text) = std::fs::read_to_string(root.join(MANIFEST)) else {
+        return BTreeSet::new();
+    };
+    let Ok(manifest) = serde_json::from_str::<Json>(&text) else {
+        return BTreeSet::new();
+    };
+    if manifest.get("generator").and_then(Json::as_str) != Some("live_pcb_fab_package") {
+        return BTreeSet::new();
+    }
+    let Some(files) = manifest.get("files").and_then(Json::as_array) else {
+        return BTreeSet::new();
+    };
+    files
+        .iter()
+        .filter_map(|entry| entry.get("path").and_then(Json::as_str))
+        .filter(|path| package_path(plan, path))
+        .map(str::to_owned)
+        .collect()
+}
+
+/// `shown_list`: the first ten paths, joined.
+fn shown_list(paths: &[String]) -> String {
+    let mut shown = paths
+        .iter()
+        .take(10)
+        .cloned()
+        .collect::<Vec<_>>()
+        .join(", ");
+    if paths.len() > 10 {
+        shown.push_str(" ...");
+    }
+    shown
+}
+
+/// `remove_written`: every file in the output folders, which held none before the package started.
+fn remove_written(root: &Path, folders: &[&str]) {
+    for folder in folders {
+        let target = root.join(folder);
+        if let Ok(entries) = sorted_entries(&target) {
+            for (_, path) in entries {
+                if path.is_file() {
+                    let _ = std::fs::remove_file(path);
+                }
+            }
+        }
+    }
+}
+
+/// `changed_documents`: the document, with both revisions, if it changed since `before`.
+fn changed_documents(now: &Json, before: &Json, label: &str) -> Vec<String> {
+    let (old, new) = (
+        before["revision"].as_str().unwrap_or_default(),
+        now["revision"].as_str().unwrap_or_default(),
+    );
+    if old == new {
+        Vec::new()
+    } else {
+        vec![format!("{label} (revision {old}, now {new})")]
+    }
+}
+
+/// `check_output_dir`: (folders, files to remove).
 fn check_output_dir(
     output_dir: &str,
     plan: &[Output],
@@ -557,21 +636,35 @@ fn check_output_dir(
             existing.push(single);
         }
     }
-    if !existing.is_empty() && !overwrite {
-        let mut shown = existing
-            .iter()
-            .take(10)
-            .cloned()
-            .collect::<Vec<_>>()
-            .join(", ");
-        if existing.len() > 10 {
-            shown.push_str(" ...");
-        }
+    if existing.is_empty() {
+        return Ok((folders, Vec::new()));
+    }
+    if !overwrite {
         return Err(Error::Value(format!(
-            "{output_dir} already has outputs ({shown}); pass overwrite=true to replace them"
+            "{output_dir} already has outputs ({}); pass overwrite=true to replace them",
+            shown_list(&existing)
         )));
     }
-    Ok((folders, existing))
+    let listed = previous_outputs(plan, root);
+    let unknown: Vec<String> = existing
+        .into_iter()
+        .filter(|path| path != MANIFEST && !listed.contains(path))
+        .collect();
+    if !unknown.is_empty() {
+        return Err(Error::Value(format!(
+            "{output_dir} has files the previous package's manifest does not list ({}); move them \
+             or choose another output_dir",
+            shown_list(&unknown)
+        )));
+    }
+    let mut removals: Vec<String> = listed
+        .into_iter()
+        .filter(|path| root.join(path).is_file())
+        .collect();
+    if root.join(MANIFEST).is_file() {
+        removals.push(MANIFEST.to_owned());
+    }
+    Ok((folders, removals))
 }
 
 /// Arguments of `live_pcb_fab_package`.
@@ -767,7 +860,7 @@ pub async fn fab_package(client: &mut Client, args: PackageArgs<'_>) -> Result<J
         && selected
             .iter()
             .any(|n| output(&plan, n).folder == "Gerbers");
-    let (folders, existing) = check_output_dir(
+    let (folders, removals) = check_output_dir(
         &output_dir,
         &plan,
         &selected,
@@ -883,7 +976,7 @@ pub async fn fab_package(client: &mut Client, args: PackageArgs<'_>) -> Result<J
 
     // Export, each output into its folder
     let root = Path::new(&output_dir);
-    for item in &existing {
+    for item in &removals {
         std::fs::remove_file(root.join(item)).map_err(io_error)?;
     }
     for folder in &folders {
@@ -891,59 +984,88 @@ pub async fn fab_package(client: &mut Client, args: PackageArgs<'_>) -> Result<J
     }
     let mut produced: Vec<(&str, Vec<String>)> = Vec::new();
     let mut kicad_warnings: Vec<String> = Vec::new();
-    for (index, name_of_output) in selected.iter().enumerate() {
-        let planned = output(&plan, name_of_output);
-        let target = match planned.file {
-            Some(file) => join(
-                &output_dir,
-                &[planned.folder, &file.replace("{name}", &name)],
-            ),
-            None => join(&output_dir, &[planned.folder]) + "/",
-        };
-        let doc = if SCHEMATIC_OUTPUTS.contains(name_of_output) {
-            schematic.as_ref().expect("schematic")
-        } else {
-            &board
-        };
-        let request = &mut requests[index];
-        set_job(request, doc, &target);
-        let folder = root.join(planned.folder);
-        let before: BTreeSet<String> = sorted_entries(&folder)?
-            .into_iter()
-            .map(|(n, _)| n)
-            .collect();
-        let response = client.send(request, RUN_JOB_RESPONSE).await?;
-        let message = str_field(&response, "message");
-        if !job_ok(&response) {
-            return Err(Error::Runtime(format!(
-                "{name_of_output} export failed: {message}"
-            )));
-        }
-        let new: Vec<String> = sorted_entries(&folder)?
-            .into_iter()
-            .filter(|(n, path)| !before.contains(n) && path.is_file())
-            .map(|(n, _)| n)
-            .collect();
-        if new.is_empty() {
-            let kicad = if message.is_empty() {
-                String::new()
-            } else {
-                format!("; KiCad: {message}")
+    let exported: Result<(), Error> = async {
+        for (index, name_of_output) in selected.iter().enumerate() {
+            let planned = output(&plan, name_of_output);
+            let target = match planned.file {
+                Some(file) => join(
+                    &output_dir,
+                    &[planned.folder, &file.replace("{name}", &name)],
+                ),
+                None => join(&output_dir, &[planned.folder]) + "/",
             };
+            let doc = if SCHEMATIC_OUTPUTS.contains(name_of_output) {
+                schematic.as_ref().expect("schematic")
+            } else {
+                &board
+            };
+            let request = &mut requests[index];
+            set_job(request, doc, &target);
+            let folder = root.join(planned.folder);
+            let before: BTreeSet<String> = sorted_entries(&folder)?
+                .into_iter()
+                .map(|(n, _)| n)
+                .collect();
+            let response = client.send(request, RUN_JOB_RESPONSE).await?;
+            let message = str_field(&response, "message");
+            if !job_ok(&response) {
+                return Err(Error::Runtime(format!(
+                    "{name_of_output} export failed: {message}"
+                )));
+            }
+            let new: Vec<String> = sorted_entries(&folder)?
+                .into_iter()
+                .filter(|(n, path)| !before.contains(n) && path.is_file())
+                .map(|(n, _)| n)
+                .collect();
+            if new.is_empty() {
+                let kicad = if message.is_empty() {
+                    String::new()
+                } else {
+                    format!("; KiCad: {message}")
+                };
+                return Err(Error::Runtime(format!(
+                    "{name_of_output} export reported success but wrote nothing in {}{kicad}",
+                    join(&output_dir, &[planned.folder])
+                )));
+            }
+            produced.push((
+                name_of_output,
+                new.into_iter()
+                    .map(|n| format!("{}/{n}", planned.folder))
+                    .collect(),
+            ));
+            if !message.is_empty() {
+                kicad_warnings.push(format!("{name_of_output}: KiCad: {message}"));
+            }
+        }
+
+        // The outputs must all come from the design that was checked
+        let mut changed = changed_documents(
+            &client.document_revision(&board).await?,
+            &board_state,
+            "board",
+        );
+        if let (Some(state), Some(sheet)) = (&schematic_state, &schematic) {
+            changed.extend(changed_documents(
+                &client.document_revision(sheet).await?,
+                state,
+                "schematic",
+            ));
+        }
+        if !changed.is_empty() {
             return Err(Error::Runtime(format!(
-                "{name_of_output} export reported success but wrote nothing in {}{kicad}",
-                join(&output_dir, &[planned.folder])
+                "The {} changed while the package was exported; its outputs were removed: export \
+                 again",
+                changed.join(" and ")
             )));
         }
-        produced.push((
-            name_of_output,
-            new.into_iter()
-                .map(|n| format!("{}/{n}", planned.folder))
-                .collect(),
-        ));
-        if !message.is_empty() {
-            kicad_warnings.push(format!("{name_of_output}: KiCad: {message}"));
-        }
+        Ok(())
+    }
+    .await;
+    if let Err(error) = exported {
+        remove_written(root, &folders);
+        return Err(error);
     }
 
     let (verification, verify_warnings) = verify(root, &plan, &produced, copper_layers, &name)?;
@@ -1482,6 +1604,32 @@ fn manifest_text(manifest: &Json) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_manifest_names_only_package_files() {
+        let plan = plan();
+        assert!(package_path(&plan, "STEP/demo.step"));
+        assert!(package_path(&plan, "demo-gerbers.zip"));
+        for path in [
+            "STEP",
+            "STEP/",
+            "STEP/..",
+            "Other/a",
+            "STEP\\a",
+            "Gerbers/x/y",
+            "notes.txt",
+            "C:/x.txt",
+            "../x-gerbers.zip",
+        ] {
+            assert!(!package_path(&plan, path), "{path}");
+        }
+        let before = json!({"revision": "a"});
+        assert!(changed_documents(&json!({"revision": "a"}), &before, "board").is_empty());
+        assert_eq!(
+            changed_documents(&json!({"revision": "b"}), &before, "board"),
+            ["board (revision a, now b)"]
+        );
+    }
 
     #[test]
     fn helpers_follow_python() {

@@ -44,6 +44,10 @@
    - Change one output with `options` (for example `{"position": {"use_drill_place_file_origin":
      true}}` if the assembler wants the drill/place origin) rather than exporting it by hand. Use
      `live_pcb_export` or `live_schematic_export` for one-off files.
+   - Re-run with `overwrite=true` after a change. It removes every file the previous package's
+     manifest lists and refuses if the output folders hold anything else, so keep your own files
+     (quotes, enclosure models) out of them. If the design changes while the package is exported,
+     the call fails and removes what it wrote: save, then run it again.
 
 ## Castellated modules
 

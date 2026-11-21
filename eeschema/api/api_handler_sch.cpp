@@ -169,7 +169,7 @@ HANDLER_RESULT<types::RunJobResponse> ExecuteSchematicJob( KIWAY* aKiway, JOB& a
 
     response.set_status( types::JobStatus::JS_ERROR );
     response.set_message( fmt::format( "Schematic export job '{}' failed with exit code {}: {}",
-                                       aJob.GetType(), exitCode, messages.ToStdString() ) );
+                                       aJob.GetType(), exitCode, messages.ToUTF8().data() ) );
     return response;
 }
 

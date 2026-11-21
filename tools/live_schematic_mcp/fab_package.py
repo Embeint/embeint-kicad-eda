@@ -127,6 +127,7 @@ PLAN = {
     "schematic_pdf": ("Schematic", SCHEMATIC_EXPORTS["pdf"], {}, "{name}-schematic.pdf"),
 }
 OUTPUTS = tuple(PLAN)
+OUTPUT_FOLDERS = frozenset(entry[0] for entry in PLAN.values())
 DEFAULT_OUTPUTS = ("gerbers", "drill", "position", "step", "assembly_pdf", "bom", "schematic_pdf")
 SCHEMATIC_OUTPUTS = ("bom", "schematic_pdf")
 MANIFEST = "manifest.json"
@@ -193,9 +194,36 @@ def default_output_dir(board):
     return join(board.project.path, "Outputs")
 
 
+def package_path(path):
+    """A path a package can have written: a file in one of the output folders or a Gerber zip."""
+    if not isinstance(path, str) or "\\" in path or ":" in path:
+        return False
+    parts = path.split("/")
+    if len(parts) == 1:
+        return path.endswith("-gerbers.zip")
+    return len(parts) == 2 and parts[0] in OUTPUT_FOLDERS and parts[1] not in ("", ".", "..")
+
+
+def previous_outputs(root):
+    """The files the previous package's manifest lists (an unreadable or foreign manifest lists
+    none)."""
+    try:
+        manifest = json.loads((root / MANIFEST).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return set()
+    if not isinstance(manifest, dict) or manifest.get("generator") != "live_pcb_fab_package":
+        return set()
+    files = manifest.get("files")
+    if not isinstance(files, list):
+        return set()
+    return {entry["path"] for entry in files if isinstance(entry, dict) and package_path(entry.get("path"))}
+
+
 def check_output_dir(output_dir, selected, name, zip_gerbers, overwrite):
-    """Refuse to mix new outputs with old ones: the output folders (and the manifest and zip) must
-    be empty or absent unless overwrite is given.  Folders inside them are never removed."""
+    """Refuse to mix new outputs with old ones.  The output folders (and the manifest and zip) must
+    be empty or absent.  With overwrite they may hold only what the previous package's manifest
+    lists; every file it lists is then removed, so none of its outputs survives beside the new ones.
+    Folders inside them are never removed.  Returns the folders and the files to remove."""
     root = Path(output_dir)
     if root.exists() and not root.is_dir():
         raise ValueError(f"output_dir {output_dir} is a file")
@@ -215,10 +243,40 @@ def check_output_dir(output_dir, selected, name, zip_gerbers, overwrite):
             raise ValueError(f"{join(output_dir, single)} is a folder")
         if (root / single).is_file():
             existing.append(single)
-    if existing and not overwrite:
-        shown = ", ".join(existing[:10]) + (" ..." if len(existing) > 10 else "")
-        raise ValueError(f"{output_dir} already has outputs ({shown}); pass overwrite=true to replace them")
-    return folders, existing
+    if not existing:
+        return folders, []
+    if not overwrite:
+        raise ValueError(f"{output_dir} already has outputs ({shown_list(existing)}); pass overwrite=true to "
+                         "replace them")
+    listed = previous_outputs(root)
+    unknown = [path for path in existing if path != MANIFEST and path not in listed]
+    if unknown:
+        raise ValueError(f"{output_dir} has files the previous package's manifest does not list "
+                         f"({shown_list(unknown)}); move them or choose another output_dir")
+    removals = sorted(path for path in listed if (root / path).is_file())
+    return folders, removals + ([MANIFEST] if (root / MANIFEST).is_file() else [])
+
+
+def changed_documents(now, before, label):
+    """The document, named with both revisions, if it changed since `before` was read."""
+    if now["revision"] == before["revision"]:
+        return []
+    return [f"{label} (revision {before['revision']}, now {now['revision']})"]
+
+
+def shown_list(paths):
+    return ", ".join(paths[:10]) + (" ..." if len(paths) > 10 else "")
+
+
+def remove_written(root, folders):
+    """Remove what an unfinished package wrote: every file in its output folders, which held none
+    before it started."""
+    for folder in folders:
+        target = root / folder
+        if target.is_dir():
+            for entry in sorted(target.iterdir(), key=lambda p: p.name):
+                if entry.is_file():
+                    entry.unlink()
 
 
 def zip_name(name):
@@ -499,7 +557,7 @@ class FabPackageTools:
         name = project_name(board)
         output_dir = output_dir or default_output_dir(board)
         zip_gerbers = bool(zip_gerbers) and "Gerbers" in {PLAN[o][0] for o in selected}
-        folders, existing = check_output_dir(output_dir, selected, name, zip_gerbers, overwrite)
+        folders, removals = check_output_dir(output_dir, selected, name, zip_gerbers, overwrite)
         with self.lock:
             # The design must be what is saved, and clean
             board_state = self.document_revision(board)
@@ -549,29 +607,41 @@ class FabPackageTools:
 
             # Export, each output into its folder
             root = Path(output_dir)
-            for item in existing:
+            for item in removals:
                 (root / item).unlink()
             for folder in folders:
                 (root / folder).mkdir(parents=True, exist_ok=True)
             produced, kicad_warnings = {}, []
-            for output in selected:
-                folder, _, _, file_name = PLAN[output]
-                request = requests[output]
-                request.job_settings.document.CopyFrom(schematic if output in SCHEMATIC_OUTPUTS else board)
-                request.job_settings.output_path = (join(output_dir, folder, file_name.format(name=name)) if file_name
-                                                    else join(output_dir, folder) + "/")
-                before = {p.name for p in (root / folder).iterdir()}
-                response = self.send(request, jobs.RunJobResponse)
-                if response.status not in (jobs.JS_SUCCESS, jobs.JS_WARNING):
-                    raise RuntimeError(f"{output} export failed: {response.message}")
-                new = sorted(p.name for p in (root / folder).iterdir() if p.name not in before and p.is_file())
-                if not new:
-                    raise RuntimeError(f"{output} export reported success but wrote nothing in "
-                                       f"{join(output_dir, folder)}"
-                                       + (f"; KiCad: {response.message}" if response.message else ""))
-                produced[output] = [f"{folder}/{n}" for n in new]
-                if response.message:
-                    kicad_warnings.append(f"{output}: KiCad: {response.message}")
+            try:
+                for output in selected:
+                    folder, _, _, file_name = PLAN[output]
+                    request = requests[output]
+                    request.job_settings.document.CopyFrom(schematic if output in SCHEMATIC_OUTPUTS else board)
+                    request.job_settings.output_path = (join(output_dir, folder, file_name.format(name=name))
+                                                        if file_name else join(output_dir, folder) + "/")
+                    before = {p.name for p in (root / folder).iterdir()}
+                    response = self.send(request, jobs.RunJobResponse)
+                    if response.status not in (jobs.JS_SUCCESS, jobs.JS_WARNING):
+                        raise RuntimeError(f"{output} export failed: {response.message}")
+                    new = sorted(p.name for p in (root / folder).iterdir() if p.name not in before and p.is_file())
+                    if not new:
+                        raise RuntimeError(f"{output} export reported success but wrote nothing in "
+                                           f"{join(output_dir, folder)}"
+                                           + (f"; KiCad: {response.message}" if response.message else ""))
+                    produced[output] = [f"{folder}/{n}" for n in new]
+                    if response.message:
+                        kicad_warnings.append(f"{output}: KiCad: {response.message}")
+
+                # The outputs must all come from the design that was checked
+                changed = changed_documents(self.document_revision(board), board_state, "board")
+                if schematic_state:
+                    changed += changed_documents(self.document_revision(schematic), schematic_state, "schematic")
+                if changed:
+                    raise RuntimeError(f"The {' and '.join(changed)} changed while the package was exported; "
+                                       "its outputs were removed: export again")
+            except Exception:
+                remove_written(root, folders)
+                raise
 
         verification, warnings = verify(output_dir, produced, copper_layers, name)
         warnings = kicad_warnings + warnings

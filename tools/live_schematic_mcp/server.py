@@ -1307,7 +1307,10 @@ def live_pcb_fab_package(board_document: dict, output_dir: str | None = None, sc
     unless schematic_document is given) must be saved unless allow_unsaved, and with checks DRC
     with schematic parity must report no errors (zones must be filled). A blocked package returns
     exported=false with blocked_by (unsaved or drc) and writes nothing. Existing outputs are
-    replaced only with overwrite. After exporting, verification reports the plotted copper layers
+    replaced only with overwrite, which removes every file the previous package's manifest lists
+    (so none survives beside the new ones) and refuses if the output folders hold any other file.
+    If an export fails or the design changes while exporting, the files written so far are removed
+    and the call fails. After exporting, verification reports the plotted copper layers
     against the board, drill holes, placements per side, BOM lines, parts without an MPN and parts
     in the BOM without a placement; warnings lists these and KiCad's own export warnings, what a fab
     or assembler would query.

@@ -48,6 +48,10 @@ public:
     /**
      * Collect messages that other threads logged during the job, then return all of them.
      *
+     * wxWidgets buffers messages from other threads until the main thread flushes them, so this
+     * also collects any a background thread logged before the job started and the GUI had not yet
+     * flushed.  They are reported with the job rather than shown later.
+     *
      * @return the warnings and errors logged while this instance was active, one per line.
      */
     const wxString& Finish()
@@ -59,7 +63,18 @@ public:
 protected:
     void DoLogRecord( wxLogLevel aLevel, const wxString& aMessage, const wxLogRecordInfo& aInfo ) override
     {
-        // Information and debug messages stay out of the reply, as they stay out of the dialog
+        // Debug and trace output goes where it went before (debug output, a console trace
+        // target), as it never opens a dialog
+        if( aLevel >= wxLOG_Debug )
+        {
+            if( m_previous )
+                m_previous->LogRecord( aLevel, aMessage, aInfo );
+
+            return;
+        }
+
+        // Plain messages would also open a dialog; status and verbose information are dropped
+        // with them, as they are not problems the client needs to know about
         if( aLevel > wxLOG_Warning )
             return;
 
