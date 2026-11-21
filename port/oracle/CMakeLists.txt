@@ -50,6 +50,8 @@ target_link_libraries( kicad-oracle PRIVATE kimath nlohmann_json )
 
 # Audit every build, including direct cmake --build calls and warm cache builds.
 add_custom_target( oracle-audit
+    BYPRODUCTS "${CMAKE_BINARY_DIR}/oracle_provenance.h"
+               "${CMAKE_BINARY_DIR}/oracle-provenance.json"
     COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/audit.py"
             --build "${CMAKE_BINARY_DIR}" --source "${KICAD_REFERENCE_SOURCE}"
             --overlay "${ORACLE_OVERLAY}"
