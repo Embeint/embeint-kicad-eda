@@ -116,8 +116,32 @@ def servers(binary):
     return [("python", python), ("rust", rust)]
 
 
+async def resource_step(session, method, arguments):
+    """A resources/list, resources/templates/list or resources/read step ({"uri": ...}): the
+    result, or {"error": the JSON-RPC error}.  The URI is sent exactly as given (the client would
+    otherwise normalise it as pydantic's AnyUrl does), so the servers' own handling is compared."""
+    import warnings
+    from mcp import types
+    from mcp.shared.exceptions import McpError
+    try:
+        if method == "resources/list":
+            result = await session.list_resources()
+        elif method == "resources/templates/list":
+            result = await session.list_resource_templates()
+        else:
+            params = types.ReadResourceRequestParams.model_construct(uri=arguments["uri"])
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")  # pydantic warns when serialising the raw str as AnyUrl
+                result = await session.send_request(
+                    types.ClientRequest(types.ReadResourceRequest(params=params)), types.ReadResourceResult)
+    except McpError as error:
+        return {"error": error.error.model_dump(mode="json", exclude_none=True)}
+    return result.model_dump(mode="json", exclude_none=True)
+
+
 async def run_session(params, steps, between=None):
-    """initialize, then each (tool, arguments) step; between[i]() runs before step i."""
+    """initialize, then each (tool, arguments) step; between[i]() runs before step i.  A step whose
+    tool is "resources/list", "resources/templates/list" or "resources/read" makes that request."""
     async with stdio_client(params, errlog=DEVNULL) as (read, write):
         async with ClientSession(read, write) as session:
             init = await session.initialize()
@@ -126,6 +150,9 @@ async def run_session(params, steps, between=None):
             for index, (tool, arguments) in enumerate(steps):
                 if between and index in between:
                     between[index]()
+                if tool.startswith("resources/"):
+                    results.append(await resource_step(session, tool, arguments))
+                    continue
                 result = await session.call_tool(tool, arguments)
                 results.append(result.model_dump(mode="json", exclude_none=True))
             return init.model_dump(mode="json", exclude_none=True), tools, results
