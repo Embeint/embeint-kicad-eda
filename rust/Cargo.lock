@@ -191,6 +191,7 @@ dependencies = [
  "chrono",
  "embeint-ipc",
  "embeint-layout",
+ "prost",
  "prost-reflect",
  "regex",
  "serde_json",
