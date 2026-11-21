@@ -29,7 +29,7 @@ def digest(data):
 
 def write_json(path, value):
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(value, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    path.write_text(json.dumps(value, sort_keys=True, indent=2) + "\n", encoding="utf-8", newline="\n")
 
 
 def read_json(path):
@@ -84,6 +84,33 @@ def expand_virtual(calls, overrides):
                     out.add((caller, derived, "override"))
                     pending.append(derived)
     return sorted(out)
+
+
+def materialize_definitions(functions, calls, overrides, locations):
+    """Keep distinct source bodies sharing a USR across separate executables.
+
+    Their per-configuration calls are conservatively unioned, as for ordinary
+    definition variants. Stable copies give every physical body a unit owner.
+    """
+    choices, copies = {}, {}
+    for usr, records in sorted(locations.items()):
+        primary = functions[usr]
+        primary_location = (primary["file"], primary["start"], primary["end"])
+        choices[usr] = [usr]
+        for location, record in sorted(records.items()):
+            if location == primary_location:
+                continue
+            key = usr + "@definition:" + digest(json.dumps(location).encode())[:16]
+            if key in functions:
+                raise ValueError(f"Definition identity collision: {key}")
+            functions[key] = dict(record, wx=list(primary["wx"]), clang_usr=usr)
+            choices[usr].append(key)
+            copies[key] = usr
+    expanded_calls = {(a, b, virtual) for caller, target, virtual in calls
+                      for a in choices.get(caller, [caller]) for b in choices.get(target, [target])}
+    expanded_overrides = {(a, b) for base, derived in overrides
+                          for a in choices.get(base, [base]) for b in choices.get(derived, [derived])}
+    return sorted(expanded_calls), sorted(expanded_overrides), copies
 
 
 def classify(functions, edges):

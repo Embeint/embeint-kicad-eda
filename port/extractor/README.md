@@ -64,6 +64,18 @@ are recorded and their wx dependencies/calls are unioned conservatively. Primary
 ranges are chosen deterministically by command identity. SHA-256 source hashes
 normalize CRLF to LF so Windows and Linux checkouts validate identically; offsets
 refer to the original snapshot bytes.
+Source paths are lexically normalized before inventory matching. When libclang
+returns a null extent for an abbreviated constrained template, its nearest valid
+enclosing declaration supplies a conservative range, tagged
+`range_kind=enclosing-declaration`; `definition_line` retains the declaration's
+own location. Its fingerprint and drift scope cover that wider range. The
+measurement reports how many definitions needed this recovery rather than
+inventing token offsets or dropping them.
+Separate executables can define the same USR at different source locations
+(KiCad has three observed `main` bodies). Additional locations get stable
+`@definition:<hash>` keys, retain the original `clang_usr`, and appear in
+`definition_copies`. Calls and overrides conservatively reach every location;
+each body therefore has a unit owner instead of disappearing behind one primary.
 
 Virtual calls expand transitively to **all observed overrides**, including
 uninstantiated derived classes, without restricting them to runtime reachability.
@@ -99,7 +111,7 @@ inventoried: their library replacement/retention decisions are not implementatio
 units. No missing configuration or parse failure disappears from accounting.
 
 Each unit targets 2,000 physical upstream lines; a function is never split, so a
-single larger function can exceed that. Units group directory, wx classification
+single larger function or conservative enclosing range can exceed that. Units group directory, wx classification
 and source category; math implementation files retain independent units to make
 small foundation pilots possible. `est_lines` is the **measured physical range
 sum**, including declarations/comments, rather than an estimated port effort or a
@@ -124,7 +136,8 @@ The core schema follows solidcore at
 `layer`, `tests`, `status`, `claimed_by`, `claimed_at`, `notes`.
 
 Extensions are `schema_version=1`, `wx_class` (`pure`, `thin-replacement`, `UI`),
-`source_category`, `functions` (clang USRs), `source_ranges` (inclusive
+`source_category`, `functions` (graph definition keys: clang USRs with the
+documented suffix for additional same-USR bodies), `source_ranges` (inclusive
 `path:start:end`) and `coverage_gaps` (source paths). Missing coverage is initially
 `blocked`, otherwise status is `todo`. Supported port states are `todo`, `claimed`,
 `partial`, `green`, `blocked`. Green requires recorded tests and no coverage gaps;

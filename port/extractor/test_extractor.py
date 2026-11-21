@@ -11,7 +11,7 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
-from extractor.model import PIN, classify, digest, expand_virtual, layers, weighted_dag, write_json, write_graph, write_cache, read_json, wx_class
+from extractor.model import PIN, classify, digest, expand_virtual, materialize_definitions, layers, weighted_dag, write_json, write_graph, write_cache, read_json, wx_class
 from split_units import dump, split
 from validate_units import validate
 import drift_report
@@ -52,6 +52,21 @@ def save_fixture(root, graph, inventory, target=1):
 
 
 class GraphTests(unittest.TestCase):
+    def test_same_usr_in_separate_executables_keeps_each_body_owned(self):
+        first = {"file": "one.cpp", "start": 1, "end": 2, "wx": []}
+        second = {"file": "two.cpp", "start": 3, "end": 4, "wx": ["wxString"]}
+        functions = {"main": first, "callee": {"wx": []}}
+        calls, overrides, copies = materialize_definitions(functions,
+            [("main", "callee", False), ("entry", "main", False)], [],
+            {"main": {("one.cpp", 1, 2): first, ("two.cpp", 3, 4): second}})
+        self.assertEqual(len(copies), 1)
+        duplicate = next(iter(copies))
+        self.assertEqual(functions[duplicate]["file"], "two.cpp")
+        self.assertEqual(functions[duplicate]["clang_usr"], "main")
+        self.assertIn((duplicate, "callee", False), calls)
+        self.assertIn(("entry", duplicate, False), calls)
+        self.assertEqual(overrides, [])
+
     def test_absent_source_is_never_passed_to_clang(self):
         from extractor.clang_graph import extract_translation_unit
         with tempfile.TemporaryDirectory() as tmp:
@@ -187,6 +202,18 @@ class GraphTests(unittest.TestCase):
 
 
 class ValidationTests(unittest.TestCase):
+    def test_manifest_fingerprint_survives_checkout_line_endings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            graph, inventory = fixture(root)
+            manifest = {"source_commit": "a" * 40, "upstream_pin": PIN, "files": ["a.cpp", "b.cpp"]}
+            data = (json.dumps(manifest, indent=2) + "\n").encode()
+            graph["provenance"].update(source_manifest_sha256=digest(data),
+                source_manifest_hash_policy="SHA-256 after CRLF-to-LF normalization")
+            save_fixture(root, graph, inventory)
+            (root / "port/extractor/generated/source-manifest.json").write_bytes(data.replace(b"\n", b"\r\n"))
+            self.assertEqual(validate(root), [])
+
     def test_valid_incomplete_configuration_and_errors(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -281,6 +308,33 @@ class DriftTests(unittest.TestCase):
 
 @unittest.skipUnless(importlib.util.find_spec("clang"), "matching libclang Python bindings unavailable")
 class ClangIntegrationTests(unittest.TestCase):
+    def test_include_aliases_and_constrained_auto_extents_have_real_owned_ranges(self):
+        from extractor.clang_graph import extract_translation_unit
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "sub").mkdir()
+            (root / "value.h").write_text('inline int value() { return 3; }\n')
+            source = root / "ranges.cpp"
+            source.write_text("""
+#include "sub/../value.h"
+template<class T> concept Number = requires(T n) { n + n; };
+struct C {
+    static constexpr auto twice(Number auto x) { return x + x; }
+};
+int call() { return value() + C::twice(3); }
+""", encoding="utf-8")
+            result = extract_translation_unit({"root": str(root), "old_root": str(root), "file": str(source),
+                "arguments": ["clang++", "-std=c++20", "-c", str(source)], "directory": str(root),
+                "libclang": "/usr/lib/llvm-21/lib/libclang-21.so.1"})
+            self.assertEqual(result["status"], "ok", result["diagnostics"])
+            self.assertIn("value.h", result["includes"])
+            self.assertTrue(any(f["file"] == "value.h" for f in result["functions"].values()))
+            for fn in result["functions"].values():
+                self.assertNotIn("..", fn["file"])
+                self.assertGreater(fn["start"], 0)
+                self.assertGreater(fn["end_offset"], fn["start_offset"])
+                self.assertIn(fn["range_kind"], ("function", "enclosing-declaration"))
+
     def test_template_instances_reach_primary_bodies_and_keep_explicit_specializations(self):
         from extractor.clang_graph import extract_translation_unit
         with tempfile.TemporaryDirectory() as tmp:

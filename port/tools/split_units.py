@@ -140,7 +140,7 @@ def main():
             previous = tomllib.loads(path.read_text())
             for key in ("status", "claimed_by", "claimed_at", "tests", "notes"):
                 unit[key] = previous[key]
-        path.write_text(dump(unit), encoding="utf-8")
+        path.write_text(dump(unit), encoding="utf-8", newline="\n")
     write_json(a.report, report)
     # Older local extraction runs may have written plain JSON; canonical graph
     # storage is deterministic gzip, while read_json accepts either form.
