@@ -1002,7 +1002,10 @@ mod tests {
         assert_eq!(py_repr(&json!("a'b")), r#""a'b""#);
         assert_eq!(py_repr(&json!("a'b\"c")), r#"'a\'b"c'"#);
         assert_eq!(py_repr(&json!(r"C:\tmp\x")), r"'C:\\tmp\\x'");
-        assert_eq!(py_repr(&json!("l1\nl2\t\r\u{1}\u{7f}é")), r"'l1\nl2\t\r\x01\x7fé'");
+        assert_eq!(
+            py_repr(&json!("l1\nl2\t\r\u{1}\u{7f}é")),
+            r"'l1\nl2\t\r\x01\x7fé'"
+        );
         assert_eq!(
             py_repr(&json!({"path": ["C:\\a"], "n": 1, "ok": true, "x": null})),
             r"{'path': ['C:\\a'], 'n': 1, 'ok': True, 'x': None}"
