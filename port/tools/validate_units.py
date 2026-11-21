@@ -57,6 +57,8 @@ def validate(root, require_complete=False, check_sources=True, source_root=None)
             errors.append(f"{uid}: invalid status")
         if unit.get("wx_class") not in CLASSES:
             errors.append(f"{uid}: invalid wx classification")
+        if unit.get("source_category") not in ("application", "generated", "thirdparty"):
+            errors.append(f"{uid}: invalid source category")
         if unit.get("schema_version") != 1:
             errors.append(f"{uid}: invalid schema_version")
         if unit.get("status") == "claimed" and (not unit.get("claimed_by") or not unit.get("claimed_at")):
@@ -125,7 +127,7 @@ def validate(root, require_complete=False, check_sources=True, source_root=None)
                 errors.append(f"{uid}: unknown/self dependency {dep}")
         if set(unit["depends_on"]) & set(unit["soft_depends_on"]):
             errors.append(f"{uid}: dependency both hard and soft")
-        total = 0
+        total, owned_paths = 0, set()
         for location in unit["source_ranges"]:
             try:
                 path, start, end = location.rsplit(":", 2)
@@ -133,11 +135,19 @@ def validate(root, require_complete=False, check_sources=True, source_root=None)
                 if path not in unit["upstream"] or not 1 <= start <= end <= files[path]["lines"]:
                     raise ValueError("invalid range")
                 ranges[path].append((start, end, uid))
+                owned_paths.add(path)
                 total += end - start + 1
             except (ValueError, KeyError):
                 errors.append(f"{uid}: invalid source range {location}")
         if total != unit["est_lines"]:
             errors.append(f"{uid}: est_lines differs from measured ranges")
+        if any(files[p]["category"] != unit["source_category"] for p in owned_paths):
+            errors.append(f"{uid}: source category differs from owned inventory ranges")
+        expected_gaps = {p for p in owned_paths if files[p]["coverage"] != "parsed"}
+        if set(unit["coverage_gaps"]) != expected_gaps:
+            errors.append(f"{uid}: coverage gaps differ from owned inventory ranges")
+        if expected_gaps and unit["wx_class"] != "UI":
+            errors.append(f"{uid}: unparsed source ranges require conservative UI classification")
         for usr in unit["functions"]:
             if usr not in graph["functions"] or usr in ownership:
                 errors.append(f"{uid}: unknown or multiply owned function {usr}")
