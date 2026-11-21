@@ -584,8 +584,17 @@ pub struct Finished {
     pub stderr: Vec<u8>,
 }
 
+/// The exit code as Python's `Popen.returncode` reports it.  On Windows that is the process's
+/// unsigned 32-bit exit code: a crash is 3221225477 (0xC0000005), not the signed -1073741819 that
+/// `ExitStatus::code` gives.
 fn exit_code(status: std::process::ExitStatus) -> i64 {
     if let Some(code) = status.code() {
+        #[cfg(windows)]
+        {
+            #[allow(clippy::cast_sign_loss)]
+            return i64::from(code as u32);
+        }
+        #[cfg(not(windows))]
         return i64::from(code);
     }
     #[cfg(unix)]
@@ -730,6 +739,17 @@ mod tests {
 
     fn cli_arguments_(args: &[String]) -> Result<Vec<String>, Error> {
         cli_arguments(args, None)
+    }
+
+    /// A crashed process's exit code is Python's: unsigned on Windows.
+    #[cfg(windows)]
+    #[test]
+    fn windows_exit_codes_are_unsigned() {
+        let status = std::process::Command::new("cmd")
+            .args(["/c", "exit", "-1073741819"])
+            .status()
+            .expect("cmd runs");
+        assert_eq!(exit_code(status), 3_221_225_477);
     }
 
     /// Names Windows rewrites (trailing dots and spaces, stream suffixes) onto a protected file or

@@ -25,6 +25,7 @@ setlocal
 set "HERE=%~dp0"
 set "OUT=%~dp0..\..\"
 if "%~1"=="pcb" if "%~2"=="render" goto render
+if "%~4"=="crash-probe" goto crash
 if "%~1"=="pcb" if "%~2"=="export" if "%~3"=="step" goto step
 if "%~1"=="pcb" if "%~2"=="drc" goto fail
 if "%~1"=="pcb" if "%~2"=="export" if "%~3"=="svg" goto slow
@@ -43,6 +44,7 @@ if defined FIXTURE_VARIABLE echo FIXTURE_VARIABLE=%FIXTURE_VARIABLE%
 >&2 echo fixture stderr
 exit /b 0
 :render
+if exist "%OUT%crash-render" goto crash
 if exist "%OUT%fail-render" goto renderfail
 call :find %*
 copy /y "%OUT%fixture.png" "%OUTPUT%" >nul
@@ -51,6 +53,10 @@ exit /b 0
 :renderfail
 >&2 echo render exploded
 exit /b 3
+:crash
+rem An access violation, as a crashing kicad-cli ends: exit code 0xC0000005
+>&2 echo access violation
+exit /b -1073741819
 :step
 call :find %*
 copy /y "%OUT%fixture.step" "%OUTPUT%" >nul
@@ -78,10 +84,13 @@ FAKE_SH = """#!/bin/sh
 OUT="$(dirname "$0")/../.."
 find_args() { while [ $# -gt 0 ]; do [ "$1" = -o ] && OUTPUT=$2; BOARD=$1; shift; done; }
 if [ "$1" = pcb ] && [ "$2" = render ]; then
+  if [ -e "$OUT/crash-render" ]; then echo access violation >&2; kill -SEGV $$; fi
   if [ -e "$OUT/fail-render" ]; then echo render exploded >&2; exit 3; fi
   find_args "$@"; cp "$OUT/fixture.png" "$OUTPUT"; cp "$BOARD" "$OUT/render-board.kicad_pcb"; exit 0
 elif [ "$1" = pcb ] && [ "$2" = export ] && [ "$3" = step ]; then
   find_args "$@"; cp "$OUT/fixture.step" "$OUTPUT"; cp "$BOARD" "$OUT/step-board.kicad_pcb"; exit 0
+elif [ "$4" = crash-probe ]; then
+  echo access violation >&2; kill -SEGV $$
 elif [ "$1" = pcb ] && [ "$2" = drc ]; then
   echo some output; echo drc failed badly >&2; exit 5
 elif [ "$1" = pcb ] && [ "$2" = export ] && [ "$3" = svg ]; then
@@ -232,7 +241,7 @@ def scenarios(h):
                 f'\t\t(file (name "notes.txt") (type other) (data |{notes}|))\r\n\t)\r\n'
                 '\t(model "kicad-embed://R.step" (offset (xyz 0 0 0)))\r\n)\r\n')
 
-    def prepare_cli(out, fail_render=False):
+    def prepare_cli(out, fail_render=False, crash_render=False):
         state["out"] = out
         bin_dir = out / "install" / "bin"
         bin_dir.mkdir(parents=True)
@@ -253,6 +262,8 @@ def scenarios(h):
         (out / "other.step").write_bytes(b"ISO-10303-21; a different model")
         if fail_render:
             (out / "fail-render").write_bytes(b"")
+        if crash_render:
+            (out / "crash-render").write_bytes(b"")
 
     def cli_path(request):
         return reply(base.PathResponse(path=str(state["out"] / "install" / "bin" / CLI_NAME)))
@@ -554,6 +565,12 @@ def scenarios(h):
           prepare=prepare_cli),
         S("footprint_view_3d_render_fails", [("live_footprint_view_3d", {"lib_id": "Lib:R_0603"})],
           [BINARY, ENV_KICAD, OPEN, LIB_TABLE], prepare=lambda out: prepare_cli(out, fail_render=True)),
+        # kicad-cli crashing (seen live: its 3D render ends in an access violation on Windows): the
+        # exit code as Python reports it, unsigned on Windows (3221225477), a negative signal elsewhere
+        S("footprint_view_3d_render_crashes", [("live_footprint_view_3d", {"lib_id": "Lib:R_0603"})],
+          [BINARY, ENV_KICAD, OPEN, LIB_TABLE], prepare=lambda out: prepare_cli(out, crash_render=True)),
+        S("footprint_kicad_cli_crash", [("live_kicad_cli", {"args": ["fp", "export", "svg", "crash-probe"]})],
+          [BINARY, ENV_UNHANDLED], prepare=prepare_cli),
         S("footprint_check_model", [
             ("live_footprint_check_model", {"lib_id": "Lib:R_0603"}),
             ("live_footprint_check_model", {"lib_id": "Lib:R_0603", "source_path": out_path("source.step")}),
