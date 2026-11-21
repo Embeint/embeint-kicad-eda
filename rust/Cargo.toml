@@ -19,6 +19,7 @@ publish = false
 [workspace.dependencies]
 embeint-layout = { path = "embeint-layout" }
 embeint-ipc = { path = "embeint-ipc" }
+solidcore = { path = "../.port-deps/solidcore/crates/solidcore", default-features = false }
 serde_json = { version = "1", default-features = false, features = ["std", "preserve_order", "arbitrary_precision"] }
 
 [profile.release]
