@@ -109,7 +109,7 @@ pub fn manifest() -> Json {
         "live_support_verified": false,
         "limitations": [
             "Local registration is not capability negotiation with a running KiCad instance.",
-            "application_version is the KiCad this package was built with; live_schematic_documents              reports the running editor's version.",
+            "application_version and source_revision are null in the native server; live_schematic_documents reports the running editor's version.",
             "Commands may be unavailable for an editor, document, or application version.",
             "Operation kind does not guarantee undo or rollback support.",
             "The registry is a curated adapter surface, not every declared protobuf message.",
@@ -135,6 +135,17 @@ pub fn resource_entry() -> Json {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Limitations are single sentences with single spaces (a broken line continuation once left
+    /// a run of spaces in one, which no parity check compares).
+    #[test]
+    fn limitations_are_plain_sentences() {
+        for text in manifest()["limitations"].as_array().unwrap() {
+            let text = text.as_str().unwrap();
+            assert!(!text.contains("  ") && !text.contains('\n'), "{text:?}");
+            assert!(text.ends_with('.'), "{text:?}");
+        }
+    }
 
     #[test]
     fn canonical_json_matches_python_dumps() {
