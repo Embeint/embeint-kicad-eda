@@ -656,7 +656,10 @@ pub(crate) fn arc_points(
     if d.abs() < 1e-12 {
         return vec![start, end];
     }
-    let sq = |x: f64, y: f64| x.powf(2.0) + y.powf(2.0);
+    // x**2 in Python is the C runtime's pow (not always x * x on Windows); black_box keeps LLVM
+    // from folding it
+    let two = std::hint::black_box(2.0);
+    let sq = |x: f64, y: f64| x.powf(two) + y.powf(two);
     let ux = (sq(x1, y1) * (y2 - y3) + sq(x2, y2) * (y3 - y1) + sq(x3, y3) * (y1 - y2)) / d;
     let uy = (sq(x1, y1) * (x3 - x2) + sq(x2, y2) * (x1 - x3) + sq(x3, y3) * (x2 - x1)) / d;
     let r = py_hypot(x1 - ux, y1 - uy);
@@ -1879,7 +1882,10 @@ fn route_in(
     let i_hi = to_int(((region[2] - x0) / grid).ceil())?;
     let j_lo = to_int(((region[1] - y0) / grid).floor())?;
     let j_hi = to_int(((region[3] - y0) / grid).ceil())?;
-    let (nx, ny) = (i_hi - i_lo + 1, j_hi - j_lo + 1);
+    let (nx, ny) = (
+        i_hi.saturating_sub(i_lo).saturating_add(1),
+        j_hi.saturating_sub(j_lo).saturating_add(1),
+    );
     let total = nx.saturating_mul(ny).saturating_mul(layers.len() as i64);
     if total > MAX_CELLS {
         return Err(RouteError::NoRoute(format!(
@@ -1891,12 +1897,24 @@ fn route_in(
             .map(|k| origin + ((k + lo) as f64) * grid)
             .collect()
     };
-    let g = Grid {
-        xs: axis(nx, i_lo, x0),
-        ys: axis(ny, j_lo, y0),
+    // An inverted region (pads far off the board) gives a negative count on one axis; numpy's
+    // grid then has no cells whatever the other axis is, so neither axis is built (the other
+    // could hold billions of points while the cell check above saw a negative total)
+    let g = if nx <= 0 || ny <= 0 {
+        Grid {
+            xs: Vec::new(),
+            ys: Vec::new(),
+        }
+    } else {
+        Grid {
+            xs: axis(nx, i_lo, x0),
+            ys: axis(ny, j_lo, y0),
+        }
     };
     let (nxu, nyu) = (g.nx(), g.ny());
-    let (nxs, nys) = (nxu as i64, nyu as i64);
+    // numpy's axis sizes, for its index errors (an axis keeps its length when the other is empty)
+    let (nxs, nys) = (nx.max(0), ny.max(0));
+    let (nxb, nyb) = (nxu as i64, nyu as i64);
     let size = nxu * nyu;
     let mut regions = Vec::new();
     let mut masks: Vec<bool> = Vec::with_capacity(size * layers.len());
@@ -1925,7 +1943,7 @@ fn route_in(
         _ => None,
     };
 
-    let (si, sj) = (-i_lo, -j_lo);
+    let (si, sj) = (i_lo.saturating_neg(), j_lo.saturating_neg());
     let starts: Vec<usize> = request
         .start_layers
         .iter()
@@ -1945,19 +1963,29 @@ fn route_in(
 
     // Goal: grid nodes near the end from which a straight run to the end point is legal
     let end = request.end;
-    let radius = 2.max(to_int((1.5 * request.width / grid).ceil())? + 1);
-    let ei = to_int(((end[0] - x0) / grid).round_ties_even())? - i_lo;
-    let ej = to_int(((end[1] - y0) / grid).round_ties_even())? - j_lo;
+    let radius = 2.max(to_int((1.5 * request.width / grid).ceil())?.saturating_add(1));
+    let ei = to_int(((end[0] - x0) / grid).round_ties_even())?.saturating_sub(i_lo);
+    let ej = to_int(((end[1] - y0) / grid).round_ties_even())?.saturating_sub(j_lo);
     let mut goals = vec![false; size * layers.len()];
     let mut any_goal = false;
     for layer in request.end_layers {
         let Some(l) = layers.iter().position(|x| x == layer) else {
             continue;
         };
-        for di in -radius..=radius {
-            for dj in -radius..=radius {
-                let (i, j) = (ei + di, ej + dj);
-                if !(0 <= i && i < nxs && 0 <= j && j < nys) {
+        // Only cells on the grid can be goals: the square is clamped to it, which visits the
+        // same cells in the same order as Python's loop over the whole square (a huge width
+        // would otherwise loop for ever)
+        let (i_from, i_to) = (
+            ei.saturating_sub(radius).max(0),
+            ei.saturating_add(radius).min(nxb - 1),
+        );
+        let (j_from, j_to) = (
+            ej.saturating_sub(radius).max(0),
+            ej.saturating_add(radius).min(nyb - 1),
+        );
+        for i in i_from..=i_to {
+            for j in j_from..=j_to {
+                if !(0 <= i && i < nxb && 0 <= j && j < nyb) {
                     continue;
                 }
                 let index = l * size + (i as usize) * nyu + j as usize;
@@ -2005,7 +2033,7 @@ fn route_in(
         });
     }
     let turn = 0.3 * grid;
-    let in_range = |i: i64, j: i64| 0 <= i && i < nxs && 0 <= j && j < nys;
+    let in_range = |i: i64, j: i64| 0 <= i && i < nxb && 0 <= j && j < nyb;
     let mut found = None;
     while let Some(Entry { g: gcost, node, .. }) = heap.pop() {
         let (l, i, j) = node;

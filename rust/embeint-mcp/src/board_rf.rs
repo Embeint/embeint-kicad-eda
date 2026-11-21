@@ -54,7 +54,9 @@ fn pow(base: f64, exponent: f64) -> Result<f64, Error> {
     if base < 0.0 && exponent.fract() != 0.0 {
         return Err(Error::Value("must be real number, not complex".into()));
     }
-    Ok(base.powf(exponent))
+    // black_box keeps LLVM from folding a constant exponent (powf(x, 2.0) into x * x): CPython
+    // calls the C runtime's pow, which on Windows is not always x * x
+    Ok(base.powf(std::hint::black_box(exponent)))
 }
 
 /// `math.cosh(x)` (OverflowError beyond the float range).
