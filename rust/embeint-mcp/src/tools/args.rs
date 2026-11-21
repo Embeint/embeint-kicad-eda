@@ -123,9 +123,22 @@ impl Args {
             .unwrap_or_else(|| panic!("{name} is not a validated int"))
     }
 
-    /// Validation already refused an int beyond i64 (Python's are unbounded).
+    /// The int clamped to the i64 range: Python ints are unbounded and validation keeps them
+    /// exact, so a range check on this value refuses an out-of-range one as Python does.  Read
+    /// [`Args::get`] for the exact digits (e.g. to quote them in an error).
     pub fn opt_int(&self, name: &str) -> Option<i64> {
-        self.get(name).as_i64()
+        match self.get(name) {
+            Json::Number(number) if !is_float(number) => {
+                Some(number.as_i64().unwrap_or_else(|| {
+                    if number.to_string().starts_with('-') {
+                        i64::MIN
+                    } else {
+                        i64::MAX
+                    }
+                }))
+            }
+            _ => None,
+        }
     }
 
     pub fn float(&self, name: &str) -> f64 {
@@ -235,9 +248,6 @@ pub fn lax_bool(value: &Json) -> Option<bool> {
 }
 
 const INT_PARSING: &str = "Input should be a valid integer, unable to parse string as an integer";
-/// Python ints are unbounded and pydantic accepts any size; the tools here take i64 values, so a
-/// larger one is refused (a documented difference).
-const INT_TOO_LARGE: &str = "Input should be an integer that fits in 64 bits";
 
 /// Digits with single underscores between them, as Python's int() reads them ("1_000"; not
 /// "_1", "1_" or "1__0").  Returns the digits without underscores.
@@ -260,7 +270,8 @@ fn underscored_digits(text: &str) -> Option<String> {
 fn lax_int(value: &Json) -> Result<Json, &'static str> {
     match value {
         Json::Bool(flag) => Ok(Json::from(i64::from(*flag))),
-        Json::Number(n) if !is_float(n) => n.as_i64().map(Json::from).ok_or(INT_TOO_LARGE),
+        // Python ints are unbounded and pydantic accepts any size: keep the exact digits
+        Json::Number(n) if !is_float(n) => Ok(value.clone()),
         Json::Number(n) => match n.as_f64() {
             // pydantic converts an integral float only below 2**63 in magnitude
             Some(v) if v.fract() == 0.0 && v.abs() < 9_223_372_036_854_775_808.0 => {
@@ -287,17 +298,18 @@ fn lax_int(value: &Json) -> Result<Json, &'static str> {
             };
             let digits = underscored_digits(unsigned).ok_or(INT_PARSING)?;
             let digits = digits.trim_start_matches('0');
-            let magnitude: i128 = if digits.is_empty() {
-                0
-            } else if digits.len() > 20 {
-                return Err(INT_TOO_LARGE);
+            if digits.is_empty() {
+                return Ok(Json::from(0));
+            }
+            // Any size, exactly (serde_json keeps the digits with arbitrary_precision)
+            let text = if negative {
+                format!("-{digits}")
             } else {
-                digits.parse().map_err(|_| INT_PARSING)?
+                digits.to_owned()
             };
-            let number = if negative { -magnitude } else { magnitude };
-            i64::try_from(number)
-                .map(Json::from)
-                .map_err(|_| INT_TOO_LARGE)
+            serde_json::from_str::<Number>(&text)
+                .map(Json::Number)
+                .map_err(|_| INT_PARSING)
         }
         _ => Err("Input should be a valid integer"),
     }
@@ -529,8 +541,15 @@ mod tests {
             Ok(json!(10_000_000_000_000_000_i64))
         );
         assert!(one(Arg::Int, json!(9.223_372_036_854_776e18)).is_err());
-        // Beyond i64: pydantic accepts, this server refuses (documented)
-        assert!(one(Arg::Int, json!("9999999999999999999999999")).is_err());
+        // Any size, as pydantic accepts; the accessor clamps to i64
+        let big = one(Arg::Int, json!("9999999999999999999999999")).unwrap();
+        assert_eq!(big.to_string(), "9999999999999999999999999");
+        let spec = [req("x", Arg::Int)];
+        let args = validate("t", &spec, &json!({"x": "-0099999999999999999999"})).unwrap();
+        assert_eq!(args.get("x").to_string(), "-99999999999999999999");
+        assert_eq!(args.int("x"), i64::MIN);
+        let args = validate("t", &spec, &json!({"x": 99999999999999999999_u128})).unwrap();
+        assert_eq!(args.int("x"), i64::MAX);
         assert_eq!(one(Arg::Float, json!("1_000")), Ok(json!(1000.0)));
         assert_eq!(one(Arg::Float, json!("1_000.000_1")), Ok(json!(1000.0001)));
         assert_eq!(one(Arg::Float, json!("1e1_0")), Ok(json!(1e10)));
