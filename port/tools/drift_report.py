@@ -106,16 +106,21 @@ def report(root, graph, units, target="HEAD", include_todo=False):
                 affected.append({"unit": unit["id"], "file": path, "function": None,
                                  "reason": "owned declarations/source changed; unit review required"})
     changed_paths = set(git(root, "diff", "--name-only", "--no-renames", "-z", pin, target_sha).split("\0")) - {""}
+    input_changes = defaultdict(set)
+    for tu in graph.get("translation_units", []):
+        included = set(tu.get("includes", [])) | {tu["file"]}
+        changed = changed_paths & included
+        if changed:
+            for path in included:
+                input_changes[path].update(changed)
     dependency_reviews = []
     for unit in sorted(units, key=lambda u: u["id"]):
         if not include_todo and unit["status"] not in ("partial", "green"):
             continue
         owned_files = {graph["functions"][usr]["file"] for usr in unit["functions"]}
         reasons = set()
-        for tu in graph.get("translation_units", []):
-            included = set(tu.get("includes", [])) | {tu["file"]}
-            if owned_files & included:
-                reasons.update(changed_paths & included)
+        for path in owned_files:
+            reasons.update(input_changes[path])
         if reasons:
             dependency_reviews.append({"unit": unit["id"], "changed_inputs": sorted(reasons),
                                        "reason": "an extraction translation unit containing ported functions has changed inputs; conservative dependency review"})

@@ -14,7 +14,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from extractor.clang_graph import extract_translation_unit
-from extractor.model import PIN, classify, digest, expand_virtual, write_json
+from extractor.model import PIN, classify, digest, expand_virtual, read_json, write_cache, write_json
 
 SUFFIXES = {".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx", ".m", ".mm"}
 
@@ -80,7 +80,7 @@ def main():
     # Cache includes the entire source inventory: changing any header invalidates all TUs.
     snapshot = digest(json.dumps(inventory, sort_keys=True).encode())
     functions, calls, overrides, unresolved, results = {}, set(), set(), set(), []
-    variants, primaries, observed = {}, {}, set()
+    variants, primaries, observed, template_aliases = {}, {}, set(), {}
 
     def consume(result):
         identity = (result["file"], result.get("command_sha256", ""))
@@ -96,12 +96,17 @@ def main():
                 functions[usr]["wx"] = names
         calls.update(tuple(c) for c in result["calls"])
         overrides.update(tuple(c) for c in result["overrides"])
+        for instance, primary in result.get("template_aliases", {}).items():
+            if instance in template_aliases and template_aliases[instance] != primary:
+                raise ValueError(f"Conflicting template owner for {instance}")
+            template_aliases[instance] = primary
         unresolved.update((c["caller"], result["file"], c["line"], c["expression"]) for c in result["unresolved"])
         if result["status"] == "ok":
             observed.update(f["file"] for f in result["functions"].values())
             observed.update(result.get("includes", []))
             observed.add(result["file"])
-        summary = {k: v for k, v in result.items() if k not in ("functions", "calls", "overrides", "unresolved")}
+        summary = {k: v for k, v in result.items() if k not in
+                   ("functions", "calls", "overrides", "unresolved", "template_aliases")}
         summary["function_count"] = len(result["functions"])
         results.append(summary)
 
@@ -110,8 +115,8 @@ def main():
         for job in jobs:
             key = digest(json.dumps([snapshot, job], sort_keys=True).encode())
             cache = a.cache / (key + ".json")
-            if cache.exists():
-                consume(json.loads(cache.read_text()))
+            if cache.exists() or cache.with_suffix(".json.gz").exists():
+                consume(read_json(cache))
             else:
                 pending[pool.submit(extract_translation_unit, job)] = (cache, job)
         for future in as_completed(pending):
@@ -125,7 +130,7 @@ def main():
             result["command_sha256"] = digest(json.dumps(job, sort_keys=True).encode())
             source = Path(job["file"].replace(a.original_source_root, str(root)))
             result["source_sha256"] = digest(source.read_bytes()) if source.is_file() else None
-            write_json(cache, result)
+            write_cache(cache, result)
             consume(result)
             print(f"{len(results)}/{len(jobs)} {result['status']} {result['file']}", flush=True)
     edges = expand_virtual(sorted(calls), sorted(overrides))
@@ -172,6 +177,7 @@ def main():
              "unresolved_calls": [{"caller": c, "file": f, "line": line, "expression": e}
                                   for c, f, line, e in sorted(unresolved)],
              "translation_units": translation_units,
+             "template_aliases": dict(sorted(template_aliases.items())),
              "definition_variants": {k: sorted(v) for k, v in sorted(variants.items())}}
     from extractor.model import write_graph
     write_graph(a.output / "graph.json", graph)

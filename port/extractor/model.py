@@ -45,7 +45,24 @@ def write_graph(path, value):
     """Keep the full graph below repository blob limits, with reproducible gzip."""
     path.parent.mkdir(parents=True, exist_ok=True)
     compressed = path.with_suffix(path.suffix + ".gz")
-    compressed.write_bytes(gzip.compress(json.dumps(value, sort_keys=True, separators=(",", ":")).encode(), mtime=0))
+    data = bytearray(gzip.compress(json.dumps(value, sort_keys=True, separators=(",", ":")).encode(),
+                                  compresslevel=9, mtime=0))
+    # Python 3.11/3.12 delegate mtime=0 to zlib, whose gzip OS byte differs
+    # between Windows and Linux. The payload/checksum do not depend on it.
+    data[9] = 255
+    compressed.write_bytes(data)
+
+
+def write_cache(path, value):
+    """Compress resumable TU records and publish only complete cache entries."""
+    compressed = path.with_suffix(path.suffix + ".gz")
+    compressed.parent.mkdir(parents=True, exist_ok=True)
+    data = bytearray(gzip.compress(json.dumps(value, sort_keys=True, separators=(",", ":")).encode(),
+                                  compresslevel=1, mtime=0))
+    data[9] = 255
+    temporary = compressed.with_suffix(compressed.suffix + ".tmp")
+    temporary.write_bytes(data)
+    temporary.replace(compressed)
 
 
 def expand_virtual(calls, overrides):
