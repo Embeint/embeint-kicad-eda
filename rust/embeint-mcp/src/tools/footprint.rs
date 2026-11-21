@@ -253,8 +253,10 @@ async fn run_tool(name: &str, args: &Args, ctx: &Ctx<'_>) -> Result<Output, Erro
         ),
         "live_kicad_cli" => {
             let cli_args = args.strs("args");
-            // The allow-list is checked before KiCad is asked anything
-            kicad_cli::cli_arguments(&cli_args)?;
+            // The allow-list, outputs and working directory are checked before KiCad is asked
+            let working_directory = args.opt_str("working_directory");
+            kicad_cli::cli_arguments(&cli_args, working_directory.as_deref())?;
+            kicad_cli::check_working_directory(working_directory.as_deref())?;
             let (path, env, description) = {
                 let mut client = ctx.client.lock().await;
                 kicad_cli_launch(&mut client).await?

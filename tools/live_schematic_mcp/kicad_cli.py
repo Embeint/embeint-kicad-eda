@@ -131,20 +131,64 @@ def allowed_commands():
     return ", ".join(" ".join(verb) + (" <kind>" if kinds else "") for verb, kinds in COMMANDS.items())
 
 
-def check_output(option, value):
+def path_parts(value):
+    """The components of a path as Windows opens them, lower-cased: a stream suffix (name:stream,
+    name::$DATA) is cut and trailing dots and spaces are dropped, so design.kicad_sch. or
+    design.kicad_sch::$DATA is seen as design.kicad_sch.  Applied on every platform: a WSL KiCad
+    writes Windows folders through /mnt/<drive>."""
+    parts = []
+    for index, part in enumerate(p for p in re.split(r"[\\/]+", value) if p):
+        if not (index == 0 and re.fullmatch(r"[A-Za-z]:", part)):
+            part = part.split(":", 1)[0]
+        part = part.rstrip(". ")
+        if part:
+            parts.append(part.lower())
+    return parts
+
+
+def resolved(value, cwd):
+    """The path as the system will open it, against kicad-cli's working directory: existing short
+    (8.3) names and links are resolved (DESIGN~1.KIC may be design.kicad_sch), the rest kept."""
+    if sys.platform != "win32":
+        # The WSL KiCad sees C:\... as /mnt/c/... (as cli_arguments and prepare translate them)
+        from model_handoff import to_wsl
+        value = to_wsl(value) if WINDOWS_PATH.match(value) else value
+        cwd = to_wsl(cwd) if cwd is not None and WINDOWS_PATH.match(cwd) else cwd
+    path = value if cwd is None or os.path.isabs(value) else os.path.join(cwd, value)
+    try:
+        return os.path.realpath(path)
+    except (OSError, ValueError):
+        return path
+
+
+def path_forms(value, cwd):
+    """The path as given and as resolved, each as Windows-normalised components."""
+    return [path_parts(value), path_parts(resolved(value, cwd))]
+
+
+def check_output(option, value, cwd=None):
     """Refuse an output that would overwrite a design, project or library file, or land in a .pretty
-    footprint library (every file there is read as a footprint)."""
-    parts = [part for part in re.split(r"[\\/]+", value) if part]
-    name = parts[-1].lower() if parts else ""
-    if name.endswith(PROTECTED_SUFFIXES) or name in PROTECTED_NAMES:
-        raise ValueError(f"{option} {value!r} would overwrite a design, project or library file; "
-                         "write kicad-cli outputs elsewhere")
-    if any(part.lower().endswith(".pretty") for part in parts):
-        raise ValueError(f"{option} {value!r} is inside a footprint library (.pretty folder); "
-                         "write kicad-cli outputs elsewhere")
+    footprint library (every file there is read as a footprint), as given or once resolved."""
+    for parts in path_forms(value, cwd):
+        name = parts[-1] if parts else ""
+        if name.endswith(PROTECTED_SUFFIXES) or name in PROTECTED_NAMES:
+            raise ValueError(f"{option} {value!r} would overwrite a design, project or library file; "
+                             "write kicad-cli outputs elsewhere")
+    for parts in path_forms(value, cwd):
+        if any(part.endswith(".pretty") for part in parts):
+            raise ValueError(f"{option} {value!r} is inside a footprint library (.pretty folder); "
+                             "write kicad-cli outputs elsewhere")
 
 
-def check_options(options):
+def check_working_directory(cwd):
+    """kicad-cli writes relative outputs, and outputs a command names itself, into its working
+    directory: it must not be a footprint library, as given or once resolved."""
+    if cwd is not None and any(part.endswith(".pretty") for parts in path_forms(cwd, None) for part in parts):
+        raise ValueError(f"working_directory {cwd!r} is inside a footprint library (.pretty folder); "
+                         "run kicad-cli elsewhere")
+
+
+def check_options(options, cwd=None):
     """Refuse options that write into the project, and check every output target.  Options are given
     as kicad-cli parses them: "--name value" or "--name=value" for long options, "-o value" for short
     ones.  Combined short options ("-no out") are refused because they can hide an output."""
@@ -157,9 +201,9 @@ def check_options(options):
             raise ValueError(f"combined short options are not accepted ({arg!r}); give each option separately")
         if name in OUTPUT_OPTIONS:
             if assign:
-                check_output(name, value)
+                check_output(name, value, cwd)
             elif index + 1 < len(options):
-                check_output(name, options[index + 1])
+                check_output(name, options[index + 1], cwd)
 
 
 def translate_path(arg):
@@ -173,7 +217,7 @@ def translate_path(arg):
     return arg
 
 
-def cli_arguments(args):
+def cli_arguments(args, cwd=None):
     """Validate kicad-cli arguments against the read-only allow-list (COMMANDS) and the output rules.
     On Linux/WSL, Windows paths (C:\\...) become /mnt/c/... ."""
     if not isinstance(args, (list, tuple)) or not args or not all(isinstance(a, str) for a in args):
@@ -190,7 +234,7 @@ def cli_arguments(args):
         if not options or options[0] not in kinds:
             raise ValueError(f"{' '.join(verb)} needs one of these kinds next: {', '.join(kinds)}")
         options = options[1:]
-    check_options(options)
+    check_options(options, cwd)
     if sys.platform == "win32":
         return list(args)
     return [translate_path(a) for a in args]
@@ -204,7 +248,8 @@ def prepare(cli_path, args, cwd, timeout_s):
     """The command line and working directory for one run, after validating everything."""
     if not 0 < timeout_s <= MAX_TIMEOUT_S:
         raise ValueError(f"timeout_s must be between 0 and {MAX_TIMEOUT_S} seconds")
-    command = [cli_path, *cli_arguments(args)]
+    command = [cli_path, *cli_arguments(args, cwd)]
+    check_working_directory(cwd)
     if cwd is not None and sys.platform != "win32":
         from model_handoff import to_wsl
         cwd = to_wsl(cwd)

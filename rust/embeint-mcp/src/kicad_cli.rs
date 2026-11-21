@@ -96,16 +96,7 @@ pub fn child_environment() -> BTreeMap<String, String> {
 /// prefix Rust's canonical paths carry on Windows), or the path as it is if it cannot be resolved.
 fn resolve(path: &str) -> PathBuf {
     match std::fs::canonicalize(path) {
-        Ok(resolved) => {
-            let text = resolved.to_string_lossy().into_owned();
-            if let Some(rest) = text.strip_prefix(r"\\?\UNC\") {
-                PathBuf::from(format!(r"\\{rest}"))
-            } else if let Some(rest) = text.strip_prefix(r"\\?\") {
-                PathBuf::from(rest)
-            } else {
-                resolved
-            }
-        }
+        Ok(resolved) => strip_verbatim(resolved),
         Err(_) => std::path::absolute(path).unwrap_or_else(|_| PathBuf::from(path)),
     }
 }
@@ -314,20 +305,108 @@ fn repr(text: &str) -> String {
     py_str_repr(text)
 }
 
-/// Refuses an output that would overwrite a design, project or library file, or land in a .pretty
-/// footprint library (every file there is read as a footprint).
-fn check_output(option: &str, value: &str) -> Result<(), Error> {
-    let parts: Vec<&str> = value.split(['\\', '/']).filter(|p| !p.is_empty()).collect();
-    let name = parts.last().map(|p| p.to_lowercase()).unwrap_or_default();
-    if PROTECTED_SUFFIXES.iter().any(|s| name.ends_with(s))
-        || PROTECTED_NAMES.contains(&name.as_str())
+/// `path_parts(value)`: the components of a path as Windows opens them, lower-cased.  A stream
+/// suffix (name:stream, name::$DATA) is cut and trailing dots and spaces are dropped, so
+/// `design.kicad_sch.` or `design.kicad_sch::$DATA` is seen as `design.kicad_sch`.  Applied on
+/// every platform: a WSL KiCad writes Windows folders through /mnt/<drive>.
+fn path_parts(value: &str) -> Vec<String> {
+    let mut parts = Vec::new();
+    for (index, part) in value
+        .split(['\\', '/'])
+        .filter(|p| !p.is_empty())
+        .enumerate()
     {
-        return Err(Error::Value(format!(
-            "{option} {} would overwrite a design, project or library file; write kicad-cli outputs elsewhere",
-            repr(value)
-        )));
+        let drive = index == 0
+            && part.len() == 2
+            && part.as_bytes()[0].is_ascii_alphabetic()
+            && part.as_bytes()[1] == b':';
+        let part = if drive {
+            part
+        } else {
+            part.split(':').next().unwrap_or_default()
+        };
+        let part = part.trim_end_matches(['.', ' ']);
+        if !part.is_empty() {
+            parts.push(part.to_lowercase());
+        }
     }
-    if parts.iter().any(|p| p.to_lowercase().ends_with(".pretty")) {
+    parts
+}
+
+/// `os.path.realpath(path)` (not strict): the longest existing prefix resolved, with its short
+/// (8.3) names expanded and links followed, and the rest appended as given.
+fn realpath(path: &Path) -> PathBuf {
+    let mut prefix = path.to_path_buf();
+    let mut rest = Vec::new();
+    loop {
+        if let Ok(real) = std::fs::canonicalize(&prefix) {
+            let mut real = strip_verbatim(real);
+            for part in rest.iter().rev() {
+                real.push(part);
+            }
+            return real;
+        }
+        match (prefix.file_name().map(ToOwned::to_owned), prefix.parent()) {
+            (Some(name), Some(parent)) => {
+                rest.push(name);
+                prefix = parent.to_path_buf();
+            }
+            _ => return path.to_path_buf(),
+        }
+    }
+}
+
+/// canonicalize's `\\?\C:\x` as `C:\x` (and `\\?\UNC\server\share` as `\\server\share`).
+fn strip_verbatim(path: PathBuf) -> PathBuf {
+    let text = path.to_string_lossy().into_owned();
+    if let Some(unc) = text.strip_prefix(r"\\?\UNC\") {
+        PathBuf::from(format!(r"\\{unc}"))
+    } else if let Some(plain) = text.strip_prefix(r"\\?\") {
+        PathBuf::from(plain)
+    } else {
+        path
+    }
+}
+
+/// `resolved(value, cwd)`: the path as the system will open it, against kicad-cli's working
+/// directory (on Linux/WSL with Windows paths translated as cli_arguments and run translate them).
+fn resolved(value: &str, cwd: Option<&str>) -> String {
+    let translate = |text: &str| {
+        if !cfg!(windows) && is_windows_path(text) {
+            to_wsl(text)
+        } else {
+            text.to_owned()
+        }
+    };
+    let value = translate(value);
+    let path = match cwd.map(translate) {
+        Some(cwd) if !Path::new(&value).is_absolute() => Path::new(&cwd).join(&value),
+        _ => PathBuf::from(&value),
+    };
+    realpath(&path).to_string_lossy().into_owned()
+}
+
+/// The path as given and as resolved, each as Windows-normalised components.
+fn path_forms(value: &str, cwd: Option<&str>) -> [Vec<String>; 2] {
+    [path_parts(value), path_parts(&resolved(value, cwd))]
+}
+
+/// Refuses an output that would overwrite a design, project or library file, or land in a .pretty
+/// footprint library (every file there is read as a footprint), as given or once resolved.
+fn check_output(option: &str, value: &str, cwd: Option<&str>) -> Result<(), Error> {
+    let forms = path_forms(value, cwd);
+    for parts in &forms {
+        let name = parts.last().cloned().unwrap_or_default();
+        if PROTECTED_SUFFIXES.iter().any(|s| name.ends_with(s))
+            || PROTECTED_NAMES.contains(&name.as_str())
+        {
+            return Err(Error::Value(format!(
+                "{option} {} would overwrite a design, project or library file; write kicad-cli outputs elsewhere",
+                repr(value)
+            )));
+        }
+    }
+    if forms.iter().flatten().any(|p| p.ends_with(".pretty")) {
         return Err(Error::Value(format!(
             "{option} {} is inside a footprint library (.pretty folder); write kicad-cli outputs elsewhere",
             repr(value)
@@ -336,9 +415,27 @@ fn check_output(option: &str, value: &str) -> Result<(), Error> {
     Ok(())
 }
 
+/// `check_working_directory(cwd)`: kicad-cli writes relative outputs, and outputs a command
+/// names itself, into its working directory, which must not be a footprint library, as given or
+/// once resolved.
+pub fn check_working_directory(cwd: Option<&str>) -> Result<(), Error> {
+    let Some(cwd) = cwd else { return Ok(()) };
+    if path_forms(cwd, None)
+        .iter()
+        .flatten()
+        .any(|p| p.ends_with(".pretty"))
+    {
+        return Err(Error::Value(format!(
+            "working_directory {} is inside a footprint library (.pretty folder); run kicad-cli elsewhere",
+            repr(cwd)
+        )));
+    }
+    Ok(())
+}
+
 /// Refuses options that write into the project and checks every output target.  Combined short
 /// options ("-no out") are refused because they can hide an output.
-fn check_options(options: &[String]) -> Result<(), Error> {
+fn check_options(options: &[String], cwd: Option<&str>) -> Result<(), Error> {
     static NUMBER: OnceLock<Regex> = OnceLock::new();
     for (index, arg) in options.iter().enumerate() {
         let long_option = arg.starts_with("--");
@@ -364,9 +461,9 @@ fn check_options(options: &[String]) -> Result<(), Error> {
         }
         if OUTPUT_OPTIONS.contains(&name) {
             if assign {
-                check_output(name, value)?;
+                check_output(name, value, cwd)?;
             } else if let Some(next) = options.get(index + 1) {
-                check_output(name, next)?;
+                check_output(name, next, cwd)?;
             }
         }
     }
@@ -388,7 +485,7 @@ fn translate_path(arg: &str) -> String {
 
 /// `cli_arguments`: validates kicad-cli arguments against the read-only allow-list and the
 /// output rules; on Linux/WSL, Windows paths become /mnt/c/... .
-pub fn cli_arguments(args: &[String]) -> Result<Vec<String>, Error> {
+pub fn cli_arguments(args: &[String], cwd: Option<&str>) -> Result<Vec<String>, Error> {
     if args.is_empty() {
         return Err(Error::Value(
             "args must be a non-empty list of strings, e.g. [\"sch\", \"erc\", \"design.kicad_sch\"]"
@@ -429,7 +526,7 @@ pub fn cli_arguments(args: &[String]) -> Result<Vec<String>, Error> {
         }
         options = &options[1..];
     }
-    check_options(options)?;
+    check_options(options, cwd)?;
     if cfg!(windows) {
         Ok(args.to_vec())
     } else {
@@ -584,7 +681,8 @@ pub async fn run(
         )));
     }
     let mut command = vec![cli_path.to_owned()];
-    command.extend(cli_arguments(args)?);
+    command.extend(cli_arguments(args, cwd)?);
+    check_working_directory(cwd)?;
     let cwd = cwd.map(|c| {
         if cfg!(windows) {
             c.to_owned()
@@ -630,18 +728,113 @@ mod tests {
         items.iter().map(|s| (*s).to_owned()).collect()
     }
 
+    fn cli_arguments_(args: &[String]) -> Result<Vec<String>, Error> {
+        cli_arguments(args, None)
+    }
+
+    /// Names Windows rewrites (trailing dots and spaces, stream suffixes) onto a protected file or
+    /// into a .pretty folder are refused, as in kicad_cli.py.
+    #[test]
+    fn windows_name_rewrites_are_refused() {
+        for output in [
+            r"C:\p\design.kicad_sch.",
+            r"C:\p\design.kicad_sch ",
+            r"C:\p\design.kicad_sch::$DATA",
+            "/p/design.kicad_sch . .",
+        ] {
+            assert!(
+                refused(&["sch", "export", "netlist", "-o", output, "d.kicad_sch"])
+                    .contains("would overwrite"),
+                "{output}"
+            );
+        }
+        assert!(refused(&[
+            "sch",
+            "export",
+            "netlist",
+            r"--output=C:\p\d.kicad_sch:x",
+            "d"
+        ])
+        .contains("would overwrite"));
+        for output in [
+            r"C:\libs\Lib.pretty.\x.svg",
+            r"C:\libs\Lib.pretty::$INDEX_ALLOCATION\x.svg",
+        ] {
+            assert!(
+                refused(&["fp", "export", "svg", "-o", output, "Lib.pretty"])
+                    .contains("footprint library")
+            );
+        }
+        // A drive letter, relative parts and dots elsewhere are fine
+        assert!(cli_arguments_(&args(&["sch", "erc", "-o", r"C:\out\erc.json", "a"])).is_ok());
+        assert!(cli_arguments_(&args(&["sch", "export", "svg", "-o", r"..\out\", "a"])).is_ok());
+        for cwd in [
+            r"C:\libs\Lib.pretty",
+            "/libs/x.Pretty/sub",
+            r"C:\libs\Lib.pretty.",
+        ] {
+            assert!(check_working_directory(Some(cwd)).is_err(), "{cwd}");
+        }
+        assert!(check_working_directory(Some(r"C:\work\out")).is_ok());
+    }
+
+    /// An existing file's short (8.3) name is resolved before checking, as os.path.realpath does.
+    #[cfg(windows)]
+    #[test]
+    fn short_names_of_protected_files_are_resolved() {
+        let dir = tempfile::tempdir().unwrap();
+        let design = dir.path().join("design.kicad_sch");
+        std::fs::write(&design, "").unwrap();
+        let library = dir.path().join("Footprints.pretty");
+        std::fs::create_dir(&library).unwrap();
+        // cmd's %~sI prints a path's short form
+        let short = |path: &Path| {
+            let out = std::process::Command::new("cmd")
+                .args([
+                    "/c",
+                    &format!("for %I in (\"{}\") do @echo %~sI", path.display()),
+                ])
+                .output()
+                .unwrap();
+            String::from_utf8_lossy(&out.stdout).trim().to_owned()
+        };
+        let (short_design, short_library) = (short(&design), short(&library));
+        let design_name = Path::new(&short_design)
+            .file_name()
+            .unwrap()
+            .to_string_lossy();
+        if !design_name.contains('~') {
+            return; // this volume has no 8.3 names
+        }
+        let design_arg = design.display().to_string();
+        assert!(
+            refused(&["sch", "export", "netlist", "-o", &short_design, &design_arg])
+                .contains("would overwrite")
+        );
+        let inside = format!(r"{short_library}\x.svg");
+        assert!(refused(&["fp", "export", "svg", "-o", &inside, "x"]).contains("footprint library"));
+        assert!(check_working_directory(Some(&short_library)).is_err());
+        // Relative outputs are resolved against the working directory
+        let cwd = dir.path().display().to_string();
+        let relative = args(&["sch", "export", "netlist", "-o", &design_name, &design_arg]);
+        assert!(cli_arguments(&relative, Some(&cwd)).is_err());
+        // A short-looking name that is no alias is a new file
+        let other = dir.path().join("OTHER~1.NET").display().to_string();
+        assert!(cli_arguments_(&args(&["sch", "export", "netlist", "-o", &other, "d"])).is_ok());
+    }
+
     fn refused(items: &[&str]) -> String {
-        cli_arguments(&args(items)).unwrap_err().to_string()
+        cli_arguments_(&args(items)).unwrap_err().to_string()
     }
 
     /// Texts checked against kicad_cli.cli_arguments in the MCP interpreter.
     #[test]
     fn the_allow_list_and_refusals_are_pythons() {
-        assert!(cli_arguments(&args(&["version"])).is_ok());
+        assert!(cli_arguments_(&args(&["version"])).is_ok());
         assert!(
-            cli_arguments(&args(&["sch", "erc", "-o", "/tmp/erc.json", "d.kicad_sch"])).is_ok()
+            cli_arguments_(&args(&["sch", "erc", "-o", "/tmp/erc.json", "d.kicad_sch"])).is_ok()
         );
-        assert!(cli_arguments(&args(&[
+        assert!(cli_arguments_(&args(&[
             "pcb",
             "export",
             "gerbers",
@@ -649,7 +842,7 @@ mod tests {
             "b.kicad_pcb"
         ]))
         .is_ok());
-        assert!(cli_arguments(&args(&["pcb", "drc", "--severity-error", "-1"])).is_ok());
+        assert!(cli_arguments_(&args(&["pcb", "drc", "--severity-error", "-1"])).is_ok());
         assert_eq!(
             refused(&["jobset", "run", "x"]),
             "'jobset run' is not allowed; live_kicad_cli runs only read-only kicad-cli commands: \
