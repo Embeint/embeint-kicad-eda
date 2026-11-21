@@ -61,6 +61,11 @@ fn general(value: f64) -> String {
 
 /// The rounding epsilon in the calculator is unrelated to this conversion.
 pub fn str_value(mut value: f64) -> String {
+    // glibc log10 of a negative input produces a positive quiet NaN. FDlibm's
+    // sign differs; preserve the actual fmt spelling, including -infinity.
+    if value < 0.0 {
+        return "nanL".into();
+    }
     let digit = super::eseries::power10(libm::floor(libm::log10(value)) - 2.0);
     value = libm::round(value / digit) * digit;
     let units = [

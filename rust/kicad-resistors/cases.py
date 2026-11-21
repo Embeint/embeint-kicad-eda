@@ -72,6 +72,11 @@ def main():
         ((0., "zero", [0., 1e-12, math.nextafter(1e-12, math.inf), -0.]),
          (0., "other", [math.nextafter(0., -math.inf), -1e-12, math.nextafter(-1e-12, -math.inf)]), "", "+"),
         ((10., "many", list(reversed(range(64)))), (20., "dup", [1.] * 64), "(((a)))|b", "|"),
+        ((float.fromhex("0x1.fffffffffffffp+1023"), "maximum", [1.]),
+         (float.fromhex("0x1.fffffffffffffp+1023"), "maximum", [1.]), "a\x00b", "\x00"),
+        ((math.ulp(0.), "tiny", [math.ulp(0.)]), (math.ulp(0.), "tiny", [math.ulp(0.)]), "a | b + c", "+"),
+        ((0., "positive-zero", [0.]), (-0., "negative-zero", [-0.]), "a + b | c", "|"),
+        ((10., "NaN-part", [math.nan, 10., 10.]), (10., "finite-parts", [10., 10.]), "((a))", "("),
     ]):
         case(f"helpers-parentheses-tiebreak-{i}", {"op": "helpers", "first": resistance(*a), "second": resistance(*b), "text": text, "symbol": symbol})
     for i, candidates in enumerate([
@@ -109,7 +114,7 @@ def main():
             exclude([10., 10., 10. + 5e-13, 10. + 2e-12, 1e6, math.nan, math.inf, -math.inf, 0., -1., 11.234]),
             {"op": "calculate"}, {"op": "calculate"}, new(20.), {"op": "calculate"}])
         for i, target in enumerate([math.nan, math.inf, -math.inf, -1e308]):
-            calc(f"collector-legitimate-exception-e{series}-{i}", [*setup, new(target), {"op": "calculate"}])
+            calc(f"collector-extreme-target-e{series}-{i}", [*setup, new(target), {"op": "calculate"}])
     calc("series-mutation-and-buffer-persistence", [new(123.456), {"op": "calculate"}, {"op": "set_series", "series": 0},
          {"op": "state"}, new(20.), {"op": "state"}, {"op": "calculate"}, exclude([10.]), {"op": "calculate"},
          {"op": "set_series", "series": 4}, new(12345.67), {"op": "calculate"}, new(20.), {"op": "calculate"}])

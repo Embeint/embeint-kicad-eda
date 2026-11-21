@@ -47,6 +47,16 @@ median selection, heap fallback and final insertion. A different sort can change
 the two entries chosen by lower_bound, and thus expressions and part order. The
 Linux oracle is the comparison target; MSVC sorting is not qualified here.
 
+FDlibm's general `pow` differs by a bit from the Linux glibc reference for some
+decimal exponents. This unit only uses integer exponents. `eseries::power10`
+therefore uses portable decimal literals covering every representable power,
+preserving glibc's two deviations from correctly rounded decimal conversion at
+23 and 210 explicitly. Exponents outside that range return the same zero/infinity.
+The corpus compares every returned bit across the whole representable range and
+full-i32 extremes, for all eight series. `str_value` also preserves glibc's
+positive-NaN spelling for a negative logarithm. These are reference compatibility
+behaviours, not comparator normalization or accuracy improvements.
+
 ## JSONL input contract
 
 Every request uses the existing exact `{unit,case,input}` envelope. All counts
@@ -137,8 +147,8 @@ All new code is GPL-3.0-or-later. `libm 0.2.16` is MIT and already locked in the
 workspace; it is the only portable dependency. Native shim dependencies reuse
 the existing `serde_json` and `kicad-difftest` closure documented in their README
 and `rust/MCP.md` (GPL-compatible MIT/Apache-2.0, with existing transitive notices).
-Pinned KiCad resistor sources are GPL-3.0-or-later. Pinned fmt is MIT (including
-its optional documentation licence notice in `thirdparty/fmt/LICENSE`), built
+Pinned KiCad resistor sources are GPL-3.0-or-later. Pinned fmt is MIT
+(`thirdparty/fmt/LICENSE`), built
 from the exported pin rather than a system package. The libstdc++ sort adaptation
 is GPL-3.0-or-later with the GCC Runtime Library Exception, compatible with this
 GPL-3.0-or-later derived work. No additional source is vendored.
