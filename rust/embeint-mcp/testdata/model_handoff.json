@@ -1,0 +1,6264 @@
+{
+ "generated_by": "model_handoff.model_plan/footprint_board/embedded_file_bytes in tools/live_schematic_mcp (Python 3.12, zstandard 0.25), once, by a throwaway script; expected values for model_handoff.rs's unit test",
+ "plans": [
+  {
+   "package": "soic",
+   "params": {
+    "pins": 8,
+    "pitch": 1.27,
+    "body_width": 3.9,
+    "body_length": 4.9,
+    "lead_span": 6.0
+   },
+   "body_height": 1.75,
+   "export_path": "/mnt/c/Users/me/kicad-models/SOIC-8.step",
+   "plan": {
+    "footprint": "SOIC-8",
+    "conventions": "mm; origin = footprint origin on the board top surface; +Z up; model +Y = footprint -Y (pin 1 top-left in KiCad is at model x<0, y>0)",
+    "solidcraft": {
+     "tool": "batch",
+     "arguments": {
+      "commands": [
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.1
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          -1.95,
+          -2.45
+         ],
+         "p1": [
+          1.95,
+          2.45
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 1.65,
+         "operation": "new",
+         "body_name": "Body"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           1.905,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           -1.85,
+           0.9425
+          ],
+          [
+           -2.3,
+           0.9425
+          ],
+          [
+           -2.5,
+           0.2
+          ],
+          [
+           -3.0,
+           0.2
+          ],
+          [
+           -3.0,
+           0.0
+          ],
+          [
+           -2.3,
+           0.0
+          ],
+          [
+           -2.1,
+           0.7425
+          ],
+          [
+           -1.85,
+           0.7425
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.4865,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead1"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           0.635,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           -1.85,
+           0.9425
+          ],
+          [
+           -2.3,
+           0.9425
+          ],
+          [
+           -2.5,
+           0.2
+          ],
+          [
+           -3.0,
+           0.2
+          ],
+          [
+           -3.0,
+           0.0
+          ],
+          [
+           -2.3,
+           0.0
+          ],
+          [
+           -2.1,
+           0.7425
+          ],
+          [
+           -1.85,
+           0.7425
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.4865,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead2"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           -0.635,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           -1.85,
+           0.9425
+          ],
+          [
+           -2.3,
+           0.9425
+          ],
+          [
+           -2.5,
+           0.2
+          ],
+          [
+           -3.0,
+           0.2
+          ],
+          [
+           -3.0,
+           0.0
+          ],
+          [
+           -2.3,
+           0.0
+          ],
+          [
+           -2.1,
+           0.7425
+          ],
+          [
+           -1.85,
+           0.7425
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.4865,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead3"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           -1.905,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           -1.85,
+           0.9425
+          ],
+          [
+           -2.3,
+           0.9425
+          ],
+          [
+           -2.5,
+           0.2
+          ],
+          [
+           -3.0,
+           0.2
+          ],
+          [
+           -3.0,
+           0.0
+          ],
+          [
+           -2.3,
+           0.0
+          ],
+          [
+           -2.1,
+           0.7425
+          ],
+          [
+           -1.85,
+           0.7425
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.4865,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead4"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           -1.905,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           1.85,
+           0.9425
+          ],
+          [
+           2.3,
+           0.9425
+          ],
+          [
+           2.5,
+           0.2
+          ],
+          [
+           3.0,
+           0.2
+          ],
+          [
+           3.0,
+           0.0
+          ],
+          [
+           2.3,
+           0.0
+          ],
+          [
+           2.1,
+           0.7425
+          ],
+          [
+           1.85,
+           0.7425
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.4865,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead5"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           -0.635,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           1.85,
+           0.9425
+          ],
+          [
+           2.3,
+           0.9425
+          ],
+          [
+           2.5,
+           0.2
+          ],
+          [
+           3.0,
+           0.2
+          ],
+          [
+           3.0,
+           0.0
+          ],
+          [
+           2.3,
+           0.0
+          ],
+          [
+           2.1,
+           0.7425
+          ],
+          [
+           1.85,
+           0.7425
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.4865,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead6"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           0.635,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           1.85,
+           0.9425
+          ],
+          [
+           2.3,
+           0.9425
+          ],
+          [
+           2.5,
+           0.2
+          ],
+          [
+           3.0,
+           0.2
+          ],
+          [
+           3.0,
+           0.0
+          ],
+          [
+           2.3,
+           0.0
+          ],
+          [
+           2.1,
+           0.7425
+          ],
+          [
+           1.85,
+           0.7425
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.4865,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead7"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           1.905,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           1.85,
+           0.9425
+          ],
+          [
+           2.3,
+           0.9425
+          ],
+          [
+           2.5,
+           0.2
+          ],
+          [
+           3.0,
+           0.2
+          ],
+          [
+           3.0,
+           0.0
+          ],
+          [
+           2.3,
+           0.0
+          ],
+          [
+           2.1,
+           0.7425
+          ],
+          [
+           1.85,
+           0.7425
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.4865,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead8"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 1.75
+        }
+       },
+       {
+        "command": "sketch.circle.center",
+        "params": {
+         "center": [
+          -1.35,
+          1.85
+         ],
+         "radius": 0.25
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "direction": "negative",
+         "operation": "cut",
+         "targets": [
+          "Body"
+         ]
+        }
+       },
+       {
+        "command": "appearance.assign",
+        "params": {
+         "bodies": [
+          "Body"
+         ],
+         "color": "#1f1f1f"
+        }
+       },
+       {
+        "command": "appearance.assign",
+        "params": {
+         "bodies": [
+          "Lead1",
+          "Lead2",
+          "Lead3",
+          "Lead4",
+          "Lead5",
+          "Lead6",
+          "Lead7",
+          "Lead8"
+         ],
+         "color": "#c9ccd1"
+        }
+       }
+      ]
+     }
+    },
+    "bodies": [
+     "Body",
+     "Lead1",
+     "Lead2",
+     "Lead3",
+     "Lead4",
+     "Lead5",
+     "Lead6",
+     "Lead7",
+     "Lead8"
+    ],
+    "export": {
+     "tool": "export",
+     "arguments": {
+      "path": "C:\\Users\\me\\kicad-models\\SOIC-8.step",
+      "format": "step"
+     }
+    },
+    "then": {
+     "tool": "live_footprint_attach_step",
+     "step_path": "C:\\Users\\me\\kicad-models\\SOIC-8.step"
+    }
+   }
+  },
+  {
+   "package": "soic",
+   "params": {
+    "pins": 8,
+    "pitch": 1.27,
+    "body_width": 3.9,
+    "body_length": 4.9,
+    "pad_length": 1.95,
+    "pad_width": 0.6,
+    "row_pitch": 5.4,
+    "lead_width": 1
+   },
+   "body_height": 1.75,
+   "standoff": 0.15,
+   "lead_thickness": 0.25,
+   "plan": {
+    "footprint": "SOIC-8",
+    "conventions": "mm; origin = footprint origin on the board top surface; +Z up; model +Y = footprint -Y (pin 1 top-left in KiCad is at model x<0, y>0)",
+    "solidcraft": {
+     "tool": "batch",
+     "arguments": {
+      "commands": [
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.15
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          -1.95,
+          -2.45
+         ],
+         "p1": [
+          1.95,
+          2.45
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 1.6,
+         "operation": "new",
+         "body_name": "Body"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           1.905,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           -1.85,
+           0.995
+          ],
+          [
+           -2.325,
+           0.995
+          ],
+          [
+           -2.85,
+           0.25
+          ],
+          [
+           -3.325,
+           0.25
+          ],
+          [
+           -3.325,
+           0.0
+          ],
+          [
+           -2.6,
+           0.0
+          ],
+          [
+           -2.075,
+           0.745
+          ],
+          [
+           -1.85,
+           0.745
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 1,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead1"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           0.635,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           -1.85,
+           0.995
+          ],
+          [
+           -2.325,
+           0.995
+          ],
+          [
+           -2.85,
+           0.25
+          ],
+          [
+           -3.325,
+           0.25
+          ],
+          [
+           -3.325,
+           0.0
+          ],
+          [
+           -2.6,
+           0.0
+          ],
+          [
+           -2.075,
+           0.745
+          ],
+          [
+           -1.85,
+           0.745
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 1,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead2"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           -0.635,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           -1.85,
+           0.995
+          ],
+          [
+           -2.325,
+           0.995
+          ],
+          [
+           -2.85,
+           0.25
+          ],
+          [
+           -3.325,
+           0.25
+          ],
+          [
+           -3.325,
+           0.0
+          ],
+          [
+           -2.6,
+           0.0
+          ],
+          [
+           -2.075,
+           0.745
+          ],
+          [
+           -1.85,
+           0.745
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 1,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead3"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           -1.905,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           -1.85,
+           0.995
+          ],
+          [
+           -2.325,
+           0.995
+          ],
+          [
+           -2.85,
+           0.25
+          ],
+          [
+           -3.325,
+           0.25
+          ],
+          [
+           -3.325,
+           0.0
+          ],
+          [
+           -2.6,
+           0.0
+          ],
+          [
+           -2.075,
+           0.745
+          ],
+          [
+           -1.85,
+           0.745
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 1,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead4"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           -1.905,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           1.85,
+           0.995
+          ],
+          [
+           2.325,
+           0.995
+          ],
+          [
+           2.85,
+           0.25
+          ],
+          [
+           3.325,
+           0.25
+          ],
+          [
+           3.325,
+           0.0
+          ],
+          [
+           2.6,
+           0.0
+          ],
+          [
+           2.075,
+           0.745
+          ],
+          [
+           1.85,
+           0.745
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 1,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead5"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           -0.635,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           1.85,
+           0.995
+          ],
+          [
+           2.325,
+           0.995
+          ],
+          [
+           2.85,
+           0.25
+          ],
+          [
+           3.325,
+           0.25
+          ],
+          [
+           3.325,
+           0.0
+          ],
+          [
+           2.6,
+           0.0
+          ],
+          [
+           2.075,
+           0.745
+          ],
+          [
+           1.85,
+           0.745
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 1,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead6"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           0.635,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           1.85,
+           0.995
+          ],
+          [
+           2.325,
+           0.995
+          ],
+          [
+           2.85,
+           0.25
+          ],
+          [
+           3.325,
+           0.25
+          ],
+          [
+           3.325,
+           0.0
+          ],
+          [
+           2.6,
+           0.0
+          ],
+          [
+           2.075,
+           0.745
+          ],
+          [
+           1.85,
+           0.745
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 1,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead7"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           1.905,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           1.85,
+           0.995
+          ],
+          [
+           2.325,
+           0.995
+          ],
+          [
+           2.85,
+           0.25
+          ],
+          [
+           3.325,
+           0.25
+          ],
+          [
+           3.325,
+           0.0
+          ],
+          [
+           2.6,
+           0.0
+          ],
+          [
+           2.075,
+           0.745
+          ],
+          [
+           1.85,
+           0.745
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 1,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead8"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 1.75
+        }
+       },
+       {
+        "command": "sketch.circle.center",
+        "params": {
+         "center": [
+          -1.35,
+          1.85
+         ],
+         "radius": 0.25
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "direction": "negative",
+         "operation": "cut",
+         "targets": [
+          "Body"
+         ]
+        }
+       },
+       {
+        "command": "appearance.assign",
+        "params": {
+         "bodies": [
+          "Body"
+         ],
+         "color": "#1f1f1f"
+        }
+       },
+       {
+        "command": "appearance.assign",
+        "params": {
+         "bodies": [
+          "Lead1",
+          "Lead2",
+          "Lead3",
+          "Lead4",
+          "Lead5",
+          "Lead6",
+          "Lead7",
+          "Lead8"
+         ],
+         "color": "#c9ccd1"
+        }
+       }
+      ]
+     }
+    },
+    "bodies": [
+     "Body",
+     "Lead1",
+     "Lead2",
+     "Lead3",
+     "Lead4",
+     "Lead5",
+     "Lead6",
+     "Lead7",
+     "Lead8"
+    ]
+   }
+  },
+  {
+   "package": "tssop",
+   "params": {
+    "pins": 14,
+    "pitch": 0.65,
+    "body_width": 4.4,
+    "body_length": 5.0,
+    "lead_span": 6.4,
+    "exposed_pad": [
+     2.5,
+     3.0
+    ]
+   },
+   "body_height": 1.2,
+   "lead_width": 0.3,
+   "foot_length": 0.6,
+   "lead_span": 6.4,
+   "plan": {
+    "footprint": "SOIC-14",
+    "conventions": "mm; origin = footprint origin on the board top surface; +Z up; model +Y = footprint -Y (pin 1 top-left in KiCad is at model x<0, y>0)",
+    "solidcraft": {
+     "tool": "batch",
+     "arguments": {
+      "commands": [
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.1
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          -2.2,
+          -2.5
+         ],
+         "p1": [
+          2.2,
+          2.5
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 1.1,
+         "operation": "new",
+         "body_name": "Body"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           1.95,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           -2.1,
+           0.695
+          ],
+          [
+           -2.55,
+           0.695
+          ],
+          [
+           -2.7,
+           0.2
+          ],
+          [
+           -3.2,
+           0.2
+          ],
+          [
+           -3.2,
+           0.0
+          ],
+          [
+           -2.5,
+           0.0
+          ],
+          [
+           -2.35,
+           0.495
+          ],
+          [
+           -2.1,
+           0.495
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.3,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead1"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           1.3,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           -2.1,
+           0.695
+          ],
+          [
+           -2.55,
+           0.695
+          ],
+          [
+           -2.7,
+           0.2
+          ],
+          [
+           -3.2,
+           0.2
+          ],
+          [
+           -3.2,
+           0.0
+          ],
+          [
+           -2.5,
+           0.0
+          ],
+          [
+           -2.35,
+           0.495
+          ],
+          [
+           -2.1,
+           0.495
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.3,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead2"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           0.65,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           -2.1,
+           0.695
+          ],
+          [
+           -2.55,
+           0.695
+          ],
+          [
+           -2.7,
+           0.2
+          ],
+          [
+           -3.2,
+           0.2
+          ],
+          [
+           -3.2,
+           0.0
+          ],
+          [
+           -2.5,
+           0.0
+          ],
+          [
+           -2.35,
+           0.495
+          ],
+          [
+           -2.1,
+           0.495
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.3,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead3"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           -0.0,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           -2.1,
+           0.695
+          ],
+          [
+           -2.55,
+           0.695
+          ],
+          [
+           -2.7,
+           0.2
+          ],
+          [
+           -3.2,
+           0.2
+          ],
+          [
+           -3.2,
+           0.0
+          ],
+          [
+           -2.5,
+           0.0
+          ],
+          [
+           -2.35,
+           0.495
+          ],
+          [
+           -2.1,
+           0.495
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.3,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead4"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           -0.65,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           -2.1,
+           0.695
+          ],
+          [
+           -2.55,
+           0.695
+          ],
+          [
+           -2.7,
+           0.2
+          ],
+          [
+           -3.2,
+           0.2
+          ],
+          [
+           -3.2,
+           0.0
+          ],
+          [
+           -2.5,
+           0.0
+          ],
+          [
+           -2.35,
+           0.495
+          ],
+          [
+           -2.1,
+           0.495
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.3,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead5"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           -1.3,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           -2.1,
+           0.695
+          ],
+          [
+           -2.55,
+           0.695
+          ],
+          [
+           -2.7,
+           0.2
+          ],
+          [
+           -3.2,
+           0.2
+          ],
+          [
+           -3.2,
+           0.0
+          ],
+          [
+           -2.5,
+           0.0
+          ],
+          [
+           -2.35,
+           0.495
+          ],
+          [
+           -2.1,
+           0.495
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.3,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead6"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           -1.95,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           -2.1,
+           0.695
+          ],
+          [
+           -2.55,
+           0.695
+          ],
+          [
+           -2.7,
+           0.2
+          ],
+          [
+           -3.2,
+           0.2
+          ],
+          [
+           -3.2,
+           0.0
+          ],
+          [
+           -2.5,
+           0.0
+          ],
+          [
+           -2.35,
+           0.495
+          ],
+          [
+           -2.1,
+           0.495
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.3,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead7"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           -1.95,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           2.1,
+           0.695
+          ],
+          [
+           2.55,
+           0.695
+          ],
+          [
+           2.7,
+           0.2
+          ],
+          [
+           3.2,
+           0.2
+          ],
+          [
+           3.2,
+           0.0
+          ],
+          [
+           2.5,
+           0.0
+          ],
+          [
+           2.35,
+           0.495
+          ],
+          [
+           2.1,
+           0.495
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.3,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead8"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           -1.3,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           2.1,
+           0.695
+          ],
+          [
+           2.55,
+           0.695
+          ],
+          [
+           2.7,
+           0.2
+          ],
+          [
+           3.2,
+           0.2
+          ],
+          [
+           3.2,
+           0.0
+          ],
+          [
+           2.5,
+           0.0
+          ],
+          [
+           2.35,
+           0.495
+          ],
+          [
+           2.1,
+           0.495
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.3,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead9"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           -0.65,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           2.1,
+           0.695
+          ],
+          [
+           2.55,
+           0.695
+          ],
+          [
+           2.7,
+           0.2
+          ],
+          [
+           3.2,
+           0.2
+          ],
+          [
+           3.2,
+           0.0
+          ],
+          [
+           2.5,
+           0.0
+          ],
+          [
+           2.35,
+           0.495
+          ],
+          [
+           2.1,
+           0.495
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.3,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead10"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           -0.0,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           2.1,
+           0.695
+          ],
+          [
+           2.55,
+           0.695
+          ],
+          [
+           2.7,
+           0.2
+          ],
+          [
+           3.2,
+           0.2
+          ],
+          [
+           3.2,
+           0.0
+          ],
+          [
+           2.5,
+           0.0
+          ],
+          [
+           2.35,
+           0.495
+          ],
+          [
+           2.1,
+           0.495
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.3,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead11"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           0.65,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           2.1,
+           0.695
+          ],
+          [
+           2.55,
+           0.695
+          ],
+          [
+           2.7,
+           0.2
+          ],
+          [
+           3.2,
+           0.2
+          ],
+          [
+           3.2,
+           0.0
+          ],
+          [
+           2.5,
+           0.0
+          ],
+          [
+           2.35,
+           0.495
+          ],
+          [
+           2.1,
+           0.495
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.3,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead12"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           1.3,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           2.1,
+           0.695
+          ],
+          [
+           2.55,
+           0.695
+          ],
+          [
+           2.7,
+           0.2
+          ],
+          [
+           3.2,
+           0.2
+          ],
+          [
+           3.2,
+           0.0
+          ],
+          [
+           2.5,
+           0.0
+          ],
+          [
+           2.35,
+           0.495
+          ],
+          [
+           2.1,
+           0.495
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.3,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead13"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           1.95,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           2.1,
+           0.695
+          ],
+          [
+           2.55,
+           0.695
+          ],
+          [
+           2.7,
+           0.2
+          ],
+          [
+           3.2,
+           0.2
+          ],
+          [
+           3.2,
+           0.0
+          ],
+          [
+           2.5,
+           0.0
+          ],
+          [
+           2.35,
+           0.495
+          ],
+          [
+           2.1,
+           0.495
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.3,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead14"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 1.2
+        }
+       },
+       {
+        "command": "sketch.circle.center",
+        "params": {
+         "center": [
+          -1.6,
+          1.9
+         ],
+         "radius": 0.25
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "direction": "negative",
+         "operation": "cut",
+         "targets": [
+          "Body"
+         ]
+        }
+       },
+       {
+        "command": "appearance.assign",
+        "params": {
+         "bodies": [
+          "Body"
+         ],
+         "color": "#1f1f1f"
+        }
+       },
+       {
+        "command": "appearance.assign",
+        "params": {
+         "bodies": [
+          "Lead1",
+          "Lead2",
+          "Lead3",
+          "Lead4",
+          "Lead5",
+          "Lead6",
+          "Lead7",
+          "Lead8",
+          "Lead9",
+          "Lead10",
+          "Lead11",
+          "Lead12",
+          "Lead13",
+          "Lead14"
+         ],
+         "color": "#c9ccd1"
+        }
+       }
+      ]
+     }
+    },
+    "bodies": [
+     "Body",
+     "Lead1",
+     "Lead2",
+     "Lead3",
+     "Lead4",
+     "Lead5",
+     "Lead6",
+     "Lead7",
+     "Lead8",
+     "Lead9",
+     "Lead10",
+     "Lead11",
+     "Lead12",
+     "Lead13",
+     "Lead14"
+    ]
+   }
+  },
+  {
+   "package": "sot",
+   "params": {
+    "variant": "23"
+   },
+   "body_height": 1.1,
+   "plan": {
+    "footprint": "SOT-23",
+    "conventions": "mm; origin = footprint origin on the board top surface; +Z up; model +Y = footprint -Y (pin 1 top-left in KiCad is at model x<0, y>0)",
+    "solidcraft": {
+     "tool": "batch",
+     "arguments": {
+      "commands": [
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.1
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          -0.65,
+          -1.45
+         ],
+         "p1": [
+          0.65,
+          1.45
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 1.0,
+         "operation": "new",
+         "body_name": "Body"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           0.95,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           -0.55,
+           0.65
+          ],
+          [
+           -1.0,
+           0.65
+          ],
+          [
+           -0.825,
+           0.2
+          ],
+          [
+           -1.325,
+           0.2
+          ],
+          [
+           -1.325,
+           0.0
+          ],
+          [
+           -0.625,
+           0.0
+          ],
+          [
+           -0.8,
+           0.45
+          ],
+          [
+           -0.55,
+           0.45
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.42,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead1"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           -0.95,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           -0.55,
+           0.65
+          ],
+          [
+           -1.0,
+           0.65
+          ],
+          [
+           -0.825,
+           0.2
+          ],
+          [
+           -1.325,
+           0.2
+          ],
+          [
+           -1.325,
+           0.0
+          ],
+          [
+           -0.625,
+           0.0
+          ],
+          [
+           -0.8,
+           0.45
+          ],
+          [
+           -0.55,
+           0.45
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.42,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead2"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           0,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           0.55,
+           0.65
+          ],
+          [
+           1.0,
+           0.65
+          ],
+          [
+           0.825,
+           0.2
+          ],
+          [
+           1.325,
+           0.2
+          ],
+          [
+           1.325,
+           0.0
+          ],
+          [
+           0.625,
+           0.0
+          ],
+          [
+           0.8,
+           0.45
+          ],
+          [
+           0.55,
+           0.45
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.42,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead3"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 1.1
+        }
+       },
+       {
+        "command": "sketch.circle.center",
+        "params": {
+         "center": [
+          -0.05,
+          0.85
+         ],
+         "radius": 0.25
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "direction": "negative",
+         "operation": "cut",
+         "targets": [
+          "Body"
+         ]
+        }
+       },
+       {
+        "command": "appearance.assign",
+        "params": {
+         "bodies": [
+          "Body"
+         ],
+         "color": "#1f1f1f"
+        }
+       },
+       {
+        "command": "appearance.assign",
+        "params": {
+         "bodies": [
+          "Lead1",
+          "Lead2",
+          "Lead3"
+         ],
+         "color": "#c9ccd1"
+        }
+       }
+      ]
+     }
+    },
+    "bodies": [
+     "Body",
+     "Lead1",
+     "Lead2",
+     "Lead3"
+    ]
+   }
+  },
+  {
+   "package": "sot",
+   "params": {
+    "variant": "223"
+   },
+   "body_height": 1.8,
+   "lead_span": 7.0,
+   "plan": {
+    "footprint": "SOT-223-3_TabPin2",
+    "conventions": "mm; origin = footprint origin on the board top surface; +Z up; model +Y = footprint -Y (pin 1 top-left in KiCad is at model x<0, y>0)",
+    "solidcraft": {
+     "tool": "batch",
+     "arguments": {
+      "commands": [
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.1
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          -1.75,
+          -3.25
+         ],
+         "p1": [
+          1.75,
+          3.25
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 1.7,
+         "operation": "new",
+         "body_name": "Body"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           2.3,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           -1.65,
+           0.965
+          ],
+          [
+           -2.1,
+           0.965
+          ],
+          [
+           -3.0,
+           0.2
+          ],
+          [
+           -3.5,
+           0.2
+          ],
+          [
+           -3.5,
+           0.0
+          ],
+          [
+           -2.8,
+           0.0
+          ],
+          [
+           -1.9,
+           0.765
+          ],
+          [
+           -1.65,
+           0.765
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 1.05,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead1"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           0,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           -1.65,
+           0.965
+          ],
+          [
+           -2.1,
+           0.965
+          ],
+          [
+           -3.0,
+           0.2
+          ],
+          [
+           -3.5,
+           0.2
+          ],
+          [
+           -3.5,
+           0.0
+          ],
+          [
+           -2.8,
+           0.0
+          ],
+          [
+           -1.9,
+           0.765
+          ],
+          [
+           -1.65,
+           0.765
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 1.05,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead2"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           -2.3,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           -1.65,
+           0.965
+          ],
+          [
+           -2.1,
+           0.965
+          ],
+          [
+           -3.0,
+           0.2
+          ],
+          [
+           -3.5,
+           0.2
+          ],
+          [
+           -3.5,
+           0.0
+          ],
+          [
+           -2.8,
+           0.0
+          ],
+          [
+           -1.9,
+           0.765
+          ],
+          [
+           -1.65,
+           0.765
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 1.05,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead3"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           0,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           1.65,
+           0.965
+          ],
+          [
+           2.1,
+           0.965
+          ],
+          [
+           3.0,
+           0.2
+          ],
+          [
+           3.5,
+           0.2
+          ],
+          [
+           3.5,
+           0.0
+          ],
+          [
+           2.8,
+           0.0
+          ],
+          [
+           1.9,
+           0.765
+          ],
+          [
+           1.65,
+           0.765
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 2.66,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead4"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 1.8
+        }
+       },
+       {
+        "command": "sketch.circle.center",
+        "params": {
+         "center": [
+          -1.15,
+          2.65
+         ],
+         "radius": 0.25
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "direction": "negative",
+         "operation": "cut",
+         "targets": [
+          "Body"
+         ]
+        }
+       },
+       {
+        "command": "appearance.assign",
+        "params": {
+         "bodies": [
+          "Body"
+         ],
+         "color": "#1f1f1f"
+        }
+       },
+       {
+        "command": "appearance.assign",
+        "params": {
+         "bodies": [
+          "Lead1",
+          "Lead2",
+          "Lead3",
+          "Lead4"
+         ],
+         "color": "#c9ccd1"
+        }
+       }
+      ]
+     }
+    },
+    "bodies": [
+     "Body",
+     "Lead1",
+     "Lead2",
+     "Lead3",
+     "Lead4"
+    ]
+   }
+  },
+  {
+   "package": "SOT",
+   "params": {
+    "variant": "23-5"
+   },
+   "body_height": 1.45,
+   "standoff": 0.0,
+   "plan": {
+    "footprint": "SOT-23-5",
+    "conventions": "mm; origin = footprint origin on the board top surface; +Z up; model +Y = footprint -Y (pin 1 top-left in KiCad is at model x<0, y>0)",
+    "solidcraft": {
+     "tool": "batch",
+     "arguments": {
+      "commands": [
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          -0.8,
+          -1.45
+         ],
+         "p1": [
+          0.8,
+          1.45
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 1.45,
+         "operation": "new",
+         "body_name": "Body"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           0.95,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           -0.7,
+           0.7525
+          ],
+          [
+           -1.15,
+           0.7525
+          ],
+          [
+           -0.95,
+           0.2
+          ],
+          [
+           -1.45,
+           0.2
+          ],
+          [
+           -1.45,
+           0.0
+          ],
+          [
+           -0.75,
+           0.0
+          ],
+          [
+           -0.95,
+           0.5525
+          ],
+          [
+           -0.7,
+           0.5525
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.42,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead1"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           -0.0,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           -0.7,
+           0.7525
+          ],
+          [
+           -1.15,
+           0.7525
+          ],
+          [
+           -0.95,
+           0.2
+          ],
+          [
+           -1.45,
+           0.2
+          ],
+          [
+           -1.45,
+           0.0
+          ],
+          [
+           -0.75,
+           0.0
+          ],
+          [
+           -0.95,
+           0.5525
+          ],
+          [
+           -0.7,
+           0.5525
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.42,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead2"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           -0.95,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           -0.7,
+           0.7525
+          ],
+          [
+           -1.15,
+           0.7525
+          ],
+          [
+           -0.95,
+           0.2
+          ],
+          [
+           -1.45,
+           0.2
+          ],
+          [
+           -1.45,
+           0.0
+          ],
+          [
+           -0.75,
+           0.0
+          ],
+          [
+           -0.95,
+           0.5525
+          ],
+          [
+           -0.7,
+           0.5525
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.42,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead3"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           -0.95,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           0.7,
+           0.7525
+          ],
+          [
+           1.15,
+           0.7525
+          ],
+          [
+           0.95,
+           0.2
+          ],
+          [
+           1.45,
+           0.2
+          ],
+          [
+           1.45,
+           0.0
+          ],
+          [
+           0.75,
+           0.0
+          ],
+          [
+           0.95,
+           0.5525
+          ],
+          [
+           0.7,
+           0.5525
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.42,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead4"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           0.95,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           0.7,
+           0.7525
+          ],
+          [
+           1.15,
+           0.7525
+          ],
+          [
+           0.95,
+           0.2
+          ],
+          [
+           1.45,
+           0.2
+          ],
+          [
+           1.45,
+           0.0
+          ],
+          [
+           0.75,
+           0.0
+          ],
+          [
+           0.95,
+           0.5525
+          ],
+          [
+           0.7,
+           0.5525
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.42,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead5"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 1.45
+        }
+       },
+       {
+        "command": "sketch.circle.center",
+        "params": {
+         "center": [
+          -0.2,
+          0.85
+         ],
+         "radius": 0.25
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "direction": "negative",
+         "operation": "cut",
+         "targets": [
+          "Body"
+         ]
+        }
+       },
+       {
+        "command": "appearance.assign",
+        "params": {
+         "bodies": [
+          "Body"
+         ],
+         "color": "#1f1f1f"
+        }
+       },
+       {
+        "command": "appearance.assign",
+        "params": {
+         "bodies": [
+          "Lead1",
+          "Lead2",
+          "Lead3",
+          "Lead4",
+          "Lead5"
+         ],
+         "color": "#c9ccd1"
+        }
+       }
+      ]
+     }
+    },
+    "bodies": [
+     "Body",
+     "Lead1",
+     "Lead2",
+     "Lead3",
+     "Lead4",
+     "Lead5"
+    ]
+   }
+  },
+  {
+   "package": "qfn",
+   "params": {
+    "pins_x": 4,
+    "pins_y": 4,
+    "pitch": 0.5,
+    "body_x": 3.0,
+    "body_y": 3.0,
+    "exposed_pad": [
+     1.7,
+     1.7
+    ]
+   },
+   "body_height": 0.9,
+   "plan": {
+    "footprint": "QFN-16",
+    "conventions": "mm; origin = footprint origin on the board top surface; +Z up; model +Y = footprint -Y (pin 1 top-left in KiCad is at model x<0, y>0)",
+    "solidcraft": {
+     "tool": "batch",
+     "arguments": {
+      "commands": [
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          -1.5,
+          -1.5
+         ],
+         "p1": [
+          1.5,
+          1.5
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.9,
+         "operation": "new",
+         "body_name": "Body"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          -1.5,
+          0.625
+         ],
+         "p1": [
+          -1.05,
+          0.875
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "operation": "new",
+         "body_name": "Pad1"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          -1.5,
+          0.125
+         ],
+         "p1": [
+          -1.05,
+          0.375
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "operation": "new",
+         "body_name": "Pad2"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          -1.5,
+          -0.375
+         ],
+         "p1": [
+          -1.05,
+          -0.125
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "operation": "new",
+         "body_name": "Pad3"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          -1.5,
+          -0.875
+         ],
+         "p1": [
+          -1.05,
+          -0.625
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "operation": "new",
+         "body_name": "Pad4"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          -0.875,
+          -1.5
+         ],
+         "p1": [
+          -0.625,
+          -1.05
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "operation": "new",
+         "body_name": "Pad5"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          -0.375,
+          -1.5
+         ],
+         "p1": [
+          -0.125,
+          -1.05
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "operation": "new",
+         "body_name": "Pad6"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          0.125,
+          -1.5
+         ],
+         "p1": [
+          0.375,
+          -1.05
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "operation": "new",
+         "body_name": "Pad7"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          0.625,
+          -1.5
+         ],
+         "p1": [
+          0.875,
+          -1.05
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "operation": "new",
+         "body_name": "Pad8"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          1.05,
+          -0.875
+         ],
+         "p1": [
+          1.5,
+          -0.625
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "operation": "new",
+         "body_name": "Pad9"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          1.05,
+          -0.375
+         ],
+         "p1": [
+          1.5,
+          -0.125
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "operation": "new",
+         "body_name": "Pad10"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          1.05,
+          0.125
+         ],
+         "p1": [
+          1.5,
+          0.375
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "operation": "new",
+         "body_name": "Pad11"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          1.05,
+          0.625
+         ],
+         "p1": [
+          1.5,
+          0.875
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "operation": "new",
+         "body_name": "Pad12"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          0.625,
+          1.05
+         ],
+         "p1": [
+          0.875,
+          1.5
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "operation": "new",
+         "body_name": "Pad13"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          0.125,
+          1.05
+         ],
+         "p1": [
+          0.375,
+          1.5
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "operation": "new",
+         "body_name": "Pad14"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          -0.375,
+          1.05
+         ],
+         "p1": [
+          -0.125,
+          1.5
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "operation": "new",
+         "body_name": "Pad15"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          -0.875,
+          1.05
+         ],
+         "p1": [
+          -0.625,
+          1.5
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "operation": "new",
+         "body_name": "Pad16"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          -0.85,
+          -0.85
+         ],
+         "p1": [
+          0.85,
+          0.85
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "operation": "new",
+         "body_name": "Pad17"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.9
+        }
+       },
+       {
+        "command": "sketch.circle.center",
+        "params": {
+         "center": [
+          -0.9,
+          0.9
+         ],
+         "radius": 0.25
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "direction": "negative",
+         "operation": "cut",
+         "targets": [
+          "Body"
+         ]
+        }
+       },
+       {
+        "command": "appearance.assign",
+        "params": {
+         "bodies": [
+          "Body"
+         ],
+         "color": "#1f1f1f"
+        }
+       },
+       {
+        "command": "appearance.assign",
+        "params": {
+         "bodies": [
+          "Pad1",
+          "Pad2",
+          "Pad3",
+          "Pad4",
+          "Pad5",
+          "Pad6",
+          "Pad7",
+          "Pad8",
+          "Pad9",
+          "Pad10",
+          "Pad11",
+          "Pad12",
+          "Pad13",
+          "Pad14",
+          "Pad15",
+          "Pad16",
+          "Pad17"
+         ],
+         "color": "#c9ccd1"
+        }
+       }
+      ]
+     }
+    },
+    "bodies": [
+     "Body",
+     "Pad1",
+     "Pad2",
+     "Pad3",
+     "Pad4",
+     "Pad5",
+     "Pad6",
+     "Pad7",
+     "Pad8",
+     "Pad9",
+     "Pad10",
+     "Pad11",
+     "Pad12",
+     "Pad13",
+     "Pad14",
+     "Pad15",
+     "Pad16",
+     "Pad17"
+    ]
+   }
+  },
+  {
+   "package": "dfn",
+   "params": {
+    "pins_y": 4,
+    "pitch": 0.65,
+    "body_x": 3,
+    "body_y": 3
+   },
+   "body_height": 0.75,
+   "plan": {
+    "footprint": "DFN-8",
+    "conventions": "mm; origin = footprint origin on the board top surface; +Z up; model +Y = footprint -Y (pin 1 top-left in KiCad is at model x<0, y>0)",
+    "solidcraft": {
+     "tool": "batch",
+     "arguments": {
+      "commands": [
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          -1.5,
+          -1.5
+         ],
+         "p1": [
+          1.5,
+          1.5
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.75,
+         "operation": "new",
+         "body_name": "Body"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          -1.5,
+          0.8125
+         ],
+         "p1": [
+          -1.05,
+          1.1375
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "operation": "new",
+         "body_name": "Pad1"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          -1.5,
+          0.1625
+         ],
+         "p1": [
+          -1.05,
+          0.4875
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "operation": "new",
+         "body_name": "Pad2"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          -1.5,
+          -0.4875
+         ],
+         "p1": [
+          -1.05,
+          -0.1625
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "operation": "new",
+         "body_name": "Pad3"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          -1.5,
+          -1.1375
+         ],
+         "p1": [
+          -1.05,
+          -0.8125
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "operation": "new",
+         "body_name": "Pad4"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          1.05,
+          -1.1375
+         ],
+         "p1": [
+          1.5,
+          -0.8125
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "operation": "new",
+         "body_name": "Pad5"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          1.05,
+          -0.4875
+         ],
+         "p1": [
+          1.5,
+          -0.1625
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "operation": "new",
+         "body_name": "Pad6"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          1.05,
+          0.1625
+         ],
+         "p1": [
+          1.5,
+          0.4875
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "operation": "new",
+         "body_name": "Pad7"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          1.05,
+          0.8125
+         ],
+         "p1": [
+          1.5,
+          1.1375
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "operation": "new",
+         "body_name": "Pad8"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.75
+        }
+       },
+       {
+        "command": "sketch.circle.center",
+        "params": {
+         "center": [
+          -0.9,
+          0.9
+         ],
+         "radius": 0.25
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "direction": "negative",
+         "operation": "cut",
+         "targets": [
+          "Body"
+         ]
+        }
+       },
+       {
+        "command": "appearance.assign",
+        "params": {
+         "bodies": [
+          "Body"
+         ],
+         "color": "#1f1f1f"
+        }
+       },
+       {
+        "command": "appearance.assign",
+        "params": {
+         "bodies": [
+          "Pad1",
+          "Pad2",
+          "Pad3",
+          "Pad4",
+          "Pad5",
+          "Pad6",
+          "Pad7",
+          "Pad8"
+         ],
+         "color": "#c9ccd1"
+        }
+       }
+      ]
+     }
+    },
+    "bodies": [
+     "Body",
+     "Pad1",
+     "Pad2",
+     "Pad3",
+     "Pad4",
+     "Pad5",
+     "Pad6",
+     "Pad7",
+     "Pad8"
+    ]
+   }
+  },
+  {
+   "package": "chip",
+   "params": {
+    "size": "0603",
+    "prefix": "C"
+   },
+   "body_height": 0.8,
+   "plan": {
+    "footprint": "C_0603_1608Metric",
+    "conventions": "mm; origin = footprint origin on the board top surface; +Z up; model +Y = footprint -Y (pin 1 top-left in KiCad is at model x<0, y>0)",
+    "solidcraft": {
+     "tool": "batch",
+     "arguments": {
+      "commands": [
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          -0.4,
+          -0.4
+         ],
+         "p1": [
+          0.4,
+          0.4
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.8,
+         "operation": "new",
+         "body_name": "Body"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          -0.8,
+          -0.4
+         ],
+         "p1": [
+          -0.4,
+          0.4
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.8,
+         "operation": "new",
+         "body_name": "Cap1"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          0.4,
+          -0.4
+         ],
+         "p1": [
+          0.8,
+          0.4
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.8,
+         "operation": "new",
+         "body_name": "Cap2"
+        }
+       },
+       {
+        "command": "appearance.assign",
+        "params": {
+         "bodies": [
+          "Body"
+         ],
+         "color": "#1f1f1f"
+        }
+       },
+       {
+        "command": "appearance.assign",
+        "params": {
+         "bodies": [
+          "Cap1",
+          "Cap2"
+         ],
+         "color": "#c9ccd1"
+        }
+       }
+      ]
+     }
+    },
+    "bodies": [
+     "Body",
+     "Cap1",
+     "Cap2"
+    ]
+   }
+  },
+  {
+   "package": "chip",
+   "params": {
+    "size": "0402"
+   },
+   "body_height": 0.35,
+   "plan": {
+    "footprint": "R_0402_1005Metric",
+    "conventions": "mm; origin = footprint origin on the board top surface; +Z up; model +Y = footprint -Y (pin 1 top-left in KiCad is at model x<0, y>0)",
+    "solidcraft": {
+     "tool": "batch",
+     "arguments": {
+      "commands": [
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          -0.25,
+          -0.25
+         ],
+         "p1": [
+          0.25,
+          0.25
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.35,
+         "operation": "new",
+         "body_name": "Body"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          -0.5,
+          -0.25
+         ],
+         "p1": [
+          -0.25,
+          0.25
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.35,
+         "operation": "new",
+         "body_name": "Cap1"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.0
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          0.25,
+          -0.25
+         ],
+         "p1": [
+          0.5,
+          0.25
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.35,
+         "operation": "new",
+         "body_name": "Cap2"
+        }
+       },
+       {
+        "command": "appearance.assign",
+        "params": {
+         "bodies": [
+          "Body"
+         ],
+         "color": "#1f1f1f"
+        }
+       },
+       {
+        "command": "appearance.assign",
+        "params": {
+         "bodies": [
+          "Cap1",
+          "Cap2"
+         ],
+         "color": "#c9ccd1"
+        }
+       }
+      ]
+     }
+    },
+    "bodies": [
+     "Body",
+     "Cap1",
+     "Cap2"
+    ]
+   }
+  },
+  {
+   "package": "pin_header",
+   "params": {
+    "pins_per_row": 4
+   },
+   "body_height": 2.5,
+   "plan": {
+    "footprint": "PinHeader_1x04_P2.54mm_Vertical",
+    "conventions": "mm; origin = footprint origin on the board top surface; +Z up; model +Y = footprint -Y (pin 1 top-left in KiCad is at model x<0, y>0)",
+    "solidcraft": {
+     "tool": "batch",
+     "arguments": {
+      "commands": [
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.1
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          -1.27,
+          -8.89
+         ],
+         "p1": [
+          1.27,
+          1.27
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 2.4,
+         "operation": "new",
+         "body_name": "Body"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 2.5
+        }
+       },
+       {
+        "command": "sketch.circle.center",
+        "params": {
+         "center": [
+          -0.67,
+          0.67
+         ],
+         "radius": 0.25
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "direction": "negative",
+         "operation": "cut",
+         "targets": [
+          "Body"
+         ]
+        }
+       },
+       {
+        "command": "appearance.assign",
+        "params": {
+         "bodies": [
+          "Body"
+         ],
+         "color": "#1f1f1f"
+        }
+       }
+      ]
+     }
+    },
+    "bodies": [
+     "Body"
+    ]
+   }
+  },
+  {
+   "package": "msop",
+   "params": {
+    "pins": 10,
+    "pitch": 0.5,
+    "body_width": 3,
+    "body_length": 3,
+    "lead_span": 4.9,
+    "lead_length": 0.55
+   },
+   "body_height": 1.1,
+   "export_path": "C:\\models\\MSOP.step",
+   "plan": {
+    "footprint": "SOIC-10",
+    "conventions": "mm; origin = footprint origin on the board top surface; +Z up; model +Y = footprint -Y (pin 1 top-left in KiCad is at model x<0, y>0)",
+    "solidcraft": {
+     "tool": "batch",
+     "arguments": {
+      "commands": [
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 0.1
+        }
+       },
+       {
+        "command": "sketch.rectangle.two_point",
+        "params": {
+         "p0": [
+          -1.5,
+          -1.5
+         ],
+         "p1": [
+          1.5,
+          1.5
+         ]
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 1.0,
+         "operation": "new",
+         "body_name": "Body"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           1.0,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           -1.4,
+           0.65
+          ],
+          [
+           -1.85,
+           0.65
+          ],
+          [
+           -2.0,
+           0.2
+          ],
+          [
+           -2.45,
+           0.2
+          ],
+          [
+           -2.45,
+           0.0
+          ],
+          [
+           -1.8,
+           0.0
+          ],
+          [
+           -1.65,
+           0.45
+          ],
+          [
+           -1.4,
+           0.45
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.21,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead1"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           0.5,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           -1.4,
+           0.65
+          ],
+          [
+           -1.85,
+           0.65
+          ],
+          [
+           -2.0,
+           0.2
+          ],
+          [
+           -2.45,
+           0.2
+          ],
+          [
+           -2.45,
+           0.0
+          ],
+          [
+           -1.8,
+           0.0
+          ],
+          [
+           -1.65,
+           0.45
+          ],
+          [
+           -1.4,
+           0.45
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.21,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead2"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           -0.0,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           -1.4,
+           0.65
+          ],
+          [
+           -1.85,
+           0.65
+          ],
+          [
+           -2.0,
+           0.2
+          ],
+          [
+           -2.45,
+           0.2
+          ],
+          [
+           -2.45,
+           0.0
+          ],
+          [
+           -1.8,
+           0.0
+          ],
+          [
+           -1.65,
+           0.45
+          ],
+          [
+           -1.4,
+           0.45
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.21,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead3"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           -0.5,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           -1.4,
+           0.65
+          ],
+          [
+           -1.85,
+           0.65
+          ],
+          [
+           -2.0,
+           0.2
+          ],
+          [
+           -2.45,
+           0.2
+          ],
+          [
+           -2.45,
+           0.0
+          ],
+          [
+           -1.8,
+           0.0
+          ],
+          [
+           -1.65,
+           0.45
+          ],
+          [
+           -1.4,
+           0.45
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.21,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead4"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           -1.0,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           -1.4,
+           0.65
+          ],
+          [
+           -1.85,
+           0.65
+          ],
+          [
+           -2.0,
+           0.2
+          ],
+          [
+           -2.45,
+           0.2
+          ],
+          [
+           -2.45,
+           0.0
+          ],
+          [
+           -1.8,
+           0.0
+          ],
+          [
+           -1.65,
+           0.45
+          ],
+          [
+           -1.4,
+           0.45
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.21,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead5"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           -1.0,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           1.4,
+           0.65
+          ],
+          [
+           1.85,
+           0.65
+          ],
+          [
+           2.0,
+           0.2
+          ],
+          [
+           2.45,
+           0.2
+          ],
+          [
+           2.45,
+           0.0
+          ],
+          [
+           1.8,
+           0.0
+          ],
+          [
+           1.65,
+           0.45
+          ],
+          [
+           1.4,
+           0.45
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.21,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead6"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           -0.5,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           1.4,
+           0.65
+          ],
+          [
+           1.85,
+           0.65
+          ],
+          [
+           2.0,
+           0.2
+          ],
+          [
+           2.45,
+           0.2
+          ],
+          [
+           2.45,
+           0.0
+          ],
+          [
+           1.8,
+           0.0
+          ],
+          [
+           1.65,
+           0.45
+          ],
+          [
+           1.4,
+           0.45
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.21,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead7"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           -0.0,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           1.4,
+           0.65
+          ],
+          [
+           1.85,
+           0.65
+          ],
+          [
+           2.0,
+           0.2
+          ],
+          [
+           2.45,
+           0.2
+          ],
+          [
+           2.45,
+           0.0
+          ],
+          [
+           1.8,
+           0.0
+          ],
+          [
+           1.65,
+           0.45
+          ],
+          [
+           1.4,
+           0.45
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.21,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead8"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           0.5,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           1.4,
+           0.65
+          ],
+          [
+           1.85,
+           0.65
+          ],
+          [
+           2.0,
+           0.2
+          ],
+          [
+           2.45,
+           0.2
+          ],
+          [
+           2.45,
+           0.0
+          ],
+          [
+           1.8,
+           0.0
+          ],
+          [
+           1.65,
+           0.45
+          ],
+          [
+           1.4,
+           0.45
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.21,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead9"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": {
+          "origin": [
+           0,
+           1.0,
+           0
+          ],
+          "x_dir": [
+           1,
+           0,
+           0
+          ],
+          "y_dir": [
+           0,
+           0,
+           1
+          ]
+         }
+        }
+       },
+       {
+        "command": "sketch.line",
+        "params": {
+         "points": [
+          [
+           1.4,
+           0.65
+          ],
+          [
+           1.85,
+           0.65
+          ],
+          [
+           2.0,
+           0.2
+          ],
+          [
+           2.45,
+           0.2
+          ],
+          [
+           2.45,
+           0.0
+          ],
+          [
+           1.8,
+           0.0
+          ],
+          [
+           1.65,
+           0.45
+          ],
+          [
+           1.4,
+           0.45
+          ]
+         ],
+         "closed": true
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.21,
+         "direction": "symmetric",
+         "operation": "new",
+         "body_name": "Lead10"
+        }
+       },
+       {
+        "command": "sketch.create",
+        "params": {
+         "plane": "XY",
+         "offset": 1.1
+        }
+       },
+       {
+        "command": "sketch.circle.center",
+        "params": {
+         "center": [
+          -0.9,
+          0.9
+         ],
+         "radius": 0.25
+        }
+       },
+       {
+        "command": "sketch.finish",
+        "params": {}
+       },
+       {
+        "command": "solid.extrude",
+        "params": {
+         "distance": 0.05,
+         "direction": "negative",
+         "operation": "cut",
+         "targets": [
+          "Body"
+         ]
+        }
+       },
+       {
+        "command": "appearance.assign",
+        "params": {
+         "bodies": [
+          "Body"
+         ],
+         "color": "#1f1f1f"
+        }
+       },
+       {
+        "command": "appearance.assign",
+        "params": {
+         "bodies": [
+          "Lead1",
+          "Lead2",
+          "Lead3",
+          "Lead4",
+          "Lead5",
+          "Lead6",
+          "Lead7",
+          "Lead8",
+          "Lead9",
+          "Lead10"
+         ],
+         "color": "#c9ccd1"
+        }
+       }
+      ]
+     }
+    },
+    "bodies": [
+     "Body",
+     "Lead1",
+     "Lead2",
+     "Lead3",
+     "Lead4",
+     "Lead5",
+     "Lead6",
+     "Lead7",
+     "Lead8",
+     "Lead9",
+     "Lead10"
+    ],
+    "export": {
+     "tool": "export",
+     "arguments": {
+      "path": "C:\\models\\MSOP.step",
+      "format": "step"
+     }
+    },
+    "then": {
+     "tool": "live_footprint_attach_step",
+     "step_path": "C:\\models\\MSOP.step"
+    }
+   }
+  }
+ ],
+ "boards": [
+  {
+   "text": "(footprint \"R_0603\"\n\t(version 20241229)\n\t(generator \"pcbnew\")\n\t(generator_version \"9.0\")\n\t(layer \"F.Cu\")\n\t(descr \"Resistor\")\n\t(property \"Reference\" \"REF**\" (at 0 -1.43 0) (layer \"F.SilkS\"))\n\t(fp_line (start -0.8 -0.4125) (end 0.8 -0.4125) (stroke (width 0.1) (type solid)) (layer \"F.Fab\"))\n\t(pad \"1\" smd roundrect (at -0.825 0) (size 0.8 0.95) (layers \"F.Cu\" \"F.Mask\" \"F.Paste\"))\n\t(pad \"2\" smd roundrect (at 0.825 0) (size 0.8 0.95) (layers \"F.Cu\" \"F.Mask\" \"F.Paste\"))\n\t(fp_poly (pts (xy -1.4875 -0.73) (xy 1.48 -0.73) (xy 1.48 0.7333)) (layer \"F.CrtYd\"))\n\t(model \"kicad-embed://R.step\" (offset (xyz 0 0 0)))\n)\n",
+   "lib_id": "Embeint:R_0603",
+   "board": "(kicad_pcb\n  (version 20241229)\n  (generator \"kicad-live-mcp\")\n  (generator_version \"10.99\")\n  (general (thickness 1.6) (legacy_teardrops no))\n  (paper \"A4\")\n(footprint \"Embeint:R_0603\"\n\t(layer \"F.Cu\")\n  (at 0 0)\n\t(descr \"Resistor\")\n\t(property \"Reference\" \"REF**\" (at 0 -1.43 0) (layer \"F.SilkS\"))\n\t(fp_line (start -0.8 -0.4125) (end 0.8 -0.4125) (stroke (width 0.1) (type solid)) (layer \"F.Fab\"))\n\t(pad \"1\" smd roundrect (at -0.825 0) (size 0.8 0.95) (layers \"F.Cu\" \"F.Mask\" \"F.Paste\"))\n\t(pad \"2\" smd roundrect (at 0.825 0) (size 0.8 0.95) (layers \"F.Cu\" \"F.Mask\" \"F.Paste\"))\n\t(fp_poly (pts (xy -1.4875 -0.73) (xy 1.48 -0.73) (xy 1.48 0.7333)) (layer \"F.CrtYd\"))\n\t(model \"kicad-embed://R.step\" (offset (xyz 0 0 0)))\n)\n  (gr_rect (start -3.487 -3.430) (end 3.480 2.733) (stroke (width 0.05) (type default)) (fill no) (layer \"Edge.Cuts\"))\n)\n",
+   "error": null
+  },
+  {
+   "text": "(kicad_footprint_lib (version 20260101) (generator \"pcbnew\") (generator_version \"10.99\")\n  (footprint \"SOIC-8\" (layer \"F.Cu\") (descr \"a (quoted \\\" paren) here\")\n    (pad \"1\" smd rect (at -2.475 -1.905) (size 1.95 0.6) (layers \"F.Cu\"))\n    (embedded_files (file (name \"m.step\") (type model) (data |KLUv/QBYYQAA|)))\n    (fp_text user \"x)y\" (at 2.5 3.25) (layer \"F.Fab\")))\n  (footprint \"Other\" (layer \"F.Cu\"))\n)",
+   "lib_id": "Embeint:SOIC-8",
+   "board": "(kicad_pcb\n  (version 20260101)\n  (generator \"kicad-live-mcp\")\n  (generator_version \"10.99\")\n  (general (thickness 1.6) (legacy_teardrops no))\n  (paper \"A4\")\n(footprint \"Embeint:SOIC-8\" (layer \"F.Cu\")\n  (at 0 0) (descr \"a (quoted \\\" paren) here\")\n    (pad \"1\" smd rect (at -2.475 -1.905) (size 1.95 0.6) (layers \"F.Cu\"))\n    (embedded_files (file (name \"m.step\") (type model) (data |KLUv/QBYYQAA|)))\n    (fp_text user \"x)y\" (at 2.5 3.25) (layer \"F.Fab\")))\n  (gr_rect (start -4.475 -3.905) (end 4.500 5.250) (stroke (width 0.05) (type default)) (fill no) (layer \"Edge.Cuts\"))\n)\n",
+   "error": null
+  },
+  {
+   "text": "(footprint Bare (layer \"B.Cu\"))",
+   "lib_id": "L:Bare",
+   "board": "(kicad_pcb\n  (version 20250114)\n  (generator \"kicad-live-mcp\")\n  (generator_version \"10.99\")\n  (general (thickness 1.6) (legacy_teardrops no))\n  (paper \"A4\")\n(footprint \"L:Bare\" (layer \"B.Cu\"))\n  (gr_rect (start -7.000 -7.000) (end 7.000 7.000) (stroke (width 0.05) (type default)) (fill no) (layer \"Edge.Cuts\"))\n)\n",
+   "error": null
+  },
+  {
+   "text": "  (footprint \"x\" (at 1.2.3 4))",
+   "lib_id": "L:x",
+   "board": null,
+   "error": "could not convert string to float: '1.2.3'"
+  },
+  {
+   "text": "(kicad_footprint_lib (version 1) (nothing here))",
+   "lib_id": "L:x",
+   "board": null,
+   "error": "substring not found"
+  },
+  {
+   "text": "(kicad_footprint_lib (version 1) (footprint \"x\" (layer \"F.Cu\")",
+   "lib_id": "L:x",
+   "board": null,
+   "error": "unbalanced expression"
+  }
+ ],
+ "embedded": [
+  {
+   "text": "(footprint \"x\"\n  (embedded_files\n    (file (name \"other.bin\") (type other) (data |AAAA|))\n    (file\n      (name \"R.step\")\n      (type model)\n      (data |KLUv/WAWEwUJAGQRSVNPLTEwMzAzLTIxOwpIRUFERVI7CgABAgMEBQYHCAkKCwwNDg8QERITFBUW|\n        |FxgZGhscHR4fICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj9AQUJDREVGR0hJSktMTU5P|\n        |UFFSU1RVVldYWVpbXF1eX2BhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ent8fX5/gIGCg4SFhoeI|\n        |iYqLjI2Oj5CRkpOUlZaXmJmam5ydnp+goaKjpKWmp6ipqqusra6vsLGys7S1tre4ubq7vL2+v8DB|\n        |wsPExcbHyMnKy8zNzs/Q0dLT1NXW19jZ2tvc3d7f4OHi4+Tl5ufo6err7O3u7/Dx8vP09fb3+Pn6|\n        |+/z9/v8BABb9MtCvKQ==|)\n      (checksum \"0\")\n    )\n  )\n)\n",
+   "name": "R.step",
+   "data_b64": "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"
+  },
+  {
+   "text": "(footprint \"x\"\n  (embedded_files\n    (file (name \"other.bin\") (type other) (data |AAAA|))\n    (file\n      (name \"notes.txt\")\n      (type model)\n      (data |KLUv/SAFKQAAaGVsbG8=|)\n      (checksum \"0\")\n    )\n  )\n)\n",
+   "name": "notes.txt",
+   "data_b64": "aGVsbG8="
+  }
+ ]
+}
