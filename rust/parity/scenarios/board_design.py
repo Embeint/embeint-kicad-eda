@@ -140,12 +140,13 @@ def _lengths(result):
 
 
 def _request_kinds(requests):
-    """The requests with created tracks and vias reduced to their kind, layer, net and width."""
+    """The requests with created tracks and vias reduced to their kind, layer, net, width and
+    pad stack (a via's diameter and drill), dropping only their coordinates."""
     out = []
     for request in requests:
         message = dict(request.get("message", {}))
         if message.get("@type", "").endswith(".CreateItems"):
-            message["items"] = sorted(json.dumps({k: item.get(k) for k in ("@type", "layer", "net", "width")},
+            message["items"] = sorted(json.dumps({k: item.get(k) for k in ("@type", "layer", "net", "width", "pad_stack")},
                                                  sort_keys=True) for item in message.get("items", []))
             message["items"] = sorted(set(message["items"]))
         if message.get("@type", "").endswith(".DeleteItems"):
@@ -912,7 +913,8 @@ def scenarios(h):
           + [tight_fps, get_items(*tight_pads), tight_fps, get_items(*tight_pads), no_class] + commit + drc()
           + problem(pads=tight_pads, shapes=tight_shape, fps=tight_fps)
           + [tight_fps, get_items(*tight_pads), tight_fps, get_items(*tight_pads), no_class] + commit,
-          generated_ids=True, compare=route_behaviour()),
+          # The finer of the two steps' grids, so "one grid step" is never wider than either
+          generated_ids=True, compare=route_behaviour(0.05)),
     ]
 
     # ---- Gaps at a round join: a pad corner just off the corner of a two-segment path, between the
