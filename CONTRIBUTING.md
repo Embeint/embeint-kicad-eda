@@ -24,6 +24,11 @@ branch for upstream updates, and `master` is an upstream mirror. Make focused to
 branches and target the appropriate branch. Do not force-push shared history.
 Automatic upstream merges are not release qualification.
 
+`rust` is the long-lived Rust port branch. Port topic branches start from `rust`,
+and port PRs target `rust`; the port plan and native MCP work remain on `main`.
+Merge `main` into `rust` regularly with merge commits. Never rebase or force-push
+`rust` or `main`. Upstream changes reach `rust` only through `main`.
+
 ## Contributing to upstream KiCad
 
 The following upstream guide is retained for reference. It applies to submissions

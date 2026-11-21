@@ -145,6 +145,11 @@ i18n_status.csv
 qa/data/**/*.csv
 qa/data/**/*.spice
 
+# Port foundation: west metadata, external sources and host-specific development venvs
+/.west/
+/.port-deps/
+/.port-venv/
+
 # Unignore variant test comparison files
 !qa/data/cli/variants/*.bom.csv
 
