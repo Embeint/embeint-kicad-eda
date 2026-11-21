@@ -210,7 +210,7 @@ agent and its findings fixed before merging; CI ran the offline suite on Windows
 | Offline fixtures (`mcp_parity.py`) | 641/641 identical on Windows, plus every per-platform CI run; 109 codec cases |
 | Rust | unit tests on Windows and Linux, clippy `-D warnings`, rustfmt, Rust 1.85 check |
 | Router | a reviewer drove both routers with the same 1,240 random problems: bit-identical; the fixtures compare routes by behaviour only where they diverge by construction |
-| Live | pending (see Next steps) |
+| Live (Windows) | 362/362 checks on a disposable project; 114 of the 116 tools through both servers (see [Live workflows](#live-workflows-2026-11-21)) |
 
 Review and porting also found and fixed a `live_kicad_cli` hole in **both** servers: outputs
 Windows rewrites (trailing dots and spaces, `::$DATA`, existing 8.3 aliases) could overwrite a
@@ -362,10 +362,10 @@ Responsiveness against the live KiCad on Windows (median of 40 calls, same sessi
 
 ## Next steps
 
-- **Live qualification of every area** against the KiCad build the package ships with, both
-  servers on disposable projects, routes checked by KiCad's DRC (criteria 3 and 4 of
-  [MCP_PARITY_PLAN.md](MCP_PARITY_PLAN.md)). Until it is recorded here, the Python server stays
-  the default.
+- **Complete the live record**: every area passed live on native Windows (above). Still to run
+  live: the two save tools (on a project the harness may write) and the same workflows on Linux
+  (WSL), against the KiCad build the package ships with. Until then the Python server stays the
+  default.
 - **A Python-free installed package**: qualify the native server from the installed package with no
   Python available (criterion 2), then make it the default.
 - **Shared helpers**: the areas each carry small Python-imitation helpers (rounding, reprs,
