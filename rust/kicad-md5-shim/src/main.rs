@@ -73,6 +73,9 @@ fn run(input: &Value) -> Result<Value, String> {
                     state(&states, id)?;
                 }
                 let source = integer(step, "source", 0, 15)?;
+                if op == "assign" && id == source {
+                    return Err("self-assignment overlaps reference memcpy".into());
+                }
                 let source = state(&states, source)?.clone();
                 if op == "assign" {
                     states
@@ -229,6 +232,7 @@ mod tests {
             json!([{"op":"new","id":0},{"op":"bytes","id":0,"data":[256]}]),
             json!([{"op":"new","id":0},{"op":"bytes","id":0,"data":[],"repeat":8194}]),
             json!([{"op":"new","id":0},{"op":"valid","id":0,"value":0}]),
+            json!([{"op":"new","id":0},{"op":"assign","id":0,"source":0}]),
             json!([{"op":"new","id":0,"ignored":true}]),
         ] {
             assert!(run(&json!({"steps":steps})).is_err());

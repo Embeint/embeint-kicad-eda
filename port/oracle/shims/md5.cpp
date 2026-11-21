@@ -103,7 +103,13 @@ static JSON Md5( const JSON& aInput )
             if( op == "clone" )
                 states[id] = std::make_unique<MD5_HASH>( State( states, source ) );
             else
+            {
+                // The reference uses memcpy without a self-assignment guard.
+                if( id == source )
+                    throw std::invalid_argument( "self-assignment overlaps reference memcpy" );
+
                 State( states, id ) = State( states, source );
+            }
         }
         else
         {

@@ -24,7 +24,7 @@ There are 1..4096 steps. Unexpected fields are refused.
 | --- | --- | --- |
 | `new` | none | default constructor (replaces any old state) |
 | `clone` | `source`: existing state ID | copy constructor |
-| `assign` | `source`: existing state ID; destination must exist | assignment, including self-assignment |
+| `assign` | `source`: distinct existing state ID; destination must exist | assignment |
 | `init` | none | `Init()` |
 | `bytes` | `data`: array of 0..255 integers; optional `repeat` defaults to 1 | `Hash(uint8_t*, uint32_t)` per repetition |
 | `int` | `value`: signed 32-bit integer | `Hash(int)` |
@@ -38,7 +38,9 @@ There are 1..4096 steps. Unexpected fields are refused.
 resource bounds, not restrictions added to the portable algorithm. The portable
 `hash(&[u8])` checks the upstream uint32 count before any mutation. No pointer
 length mismatch, unconstructed object, private-state injection or invalid memory
-is sent to C++. Integer cases require the pinned Linux ABI: 8-bit bytes,
+is sent to C++. Self-assignment is excluded because the reference's `memcpy`
+would copy between overlapping buffers; distinct-object assignment is exercised
+throughout. Integer cases require the pinned Linux ABI: 8-bit bytes,
 32-bit `int`, little endian (enforced by the oracle shim's static assertion).
 
 Each step returns one event. `compare` emits both actual boolean operators;
@@ -70,7 +72,7 @@ corpus has 5,972 requests:
   exponentially many partitions of every long string.
 - Both final padding paths, partial/full/multiblock transitions, repeated
   finalization, updates after finalization, copied finalized contexts, reset,
-  independent validity, unequal/equal digests and self-assignment.
+  independent validity, unequal/equal digests and repeated assignment.
 - Fifteen signed integer boundary values compared with their explicit
   little-endian bytes; 128 fixed-seed byte streams (`0x4cf939`).
 - Seven public RFC 1321 byte strings and explicit zero-repeat/empty-update no-ops.

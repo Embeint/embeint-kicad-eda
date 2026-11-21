@@ -69,7 +69,7 @@ def cases():
                 op("bytes", data=byte_string(suffix_length)), op("int", value=-1234567),
                 op("finalize"), op("finalize"), op("finalize", 1),
                 op("finalize", 2), op("compare", 1, other=2),
-                op("assign", source=0), op("init"), op("finalize"),
+                op("assign", 2, source=0), op("init"), op("finalize"),
             ])
 
     for value in [-2147483648, -2147483647, -65536, -256, -1, 0, 1, 127, 128, 255, 256,

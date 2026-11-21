@@ -16,7 +16,7 @@ is introduced. There are no `UNPORTED` callers in this implementation.
 | default constructor, line 30 | `Md5Hash::new` / `Default` / initialization | every `new` snapshot includes defined zero digest and false validity | runtime pending |
 | copy constructor, line 36 | derived `Clone`, every field copied | every split clones a partial context; continuations finalize original/copy | runtime pending |
 | destructor, line 44 | ordinary Rust drop; upstream body empty, no resource/effect to reproduce | every case destroys its real C++ states | no observable destructor result exists |
-| assignment, line 48 | derived `Clone::clone_from`, context/digest/validity copied | partial/finalized assignment, independent mutation, self-assignment | runtime pending |
+| assignment, line 48 | derived `Clone::clone_from`, context/digest/validity copied | partial/finalized assignment and independent mutation | runtime pending; reference self-assignment excluded for overlapping memcpy |
 | `Init`, line 58 | `init` replaces all context fields, hash and validity | reset after partial and finalized work; empty finalization after reset | runtime pending |
 | byte `Hash`, line 66 | `hash` validates uint32 length before `update` | empty, single/full/multiple blocks, all selected splits/strides, repeat no-ops | harness bounds one call to 65536 bytes; library accepts uint32 domain |
 | integer `Hash`, line 72 | `hash_int` uses i32 little-endian bytes | 15 signed boundaries versus explicit byte overload; mixed continuation | Linux little-endian 32-bit int contract only |
