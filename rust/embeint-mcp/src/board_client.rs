@@ -380,7 +380,6 @@ pub(crate) fn layer_name(value: i64) -> Result<String, Error> {
 }
 
 /// `is_copper(value)`.
-#[allow(dead_code)] // the board design tools call it (board_design.py)
 pub(crate) fn is_copper(value: i32) -> bool {
     enum_name(BOARD_LAYER, i64::from(value)).ends_with("_Cu")
 }
@@ -396,7 +395,6 @@ fn board_item(name: &str, value: Json) -> DynamicMessage {
 }
 
 /// `make_track(start, end, width, layer, net)`: one track segment (points `[x, y]` in mm).
-#[allow(dead_code)] // the board design tools call it (board_design.py)
 pub(crate) fn make_track(
     start: &Json,
     end: &Json,
@@ -784,7 +782,6 @@ pub(crate) fn make_zone(
 /// `route_points(start, end, posture)`: a 45-degree dog-leg, straight then diagonal
 /// (`horizontal_first`, the default for any other posture), diagonal then straight
 /// (`diagonal_first`) or along X then Y (`orthogonal`).
-#[allow(dead_code)] // the board design tools call it (board_design.py)
 pub(crate) fn route_points(start: [f64; 2], end: [f64; 2], posture: &str) -> Vec<[f64; 2]> {
     let ([x1, y1], [x2, y2]) = (start, end);
     let (dx, dy) = (x2 - x1, y2 - y1);
@@ -1125,7 +1122,6 @@ pub(crate) async fn board_footprint(
 }
 
 /// Helper: `find_pad(doc, reference, number)`: a footprint's pad.
-#[allow(dead_code)] // the board design tools call it (board_design.py)
 pub(crate) async fn find_pad(
     client: &mut Client,
     doc: &DynamicMessage,
@@ -1363,7 +1359,7 @@ pub(crate) async fn board_summary(
 // ---- Editing ------------------------------------------------------------------------------------
 
 /// Helper: `board_create(doc, items, description)`: creates the items as one undo step.
-#[allow(dead_code)] // the board design tools call it (board_design.py)
+#[allow(dead_code)] // BoardTools API kept from Python; no native tool calls it yet
 pub(crate) async fn board_create(
     client: &mut Client,
     doc: &DynamicMessage,
@@ -1621,7 +1617,6 @@ pub(crate) async fn board_move_footprints(
 
 /// Helper: `_width_for(doc, net, width)`: the given width, else the net class track width, else
 /// 0.25 mm.
-#[allow(dead_code)] // the board design tools call it (board_design.py)
 pub(crate) async fn width_for(
     client: &mut Client,
     doc: &DynamicMessage,
@@ -1640,7 +1635,6 @@ pub(crate) async fn width_for(
 
 /// Helper: `board_add_tracks(doc, points, layer, width, net)`: a connected chain of track segments
 /// through the points (mm) on one copper layer, as one undo step (repeated points are skipped).
-#[allow(dead_code)] // the board design tools call it (board_design.py)
 pub(crate) async fn board_add_tracks(
     client: &mut Client,
     doc: &DynamicMessage,
@@ -1678,7 +1672,6 @@ pub(crate) async fn board_add_tracks(
 }
 
 /// The pads and options of a plain route (`board_route` with avoid=False).
-#[allow(dead_code)] // the board design tools call it (board_design.py)
 pub(crate) struct PlainRoute<'a> {
     pub from_ref: &'a str,
     pub from_pad: &'a str,
@@ -1694,7 +1687,6 @@ pub(crate) struct PlainRoute<'a> {
 
 /// Helper: `board_route(..., avoid=False)`: a plain 45-degree dog-leg between two pads, optionally
 /// through a via at `via_at`, that does not look at anything else on the board; one undo step.
-#[allow(dead_code)] // the board design tools call it (board_design.py)
 pub(crate) async fn board_route(
     client: &mut Client,
     doc: &DynamicMessage,
@@ -1990,7 +1982,6 @@ pub(crate) async fn board_add_zone(
 
 /// Helper: `board_add_keepout(doc, points, layers, name, ...)`: a rule area keeping out what the
 /// flags say, as one undo step.  Returns `{"rule_area": id}`.
-#[allow(dead_code)] // the board design tools call it (board_design.py)
 pub(crate) async fn board_add_keepout(
     client: &mut Client,
     doc: &DynamicMessage,
@@ -2521,7 +2512,7 @@ pub(crate) async fn board_layers(
 
 /// Helper: `board_design_rules(doc, changes)`: the board's design rules as protobuf JSON; with
 /// `changes` (protobuf JSON merged over the current rules) they are set first.
-#[allow(dead_code)] // the board design tools call it (board_design.py)
+#[allow(dead_code)] // BoardTools API kept from Python; no native tool calls it yet
 pub(crate) async fn board_design_rules(
     client: &mut Client,
     doc: &DynamicMessage,
@@ -2548,7 +2539,7 @@ pub(crate) async fn board_design_rules(
 }
 
 /// Helper: `board_stackup(doc)`: the stackup as protobuf JSON.
-#[allow(dead_code)] // the board design tools call it (board_design.py)
+#[allow(dead_code)] // BoardTools API kept from Python; no native tool calls it yet
 pub(crate) async fn board_stackup(
     client: &mut Client,
     doc: &DynamicMessage,
