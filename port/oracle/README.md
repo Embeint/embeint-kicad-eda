@@ -207,3 +207,21 @@ runner, `crates/goldens/README.md`, and `harness/plan/progress.py`.
 That pin no longer contains a C++ difftest/shim builder; its current policy uses
 Rust goldens and the C++ as a reading reference. This oracle follows KiCad's
 binding exact C++ comparison plan, not solidcore's later tolerance/policy changes.
+
+## Resistor reference extension
+
+Resistor pilot preparation adds the `resistor-reference` archive and pinned fmt
+(MIT). This extension exports 873 files before other pilots' additive closures.
+It compiles the original `pcb_calculator/eseries.cpp` and the original
+`resistor_substitution_utils.cpp`; the latter is included, unchanged, in a library
+test-accessor translation unit so the real source-local collector can be tested.
+The adapter calls the compiled reference library, including private helpers through
+standard explicit-instantiation member access. No C++ resistor algorithm lives in
+the JSON shim. The audit requires actual reference compilation and the archive/fmt
+links, retaining all existing kimath, source-integrity and fixed-FP checks.
+
+The native registration uses the provisional ID
+`pcb_calculator.application.pure.p001`. It is preparation only: no published claim,
+unit record or completion status follows before the final extractor scope record.
+The complete protocol, owned-definition audit and dependency notices are in
+[`rust/kicad-resistors/README.md`](../../rust/kicad-resistors/README.md).
