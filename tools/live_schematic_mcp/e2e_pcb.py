@@ -62,6 +62,21 @@ def check_fab_package(client, board, schematic):
         manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
         check(all((root / f["path"]).stat().st_size == f["bytes"] for f in manifest["files"]),
               "manifest lists every file with its size")
+        # A re-run with overwrite replaces the whole previous package, never a file it did not write
+        (root / "PnP" / "prices.csv").write_text("not from the package")
+        try:
+            client.fab_package(board, folder, schematic, outputs=["position"], checks=False, allow_unsaved=True,
+                               overwrite=True)
+            refused = False
+        except ValueError as error:
+            refused = "manifest does not list" in str(error)
+        check(refused and (root / result["zip"]).exists(), "overwrite refuses a file the package did not write")
+        (root / "PnP" / "prices.csv").unlink()
+        again = client.fab_package(board, folder, schematic, outputs=["position"], checks=False, allow_unsaved=True,
+                                   overwrite=True)
+        left = sorted(p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file())
+        check(again["exported"] and left == sorted(again["outputs"]["position"] + ["manifest.json"]),
+              f"overwrite removed the previous package: {left}")
 
 
 def check_export_warning_does_not_block(client, board):

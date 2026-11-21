@@ -954,9 +954,24 @@ PACKAGE = {"board_document": BOARD_DOC, "output_dir": "<out>"}
 
 
 def prepare_existing(out):
-    (out / "PnP").mkdir(parents=True)
-    (out / "PnP" / "old-pos.csv").write_text("old", newline="")
-    (out / "manifest.json").write_text("{}", newline="")
+    """A previous package (its manifest names files in other folders and paths it cannot have
+    written) and a file beside the output folders."""
+    import json
+    for folder in ("PnP", "Gerbers"):
+        (out / folder).mkdir(parents=True)
+    for path in ("PnP/old-pos.csv", "Gerbers/old-F_Cu.gbr", "parity-gerbers.zip", "notes.txt"):
+        (out / path).write_text("old", newline="")
+    listed = ["PnP/old-pos.csv", "Gerbers/old-F_Cu.gbr", "parity-gerbers.zip", "../outside.txt", "C:/x.txt",
+              "Gerbers/../notes.txt", "notes.txt"]
+    (out / "manifest.json").write_text(json.dumps({"generator": "live_pcb_fab_package", "files": [
+        {"path": path} for path in listed] + [{"bytes": 3}, "PnP/x"]}), newline="")
+
+
+def prepare_unknown(out):
+    """A model in the STEP folder that no package wrote, beside a manifest that does not list it."""
+    (out / "STEP").mkdir(parents=True)
+    (out / "STEP" / "enclosure.step").write_text("the user's model", newline="")
+    (out / "manifest.json").write_text('{"generator": "live_pcb_fab_package", "files": []}', newline="")
 
 
 def fab_scenarios():
@@ -1009,16 +1024,18 @@ def fab_scenarios():
     yield scenario("fab_package_kicad_warnings", [("live_pcb_fab_package", dict(
         PACKAGE, outputs=["position", "assembly_pdf"], checks=False))],
         [("GetDocumentRevision", revision()), ("RunBoardJobExportPosition", job_reply(status=2, message="Odd footprint")),
-         ("RunBoardJobExportPdf", job_reply(status=2, message="Missing font\nSecond line"))])
+         ("RunBoardJobExportPdf", job_reply(status=2, message="Missing font\nSecond line")),
+         ("GetDocumentRevision", revision())])
     yield scenario("fab_package_step_writes_nothing", [("live_pcb_fab_package", dict(
         PACKAGE, outputs=["position", "step"], checks=False))],
         [("GetDocumentRevision", revision()), ("RunBoardJobExportPosition", job_reply()),
          ("RunBoardJobExport3D", job_reply(status=2, message=outline, write=False))])
     full = [("GetDocumentRevision", revision()), ("GetOpenDocuments", lambda r: documents(SHEET_DOC)),
             ("GetDocumentRevision", revision(name="fx-sch"))]
+    unchanged = [("GetDocumentRevision", revision()), ("GetDocumentRevision", revision(name="fx-sch"))]
     yield scenario("fab_package_full", [("live_pcb_fab_package", PACKAGE)],
                    full + drc_script([(5, "RS_WARNING", "Silkscreen clipped")]) + [copper(4)]
-                   + [(name, job_reply()) for name in DEFAULT_JOBS])
+                   + [(name, job_reply()) for name in DEFAULT_JOBS] + unchanged)
     yield scenario("fab_package_unsaved", [("live_pcb_fab_package", PACKAGE)],
                    [("GetDocumentRevision", revision(True)), ("GetOpenDocuments", lambda r: documents(SHEET_DOC)),
                     ("GetDocumentRevision", revision(True, "fx-sch"))])
@@ -1026,7 +1043,8 @@ def fab_scenarios():
         PACKAGE, outputs=["position", "bom"], allow_unsaved="yes", checks="false"))],
         [("GetDocumentRevision", revision(True)), ("GetOpenDocuments", lambda r: documents(SHEET_DOC)),
          ("GetDocumentRevision", revision(name="fx-sch")),
-         ("RunBoardJobExportPosition", job_reply()), ("RunSchematicJobExportBOM", job_reply())])
+         ("RunBoardJobExportPosition", job_reply()), ("RunSchematicJobExportBOM", job_reply()),
+         ("GetDocumentRevision", revision(True)), ("GetDocumentRevision", revision(name="fx-sch"))])
     yield scenario("fab_package_drc_errors", [("live_pcb_fab_package", dict(PACKAGE, outputs=["gerbers", "drill"]))],
                    [("GetDocumentRevision", revision())]
                    + drc_script([(5, "RS_ERROR", "Clearance violation (0.1 mm < 0.2 mm)"),
@@ -1041,11 +1059,21 @@ def fab_scenarios():
         [("GetDocumentRevision", revision()), copper(2)]
         + [(name, job_reply()) for name in ("RunBoardJobExportGerbers", "RunBoardJobExportPosition",
                                             "RunBoardJobExportIpc2581", "RunBoardJobExportODB",
-                                            "RunBoardJobExportIpcD356")])
-    yield scenario("fab_package_export_fails", [("live_pcb_fab_package", dict(PACKAGE, outputs=["gerbers"],
-                                                                              checks=False))],
-                   [("GetDocumentRevision", revision()), copper(2),
-                    ("RunBoardJobExportGerbers", job_reply(status=3, message="Plot failed"))])
+                                            "RunBoardJobExportIpcD356")] + [("GetDocumentRevision", revision())])
+    # The Gerbers already written are removed when the placement export fails
+    yield scenario("fab_package_export_fails", [("live_pcb_fab_package", dict(
+        PACKAGE, outputs=["gerbers", "position"], checks=False))],
+        [("GetDocumentRevision", revision()), copper(2), ("RunBoardJobExportGerbers", job_reply()),
+         ("RunBoardJobExportPosition", job_reply(status=3, message="Plot failed"))])
+    yield scenario("fab_package_design_changed", [
+        ("live_pcb_fab_package", dict(PACKAGE, outputs=["position"], checks=False)),
+        ("live_pcb_fab_package", dict(PACKAGE, outputs=["position", "bom"], checks=False))],
+        [("GetDocumentRevision", revision()), ("RunBoardJobExportPosition", job_reply()),
+         ("GetDocumentRevision", revision(True, name="fx-2")),
+         ("GetDocumentRevision", revision()), ("GetOpenDocuments", lambda r: documents(SHEET_DOC)),
+         ("GetDocumentRevision", revision(name="fx-sch")), ("RunBoardJobExportPosition", job_reply()),
+         ("RunSchematicJobExportBOM", job_reply()), ("GetDocumentRevision", revision()),
+         ("GetDocumentRevision", revision(name="fx-sch-2"))])
     yield scenario("fab_package_no_schematic", [("live_pcb_fab_package", dict(PACKAGE, outputs=["bom"]))],
                    [("GetDocumentRevision", revision()), ("GetOpenDocuments", lambda r: documents())])
     trailing = dict(SHEET_DOC, project={"name": "parity", "path": "C:/fixture/parity\\"})
@@ -1054,19 +1082,24 @@ def fab_scenarios():
         [("GetDocumentRevision", revision()),
          ("GetOpenDocuments", lambda r: documents(dict(SHEET_DOC, project={"name": "other", "path": "C:/other"}),
                                                   trailing)),
-         ("GetDocumentRevision", revision(name="fx-sch")), ("RunSchematicJobExportBOM", job_reply())])
+         ("GetDocumentRevision", revision(name="fx-sch")), ("RunSchematicJobExportBOM", job_reply())]
+        + unchanged)
     yield scenario("fab_package_schematic_closed", [("live_pcb_fab_package", dict(PACKAGE, outputs=["bom"]))],
                    [("GetDocumentRevision", revision()),
                     ("GetOpenDocuments", lambda r: failure(envelope.AS_UNHANDLED, "no handler"))])
     yield scenario("fab_package_given_schematic", [("live_pcb_fab_package", dict(
         PACKAGE, outputs=["schematic_pdf"], schematic_document=SHEET_DOC, checks=0))],
         [("GetDocumentRevision", revision()), ("GetDocumentRevision", revision(name="fx-sch")),
-         ("RunSchematicJobExportPdf", job_reply())])
+         ("RunSchematicJobExportPdf", job_reply())] + unchanged)
     yield scenario("fab_package_existing_outputs", [
         ("live_pcb_fab_package", dict(PACKAGE, outputs=["position"], checks=False)),
         ("live_pcb_fab_package", dict(PACKAGE, outputs=["position"], checks=False, overwrite=True))],
-        [("GetDocumentRevision", revision()), ("RunBoardJobExportPosition", job_reply())],
+        [("GetDocumentRevision", revision()), ("RunBoardJobExportPosition", job_reply()),
+         ("GetDocumentRevision", revision())],
         prepare=prepare_existing)
+    yield scenario("fab_package_unknown_files", [
+        ("live_pcb_fab_package", dict(PACKAGE, outputs=["step"], checks=False, overwrite=True))], [],
+        prepare=prepare_unknown)
     yield scenario("fab_package_refusals", [
         ("live_pcb_fab_package", dict(PACKAGE, **arguments)) for arguments in (
             {"outputs": ["gerber", "drill"]}, {"outputs": []}, {"options": {"odb": {}}},
