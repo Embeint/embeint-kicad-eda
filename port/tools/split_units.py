@@ -15,6 +15,34 @@ CORE = ("id", "upstream", "rust_module", "depends_on", "soft_depends_on", "est_l
         "layer", "tests", "status", "claimed_by", "claimed_at", "notes")
 
 
+def normalize_eof_ranges(graph, inventory, source_root):
+    """Convert proven exclusive EOF locations to inclusive physical lines.
+
+    A null function extent can recover to the translation unit's range, whose
+    end is the empty position after the final newline. Preserve that clang
+    observation and verify the original bytes before changing the line bound.
+    """
+    files = {entry["path"]: entry for entry in inventory["files"]}
+    changes = []
+    for usr, fn in sorted(graph["functions"].items()):
+        entry = files.get(fn["file"])
+        if not entry or fn["end"] <= entry["lines"]:
+            continue
+        data = (source_root / fn["file"]).read_bytes()
+        if (fn.get("range_kind") != "enclosing-declaration"
+                or fn["end"] != entry["lines"] + 1 or not data.endswith(b"\n")
+                or fn.get("end_offset") != len(data)
+                or digest(data.replace(b"\r\n", b"\n")) != entry["sha256"]
+                or digest(data[fn["start_offset"]:fn["end_offset"]].replace(b"\r\n", b"\n")) != fn["sha256"]):
+            raise ValueError(f"Unproven out-of-file function range: {usr}")
+        old = fn["end"]
+        fn.update(clang_end_line=old, end=entry["lines"], lines=entry["lines"] - fn["start"] + 1)
+        changes.append({"function": usr, "file": fn["file"], "clang_end_line": old,
+                        "physical_end_line": fn["end"], "end_offset": fn["end_offset"],
+                        "source_bytes_sha256": digest(data)})
+    return changes
+
+
 def split(graph, inventory, target=2000):
     functions = graph["functions"]
     by_file = defaultdict(list)
@@ -125,11 +153,24 @@ def main():
     parser.add_argument("--units-dir", type=Path, default=Path("port/units"))
     parser.add_argument("--report", type=Path, default=Path("port/extractor/generated/units.json"))
     parser.add_argument("--target-lines", type=int, default=2000)
+    parser.add_argument("--source-root", type=Path, help="original snapshot bytes for proving exclusive EOF ranges")
     a = parser.parse_args()
     if a.target_lines < 1:
         parser.error("target lines must be positive")
     graph, inventory = read_json(a.graph), read_json(a.inventory)
+    source_root = a.source_root or Path(graph.get("provenance", {}).get("source_root", "."))
+    if not source_root.is_dir():
+        source_root = Path(__file__).resolve().parents[2]
+    corrections = normalize_eof_ranges(graph, inventory, source_root)
+    if corrections:
+        original = a.graph if a.graph.exists() else a.graph.with_suffix(a.graph.suffix + ".gz")
+        graph["range_normalizations"] = corrections
+        graph["range_postprocessing"] = {"policy": "byte-verified exclusive EOF to inclusive physical line",
+            "input_graph_sha256": digest(original.read_bytes()),
+            "splitter_sha256": digest(Path(__file__).read_bytes())}
     units, report = split(graph, inventory, a.target_lines)
+    report["range_normalizations"] = graph.get("range_normalizations", [])
+    report["range_postprocessing"] = graph.get("range_postprocessing")
     a.units_dir.mkdir(parents=True, exist_ok=True)
     stale = {p.stem for p in a.units_dir.glob("*.toml")} - set(units)
     if stale:

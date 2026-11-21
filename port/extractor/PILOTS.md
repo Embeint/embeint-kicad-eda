@@ -1,16 +1,15 @@
 # Phase 0 pilot recommendations
 
-Early source and call-target audit, 2026-11-22. The full raw/reconciled extraction
-is still running; confirm these IDs and ranges against the final generated unit
-records before publishing claims. These recommendations are not port/parity
-results. The diagnostic used actual commands from the independently configured
-2,511-command database, with the same libclang/GCC include arguments as the full
-run, and parsed six relevant source files successfully. It resolved primary
-template ownership and retained explicit specializations. Its private evidence is
-`~/kicad-port/pilot-audit/` and `~/kicad-port/pilot-audit.log`.
+Confirmed against the full reconciled graph and validated unit records on
+2026-11-22. The run recorded all 2,511 commands: 2,507 successful parses and four
+explicit fmt vendor failures from GCC module flags unsupported by clang. The
+source snapshot and the upstream oracle pin have identical MD5 and calculator
+sources. These are scheduling recommendations, not port/parity results or claims.
+The original six-command diagnostic evidence remains in
+`generated/evidence/pilot-audit.log`; the full records below supersede its scopes.
 
 The three units below have layer 0, wx class `pure`, no coverage gaps, no hard
-dependencies and no soft dependencies in that audit. Scope includes every owned
+dependencies and no soft dependencies in the final records. Scope includes every owned
 definition, branch, default and continuation. Some accounted header spans contain
 declarations whose method bodies belong to other units; these are interfaces to
 audit, not evidence that the UI belongs in a portable engine. Retain the minimal
@@ -24,7 +23,7 @@ Measured scope: **289 physical lines; 15 owned definitions**.
 
 | File | Inclusive lines |
 | --- | --- |
-| `libs/kimath/src/md5_hash.cpp` | 1–289 |
+| `libs/kimath/src/md5_hash.cpp` | 1-289 |
 
 This is a small first exercise of the JSON oracle, incremental state, cloning,
 formatting and exact byte output. Cover construction, copy/assignment, `Init`,
@@ -42,25 +41,26 @@ skip copy/state operations just because standard known-answer digests pass.
 ## Resistor substitution and E-series
 
 ID: `pcb_calculator.application.pure.p001`.
-Measured scope: **1,312 physical lines; 40 owned definitions**.
+Measured scope: **1,186 physical lines; 41 owned definitions**.
 
 | File | Inclusive lines |
 | --- | --- |
-| `pcb_calculator/common_data.h` | 1–62 |
-| `pcb_calculator/eseries.cpp` | 1–102 |
-| `pcb_calculator/eseries.h` | 1–177 |
-| `pcb_calculator/pcb_calculator_frame.h` | 1–111 |
-| `pcb_calculator/pcb_calculator_utils.h` | 1–33 |
-| `pcb_calculator/resistor_substitution_utils.cpp` | 1–508 |
-| `pcb_calculator/resistor_substitution_utils.h` | 1–168 |
-| `pcb_calculator/transline_ident.h` | 1–151 |
+| `pcb_calculator/common_data.h` | 1-62 |
+| `pcb_calculator/datafile_read_write.h` | 1-60 |
+| `pcb_calculator/eseries.cpp` | 1-102 |
+| `pcb_calculator/eseries.h` | 1-177 |
+| `pcb_calculator/pcb_calculator_utils.h` | 1-33 |
+| `pcb_calculator/resistor_substitution_utils.cpp` | 1-508 |
+| `pcb_calculator/resistor_substitution_utils.h` | 1-168 |
+| `pcb_calculator/units_scales.h` | 1-76 |
 
 This exercises a useful deterministic algorithm and structured outputs beyond
 scalar arithmetic: E-series generation, decade scaling, exclusions, two/three/
 four-resistor combinations, collector ordering and engineering notation. The
 E-series constructors, inline templates and collector helpers stay within this
-unit after template-call resolution. UI declarations in the frame header do not
-claim the frame implementation.
+unit after template-call resolution. The data-file parser interface and unit-scale constants are also in the measured
+scope; GUI frame/transline interface spans from the early diagnostic are no longer
+in this record.
 
 Compare every returned resistance, constituent ordering and formatted expression,
 not only best-error magnitude. Exercise every E-series and supported decade,
@@ -69,38 +69,49 @@ empty/invalid states and the reference's refusal/exception paths. Bound caller
 counts without changing defined-domain answers. Preserve the C++ epsilon-based
 selection algorithm; it is not a tolerance for the difftest, which stays exact.
 Reach the `std::function` callbacks and their continuations with real cases;
-indirect callbacks are an explicit static-analysis limit.
+indirect callbacks are an explicit static-analysis limit. The 41st definition is
+`PCB_CALCULATOR_DATAFILE_PARSER::GetReader`, a reader-reference getter in
+`datafile_read_write.h`. It needs the supporting reader-reference type and a real
+oracle identity case; do not omit it because the parser constructors belong to
+other units. Keep any reader implementation behind the portable interface and
+record the necessary type co-port. Preserve the constants in `units_scales.h` as
+well as the algorithm bodies.
 
 ## IEC60664 calculations
 
 ID: `pcb_calculator.calculator_panels.application.pure.p001`.
-Measured scope: **1,648 physical lines; 28 owned definitions**.
+Measured scope: **1,943 physical lines; 28 owned definitions**.
 
 | File | Inclusive lines |
 | --- | --- |
-| `pcb_calculator/calculator_panels/iec60664.cpp` | 1–1355 |
-| `pcb_calculator/calculator_panels/iec60664.h` | 1–137 |
-| `pcb_calculator/calculator_panels/panel_electrical_spacing_iec60664.h` | 1–50 |
-| `pcb_calculator/calculator_panels/panel_electrical_spacing_ipc2221.h` | 1–48 |
-| `pcb_calculator/calculator_panels/panel_r_divider.h` | 1–58 |
+| `pcb_calculator/calculator_panels/iec60664.cpp` | 1-1355 |
+| `pcb_calculator/calculator_panels/iec60664.h` | 1-137 |
+| `pcb_calculator/calculator_panels/panel_board_class.h` | 1-45 |
+| `pcb_calculator/calculator_panels/panel_color_code.h` | 1-44 |
+| `pcb_calculator/calculator_panels/panel_electrical_spacing.h` | 1-43 |
+| `pcb_calculator/calculator_panels/panel_electrical_spacing_iec60664.h` | 1-50 |
+| `pcb_calculator/calculator_panels/panel_electrical_spacing_ipc2221.h` | 1-48 |
+| `pcb_calculator/calculator_panels/panel_eseries_display.h` | 1-156 |
+| `pcb_calculator/calculator_panels/panel_galvanic_corrosion.h` | 1-65 |
 
 This provides a larger, branch-heavy leaf: table thresholds, altitude correction,
 pollution/material/field categories, basic/reinforced insulation, groove width,
 clearance and creepage, plus setters/getters and default state. All observed
-application calls are within the unit. The three panel headers account interface
-declarations; panel implementation bodies remain in their own UI units.
+application calls are within the unit. The seven panel headers account interface
+declarations; panel implementation bodies remain in their own UI units. The final
+record adds board-class, color-code, spacing, E-series-display and galvanic-corrosion
+interfaces and drops the early diagnostic's `panel_r_divider.h` span.
 
 Generate cases immediately below, exactly at and immediately above every table
 threshold; cover each enum category, default arguments/state, altitude, frequency
 cutoffs and reinforced-insulation transitions. Compare legitimate `-1`/false
 results separately from successful positive outputs. Follow the C++ calculation
-and mutation order; do not silently update the reference's standards tables or
-claim that parity is an electrical design certification.
+and mutation order; do not silently update the reference's standards tables.
 
 ## Why the obvious tiny distribution pilot is excluded
 
 `libs/kimath/src/geometry/distribute.cpp:1–89` appeared pure/L0 in the historical
 raw graph because instantiated `KiROUND` calls did not reach the primary
-template's unit. The reconciled diagnostic resolves that dependency; this unit
-becomes layer 2 and inherits wx coupling through the rounding/logging path.
+template's unit. The reconciled graph resolves that dependency and inherits wx coupling through
+the rounding/logging path; it is not an independent pure leaf.
 Do not select it as an independent L0 pilot or hide that dependency in a stub.
