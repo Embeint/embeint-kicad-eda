@@ -111,7 +111,9 @@ async fn run(name: &str, args: &Args, ctx: &Ctx<'_>) -> Result<Output, Error> {
     if let Some(result) = board_design::run(name, args, ctx).await {
         return result;
     }
-    unreachable!("{name} has params but no run")
+    Err(Error::Runtime(format!(
+        "{name} is declared but not implemented by this server"
+    )))
 }
 
 /// Every Python tool definition (tools.json), in the Python server's order.
@@ -134,7 +136,9 @@ pub fn list() -> &'static [Json] {
 
 /// The start of server.py's `guarded(...)`: this call's mutations run under the revision contract
 /// with its `expected_revision` and `operation_id` arguments.  Hold the client lock from here to
-/// [`end_guard`].
+/// [`end_guard`], and check arguments before it: a `?` in between returns without
+/// [`end_guard`] (the options are then dropped by [`call`] after the tool returns, so they never
+/// apply to another call, but the result carries no operations).
 pub fn begin_guard(client: &mut Client, args: &Args) {
     client.begin_mutations(
         args.opt_str("expected_revision"),
@@ -166,6 +170,13 @@ pub fn error_result(message: String) -> Json {
     json!({"content": [{"type": "text", "text": message}], "isError": true})
 }
 
+/// Drops mutation options a tool left on the client (it returned or panicked between
+/// [`begin_guard`] and [`end_guard`]), so they never apply to the next call.  A call holds the
+/// lock for its whole guarded section, so this cannot interrupt another call's.
+pub async fn clear_mutations(client: &Arc<Mutex<Client>>) {
+    client.lock().await.end_mutations();
+}
+
 /// Runs one tools/call and returns its CallToolResult.
 pub async fn call(name: &str, arguments: Json, client: &Arc<Mutex<Client>>) -> Json {
     let Some(spec) = params(name).filter(|_| list().iter().any(|tool| tool["name"] == name)) else {
@@ -175,7 +186,9 @@ pub async fn call(name: &str, arguments: Json, client: &Arc<Mutex<Client>>) -> J
         Ok(arguments) => arguments,
         Err(message) => return error_result(format!("Error executing tool {name}: {message}")),
     };
-    match run(name, &arguments, &Ctx { client }).await {
+    let result = run(name, &arguments, &Ctx { client }).await;
+    clear_mutations(client).await;
+    match result {
         Ok(Output::Dict(value)) => json!({"content": [text(&value)], "isError": false}),
         Ok(Output::List(items)) => json!({
             "content": items.iter().map(text).collect::<Vec<_>>(),
@@ -196,15 +209,71 @@ pub async fn call(name: &str, arguments: Json, client: &Arc<Mutex<Client>>) -> J
 
 #[cfg(test)]
 mod tests {
+    use super::args::Arg;
     use super::*;
 
-    /// Every implemented tool is a Python tool with a matching signature in tools.json.
+    /// The annotation a parameter's JSON schema stands for, as FastMCP writes it.
+    fn schema_kind(property: &Json) -> Option<Arg> {
+        fn shape(schema: &Json) -> String {
+            match schema["type"].as_str() {
+                Some("array") => format!("list[{}]", shape(&schema["items"])),
+                Some("object") => "dict".into(),
+                Some(other) => other.into(),
+                None => "?".into(),
+            }
+        }
+        let mut parts: Vec<String> = match property["anyOf"].as_array() {
+            Some(options) => options.iter().map(shape).collect(),
+            None => vec![shape(property)],
+        };
+        let optional = parts.iter().any(|part| part == "null");
+        parts.retain(|part| part != "null");
+        Some(match (parts.join("|").as_str(), optional) {
+            ("string", false) => Arg::Str,
+            ("string", true) => Arg::OptStr,
+            ("integer", false) => Arg::Int,
+            ("integer", true) => Arg::OptInt,
+            ("number", false) => Arg::Float,
+            ("number", true) => Arg::OptFloat,
+            ("boolean", false) => Arg::Bool,
+            ("boolean", true) => Arg::OptBool,
+            ("dict", false) => Arg::Dict,
+            ("dict", true) => Arg::OptDict,
+            ("list[dict]", false) => Arg::ListDict,
+            ("list[dict]", true) => Arg::OptListDict,
+            ("list[string]", false) => Arg::ListStr,
+            ("list[string]", true) => Arg::OptListStr,
+            ("list[number]", true) => Arg::OptListFloat,
+            ("list[list[number]]", false) => Arg::ListListFloat,
+            ("list[list[number]]", true) => Arg::OptListListFloat,
+            ("number|list[number]", true) => Arg::OptFloatOrListFloat,
+            ("number|dict", true) => Arg::OptFloatOrDict,
+            _ => return None,
+        })
+    }
+
+    /// Every Python parameter has an Arg kind, so any Python tool can be declared.
+    #[test]
+    fn every_python_parameter_has_a_kind() {
+        for tool in python_tools() {
+            let properties = tool["inputSchema"]["properties"]
+                .as_object()
+                .cloned()
+                .unwrap_or_default();
+            for (name, property) in properties {
+                assert!(
+                    schema_kind(&property).is_some(),
+                    "{}.{name}: no Arg kind for {property}",
+                    tool["name"]
+                );
+            }
+        }
+    }
+
+    /// Every implemented tool is a Python tool with a matching signature in tools.json: the same
+    /// parameters, each with the type, required flag and default the Python signature gives.
     #[test]
     fn implemented_tools_match_python_signatures() {
-        let python: Vec<&str> = python_tools()
-            .iter()
-            .filter_map(|tool| tool["name"].as_str())
-            .collect();
         assert!(list().len() >= 19);
         for tool in list() {
             let name = tool["name"].as_str().unwrap();
@@ -218,16 +287,22 @@ mod tests {
                 .map(|r| r.iter().filter_map(Json::as_str).collect())
                 .unwrap_or_default();
             let spec = params(name).unwrap();
-            let declared: Vec<&str> = spec.iter().map(|p| p.name).collect();
+            let mut declared: Vec<&str> = spec.iter().map(|p| p.name).collect();
             let mut advertised: Vec<&str> = properties.keys().map(String::as_str).collect();
-            let mut sorted = declared.clone();
-            sorted.sort_unstable();
+            declared.sort_unstable();
             advertised.sort_unstable();
             assert_eq!(
-                sorted, advertised,
+                declared, advertised,
                 "{name}: parameters differ from the Python tool"
             );
             for param in spec {
+                let property = &properties[param.name];
+                assert_eq!(
+                    Some(param.kind),
+                    schema_kind(property),
+                    "{name}.{}: type differs from the Python tool ({property})",
+                    param.name
+                );
                 let is_required = param.default == args::Default::Required;
                 assert_eq!(
                     is_required,
@@ -235,7 +310,7 @@ mod tests {
                     "{name}.{}: required differs from the Python tool",
                     param.name
                 );
-                if let Some(default) = properties[param.name].get("default") {
+                if let Some(default) = property.get("default") {
                     let ours = match param.default {
                         args::Default::Required | args::Default::None => Json::Null,
                         args::Default::Bool(flag) => json!(flag),
@@ -246,10 +321,6 @@ mod tests {
                     assert_eq!(&ours, default, "{name}.{}: default differs", param.name);
                 }
             }
-        }
-        // Every name a module answers for is a Python tool
-        for name in python {
-            let _ = params(name);
         }
     }
 }

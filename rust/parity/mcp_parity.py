@@ -178,11 +178,13 @@ def check_schema(binary, failures):
     stored = json.loads(TOOLS_JSON.read_text(encoding="utf-8"))
     if stored != list(py_tools.values()):
         failures.append("schema: tools.json is out of date; run mcp_parity.py --write-schemas")
-    # live_mcp_capabilities is compared by the manifest check
+    # live_mcp_capabilities is compared by the manifest check.  A scenario that only checks
+    # argument validation (compare="error_prefix") never compares the tool's run path.
     untested = sorted(name for name in rs_tools if name != "live_mcp_capabilities"
-                      and not any(tool == name for item in SCENARIOS for tool, _ in item["steps"]))
+                      and not any(tool == name for item in SCENARIOS if item.get("compare") != "error_prefix"
+                                  for tool, _ in item["steps"]))
     if untested:
-        failures.append(f"schema: no fixture calls {untested}")
+        failures.append(f"schema: no fixture runs {untested} beyond argument validation")
     if json.loads((RUST_DIR / "embeint-ipc/commands.json").read_text(encoding="utf-8")) != registry_entries():
         failures.append("schema: commands.json is out of date; run mcp_parity.py --write-schemas")
     for key in ("protocolVersion", "capabilities"):
@@ -476,6 +478,8 @@ def compare_manifest(manifest, failures, counts):
         failures.append("manifest: schema_sha256 is not Python's hash of the inventory")
     rust_tools = {t["name"]: t for t in manifest["tools"]}
     python_tools = {t["name"]: t for t in json.loads(TOOLS_JSON.read_text(encoding="utf-8"))}
+    if manifest.get("tool_count") != len(rust_tools):
+        failures.append("manifest: tool_count does not match its tool list")
     for name, entry in rust_tools.items():
         tool = python_tools.get(name)
         if tool is None or entry["input_schema"] != tool["inputSchema"]                 or entry.get("output_schema") != tool.get("outputSchema"):
@@ -1252,10 +1256,6 @@ async def run_scenario(item, make_params):
 
 
 def results_match(item, python, rust):
-    if callable(item.get("compare")):
-        # A behavioural comparison (routing; rust/MCP_PARITY_PLAN.md states the criterion):
-        # compare(python_results, rust_results) -> True when they agree
-        return bool(item["compare"](python, rust))
     if item.get("compare") == "error_prefix":
         # Pydantic's validation text is not reproduced word for word; the failure and its tool are
         for p, r in zip(python, rust):
@@ -1284,12 +1284,18 @@ def run_fixtures(binary, failures, only=None):
         problems = []
         if python["errors"] or rust["errors"]:
             problems.append(f"peer errors {python['errors']} {rust['errors']}")
-        if python["requests"] != rust["requests"]:
-            problems.append("requests differ")
-        if not results_match(item, python["results"], rust["results"]):
-            problems.append("results differ")
-        if python["written"] != rust["written"]:
-            problems.append("written files differ")
+        if callable(item.get("compare")):
+            # A behavioural comparison, only where rust/MCP_PARITY_PLAN.md allows one (routing):
+            # compare(python_outcome, rust_outcome) gets each server's requests, results and
+            # written files and returns a list of differences (empty when they agree)
+            problems.extend(item["compare"](python, rust))
+        else:
+            if python["requests"] != rust["requests"]:
+                problems.append("requests differ")
+            if not results_match(item, python["results"], rust["results"]):
+                problems.append("results differ")
+            if python["written"] != rust["written"]:
+                problems.append("written files differ")
         expected_requests = sum(1 for _ in item["script"])
         if len(python["requests"][0] if python["requests"] else []) != expected_requests:
             problems.append(f"Python sent {len(python['requests'][0]) if python['requests'] else 0} requests, "

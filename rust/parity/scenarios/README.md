@@ -18,9 +18,13 @@ in order. Both servers run every scenario; the requests KiCad receives, the tool
 files written under `<out>` must be identical. Options:
 
 - `compare="error_prefix"`: argument validation, compared by failure and tool, not wording.
-- `compare=callable(python_results, rust_results)`: a behavioural comparison, only where the
-  parity plan allows one (routing and path checks).
+- `compare=callable(python, rust)`: a behavioural comparison, only where the parity plan allows
+  one (routing and path checks). Each argument is that server's outcome, a dict with `requests`
+  (per peer, as KiCad received them), `results` (the tool results), `written` (files under
+  `<out>` by hash) and `errors`; return a list of differences, empty when they agree. The
+  requests, results and written files are then not compared exactly.
 - `prepare=callable(out_dir)`, `discovery=[names]`, `stop_before=index`: as in `mcp_parity.py`.
 
 Scenario names must be unique across all areas; prefix them with the area. Every tool the Rust
-server advertises must be called by at least one scenario (the schema check fails otherwise).
+server advertises must be called by at least one scenario that is not only argument validation
+(the schema check fails otherwise); `live_mcp_capabilities` is compared by the manifest check.

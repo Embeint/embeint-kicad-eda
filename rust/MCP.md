@@ -82,8 +82,10 @@ MCP client.
   and output schema, in the Python server's order. The `initialize` protocol version and
   capabilities are the same. `tools.json` holds every Python tool and must match the Python server
   (`--write-schemas` refreshes it); the Rust server advertises the entries it implements, each
-  area's tools in `embeint-mcp/src/tools/<area>.rs`, and every advertised tool must be called by a
-  fixture (`parity/scenarios/<area>.py`). Python 3.13 and later
+  area's tools in `embeint-mcp/src/tools/<area>.rs`, and every advertised tool must be run by a
+  fixture beyond argument validation (`parity/scenarios/<area>.py`; `live_mcp_capabilities` is
+  compared by the manifest check). Arguments are validated as FastMCP and pydantic 2.14 do;
+  integers beyond 64 bits and NaN or infinite numbers, which Python accepts, are refused. Python 3.13 and later
   strip docstring indentation when compiling, so the Python server's own descriptions differ in
   whitespace between interpreters. Descriptions are therefore compared, and stored, as
   `inspect.cleandoc` gives them. Schemas are compared exactly.
