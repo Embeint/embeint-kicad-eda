@@ -22,11 +22,15 @@ Against the completion criteria below:
 2. **Native execution**: the native server runs no Python. The installed package still ships the
    Python server beside it and has not been qualified with Python absent.
 3. **Behavioural evidence per operation**: offline, every tool has fixtures (success, refusals,
-   KiCad errors, lost replies and reconciliation for edits); live, 114 of the 116 tools ran
-   through both servers and agreed (the two save tools did not run live).
-4. **Live workflow qualification**: met on native Windows (362/362 checks across schematic,
-   libraries, board and shared workflows, routes checked by KiCad's DRC; see MCP.md, Live
-   workflows); Linux live and the save tools remain.
+   KiCad errors, lost replies and reconciliation for edits). Live, 114 of the 116 tools ran
+   through both servers and agreed, both in their results and in each edit's effect on KiCad: the
+   edited document's complete items, the settings, saved library files and library tables after
+   the call (99 of 230 workflow calls). The two save tools did not run live.
+4. **Live workflow qualification**: met on native Windows (368/368 checks across schematic,
+   libraries, board and shared workflows; 201 calls exact, 12 images pixel-identical, 5 routing
+   steps by behaviour, 3 DRC/check steps after routes with no clearance violation, 6 order-free, and
+   3 kicad-cli 3D renders by size only; see MCP.md, Live workflows). Linux live and the save tools
+   remain.
 5. **All KiCad functions have a coverage decision**: not started beyond the IPC operation audit.
 
 The previous inventory (2026-11-20, 19 of 116 tools) is in the git history of this file.
@@ -73,6 +77,13 @@ The previous inventory (2026-11-20, 19 of 116 tools) is in the git history of th
   `live_pcb_add_tracks`, both servers must agree on every fixture about success or refusal and the
   conflicts reported, both routes must pass KiCad's DRC (live), and route lengths may differ within
   a tolerance stated in the scenarios. Every other tool stays an exact comparison.
+- **What the live comparison does not compare exactly** (the reasons are in MCP.md, Live
+  workflows): routes and the routed tracks and vias (by behaviour, above); DRC and check
+  violations that name a routed item (by type and severity); the order of ERC/DRC violations and
+  of a violation's items, the pads a missing connection names, and the order of the lines of the
+  update-from-schematic report (KiCad's own or random order); net codes (numbered in a
+  run-dependent order); and kicad-cli's 3D render of a footprint (by size: kicad-cli does not
+  repeat its own pixels). Every other result, edit effect and image is compared exactly.
 - **Areas.** Each group of tools is one module in `embeint-mcp/src/tools/` with its scenarios in
   `parity/scenarios/`: shared (skills and their resources, editor grid), schematic (with the page
   and undo tools both editors use), symbol (with every library table tool), footprint (with

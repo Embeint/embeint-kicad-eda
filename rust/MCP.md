@@ -167,36 +167,77 @@ MCP client.
 
 On native Windows (`C:\kb\install` 10.99.0, a fresh disposable `live-demo` started with
 `run_kicad_windows.ps1 -Fresh` under a private `TEMP`, Python 3.12.0) `mcp_parity.py --live` passed
-**362/362 checks**. The workflows made **230 compared calls of 102 tools**, and every one agreed:
+**368/368 checks**. The workflows made **230 compared calls of 102 tools**, and every one agreed:
 schematic 41 calls, libraries 91, board 84, shared 14. Together with the earlier live checks, 114
 of the 116 tools ran live through both servers. Not run live: `live_schematic_save` and
 `live_pcb_save` (the schematic must stay unwritten; the harness saves the board once, unchanged,
 for kicad-cli). The library save tools ran, into scratch libraries. The same build passed
-643/643 fixtures.
+643/643 fixtures. This was the second run on that KiCad. The first run differed only in two false
+alarms from the harness, since fixed: the schematic page was read before ERC was rerun, so it still
+counted stale markers. Every call agreed in both runs.
 
-- **Exact** for 201 calls; 15 images, 8 route/path/DRC steps and 6 order-free comparisons are the
-  rest. Images: valid PNGs of the same size; 2D views and the board's 3D
-  view were pixel-identical, the footprint 3D render (kicad-cli) is not repeatable even from one
-  server. Routes by behaviour: the same routes (`/VOUT` 15.41 mm, `/VIN` in two legs), path
-  conflicts and refusals, and DRC after each route reports no copper clearance violation for
-  either server. KiCad's update report, net codes, and the order of ERC/DRC violations and their
-  items follow ids generated at random or KiCad's internal item order and are compared order-free.
+What is compared, call by call (`parity/live_workflows.py`; `parity/test_live_workflows.py` feeds
+each comparison a deliberately wrong result and checks that it fails):
+
+- **The result and the effect.** Each tool result is compared. For an edit, its effect on KiCad is
+  compared too: the complete items of the edited document after the call (schematic, board,
+  library symbol or footprint, through KiCad, not the tool's reply). For a settings change, the
+  board or schematic settings KiCad then has. For a library save, the saved file. For library
+  registration, live-demo's library tables. For KiCad's own undo, redo and refill, the document.
+  99 of the 230 calls had an effect compared. Normalisation: ids that existed before the workflow
+  keep their value, so a server that edits the wrong existing item differs. New ids (KiCad's or a
+  server's) are named in order of first appearance, after the snapshot's items are ordered by their
+  content rather than by those ids. Revisions are named where KiCad quotes them. Scratch library
+  names and the scratch folder are the same for both servers. Net codes are left out of document
+  snapshots: KiCad numbers nets in the order an update adds them, which changes from run to run.
+- **Exact** for 201 calls, results and effects alike.
+- **Images**: 12 views (schematic, symbol, footprint and board 2D views, and the board's 3D
+  view) must be pixel-identical, and were. 3 renders by kicad-cli of a footprint in 3D are compared
+  by size only: kicad-cli does not repeat its pixels even from one server. The harness renders that
+  view twice per server to show this.
+- **By behaviour** (5 calls): `live_pcb_check_path` twice, the refused crossing
+  `live_pcb_add_tracks`, `live_pcb_route` and `live_pcb_route_net`, by the criterion in the plan's
+  Decisions. They had the same routes (`/VOUT` 15.41 mm, `/VIN` in two legs), the same conflicts
+  and the same refusal. The board after a route is compared exactly, except the new tracks and
+  vias, which are compared by net and layer.
+- **DRC and checks after a route** (3 calls: `live_pcb_drc` twice, `live_pcb_check`): neither
+  server's routes have any violation of `board_design.CHECK_CATEGORIES["clearance"]`
+  (clearance, edge clearance, shorts, crossings, hole clearance, creepage, slivers, zone
+  intersections, drilled holes). All other violations are compared as below. A violation that
+  names a routed item is compared by type and severity only, because routes may differ within the
+  behavioural criterion.
+- **Order-free** (6 calls). KiCad's update report (2) is compared as a set of lines, because KiCad
+  lists the nets it adds in run-dependent order. `live_pcb_nets` (1) is compared without net codes.
+  ERC (1) and the final DRC and check (2) are compared exactly, except three things: the order of
+  the violations (KiCad's item order), the order of a violation's items (KiCad orders a pair by its
+  ids), and the pads a missing connection names (KiCad's ratsnest picks among equally near pads by
+  the random ids of the update). DRC results carry no marker ids.
 - **Revision contract**: every edit is undone and redone by KiCad and compared with full item
-  snapshots, no commit stays open, and both servers need the same number of undo steps (the
-  harness, not the server under test, sends the undo). `live_pcb_place_footprint`,
-  `live_pcb_add_zone` and `live_symbol_add_pins` with `replace` take two undo steps in both servers
-  (Python's design).
-- **Found and fixed in Rust**: a crashed kicad-cli's exit code was printed signed on Windows
-  (-1073741819 instead of Python's 3221225477), in `live_kicad_cli` and the render and STEP export
-  errors (scenarios `footprint_view_3d_render_crashes`, `footprint_kicad_cli_crash`).
+  snapshots. A refused edit must leave the document unchanged. No commit stays open. Both servers
+  need the same number of undo steps (the harness, not the server under test, sends the undo).
+  Footprint Editor edits and the update from the schematic are checked for open commits only
+  (see below), but their effects are still compared. `live_pcb_place_footprint`,
+  `live_pcb_add_zone` and `live_symbol_add_pins` with `replace` take two undo steps in both
+  servers (Python's design).
+- **Clean-up**: whatever a workflow does, the harness then undoes both documents to their baseline
+  and puts every setting back (layers, origins, pages, grids, stackup, design rules, custom rules,
+  net classes). It reports any setting the workflow should have put back itself, and checks that
+  both servers started from the same documents and settings. At the end it parks both library
+  editors on stock parts, unregisters scratch libraries, puts live-demo's project library tables
+  and KiCad's `.bak` copies back exactly, and only then deletes the scratch folder, which is new
+  for every run. It saves the board for kicad-cli only while the board equals its original state.
+- **No server difference** was found by the stricter comparison. Earlier, the first live run found
+  and fixed in Rust: a crashed kicad-cli's exit code was printed signed on Windows (-1073741819
+  instead of Python's 3221225477), in `live_kicad_cli` and the render and STEP export errors
+  (scenarios `footprint_view_3d_render_crashes`, `footprint_kicad_cli_crash`).
 - **KiCad behaviour seen with both servers** (not server differences): undoing a
   `live_footprint_generate` commit opens a modal "Incomplete undo/redo operation: some items not
-  found" in the Footprint Editor, which blocks the API (Footprint Editor edits are therefore only
-  checked for open commits); redoing an update from the schematic drops pad nets; annotation
-  re-places global labels' intersheet references outside the undo step; ERC/DRC markers are not
-  undoable; the DRC severities are listed in another order once design rules have been set; a new
-  grid size becomes a preset for good; removed libraries stay buffered under their nickname; and
-  net classes can only be added through the tools (the harness restores them with `MMM_REPLACE`).
+  found" in the Footprint Editor, which blocks the API. Redoing an update from the schematic drops
+  pad nets. Annotation re-places global labels' intersheet references outside the undo step.
+  ERC/DRC markers are not undoable. The DRC severities are listed in another order once design
+  rules have been set. A new grid size becomes a preset for good. Removed libraries stay buffered
+  under their nickname. Writing a library table leaves a `.bak` copy beside it. Net classes can
+  only be added through the tools, so the harness restores them with `MMM_REPLACE`.
 
 ## Results (2026-11-21, complete surface)
 
@@ -210,7 +251,7 @@ agent and its findings fixed before merging; CI ran the offline suite on Windows
 | Offline fixtures (`mcp_parity.py`) | 641/641 identical on Windows, plus every per-platform CI run; 109 codec cases |
 | Rust | unit tests on Windows and Linux, clippy `-D warnings`, rustfmt, Rust 1.85 check |
 | Router | a reviewer drove both routers with the same 1,240 random problems: bit-identical; the fixtures compare routes by behaviour only where they diverge by construction |
-| Live (Windows) | 362/362 checks on a disposable project; 114 of the 116 tools through both servers (see [Live workflows](#live-workflows-2026-11-21)) |
+| Live (Windows) | 368/368 checks on a disposable project; 114 of the 116 tools through both servers, results and edit effects compared (see [Live workflows](#live-workflows-2026-11-21)) |
 
 Review and porting also found and fixed a `live_kicad_cli` hole in **both** servers: outputs
 Windows rewrites (trailing dots and spaces, `::$DATA`, existing 8.3 aliases) could overwrite a
@@ -288,7 +329,8 @@ records forwarding failures and refuses undo cleanup when other test additions r
 The original schema check compared 8 ported tools against the Python server's 115. The unit tests
 (`cargo test -p embeint-ipc -p embeint-mcp`) pass on both hosts; clippy with `-D warnings` and
 `cargo check` with Rust 1.85 pass. CI runs the unit tests and the offline comparison in
-`.github/workflows/rust-mcp.yml`. The live comparison needs a KiCad, so it is run by hand.
+`.github/workflows/rust-mcp.yml`, with the regression tests of the live comparison's checks
+(`parity/test_live_workflows.py`). The live comparison needs a KiCad, so it is run by hand.
 
 Responsiveness against the live KiCad on Windows (median of 40 calls, same session):
 
