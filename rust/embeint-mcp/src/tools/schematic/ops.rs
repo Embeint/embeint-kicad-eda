@@ -294,6 +294,8 @@ pub async fn render(
         .ok_or_else(|| Error::Value("Preview DPI must be between 72 and 200".into()))?;
     let directory = tempfile::Builder::new()
         .prefix("kicad-live-preview-")
+        // tempfile.mkdtemp names carry 8 random characters
+        .rand_bytes(8)
         .tempdir_in(temp_root())
         .map_err(|e| Error::Runtime(e.to_string()))?;
     let target = directory.path().join("preview.png");
