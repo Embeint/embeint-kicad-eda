@@ -11,11 +11,10 @@
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
 
 use embeint_ipc::client::{self, Client, Error};
 use embeint_ipc::pbjson::{self, py_repr};
-use embeint_ipc::proto::{self, enum_name, int_field, list_field, message_field, str_field};
+use embeint_ipc::proto::{self, int_field, list_field, message_field, str_field};
 use prost_reflect::{DynamicMessage, Value};
 use serde_json::{json, Map, Value as Json};
 use sha2::{Digest, Sha256};
@@ -27,7 +26,6 @@ const RUN_JOB_RESPONSE: &str = "kiapi.common.types.RunJobResponse";
 const BLANK: &[char] = &[' ', '\t', '\r', '\n'];
 const MANIFEST: &str = "manifest.json";
 const MAX_VIOLATIONS: usize = 50;
-const DRC_TIMEOUT: Duration = Duration::from_secs(300);
 
 // ---- Single exports ----------------------------------------------------------------------------
 
@@ -688,92 +686,27 @@ fn layer_number(name: &str) -> i32 {
         .unwrap_or_else(|| panic!("{name} is not a board layer"))
 }
 
-/// `board_drc(board, parity=True, refill=True, limit=None)`: (type, severity, description) of each
-/// violation, and the ignored and excluded counts.
+/// `board_drc(board, parity=True, refill=True, limit=None)` (crate::board_client): (type,
+/// severity, description) of each violation, and the ignored and excluded counts.
 async fn drc(
     client: &mut Client,
     board: &DynamicMessage,
 ) -> Result<(Vec<(String, String, String)>, i64, i64), Error> {
-    let start = proto::with_field(
-        proto::build(
-            "kiapi.board.tasks.StartDrcTask",
-            json!({"test_schematic_parity": true, "require_zones_filled": true}),
-        ),
-        "board",
-        board.clone(),
-    );
-    let started = client
-        .send(&start, "kiapi.common.tasks.StartTaskResponse")
-        .await?;
-    let token = message_field(&started, "token");
-    let status_request = proto::with_field(
-        proto::build("kiapi.common.tasks.GetTaskStatus", json!({})),
-        "token",
-        token.clone(),
-    );
-    let deadline = Instant::now() + DRC_TIMEOUT;
-    let timeout =
-        || Error::Runtime("DRC did not finish in time; it may still be running in KiCad".into());
-    loop {
-        // Read-only, so a reply held up while KiCad loads libraries for the parity check is waited for again
-        let status = match client
-            .send(&status_request, "kiapi.common.tasks.TaskStatusResponse")
-            .await
-        {
-            Ok(status) => status,
-            Err(Error::ReplyTimeout(_)) => {
-                if Instant::now() > deadline {
-                    return Err(timeout());
-                }
-                continue;
-            }
-            Err(error) => return Err(error),
-        };
-        let state = enum_name("kiapi.common.tasks.TaskState", int_field(&status, "state"));
-        if state == "TS_COMPLETED" {
-            break;
-        }
-        if state == "TS_FAILED" || state == "TS_CANCELLED" {
-            return Err(Error::Runtime(format!(
-                "DRC {state}: {}",
-                str_field(&status, "error_message")
-            )));
-        }
-        if Instant::now() > deadline {
-            return Err(timeout());
-        }
-        tokio::time::sleep(Duration::from_millis(250)).await;
-    }
-    let result_request = proto::with_field(
-        proto::build("kiapi.board.tasks.GetDrcTaskResult", json!({})),
-        "token",
-        token,
-    );
-    let result = client
-        .send(&result_request, "kiapi.board.tasks.DrcTaskResult")
-        .await?;
-    let violations = list_field(&result, "violations")
-        .into_iter()
-        .filter_map(|v| match v {
-            Value::Message(marker) => Some(marker),
-            _ => None,
+    let report = crate::board_client::board_drc(client, board, true, true, None).await?;
+    let text = |value: &Json, key: &str| value[key].as_str().unwrap_or_default().to_owned();
+    let violations = report["violations"]
+        .as_array()
+        .map(|items| {
+            items
+                .iter()
+                .map(|v| (text(v, "type"), text(v, "severity"), text(v, "description")))
+                .collect()
         })
-        .map(|marker| {
-            let kind = enum_name("kiapi.board.DrcErrorType", int_field(&marker, "error_type"));
-            let kind = kind.strip_prefix("DRCET_").unwrap_or(&kind);
-            let kind = kind.strip_prefix("DRCE_").unwrap_or(kind).to_lowercase();
-            let severity = enum_name(
-                "kiapi.common.types.RuleSeverity",
-                int_field(&marker, "severity"),
-            );
-            let severity = severity.strip_prefix("RS_").unwrap_or(&severity).to_owned();
-            (kind, severity, str_field(&marker, "description"))
-        })
-        .collect();
+        .unwrap_or_default();
     Ok((
         violations,
-        int_field(&result, "ignored_count"),
-        int_field(&result, "excluded_count"),
+        report["ignored"].as_i64().unwrap_or(0),
+        report["excluded"].as_i64().unwrap_or(0),
     ))
 }
 
