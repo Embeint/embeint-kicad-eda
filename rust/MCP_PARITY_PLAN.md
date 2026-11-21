@@ -22,10 +22,11 @@ Against the completion criteria below:
 2. **Native execution**: the native server runs no Python. The installed package still ships the
    Python server beside it and has not been qualified with Python absent.
 3. **Behavioural evidence per operation**: offline, every tool has fixtures (success, refusals,
-   KiCad errors, lost replies and reconciliation for edits); live evidence is still limited to
-   the first 19 tools and the manufacturing tools.
-4. **Live workflow qualification**: not yet recorded for the new areas; it is the next step
-   (see [MCP.md](MCP.md), Next steps).
+   KiCad errors, lost replies and reconciliation for edits); live, 114 of the 116 tools ran
+   through both servers and agreed (the two save tools did not run live).
+4. **Live workflow qualification**: met on native Windows (362/362 checks across schematic,
+   libraries, board and shared workflows, routes checked by KiCad's DRC; see MCP.md, Live
+   workflows); Linux live and the save tools remain.
 5. **All KiCad functions have a coverage decision**: not started beyond the IPC operation audit.
 
 The previous inventory (2026-11-20, 19 of 116 tools) is in the git history of this file.
