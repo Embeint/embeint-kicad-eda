@@ -23,6 +23,8 @@ files written under `<out>` must be identical. Options:
   (per peer, as KiCad received them), `results` (the tool results), `written` (files under
   `<out>` by hash) and `errors`; return a list of differences, empty when they agree. The
   requests, results and written files are then not compared exactly.
+- `normalize=callable(requests, results) -> (requests, results)`: replaces values a tool generates
+  itself (new item UUIDs, a temporary path, today's date) the same way for both servers.
 - `prepare=callable(out_dir)`, `discovery=[names]`, `stop_before=index`: as in `mcp_parity.py`.
 - `random_ids=True`: requests carry new random UUIDs (items created with `uuid.uuid4()`); version 4
   UUIDs in the requests are compared by order of appearance. Every fixed id in such a scenario

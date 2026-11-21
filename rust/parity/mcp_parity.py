@@ -1291,6 +1291,10 @@ async def run_scenario(item, make_params):
     # The text of a tool result is JSON itself, so the directory appears escaped twice there
     results = json.loads(json.dumps(results).replace(json.dumps(escaped)[1:-1], "<dir>"))
     requests = json.loads(json.dumps(requests).replace(escaped, "<dir>"))
+    if "normalize" in item:
+        # Values a tool generates itself (new item UUIDs, a private temporary directory, today's
+        # date) differ between runs; the scenario names them the same way for both servers
+        requests, results = item["normalize"](requests, results)
     return {"requests": requests, "results": results, "errors": errors, "written": written}
 
 
