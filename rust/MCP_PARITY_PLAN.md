@@ -59,6 +59,24 @@ parity establishes coverage of every function in KiCad.
    automation contract. Deferred features remain gaps; they do not count as supported.
    An unqualified claim of all-function support requires closing those gaps.
 
+## Decisions (2026-11-21)
+
+- **Python libraries are replaced by existing Rust crates, not re-implemented.** shapely (GEOS)
+  becomes `geo` with `rstar`, numpy plain vectors, zstandard `ruzstd`, PyYAML `yaml-rust2`,
+  subprocess `tokio::process`. Each crate's licence must be compatible with GPL-3.0-or-later and
+  is recorded in [MCP.md](MCP.md#dependencies).
+- **Routing is compared by behaviour.** `geo` does not reproduce GEOS's polygons, so a point near
+  a clearance boundary can fall differently and a route can differ by a grid step. For
+  `live_pcb_route`, `live_pcb_route_net`, `live_pcb_check_path` and the check in
+  `live_pcb_add_tracks`, both servers must agree on every fixture about success or refusal and the
+  conflicts reported, both routes must pass KiCad's DRC (live), and route lengths may differ within
+  a tolerance stated in the scenarios. Every other tool stays an exact comparison.
+- **Areas.** Each group of tools is one module in `embeint-mcp/src/tools/` with its scenarios in
+  `parity/scenarios/`: shared (skills and their resources, editor grid), schematic (with the page
+  and undo tools both editors use), symbol (with every library table tool), footprint (with
+  embedded files and `live_kicad_cli`), board, and board design (rules, stackup, RF, checks and
+  routing, after board).
+
 ## Implementation order
 
 - **Coverage and contracts:** keep a complete MCP surface report alongside the

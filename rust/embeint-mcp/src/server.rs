@@ -13,7 +13,7 @@ use serde_json::{json, Value as Json};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::{mpsc, Mutex};
 
-use crate::{capabilities, tools};
+use crate::{resources, tools};
 
 /// Protocol versions the Python SDK (mcp 1.30) accepts; the last is offered when a client asks
 /// for another.
@@ -92,21 +92,16 @@ async fn dispatch(message: Json, client: &Arc<Mutex<Client>>, out: &mpsc::Unboun
             });
             return;
         }
-        "resources/list" => response(&id, json!({"resources": [capabilities::resource_entry()]})),
-        "resources/templates/list" => response(&id, json!({"resourceTemplates": []})),
+        "resources/list" => response(&id, json!({"resources": resources::list()})),
+        "resources/templates/list" => {
+            response(&id, json!({"resourceTemplates": resources::templates()}))
+        }
         "resources/read" => {
             let uri = params.get("uri").and_then(Json::as_str).unwrap_or_default();
-            if uri == capabilities::CAPABILITIES_URI {
-                response(
-                    &id,
-                    json!({"contents": [{
-                        "uri": uri,
-                        "mimeType": "application/json",
-                        "text": capabilities::canonical_json(&capabilities::manifest(), true),
-                    }]}),
-                )
-            } else {
-                error_response(&id, 0, &format!("Unknown resource: {uri}"))
+            match resources::read(uri) {
+                Some(Ok(contents)) => response(&id, contents),
+                Some(Err(message)) => error_response(&id, 0, &message),
+                None => error_response(&id, 0, &format!("Unknown resource: {uri}")),
             }
         }
         "prompts/list" => response(&id, json!({"prompts": []})),

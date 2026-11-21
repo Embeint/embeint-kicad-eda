@@ -63,29 +63,10 @@ from client import commands as sch_commands  # noqa: E402
 import commands as registry  # noqa: E402
 import instance_discovery  # noqa: E402
 
-# The tools the Rust server implements, in tools/list order.  Moving a tool over adds it here,
-# to tools.json (--write-schemas) and to the fixtures.
-PORTED = [
-    "live_mcp_capabilities",
-    "live_schematic_documents",
-    "live_schematic_hierarchy",
-    "live_schematic_items",
-    "live_document_revision",
-    "live_operation_status",
-    "live_schematic_create_items",
-    "live_schematic_update_items",
-    "live_schematic_delete_items",
-    "live_schematic_list_commands",
-    "live_schematic_describe_command",
-    "live_schematic_execute",
-    "live_schematic_batch",
-    "live_schematic_item_schema",
-    "live_pcb_item_schema",
-    "live_pcb_documents",
-    "live_schematic_export",
-    "live_pcb_export",
-    "live_pcb_fab_package",
-]
+# tools.json holds every Python tool (--write-schemas); the Rust server advertises the ones it
+# implements.  The ported set is what it advertises, so moving a tool over touches only its area
+# module in embeint-mcp/src/tools/ and its scenarios in scenarios/<area>.py.
+SCENARIO_DIR = Path(__file__).resolve().parent / "scenarios"
 
 # Short reply timeout for the fixtures, so lost replies are quick to exercise
 FIXTURE_TIMEOUT_MS = "400"
@@ -176,26 +157,32 @@ def registry_entries():
 
 def write_schemas():
     _, tools = python_tools()
-    missing = [name for name in PORTED if name not in tools]
-    if missing:
-        raise SystemExit(f"Python server has no tool {missing}")
-    TOOLS_JSON.write_text(json.dumps([tools[name] for name in PORTED], indent=2) + "\n", encoding="utf-8")
+    TOOLS_JSON.write_text(json.dumps(list(tools.values()), indent=2) + "\n", encoding="utf-8")
     (RUST_DIR / "embeint-ipc/commands.json").write_text(json.dumps(registry_entries(), indent=2) + "\n", encoding="utf-8")
-    print(f"wrote {TOOLS_JSON.relative_to(ROOT)} ({len(PORTED)} tools)")
+    print(f"wrote {TOOLS_JSON.relative_to(ROOT)} ({len(tools)} tools)")
 
 
 def check_schema(binary, failures):
     py_init, py_tools = python_tools()
     rs_init, rs_listed, _ = asyncio.run(run_session(servers(binary)[1][1](server_env()), []))
     rs_tools = {tool.name: tool_entry(tool) for tool in rs_listed.tools}
-    if sorted(rs_tools) != sorted(PORTED):
-        failures.append(f"schema: Rust advertises {sorted(rs_tools)}, expected {sorted(PORTED)}")
+    extra = sorted(rs_tools.keys() - py_tools.keys())
+    if extra:
+        failures.append(f"schema: Rust advertises tools the Python server does not have: {extra}")
     for name, entry in rs_tools.items():
-        if py_tools.get(name) != entry:
+        if name in py_tools and py_tools[name] != entry:
             failures.append(f"schema: {name} differs from the Python tool")
+    order = [name for name in py_tools if name in rs_tools]
+    if list(rs_tools) != order:
+        failures.append("schema: Rust lists its tools in a different order from the Python server")
     stored = json.loads(TOOLS_JSON.read_text(encoding="utf-8"))
-    if stored != [py_tools.get(name) for name in PORTED]:
+    if stored != list(py_tools.values()):
         failures.append("schema: tools.json is out of date; run mcp_parity.py --write-schemas")
+    # live_mcp_capabilities is compared by the manifest check
+    untested = sorted(name for name in rs_tools if name != "live_mcp_capabilities"
+                      and not any(tool == name for item in SCENARIOS for tool, _ in item["steps"]))
+    if untested:
+        failures.append(f"schema: no fixture calls {untested}")
     if json.loads((RUST_DIR / "embeint-ipc/commands.json").read_text(encoding="utf-8")) != registry_entries():
         failures.append("schema: commands.json is out of date; run mcp_parity.py --write-schemas")
     for key in ("protocolVersion", "capabilities"):
@@ -488,10 +475,11 @@ def compare_manifest(manifest, failures, counts):
     if digest != manifest["schema_sha256"]:
         failures.append("manifest: schema_sha256 is not Python's hash of the inventory")
     rust_tools = {t["name"]: t for t in manifest["tools"]}
-    for tool in json.loads(TOOLS_JSON.read_text(encoding="utf-8")):
-        entry = rust_tools.get(tool["name"])
-        if entry is None or entry["input_schema"] != tool["inputSchema"]:
-            failures.append(f"manifest: {tool['name']} schema is not the advertised one")
+    python_tools = {t["name"]: t for t in json.loads(TOOLS_JSON.read_text(encoding="utf-8"))}
+    for name, entry in rust_tools.items():
+        tool = python_tools.get(name)
+        if tool is None or entry["input_schema"] != tool["inputSchema"]                 or entry.get("output_schema") != tool.get("outputSchema"):
+            failures.append(f"manifest: {name} schema is not the advertised one")
     counts["manifest_commands"] = len(manifest["commands"])
 
 
@@ -1116,6 +1104,29 @@ def fab_scenarios():
 SCENARIOS.extend(list(fab_scenarios()))
 
 
+def load_area_scenarios():
+    """Each scenarios/<area>.py defines scenarios(h), where h is this module (reply, parse,
+    failure, documents, S and the fixture documents), and returns its list of scenarios."""
+    import importlib.util
+    harness = sys.modules[__name__]
+    for path in sorted(SCENARIO_DIR.glob("*.py")):
+        if path.name.startswith("_"):
+            continue
+        spec = importlib.util.spec_from_file_location(f"parity_scenarios_{path.stem}", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        for item in module.scenarios(harness):
+            item.setdefault("area", path.stem)
+            SCENARIOS.append(item)
+    names = [item["name"] for item in SCENARIOS]
+    duplicates = sorted({name for name in names if names.count(name) > 1})
+    if duplicates:
+        raise SystemExit(f"duplicate scenario names: {duplicates}")
+
+
+load_area_scenarios()
+
+
 class Peer:
     """A disposable NNG REP0 endpoint answering with a scenario's script."""
 
@@ -1241,6 +1252,10 @@ async def run_scenario(item, make_params):
 
 
 def results_match(item, python, rust):
+    if callable(item.get("compare")):
+        # A behavioural comparison (routing; rust/MCP_PARITY_PLAN.md states the criterion):
+        # compare(python_results, rust_results) -> True when they agree
+        return bool(item["compare"](python, rust))
     if item.get("compare") == "error_prefix":
         # Pydantic's validation text is not reproduced word for word; the failure and its tool are
         for p, r in zip(python, rust):

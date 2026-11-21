@@ -120,7 +120,7 @@ impl From<pbjson::ParseError> for Error {
 
 /// A reply message as protobuf JSON.  Python raises (TypeError, DecodeError, RecursionError) for
 /// an `Any` it cannot print; that becomes the tool's error, and so does this.
-fn reply_json(message: &DynamicMessage) -> Result<Json, Error> {
+pub fn reply_json(message: &DynamicMessage) -> Result<Json, Error> {
     pbjson::to_json(message).map_err(|error| Error::Decode(error.0))
 }
 
@@ -990,21 +990,40 @@ fn library_document(value: &Json, kind: &str, message: &str) -> Result<DynamicMe
     Ok(spec)
 }
 
+/// `symbol_document(value)`: a DOCTYPE_SYMBOL document as live_symbol_new/edit return it.
+pub fn symbol_document(value: &Json) -> Result<DynamicMessage, Error> {
+    library_document(
+        value,
+        "DOCTYPE_SYMBOL",
+        "Use the symbol document returned by live_symbol_new or live_symbol_edit",
+    )
+}
+
+/// `footprint_document(value)`: a DOCTYPE_FOOTPRINT document as live_footprint_new/edit return it.
+pub fn footprint_document(value: &Json) -> Result<DynamicMessage, Error> {
+    library_document(
+        value,
+        "DOCTYPE_FOOTPRINT",
+        "Use the footprint document returned by live_footprint_new or live_footprint_edit",
+    )
+}
+
+/// `any_editor_document(spec)` from server.py: a footprint document when the raw `type` says so,
+/// otherwise a symbol document.
+pub fn any_editor_document(value: &Json) -> Result<DynamicMessage, Error> {
+    match value.get("type").and_then(Json::as_str) {
+        Some("DOCTYPE_FOOTPRINT") => footprint_document(value),
+        _ => symbol_document(value),
+    }
+}
+
 /// `editor_document(spec)` from server.py: a schematic, board, symbol or footprint document,
 /// chosen by the raw `type` value as Python's `spec.get("type")` sees it.
 pub fn editor_document(value: &Json) -> Result<DynamicMessage, Error> {
     match value.get("type").and_then(Json::as_str) {
         Some("DOCTYPE_PCB") => board_document(value),
-        Some("DOCTYPE_FOOTPRINT") => library_document(
-            value,
-            "DOCTYPE_FOOTPRINT",
-            "Use the footprint document returned by live_footprint_new or live_footprint_edit",
-        ),
-        Some("DOCTYPE_SYMBOL") => library_document(
-            value,
-            "DOCTYPE_SYMBOL",
-            "Use the symbol document returned by live_symbol_new or live_symbol_edit",
-        ),
+        Some("DOCTYPE_FOOTPRINT") => footprint_document(value),
+        Some("DOCTYPE_SYMBOL") => symbol_document(value),
         _ => schematic_document(value),
     }
 }
