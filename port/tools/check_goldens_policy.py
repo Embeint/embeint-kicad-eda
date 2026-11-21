@@ -3,7 +3,7 @@
 """Golden review policy and staged phase-0 CI; Python >=3.11, stdlib only.
 
 The infrastructure stage is explicitly INCOMPLETE, never phase-0 qualification.
-Final integration enables --require-phase0; it requires three live green units
+Final integration enables --require-phase0; it requires three live green layer-0 units
 and valid exhaustive extraction accounting. Platform coverage stays reported.
 """
 import argparse
@@ -54,7 +54,11 @@ def exact(text):
 def replies(data, unit):
     result = []
     seen = set()
-    for line in data.decode("utf-8").splitlines():
+    lines = data.decode("utf-8").split("\n")
+    if lines[-1] == "":
+        lines.pop()
+    for line in lines:
+        line = line.removesuffix("\r")
         record = exact(line)
         case = record.get("case")
         if (record.get("unit") != unit or not isinstance(case, str) or not case
@@ -106,6 +110,15 @@ def verify_evidence(evidence, unit, old, new, cases):
         raise ValueError(f"{unit}: evidence must enumerate exact case IDs, old/new values and order")
 
 
+def committed_bytes(root, revision, path, *, allow_missing=False):
+    result = subprocess.run(["git", "show", f"{revision}:{path}"], cwd=root, capture_output=True)
+    if result.returncode == 0:
+        return result.stdout
+    if allow_missing and result.returncode == 128:
+        return b""
+    raise ValueError(f"cannot read committed file {revision}:{path}")
+
+
 def check_changes(root, base):
     paths = command(["git", "diff", "--no-renames", "--name-only", base, "HEAD", "--", "port/goldens"], root).splitlines()
     added = command(["git", "diff", "--no-renames", "--name-only", "--diff-filter=A", base, "HEAD", "--", "port/goldens/evidence"], root).splitlines()
@@ -117,18 +130,15 @@ def check_changes(root, base):
         if path.parent.as_posix() != "port/goldens" or path.suffix != ".jsonl":
             continue
         unit = path.stem
-        old_result = subprocess.run(["git", "show", f"{base}:{name}"], cwd=root, capture_output=True)
-        if old_result.returncode and old_result.returncode != 128:
-            raise ValueError(f"cannot read base golden {name}")
-        old = old_result.stdout if old_result.returncode == 0 else b""
-        new = (root / path).read_bytes() if (root / path).exists() else b""
+        old = committed_bytes(root, base, name, allow_missing=True)
+        new = committed_bytes(root, "HEAD", name, allow_missing=True)
         if not new:
             raise ValueError(f"{unit}: golden removal requires an explicit reviewed retirement, not blessing")
-        cases = (root / "port/cases" / f"{unit}.jsonl").read_bytes()
+        cases = committed_bytes(root, "HEAD", f"port/cases/{unit}.jsonl")
         errors = []
         for evidence_path in evidence_paths:
             try:
-                value = json.loads((root / evidence_path).read_text(encoding="utf-8"), object_pairs_hook=unique)
+                value = json.loads(committed_bytes(root, "HEAD", evidence_path), object_pairs_hook=unique)
                 verify_evidence(value, unit, old, new, cases)
                 break
             except (ValueError, KeyError, TypeError, AttributeError) as error:
@@ -214,10 +224,12 @@ def ci(root, runner, oracle, reports, required):
     for golden in (root / "port/goldens").glob("*.jsonl"):
         if golden.stem not in tested:
             raise ValueError(f"{golden.stem}: orphan/untested golden")
-    passed = len(green & tested)
+    live_green = green & tested
+    passed = sum(units[uid]["layer"] == 0 for uid in live_green)
     complete = required and passed >= 3 and bool(units)
     summary = {"phase0": "COMPLETE" if complete else "INCOMPLETE", "strict_gate_enabled": required,
-               "live_green_units": passed, "required_green_units": 3,
+               "live_green_units": passed, "required_green_units": 3, "required_layer": 0,
+               "total_live_green_units": len(live_green),
                "validated_unit_records": len(units), "extraction": provenance}
     (reports / "phase0.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     coverage = {key: provenance.get(key) for key in
@@ -225,7 +237,7 @@ def ci(root, runner, oracle, reports, required):
                  "all_configurations_complete", "gate_complete", "unresolved_call_count")}
     for key in ("parse_failures", "uncompiled_application_sources"):
         coverage[key] = len(provenance.get(key, []))
-    message = (f"Phase 0: {summary['phase0']}; {passed}/3 live green units; "
+    message = (f"Phase 0: {summary['phase0']}; {passed}/3 live green layer-0 units; "
                f"{len(units)} validated unit records.\n\n"
                f"Extraction/configuration coverage (reported separately): `{json.dumps(coverage, sort_keys=True)}`\n")
     print(message)
@@ -233,7 +245,7 @@ def ci(root, runner, oracle, reports, required):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as stream:
             stream.write(message)
     if required and not complete:
-        raise ValueError("phase0 strict gate requires at least three live green units and all generated valid unit records")
+        raise ValueError("phase0 strict gate requires at least three live green layer-0 units and all generated valid unit records")
 
 
 def main():

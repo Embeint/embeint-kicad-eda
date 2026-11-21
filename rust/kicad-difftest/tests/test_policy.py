@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[3]
 SPEC = importlib.util.spec_from_file_location("golden_policy", ROOT / "port/tools/check_goldens_policy.py")
@@ -17,6 +18,99 @@ SPEC.loader.exec_module(POLICY)
 
 
 class PolicyTests(unittest.TestCase):
+    def test_jsonl_preserves_unicode_line_separators_inside_strings(self):
+        for character in ("\u0085", "\u2028", "\u2029"):
+            with self.subTest(character=repr(character)):
+                record = {"unit": "u", "case": "a", "result": "before" + character + "after"}
+                literal = json.dumps(record, ensure_ascii=False).encode("utf-8")
+                escaped = json.dumps(record, ensure_ascii=True).encode("utf-8")
+                expected = POLICY.replies(escaped + b"\n", "u")[0][2]
+                for ending in (b"", b"\n", b"\r\n"):
+                    self.assertEqual(POLICY.replies(literal + ending, "u")[0][2], expected)
+        with self.assertRaises(ValueError):
+            POLICY.replies(b'{"unit":"u","case":"a","result":0}\n\n', "u")
+
+    def test_strict_gate_counts_only_live_green_layer_zero_units(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            validator = root / "port/tools/validate_units.py"
+            validator.parent.mkdir(parents=True)
+            validator.write_text("", encoding="utf-8")
+            units, cases = root / "port/units", root / "port/cases"
+            units.mkdir()
+            cases.mkdir()
+            for layer, expected in ((1, "INCOMPLETE"), (0, "COMPLETE")):
+                for uid in ("a", "b", "c"):
+                    (units / f"{uid}.toml").write_text(
+                        f'id = "{uid}"\nstatus = "green"\nlayer = {layer}\n'
+                        '[difftest]\nrust_package = "shim"\nrust_binary = "shim"\n', encoding="utf-8")
+                    (cases / f"{uid}.jsonl").write_text(
+                        json.dumps({"unit": uid, "case": "a", "input": {}}) + "\n", encoding="utf-8")
+                with mock.patch.object(POLICY.subprocess, "run"):
+                    if layer:
+                        with self.assertRaisesRegex(ValueError, "layer-0"):
+                            POLICY.ci(root, Path("runner"), Path("oracle"), root / "reports", True)
+                    else:
+                        POLICY.ci(root, Path("runner"), Path("oracle"), root / "reports", True)
+                report = json.loads((root / "reports/phase0.json").read_text(encoding="utf-8"))
+                self.assertEqual(report["phase0"], expected)
+                self.assertEqual(report["total_live_green_units"], 3)
+                self.assertEqual(report["live_green_units"], 0 if layer else 3)
+
+    def test_evidence_checks_committed_head_and_ignores_dirty_worktree(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+
+            def git(*args):
+                return subprocess.check_output(["git", *args], cwd=root).decode().strip()
+
+            def commit():
+                if (root / "port").exists():
+                    git("add", "--", "port/goldens/u.jsonl", "port/cases/u.jsonl",
+                        "port/goldens/evidence/u-baseline.json")
+                git("commit", "--quiet", "--allow-empty", "-m",
+                    "test(chore): record the golden policy fixture\n\n"
+                    "Provide committed bytes for the policy boundary regression.\n\n"
+                    "Assisted-by: Codex\nSigned-off-by: Karl Von Richter <karl@embeint.com>")
+
+            def write(name, data):
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(data)
+
+            def evidence(new, cases):
+                return json.dumps({"format": 1, "unit": "u", "reason": "fixture oracle baseline",
+                    "changes": POLICY.changes([], POLICY.replies(new, "u")),
+                    "cases_sha256": POLICY.sha(cases), "old_sha256": POLICY.sha(b""),
+                    "new_sha256": POLICY.sha(new), "oracle": {"provenance": {"pin": "fixture"},
+                        "oracle_sha256": "a" * 64, "rust_sha256": "b" * 64}}).encode()
+
+            git("init", "--quiet")
+            git("config", "user.name", "Karl Von Richter")
+            git("config", "user.email", "karl@embeint.com")
+            git("config", "core.autocrlf", "false")
+            commit()
+            base = git("rev-parse", "HEAD")
+            cases = b'{"unit":"u","case":"a","input":{}}\n'
+            first = b'{"unit":"u","case":"a","result":1}\n'
+            second = b'{"unit":"u","case":"a","result":2}\n'
+            golden_path, case_path = "port/goldens/u.jsonl", "port/cases/u.jsonl"
+            evidence_path = "port/goldens/evidence/u-baseline.json"
+            write(golden_path, first)
+            write(case_path, cases)
+            write(evidence_path, evidence(first, cases))
+            commit()
+            for path in (golden_path, case_path, evidence_path):
+                write(path, b"dirty bytes that must not be validated")
+            POLICY.check_changes(root, base)
+            write(golden_path, first)
+            write(case_path, cases)
+            write(evidence_path, evidence(second, cases))
+            commit()
+            write(golden_path, second)
+            with self.assertRaisesRegex(ValueError, "stale evidence new_sha256"):
+                POLICY.check_changes(root, base)
+
     def test_empty_infrastructure_is_incomplete_but_strict_gate_fails(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
