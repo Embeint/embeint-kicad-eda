@@ -1,0 +1,115 @@
+name: Rust port harness and phase zero
+
+on:
+  pull_request:
+    branches: [rust]
+  push:
+    branches: [rust]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  RUST_TOOLCHAIN: "1.99.1"
+  CARGO_BUILD_JOBS: "8"
+  # The third-pilot/integration PR changes this to true. Infrastructure passes
+  # its implemented checks while its summary explicitly says INCOMPLETE.
+  PHASE0_REQUIRED: "false"
+
+jobs:
+  rust-port:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0 # The oracle exports the pinned upstream commit, not HEAD.
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Bootstrap pinned sources before any Cargo build
+        shell: bash
+        run: |
+          if test -f port/tools/bootstrap_west.py; then
+            python port/tools/bootstrap_west.py
+            .port-venv/linux/bin/west update
+            python port/tools/bootstrap_west.py --check
+          elif test -f west.yml || test "$PHASE0_REQUIRED" = true; then
+            echo '::error::west manifest requires the foundation bootstrap'
+            exit 1
+          else
+            echo '::notice::Harness-only checkout: foundation has not landed; no external dependency is used'
+          fi
+      - name: Install pinned Rust toolchain and WebAssembly target
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component clippy,rustfmt --target wasm32-unknown-unknown
+          rustup default "$RUST_TOOLCHAIN"
+      # Deliberately no compiled oracle/Rust cache. The small own-library oracle
+      # is rebuilt and audited, so a stale source/flag cache cannot certify it.
+      - name: Format, lint and test the Rust workspace
+        working-directory: rust
+        run: |
+          cargo fmt --all --check
+          cargo clippy --locked --workspace --all-targets -j8 -- -D warnings
+          cargo test --locked --workspace -j8
+          cargo build --locked -p kicad-difftest -j8
+      - name: Build every portable crate for wasm32-unknown-unknown
+        run: python port/tools/check_goldens_policy.py --wasm
+      - name: Test evidence policy and staged gate
+        run: python -m unittest discover -s rust/kicad-difftest/tests -p test_policy.py -v
+      - name: Require evidence for changed goldens
+        env:
+          POLICY_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        shell: bash
+        run: |
+          base="$POLICY_BASE"
+          if test -z "$base" || test "$base" = 0000000000000000000000000000000000000000; then
+            base=$(git merge-base HEAD origin/rust)
+          fi
+          python port/tools/check_goldens_policy.py --base "$base"
+      - name: Detect the own-library oracle
+        id: oracle
+        shell: bash
+        run: |
+          if test -f port/oracle/build.sh; then
+            echo 'available=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'available=false' >> "$GITHUB_OUTPUT"
+            echo '::notice::Harness-only checkout: live oracle build has not landed'
+            if test "$PHASE0_REQUIRED" = true; then exit 1; fi
+          fi
+      - name: Install minimal oracle dependencies
+        if: steps.oracle.outputs.available == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++ gcc cmake ninja-build python3 rsync git libboost-dev libwxgtk3.2-dev
+      - name: Build and audit KiCad own-library oracle
+        if: steps.oracle.outputs.available == 'true'
+        env:
+          ORACLE_JOBS: "2"
+        run: |
+          python port/oracle/prepare.py --output-dir "$RUNNER_TEMP/oracle-stage"
+          bash port/oracle/build.sh "$RUNNER_TEMP/oracle-stage" "$PWD/port/oracle" "$HOME/kicad-port"
+          "$HOME/kicad-port/oracle-build/kicad-oracle" --provenance > oracle-provenance.json
+      - name: Validate all unit records, goldens and available live cases
+        shell: bash
+        run: |
+          strict=()
+          if test "$PHASE0_REQUIRED" = true; then strict=(--require-phase0); fi
+          python port/tools/check_goldens_policy.py --ci \
+            --runner "$PWD/rust/target/debug/kicad-difftest" \
+            --oracle "$HOME/kicad-port/oracle-build/kicad-oracle" \
+            --reports difftest-reports "${strict[@]}"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: rust-port-difftest-evidence
+          path: |
+            difftest-reports/
+            oracle-provenance.json
+            ~/kicad-port/oracle-build/oracle-provenance.json
+            ~/kicad-port/oracle-build/binary.sha256
+            ~/kicad-port/oracle-build/compile_commands.json
+            ~/kicad-port/oracle-src/reference/source-manifest.json
+          if-no-files-found: warn
