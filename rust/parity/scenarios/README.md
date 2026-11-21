@@ -25,7 +25,10 @@ files written under `<out>` must be identical. Options:
   requests, results and written files are then not compared exactly.
 - `prepare=callable(out_dir)`, `discovery=[names]`, `stop_before=index`: as in `mcp_parity.py`.
 - `random_ids=True`: requests carry new random UUIDs (items created with `uuid.uuid4()`); version 4
-  UUIDs in the requests are compared by order of appearance.
+  UUIDs in the requests are compared by order of appearance. Every fixed id in such a scenario
+  (items in the scripted replies, ids in the arguments) must therefore not be version 4 (use e.g.
+  `aaaaaaaa-aaaa-1aaa-8aaa-aaaaaaaaaaaa`): renumbered fixed ids would let a request that targets
+  the wrong item, or the right items in another order, compare equal.
 
 Scenario names must be unique across all areas; prefix them with the area. Every tool the Rust
 server advertises must be called by at least one scenario that is not only argument validation
