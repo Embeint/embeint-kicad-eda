@@ -174,7 +174,10 @@ of the 116 tools ran live through both servers. Not run live: `live_schematic_sa
 for kicad-cli). The library save tools ran, into scratch libraries. The same build passed
 643/643 fixtures. This was the second run on that KiCad. The first run differed only in two false
 alarms from the harness, since fixed: the schematic page was read before ERC was rerun, so it still
-counted stale markers. Every call agreed in both runs.
+counted stale markers. Every call agreed in both runs. After the recorded run, review added two
+checks the next live run will exercise: the refused duplicate `live_embed_file` and the refused
+spline in `live_pcb_add_graphics` now also check that the document is unchanged, and the final
+clean-up keeps the scratch folder (and reports it) if an editor could not be released from it.
 
 What is compared, call by call (`parity/live_workflows.py`; `parity/test_live_workflows.py` feeds
 each comparison a deliberately wrong result and checks that it fails):

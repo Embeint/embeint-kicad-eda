@@ -975,7 +975,13 @@ def final_cleanup(ctx, tables):
         left = attempt("unregistering scratch libraries", lambda: remove_scratch_libraries(ctx))
         if left:
             problems.append(f"scratch libraries were still registered: {left}")
+    released = not problems
     attempt("putting back the project library tables", lambda: restore_library_tables(ctx, tables))
+    if not released:
+        # An editor may still watch a scratch library: deleting it would open a modal error in
+        # KiCad and block the API, so the folder stays and is reported
+        problems.append(f"the scratch folder {ctx.scratch} was kept: the editors were not released")
+        return problems
     shutil.rmtree(ctx.scratch, ignore_errors=True)
     if ctx.scratch.exists():
         problems.append(f"the scratch folder {ctx.scratch} could not be removed")
@@ -1319,7 +1325,8 @@ def library_workflow(call, ctx, state):
             call("live_footprint_attach_step", {**f, "step_path": str(step)}, doc=fp_tracked)
             call("live_embedded_files", {"document_spec": fp})
             call("live_embed_file", {"document_spec": fp, "path": str(state["attachment"])}, doc=fp_tracked)
-            call("live_embed_file", {"document_spec": fp, "path": str(state["attachment"])}, expect_error=True)
+            call("live_embed_file", {"document_spec": fp, "path": str(state["attachment"])}, expect_error=True,
+                 doc=fp_tracked)
             call("live_embedded_files", {"document_spec": fp})
             call("live_remove_embedded_file", {"document_spec": fp, "name": state["attachment"].name}, doc=fp_tracked)
             call("live_embedded_files", {"document_spec": fp})
@@ -1548,7 +1555,8 @@ def board_workflow(call, ctx, state):
         {"kind": "rect", "box": [140, 62, 146, 66], "layer": "F.Fab"},
         {"kind": "circle", "center": [143, 85], "radius": 1.5, "layer": "F.SilkS"},
         {"kind": "polygon", "points": [[118, 86], [122, 86], [120, 90]], "layer": "F.Fab"}]}, doc=B)
-    call("live_pcb_add_graphics", {**b, "shapes": [{"kind": "spline", "layer": "F.Fab"}]}, expect_error=True)
+    call("live_pcb_add_graphics", {**b, "shapes": [{"kind": "spline", "layer": "F.Fab"}]}, expect_error=True,
+         doc=B)
     call("live_pcb_add_keepout", {**b, "points": [[102, 85], [108, 85], [108, 92], [102, 92]],
                                   "name": "parity keepout"}, doc=B)
     call("live_pcb_add_keepout", {**b, "around_reference": u1, "margin_mm": 0.5, "layers": ["B.Cu"]}, doc=B)
