@@ -3,7 +3,7 @@
 board_client.py and server.py).
 
 Fixture items have ids that are not version-4 UUIDs, so scenarios that build items
-(generated_ids=True) compare the servers' own uuid4 ids by order of appearance and the fixture ids
+(random_ids=True) compare the servers' own uuid4 ids by order of appearance and the fixture ids
 exactly.  Renders and the netlist go through temporary directories: the peer writes the file the
 job asks for, as KiCad would.
 """
@@ -387,10 +387,10 @@ def scenarios(h):
             ("live_pcb_add_via", {"board_document": B, "x_mm": 1, "y_mm": 2, "net": "GND", "size_mm": 0.5}),
             ("live_pcb_add_via", {"board_document": B, "x_mm": -3.25, "y_mm": 0, "size_mm": 0.7, "drill_mm": 0.35}),
             ("live_pcb_add_via", {"board_document": B, "x_mm": 1, "y_mm": 2, "size_mm": 0.3})],
-          [classes(VCC=power)] + commit + [classes(GND=plain)] + commit + commit, generated_ids=True),
+          [classes(VCC=power)] + commit + [classes(GND=plain)] + commit + commit, random_ids=True),
         S("board_add_via_refused", [
             ("live_pcb_add_via", {"board_document": B, "x_mm": 1, "y_mm": 2, "drill_mm": 0.6}),
-            ("live_pcb_add_via", {"board_document": B, "x_mm": 1e5, "y_mm": 2})], [], generated_ids=True),
+            ("live_pcb_add_via", {"board_document": B, "x_mm": 1e5, "y_mm": 2})], [], random_ids=True),
         S("board_outline", [
             ("live_pcb_outline", {"board_document": B, "width_mm": 50, "height_mm": 30.5, "x_mm": 10, "y_mm": 10}),
             ("live_pcb_outline", {"board_document": B, "width_mm": 40, "height_mm": 20, "corner_radius_mm": 2.5,
@@ -399,34 +399,34 @@ def scenarios(h):
                                                  edge(EDGE_FP, U1), silk)),
            ("DeleteItems", lambda r: reply(editor.DeleteItemsResponse())), all_created(), END_OK,
            box(10000000, 10000000, 50000000, 30500000),
-           BEGIN, all_created(), END_OK, box()], generated_ids=True),
+           BEGIN, all_created(), END_OK, box()], random_ids=True),
         S("board_outline_polygon", [
             ("live_pcb_outline", {"board_document": B, "points": [[0, 0], [30, 0], [30, 20.25], [0, 20]]}),
             ("live_pcb_outline", {"board_document": B, "points": [[0, 0], [30, 0], [30, 20]]})],
           [BEGIN, footprints, no_items, created(1, 1, 1, 1), END_OK, box(0, 0, 30000000, 20250000),
            BEGIN, footprints, no_items, created(1, editor.ISC_INVALID_DATA, 1, message="self-intersecting"),
-           DROP_OK], generated_ids=True),
+           DROP_OK], random_ids=True),
         S("board_outline_refusals", [
             ("live_pcb_outline", {"board_document": B}),
             ("live_pcb_outline", {"board_document": B, "width_mm": 10, "height_mm": 4, "corner_radius_mm": 2.5}),
             ("live_pcb_outline", {"board_document": B, "points": [[0, 0], [1, 1]]}),
             ("live_pcb_outline", {"board_document": B, "points": [[0, 0], [1, 1], [2]]}),
             ("live_pcb_outline", {"board_document": B, "points": [], "width_mm": -1, "height_mm": 2})], [],
-          generated_ids=True),
+          random_ids=True),
         S("board_outline_steps_fail", [
             ("live_pcb_outline", {"board_document": B, "width_mm": 5, "height_mm": 5}),
             ("live_pcb_outline", {"board_document": B, "width_mm": 5, "height_mm": 5})],
           [BEGIN, ("GetItems", items(status="IRS_DOCUMENT_NOT_FOUND")), DROP_OK,
            BEGIN, footprints, ("GetItems", items(edge(EDGE_1, ""))),
            ("DeleteItems", lambda r: failure(envelope.AS_BAD_REQUEST, "locked outline")),
-           ("EndCommit", lambda r: failure(envelope.AS_BAD_REQUEST, "no commit"))], generated_ids=True),
+           ("EndCommit", lambda r: failure(envelope.AS_BAD_REQUEST, "no commit"))], random_ids=True),
         S("board_outline_begin_lost", [("live_pcb_outline", {"board_document": B, "width_mm": 5, "height_mm": 5,
                                                              "replace": False})],
           [("BeginCommit", lambda r: h.DROP), ("GetOperationStatus", h.status("OPS_REJECTED", message="stale"))],
-          generated_ids=True),
+          random_ids=True),
         S("board_add_via_commit_unknown", [("live_pcb_add_via", {"board_document": B, "x_mm": 1, "y_mm": 1})],
           [BEGIN, all_created(), ("EndCommit", lambda r: h.DROP), ("GetOperationStatus", lambda r: h.DROP)],
-          generated_ids=True),
+          random_ids=True),
         S("board_add_zone", [
             ("live_pcb_add_zone", {"board_document": B, "net": "GND", "layers": ["F.Cu", "B.Cu"], "inset_mm": 0.5,
                                    "priority": 2, "name": "pour", "connection": "solid"}),
@@ -434,7 +434,7 @@ def scenarios(h):
                                    "fill": False, "clearance_mm": 0.3, "min_width_mm": 0.2,
                                    "connection": "pth_thermal", "layers": []})],
           [box(1000000, 2000000, 40000000, 30000000)] + commit + [ok("RefillZones")] + commit,
-          generated_ids=True),
+          random_ids=True),
         S("board_add_zone_refusals", [
             ("live_pcb_add_zone", {"board_document": B, "net": "GND"}),
             ("live_pcb_add_zone", {"board_document": B, "net": "GND", "points": [[0, 0], [1, 0], [1, 1]],
@@ -444,7 +444,7 @@ def scenarios(h):
             ("live_pcb_add_zone", {"board_document": B, "net": "GND", "points": [[0, 0]], "priority": -1}),
             ("live_pcb_add_zone", {"board_document": B, "net": "GND", "points": [], "fill": False})],
           [box(), BEGIN, ("CreateItems", lambda r: failure(envelope.AS_BAD_REQUEST, "zone needs 3 points")),
-           DROP_OK], generated_ids=True),
+           DROP_OK], random_ids=True),
         S("board_add_graphics", [("live_pcb_add_graphics", {"board_document": B, "shapes": [
             {"kind": "line", "start": [0, 0], "end": [10, 0]},
             {"kind": "arc", "start": [0, 0], "mid": [1, 1], "end": [2, 0], "layer": "Dwgs.User", "width": 0.2},
@@ -455,7 +455,7 @@ def scenarios(h):
             {"kind": "text", "text": "BOTTOM", "position": [10, 12], "layer": "B.Silkscreen", "size": 2,
              "rotation": 90, "thickness": 0.3},
             {"kind": "text", "text": "T", "position": [1, 1], "size": 1.1, "thickness": None, "layer": "B.Fab"}]})],
-          commit, generated_ids=True),
+          commit, random_ids=True),
         S("board_add_graphics_refusals", [("live_pcb_add_graphics", {"board_document": B, "shapes": shapes})
                                           for shapes in (
             [], [{"kind": "spline"}], [{"kind": "line", "start": [0, 0]}], [{"kind": "line", "layer": "Nope"}],
@@ -467,7 +467,7 @@ def scenarios(h):
             [{"kind": "text", "text": "x", "position": [0, 0], "rotation": "90"}],
             [{"kind": "line", "start": [0, 0], "end": [1, 1], "width": "thin"}],
             [{"kind": "line", "start": 5, "end": [1, 1]}],
-            [{"kind": "line", "start": [0, 0], "end": [1, 1]}] * 201)], [], generated_ids=True),
+            [{"kind": "line", "start": [0, 0], "end": [1, 1]}] * 201)], [], random_ids=True),
         S("board_refill_zones", [("live_pcb_refill_zones", {"board_document": B}),
                                  ("live_pcb_refill_zones", {"board_document": B})],
           [ok("RefillZones"), ("RefillZones", lambda r: failure(envelope.AS_BUSY, "zone filler running"))]),

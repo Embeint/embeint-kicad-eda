@@ -1201,9 +1201,11 @@ class Peer:
                 self.errors.append(repr(error))
 
     def stop(self):
+        # Let the serving thread leave recv (it wakes every 50 ms) before closing the socket:
+        # closing it under a pending recv can make NNG panic (pthread_mutex_unlock, seen on CI)
         self.stop_event.set()
-        self.socket.close()
         self.thread.join(timeout=5)
+        self.socket.close()
 
 
 def endpoint_dir(label):
