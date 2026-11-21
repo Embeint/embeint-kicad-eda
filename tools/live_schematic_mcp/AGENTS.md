@@ -17,8 +17,13 @@ requests (see the root `AGENTS.md`).
   branch; on conflicts it opens an issue labelled `upstream-sync` and leaves the branch alone.
 - Automatic merges are not built or tested (a KiCad build does not fit a hosted runner): after
   pulling, run `scripts/rebuild.sh` and `scripts/run_tests.sh --live` before relying on them.
-- Work on a topic branch off `live-schematic-ipc` and merge back.  Prefer merges to rebases:
-  other agents share this branch, so never force-push it.
+- For integration work, use a topic branch off `live-schematic-ipc` and merge back.
+  Prefer merges to rebases: other agents share this branch, so never force-push it.
+
+`rust` is the long-lived Rust port branch. Port topic branches start from `rust`,
+and port PRs target `rust`; the port plan and native MCP work remain on `main`.
+Merge `main` into `rust` regularly with merge commits. Never rebase or force-push
+`rust` or `main`. Upstream changes reach `rust` only through `main`.
 
 ## Where things are
 
