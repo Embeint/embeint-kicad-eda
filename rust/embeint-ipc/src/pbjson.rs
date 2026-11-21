@@ -296,13 +296,7 @@ pub fn py_repr(value: &Json) -> String {
         Json::Bool(true) => "True".into(),
         Json::Bool(false) => "False".into(),
         Json::Number(n) => n.to_string(),
-        Json::String(s) => {
-            if s.contains('\'') && !s.contains('"') {
-                format!("\"{s}\"")
-            } else {
-                format!("'{}'", s.replace('\'', "\\'"))
-            }
-        }
+        Json::String(s) => str_repr(s),
         Json::Array(items) => {
             format!(
                 "[{}]",
@@ -317,6 +311,37 @@ pub fn py_repr(value: &Json) -> String {
                 .join(", ")
         ),
     }
+}
+
+/// Python's `repr(text)`: single quotes unless the text holds only single quotes, with
+/// backslashes, the quote and ASCII control characters escaped (a Windows path's backslashes are
+/// doubled).  Other characters are kept, as Python keeps every printable one.
+fn str_repr(text: &str) -> String {
+    let quote = if text.contains('\'') && !text.contains('"') {
+        '"'
+    } else {
+        '\''
+    };
+    let mut out = String::with_capacity(text.len() + 2);
+    out.push(quote);
+    for ch in text.chars() {
+        match ch {
+            '\\' => out.push_str("\\\\"),
+            '\t' => out.push_str("\\t"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            _ if ch == quote => {
+                out.push('\\');
+                out.push(ch);
+            }
+            _ if (ch as u32) < 0x20 || ch as u32 == 0x7f => {
+                out.push_str(&format!("\\x{:02x}", ch as u32));
+            }
+            _ => out.push(ch),
+        }
+    }
+    out.push(quote);
+    out
 }
 
 /// Python's `str(value)`: a string as it is, anything else as its repr.
@@ -968,6 +993,25 @@ mod tests {
 
     fn descriptor(name: &str) -> MessageDescriptor {
         proto::pool().get_message_by_name(name).expect(name)
+    }
+
+    /// Python 3.12's repr() of the same strings.
+    #[test]
+    fn repr_escapes_like_python() {
+        assert_eq!(
+            py_repr(&json!(r"C:\Temp\a.png")),
+            r"'C:\\Temp\\a.png'".to_owned()
+        );
+        assert_eq!(py_repr(&json!("it's")), "\"it's\"");
+        assert_eq!(py_repr(&json!("'\"")), r#"'\'"'"#);
+        assert_eq!(
+            py_repr(&json!("a\tb\n\r\u{1}\u{7f}é")),
+            r"'a\tb\n\r\x01\x7fé'"
+        );
+        assert_eq!(
+            py_repr(&json!({"k": [r"\", null, true]})),
+            r"{'k': ['\\', None, True]}"
+        );
     }
 
     #[test]
