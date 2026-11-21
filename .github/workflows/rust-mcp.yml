@@ -55,8 +55,8 @@ jobs:
       - name: Unit tests
         working-directory: rust
         run: cargo test --locked --release -p embeint-ipc -p embeint-mcp
-      - name: Coverage regression tests
-        run: python -m pytest rust/parity/test_surface_coverage.py -q
+      - name: Coverage and live comparison regression tests
+        run: python -m pytest rust/parity/test_surface_coverage.py rust/parity/test_live_workflows.py -q
       # Builds embeint-mcp, then compares it with server.py: tool schemas, the capabilities
       # manifest, protobuf JSON and discovery rules, and every protocol fixture scenario.
       - name: Python and Rust MCP parity
