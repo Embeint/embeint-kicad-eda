@@ -864,6 +864,27 @@ impl Client {
         reply_json(&response.expect("a committed transaction has a response"))
     }
 
+    /// `run_edit(doc, request, response_type, description)`: one editing command (annotate, move,
+    /// place, ...) as its own undo step, one commit dropped if the command fails.  Returns the
+    /// command's reply.
+    pub async fn run_edit(
+        &mut self,
+        doc: &DynamicMessage,
+        request: &DynamicMessage,
+        response_type: &str,
+        description: &str,
+    ) -> Result<DynamicMessage, Error> {
+        let header = item_header(doc);
+        let (id, operation_id) = self.begin_transaction(&header).await?;
+        let (outcome, response) = match self.send(request, response_type).await {
+            Ok(response) => (Ok(()), Some(response)),
+            Err(error) => (Err(error), None),
+        };
+        self.finish_transaction(&header, &id, &operation_id, description, outcome)
+            .await?;
+        Ok(response.expect("a committed transaction has a response"))
+    }
+
     async fn item_step(
         &mut self,
         request: &DynamicMessage,
