@@ -8,6 +8,9 @@ endif()
 
 set( CMAKE_CXX_STANDARD 20 )
 set( CMAKE_CXX_STANDARD_REQUIRED ON )
+# No C++ modules are used. Keep Ninja's generated module-scan response files out
+# of this audited source/link closure; hidden response files remain forbidden.
+set( CMAKE_CXX_SCAN_FOR_MODULES OFF )
 set( CMAKE_EXPORT_COMPILE_COMMANDS ON )
 set( CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF )
 find_package( Python3 REQUIRED COMPONENTS Interpreter )
