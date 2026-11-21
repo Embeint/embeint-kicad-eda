@@ -107,7 +107,7 @@ pub fn describe(command: &Command) -> Json {
     let fields = proto::descriptor(&command.name).fields().map(|field| {
         let field_type = match field.kind() {
             Kind::Message(message) => json!(message.full_name()),
-            Kind::Enum(enumeration) => json!(enumeration.values().map(|v| v.name().to_owned()).collect::<Vec<_>>()),
+            Kind::Enum(enumeration) => json!(proto::value_names(&enumeration)),
             _ => json!(type_number(&field)),
         };
         json!({"name": field.name(), "repeated": field.is_list() || field.is_map(), "type": field_type})
@@ -153,13 +153,7 @@ pub fn item_schema(name: &str, board: bool) -> Result<Json, Error> {
         .map(|field| {
             let (message, enumeration) = match field.kind() {
                 Kind::Message(message) => (json!(message.full_name()), Json::Null),
-                Kind::Enum(enumeration) => (
-                    Json::Null,
-                    json!(enumeration
-                        .values()
-                        .map(|v| v.name().to_owned())
-                        .collect::<Vec<_>>()),
-                ),
+                Kind::Enum(enumeration) => (Json::Null, json!(proto::value_names(&enumeration))),
                 _ => (Json::Null, Json::Null),
             };
             json!({"name": field.name(), "repeated": field.is_list() || field.is_map(),

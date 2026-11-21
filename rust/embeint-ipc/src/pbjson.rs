@@ -149,10 +149,8 @@ fn value_to_json(kind: &Kind, value: &Value, depth: usize) -> Result<Json, Parse
     Ok(match value {
         Value::Message(message) => message_to_json(message, depth + 1)?,
         Value::EnumNumber(number) => match kind {
-            Kind::Enum(descriptor) => descriptor.get_value(*number).map_or_else(
-                || Json::from(*number),
-                |v| Json::String(v.name().to_owned()),
-            ),
+            Kind::Enum(descriptor) => crate::proto::value_name(descriptor, *number)
+                .map_or_else(|| Json::from(*number), Json::String),
             _ => Json::from(*number),
         },
         Value::String(text) => Json::String(text.clone()),
