@@ -1,7 +1,7 @@
 # Porting Embeint KiCad to Rust: plan
 
-Status: accepted 2026-11-21; phase 0 is next. The answers are recorded under
-[Decisions](#decisions). This plan extends the
+Status: reviewed 2026-11-21; phase 0 is next. The review's answers and the recommendations it
+left standing are recorded under [Decisions](#decisions). This plan extends the
 [fork roadmap](../tools/live_schematic_mcp/EMBEINT_FORK_ROADMAP.md), which calls broad engine
 replacement "a multi-year program", and the [native MCP parity plan](MCP_PARITY_PLAN.md), which
 is the first finished example of the method below on a small scale. The native MCP serves the
@@ -12,12 +12,17 @@ gate.
 
 ## Branches
 
-The plan and the native MCP work land on `main`. The port itself (`port/`, the harness and the
-new crates) is developed on a long-lived `rust` branch, created from `main` when phase 0 starts:
-port PRs target `rust`, `main` is merged into `rust` regularly (never rebased: many agents share
-it), and `rust` merges back into `main` when the port is done, or earlier for parts that are
-ready to ship on their own, such as the phase 4 CLI. The work is public, like the rest of this
-repository, including the progress site.
+The plan and the native MCP work land on `main`. The port itself (the unit records in a
+top-level `port/` directory, the harness and the new crates in `rust/`) is developed on a
+long-lived `rust` branch, created from `main` when phase 0 starts: port PRs target `rust`,
+`main` is merged into `rust` regularly (never rebased: many agents share it), and `rust` merges
+back into `main` when the port is done, or earlier for parts that are ready to ship on their
+own, such as the phase 4 CLI. The work is public, like the rest of this repository, including
+the progress site.
+
+The repository's branch rules (the root `AGENTS.md`, `tools/live_schematic_mcp/AGENTS.md` and
+`CONTRIBUTING.md`) name only `main`, `live-schematic-ipc` and `master`; phase 0 adds the `rust`
+branch to them when it creates it. Upstream reaches `rust` only through `main`.
 
 ## Goal
 
@@ -201,8 +206,9 @@ required for local work. That is a constraint from the first phase, not a final 
 - **Agents in the browser** use `window.kicad`, the same commands as the IPC API, not a second
   protocol.
 
-The browser build also covers roadmap gate 5 (browser preview, then editing), using the same
-engine instead of a separate one.
+The browser build is the independent browser document engine that roadmap gate 5 puts last.
+That gate's earlier step, a browser edit reaching the live desktop model through the gateway, is
+separate from the port and stays on the roadmap.
 
 ## Oracles
 
@@ -239,10 +245,11 @@ Each phase ends at a gate that is checked in CI, not estimated.
 0. **Harness.** Create the `rust` branch and pin the upstream commit. Add the west manifest
    for solidcore (see [External code](#external-code)). Build the call-graph extractor on the WSL
    compile database (clang), the unit splitter, layering and back-edges, and the unit files.
-   Build `kicad-oracle` with fixed compiler flags on Linux in WSL (its own build tree, sharing
-   the machine's `-j8` build-job cap), the goldens runner and the public progress site on GitHub
-   Pages; add CI for fmt, clippy, tests, the wasm check and goldens. Write `port/AGENTS.md`: the
-   rules above, adapted. Pilot three layer-0 units end to end before opening the work to a swarm.
+   Build `kicad-oracle` with fixed compiler flags on Linux in WSL (its own build tree, with a
+   capped job count on the shared machine), the goldens runner and the public progress site on
+   GitHub Pages; add CI for fmt, clippy, tests, the wasm check and goldens. Write
+   `port/AGENTS.md`: the rules above, adapted. Pilot three layer-0 units end to end before opening
+   the work to a swarm.
    *Gate: three units green against the oracle in CI; every unit file generated and valid.*
 1. **Foundation.** `kimath` and geometry, Clipper2, core types, the s-expression lexer
    (keyword tables generated from the 13 `.keywords` files by a build script), fonts.
@@ -302,12 +309,13 @@ From solidcore's `AGENTS.md`, adapted:
 ## Effort
 
 solidcore's 388,000 lines were all ported in under two weeks of coordinated agents, with the
-harness built first, and wiring the deferred paths took longer than the porting. KiCad's headless part is about
-three times that size, so phases 1 to 4 are plausibly two to four months once phase 0 works.
-Phase 5 adds one to two months. The user interface (phases 6 and 7) has no mechanical method
-and is the long pole. SolidCraft's UI is about 300,000 lines for one modelling application, and
-KiCad's five editors are at least comparable: six to twelve months or more for editors Embeint
-would use daily, with the read-only viewer, in the browser too, much earlier. Because the browser
+harness built first, and wiring the deferred paths took longer than the porting. KiCad's
+headless part is about three times that size, so phases 1 to 4 are plausibly two to four months
+once phase 0 works. Phase 5 adds one to two months. The user interface (phases 6 and 7) has no
+mechanical method and is the long pole. SolidCraft's UI is about 300,000 lines for one
+modelling application, and KiCad's five editors are at least comparable: six to twelve months or
+more for editors Embeint would use daily, with the read-only viewer, in the browser too, much
+earlier. Because the browser
 is a host of the same application, it adds weeks of host work (storage, libraries, workers), not
 a second UI. These figures assume swarm throughput similar to solidcore's and will be
 re-estimated from the phase 0 pilot.
@@ -316,7 +324,8 @@ re-estimated from the phase 0 pilot.
 
 solidcore comes in with [west](https://docs.zephyrproject.org/latest/develop/west/), from a
 manifest on the `rust` branch that pins `tangency-labs/solidcore` to a commit; the port's crates
-use it as path dependencies into the west workspace. Upgrades are a manifest change in a PR.
+use it as path dependencies into the west workspace, so CI and contributors run `west update`
+before `cargo build`. Upgrades are a manifest change in a PR.
 west is a development tool (Python); it is not part of anything the port ships.
 
 solidcore is patched inside SolidCraft, not in its own repository: SolidCraft vendors it with
@@ -329,16 +338,17 @@ workspace). Consequences:
 - Pin solidcore commits, never a branch, and read the trailer to know which SolidCraft commit a
   pin corresponds to.
 - A fix the port needs in solidcore is made as a SolidCraft PR to `solidcore/`; it reaches the
-  standalone repository through the mirror. A PR to `tangency-labs/solidcore` itself would be
-  overwritten or would stop the mirror.
+  standalone repository through the mirror. A PR to `tangency-labs/solidcore` itself would make the
+  two diverge, and the mirror, which only fast-forwards, would stop.
 - SolidCraft's patched egui and winit live in its `vendor/` directory, which is not mirrored.
   They are not needed before phase 6; whether to take them from a pinned SolidCraft checkout in
   the same west manifest, or ask for them to be mirrored like solidcore, is decided then.
 
 ## Decisions
 
-Reviewed 2026-11-21. Items 1 to 9 are the draft's recommendations: review raised no objection,
-so phase 0 proceeds on them, with the amendments noted. Items 10 to 14 were decided in review.
+Reviewed 2026-11-21. Items 10 to 14 were decided in review. Items 1 to 9 were not discussed;
+they stand as recommendations, with the amendments noted, and phase 0 proceeds on them unless
+they are changed.
 
 1. **Scope of "full".** Every application, with the importers as a parallel track and ngspice
    kept as a C library rather than ported. The SWIG Python API is not ported (upstream is
@@ -353,8 +363,8 @@ so phase 0 proceeds on them, with the amendments noted. Items 10 to 14 were deci
 4. **Browser targets:** Chromium-based browsers fully (WebGPU, folder access); Firefox and Safari
    with WebGL2 and zip import and export. The browser build is a static site that needs no
    server for local work; libraries come from a static, versioned library site.
-5. **Location:** this repository's `rust/` workspace with the plan in `port/`, next to the C++
-   that is the reading reference and the oracle, on the `rust` branch (see
+5. **Location:** this repository's `rust/` workspace, with the unit records in a top-level
+   `port/`, next to the C++ that is the reading reference and the oracle, on the `rust` branch (see
    [Branches](#branches)). Upstream has no `rust/` or `port/`, so merges cannot conflict.
 6. **Upstream pin:** the upstream commit of the fork's current base, re-baselined each quarter
    with the call-graph drift report deciding which units need re-checking.
@@ -373,8 +383,10 @@ so phase 0 proceeds on them, with the amendments noted. Items 10 to 14 were deci
 13. **Plugins:** Python action plugins and footprint wizards are replaced by Rust plugins.
     Recommended shape, decided with the plugin interface in phase 5: SolidCraft's model, where a
     plugin is a WebAssembly component (`craft-plugin`, `craft-plugin-wasm` on wasmtime) with a
-    manifest and permissions that runs engine commands, so the same plugin works on the desktop
-    and in the browser. KiCad's built-in footprint wizards are ported as engine commands.
+    manifest and permissions that runs engine commands. SolidCraft runs such plugins only in
+    native x86-64 and AArch64 builds today; its browser build refuses them, so running plugins
+    in the browser is open work for phase 5. KiCad's built-in footprint wizards are ported as
+    engine commands.
 14. **Test data only:** the corpus, cases, goldens and published results use public test data
     only (`qa/data`, the demos, KiCad's libraries, generated cases); no Embeint design is used.
 
@@ -392,7 +404,8 @@ so phase 0 proceeds on them, with the amendments noted. Items 10 to 14 were deci
   tests for phase 7.
 - **Lost Python plugins and footprint wizards.** Third-party Python plugins stop working; users
   must port them to the Rust plugin interface (decision 13) or drive the application over the
-  IPC API instead.
+  IPC API instead. Plugins in the browser need a WebAssembly component runtime that SolidCraft
+  does not have yet; until one exists, plugins are a desktop capability.
 - **solidcore's history comes through SolidCraft.** A stalled mirror workflow leaves the
   standalone repository behind SolidCraft; pins record the SolidCraft commit so this is visible.
 - **Browser limits.** Main-thread work blocks the page until jobs move to workers; OPFS quotas
