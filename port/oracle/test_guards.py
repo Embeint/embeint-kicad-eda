@@ -10,11 +10,33 @@ import sys
 import tempfile
 import unittest
 
-from audit import audit, check_flags, verify_source
+from audit import audit, check_flags, verify_source, check_resistor_reference
 from pin import KICAD_PIN, SOURCE_PATHS
 
 
 class Guards(unittest.TestCase):
+    def test_resistor_requires_both_reference_tus_and_archive_link(self):
+        with tempfile.TemporaryDirectory() as directory:
+            overlay = Path(directory)
+            source = overlay / "reference-source"
+            wrapper = overlay / "reference/resistors_access.cpp"
+            wrapper.parent.mkdir()
+            wrapper.write_text("#include <resistor_substitution_utils.cpp>\n", encoding="utf-8")
+            commands = [{"file": str(path), "arguments": [
+                "g++", "-o", "CMakeFiles/resistor-reference.dir/object.o"]}
+                for path in (source / "pcb_calculator/eseries.cpp", wrapper)]
+            link = ["g++ -o kicad-oracle libresistor-reference.a libfmt.a libkimath.a"]
+            check_resistor_reference(commands, link, source, overlay)
+            for missing in range(2):
+                with self.subTest(missing=missing), self.assertRaisesRegex(ValueError, "compilation"):
+                    check_resistor_reference(commands[:missing] + commands[missing + 1:], link, source, overlay)
+            for archive in ("libresistor-reference.a", "libfmt.a"):
+                with self.subTest(archive=archive), self.assertRaisesRegex(ValueError, "archives"):
+                    check_resistor_reference(commands, [link[0].replace(archive, "")], source, overlay)
+            wrapper.write_text("// no reference implementation\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "actual pinned"):
+                check_resistor_reference(commands, link, source, overlay)
+
     @unittest.skipUnless(sys.platform == "linux", "WSL/Linux shell guards")
     def test_build_lock_and_job_limit(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -77,7 +99,7 @@ class Guards(unittest.TestCase):
             files = {}
             for relative in SOURCE_PATHS:
                 path = source / relative
-                if path.suffix == ".cmake":
+                if path.suffix:
                     path.parent.mkdir(parents=True, exist_ok=True)
                     path.write_bytes(b"reference")
                     files[relative] = hashlib.sha256(b"reference").hexdigest()

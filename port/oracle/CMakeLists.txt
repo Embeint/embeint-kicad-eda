@@ -42,11 +42,22 @@ add_subdirectory( "${KICAD_REFERENCE_SOURCE}/thirdparty/clipper2" reference/clip
 add_subdirectory( "${KICAD_REFERENCE_SOURCE}/thirdparty/rtree" reference/rtree )
 add_subdirectory( "${KICAD_REFERENCE_SOURCE}/thirdparty/nlohmann_json" reference/json )
 add_subdirectory( "${KICAD_REFERENCE_SOURCE}/libs/kimath" reference/kimath )
+set( FMT_DOC OFF CACHE BOOL "" FORCE )
+set( FMT_TEST OFF CACHE BOOL "" FORCE )
+set( FMT_INSTALL OFF CACHE BOOL "" FORCE )
+add_subdirectory( "${KICAD_REFERENCE_SOURCE}/thirdparty/fmt" reference/fmt )
+
+add_library( resistor-reference STATIC
+    "${KICAD_REFERENCE_SOURCE}/pcb_calculator/eseries.cpp"
+    "${ORACLE_OVERLAY}/reference/resistors_access.cpp" )
+target_include_directories( resistor-reference PUBLIC "${KICAD_REFERENCE_SOURCE}/pcb_calculator"
+                           "${ORACLE_OVERLAY}/reference" )
+target_link_libraries( resistor-reference PUBLIC fmt::fmt )
 
 file( GLOB ORACLE_SHIMS CONFIGURE_DEPENDS "${ORACLE_OVERLAY}/shims/*.cpp" )
 add_executable( kicad-oracle main.cpp protocol.cpp registry.cpp ${ORACLE_SHIMS} )
 target_include_directories( kicad-oracle PRIVATE "${ORACLE_OVERLAY}" "${CMAKE_BINARY_DIR}" )
-target_link_libraries( kicad-oracle PRIVATE kimath nlohmann_json )
+target_link_libraries( kicad-oracle PRIVATE kimath nlohmann_json resistor-reference )
 
 # Audit every build, including direct cmake --build calls and warm cache builds.
 add_custom_target( oracle-audit
@@ -56,7 +67,7 @@ add_custom_target( oracle-audit
             --build "${CMAKE_BINARY_DIR}" --source "${KICAD_REFERENCE_SOURCE}"
             --overlay "${ORACLE_OVERLAY}"
     VERBATIM )
-foreach( target core clipper2 kimath kicad-oracle )
+foreach( target core clipper2 kimath fmt resistor-reference kicad-oracle )
     add_dependencies( ${target} oracle-audit )
 endforeach()
 
@@ -69,7 +80,7 @@ add_test( NAME oracle-build-guards
 add_executable( oracle-dispatch-test EXCLUDE_FROM_ALL test_dispatch.cpp protocol.cpp registry.cpp
                 ${ORACLE_SHIMS} )
 target_include_directories( oracle-dispatch-test PRIVATE "${ORACLE_OVERLAY}" )
-target_link_libraries( oracle-dispatch-test PRIVATE kimath nlohmann_json )
+target_link_libraries( oracle-dispatch-test PRIVATE kimath nlohmann_json resistor-reference )
 add_dependencies( oracle-dispatch-test oracle-audit )
 add_test( NAME oracle-dispatch COMMAND oracle-dispatch-test )
 set_tests_properties( oracle-protocol oracle-build-guards oracle-dispatch PROPERTIES TIMEOUT 60 )

@@ -6,7 +6,7 @@
 
 [workspace]
 resolver = "2"
-members = ["embeint-layout", "embeint-web", "embeint-layout-cli", "embeint-ipc", "embeint-mcp", "kicad-difftest"]
+members = ["embeint-layout", "embeint-web", "embeint-layout-cli", "embeint-ipc", "embeint-mcp", "kicad-difftest", "kicad-resistors", "kicad-resistors-shim"]
 
 [workspace.package]
 version = "0.1.0"

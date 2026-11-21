@@ -59,6 +59,27 @@ def write_changed(path, text):
         path.write_text(text, encoding="utf-8")
 
 
+def check_resistor_reference(commands, link_commands, source, overlay):
+    """Require real library compilation (including the accessor TU) and linkage."""
+    required = {source / "pcb_calculator/eseries.cpp", overlay / "reference/resistors_access.cpp"}
+    compiled = set()
+    for entry in commands:
+        path = Path(entry["file"])
+        if any(
+                "CMakeFiles/resistor-reference.dir/" in token for token in entry["arguments"]):
+            compiled.add(path)
+    if compiled != required:
+        raise ValueError("Missing actual resistor-reference compilation: " + repr(required - compiled))
+    # The accessor must compile the unmodified original source, not an overlay
+    # replacement. Include search order and both files are retained in provenance.
+    wrapper = overlay / "reference/resistors_access.cpp"
+    if "#include <resistor_substitution_utils.cpp>" not in wrapper.read_text(encoding="utf-8"):
+        raise ValueError("Accessor does not compile the actual pinned resistor source")
+    if not any("-o kicad-oracle" in command and "libresistor-reference.a" in command
+               and "libfmt.a" in command for command in link_commands):
+        raise ValueError("Oracle does not link the actual resistor-reference and fmt archives")
+
+
 def audit(build, source, overlay):
     manifest, manifest_sha = verify_source(source)
     database = json.loads((build / "compile_commands.json").read_text(encoding="utf-8"))
@@ -79,12 +100,12 @@ def audit(build, source, overlay):
                 raise ValueError("Unpinned reference compilation: " + str(path))
         elif not path.is_relative_to(overlay):
             raise ValueError("Unexpected compilation outside pinned source/overlay: " + str(path))
-        for target in ("core", "clipper2", "kimath", "kicad-oracle"):
+        for target in ("core", "clipper2", "kimath", "fmt", "resistor-reference", "kicad-oracle"):
             if any("CMakeFiles/" + target + ".dir/" in token for token in tokens):
                 targets.add(target)
         compilers.add(tokens[0])
         commands.append({"file": str(path), "arguments": tokens})
-    if targets != {"core", "clipper2", "kimath", "kicad-oracle"}:
+    if targets != {"core", "clipper2", "kimath", "fmt", "resistor-reference", "kicad-oracle"}:
         raise ValueError("Unexpected reference target closure: " + repr(targets))
     link_commands = subprocess.check_output(
         ["ninja", "-C", str(build), "-t", "commands", "kicad-oracle"], text=True).splitlines()
@@ -93,6 +114,7 @@ def audit(build, source, overlay):
     if not any("-o kicad-oracle" in command and "libkimath.a" in command
                for command in link_commands):
         raise ValueError("Oracle does not link the actual kimath archive")
+    check_resistor_reference(commands, link_commands, source, overlay)
     overlay_files = {p.relative_to(overlay).as_posix(): sha(p) for p in sorted(overlay.rglob("*"))
                      if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc"}
     result = {
