@@ -36,3 +36,17 @@ the extension module give the bundled versions).
 - The same applies to native libraries that other wheels vendor (`numpy.libs`,
   `Shapely.libs`): the package carries whatever licence files those wheels include in their
   metadata, and nothing more.
+
+## Rust crates without a licence file (`rust/`)
+
+`rust_bundle.py` ships every linked crate's licence files in `licenses/rust/`. A few crates
+publish their package without one (the licence sits at their repository root); their upstream
+texts are kept in `rust/<crate>-<version>/`, fetched from the commit the crate records in its
+`.cargo_vcs_info.json`, and used only for that exact version. Updating such a crate needs its new
+texts here, or the package build stops.
+
+| Folder | Crate | Licence | Source |
+| --- | --- | --- | --- |
+| `rust/geo-0.32.0/` | geo 0.32.0 | MIT OR Apache-2.0 | `georust/geo` at `240f2038` |
+| `rust/rstar-0.12.2/` | rstar 0.12.2 | MIT OR Apache-2.0 | `georust/rstar` at `c8c5bf9e` |
+| `rust/i_overlay-4.0.7/` | i_overlay 4.0.7 | MIT | `iShape-Rust/iOverlay` at `a071220d` |
