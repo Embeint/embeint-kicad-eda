@@ -30,7 +30,7 @@ Read the linked reference for the current task. \
 Skill discovery, file reads, content manifest and local capabilities work offline. \
 This native server implements instance discovery, document reads, schematic item create/update/delete, \
 generic command execution and batches, command/item schemas, manufacturing exports and the fab package, \
-and the bundled skills; the Python server provides the other live_* tools. \
+the bundled skills and the editor grid; the Python server provides the other live_* tools. \
 Follow the user's current intent and existing authorization; coordinate shared editor use. \
 Preserve manual edits, verify mutation outcomes, and save explicitly. \
 Local schemas and historical version notes do not prove current live editor support.";
