@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright The KiCad Developers, see AUTHORS.txt for contributors.
 // Reference tables from KiCad IEC60664-1:2020-05 at 4cf939778df04d2b747bb2c4714fc5014a7565c7.
 // Preserve order, duplicated thresholds and literal values, including apparent anomalies.
 use crate::{Field, MaterialGroup, OvervoltageCategory, PollutionDegree};
@@ -11,6 +12,7 @@ fn lookup(voltage: f64, table: &[(f64, f64)]) -> f64 {
     }
     -1.0
 }
+// IEC60664-1:2020-05 Table A.2.
 pub(crate) fn altitude(voltage: f64) -> f64 {
     lookup(
         voltage,
@@ -29,6 +31,7 @@ pub(crate) fn altitude(voltage: f64) -> f64 {
         ],
     )
 }
+// IEC60664-1:2020-05 Table A.1.
 pub(crate) fn rms(voltage: f64, field: Field) -> f64 {
     match field {
         Field::INHOMOGENEOUS => lookup(
@@ -142,6 +145,7 @@ pub(crate) fn rms(voltage: f64, field: Field) -> f64 {
         _ => -1.0,
     }
 }
+// IEC60664-1:2020-05 Table F.8.
 pub(crate) fn peaks(voltage: f64, field: Field) -> f64 {
     match field {
         Field::INHOMOGENEOUS => lookup(
@@ -221,6 +225,7 @@ pub(crate) fn peaks(voltage: f64, field: Field) -> f64 {
         _ => -1.0,
     }
 }
+// IEC60664-1:2020-05 Table F.2.
 pub(crate) fn transient(voltage: f64, pd: PollutionDegree, field: Field) -> f64 {
     match field {
         Field::INHOMOGENEOUS => {
@@ -341,6 +346,7 @@ pub(crate) fn transient(voltage: f64, pd: PollutionDegree, field: Field) -> f64 
         _ => -1.0,
     }
 }
+// IEC60664-1:2020-05 Table F.1.
 pub(crate) fn impulse(voltage: f64, category: OvervoltageCategory) -> f64 {
     match category {
         OvervoltageCategory::I => lookup(
@@ -398,6 +404,7 @@ pub(crate) fn impulse(voltage: f64, category: OvervoltageCategory) -> f64 {
         _ => -1.0,
     }
 }
+// IEC60664-1:2020-05 Table F.5.
 pub(crate) fn creepage(voltage: f64, pd: PollutionDegree, mg: MaterialGroup, pcb: bool) -> f64 {
     let mut pcb = pcb;
     if voltage > 1000.0 {

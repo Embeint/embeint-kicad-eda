@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright The KiCad Developers, see AUTHORS.txt for contributors.
 //! Code parity with KiCad's IEC60664-1:2020-05 calculator at the port pin.
 //! This preserves its tables and sentinels; it is not electrical safety certification.
 #![forbid(unsafe_code)]
