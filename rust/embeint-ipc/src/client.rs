@@ -592,7 +592,7 @@ impl Client {
 
     /// Opens a commit for one transaction (`transaction()` up to its `yield`): returns the commit
     /// id and the transaction's operation id.
-    async fn begin_transaction(
+    pub async fn begin_transaction(
         &mut self,
         header: &DynamicMessage,
     ) -> Result<(DynamicMessage, String), Error> {
@@ -623,7 +623,7 @@ impl Client {
     }
 
     /// Ends a transaction: commits after `outcome` succeeded, drops (rolls back) after it failed.
-    async fn finish_transaction(
+    pub async fn finish_transaction(
         &mut self,
         header: &DynamicMessage,
         id: &DynamicMessage,
