@@ -26,7 +26,7 @@ fillet leaves outside) and is compared by behaviour, as rust/MCP_PARITY_PLAN.md 
   1 um is ten times the rounding of gap_mm (0.1 um) and far below any clearance.
 
 Fixture items have ids that are not version-4 UUIDs, so scenarios that create items
-(generated_ids=True) compare the servers' own ids by order of appearance and the fixture ids exactly.
+(random_ids=True) compare the servers' own ids by order of appearance and the fixture ids exactly.
 """
 
 import json
@@ -676,7 +676,7 @@ def scenarios(h):
             ("live_pcb_add_keepout", {"board_document": B, "points": [[0, 0], [5, 0], [5, 5]], "name": "ant"}),
             ("live_pcb_add_keepout", {"board_document": B, "points": [[0, 0], [5, 0], [5, 5]], "layers": ["F.Cu"],
                                       "tracks": False, "pads": True, "footprints": True, "copper": False})],
-          [enabled(4)] + commit + commit, generated_ids=True),
+          [enabled(4)] + commit + commit, random_ids=True),
         S("board_design_keepout_around", [
             ("live_pcb_add_keepout", {"board_document": B, "around_reference": "J1", "margin_mm": 0.5}),
             ("live_pcb_add_keepout", {"board_document": B, "around_reference": "J1", "layers": [], "vias": False}),
@@ -697,7 +697,7 @@ def scenarios(h):
                                         "fill": {"fill_type": "GFT_UNFILLED"}}}}]))] + commit
           + [footprints, ("GetBoundingBox", lambda r: reply(parse(editor.GetBoundingBoxResponse, {
               "boxes": [{"position": vec(9.2, 14.1), "size": vec(1.6, 1.85)}]})))] + commit,
-          generated_ids=True),
+          random_ids=True),
         S("board_design_keepout_refusals", [
             ("live_pcb_add_keepout", {"board_document": B}),
             ("live_pcb_add_keepout", {"board_document": B, "points": [], "around_reference": ""}),
@@ -707,13 +707,13 @@ def scenarios(h):
             ("live_pcb_add_keepout", {"board_document": B, "points": [[0, 0], [1]], "layers": ["F.Cu"]})],
           [footprints, footprints, ("GetBoundingBox", lambda r: reply(editor.GetBoundingBoxResponse())),
            footprints, ("GetBoundingBox", lambda r: reply(parse(editor.GetBoundingBoxResponse, {
-               "boxes": [{"position": vec(9, 14), "size": vec(2, 2)}]})))], generated_ids=True),
+               "boxes": [{"position": vec(9, 14), "size": vec(2, 2)}]})))], random_ids=True),
         S("board_design_keepout_commit_lost", [("live_pcb_add_keepout", {"board_document": B, "around_reference": "U1",
                                                                          "layers": ["F.Cu", "B.Cu"]})],
           [footprints, ("GetBoundingBox", lambda r: reply(parse(editor.GetBoundingBoxResponse, {
               "boxes": [{"position": vec(9, 14), "size": vec(2, 2)}]}))),
            BEGIN, all_created(), ("EndCommit", lambda r: h.DROP),
-           ("GetOperationStatus", h.status("OPS_COMMITTED", revision_after="fx-6"))], generated_ids=True),
+           ("GetOperationStatus", h.status("OPS_COMMITTED", revision_after="fx-6"))], random_ids=True),
         # ---- Path checks
         S("board_design_check_path", [
             ("live_pcb_check_path", {"board_document": B, "points": [[10, 15], [10, 5], [30, 5], [30, 15]],
@@ -749,19 +749,19 @@ def scenarios(h):
           [classes(SIG={"name": "Default", "board": {"track_width": {"value_nm": "200000"}}})]
           + problem(tracks=[gnd_wall]) + [classes(SIG={"name": "Default", "board": {"track_width": {
               "value_nm": "200000"}}})] + commit
-          + problem(tracks=[gnd_wall]) + commit, generated_ids=True),
+          + problem(tracks=[gnd_wall]) + commit, random_ids=True),
         S("board_design_add_tracks_refusals", [
             ("live_pcb_add_tracks", {"board_document": B, "points": [[1, 1]]}),
             ("live_pcb_add_tracks", {"board_document": B, "points": [[1, 1], [2, 2]], "layer": "Nope"}),
             ("live_pcb_add_tracks", {"board_document": B, "points": [[1, 1], [2, 2]], "layer": "F.SilkS",
                                      "check": False})],
-          problem() + problem(), generated_ids=True),
+          problem() + problem(), random_ids=True),
         # ---- Routes
         S("board_design_route_plain", [("live_pcb_route", dict(route, avoid=False, layers=["B.Cu", "F.Cu"]))],
           [footprints, get_items(*basic_pads), footprints, get_items(*basic_pads), footprints, no_class] + commit,
-          generated_ids=True),
+          random_ids=True),
         S("board_design_route_around", [("live_pcb_route", route)],
-          problem(tracks=[gnd_wall]) + find() + find() + [no_class] + commit + drc(), generated_ids=True),
+          problem(tracks=[gnd_wall]) + find() + find() + [no_class] + commit + drc(), random_ids=True),
     ]
 
     # ---- A busier board: rounded outline with cut-outs, a keepout, a mounting hole, an arc, a blind
@@ -829,14 +829,14 @@ def scenarios(h):
                                         ("live_pcb_route", dict(route, vias=False, width_mm=0.4, grid_mm=0.2,
                                                                 verify=False))],
           problem(tracks=[gnd_wall]) + find() + find() + [no_class] + commit + drc()
-          + problem(tracks=[gnd_wall]) + find() + find() + [no_class] + commit, generated_ids=True),
+          + problem(tracks=[gnd_wall]) + find() + find() + [no_class] + commit, random_ids=True),
         S("board_design_route_one_via", [("live_pcb_route", route)],
           problem(pads=[u1_1, pth_end], tracks=[wall], pad_layers=("F.Cu", "B.Cu"))
-          + find(u1_1, pth_end) + find(u1_1, pth_end) + [class_sizes] + commit + drc(), generated_ids=True),
+          + find(u1_1, pth_end) + find(u1_1, pth_end) + [class_sizes] + commit + drc(), random_ids=True),
         S("board_design_route_busy", [("live_pcb_route", dict(route, vias=False)),
                                       ("live_pcb_route", dict(route, to_reference="J1", to_pad="1", verify=False))],
           busy_problem() + find_busy() + find_busy() + [no_class] + commit + drc()
-          + busy_problem() + find_busy() + find_busy() + [no_class] + commit, generated_ids=True),
+          + busy_problem() + find_busy() + find_busy() + [no_class] + commit, random_ids=True),
         S("board_design_route_refusals", [
             ("live_pcb_route", dict(route, to_pad="2")),
             ("live_pcb_route", dict(route, layers=["X9.Cu"])),
@@ -845,13 +845,13 @@ def scenarios(h):
           problem() + find() + find(u1_1, u1_2, r1_1, r1_2)
           + problem() + find() + find() + [no_class]
           + problem() + find() + find() + [no_class]
-          + problem() + find() + [footprints], generated_ids=True),
+          + problem() + find() + [footprints], random_ids=True),
         S("board_design_route_boxed_in", [("live_pcb_route", dict(route, vias=False, grid_mm=0.25))],
           problem(extra_shapes=[{"@type": ANY + "BoardGraphicShape", "layer": "BL_F_Cu", "net": {"name": "GND"},
                                  "shape": {"rectangle": {"top_left": vec(8, 13), "bottom_right": vec(12, 17)},
                                            "attributes": {"stroke": {"width": {"value_nm": "300000"}},
                                                           "fill": {"fill_type": "GFT_UNFILLED"}}}}])
-          + find() + find() + [no_class], generated_ids=True),
+          + find() + find() + [no_class], random_ids=True),
         S("board_design_route_drc_rejected", [("live_pcb_route", route)],
           problem(tracks=[gnd_wall]) + find() + find() + [no_class, BEGIN, all_created(record), END_OK]
           + drc([{"error_type": "DRCET_CLEARANCE", "severity": "RS_ERROR", "description": "Clearance (0.1 mm)",
@@ -860,24 +860,24 @@ def scenarios(h):
                   "items": "NEW"},
                  {"error_type": "DRCET_TRACK_WIDTH", "severity": "RS_ERROR", "description": "Width",
                   "items": [{"value": U1}]}], record=record)
-          + [BEGIN, deleted(), END_OK], generated_ids=True),
+          + [BEGIN, deleted(), END_OK], random_ids=True),
         S("board_design_route_drc_failed", [("live_pcb_route", route)],
           problem(tracks=[gnd_wall]) + find() + find() + [no_class] + commit
-          + drc(state="TS_FAILED", error="zone fill failed"), generated_ids=True),
+          + drc(state="TS_FAILED", error="zone fill failed"), random_ids=True),
         S("board_design_route_cleanup_failed", [("live_pcb_route", route)],
           problem(tracks=[gnd_wall]) + find() + find() + [no_class, BEGIN, all_created(record), END_OK]
           + drc([{"error_type": "DRCET_SHORTING_ITEMS", "severity": "RS_ERROR", "description": "Short",
                   "items": "NEW"}], record=record)
-          + [("BeginCommit", lambda r: failure(envelope.AS_BUSY, "a tool is active"))], generated_ids=True),
+          + [("BeginCommit", lambda r: failure(envelope.AS_BUSY, "a tool is active"))], random_ids=True),
         S("board_design_route_commit_lost", [("live_pcb_route", dict(route, verify=False))],
           problem(tracks=[gnd_wall]) + find() + find() + [no_class, BEGIN, all_created(),
                                                           ("EndCommit", lambda r: h.DROP),
                                                           ("GetOperationStatus",
                                                            h.status("OPS_COMMITTED", revision_after="fx-7"))],
-          generated_ids=True),
+          random_ids=True),
         S("board_design_route_rejected_by_kicad", [("live_pcb_route", route)],
           problem() + find() + find() + [no_class, BEGIN, h.created(editor.ISC_INVALID_DATA, message="bad track"),
-                                         DROP_OK], generated_ids=True),
+                                         DROP_OK], random_ids=True),
         S("board_design_route_net", [("live_pcb_route_net", {"board_document": B, "net": "SIG"}),
                                      ("live_pcb_route_net", {"board_document": B, "net": "GND", "vias": False,
                                                              "layers": ["F.Cu"], "verify": False})],
@@ -885,13 +885,13 @@ def scenarios(h):
           + [connected(pad_id(u1_1)), connected(pad_id(r1_1)), connected(), no_class,
              get_items(fp_u1, fp_r1, footprint(J1, "J1", 20, 5))] + commit + drc()
           + problem(pads=sig3_pads, shapes=sig3_shapes, fps=renamed)
-          + [connected(pad_id(u1_2)), connected(), no_class] + commit, generated_ids=True),
+          + [connected(pad_id(u1_2)), connected(), no_class] + commit, random_ids=True),
         S("board_design_route_net_connected", [("live_pcb_route_net", {"board_document": B, "net": "SIG"}),
                                                ("live_pcb_route_net", {"board_document": B, "net": "VCC"}),
                                                ("live_pcb_route_net", {"board_document": B, "net": ""})],
           problem() + [connected(pad_id(r1_1))] + problem()
           + problem(pads=[u1_1, pad("ffff", 1, "", 1, 1)], shapes={pad_id(pad("ffff", 1, "", 1, 1)): rect(1, 1, .5, .5)}),
-          generated_ids=True),
+          random_ids=True),
     ]
 
     # ---- Tight: a W-shaped GND pad (not convex) whose tooth tip is 0.3734 mm from the grid point
@@ -914,7 +914,7 @@ def scenarios(h):
           + problem(pads=tight_pads, shapes=tight_shape, fps=tight_fps)
           + [tight_fps, get_items(*tight_pads), tight_fps, get_items(*tight_pads), no_class] + commit,
           # The finer of the two steps' grids, so "one grid step" is never wider than either
-          generated_ids=True, compare=route_behaviour(0.05)),
+          random_ids=True, compare=route_behaviour(0.05)),
     ]
 
     # ---- Gaps at a round join: a pad corner just off the corner of a two-segment path, between the
@@ -968,14 +968,14 @@ def scenarios(h):
           + problem(pads=basic_pads + [odd_pad])[:5]
           + problem(extra_shapes=[odd_shape])[:4]),
         S("board_design_route_pad_unknown", [("live_pcb_route", route)],
-          problem(pads=[u1_1, u1_2, r1_2]) + find() + find(), generated_ids=True),
+          problem(pads=[u1_1, u1_2, r1_2]) + find() + find(), random_ids=True),
         S("board_design_route_four_layers", [("live_pcb_route", dict(route, layers=["In1.Cu", "In2.Cu"]))],
-          four + find(*four_pads) + find(*four_pads) + [no_class] + commit + drc(), generated_ids=True),
+          four + find(*four_pads) + find(*four_pads) + [no_class] + commit + drc(), random_ids=True),
         S("board_design_add_tracks_commit_lost", [("live_pcb_add_tracks", {
             "board_document": B, "points": [[10, 15], [10, 5]], "net": "SIG", "width_mm": 0.3})],
           problem() + [BEGIN, all_created(), ("EndCommit", lambda r: h.DROP),
                        ("GetOperationStatus", h.status("OPS_ROLLED_BACK", message="lease expired"))],
-          generated_ids=True),
+          random_ids=True),
     ]
     _self_test()
     return result
