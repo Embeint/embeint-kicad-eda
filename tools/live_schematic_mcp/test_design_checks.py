@@ -283,6 +283,14 @@ def test_default_cli_finds_the_windows_bundle_beside_a_frozen_mcp(tmp_path):
     ["sch", "export", "bom", "-o", "/p/sym-lib-table", "a.kicad_sch"],
     # combined short options can hide an output
     ["sch", "erc", "-no", "a.kicad_sch", "a.kicad_sch"], ["pcb", "export", "svg", "-o=x.svg", "a.kicad_pcb"],
+    # names Windows rewrites onto a protected file or into a .pretty folder
+    ["sch", "export", "netlist", "-o", "C:\\p\\design.kicad_sch.", "C:\\p\\design.kicad_sch"],
+    ["sch", "export", "netlist", "-o", "C:\\p\\design.kicad_sch ", "C:\\p\\design.kicad_sch"],
+    ["sch", "export", "netlist", "-o", "C:\\p\\design.kicad_sch::$DATA", "C:\\p\\design.kicad_sch"],
+    ["sch", "export", "netlist", "--output=C:\\p\\design.kicad_sch:x", "C:\\p\\design.kicad_sch"],
+    ["sch", "export", "netlist", "-o", "/p/design.kicad_sch . .", "/p/design.kicad_sch"],
+    ["fp", "export", "svg", "-o", "C:\\libs\\Lib.pretty.\\x.svg", "Lib.pretty"],
+    ["fp", "export", "svg", "-o", "C:\\libs\\Lib.pretty::$INDEX_ALLOCATION\\x.svg", "Lib.pretty"],
 ])
 def test_cli_arguments_are_refused_before_starting_a_process(args):
     with pytest.raises(ValueError):
@@ -317,6 +325,61 @@ def test_cli_windows_paths_are_translated_on_wsl(monkeypatch):
     monkeypatch.setattr(kicad_cli.sys, "platform", "win32")
     args = ["sch", "erc", "--output=C:\\out\\erc.json", "C:\\p\\a.kicad_sch"]
     assert kicad_cli.cli_arguments(args) == args, "native Windows passes Windows paths unchanged"
+
+
+@pytest.mark.parametrize("cwd", ["C:\\libs\\Lib.pretty", "/libs/x.Pretty/sub", "C:\\libs\\Lib.pretty."])
+def test_cli_working_directory_may_not_be_a_footprint_library(cwd):
+    with pytest.raises(ValueError, match="working_directory"):
+        kicad_cli.prepare("kicad-cli", ["version"], cwd, 10)
+
+
+def short_name(path):
+    """The 8.3 alias Windows gives an existing path, or None (8.3 names can be off on a volume)."""
+    import ctypes
+    buffer = ctypes.create_unicode_buffer(1024)
+    length = ctypes.windll.kernel32.GetShortPathNameW(str(path), buffer, len(buffer))
+    return buffer.value if length and buffer.value != str(path) else None
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="8.3 names are a Windows feature")
+def test_cli_short_names_of_protected_files_are_resolved(tmp_path):
+    design = tmp_path / "design.kicad_sch"
+    design.write_text("")
+    library = tmp_path / "Footprints.pretty"
+    library.mkdir()
+    short_design, short_library = short_name(design), short_name(library)
+    if not short_design or not short_library or "~" not in Path(short_design).name:
+        pytest.skip("this volume has no 8.3 names")
+    with pytest.raises(ValueError, match="overwrite"):
+        kicad_cli.cli_arguments(["sch", "export", "netlist", "-o", short_design, str(design)])
+    with pytest.raises(ValueError, match="footprint library"):
+        kicad_cli.cli_arguments(["fp", "export", "svg", "-o", short_library + "\\x.svg", str(library)])
+    with pytest.raises(ValueError, match="working_directory"):
+        kicad_cli.prepare("kicad-cli", ["version"], short_library, 10)
+    # A relative output is resolved against the working directory kicad-cli runs in
+    with pytest.raises(ValueError, match="overwrite"):
+        kicad_cli.prepare("kicad-cli", ["sch", "export", "netlist", "-o", Path(short_design).name,
+                                        str(design)], str(tmp_path), 10)
+    # A short name that is no alias is just a new file
+    assert kicad_cli.cli_arguments(["sch", "export", "netlist", "-o", str(tmp_path / "OTHER~1.NET"),
+                                    str(design)])
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="symbolic links need privileges on Windows")
+def test_cli_links_to_protected_files_are_resolved(tmp_path):
+    design = tmp_path / "design.kicad_sch"
+    design.write_text("")
+    (tmp_path / "out.net").symlink_to(design)
+    with pytest.raises(ValueError, match="overwrite"):
+        kicad_cli.cli_arguments(["sch", "export", "netlist", "-o", str(tmp_path / "out.net"), str(design)])
+
+
+def test_cli_outputs_with_drive_letters_and_dots_are_still_allowed():
+    for args in (["sch", "erc", "-o", "C:\\out\\erc.json", "a.kicad_sch"],
+                 ["sch", "export", "svg", "-o", "..\\out\\", "a.kicad_sch"],
+                 ["sch", "export", "netlist", "-o", "./a.net", "a.kicad_sch"]):
+        assert len(kicad_cli.cli_arguments(args)) == len(args)
+    assert kicad_cli.prepare("kicad-cli", ["version"], "C:\\work\\out", 10)[1] is not None
 
 
 @pytest.mark.parametrize("timeout_s", [0, -1, 601, 3600])

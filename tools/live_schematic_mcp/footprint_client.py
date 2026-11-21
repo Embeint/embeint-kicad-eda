@@ -397,7 +397,9 @@ class FootprintTools:
     def run_kicad_cli(self, args, working_directory=None, timeout_s=300):
         """Run kicad-cli (a separate KiCad process, on saved files) in KiCad's launch environment."""
         import kicad_cli
-        kicad_cli.cli_arguments(args)
+        # Refuse bad arguments and working directories before asking KiCad anything
+        kicad_cli.cli_arguments(args, working_directory)
+        kicad_cli.check_working_directory(working_directory)
         path, env, description = self.kicad_cli_launch()
         return {**kicad_cli.run(path, args, env, working_directory, timeout_s), "environment": description}
 
@@ -406,7 +408,9 @@ class FootprintTools:
         runs as an asyncio subprocess, killed on timeout or cancellation."""
         import asyncio
         import kicad_cli
-        kicad_cli.cli_arguments(args)
+        # Refuse bad arguments and working directories before asking KiCad anything
+        kicad_cli.cli_arguments(args, working_directory)
+        kicad_cli.check_working_directory(working_directory)
         path, env, description = await asyncio.to_thread(self.kicad_cli_launch)
         return {**await kicad_cli.run_async(path, args, env, working_directory, timeout_s),
                 "environment": description}
