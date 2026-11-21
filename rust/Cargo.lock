@@ -122,6 +122,7 @@ dependencies = [
 name = "embeint-mcp"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "embeint-ipc",
  "prost-reflect",
  "serde_json",

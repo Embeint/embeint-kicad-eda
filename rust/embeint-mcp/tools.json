@@ -1,5 +1,25 @@
 [
   {
+    "name": "live_skill_reference",
+    "description": "Read offline Embeint design guidance; no arguments lists bundled skills/files.\n\nStart design work with skill=\"kicad-house-style\", then select a linked file:\nschematic-style.md, parts-and-libraries.md, design-review.md, pcb.md,\nlive-workflow.md or workstation.md. Returns text, URI and raw-byte SHA-256.",
+    "inputSchema": {
+      "properties": {
+        "skill": {
+          "default": "",
+          "title": "Skill",
+          "type": "string"
+        },
+        "file": {
+          "default": "SKILL.md",
+          "title": "File",
+          "type": "string"
+        }
+      },
+      "title": "live_skill_referenceArguments",
+      "type": "object"
+    }
+  },
+  {
     "name": "live_mcp_capabilities",
     "description": "Inspect local MCP tools and command schemas without connecting to KiCad.\n\nThis inventory describes the loaded adapter, not negotiated support in a live\neditor. Document availability, command support and undo behavior still depend\non the connected KiCad version and editor.",
     "inputSchema": {
@@ -14,6 +34,28 @@
     "inputSchema": {
       "properties": {},
       "title": "live_schematic_documentsArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_schematic_open",
+    "description": "Open the project's schematic in the running KiCad when it runs as the project manager (path defaults\nto <project>.kicad_sch). Returns the open schematic documents, like live_schematic_documents.",
+    "inputSchema": {
+      "properties": {
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path"
+        }
+      },
+      "title": "live_schematic_openArguments",
       "type": "object"
     }
   },
@@ -241,6 +283,822 @@
     }
   },
   {
+    "name": "live_schematic_place_symbol",
+    "description": "Place Library:Symbol directly in an open sheet, using millimeters and 0/90/180/270 degrees.\n\nReturns the new symbol's id, reference (auto-annotated if omitted), value and position.",
+    "inputSchema": {
+      "properties": {
+        "document_spec": {
+          "additionalProperties": true,
+          "title": "Document Spec",
+          "type": "object"
+        },
+        "lib_id": {
+          "title": "Lib Id",
+          "type": "string"
+        },
+        "x_mm": {
+          "title": "X Mm",
+          "type": "number"
+        },
+        "y_mm": {
+          "title": "Y Mm",
+          "type": "number"
+        },
+        "reference": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reference"
+        },
+        "rotation": {
+          "default": 0,
+          "title": "Rotation",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "document_spec",
+        "lib_id",
+        "x_mm",
+        "y_mm"
+      ],
+      "title": "live_schematic_place_symbolArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_schematic_view",
+    "description": "See an open sheet's current unsaved contents rendered by KiCad. Does not save/reload the design.\n\nReturns the whole page as a PNG. frame=True (default) draws the drawing sheet: border and title\nblock, so content running past the border or into the title block shows. frame=False leaves them\nout. Use live_schematic_page for the same check as numbers.",
+    "inputSchema": {
+      "properties": {
+        "document_spec": {
+          "additionalProperties": true,
+          "title": "Document Spec",
+          "type": "object"
+        },
+        "dpi": {
+          "default": 100,
+          "title": "Dpi",
+          "type": "integer"
+        },
+        "frame": {
+          "default": true,
+          "title": "Frame",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "document_spec"
+      ],
+      "title": "live_schematic_viewArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_schematic_page",
+    "description": "The sheet's page: paper (A4, A3, ...) and orientation, page size, the drawing area inside the\nborder, the title block box and its fields, the extent of the content, all in mm, and every item\nthat crosses the border or overlaps the title block (fits=false). Separately, overlap_free and\noverlaps list pairs of fields, labels, sheet pins, text, symbol/sheet bodies and wires crossing text\nthat overlap (each pair with both KiCad boxes and the overlap). Text is compared by the band its\nglyphs occupy, so text stacked at its usual pitch is not an overlap, nor is a label on its own wire.\nCheck both before saving; still look at the framed view.",
+    "inputSchema": {
+      "properties": {
+        "document_spec": {
+          "additionalProperties": true,
+          "title": "Document Spec",
+          "type": "object"
+        }
+      },
+      "required": [
+        "document_spec"
+      ],
+      "title": "live_schematic_pageArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_schematic_set_page",
+    "description": "Set the sheet's paper and title block; omitted settings are kept. Not an undo step.\n\nsize: A5, A4, A3, A2, A1, A0, ANSI_A..ANSI_E, LETTER, LEGAL, LEDGER. orientation: landscape |\nportrait. date may be \"today\". comments fill Comment1..9 in order. Follow the project's\ntitle-block convention (see AGENTS.md). Returns the new page layout, so check `fits`: a smaller\npage can leave content outside the border.",
+    "inputSchema": {
+      "properties": {
+        "document_spec": {
+          "additionalProperties": true,
+          "title": "Document Spec",
+          "type": "object"
+        },
+        "size": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Size"
+        },
+        "orientation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Orientation"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Date"
+        },
+        "revision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Revision"
+        },
+        "company": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Company"
+        },
+        "comments": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Comments"
+        }
+      },
+      "required": [
+        "document_spec"
+      ],
+      "title": "live_schematic_set_pageArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_schematic_focus",
+    "description": "Switch the editor to the specified sheet and zoom to its items. Does not save.",
+    "inputSchema": {
+      "properties": {
+        "document_spec": {
+          "additionalProperties": true,
+          "title": "Document Spec",
+          "type": "object"
+        },
+        "ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "document_spec",
+        "ids"
+      ],
+      "title": "live_schematic_focusArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_schematic_save",
+    "description": "Explicitly SAVE the live schematic to disk. Use only when the user wants to persist edits.",
+    "inputSchema": {
+      "properties": {
+        "document_spec": {
+          "additionalProperties": true,
+          "title": "Document Spec",
+          "type": "object"
+        }
+      },
+      "required": [
+        "document_spec"
+      ],
+      "title": "live_schematic_saveArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_schematic_annotate",
+    "description": "Annotate reference designators as one undo step, without saving.\n\nscope: all | sheet (the document's sheet, plus subsheets if recursive) | symbols (UUID list).\norder: x | y | unsorted. numbering: first_free | sheet_x100 | sheet_x1000.\nreset_existing renumbers already-annotated symbols too. Returns old -> new references.",
+    "inputSchema": {
+      "properties": {
+        "document_spec": {
+          "additionalProperties": true,
+          "title": "Document Spec",
+          "type": "object"
+        },
+        "scope": {
+          "default": "all",
+          "title": "Scope",
+          "type": "string"
+        },
+        "symbols": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Symbols"
+        },
+        "order": {
+          "default": "x",
+          "title": "Order",
+          "type": "string"
+        },
+        "numbering": {
+          "default": "first_free",
+          "title": "Numbering",
+          "type": "string"
+        },
+        "reset_existing": {
+          "default": false,
+          "title": "Reset Existing",
+          "type": "boolean"
+        },
+        "recursive": {
+          "default": true,
+          "title": "Recursive",
+          "type": "boolean"
+        },
+        "start_number": {
+          "default": 0,
+          "title": "Start Number",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "document_spec"
+      ],
+      "title": "live_schematic_annotateArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_schematic_update_from_library",
+    "description": "Reload symbols from their library, or change them to new_lib_id (Library:Symbol), as one undo step.\n\nsymbols are UUIDs; omit to update every symbol on the document's sheet. References are kept.\nreset_field_text resets value/footprint/datasheet/description to the library's (not power values).",
+    "inputSchema": {
+      "properties": {
+        "document_spec": {
+          "additionalProperties": true,
+          "title": "Document Spec",
+          "type": "object"
+        },
+        "symbols": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Symbols"
+        },
+        "new_lib_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "New Lib Id"
+        },
+        "reset_field_text": {
+          "default": false,
+          "title": "Reset Field Text",
+          "type": "boolean"
+        },
+        "reset_field_visibility": {
+          "default": false,
+          "title": "Reset Field Visibility",
+          "type": "boolean"
+        },
+        "reset_field_positions": {
+          "default": false,
+          "title": "Reset Field Positions",
+          "type": "boolean"
+        },
+        "remove_extra_fields": {
+          "default": false,
+          "title": "Remove Extra Fields",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "document_spec"
+      ],
+      "title": "live_schematic_update_from_libraryArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_schematic_autoplace_fields",
+    "description": "Re-run KiCad field autoplacement on symbols, sheets and labels (all on the sheet if ids omitted).",
+    "inputSchema": {
+      "properties": {
+        "document_spec": {
+          "additionalProperties": true,
+          "title": "Document Spec",
+          "type": "object"
+        },
+        "ids": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ids"
+        }
+      },
+      "required": [
+        "document_spec"
+      ],
+      "title": "live_schematic_autoplace_fieldsArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_schematic_move",
+    "description": "Move, rotate (degrees counter-clockwise: 0/90/180/270) and/or mirror items on one sheet in one undo step.\n\nOne item turns about its own position; several turn about their shared centre. With drag_wires, wire\nand bus ends, labels, junctions and no-connects attached to the items' pins follow them; a horizontal or\nvertical wire stays square by gaining a bend. Positive dy is down.",
+    "inputSchema": {
+      "properties": {
+        "document_spec": {
+          "additionalProperties": true,
+          "title": "Document Spec",
+          "type": "object"
+        },
+        "ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Ids",
+          "type": "array"
+        },
+        "dx_mm": {
+          "default": 0,
+          "title": "Dx Mm",
+          "type": "number"
+        },
+        "dy_mm": {
+          "default": 0,
+          "title": "Dy Mm",
+          "type": "number"
+        },
+        "rotation": {
+          "default": 0,
+          "title": "Rotation",
+          "type": "integer"
+        },
+        "mirror_horizontally": {
+          "default": false,
+          "title": "Mirror Horizontally",
+          "type": "boolean"
+        },
+        "mirror_vertically": {
+          "default": false,
+          "title": "Mirror Vertically",
+          "type": "boolean"
+        },
+        "drag_wires": {
+          "default": true,
+          "title": "Drag Wires",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "document_spec",
+        "ids"
+      ],
+      "title": "live_schematic_moveArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_schematic_undo",
+    "description": "Undo (or redo) the editor's most recent change, including the user's own edits. Not while a batch is open.",
+    "inputSchema": {
+      "properties": {
+        "document_spec": {
+          "additionalProperties": true,
+          "title": "Document Spec",
+          "type": "object"
+        },
+        "redo": {
+          "default": false,
+          "title": "Redo",
+          "type": "boolean"
+        },
+        "expected_revision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Revision"
+        },
+        "operation_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operation Id"
+        }
+      },
+      "required": [
+        "document_spec"
+      ],
+      "title": "live_schematic_undoArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_schematic_symbol_pins",
+    "description": "List placed pins with absolute connection points (mm) and current net, for symbols on one sheet.\n\norientation is the direction from the connection point toward the body; wires leave the other way.",
+    "inputSchema": {
+      "properties": {
+        "document_spec": {
+          "additionalProperties": true,
+          "title": "Document Spec",
+          "type": "object"
+        },
+        "symbols": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Symbols"
+        }
+      },
+      "required": [
+        "document_spec"
+      ],
+      "title": "live_schematic_symbol_pinsArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Result",
+          "type": "array"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "live_schematic_symbol_pinsOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_schematic_connect_pins",
+    "description": "Wire two pins on one sheet with an orthogonal one- or two-segment wire, as one undo step.\n\nPins are given by reference designator and pin number or name (e.g. R1, 2). Check the view afterwards:\nthe route does not avoid other symbols.",
+    "inputSchema": {
+      "properties": {
+        "document_spec": {
+          "additionalProperties": true,
+          "title": "Document Spec",
+          "type": "object"
+        },
+        "from_reference": {
+          "title": "From Reference",
+          "type": "string"
+        },
+        "from_pin": {
+          "title": "From Pin",
+          "type": "string"
+        },
+        "to_reference": {
+          "title": "To Reference",
+          "type": "string"
+        },
+        "to_pin": {
+          "title": "To Pin",
+          "type": "string"
+        }
+      },
+      "required": [
+        "document_spec",
+        "from_reference",
+        "from_pin",
+        "to_reference",
+        "to_pin"
+      ],
+      "title": "live_schematic_connect_pinsArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_schematic_connect_pin_to_net",
+    "description": "Attach a pin to a named net: a short wire leaving the pin plus a local/global/hierarchical label.",
+    "inputSchema": {
+      "properties": {
+        "document_spec": {
+          "additionalProperties": true,
+          "title": "Document Spec",
+          "type": "object"
+        },
+        "reference": {
+          "title": "Reference",
+          "type": "string"
+        },
+        "pin": {
+          "title": "Pin",
+          "type": "string"
+        },
+        "net": {
+          "title": "Net",
+          "type": "string"
+        },
+        "label": {
+          "default": "local",
+          "title": "Label",
+          "type": "string"
+        },
+        "stub_mm": {
+          "default": 2.54,
+          "title": "Stub Mm",
+          "type": "number"
+        }
+      },
+      "required": [
+        "document_spec",
+        "reference",
+        "pin",
+        "net"
+      ],
+      "title": "live_schematic_connect_pin_to_netArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_schematic_netlist",
+    "description": "Read live connectivity of the whole design, unsaved edits included: each net with its pins as\nREF.PIN, the connected item count and \"sheets\" (each sheet path with the pins on it). Nets and pins\ncover every sheet whichever sheet document_spec names; a reused sheet lists each instance's\nreferences. scope=\"sheet\" lists only pins on the given sheet (no \"sheets\" entry).",
+    "inputSchema": {
+      "properties": {
+        "document_spec": {
+          "additionalProperties": true,
+          "title": "Document Spec",
+          "type": "object"
+        },
+        "scope": {
+          "default": "hierarchy",
+          "title": "Scope",
+          "type": "string"
+        }
+      },
+      "required": [
+        "document_spec"
+      ],
+      "title": "live_schematic_netlistArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_schematic_erc",
+    "description": "Run KiCad's electrical rules check on the live (unsaved) schematic and return the violations.",
+    "inputSchema": {
+      "properties": {
+        "document_spec": {
+          "additionalProperties": true,
+          "title": "Document Spec",
+          "type": "object"
+        }
+      },
+      "required": [
+        "document_spec"
+      ],
+      "title": "live_schematic_ercArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_schematic_select",
+    "description": "Select items in the editor so the user can see them (replaces the selection unless add=true).",
+    "inputSchema": {
+      "properties": {
+        "document_spec": {
+          "additionalProperties": true,
+          "title": "Document Spec",
+          "type": "object"
+        },
+        "ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Ids",
+          "type": "array"
+        },
+        "add": {
+          "default": false,
+          "title": "Add",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "document_spec",
+        "ids"
+      ],
+      "title": "live_schematic_selectArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_schematic_highlight_nets",
+    "description": "Highlight nets in the editor by name (an empty list clears the highlight).",
+    "inputSchema": {
+      "properties": {
+        "document_spec": {
+          "additionalProperties": true,
+          "title": "Document Spec",
+          "type": "object"
+        },
+        "nets": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Nets",
+          "type": "array"
+        }
+      },
+      "required": [
+        "document_spec",
+        "nets"
+      ],
+      "title": "live_schematic_highlight_netsArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_schematic_export",
+    "description": "Export the unsaved schematic as svg, pdf, dxf, ps, netlist or bom to a path KiCad can write.\n\nThe bom is orderable by default: CSV, one line per part grouped by Value, Footprint,\nManufacturer and MPN, every reference listed, DNP parts left out (columns Reference, Qty, Value,\nFootprint, Manufacturer, MPN, Alt Manufacturer, Alt MPN, Description, Datasheet). options is\nprotobuf JSON of the kind's RunSchematicJobExport* message (live_schematic_describe_command),\nmerged over the defaults; a list replaces the default list, e.g. {\"exclude_dnp\": false} or\n{\"fields\": {\"fields\": [{\"name\": \"Reference\", \"label\": \"Ref\"}]}}. job_settings is not accepted.\nWarnings KiCad logged while exporting are returned in message.",
+    "inputSchema": {
+      "properties": {
+        "document_spec": {
+          "additionalProperties": true,
+          "title": "Document Spec",
+          "type": "object"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "output_path": {
+          "title": "Output Path",
+          "type": "string"
+        },
+        "options": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Options"
+        }
+      },
+      "required": [
+        "document_spec",
+        "kind",
+        "output_path"
+      ],
+      "title": "live_schematic_exportArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_kicad_cli",
+    "description": "Run a read-only kicad-cli command (a separate KiCad process that reads SAVED files) with the\nenvironment the running KiCad was launched with: the same libraries, configuration, library tables\nand path variables, with no manual setup. Use it to check what was saved, e.g. [\"sch\", \"erc\",\n\"--format\", \"json\", \"-o\", \"/tmp/erc.json\", \"design.kicad_sch\"] or [\"sch\", \"export\", \"netlist\", \"-o\",\n\"/tmp/d.net\", \"design.kicad_sch\"]. Allowed: sch erc, sch export <kind>, pcb drc, pcb export <kind>,\nsym export svg, fp export svg, version. Refused: jobset, upgrade/downgrade and every other command,\npcb drc --save-board, combined short options, and outputs (-o/--output, --models-dir,\n--report-path) onto .kicad_sch/.kicad_pcb/.kicad_pro/.kicad_prl/.kicad_sym/.kicad_mod/.kicad_dru\nfiles, library tables or into a .pretty folder. On WSL, Windows paths are translated. timeout_s is\nat most 600; kicad-cli is stopped when it runs out. Returns the exit code, output tails and where the\nenvironment came from (\"kicad\", or \"install layout\" when no KiCad answers). Unsaved editor changes\nare not seen: save first.",
+    "inputSchema": {
+      "properties": {
+        "args": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Args",
+          "type": "array"
+        },
+        "working_directory": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Working Directory"
+        },
+        "timeout_s": {
+          "default": 300,
+          "title": "Timeout S",
+          "type": "number"
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "title": "live_kicad_cliArguments",
+      "type": "object"
+    }
+  },
+  {
     "name": "live_schematic_list_commands",
     "description": "List every KiCad IPC command these tools know (schematic, PCB, libraries), its kind\n(read/edit/view/file/job) and reply type.",
     "inputSchema": {
@@ -394,36 +1252,1304 @@
     }
   },
   {
-    "name": "live_schematic_item_schema",
-    "description": "Describe a schematic protobuf item and nested fields, including enum choices.\n\nStart with SheetSymbol, SheetPin, HierarchicalLabel or SchematicLine. Use returned message names\nin further calls. Protobuf JSON uses snake_case fields here and UUIDs as {value: UUID}.",
+    "name": "live_symbol_search",
+    "description": "Search every symbol library KiCad has loaded (names, then keywords and descriptions).\n\nWords must all match; * and ? are wildcards in names. Returns lib_ids with description, keywords,\npin count and footprint. Use live_symbol_get for pins. If libraries_still_loading is reported,\nthose libraries were skipped while KiCad loads them in the background; search again shortly.",
     "inputSchema": {
       "properties": {
-        "type_name": {
-          "title": "Type Name",
+        "query": {
+          "title": "Query",
           "type": "string"
+        },
+        "limit": {
+          "default": 25,
+          "title": "Limit",
+          "type": "integer"
         }
       },
       "required": [
-        "type_name"
+        "query"
       ],
-      "title": "live_schematic_item_schemaArguments",
+      "title": "live_symbol_searchArguments",
       "type": "object"
     }
   },
   {
-    "name": "live_pcb_item_schema",
-    "description": "Describe a board protobuf type and its fields (Track, Via, Arc, Zone, BoardGraphicShape, BoardText,\nFootprintInstance, Pad, ...), including enum choices.",
+    "name": "live_symbol_get",
+    "description": "Read one library symbol (Library:Symbol): fields, keywords, footprint filters, units and pins.",
     "inputSchema": {
       "properties": {
-        "type_name": {
-          "title": "Type Name",
+        "lib_id": {
+          "title": "Lib Id",
           "type": "string"
         }
       },
       "required": [
-        "type_name"
+        "lib_id"
       ],
-      "title": "live_pcb_item_schemaArguments",
+      "title": "live_symbol_getArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_symbol_libraries",
+    "description": "List symbol libraries in the global and/or project library table (scope: global | project | both).",
+    "inputSchema": {
+      "properties": {
+        "scope": {
+          "default": "both",
+          "title": "Scope",
+          "type": "string"
+        }
+      },
+      "title": "live_symbol_librariesArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Result",
+          "type": "array"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "live_symbol_librariesOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_symbol_create_library",
+    "description": "Create an empty .kicad_sym library at path and add it to the global (all projects) or project table.\n\npath is as KiCad sees it (a WSL path for the WSL build, a Windows path for native Windows); environment variables like ${KIPRJMOD} work.",
+    "inputSchema": {
+      "properties": {
+        "nickname": {
+          "title": "Nickname",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "scope": {
+          "default": "global",
+          "title": "Scope",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        }
+      },
+      "required": [
+        "nickname",
+        "path"
+      ],
+      "title": "live_symbol_create_libraryArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_symbol_register_library",
+    "description": "Add an existing symbol library file to the global or project library table.",
+    "inputSchema": {
+      "properties": {
+        "nickname": {
+          "title": "Nickname",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "scope": {
+          "default": "global",
+          "title": "Scope",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        }
+      },
+      "required": [
+        "nickname",
+        "path"
+      ],
+      "title": "live_symbol_register_libraryArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_symbol_unregister_library",
+    "description": "Remove a library from the global or project table. The library file is NOT deleted.",
+    "inputSchema": {
+      "properties": {
+        "nickname": {
+          "title": "Nickname",
+          "type": "string"
+        },
+        "scope": {
+          "default": "global",
+          "title": "Scope",
+          "type": "string"
+        }
+      },
+      "required": [
+        "nickname"
+      ],
+      "title": "live_symbol_unregister_libraryArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_symbol_new",
+    "description": "Start a new symbol in a writable library and show it in KiCad's Symbol Editor (unsaved).\n\nReturns the symbol document the other live_symbol_* tools take. The symbol always gets hidden\nManufacturer and MPN fields (filled from these arguments when given). inherit_from derives from\nanother symbol in the same library. Nothing is written until live_symbol_save.",
+    "inputSchema": {
+      "properties": {
+        "library": {
+          "title": "Library",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "reference_prefix": {
+          "default": "U",
+          "title": "Reference Prefix",
+          "type": "string"
+        },
+        "unit_count": {
+          "default": 1,
+          "title": "Unit Count",
+          "type": "integer"
+        },
+        "inherit_from": {
+          "default": "",
+          "title": "Inherit From",
+          "type": "string"
+        },
+        "power_symbol": {
+          "default": false,
+          "title": "Power Symbol",
+          "type": "boolean"
+        },
+        "pin_names_outside": {
+          "default": false,
+          "title": "Pin Names Outside",
+          "type": "boolean"
+        },
+        "exclude_from_bom": {
+          "default": false,
+          "title": "Exclude From Bom",
+          "type": "boolean"
+        },
+        "exclude_from_board": {
+          "default": false,
+          "title": "Exclude From Board",
+          "type": "boolean"
+        },
+        "replace_existing": {
+          "default": false,
+          "title": "Replace Existing",
+          "type": "boolean"
+        },
+        "manufacturer": {
+          "default": "",
+          "title": "Manufacturer",
+          "type": "string"
+        },
+        "mpn": {
+          "default": "",
+          "title": "Mpn",
+          "type": "string"
+        }
+      },
+      "required": [
+        "library",
+        "name"
+      ],
+      "title": "live_symbol_newArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_symbol_edit",
+    "description": "Open an existing library symbol in the Symbol Editor and return its symbol document.",
+    "inputSchema": {
+      "properties": {
+        "lib_id": {
+          "title": "Lib Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "lib_id"
+      ],
+      "title": "live_symbol_editArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_symbol_add_pins",
+    "description": "Lay out pins around a rectangular body on the 2.54 mm grid, as one undo step, datasheet-style.\n\npins: [{\"number\": \"1\", \"name\": \"VIN\", \"type\": \"power_in\"}, ...]. type is one of input, output,\nbidirectional, tri_state, passive, free, unspecified, power_in, power_out, open_collector,\nopen_emitter, no_connect. side (left/right/top/bottom) is optional; by default supplies and\ncontrol inputs (EN, SHDN, ...) go left, outputs and feedback (VOUT, ADJ, FB, PG) go right,\ngrounds bottom. arrange=\"auto\" lists supplies first on each side, then signals, with group_gap\nempty rows between (2 rows = 7.62 mm, room for a pull-up or feedback resistor): an LDO gets VIN\nthen EN on the left, VOUT then ADJ on the right. Follow the datasheet pinout when it differs:\ngive sides, and arrange=\"as_given\" with {\"gap\": true, \"side\": \"left\"} rows for exact spacing.\nNC pins (name NC/DNC or type no_connect) become hidden no-connect pins inside the body, as stock\nsymbols do, and take no row; pass \"hidden\": false to show one. Keep our spacing even where a\nstock symbol is more cramped. Optional per pin: \"shape\" (SPS_INVERTED, SPS_CLOCK, ...), \"hidden\".\nreplace=true first removes existing pins and shapes. The designator sits above the value at the\nbody's bottom right, their first letters aligned.",
+    "inputSchema": {
+      "properties": {
+        "symbol_document": {
+          "additionalProperties": true,
+          "title": "Symbol Document",
+          "type": "object"
+        },
+        "pins": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Pins",
+          "type": "array"
+        },
+        "draw_body": {
+          "default": true,
+          "title": "Draw Body",
+          "type": "boolean"
+        },
+        "replace": {
+          "default": false,
+          "title": "Replace",
+          "type": "boolean"
+        },
+        "arrange": {
+          "default": "auto",
+          "title": "Arrange",
+          "type": "string"
+        },
+        "group_gap": {
+          "default": 2,
+          "title": "Group Gap",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "symbol_document",
+        "pins"
+      ],
+      "title": "live_symbol_add_pinsArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_symbol_set_properties",
+    "description": "Fill in the open symbol's details as one undo step; omitted settings are unchanged.\n\nfootprint is Library:Footprint. footprint_filters are globs like \"SOT?223*\". manufacturer and mpn\nset the hidden Manufacturer and MPN fields. user_fields: [{\"name\": \"Distributor PN\", \"value\": \"...\",\n\"visible\": false}] adds or updates any other field.",
+    "inputSchema": {
+      "properties": {
+        "symbol_document": {
+          "additionalProperties": true,
+          "title": "Symbol Document",
+          "type": "object"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "footprint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Footprint"
+        },
+        "datasheet": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Datasheet"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "keywords": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Keywords"
+        },
+        "reference_prefix": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reference Prefix"
+        },
+        "footprint_filters": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Footprint Filters"
+        },
+        "user_fields": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "User Fields"
+        },
+        "remove_user_fields": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Remove User Fields"
+        },
+        "show_pin_numbers": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Show Pin Numbers"
+        },
+        "show_pin_names": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Show Pin Names"
+        },
+        "exclude_from_bom": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exclude From Bom"
+        },
+        "exclude_from_board": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exclude From Board"
+        },
+        "exclude_from_sim": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exclude From Sim"
+        },
+        "manufacturer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Manufacturer"
+        },
+        "mpn": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mpn"
+        }
+      },
+      "required": [
+        "symbol_document"
+      ],
+      "title": "live_symbol_set_propertiesArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_symbol_view",
+    "description": "See the symbol open in the Symbol Editor, including unsaved changes, as a PNG.",
+    "inputSchema": {
+      "properties": {
+        "symbol_document": {
+          "additionalProperties": true,
+          "title": "Symbol Document",
+          "type": "object"
+        },
+        "dpi": {
+          "default": 600,
+          "title": "Dpi",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "symbol_document"
+      ],
+      "title": "live_symbol_viewArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_symbol_summary",
+    "description": "List the open symbol's pins (number, name, type, position, id) and graphic shape ids.",
+    "inputSchema": {
+      "properties": {
+        "symbol_document": {
+          "additionalProperties": true,
+          "title": "Symbol Document",
+          "type": "object"
+        }
+      },
+      "required": [
+        "symbol_document"
+      ],
+      "title": "live_symbol_summaryArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_symbol_delete_items",
+    "description": "Delete pins or graphics from the open symbol by UUID (ids from live_symbol_summary), as one undo step.",
+    "inputSchema": {
+      "properties": {
+        "symbol_document": {
+          "additionalProperties": true,
+          "title": "Symbol Document",
+          "type": "object"
+        },
+        "ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "symbol_document",
+        "ids"
+      ],
+      "title": "live_symbol_delete_itemsArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_symbol_save",
+    "description": "SAVE the open symbol into its library file, then reload the library so schematics can place it.",
+    "inputSchema": {
+      "properties": {
+        "symbol_document": {
+          "additionalProperties": true,
+          "title": "Symbol Document",
+          "type": "object"
+        }
+      },
+      "required": [
+        "symbol_document"
+      ],
+      "title": "live_symbol_saveArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_footprint_search",
+    "description": "Search footprint libraries by name (names encode the package, e.g. SOIC-8_3.9x4.9mm_P1.27mm).\n\nWords must all match; * and ? are wildcards. Opens the Footprint Editor if needed.",
+    "inputSchema": {
+      "properties": {
+        "query": {
+          "title": "Query",
+          "type": "string"
+        },
+        "limit": {
+          "default": 25,
+          "title": "Limit",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "title": "live_footprint_searchArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_footprint_get",
+    "description": "Read a library footprint (Library:Footprint): pads, description, keywords, mounting, datasheet, models.",
+    "inputSchema": {
+      "properties": {
+        "lib_id": {
+          "title": "Lib Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "lib_id"
+      ],
+      "title": "live_footprint_getArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_footprint_libraries",
+    "description": "List footprint libraries in the global and/or project table (scope: global | project | both).",
+    "inputSchema": {
+      "properties": {
+        "scope": {
+          "default": "both",
+          "title": "Scope",
+          "type": "string"
+        }
+      },
+      "title": "live_footprint_librariesArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Result",
+          "type": "array"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "live_footprint_librariesOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_footprint_create_library",
+    "description": "Create an empty .pretty footprint library at path and add it to the global or project table.",
+    "inputSchema": {
+      "properties": {
+        "nickname": {
+          "title": "Nickname",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "scope": {
+          "default": "global",
+          "title": "Scope",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        }
+      },
+      "required": [
+        "nickname",
+        "path"
+      ],
+      "title": "live_footprint_create_libraryArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_footprint_register_library",
+    "description": "Add an existing .pretty footprint library to the global or project table.",
+    "inputSchema": {
+      "properties": {
+        "nickname": {
+          "title": "Nickname",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "scope": {
+          "default": "global",
+          "title": "Scope",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        }
+      },
+      "required": [
+        "nickname",
+        "path"
+      ],
+      "title": "live_footprint_register_libraryArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_footprint_unregister_library",
+    "description": "Remove a footprint library from a table. The library folder is NOT deleted.",
+    "inputSchema": {
+      "properties": {
+        "nickname": {
+          "title": "Nickname",
+          "type": "string"
+        },
+        "scope": {
+          "default": "global",
+          "title": "Scope",
+          "type": "string"
+        }
+      },
+      "required": [
+        "nickname"
+      ],
+      "title": "live_footprint_unregister_libraryArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_footprint_new",
+    "description": "Start a new footprint in a writable library and show it in KiCad's Footprint Editor (unsaved).\n\nmounting: smd | tht | unspecified. Returns the footprint document the other live_footprint_* tools\ntake. Nothing is written until live_footprint_save.",
+    "inputSchema": {
+      "properties": {
+        "library": {
+          "title": "Library",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "mounting": {
+          "default": "smd",
+          "title": "Mounting",
+          "type": "string"
+        },
+        "replace_existing": {
+          "default": false,
+          "title": "Replace Existing",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "library",
+        "name"
+      ],
+      "title": "live_footprint_newArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_footprint_edit",
+    "description": "Open an existing library footprint in the Footprint Editor and return its footprint document.",
+    "inputSchema": {
+      "properties": {
+        "lib_id": {
+          "title": "Lib Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "lib_id"
+      ],
+      "title": "live_footprint_editArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_footprint_generate",
+    "description": "Build pads, silkscreen, fabrication, courtyard and text from package dimensions (KLC style).\n\nPrefer the datasheet's recommended land pattern. package and params (mm):\n- soic/tssop/msop/ssop/gullwing: pins, pitch, body_width (across rows), body_length, then either\n  pad_length + pad_width + row_pitch (land pattern) or lead_span + lead_length + lead_width;\n  optional exposed_pad [w, h]\n- qfn: pins_x (per top/bottom edge), pins_y (per side), pitch, body_x, body_y, terminal_length,\n  terminal_width (or pad_length/pad_width), optional exposed_pad [w, h]; dfn: same without pins_x\n- sot: variant \"23\", \"23-5\", \"23-6\" or \"223\"\n- chip: size \"0402\" | \"0603\" | \"0805\" | \"1206\" | \"1210\" | \"2512\", prefix \"R\"/\"C\"/\"L\"\n- pin_header: pins_per_row, rows (1 or 2), pitch 2.54, drill 1.0, pad 1.7\nPin 1 is top-left, numbering counter-clockwise. replace=true clears existing items first.",
+    "inputSchema": {
+      "properties": {
+        "footprint_document": {
+          "additionalProperties": true,
+          "title": "Footprint Document",
+          "type": "object"
+        },
+        "package": {
+          "title": "Package",
+          "type": "string"
+        },
+        "params": {
+          "additionalProperties": true,
+          "title": "Params",
+          "type": "object"
+        },
+        "replace": {
+          "default": false,
+          "title": "Replace",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "footprint_document",
+        "package",
+        "params"
+      ],
+      "title": "live_footprint_generateArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_footprint_set_properties",
+    "description": "Fill in the open footprint's details as one undo step. datasheet is a link (URL), not embedded.",
+    "inputSchema": {
+      "properties": {
+        "footprint_document": {
+          "additionalProperties": true,
+          "title": "Footprint Document",
+          "type": "object"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "keywords": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Keywords"
+        },
+        "mounting": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mounting"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "datasheet": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Datasheet"
+        },
+        "exclude_from_bom": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exclude From Bom"
+        },
+        "exclude_from_position_files": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exclude From Position Files"
+        }
+      },
+      "required": [
+        "footprint_document"
+      ],
+      "title": "live_footprint_set_propertiesArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_footprint_attach_step",
+    "description": "EMBED a STEP/WRL model in the footprint and make it the 3D model (kicad-embed:// link).\n\nstep_path must be absolute and readable by KiCad (Windows and WSL /mnt/x paths are both accepted and\ntranslated for the KiCad in use). The model travels\ninside the footprint, so the library needs no separate 3D folder.",
+    "inputSchema": {
+      "properties": {
+        "footprint_document": {
+          "additionalProperties": true,
+          "title": "Footprint Document",
+          "type": "object"
+        },
+        "step_path": {
+          "title": "Step Path",
+          "type": "string"
+        },
+        "offset_mm": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Offset Mm"
+        },
+        "rotation_deg": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rotation Deg"
+        }
+      },
+      "required": [
+        "footprint_document",
+        "step_path"
+      ],
+      "title": "live_footprint_attach_stepArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_embedded_files",
+    "description": "List files embedded in an open footprint or library symbol (name, type, kicad-embed:// uri, size).",
+    "inputSchema": {
+      "properties": {
+        "document_spec": {
+          "additionalProperties": true,
+          "title": "Document Spec",
+          "type": "object"
+        }
+      },
+      "required": [
+        "document_spec"
+      ],
+      "title": "live_embedded_filesArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Result",
+          "type": "array"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "live_embedded_filesOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_embed_file",
+    "description": "Embed any file KiCad can read into an open footprint or library symbol; returns its kicad-embed:// uri.\n\nDatasheets are normally linked in the Datasheet field instead of embedded.",
+    "inputSchema": {
+      "properties": {
+        "document_spec": {
+          "additionalProperties": true,
+          "title": "Document Spec",
+          "type": "object"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "overwrite": {
+          "default": false,
+          "title": "Overwrite",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "document_spec",
+        "path"
+      ],
+      "title": "live_embed_fileArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_remove_embedded_file",
+    "description": "Remove an embedded file from an open footprint or library symbol.",
+    "inputSchema": {
+      "properties": {
+        "document_spec": {
+          "additionalProperties": true,
+          "title": "Document Spec",
+          "type": "object"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "document_spec",
+        "name"
+      ],
+      "title": "live_remove_embedded_fileArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_footprint_view",
+    "description": "See the open footprint (copper, paste, fab, courtyard, silkscreen), including unsaved changes.",
+    "inputSchema": {
+      "properties": {
+        "footprint_document": {
+          "additionalProperties": true,
+          "title": "Footprint Document",
+          "type": "object"
+        },
+        "dpi": {
+          "default": 1500,
+          "title": "Dpi",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "footprint_document"
+      ],
+      "title": "live_footprint_viewArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_footprint_summary",
+    "description": "List the open footprint's pads, graphics per layer and texts.",
+    "inputSchema": {
+      "properties": {
+        "footprint_document": {
+          "additionalProperties": true,
+          "title": "Footprint Document",
+          "type": "object"
+        }
+      },
+      "required": [
+        "footprint_document"
+      ],
+      "title": "live_footprint_summaryArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_footprint_save",
+    "description": "SAVE the open footprint into its library and reload the library so symbols and boards can use it.",
+    "inputSchema": {
+      "properties": {
+        "footprint_document": {
+          "additionalProperties": true,
+          "title": "Footprint Document",
+          "type": "object"
+        }
+      },
+      "required": [
+        "footprint_document"
+      ],
+      "title": "live_footprint_saveArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_footprint_model_plan",
+    "description": "Plan a STEP model for the package in SolidCraft, from the datasheet, to hand off and come back.\n\npackage/params are those given to live_footprint_generate. From the datasheet's package drawing:\nbody_height (A, seated height), standoff (A1), lead_thickness (c), lead_width (b), lead_span (E,\ntip to tip), foot_length (L). Returns:\n  solidcraft: a `batch` call for the SolidCraft MCP (body, leads, pin-1 dimple, colours, built in\n              KiCad 3D conventions: mm, origin on the footprint origin, +Z up, model +Y = footprint -Y)\n  export:     the SolidCraft `export` call writing the STEP (a Windows path SolidCraft may write;\n              start SolidCraft's MCP with --allow-path for that folder)\n  then:       live_footprint_attach_step with the same file as KiCad sees it\nCheck the SolidCraft model (its screenshot/measure tools) before exporting, then attach, save,\nand confirm with live_footprint_view_3d and live_footprint_check_model.",
+    "inputSchema": {
+      "properties": {
+        "package": {
+          "title": "Package",
+          "type": "string"
+        },
+        "params": {
+          "additionalProperties": true,
+          "title": "Params",
+          "type": "object"
+        },
+        "body_height": {
+          "title": "Body Height",
+          "type": "number"
+        },
+        "standoff": {
+          "default": 0.1,
+          "title": "Standoff",
+          "type": "number"
+        },
+        "lead_thickness": {
+          "default": 0.2,
+          "title": "Lead Thickness",
+          "type": "number"
+        },
+        "lead_width": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lead Width"
+        },
+        "lead_span": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lead Span"
+        },
+        "foot_length": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Foot Length"
+        },
+        "export_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Export Path"
+        }
+      },
+      "required": [
+        "package",
+        "params",
+        "body_height"
+      ],
+      "title": "live_footprint_model_planArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_footprint_view_3d",
+    "description": "KiCad's own 3D render (kicad-cli) of a SAVED footprint and its models on a scratch board.\n\nrotate is 'X,Y,Z' degrees ('0,0,0' looks straight down). Use after live_footprint_save.",
+    "inputSchema": {
+      "properties": {
+        "lib_id": {
+          "title": "Lib Id",
+          "type": "string"
+        },
+        "rotate": {
+          "default": "-45,0,45",
+          "title": "Rotate",
+          "type": "string"
+        },
+        "zoom": {
+          "default": 1.0,
+          "title": "Zoom",
+          "type": "number"
+        }
+      },
+      "required": [
+        "lib_id"
+      ],
+      "title": "live_footprint_view_3dArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_footprint_check_model",
+    "description": "Check a SAVED footprint's 3D model: each embedded file decoded (size, sha256, is it STEP, is it the\nfootprint's model, does it match source_path byte for byte) and the solid count KiCad exports when it\nloads the footprint in a separate process (0 means the model did not load).",
+    "inputSchema": {
+      "properties": {
+        "lib_id": {
+          "title": "Lib Id",
+          "type": "string"
+        },
+        "source_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Path"
+        }
+      },
+      "required": [
+        "lib_id"
+      ],
+      "title": "live_footprint_check_modelArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_open",
+    "description": "Open the project's board in the PCB editor of the running KiCad (created if it does not exist yet)\nand return its board document for the other live_pcb_* tools.\n\npath defaults to <project>.kicad_pcb. Needs KiCad started as the project manager with the project\n(run_kicad_wsl.sh project.kicad_pro), so schematic and PCB editors share one live session.",
+    "inputSchema": {
+      "properties": {
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path"
+        }
+      },
+      "title": "live_pcb_openArguments",
       "type": "object"
     }
   },
@@ -454,8 +2580,1494 @@
     }
   },
   {
-    "name": "live_schematic_export",
-    "description": "Export the unsaved schematic as svg, pdf, dxf, ps, netlist or bom to a path KiCad can write.\n\nThe bom is orderable by default: CSV, one line per part grouped by Value, Footprint,\nManufacturer and MPN, every reference listed, DNP parts left out (columns Reference, Qty, Value,\nFootprint, Manufacturer, MPN, Alt Manufacturer, Alt MPN, Description, Datasheet). options is\nprotobuf JSON of the kind's RunSchematicJobExport* message (live_schematic_describe_command),\nmerged over the defaults; a list replaces the default list, e.g. {\"exclude_dnp\": false} or\n{\"fields\": {\"fields\": [{\"name\": \"Reference\", \"label\": \"Ref\"}]}}. job_settings is not accepted.\nWarnings KiCad logged while exporting are returned in message.",
+    "name": "live_pcb_summary",
+    "description": "Overview of the live board: outline size, copper layer count, item counts, nets, unsaved state, and\nevery footprint (reference, value, lib_id, position mm, rotation, side).",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        }
+      },
+      "required": [
+        "board_document"
+      ],
+      "title": "live_pcb_summaryArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_footprints",
+    "description": "Footprints on the board (all, or the given references); pads=true adds each pad's number, net,\nabsolute position, size, shape and drill (mm).",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "references": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "References"
+        },
+        "pads": {
+          "default": false,
+          "title": "Pads",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "board_document"
+      ],
+      "title": "live_pcb_footprintsArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Result",
+          "type": "array"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "live_pcb_footprintsOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_nets",
+    "description": "Nets on the board with their net class.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        }
+      },
+      "required": [
+        "board_document"
+      ],
+      "title": "live_pcb_netsArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Result",
+          "type": "array"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "live_pcb_netsOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_items",
+    "description": "Board items as protobuf JSON (positions in nanometres) for live_pcb_update_items.\n\nkinds: footprints, pads, tracks, arcs, vias, zones, shapes, texts, textboxes, dimensions, groups,\ntables, images. Footprints include their full definition; prefer live_pcb_footprints to read them.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "kinds": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Kinds",
+          "type": "array"
+        }
+      },
+      "required": [
+        "board_document",
+        "kinds"
+      ],
+      "title": "live_pcb_itemsArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Result",
+          "type": "array"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "live_pcb_itemsOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_create_items",
+    "description": "Create up to 200 board items (protobuf JSON, @type kiapi.board.types.*, nanometres) as one undo step.\n\nPrefer the typed tools (tracks, vias, zones, outline, graphics). Use live_pcb_item_schema for fields.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "items": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "expected_revision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Revision"
+        },
+        "operation_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operation Id"
+        }
+      },
+      "required": [
+        "board_document",
+        "items"
+      ],
+      "title": "live_pcb_create_itemsArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_update_items",
+    "description": "Replace board items with complete items from live_pcb_items (same ids), as one undo step.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "items": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "expected_revision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Revision"
+        },
+        "operation_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operation Id"
+        }
+      },
+      "required": [
+        "board_document",
+        "items"
+      ],
+      "title": "live_pcb_update_itemsArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_delete_items",
+    "description": "Delete board items by UUID as one undo step.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Ids",
+          "type": "array"
+        },
+        "expected_revision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Revision"
+        },
+        "operation_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operation Id"
+        }
+      },
+      "required": [
+        "board_document",
+        "ids"
+      ],
+      "title": "live_pcb_delete_itemsArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_delete_routing",
+    "description": "Rip up tracks, arcs and vias (and zones if listed in kinds) by net and/or layer, one undo step per\n200 items. kinds defaults to tracks, arcs and vias. With neither net nor layer, removes ALL of them.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "net": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Net"
+        },
+        "layer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Layer"
+        },
+        "kinds": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Kinds"
+        }
+      },
+      "required": [
+        "board_document"
+      ],
+      "title": "live_pcb_delete_routingArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_item_schema",
+    "description": "Describe a board protobuf type and its fields (Track, Via, Arc, Zone, BoardGraphicShape, BoardText,\nFootprintInstance, Pad, ...), including enum choices.",
+    "inputSchema": {
+      "properties": {
+        "type_name": {
+          "title": "Type Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type_name"
+      ],
+      "title": "live_pcb_item_schemaArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_update_from_schematic",
+    "description": "Update PCB from Schematic: apply the open schematic's live netlist (unsaved edits included) to the\nboard: adds new footprints, updates footprints, values and nets. dry_run reports without changing.\n\nmatch: uuid (normal) | reference. New footprints arrive stacked; place them with live_pcb_move.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "schematic_document": {
+          "additionalProperties": true,
+          "title": "Schematic Document",
+          "type": "object"
+        },
+        "dry_run": {
+          "default": false,
+          "title": "Dry Run",
+          "type": "boolean"
+        },
+        "delete_extra_footprints": {
+          "default": false,
+          "title": "Delete Extra Footprints",
+          "type": "boolean"
+        },
+        "update_footprints": {
+          "default": true,
+          "title": "Update Footprints",
+          "type": "boolean"
+        },
+        "match": {
+          "default": "uuid",
+          "title": "Match",
+          "type": "string"
+        }
+      },
+      "required": [
+        "board_document",
+        "schematic_document"
+      ],
+      "title": "live_pcb_update_from_schematicArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_place_footprint",
+    "description": "Place a library footprint (Library:Footprint) on the board, one undo step. Normally footprints come\nfrom the schematic (live_pcb_update_from_schematic); use this for mounting holes, fiducials, logos.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "lib_id": {
+          "title": "Lib Id",
+          "type": "string"
+        },
+        "x_mm": {
+          "title": "X Mm",
+          "type": "number"
+        },
+        "y_mm": {
+          "title": "Y Mm",
+          "type": "number"
+        },
+        "rotation": {
+          "default": 0,
+          "title": "Rotation",
+          "type": "number"
+        },
+        "side": {
+          "default": "front",
+          "title": "Side",
+          "type": "string"
+        },
+        "reference": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reference"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "locked": {
+          "default": false,
+          "title": "Locked",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "board_document",
+        "lib_id",
+        "x_mm",
+        "y_mm"
+      ],
+      "title": "live_pcb_place_footprintArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_move",
+    "description": "Move, rotate, flip and lock footprints by reference, all as one undo step.\n\nmoves: [{\"reference\": \"U1\", \"x_mm\": 20, \"y_mm\": 15, \"rotation\": 90, \"side\": \"back\", \"locked\": true}]\nPositions are the footprint origin, absolute in mm (Y down), rotation in degrees counter-clockwise.\n\"relative\": true makes x_mm/y_mm/rotation offsets. Omitted values are kept.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "moves": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Moves",
+          "type": "array"
+        }
+      },
+      "required": [
+        "board_document",
+        "moves"
+      ],
+      "title": "live_pcb_moveArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_add_tracks",
+    "description": "Draw a chain of track segments through points [[x, y], ...] (mm) on one copper layer, one undo step.\n\nwidth_mm defaults to the net class track width. Give the net so DRC and zones see the connection.\ncheck (default) first tests the path against other nets' copper (with their clearances), keepouts\nand the board edge, and refuses a path that would overlap or crowd them; prefer live_pcb_route.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "points": {
+          "items": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "title": "Points",
+          "type": "array"
+        },
+        "layer": {
+          "default": "F.Cu",
+          "title": "Layer",
+          "type": "string"
+        },
+        "width_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Width Mm"
+        },
+        "net": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Net"
+        },
+        "check": {
+          "default": true,
+          "title": "Check",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "board_document",
+        "points"
+      ],
+      "title": "live_pcb_add_tracksArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_route",
+    "description": "Route a track between two pads (e.g. U1 pad 3 to R2 pad 1), as one undo step, without overlapping\nanything: it goes around other nets' pads, tracks, vias and copper shapes (keeping each net class\nclearance and the board minimum), keepout areas (including those inside footprints, e.g. antenna\nkeepouts) and the board edge clearance, with 45-degree corners.  vias=true lets it change layer\n(net class via size); layers limits the layers it may use.  Width defaults to the net class.\nverify (default) checks clearance, keepout and manufacturing DRC findings for the new copper.\nRejected route UUIDs are removed in a separate undoable cleanup, preserving unrelated user edits.\ngrid_mm is the search step (finer for dense parts).  avoid=false draws a plain dog-leg instead.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "from_reference": {
+          "title": "From Reference",
+          "type": "string"
+        },
+        "from_pad": {
+          "title": "From Pad",
+          "type": "string"
+        },
+        "to_reference": {
+          "title": "To Reference",
+          "type": "string"
+        },
+        "to_pad": {
+          "title": "To Pad",
+          "type": "string"
+        },
+        "layers": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Layers"
+        },
+        "width_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Width Mm"
+        },
+        "vias": {
+          "default": true,
+          "title": "Vias",
+          "type": "boolean"
+        },
+        "grid_mm": {
+          "default": 0.1,
+          "title": "Grid Mm",
+          "type": "number"
+        },
+        "verify": {
+          "default": true,
+          "title": "Verify",
+          "type": "boolean"
+        },
+        "avoid": {
+          "default": true,
+          "title": "Avoid",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "board_document",
+        "from_reference",
+        "from_pad",
+        "to_reference",
+        "to_pad"
+      ],
+      "title": "live_pcb_routeArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_route_net",
+    "description": "Route a whole net: join every group of its pads that is not yet connected (shortest joins first),\neach leg around other copper, keepouts and the board edge like live_pcb_route, all as one undo step,\nthen check clearance, keepout and manufacturing DRC findings. Rejected route UUIDs are removed\nin a separate undoable cleanup, preserving unrelated user edits. Route critical nets (RF, power, clocks)\nfirst, then the rest; leave nets that a pour connects (GND) to the zone.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "net": {
+          "title": "Net",
+          "type": "string"
+        },
+        "layers": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Layers"
+        },
+        "width_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Width Mm"
+        },
+        "vias": {
+          "default": true,
+          "title": "Vias",
+          "type": "boolean"
+        },
+        "grid_mm": {
+          "default": 0.1,
+          "title": "Grid Mm",
+          "type": "number"
+        },
+        "verify": {
+          "default": true,
+          "title": "Verify",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "board_document",
+        "net"
+      ],
+      "title": "live_pcb_route_netArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_check_path",
+    "description": "Would a track along points [[x, y], ...] (mm) on this layer keep clear of other nets' copper (with\nclearances), keepouts and the board edge? Lists each conflict and the gap it leaves.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "points": {
+          "items": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "title": "Points",
+          "type": "array"
+        },
+        "layer": {
+          "default": "F.Cu",
+          "title": "Layer",
+          "type": "string"
+        },
+        "width_mm": {
+          "default": 0.25,
+          "title": "Width Mm",
+          "type": "number"
+        },
+        "net": {
+          "default": "",
+          "title": "Net",
+          "type": "string"
+        }
+      },
+      "required": [
+        "board_document",
+        "points"
+      ],
+      "title": "live_pcb_check_pathArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_add_via",
+    "description": "Add a through via (size and drill default to the net class), one undo step.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "x_mm": {
+          "title": "X Mm",
+          "type": "number"
+        },
+        "y_mm": {
+          "title": "Y Mm",
+          "type": "number"
+        },
+        "net": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Net"
+        },
+        "size_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Size Mm"
+        },
+        "drill_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Drill Mm"
+        }
+      },
+      "required": [
+        "board_document",
+        "x_mm",
+        "y_mm"
+      ],
+      "title": "live_pcb_add_viaArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_outline",
+    "description": "Draw the board outline on Edge.Cuts: a rectangle from (x, y) of width x height with optional\nrounded corners, or a polygon through points. replace=true removes the old outline. One undo step.\n\nPlace the board inside the page's drawing area, clear of the title block (see live_pcb_page).",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "width_mm": {
+          "default": 0,
+          "title": "Width Mm",
+          "type": "number"
+        },
+        "height_mm": {
+          "default": 0,
+          "title": "Height Mm",
+          "type": "number"
+        },
+        "x_mm": {
+          "default": 0,
+          "title": "X Mm",
+          "type": "number"
+        },
+        "y_mm": {
+          "default": 0,
+          "title": "Y Mm",
+          "type": "number"
+        },
+        "corner_radius_mm": {
+          "default": 0,
+          "title": "Corner Radius Mm",
+          "type": "number"
+        },
+        "points": {
+          "anyOf": [
+            {
+              "items": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Points"
+        },
+        "replace": {
+          "default": true,
+          "title": "Replace",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "board_document"
+      ],
+      "title": "live_pcb_outlineArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_add_zone",
+    "description": "Add a copper pour for a net (e.g. GND on F.Cu and B.Cu), following the board outline unless points\nare given, then fill zones. connection: thermal | solid | pth_thermal | none. One undo step.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "net": {
+          "title": "Net",
+          "type": "string"
+        },
+        "layers": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Layers"
+        },
+        "points": {
+          "anyOf": [
+            {
+              "items": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Points"
+        },
+        "name": {
+          "default": "",
+          "title": "Name",
+          "type": "string"
+        },
+        "priority": {
+          "default": 0,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "clearance_mm": {
+          "default": 0.2,
+          "title": "Clearance Mm",
+          "type": "number"
+        },
+        "min_width_mm": {
+          "default": 0.25,
+          "title": "Min Width Mm",
+          "type": "number"
+        },
+        "connection": {
+          "default": "thermal",
+          "title": "Connection",
+          "type": "string"
+        },
+        "inset_mm": {
+          "default": 0.0,
+          "title": "Inset Mm",
+          "type": "number"
+        },
+        "fill": {
+          "default": true,
+          "title": "Fill",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "board_document",
+        "net"
+      ],
+      "title": "live_pcb_add_zoneArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_add_keepout",
+    "description": "Add a keepout (rule area), one undo step: through points (mm), or around a footprint\n(around_reference, its courtyard plus margin_mm), e.g. the clear area under and around a chip\nantenna or module antenna.  layers default to every copper layer.  tracks/vias/pads/copper (pours)/\nfootprints choose what is kept out.  live_pcb_route and live_pcb_route_net stay out of it.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "points": {
+          "anyOf": [
+            {
+              "items": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Points"
+        },
+        "around_reference": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Around Reference"
+        },
+        "margin_mm": {
+          "default": 1.0,
+          "title": "Margin Mm",
+          "type": "number"
+        },
+        "layers": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Layers"
+        },
+        "name": {
+          "default": "",
+          "title": "Name",
+          "type": "string"
+        },
+        "tracks": {
+          "default": true,
+          "title": "Tracks",
+          "type": "boolean"
+        },
+        "vias": {
+          "default": true,
+          "title": "Vias",
+          "type": "boolean"
+        },
+        "pads": {
+          "default": false,
+          "title": "Pads",
+          "type": "boolean"
+        },
+        "copper": {
+          "default": true,
+          "title": "Copper",
+          "type": "boolean"
+        },
+        "footprints": {
+          "default": false,
+          "title": "Footprints",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "board_document"
+      ],
+      "title": "live_pcb_add_keepoutArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_add_graphics",
+    "description": "Add lines, arcs, rectangles, circles, polygons and text on any layer (mm), one undo step.\n\nshapes: [{\"kind\": \"line\", \"start\": [x, y], \"end\": [x, y], \"layer\": \"F.SilkS\", \"width\": 0.12},\n         {\"kind\": \"arc\", \"start\", \"mid\", \"end\"}, {\"kind\": \"rect\", \"box\": [x1, y1, x2, y2], \"filled\"},\n         {\"kind\": \"circle\", \"center\", \"radius\"}, {\"kind\": \"polygon\", \"points\": [[x, y], ...]},\n         {\"kind\": \"text\", \"text\": \"REV A\", \"position\": [x, y], \"size\": 1.0, \"rotation\": 0}]\nText on B.* layers is mirrored automatically.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "shapes": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Shapes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "board_document",
+        "shapes"
+      ],
+      "title": "live_pcb_add_graphicsArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_refill_zones",
+    "description": "Refill every zone on the board (after moving footprints or tracks).",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        }
+      },
+      "required": [
+        "board_document"
+      ],
+      "title": "live_pcb_refill_zonesArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_drc",
+    "description": "Run KiCad's design rules check on the live board: violations by type (clearance, unconnected items,\ncourtyard overlap, silk, ...) with positions in mm. schematic_parity also checks against the schematic.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "schematic_parity": {
+          "default": true,
+          "title": "Schematic Parity",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "board_document"
+      ],
+      "title": "live_pcb_drcArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_undo",
+    "description": "Undo (or redo) the PCB editor's most recent change, including the user's own edits.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "redo": {
+          "default": false,
+          "title": "Redo",
+          "type": "boolean"
+        },
+        "expected_revision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Revision"
+        },
+        "operation_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operation Id"
+        }
+      },
+      "required": [
+        "board_document"
+      ],
+      "title": "live_pcb_undoArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_save",
+    "description": "SAVE the board to disk. Use only when the user wants to keep the edits.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        }
+      },
+      "required": [
+        "board_document"
+      ],
+      "title": "live_pcb_saveArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_view",
+    "description": "See the live board (unsaved edits included) rendered by KiCad on its page.\n\nlayers default to F.Cu, B.Cu, F.SilkS, B.SilkS, Edge.Cuts, F.Fab; pass e.g. [\"F.Cu\", \"Edge.Cuts\"] to\nlook at one side. frame=true (default) draws the drawing sheet: border and title block, so a board\nor text past the border or in the title block shows. Use live_pcb_page for the same check as numbers.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "layers": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Layers"
+        },
+        "dpi": {
+          "default": 100,
+          "title": "Dpi",
+          "type": "integer"
+        },
+        "frame": {
+          "default": true,
+          "title": "Frame",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "board_document"
+      ],
+      "title": "live_pcb_viewArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_view_3d",
+    "description": "KiCad's 3D render of the live board with its component models. side: top | bottom | front | back |\nleft | right. quality: basic (fast) | high (ray traced, slow).",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "side": {
+          "default": "top",
+          "title": "Side",
+          "type": "string"
+        },
+        "zoom": {
+          "default": 1.0,
+          "title": "Zoom",
+          "type": "number"
+        },
+        "quality": {
+          "default": "basic",
+          "title": "Quality",
+          "type": "string"
+        },
+        "width": {
+          "default": 1200,
+          "title": "Width",
+          "type": "integer"
+        },
+        "height": {
+          "default": 900,
+          "title": "Height",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "board_document"
+      ],
+      "title": "live_pcb_view_3dArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_page",
+    "description": "The board's page: paper and orientation, the drawing area inside the border, the title block box and\nits fields, the board outline and the extent of everything, all in mm, and every item that crosses\nthe border or overlaps the title block (fits=false). Separately, overlap_free and overlaps list\nvisible texts and footprint fields on the same silkscreen or fab layer whose extents overlap.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        }
+      },
+      "required": [
+        "board_document"
+      ],
+      "title": "live_pcb_pageArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_set_page",
+    "description": "Set the board's paper and title block (the drawing block at the bottom right); omitted settings are\nkept. size: A5..A0, ANSI_A..ANSI_E, LETTER, LEGAL, LEDGER. orientation: landscape | portrait.\ndate may be \"today\". comments fill Comment1..9. Follow the title-block convention in AGENTS.md.\nReturns the page layout, so check `fits`.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "size": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Size"
+        },
+        "orientation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Orientation"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Date"
+        },
+        "revision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Revision"
+        },
+        "company": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Company"
+        },
+        "comments": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Comments"
+        }
+      },
+      "required": [
+        "board_document"
+      ],
+      "title": "live_pcb_set_pageArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_origins",
+    "description": "Read, and optionally set, the board's two origins (mm): the grid origin (where the grid starts and\nuser coordinates count from) and the drill/place origin (used by drill and position files).",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "grid_origin_mm": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Grid Origin Mm"
+        },
+        "drill_origin_mm": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Drill Origin Mm"
+        }
+      },
+      "required": [
+        "board_document"
+      ],
+      "title": "live_pcb_originsArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_editor_grid",
+    "description": "Read, and optionally change, an editor's drawing grid: board, schematic, symbol or footprint document.\n\nsize_mm (one value, or [x, y]) picks the grid preset of that size, adding one if there is none, e.g.\n0.5 or 0.1 on boards, 1.27 (50 mil) on schematics. style: dots | lines | small_cross. snapping:\nalways | with_grid | never. Returns the grid, its presets and (boards) the grid origin.",
     "inputSchema": {
       "properties": {
         "document_spec": {
@@ -463,15 +4075,349 @@
           "title": "Document Spec",
           "type": "object"
         },
-        "kind": {
-          "title": "Kind",
-          "type": "string"
+        "size_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Size Mm"
         },
-        "output_path": {
-          "title": "Output Path",
-          "type": "string"
+        "preset_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Preset Index"
         },
-        "options": {
+        "visible": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Visible"
+        },
+        "style": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Style"
+        },
+        "snapping": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Snapping"
+        }
+      },
+      "required": [
+        "document_spec"
+      ],
+      "title": "live_editor_gridArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_layers",
+    "description": "Read, and optionally set, the copper layer count (2, 4, 6, ...), the layers shown in the editor and the\nactive layer. Returns enabled, visible and active layers.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "copper_layers": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Copper Layers"
+        },
+        "visible": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Visible"
+        },
+        "active": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Active"
+        }
+      },
+      "required": [
+        "board_document"
+      ],
+      "title": "live_pcb_layersArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_design_rules",
+    "description": "Read, and optionally set, the board's built-in design rules (Board Setup > Constraints), in mm:\nminimum clearance, track width, via diameter, drill, annular ring, copper-to-edge, hole clearance,\nhole-to-hole, silkscreen clearance and text size.  track_widths_mm and via_sizes_mm ([[diameter,\ndrill], ...]) are the predefined sizes offered while routing.  severities sets DRC checks to error,\nwarning or ignore, e.g. {\"silk_clearance\": \"error\", \"silk_mask_clearance\": \"error\"}.  Omitted\nvalues are kept.  Defaults per net come from live_pcb_netclasses; special cases from\nlive_pcb_custom_rules.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "min_clearance": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Clearance"
+        },
+        "min_track_width": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Track Width"
+        },
+        "min_via_diameter": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Via Diameter"
+        },
+        "min_drill": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Drill"
+        },
+        "min_annular_ring": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Annular Ring"
+        },
+        "copper_edge_clearance": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Copper Edge Clearance"
+        },
+        "hole_clearance": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Hole Clearance"
+        },
+        "hole_to_hole": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Hole To Hole"
+        },
+        "silk_clearance": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Silk Clearance"
+        },
+        "min_silk_text_height": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Silk Text Height"
+        },
+        "min_silk_text_thickness": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Silk Text Thickness"
+        },
+        "min_connection_width": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Connection Width"
+        },
+        "min_microvia_diameter": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Microvia Diameter"
+        },
+        "min_microvia_drill": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Microvia Drill"
+        },
+        "track_widths_mm": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Track Widths Mm"
+        },
+        "via_sizes_mm": {
+          "anyOf": [
+            {
+              "items": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Via Sizes Mm"
+        },
+        "severities": {
           "anyOf": [
             {
               "additionalProperties": true,
@@ -482,15 +4428,557 @@
             }
           ],
           "default": null,
-          "title": "Options"
+          "title": "Severities"
         }
       },
       "required": [
-        "document_spec",
-        "kind",
-        "output_path"
+        "board_document"
       ],
-      "title": "live_schematic_exportArguments",
+      "title": "live_pcb_design_rulesArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_custom_rules",
+    "description": "Custom design rules (Board Setup > Custom Rules, the .kicad_dru file).  action: get | add (replaces\nrules of the same name) | remove (names) | set (replaces all).  Each rule:\n  {\"name\": \"RF clearance\", \"condition\": \"A.NetClass == 'RF'\",\n   \"constraints\": [{\"type\": \"clearance\", \"min\": 0.5}], \"layer\": \"outer\", \"severity\": \"error\"}\nConstraint types: clearance, track_width, via_diameter, hole_size, hole_clearance, edge_clearance,\nsilk_clearance, courtyard_clearance, annular_width, length, skew, diff_pair_gap, via_count,\nconnection_width, physical_clearance, ... with min/opt/max in mm; disallow with items (through_vias,\nmicro_vias, blind_vias, buried_vias, tracks, pads, zones, texts, graphics, holes, footprints);\nassertion with expression.  Conditions use KiCad's rule language (A.NetName, A.NetClass,\nA.insideArea('name'), A.Reference, ...).  KiCad checks the rules and reports errors.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "action": {
+          "default": "get",
+          "title": "Action",
+          "type": "string"
+        },
+        "rules": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rules"
+        },
+        "names": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Names"
+        }
+      },
+      "required": [
+        "board_document"
+      ],
+      "title": "live_pcb_custom_rulesArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_netclasses",
+    "description": "Net classes: the default track width, clearance (spacing) and via size per group of nets.\nclasses: [{\"name\": \"Default\", \"track_width\": 0.2, \"clearance\": 0.15, \"via_diameter\": 0.6,\n\"via_drill\": 0.3}, {\"name\": \"Power\", \"track_width\": 0.5}] in mm (created if new; \"Default\" is the\nboard default).  assign {net: class} and patterns {\"/USB_D*\": \"USB90\"} put nets in classes.  The\nrouting tools use these widths, clearances and via sizes.  Returns every class and assignment.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "classes": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Classes"
+        },
+        "assign": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Assign"
+        },
+        "patterns": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Patterns"
+        }
+      },
+      "required": [
+        "board_document"
+      ],
+      "title": "live_pcb_netclassesArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_stackup",
+    "description": "The board's physical stackup top to bottom (mm): copper, dielectrics (core/prepreg, epsilon_r, loss\ntangent, material), soldermask and silkscreen, board thickness, finish, impedance control.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        }
+      },
+      "required": [
+        "board_document"
+      ],
+      "title": "live_pcb_stackupArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_set_stackup",
+    "description": "Change the stackup (Board Setup > Physical Stackup).  copper_layers: 2, 4, 6, ... (refused if a\nremoved layer still has items).  copper_thickness_mm: one value (0.035 = 1 oz) or {\"F.Cu\": 0.035}.\ndielectrics top to bottom, one fewer than the copper layers: [{\"type\": \"prepreg\", \"thickness\": 0.2,\n\"epsilon_r\": 4.4, \"loss_tangent\": 0.02, \"material\": \"FR4\"}, {\"type\": \"core\", ...}, ...].\nboard_thickness_mm scales the dielectrics to reach it.  Colours as \"#RRGGBB\" (soldermask, silk).\nfinish e.g. \"ENIG\", \"HAL lead-free\".  Not an undo step; check with live_pcb_stackup.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "copper_layers": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Copper Layers"
+        },
+        "copper_thickness_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Copper Thickness Mm"
+        },
+        "dielectrics": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dielectrics"
+        },
+        "board_thickness_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Board Thickness Mm"
+        },
+        "soldermask_color": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Soldermask Color"
+        },
+        "silkscreen_color": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Silkscreen Color"
+        },
+        "finish": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Finish"
+        },
+        "impedance_controlled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Impedance Controlled"
+        }
+      },
+      "required": [
+        "board_document"
+      ],
+      "title": "live_pcb_set_stackupArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_impedance_width",
+    "description": "Track width for a controlled impedance (e.g. 50 ohm antenna feed, 90 ohm USB pair half) on this\nboard's stackup: microstrip (outer layer over the next copper plane) or cpwg (grounded coplanar\nwaveguide, with gap_mm to the side ground pour).  Reports the dielectric height and epsilon_r used.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "impedance_ohm": {
+          "default": 50.0,
+          "title": "Impedance Ohm",
+          "type": "number"
+        },
+        "layer": {
+          "default": "F.Cu",
+          "title": "Layer",
+          "type": "string"
+        },
+        "structure": {
+          "default": "microstrip",
+          "title": "Structure",
+          "type": "string"
+        },
+        "gap_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gap Mm"
+        },
+        "reference_layer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reference Layer"
+        }
+      },
+      "required": [
+        "board_document"
+      ],
+      "title": "live_pcb_impedance_widthArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_rf_net",
+    "description": "Set up RF / antenna nets for routing: a net class with the impedance-controlled width (computed from\nthe stackup unless width_mm is given) and clearance (the CPWG gap, else 3x the width), assigned to\nthe nets, and optionally a custom rule keeping every other net keep_others_away_mm away.  Then add\na keepout around the antenna (live_pcb_add_keepout around_reference), route the feed first\n(live_pcb_route or live_pcb_route_net, layers=[the RF layer], vias=false), and pour ground.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "nets": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Nets",
+          "type": "array"
+        },
+        "netclass": {
+          "default": "RF",
+          "title": "Netclass",
+          "type": "string"
+        },
+        "impedance_ohm": {
+          "default": 50.0,
+          "title": "Impedance Ohm",
+          "type": "number"
+        },
+        "width_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Width Mm"
+        },
+        "structure": {
+          "default": "microstrip",
+          "title": "Structure",
+          "type": "string"
+        },
+        "gap_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gap Mm"
+        },
+        "clearance_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Clearance Mm"
+        },
+        "layer": {
+          "default": "F.Cu",
+          "title": "Layer",
+          "type": "string"
+        },
+        "keep_others_away_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Keep Others Away Mm"
+        }
+      },
+      "required": [
+        "board_document",
+        "nets"
+      ],
+      "title": "live_pcb_rf_netArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_check",
+    "description": "Design rules check grouped by what it is about, with positions (mm) and the items involved:\nclearance (overlapping or too-close copper, shorts, crossing tracks, holes, board edge), keepout,\nsilkscreen (silk over pads or mask openings, silk overlapping silk, silk off the board edge, text\ntoo small, mirrored text), courtyard (overlapping footprints, missing courtyards), connectivity\n(unrouted, dangling, isolated copper), manufacturing (track width, annular ring, drill, via size,\nsoldermask bridges) and schematic (with schematic_parity).  categories limits the report.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "categories": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Categories"
+        },
+        "schematic_parity": {
+          "default": false,
+          "title": "Schematic Parity",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "board_document"
+      ],
+      "title": "live_pcb_checkArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_select",
+    "description": "Select footprints (by reference) or items (by UUID) in the PCB editor so the user sees them.",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "references": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "References"
+        },
+        "ids": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ids"
+        },
+        "add": {
+          "default": false,
+          "title": "Add",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "board_document"
+      ],
+      "title": "live_pcb_selectArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_pcb_focus",
+    "description": "Zoom the PCB editor to footprints (by reference) or items (by UUID).",
+    "inputSchema": {
+      "properties": {
+        "board_document": {
+          "additionalProperties": true,
+          "title": "Board Document",
+          "type": "object"
+        },
+        "references": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "References"
+        },
+        "ids": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ids"
+        }
+      },
+      "required": [
+        "board_document"
+      ],
+      "title": "live_pcb_focusArguments",
       "type": "object"
     }
   },
@@ -623,6 +5111,23 @@
         "board_document"
       ],
       "title": "live_pcb_fab_packageArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "live_schematic_item_schema",
+    "description": "Describe a schematic protobuf item and nested fields, including enum choices.\n\nStart with SheetSymbol, SheetPin, HierarchicalLabel or SchematicLine. Use returned message names\nin further calls. Protobuf JSON uses snake_case fields here and UUIDs as {value: UUID}.",
+    "inputSchema": {
+      "properties": {
+        "type_name": {
+          "title": "Type Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type_name"
+      ],
+      "title": "live_schematic_item_schemaArguments",
       "type": "object"
     }
   }

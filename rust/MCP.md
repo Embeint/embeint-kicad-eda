@@ -79,8 +79,11 @@ environment. It starts both servers as real MCP stdio subprocesses and drives th
 MCP client.
 
 - **Schema.** Every Rust tool is advertised with the Python tool's name, description, input schema
-  and output schema. The `initialize` protocol version and capabilities are the same, and
-  `tools.json` must match the Python server (`--write-schemas` refreshes it). Python 3.13 and later
+  and output schema, in the Python server's order. The `initialize` protocol version and
+  capabilities are the same. `tools.json` holds every Python tool and must match the Python server
+  (`--write-schemas` refreshes it); the Rust server advertises the entries it implements, each
+  area's tools in `embeint-mcp/src/tools/<area>.rs`, and every advertised tool must be called by a
+  fixture (`parity/scenarios/<area>.py`). Python 3.13 and later
   strip docstring indentation when compiling, so the Python server's own descriptions differ in
   whitespace between interpreters. Descriptions are therefore compared, and stored, as
   `inspect.cleandoc` gives them. Schemas are compared exactly.

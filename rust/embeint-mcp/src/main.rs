@@ -15,6 +15,7 @@
 mod capabilities;
 mod fab;
 mod parity;
+mod resources;
 mod server;
 mod tools;
 
