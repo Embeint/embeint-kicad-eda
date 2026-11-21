@@ -61,10 +61,10 @@ jobs:
       # manifest, protobuf JSON and discovery rules, and every protocol fixture scenario.
       - name: Python and Rust MCP parity
         run: python rust/parity/mcp_parity.py --build --report mcp-parity-report.json
-      # Missing entries remain visible during migration. --require-complete is the
-      # full-surface acceptance check; it intentionally fails on the current subset.
+      # The native server serves the complete Python surface: a tool, resource or command added
+      # to one server and not the other fails here.
       - name: Complete MCP surface inventory
-        run: python rust/parity/surface_coverage.py --report mcp-surface-coverage.json
+        run: python rust/parity/surface_coverage.py --require-complete --report mcp-surface-coverage.json
       - name: Keep the parity report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2

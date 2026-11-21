@@ -109,7 +109,7 @@ pub fn manifest() -> Json {
         "live_support_verified": false,
         "limitations": [
             "Local registration is not capability negotiation with a running KiCad instance.",
-            "This native server implements a subset of the live_* tools; the Python server provides the rest.",
+            "application_version is the KiCad this package was built with; live_schematic_documents              reports the running editor's version.",
             "Commands may be unavailable for an editor, document, or application version.",
             "Operation kind does not guarantee undo or rollback support.",
             "The registry is a curated adapter surface, not every declared protobuf message.",

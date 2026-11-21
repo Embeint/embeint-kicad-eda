@@ -4,9 +4,11 @@ Gate 4 of [EMBEINT_FORK_ROADMAP.md](../tools/live_schematic_mcp/EMBEINT_FORK_ROA
 bundled Rust MCP that starts with instance discovery and the read-only tools, plus one complete
 edit transaction. The old and new servers are to be compared on the same protocol fixtures and on
 disposable live projects. Rollback, timeout reconciliation and schema compatibility must pass
-before more tools move over. This document records the first slice and its evidence. **The Python
-server stays the reference and the default.** The MCP package bundles the Rust server beside it
-(see [Packaging and release](#packaging-and-release)); clients use it only when registered.
+before more tools move over. This document records the native server, which now serves the
+complete Python surface (all 116 tools, the skill resources and template, and the 147 generic
+commands), and its evidence. **The Python server stays the reference and the default until live
+qualification of every area is recorded below.** The MCP package bundles the Rust server beside
+it (see [Packaging and release](#packaging-and-release)); clients use it only when registered.
 
 ## What exists
 
@@ -27,7 +29,20 @@ As in the Python client, every request uses a new connection and is never resent
 
 ### Tools
 
-These tools have the Python tools' names, schemas and results.
+Every Python tool, with its name, schema and results. Each area of tools is a module in
+`embeint-mcp/src/tools/` with its fixtures in `parity/scenarios/<area>.py`:
+
+| Area (module) | Tools | Ported from |
+| --- | --- | --- |
+| core | capabilities, documents, hierarchy, items, revision and operation status, schematic item create/update/delete, the generic command registry (list, describe, execute, batch), item schemas, exports and the fab package (below) | `server.py`, `client.py`, `commands.py`, `fab_package.py` |
+| shared | `live_skill_reference`, the `kicad-skill://` resources and template (skills embedded at build time), `live_editor_grid` | `skills.py`, `board_client.py` |
+| schematic | open, place_symbol, view, page, set_page, focus, save, annotate, update_from_library, autoplace_fields, move, undo, symbol_pins, connect_pins, connect_pin_to_net, netlist, erc, select, highlight_nets, and `live_pcb_page`/`set_page`/`undo` (same code) | `client.py` |
+| symbol | the 14 `live_symbol_*` tools (pin layout through the `embeint-layout` crate) and every library-table tool, symbol and footprint | `client.py`, `symbol_layout.py` |
+| footprint | 13 `live_footprint_*` tools, the embedded-file tools and `live_kicad_cli` | `footprint_client.py`, `footprint_gen.py`, `model_handoff.py`, `kicad_cli.py` |
+| board | 25 PCB editor tools and the `BoardTools` helpers | `board_client.py` |
+| board design | rules, custom rules, net classes, stackup, RF and impedance, check, check_path, add_tracks, add_keepout, route, route_net (router on the `geo` crate) | `board_design.py`, `board_router.py`, `board_rf.py` |
+
+The first tools, in detail:
 
 | Tool | Kind |
 | --- | --- |
@@ -69,8 +84,8 @@ for example `C:\kb\install\mcp\embeint-mcp.exe`.
 
 The server finds KiCad as the Python server does. `KICAD_API_SOCKET` and `KICAD_API_TOKEN` select
 an instance explicitly. `KICAD_API_TIMEOUT_MS` sets the reply timeout (1 to 600000 ms, default
-15000); both servers read it. Register it next to the Python server: it has 19 of
-the 116 tools.
+15000); both servers read it. It serves all 116 tools; until live qualification of every area is
+recorded below, register it beside the Python server rather than in place of it.
 
 ## How parity is checked
 
@@ -143,6 +158,24 @@ MCP client.
   - Update, delete and generic batches are checked against complete item snapshots: one undo
     through generic `UndoLastChange` restores every field, partial failures roll back, stale
     revisions fail, and real lost commit replies reconcile without resending edits.
+
+## Results (2026-11-21, complete surface)
+
+The remaining 97 tools were ported in six areas (PRs #25 to #31), each reviewed by a separate
+agent and its findings fixed before merging; CI ran the offline suite on Windows and Linux
+(x86_64 and arm64) for every PR.
+
+| Check | Result |
+| --- | --- |
+| Surface (`surface_coverage.py --require-complete`) | complete: 116 tools, 2 resources, 1 template, 147 commands; 0 missing, 0 different |
+| Offline fixtures (`mcp_parity.py`) | 641/641 identical on Windows, plus every per-platform CI run; 109 codec cases |
+| Rust | unit tests on Windows and Linux, clippy `-D warnings`, rustfmt, Rust 1.85 check |
+| Router | a reviewer drove both routers with the same 1,240 random problems: bit-identical; the fixtures compare routes by behaviour only where they diverge by construction |
+| Live | pending (see Next steps) |
+
+Review and porting also found and fixed a `live_kicad_cli` hole in **both** servers: outputs
+Windows rewrites (trailing dots and spaces, `::$DATA`, existing 8.3 aliases) could overwrite a
+design file or land in a footprint library (PR #31).
 
 ## Results (2026-11-20)
 
@@ -227,10 +260,11 @@ Responsiveness against the live KiCad on Windows (median of 40 calls, same sessi
 
 ## Known differences
 
-- **Server identity.** `serverInfo.version` is `0.1.0+rust`. The instructions name the subset this
-  server implements and leave out the house-style skill, which this server does not serve. The
-  manifest adds `"implementation": "rust"` and reports `"distribution": "source build"`. Its
-  limitations say that the Python server provides the other tools.
+- **Server identity.** `serverInfo.version` is `0.1.0+rust`; the instructions are the Python
+  server's, word for word. The manifest adds `"implementation": "rust"` and reports
+  `"distribution": "source build"`.
+- **Arguments beyond JSON.** NaN and infinite numbers, which Python accepts as text such as
+  `"nan"` or `"1e400"`, are refused; integers of any size are kept exactly, as pydantic does.
 - **Validation text.** Arguments that fail FastMCP's pydantic validation are refused with an error
   in the same form (`Error executing tool <name>: N validation error(s) for <name>Arguments ...`).
   pydantic's exact wording is not reproduced.
@@ -253,21 +287,49 @@ Responsiveness against the live KiCad on Windows (median of 40 calls, same sessi
   them as a tool error ("Unpaired surrogate").
 - **Hosts.** Endpoint discovery runs on Linux and Windows. Other hosts use the default endpoint, as
   in Python.
+- **Python reprs in messages.** Quoted text in error messages escapes backslashes, quotes and
+  ASCII and C1 control characters as Python does, but not the other non-printable Unicode
+  characters Python's `repr` escapes.
+- **Text encoding.** kicad-cli output and footprint text are read as UTF-8; Python uses the
+  locale encoding (cp1252 on Windows), so non-ASCII text can differ there.
+- **Skills.** Front matter is read as YAML 1.2 (`yaml-rust2`) where PyYAML reads 1.1; the bundled
+  skills use no value the two read differently (a unit test checks). A non-UTF-8 skill file stops
+  the build. On Linux, Python reports an over-long skill file name with "File name too long" and
+  the checkout's path; the native server serves embedded skills and reports it missing.
+- **Routing.** Compared by behaviour (see [MCP_PARITY_PLAN.md](MCP_PARITY_PLAN.md), Decisions).
+  The router uses `geo`: convex obstacles follow GEOS's own buffer polygons, but curved or concave
+  ones are cleared by true distance where GEOS uses 6-segment chords (up to about 3 um; Python's
+  route can pass about 1.6 um inside the real clearance where Rust steps round it). Shapes
+  through i_overlay can shift by about 1e-8 mm; invalid pad polygons are cleaned by an overlay
+  union rather than `buffer(0)`. With pads far off the board and a tiny grid, Python raises a
+  MemoryError where the native server reports numpy's index error.
+- **Smaller differences** recorded in the area PRs (#26 to #31): `EMBEINT_LAYOUT_BACKEND` is
+  ignored (Python adds a `layout_backend` key only when it is set); `board_layers`' unused `enable`
+  argument is not ported; a few type-error, base64 and zstd error texts differ; backslashes in a
+  footprint lib_id are inserted literally; the packaged kicad-cli location is tried even when not
+  frozen.
+- **Python quirks reproduced on purpose** (worth fixing in Python, then in both): an empty id is
+  turned into a new random UUID instead of being refused; an unknown pin orientation fails
+  connect_pins with "0"; set_page is not atomic; live_schematic_focus does not normalise ids;
+  `live_symbol_add_pins` with `replace=true` deletes the old pins in their own commit before
+  validating the new ones; route_net reports a renamed footprint's old reference (a process-wide
+  cache); vias are only kept from copper that intersects the search area.
 
 ## Next steps
 
-The next milestone is **complete native Rust parity**, followed by closing the broader KiCad
-function-coverage gaps, before browser work. Python forwarding does not satisfy this milestone.
-The implementation order and acceptance criteria are in [MCP_PARITY_PLAN.md](MCP_PARITY_PLAN.md).
-Update/delete are an early slice of that work. Making Rust the default requires every Python MCP
-operation and resource to have moved and passed qualification, including the generic command
-registry, higher-level helpers and installed operation without Python.
+- **Live qualification of every area** against the KiCad build the package ships with, both
+  servers on disposable projects, routes checked by KiCad's DRC (criteria 3 and 4 of
+  [MCP_PARITY_PLAN.md](MCP_PARITY_PLAN.md)). Until it is recorded here, the Python server stays
+  the default.
+- **A Python-free installed package**: qualify the native server from the installed package with no
+  Python available (criterion 2), then make it the default.
+- **Shared helpers**: the areas each carry small Python-imitation helpers (rounding, reprs,
+  millimetre conversion, UUIDs, temporary folders); they belong in one module.
+- **The wider function audit** (criterion 5): features without IPC handlers, menu and tool actions,
+  CLI jobs and settings, each with a coverage decision.
 
-`python rust/parity/surface_coverage.py --require-complete` compares the complete advertised
-Python and Rust surfaces and currently fails on missing entries. The existing passing parity
-fixtures cover only the ported subset. Complete advertisements still require behavioral and
-live evidence, including comparison against the KiCad build the package ships with. The wider
-function audit must cover features without IPC handlers as well as existing registered commands.
+`python rust/parity/surface_coverage.py --require-complete` now passes: the advertised surfaces
+are equal. That establishes advertisement, not behaviour; the fixtures and the live runs do that.
 
 ## Packaging and release
 
@@ -318,19 +380,25 @@ crates and both servers' 8 shared tools with identical schemas. The Python suite
 
 All are compatible with GPL-3.0-or-later. These are linked into `embeint-mcp`:
 
-| Crate | Licence |
+| Licence | Crates |
 | --- | --- |
-| tokio 1.54.1, mio 1.2.5, bytes 1.12.2, tokio-macros 2.7.2, zmij 1.0.23, generic-array 0.14.7 | MIT |
-| prost 0.14.6, prost-derive 0.14.6, prost-types 0.14.6 | Apache-2.0 |
-| prost-reflect 0.16.5, serde_json 1.0.154, serde_core 1.0.229, base64 0.22.1, sha2 0.10.9 (with digest, block-buffer, crypto-common, cpufeatures, typenum), getrandom 0.3.4, socket2 0.6.5, libc 0.2.191 (Linux), windows-sys 0.61.2 (Windows), anyhow, cfg-if, either, itertools, itoa, hashbrown, proc-macro2, quote, syn | MIT OR Apache-2.0 |
-| uuid 1.18.1, indexmap 2.14.2, equivalent 1.0.3, pin-project-lite 0.2.18 | Apache-2.0 OR MIT |
-| memchr 2.8.3 | Unlicense OR MIT |
-| foldhash 0.2.0 | Zlib |
-| unicode-ident 1.0.27 | (MIT OR Apache-2.0) AND Unicode-3.0 |
+| MIT OR Apache-2.0 | base64 0.22.1, block-buffer 0.10.4, cfg-if 1.0.5, chrono 0.4.45, cpufeatures 0.2.17, crypto-common 0.1.7, digest 0.10.7, form_urlencoded 1.2.3, geo 0.32.0, geo-types 0.7.20, getrandom 0.2.17, getrandom 0.3.4, hash32 0.3.1, hashbrown 0.17.1, hashlink 0.12.2, heapless 0.8.0, idna 1.1.0, itoa 1.0.19, log 0.4.34, num-traits 0.2.19, once_cell 1.21.4, percent-encoding 2.3.2, ppv-lite86 0.2.21, prost-reflect 0.16.5, rand 0.8.8, rand_chacha 0.3.1, rand_core 0.6.4, regex 1.13.2, regex-automata 0.4.19, regex-syntax 0.8.12, robust 1.2.0, rstar 0.12.2, serde_core 1.0.229, serde_json 1.0.154, sha2 0.10.9, sif-itree 0.4.1, smallvec 1.16.6, socket2 0.6.5, stable_deref_trait 1.2.1, tempfile 3.27.0, thiserror 2.0.21, typenum 1.20.1, url 2.5.9, windows-link 0.2.1, windows-sys 0.61.2, yaml-rust2 0.13.1 |
+| MIT | bytes 1.12.2, float_next_after 1.0.0, generic-array 0.14.7, geographiclib-rs 0.2.7, i_float 1.15.0, i_key_sort 0.6.0, i_overlay 4.0.7, i_shape 1.14.0, i_tree 0.16.0, libm 0.2.16, mio 1.2.5, ruzstd 0.8.1, tokio 1.54.1, twox-hash 2.1.5, zmij 1.0.23 |
+| Unicode-3.0 | icu_collections 2.1.1, icu_locale_core 2.1.1, icu_normalizer 2.1.1, icu_normalizer_data 2.1.1, icu_properties 2.1.2, icu_properties_data 2.1.2, icu_provider 2.1.1, litemap 0.8.3, potential_utf 0.1.6, tinystr 0.8.5, writeable 0.6.4, yoke 0.8.4, zerofrom 0.1.8, zerotrie 0.2.5, zerovec 0.11.9 |
+| Apache-2.0 OR MIT | equivalent 1.0.3, fastrand 2.5.0, idna_adapter 1.2.1, indexmap 2.14.2, pin-project-lite 0.2.18, utf8_iter 1.1.0, utf_types 1.0.0, uuid 1.18.1 |
+| Apache-2.0 | approx 0.5.1, prost 0.14.6, prost-types 0.14.6 |
+| Unlicense OR MIT | byteorder 1.5.0, memchr 2.8.3 |
+| BSD-2-Clause OR Apache-2.0 OR MIT | zerocopy 0.8.64 |
+| MIT/Apache-2.0 | arraydeque 0.5.1 |
+| Zlib | foldhash 0.2.0 |
+
+92 crates, from `rust_bundle.linked_crates` on Windows x86_64 (normal edges, no proc macros).
+
+On Linux, `rustix`, `linux-raw-sys`, `errno`, `bitflags`, `libc` and `signal-hook-registry` replace the
+Windows crates. `geo` 0.32.0, `rstar` 0.12.2 and `i_overlay` 4.0.7 publish no licence file; their
+upstream texts are kept in `tools/live_schematic_mcp/qualification/notices/rust/`. `ruzstd` is held at
+0.8.1 and `uuid` at 1.18.1 because later releases need a newer Rust than the workspace's 1.85.
 
 Build-time only (`build.rs` compiles the protocol): protox 0.9.1, protox-parse 0.9.0, logos,
 regex-automata, regex-syntax, thiserror, semver, rustc_version (MIT OR Apache-2.0); miette 7.6.0
 (Apache-2.0); aho-corasick (Unlicense OR MIT); fnv, version_check (MIT/Apache-2.0).
-
-uuid is held at 1.18.1 because later releases need Rust 1.89, above the workspace's declared
-minimum of 1.85.

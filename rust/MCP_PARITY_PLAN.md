@@ -6,28 +6,28 @@ Python remains a development reference for comparison; forwarding tools to a Pyt
 server, embedding Python, or launching Python helpers does not satisfy this target.
 KiCad's native engines and CLI may remain execution dependencies.
 
-## Current gap
+## Current state (2026-11-21)
 
-The initial gate 4 slice is implemented, but full parity is not complete. The source
-inventory on 2026-11-20 now has 116 Python tools and 19 Rust tools: 97 tools remain to
-port. Those include 19 schematic, 41 PCB, 14 symbol and 17 footprint tools, plus
-6 shared tools for skills, embedded files, CLI execution and editor grid settings.
-Two skill resources and the skill-file resource template are also absent in Rust.
-Both generic registries contain the same 147 command definitions. Native list,
-describe, execute and batch now support that curated registry; generic dispatch
-does not replace the remaining typed helpers or qualify every editor handler.
-Counts describe registrations, not proven behavior.
+Every Python tool, resource, resource template and generic command is implemented natively:
+`surface_coverage.py --require-complete` passes (116 tools, 2 resources, 1 template, 147
+commands; nothing missing or different) and all 641 offline fixtures compare identical on
+Windows and in CI on Linux x86_64 and arm64. The remaining 97 tools were ported in six areas
+(PRs #25 to #31); [MCP.md](MCP.md) records the results, the known differences and the
+dependencies.
 
-The first implementation group adds schematic update/delete, shared generic
-commands/batches and schematic/PCB item schemas. The native Windows live comparison
-passed 100 checks, including real rollback, undo and lost-reply reconciliation.
-See [MCP.md](MCP.md) for the qualification scope and remaining host checks.
+Against the completion criteria below:
 
-The existing operation audit finds 210 C++ owner/request registrations, 166 distinct
-requests and 404 rows after resolving editor inheritance. Its five surfaces are the
-project manager, schematic, PCB, symbol and footprint editors. Some rows are
-conditional, internal, interactive or deferred. Neither this matrix nor Python MCP
-parity establishes coverage of every function in KiCad.
+1. **Python MCP parity**: met for advertisement and for every scripted scenario; the known
+   differences are listed in MCP.md.
+2. **Native execution**: the native server runs no Python. The installed package still ships the
+   Python server beside it and has not been qualified with Python absent.
+3. **Behavioural evidence per operation**: offline, every tool has fixtures (success, refusals,
+   KiCad errors, lost replies and reconciliation for edits); live evidence is still limited to
+   the first 19 tools and the manufacturing tools.
+4. **Live workflow qualification**: in progress across every area, on a disposable project.
+5. **All KiCad functions have a coverage decision**: not started beyond the IPC operation audit.
+
+The previous inventory (2026-11-20, 19 of 116 tools) is in the git history of this file.
 
 ## Completion criteria
 

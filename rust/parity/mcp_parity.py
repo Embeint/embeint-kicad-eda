@@ -68,8 +68,9 @@ import instance_discovery  # noqa: E402
 # module in embeint-mcp/src/tools/ and its scenarios in scenarios/<area>.py.
 SCENARIO_DIR = Path(__file__).resolve().parent / "scenarios"
 
-# Short reply timeout for the fixtures, so lost replies are quick to exercise
-FIXTURE_TIMEOUT_MS = "400"
+# Short reply timeout for the fixtures, so lost replies are quick to exercise.  400 ms let a real
+# reply arrive late on a loaded machine (two suites at once), which then took the lost-reply path
+FIXTURE_TIMEOUT_MS = "1000"
 DROP = object()  # a fixture action: receive the request and never reply
 CLOSE = object()  # a fixture action: receive the request, then close the endpoint without replying
 TOKEN = "fixture-token-A"
@@ -218,8 +219,8 @@ def check_schema(binary, failures):
         failures.append(f"schema: no fixture runs {untested} beyond argument validation")
     if json.loads((RUST_DIR / "embeint-ipc/commands.json").read_text(encoding="utf-8")) != registry_entries():
         failures.append("schema: commands.json is out of date; run mcp_parity.py --write-schemas")
-    for key in ("protocolVersion", "capabilities"):
-        if py_init[key] != rs_init[key]:
+    for key in ("protocolVersion", "capabilities", "instructions"):
+        if py_init.get(key) != rs_init.get(key):
             failures.append(f"schema: initialize {key} differs: {py_init[key]} != {rs_init[key]}")
     if rs_init["serverInfo"]["name"] != py_init["serverInfo"]["name"]:
         failures.append("schema: serverInfo name differs")
