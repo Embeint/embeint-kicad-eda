@@ -74,7 +74,8 @@ def test_package_check_requires_notices_matching_the_bundled_versions(tmp_path):
     for name in ("KiCad-GPL.txt", "Python-LICENSE.txt"):
         (licenses / name).write_text("licence")
     for source in package_mcp.NOTICES.iterdir():
-        shutil.copyfile(source, licenses / "third-party" / source.name)
+        if source.is_file():  # as package_mcp copies them (rust/ is rust_bundle's)
+            shutil.copyfile(source, licenses / "third-party" / source.name)
     info = {"dependencies": {"pynng": manifest["distributions"]["pynng"]["version"]},
             "openssl_version": "OpenSSL 3.0.11 19 Sep 2023"}
     check_package.check_notices(tmp_path, info)
@@ -377,9 +378,21 @@ def test_rust_bundle_reads_cargo_tree_and_ships_every_licence(tmp_path):
 
     bare = tmp_path / "registry/bare-1.0.0"
     bare.mkdir()
+    kept = tmp_path / "notices"
     with pytest.raises(RuntimeError, match="bare 1.0.0 has no licence file"):
         rust_bundle.copy_notices([{"name": "bare", "version": "1.0.0", "license": "MIT", "root": bare}],
-                                 tmp_path / "out2", sysroot)
+                                 tmp_path / "out2", sysroot, kept)
+    # A crate that ships no licence takes the upstream text kept for its exact version
+    (kept / "bare-1.0.0").mkdir(parents=True)
+    (kept / "bare-1.0.0/LICENSE-MIT").write_text("upstream MIT")
+    (kept / "bare-0.9.0").mkdir()
+    listed = rust_bundle.copy_notices([{"name": "bare", "version": "1.0.0", "license": "MIT", "root": bare}],
+                                      tmp_path / "out4", sysroot, kept)
+    assert listed[0]["files"] == ["LICENSE-MIT"]
+    assert (tmp_path / "out4/bare-1.0.0/LICENSE-MIT").read_text() == "upstream MIT"
+    # Every crate kept in the repository is one that ships no licence of its own, at that version
+    for folder in rust_bundle.RUST_NOTICES.iterdir():
+        assert rust_bundle.licence_files(folder), folder
     with pytest.raises(RuntimeError, match="COPYRIGHT-library.html"):
         rust_bundle.copy_notices([], tmp_path / "out3", tmp_path / "no-sysroot")
 

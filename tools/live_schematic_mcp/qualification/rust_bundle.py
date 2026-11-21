@@ -29,6 +29,8 @@ PACKAGES = {"embeint-mcp": "embeint-mcp", "embeint-layout-cli": "embeint-layout"
 LICENCE_FILE = re.compile(r"(?:^|[-_.])(licen[cs]e|copying|copyright|notice|unlicense)(?:$|[-_.])", re.IGNORECASE)
 # Standard library notices in <sysroot>/share/doc/rust (installed with the rustc component)
 STD_NOTICES = ("COPYRIGHT-library.html", "licenses")
+# Upstream licence texts of crates whose published package ships none (notices/README.md)
+RUST_NOTICES = Path(__file__).resolve().parent / "notices" / "rust"
 
 
 def executable_name(name, windows):
@@ -114,16 +116,22 @@ def licence_files(root):
     return sorted(path for path in root.iterdir() if path.is_file() and LICENCE_FILE.search(path.name))
 
 
-def copy_notices(crates, destination, sysroot):
+def copy_notices(crates, destination, sysroot, notices=RUST_NOTICES):
     """licenses/rust: each crate's licence files and the standard library's notices.  A crate
-    without a licence file stops the build: its notice cannot be shipped."""
+    whose package ships no licence file takes the upstream texts kept for that exact version in
+    notices/rust/<name>-<version>/; without them it stops the build: its notice cannot be
+    shipped."""
     destination.mkdir(parents=True)
     listed = []
     for crate in crates:
         files = licence_files(crate["root"])
         if not files:
+            kept = Path(notices) / f"{crate['name']}-{crate['version']}"
+            files = licence_files(kept) if kept.is_dir() else []
+        if not files:
             raise RuntimeError(f"{crate['name']} {crate['version']} has no licence file to ship "
-                               f"({crate['license']}); add its notice by hand")
+                               f"({crate['license']}); add its upstream licence text to "
+                               f"qualification/notices/rust/{crate['name']}-{crate['version']}/")
         folder = destination / f"{crate['name']}-{crate['version']}"
         folder.mkdir()
         for source in files:
