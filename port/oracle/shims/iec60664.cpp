@@ -21,7 +21,10 @@ using OV = IEC60664::OV_CATEGORY;
 template<typename Tag, typename Tag::TYPE Member>
 struct ACCESS
 {
-    friend typename Tag::TYPE MemberPointer( Tag ) { return Member; }
+    friend typename Tag::TYPE MemberPointer( Tag )
+    {
+        return Member;
+    }
 };
 
 #define IEC_ACCESS( Name, Type, Member ) \
@@ -63,8 +66,8 @@ double Number( const JSON& aInput, const char* aKey )
 {
     const JSON& value = aInput.at( aKey );
 
-    if( !value.is_number_integer() || ( value.is_number_integer() && !value.is_number_unsigned()
-                                      && value.get<int64_t>() < 0 ) )
+    if( !value.is_number_integer()
+        || ( !value.is_number_unsigned() && value.get<int64_t>() < 0 ) )
         throw std::invalid_argument( "expected u64 bits" );
 
     const double result = std::bit_cast<double>( value.get<uint64_t>() );
@@ -138,19 +141,32 @@ void Set( IEC60664& aCalc, const JSON& aStep )
     Keys( aStep, { "op", "field", "value" } );
     const std::string field = aStep.at( "field" ).get<std::string>();
 
-    if( field == "altitude" ) aCalc.SetAltitude( Number( aStep, "value" ) );
-    else if( field == "frequency" ) aCalc.SetFrequency( Number( aStep, "value" ) );
-    else if( field == "rated_voltage" ) aCalc.SetRatedVoltage( Number( aStep, "value" ) );
-    else if( field == "rms_voltage" ) aCalc.SetRMSVoltage( Number( aStep, "value" ) );
-    else if( field == "peak_voltage" ) aCalc.SetPeakVoltage( Number( aStep, "value" ) );
-    else if( field == "transient_voltage" ) aCalc.SetTransientVoltage( Number( aStep, "value" ) );
-    else if( field == "pollution_degree" ) aCalc.SetPollutionDegree( static_cast<PD>( Enum( aStep, "value" ) ) );
-    else if( field == "material_group" ) aCalc.SetMaterialGroup( static_cast<MG>( Enum( aStep, "value" ) ) );
-    else if( field == "field" ) aCalc.SetField( static_cast<FIELD>( Enum( aStep, "value" ) ) );
-    else if( field == "insulation_type" ) aCalc.SetInsulationType( static_cast<INS>( Enum( aStep, "value" ) ) );
-    else if( field == "overvoltage_category" ) aCalc.SetOvervoltageCategory( static_cast<OV>( Enum( aStep, "value" ) ) );
-    else if( field == "pcb_material" ) aCalc.SetPCBMaterial( aStep.at( "value" ).get<bool>() );
-    else throw std::invalid_argument( "unknown setter" );
+    if( field == "altitude" )
+        aCalc.SetAltitude( Number( aStep, "value" ) );
+    else if( field == "frequency" )
+        aCalc.SetFrequency( Number( aStep, "value" ) );
+    else if( field == "rated_voltage" )
+        aCalc.SetRatedVoltage( Number( aStep, "value" ) );
+    else if( field == "rms_voltage" )
+        aCalc.SetRMSVoltage( Number( aStep, "value" ) );
+    else if( field == "peak_voltage" )
+        aCalc.SetPeakVoltage( Number( aStep, "value" ) );
+    else if( field == "transient_voltage" )
+        aCalc.SetTransientVoltage( Number( aStep, "value" ) );
+    else if( field == "pollution_degree" )
+        aCalc.SetPollutionDegree( static_cast<PD>( Enum( aStep, "value" ) ) );
+    else if( field == "material_group" )
+        aCalc.SetMaterialGroup( static_cast<MG>( Enum( aStep, "value" ) ) );
+    else if( field == "field" )
+        aCalc.SetField( static_cast<FIELD>( Enum( aStep, "value" ) ) );
+    else if( field == "insulation_type" )
+        aCalc.SetInsulationType( static_cast<INS>( Enum( aStep, "value" ) ) );
+    else if( field == "overvoltage_category" )
+        aCalc.SetOvervoltageCategory( static_cast<OV>( Enum( aStep, "value" ) ) );
+    else if( field == "pcb_material" )
+        aCalc.SetPCBMaterial( aStep.at( "value" ).get<bool>() );
+    else
+        throw std::invalid_argument( "unknown setter" );
 }
 
 
