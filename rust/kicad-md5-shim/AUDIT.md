@@ -2,9 +2,12 @@
 # MD5 source and branch audit
 
 Reading reference: `4cf939778df04d2b747bb2c4714fc5014a7565c7`.
-Provisional candidate: `libs.kimath.src.md5_hash.application.pure.p001`.
-Final generated scope and runtime gates remain pending; this audit does not
-claim unit ownership or a passing comparison.
+Candidate: `libs.kimath.src.md5_hash.application.pure.p001`.
+The local finalizer record confirms all 15 definitions, physical span 1..289,
+layer 0, pure classification and empty dependency/gap lists. Its raw SHA-256 is
+`71c89c90c9df44c2ba2abb81a367c650c951fd058b1f3e7dd4e788b04c3120ee`.
+Final committed extractor confirmation remains pending. The full local comparison
+passes; this audit does not claim ownership, unit status or CI completion.
 
 All locations below are in `libs/kimath/src/md5_hash.cpp`. The supporting class
 in `libs/kimath/include/md5_hash.h` supplies `IsValid`, `SetValid` and the actual
@@ -13,19 +16,19 @@ is introduced. There are no `UNPORTED` callers in this implementation.
 
 | Upstream definition | Rust body and branches | Successful observable operation in the corpus | Remaining limitation |
 | --- | --- | --- | --- |
-| default constructor, line 30 | `Md5Hash::new` / `Default` / initialization | every `new` snapshot includes defined zero digest and false validity | runtime pending |
-| copy constructor, line 36 | derived `Clone`, every field copied | every split clones a partial context; continuations finalize original/copy | runtime pending |
+| default constructor, line 30 | `Md5Hash::new` / `Default` / initialization | every `new` snapshot includes defined zero digest and false validity | checked live |
+| copy constructor, line 36 | derived `Clone`, every field copied | every split clones a partial context; continuations finalize original/copy | checked live |
 | destructor, line 44 | ordinary Rust drop; upstream body empty, no resource/effect to reproduce | every case destroys its real C++ states | no observable destructor result exists |
-| assignment, line 48 | derived `Clone::clone_from`, context/digest/validity copied | partial/finalized assignment and independent mutation | runtime pending; reference self-assignment excluded for overlapping memcpy |
-| `Init`, line 58 | `init` replaces all context fields, hash and validity | reset after partial and finalized work; empty finalization after reset | runtime pending |
+| assignment, line 48 | derived `Clone::clone_from`, context/digest/validity copied | partial/finalized assignment and independent mutation | checked live; reference self-assignment excluded for overlapping memcpy |
+| `Init`, line 58 | `init` replaces all context fields, hash and validity | reset after partial and finalized work; empty finalization after reset | checked live |
 | byte `Hash`, line 66 | `hash` validates uint32 length before `update` | empty, single/full/multiple blocks, all selected splits/strides, repeat no-ops | harness bounds one call to 65536 bytes; library accepts uint32 domain |
 | integer `Hash`, line 72 | `hash_int` uses i32 little-endian bytes | 15 signed boundaries versus explicit byte overload; mixed continuation | Linux little-endian 32-bit int contract only |
-| `Finalize`, line 78 | `finalize` mutates context, then stored digest, then validity | first/repeated finalization, hashing afterward, validity false before finalizing | runtime pending |
-| equality, line 85 | `PartialEq` compares stored bytes only | equal/unequal, unfinished contexts, differing validity, pending updates | runtime pending |
-| inequality, line 91 | default `PartialEq::ne`, logical inverse of byte equality | real C++ `!=` is independently serialized alongside `==` | runtime pending |
-| `Format`, line 97 | `format`, `format_default`; both nibble arms and compact modes | all snapshots include compact, spaced and omitted-default calls; literal RFC strings | runtime pending; reference nibble offset intentionally preserved |
-| `md5_transform`, line 125 | existing `md5::block_api::compress`, all four rounds / 64 steps | RFC strings, all byte values, 55/56/63/64/65, multiblock streams and continuations | source arithmetic is replaced by the compatible crate; live results still required |
-| `md5_init`, line 215 | `Default`: full zero buffer/counters and all four constants | new/reset states and their subsequent successful hashes | runtime pending |
+| `Finalize`, line 78 | `finalize` mutates context, then stored digest, then validity | first/repeated finalization, hashing afterward, validity false before finalizing | checked live |
+| equality, line 85 | `PartialEq` compares stored bytes only | equal/unequal, unfinished contexts, differing validity, pending updates | checked live |
+| inequality, line 91 | default `PartialEq::ne`, logical inverse of byte equality | real C++ `!=` is independently serialized alongside `==` | checked live |
+| `Format`, line 97 | `format`, `format_default`; both nibble arms and compact modes | all snapshots include compact, spaced and omitted-default calls; literal RFC strings | checked live; reference nibble offset intentionally preserved |
+| `md5_transform`, line 125 | existing `md5::block_api::compress`, all four rounds / 64 steps | RFC strings, all byte values, 55/56/63/64/65, multiblock streams and continuations | compatible crate's compression effects checked live |
+| `md5_init`, line 215 | `Default`: full zero buffer/counters and all four constants | new/reset states and their subsequent successful hashes | checked live |
 | `md5_update`, line 228 | `update`: empty loop, partial fill, transform at 64, uint64 wrapping add | every two-way split, bytewise updates, copies across block boundaries, 512 MiB low-word carry | full uint64 wrap not practically enumerated |
 | `md5_final`, line 245 | both padding branches, all zero fill/length bytes, final compression and LE output; preserves partial count | all remainders 0..63; <56 and >=56 branches; copied/repeated contexts; final-add low-word carry | full uint64 wrap not practically enumerated |
 
@@ -49,6 +52,9 @@ finalization leaves it in 0..63. All input-sized slice operations use the minimu
 of the remaining input and buffer capacity. There is no caller-controlled
 recursion, global state, filesystem, socket, process, thread or unsafe code.
 
-Case preparation, source review and known-answer unit tests cannot replace live
-oracle/golden CI evidence. Add the exact tested commit, scope provenance, counts,
-commands and CI URLs only after those gates have actually run.
+[VALIDATION.md](VALIDATION.md) records the tested code revision, successful local
+gates and baseline evidence. The 5,972-case live run checked 67,617 actual digest/
+validity snapshots and 9,631 equality/inequality events, with zero failures or
+deferrals. This is a source-to-case branch audit, not an instrumented coverage
+percentage or proof of exhaustive inputs. CI and final unit registration remain
+pending; no CI URL or unit status is invented.

@@ -85,8 +85,10 @@ All 64 MD5 compression rounds come from the existing crate; the live cases test
 their effect with public bytes covering all byte values. Context counters beyond
 the 512 MiB carry and a full 64-bit bit-count wrap are not practically enumerated;
 wrapping arithmetic preserves the unsigned reference transitions. No CI or parity
-claim follows from preparing or storing cases. Evidence and audited symbol/branch
-mapping are recorded separately after actual execution.
+claim follows from preparing or storing cases. [AUDIT.md](AUDIT.md) maps every
+definition and branch to actual observable cases; [VALIDATION.md](VALIDATION.md)
+records local execution and the exact initial baseline. CI and final unit
+registration remain pending parent confirmation of the committed extractor head.
 
 ## Checks
 

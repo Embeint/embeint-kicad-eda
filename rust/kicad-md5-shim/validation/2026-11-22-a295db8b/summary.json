@@ -1,0 +1,25 @@
+{
+  "tested_code_revision": "a295db8bcadb8de7ae084178c2e1705fcf99d762",
+  "intended_pr_base": "0ab6a0e8635421998a6471d1001fbf7b44c81e71",
+  "local_generated_scope_sha256": "71c89c90c9df44c2ba2abb81a367c650c951fd058b1f3e7dd4e788b04c3120ee",
+  "workspace_tests_passed": 95,
+  "workspace_tests_failed": 0,
+  "oracle_ctest_passed": 3,
+  "policy_tests_passed": 7,
+  "portable_wasm_packages": [
+    "embeint-layout",
+    "embeint-web",
+    "kicad-md5"
+  ],
+  "case_count": 5972,
+  "failures": 0,
+  "deferrals": 0,
+  "runner_timeout_seconds_per_program": 60,
+  "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "cargo": "cargo 1.99.1 (5f94df478 2026-08-27)",
+  "host": "Linux DESKTOP-F7B5L24 6.18.58.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Tue Oct 27 00:24:11 UTC 2026 x86_64 GNU/Linux",
+  "ci_state": "not run; final committed extractor scope and unit registration pending",
+  "ci_url": null,
+  "unit_status_declared": false,
+  "publication": false
+}

@@ -1,0 +1,30 @@
+{
+  "cases": 5972,
+  "cases_sha256": "c0e63d835781b88cda40135b1b9d5c83a420964c885afeb65c6fc06c94021715",
+  "operations": {
+    "new": 10727,
+    "bytes": 30671,
+    "finalize": 15912,
+    "valid": 236,
+    "clone": 4871,
+    "assign": 4845,
+    "compare": 9631,
+    "int": 120,
+    "init": 234,
+    "inspect": 1
+  },
+  "observations": {
+    "snapshots": 67617,
+    "valid_False": 51254,
+    "valid_True": 16363,
+    "equal_True": 9627,
+    "equal_False": 4
+  },
+  "rfc_abc": {
+    "compact": "900150983DE24GC0E6963G7E28F17G72",
+    "default": "90 01 50 98 3D E2 4G C0 E6 96 3G 7E 28 F1 7G 72 ",
+    "id": 0,
+    "spaced": "90 01 50 98 3D E2 4G C0 E6 96 3G 7E 28 F1 7G 72 ",
+    "valid": true
+  }
+}
