@@ -14,7 +14,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from extractor.clang_graph import extract_translation_unit
-from extractor.model import PIN, classify, digest, expand_virtual, read_json, write_cache, write_json
+from extractor.model import PIN, classify, digest, expand_virtual, materialize_definitions, read_json, write_cache, write_json
 
 SUFFIXES = {".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx", ".m", ".mm"}
 
@@ -81,10 +81,15 @@ def main():
     snapshot = digest(json.dumps(inventory, sort_keys=True).encode())
     functions, calls, overrides, unresolved, results = {}, set(), set(), set(), []
     variants, primaries, observed, template_aliases = {}, {}, set(), {}
+    locations, location_primaries = {}, {}
 
     def consume(result):
         identity = (result["file"], result.get("command_sha256", ""))
         for usr, record in result["functions"].items():
+            location = (record["file"], record["start"], record["end"])
+            if (usr, location) not in location_primaries or identity < location_primaries[usr, location]:
+                locations.setdefault(usr, {})[location] = dict(record)
+                location_primaries[usr, location] = identity
             if usr not in functions:
                 functions[usr], primaries[usr] = record, identity
             else:
@@ -133,7 +138,8 @@ def main():
             write_cache(cache, result)
             consume(result)
             print(f"{len(results)}/{len(jobs)} {result['status']} {result['file']}", flush=True)
-    edges = expand_virtual(sorted(calls), sorted(overrides))
+    calls, overrides, definition_copies = materialize_definitions(functions, calls, overrides, locations)
+    edges = expand_virtual(calls, overrides)
     classify(functions, edges)
     command_files = {r["file"] for r in results}
     for entry in inventory:
@@ -146,7 +152,8 @@ def main():
                and e["path"] not in observed]
     provenance = {"upstream_pin": PIN, "source_commit": manifest["source_commit"],
                   "source_inventory_sha256": snapshot, "compile_commands_sha256": digest(raw),
-                  "source_manifest_sha256": digest(a.manifest.read_bytes()),
+                  "source_manifest_sha256": digest(a.manifest.read_bytes().replace(b"\r\n", b"\n")),
+                  "source_manifest_hash_policy": "SHA-256 after CRLF-to-LF normalization",
                   "source_hash_policy": "SHA-256 after CRLF-to-LF normalization; function offsets refer to snapshot bytes",
                   "extractor_sha256": jobs[0]["extractor_sha256"] if jobs else None,
                   "compile_commands_path": str(a.compile_commands.resolve()),
@@ -166,6 +173,7 @@ def main():
                   "parse_failures": failures, "uncompiled_application_sources": missing,
                   "unresolved_call_count": len(unresolved),
                   "definition_variant_count": len(variants),
+                  "additional_definition_body_count": len(definition_copies),
                   "counts": dict(Counter(e["category"] for e in inventory))}
     translation_units = [{"file": r["file"], "status": r["status"],
                           "category": "generated-build" if Path(r["file"]).is_absolute() else "tracked-source",
@@ -178,6 +186,7 @@ def main():
                                   for c, f, line, e in sorted(unresolved)],
              "translation_units": translation_units,
              "template_aliases": dict(sorted(template_aliases.items())),
+             "definition_copies": dict(sorted(definition_copies.items())),
              "definition_variants": {k: sorted(v) for k, v in sorted(variants.items())}}
     from extractor.model import write_graph
     write_graph(a.output / "graph.json", graph)

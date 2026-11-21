@@ -106,7 +106,10 @@ def validate(root, require_complete=False, check_sources=True, source_root=None)
             errors.append("tracked source manifest differs from inventory")
         if manifest["source_commit"] != provenance.get("source_commit") or manifest["upstream_pin"] != PIN:
             errors.append("source manifest provenance mismatch")
-        if digest(manifest_path.read_bytes()) != provenance.get("source_manifest_sha256"):
+        manifest_bytes = manifest_path.read_bytes()
+        if provenance.get("source_manifest_hash_policy") == "SHA-256 after CRLF-to-LF normalization":
+            manifest_bytes = manifest_bytes.replace(b"\r\n", b"\n")
+        if digest(manifest_bytes) != provenance.get("source_manifest_sha256"):
             errors.append("source manifest fingerprint mismatch")
     if digest(json.dumps([{k: v for k, v in f.items() if k != "coverage"} for f in inventory["files"]], sort_keys=True).encode()) != provenance.get("source_inventory_sha256"):
         errors.append("inventory fingerprint mismatch")

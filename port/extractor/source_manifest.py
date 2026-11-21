@@ -23,7 +23,7 @@ def main():
         raise ValueError("Commit tracked source edits before snapshotting: " + ", ".join(sorted(modified)))
     value = {"source_commit": git("rev-parse", "HEAD").strip(), "upstream_pin": PIN, "files": files}
     a.output.parent.mkdir(parents=True, exist_ok=True)
-    a.output.write_text(json.dumps(value, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+    a.output.write_text(json.dumps(value, indent=2, ensure_ascii=True) + "\n", encoding="utf-8", newline="\n")
     print(f"{len(files)} tracked sources at {value['source_commit']}")
 
 

@@ -76,7 +76,25 @@ def extract_translation_unit(job):
 
         def local(cursor):
             file = cursor.location.file
-            return file and str(file).startswith(root + "/")
+            return file and os.path.normpath(str(file)).startswith(root + "/")
+
+        def source_range(cursor, file):
+            """Use a conservative clang parent range for null template extents.
+
+            libclang 21 can return a null extent for constrained `auto` method
+            templates. The enclosing declaration is real clang source evidence;
+            widening it avoids guessing tokens or splitting an unknown signature.
+            """
+            candidate = cursor
+            while candidate:
+                start, end = candidate.extent.start, candidate.extent.end
+                if (start.file and end.file and start.line > 0 and end.line >= start.line
+                        and os.path.normpath(str(start.file)) == file
+                        and os.path.normpath(str(end.file)) == file and end.offset > start.offset):
+                    kind = "function" if candidate == cursor else "enclosing-declaration"
+                    return start, end, kind
+                candidate = candidate.semantic_parent
+            raise ValueError(f"No valid clang source extent for {cursor.get_usr()} in {file}")
 
         def wx(cursor):
             texts = [cursor.type.spelling, cursor.spelling]
@@ -134,15 +152,16 @@ def extract_translation_unit(job):
                     dispose(ptr)
                 if cursor.is_definition() and usr:
                     current = usr
-                    file = str(cursor.location.file)
+                    file = os.path.normpath(str(cursor.location.file))
                     if file not in text_cache:
                         text_cache[file] = Path(file).read_bytes()
-                    start, end = cursor.extent.start, cursor.extent.end
+                    start, end, range_kind = source_range(cursor, file)
                     body = text_cache[file][start.offset:end.offset]
                     out["functions"][usr] = {
                         "name": qualified(cursor), "file": file.removeprefix(root + "/"),
                         "start": start.line, "end": end.line,
                         "start_offset": start.offset, "end_offset": end.offset,
+                        "range_kind": range_kind, "definition_line": cursor.location.line,
                         "lines": end.line - start.line + 1, "sha256": digest(body.replace(b"\r\n", b"\n")),
                         "wx": sorted(wx(cursor) | class_wx(cursor.semantic_parent)), "virtual": cursor.kind == ci.CursorKind.CXX_METHOD
                         and cursor.is_virtual_method()}
@@ -166,8 +185,9 @@ def extract_translation_unit(job):
                 walk(child, current)
 
         walk(tu.cursor)
-        out["includes"] = sorted({str(i.include).removeprefix(root + "/")
-                                  for i in tu.get_includes() if str(i.include).startswith(root + "/")})
+        out["includes"] = sorted({os.path.normpath(str(i.include)).removeprefix(root + "/")
+                                  for i in tu.get_includes()
+                                  if os.path.normpath(str(i.include)).startswith(root + "/")})
         out["template_aliases"] = aliases
         out["status"] = "parse-error" if any(d["severity"] >= 3 for d in out["diagnostics"]) else "ok"
     except Exception as exc:
