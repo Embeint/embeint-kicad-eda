@@ -21,7 +21,7 @@ from split_units import CORE
 STATUSES = {"todo", "claimed", "partial", "green", "blocked"}
 
 
-def validate(root, require_complete=False, check_sources=True):
+def validate(root, require_complete=False, check_sources=True, source_root=None):
     errors, units = [], {}
     directory = root / "port/units"
     paths = sorted(directory.glob("*.toml"))
@@ -96,6 +96,9 @@ def validate(root, require_complete=False, check_sources=True):
     files = {f["path"]: f for f in inventory["files"]}
     if len(files) != len(inventory["files"]):
         errors.append("duplicate inventory path")
+    for usr, fn in graph["functions"].items():
+        if fn["file"] not in files:
+            errors.append(f"function source absent from inventory: {usr}")
     manifest_path = generated / "source-manifest.json"
     if manifest_path.exists():
         manifest = read_json(manifest_path)
@@ -201,7 +204,7 @@ def validate(root, require_complete=False, check_sources=True):
         errors.append(str(exc))
     if check_sources:
         for path, entry in files.items():
-            source = root / path
+            source = (source_root or root) / path
             if not source.is_file() or digest(source.read_bytes().replace(b"\r\n", b"\n")) != entry["sha256"]:
                 errors.append(f"source changed since extraction: {path}; regenerate graph or use drift_report")
     return sorted(set(errors))
@@ -211,11 +214,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[2])
     parser.add_argument("--require-complete", action="store_true")
+    parser.add_argument("--source-root", type=Path, help="optional byte-equivalent source snapshot for hash checks")
     parser.add_argument("--skip-source-hashes", action="store_true", help="validate historical graph after upstream edits")
     parser.add_argument("--json", action="store_true")
     a = parser.parse_args()
     try:
-        errors = validate(a.root, a.require_complete, not a.skip_source_hashes)
+        errors = validate(a.root, a.require_complete, not a.skip_source_hashes, a.source_root)
     except (KeyError, TypeError, ValueError, OSError) as exc:
         errors = [f"Malformed extraction data: {exc}"]
     print(json.dumps({"valid": not errors, "errors": errors}) if a.json else

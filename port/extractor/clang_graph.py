@@ -10,11 +10,17 @@ from .model import digest
 
 
 def extract_translation_unit(job):
+    root, old = job["root"], job["old_root"]
+    source = job["file"].replace(old, root)
+    out = {"file": source.removeprefix(root + "/"), "functions": {},
+           "calls": [], "overrides": [], "unresolved": [], "diagnostics": []}
+    if not Path(source).is_file():
+        out["status"] = "missing-source"
+        out["diagnostics"].append({"severity": 4, "message": "Compilation source is absent; not parsed"})
+        return out
     from clang import cindex as ci
     if not ci.Config.loaded:
         ci.Config.set_library_file(job["libclang"])
-    root, old = job["root"], job["old_root"]
-    source = job["file"].replace(old, root)
     args = job.get("arguments") or shlex.split(job["command"])
     cleaned, skip = [], False
     for arg in args[1:]:
@@ -28,8 +34,6 @@ def extract_translation_unit(job):
     # GCC knows its C++ include search implicitly; libclang does not.
     cleaned += job.get("extra_args", [])
     os.chdir(job["directory"])
-    out = {"file": source.removeprefix(root + "/"), "functions": {},
-           "calls": [], "overrides": [], "unresolved": [], "diagnostics": []}
     try:
         tu = ci.Index.create().parse(source, args=cleaned,
                                     options=ci.TranslationUnit.PARSE_DETAILED_PROCESSING_RECORD)
@@ -44,6 +48,28 @@ def extract_translation_unit(job):
         dispose.argtypes = [ctypes.POINTER(ci.Cursor)]
         text_cache = {}
         class_cache = {}
+        aliases = {}
+
+        def identity(cursor):
+            """Connect instantiated calls to the primary body that owns their source.
+
+            An explicit specialization has its own source location and body; it
+            must retain its own USR. Only implicit same-location instances alias.
+            """
+            original = cursor.get_usr()
+            seen = set()
+            while cursor.get_usr() not in seen:
+                seen.add(cursor.get_usr())
+                primary = cursor.specialized_template
+                if primary is None:
+                    break
+                if primary.location != cursor.location:
+                    break
+                cursor = primary
+            target = cursor.get_usr()
+            if original != target:
+                aliases[original] = target
+            return target
         wx_kinds = {ci.CursorKind.TYPE_REF, ci.CursorKind.TEMPLATE_REF, ci.CursorKind.DECL_REF_EXPR,
                     ci.CursorKind.MEMBER_REF_EXPR, ci.CursorKind.VAR_DECL, ci.CursorKind.PARM_DECL,
                     ci.CursorKind.CALL_EXPR, ci.CursorKind.CXX_BASE_SPECIFIER}
@@ -97,12 +123,14 @@ def extract_translation_unit(job):
                 return
             current = owner
             if cursor.kind in functions:
-                usr = cursor.get_usr()
+                usr = identity(cursor)
                 if cursor.kind == ci.CursorKind.CXX_METHOD:
                     ptr, count = ctypes.POINTER(ci.Cursor)(), ctypes.c_uint()
                     get_overrides(cursor, ctypes.byref(ptr), ctypes.byref(count))
                     for i in range(count.value):
-                        out["overrides"].append([ptr[i].get_usr(), usr])
+                        base = ptr[i]
+                        base._tu = cursor._tu
+                        out["overrides"].append([identity(base), usr])
                     dispose(ptr)
                 if cursor.is_definition() and usr:
                     current = usr
@@ -128,7 +156,7 @@ def extract_translation_unit(job):
                     ref = cursor.referenced
                     if ref and ref.kind in functions and ref.get_usr():
                         virtual = ref.kind == ci.CursorKind.CXX_METHOD and ref.is_virtual_method()
-                        out["calls"].append([current, ref.get_usr(), virtual])
+                        out["calls"].append([current, identity(ref), virtual])
                         # External wx calls still contribute direct classification.
                         record["wx"] = sorted(set(record["wx"]) | wx(ref))
                     else:
@@ -140,6 +168,7 @@ def extract_translation_unit(job):
         walk(tu.cursor)
         out["includes"] = sorted({str(i.include).removeprefix(root + "/")
                                   for i in tu.get_includes() if str(i.include).startswith(root + "/")})
+        out["template_aliases"] = aliases
         out["status"] = "parse-error" if any(d["severity"] >= 3 for d in out["diagnostics"]) else "ok"
     except Exception as exc:
         out["status"] = "extract-error"

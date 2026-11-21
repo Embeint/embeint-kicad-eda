@@ -4,12 +4,12 @@
 import argparse
 from collections import Counter, defaultdict
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import sys
 import tomllib
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from extractor.model import CLASSES, identifier, layers, weighted_dag, write_json, read_json, write_graph
+from extractor.model import CLASSES, digest, identifier, layers, weighted_dag, write_json, read_json, write_graph
 
 CORE = ("id", "upstream", "rust_module", "depends_on", "soft_depends_on", "est_lines",
         "layer", "tests", "status", "claimed_by", "claimed_at", "notes")
@@ -38,13 +38,16 @@ def split(graph, inventory, target=2000):
             owned = [usr for usr, f in fns if start <= f["start"] <= end]
             coupling = max((functions[u]["wx_class"] for u in owned),
                            key=CLASSES.index, default="pure")
+            if entry["coverage"] != "parsed":
+                coupling = "UI"
             # Small math source files are useful independent leaf units; other
             # files share directory/classification bins near the target budget.
-            group = str(Path(path).with_suffix("")) if path.startswith("libs/kimath/src/") else str(Path(path).parent)
+            group = str(PurePosixPath(path).with_suffix("")) if path.startswith("libs/kimath/src/") else str(PurePosixPath(path).parent)
             bins[(group, coupling, entry["category"])].append(
                 {"file": path, "start": start, "end": end, "functions": owned})
             start = end + 1
     units, ownership = {}, {}
+    prefixes = Counter((identifier(g) or "root", c, category) for g, c, category in bins)
     for (group, coupling, category), records in sorted(bins.items()):
         chunks, current, size = [], [], 0
         for record in records:
@@ -57,7 +60,12 @@ def split(graph, inventory, target=2000):
         if current:
             chunks.append(current)
         for number, chunk in enumerate(chunks, 1):
-            uid = f"{identifier(group) or 'root'}.{identifier(coupling)}.p{number:03}"
+            prefix = identifier(group) or "root"
+            if prefixes[prefix, coupling, category] > 1:
+                prefix += "." + digest(group.encode())[:8]
+            uid = f"{prefix}.{category}.{identifier(coupling)}.p{number:03}"
+            if uid in units:
+                raise ValueError(f"Unit ID collision: {uid}")
             ids = sorted(u for r in chunk for u in r["functions"])
             # Missing configurations are explicit blockers, even when a file
             # has declarations available through another translation unit.
