@@ -68,8 +68,9 @@ FIXED = set(UUID_RE.findall(json.dumps([PINS, SUB_PINS, NETLIST]))) | {"00000000
 def generated(requests, results):
     """Names the UUIDs the tools create, the preview directory and today's date alike."""
     names = {}
-    today = datetime.date.today()
-    dates = {(today - datetime.timedelta(days=d)).isoformat() for d in (0, 1)}
+    # Only the local date of the run: a server that used another date (UTC, say) must fail.  A run
+    # that crosses midnight between the two servers fails visibly; run it again.
+    dates = {datetime.date.today().isoformat()}
 
     def text(value):
         value = UUID_RE.sub(lambda m: m.group(0) if m.group(0) in FIXED
@@ -254,6 +255,11 @@ def scenarios(h):
         + [set_block[0], ("SetTitleBlockInfo", lambda r: h.DROP), ("GetOperationStatus", status("OPS_UNKNOWN"))]
         + [set_settings[0], ("SetPageSettings", lambda r: h.DROP),
            ("GetOperationStatus", lambda r: failure(envelope.AS_BUSY, "busy"))])
+    # Not atomic, as in Python: the page change commits, then the title block fails
+    add("set_page_partial", [
+        ("live_schematic_set_page", {"document_spec": DOC, "size": "A3", "comments": [str(n) for n in range(10)]}),
+        ("live_schematic_set_page", {"document_spec": DOC, "size": "A3", "title": "t"})],
+        set_settings + set_block[:1] + set_settings + [set_block[0], ("SetTitleBlockInfo", bad("locked"))])
     add("pcb_set_page", [("live_pcb_set_page", {"board_document": BOARD, "size": "A4", "company": "Embeint Pty Ltd"}),
                          ("live_pcb_set_page", {"board_document": {"type": "DOCTYPE_PCB"}, "size": "A4"})],
         set_settings + set_block + page_script(board_layout))
@@ -308,6 +314,10 @@ def scenarios(h):
     add("update_from_library_lost_begin", [("live_schematic_update_from_library", {"document_spec": DOC})],
         [("BeginCommit", lambda r: h.DROP), ("GetOperationStatus", status("OPS_REJECTED", message="stale"))])
 
+    add("update_from_library_step_refused_and_lost_end", [
+        ("live_schematic_update_from_library", {"document_spec": DOC}),
+        ("live_schematic_update_from_library", {"document_spec": DOC, "symbols": [R1]})],
+        [BEGIN, ("UpdateSymbolsFromLibrary", bad("library not loaded")), h.DROP_OK, BEGIN, updated] + lost_end)
     add("autoplace", [("live_schematic_autoplace_fields", {"document_spec": DOC}),
                       ("live_schematic_autoplace_fields", {"document_spec": DOC, "ids": [R1, U1]}),
                       ("live_schematic_autoplace_fields", {"document_spec": DOC, "ids": ["nope"]})],
@@ -323,6 +333,11 @@ def scenarios(h):
                  ("live_schematic_move", {"document_spec": DOC, "ids": [U1], "dx_mm": 0.0000015, "rotation": 180}),
                  ("live_schematic_move", {"document_spec": DOC, "ids": [U1], "dy_mm": -0.0000025, "rotation": 90})],
         [BEGIN, moved, END_OK] * 4)
+    add("move_lost_replies", [
+        ("live_schematic_move", {"document_spec": DOC, "ids": [R1], "dx_mm": 1}),
+        ("live_schematic_move", {"document_spec": DOC, "ids": [R1], "dx_mm": 1})],
+        [BEGIN, moved] + lost_end + [("BeginCommit", lambda r: h.DROP),
+                                     ("GetOperationStatus", status("OPS_IN_PROGRESS")), h.DROP_OK])
     add("move_refusals", [
         ("live_schematic_move", {"document_spec": DOC, "ids": [R1], "rotation": 45}),
         ("live_schematic_move", {"document_spec": DOC, "ids": [R1], "rotation": 360}),
@@ -356,6 +371,11 @@ def scenarios(h):
         [("UndoLastChange", lambda r: failure(envelope.AS_REVISION_MISMATCH, "document changed", revision="fx-2")),
          ("UndoLastChange", lambda r: failure(envelope.AS_DUPLICATE_OPERATION, "already ran")),
          ("UndoLastChange", lambda r: failure(envelope.AS_BUSY, "a commit is open"))])
+    add("pcb_undo_refused_and_in_progress", [
+        ("live_pcb_undo", {"board_document": BOARD, "expected_revision": "old"}),
+        ("live_pcb_undo", {"board_document": BOARD})],
+        [("UndoLastChange", lambda r: failure(envelope.AS_REVISION_MISMATCH, "document changed", revision="fx-2")),
+         ("UndoLastChange", lambda r: h.DROP), ("GetOperationStatus", status("OPS_IN_PROGRESS"))])
     add("pcb_undo", [("live_pcb_undo", {"board_document": BOARD}),
                      ("live_pcb_undo", {"board_document": BOARD, "redo": "true", "operation_id": "op-pcb"}),
                      ("live_pcb_undo", {"board_document": DOC})],
@@ -390,6 +410,9 @@ def scenarios(h):
         ("live_schematic_connect_pins", dict(connect, from_pin="5"))],
         [pins, pins, BEGIN, h.created(1, 1), END_OK, pins, pins, BEGIN, h.created(1, 1), END_OK,
          pins, pins, BEGIN, h.created(1), END_OK, pins, pins, BEGIN, h.created(1, 1), END_OK], normalize=generated)
+    add("connect_pins_lost_end", [("live_schematic_connect_pins", connect)],
+        [pins, pins, BEGIN, h.created(1, 1), ("EndCommit", lambda r: h.DROP),
+         ("GetOperationStatus", status("OPS_ROLLED_BACK"))], normalize=generated)
     add("connect_pins_refusals", [
         ("live_schematic_connect_pins", dict(connect, to_reference="U1", to_pin="3")),
         ("live_schematic_connect_pins", dict(connect, from_reference="R9")),

@@ -251,17 +251,34 @@ pub async fn place_symbol(
     }))
 }
 
-/// `tempfile.gettempdir()`: the first of TMPDIR, TEMP and TMP that names a directory.
+/// `tempfile.gettempdir()`: the first directory among TMPDIR, TEMP and TMP, then the platform's
+/// candidates (Windows: ~\AppData\Local\Temp, %SYSTEMROOT%\Temp, c:\temp, c:\tmp, \temp, \tmp;
+/// elsewhere /tmp, /var/tmp, /usr/tmp), then the working directory, each made absolute first as
+/// Python does (it also checks the directory is writable; a directory that is not makes the
+/// preview fail when KiCad writes there).
 fn temp_root() -> PathBuf {
-    for name in ["TMPDIR", "TEMP", "TMP"] {
-        if let Some(value) = std::env::var_os(name).filter(|v| !v.is_empty()) {
-            let path = PathBuf::from(value);
-            if path.is_dir() {
-                return path;
-            }
+    let mut candidates: Vec<PathBuf> = ["TMPDIR", "TEMP", "TMP"]
+        .iter()
+        .filter_map(|name| std::env::var_os(name).filter(|v| !v.is_empty()))
+        .map(PathBuf::from)
+        .collect();
+    if cfg!(windows) {
+        if let Some(home) = std::env::var_os("USERPROFILE").filter(|v| !v.is_empty()) {
+            candidates.push(PathBuf::from(home).join(r"AppData\Local\Temp"));
         }
+        if let Some(root) = std::env::var_os("SYSTEMROOT").filter(|v| !v.is_empty()) {
+            candidates.push(PathBuf::from(root).join("Temp"));
+        }
+        candidates.extend([r"c:\temp", r"c:\tmp", r"\temp", r"\tmp"].map(PathBuf::from));
+    } else {
+        candidates.extend(["/tmp", "/var/tmp", "/usr/tmp"].map(PathBuf::from));
     }
-    std::env::temp_dir()
+    candidates
+        .into_iter()
+        .map(|path| std::path::absolute(&path).unwrap_or(path))
+        .find(|path| path.is_dir())
+        .or_else(|| std::env::current_dir().ok())
+        .unwrap_or_else(std::env::temp_dir)
 }
 
 /// `render(doc, dpi, frame)`: KiCad plots the live sheet to a PNG in a private temporary
