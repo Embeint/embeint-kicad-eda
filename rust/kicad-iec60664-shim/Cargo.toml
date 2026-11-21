@@ -15,4 +15,3 @@ portable = false
 kicad-iec60664 = { path = "../kicad-iec60664" }
 kicad-difftest = { path = "../kicad-difftest" }
 serde_json.workspace = true
-
