@@ -2,6 +2,7 @@
 """Public, generated fixtures exercising the progress site's reporting contract."""
 
 import importlib.util
+import gzip
 from html.parser import HTMLParser
 import json
 from pathlib import Path
@@ -148,6 +149,42 @@ solidcraft_revision = "93d5492ef295a1124664d36e967f58a81a76d7d2"
         data = self.build()
         self.assertEqual(data["summary"]["count"]["green"], 0)
         self.assertEqual(data["units"][0]["status"], "partial")
+
+    def test_failed_replies_block_green_without_counting_as_deferred(self):
+        for kind in ("execution_error", "invalid_input", "unknown_failure"):
+            with self.subTest(kind=kind):
+                self.unit("math.seg", "green")
+                self.records("math.seg")
+                reply = {"unit": "math.seg", "case": "degenerate-zero-length", "error": {"kind": kind}}
+                self.write("port/goldens/math.seg.jsonl", json.dumps(reply) + "\n")
+                data = self.build()
+                self.assertEqual(data["summary"]["count"]["green"], 0)
+                self.assertEqual(data["summary"]["green_lines"], 0)
+                self.assertEqual(data["units"][0]["status"], "blocked")
+                self.assertEqual(data["units"][0]["declared_status"], "green")
+                self.assertEqual(data["units"][0]["goldens"]["failures"], 1)
+                self.assertEqual(data["units"][0]["goldens"]["deferred"], 0)
+                self.assertIn("1 stored failed replies", self.html("units/math.seg.html"))
+
+    def test_upstream_error_status_inside_result_is_not_a_harness_failure(self):
+        self.unit("math.seg", "green")
+        self.records("math.seg")
+        reply = {"unit": "math.seg", "case": "degenerate-zero-length", "result": {"status": "invalid_input"}}
+        self.write("port/goldens/math.seg.jsonl", json.dumps(reply) + "\n")
+        data = self.build()
+        self.assertEqual(data["summary"]["count"]["green"], 1)
+        self.assertEqual(data["units"][0]["goldens"]["failures"], 0)
+
+    def test_compressed_graph_has_same_accounting_and_correct_source_link(self):
+        self.extraction()
+        plain = self.root / "port/extractor/generated/graph.json"
+        compressed = plain.with_suffix(".json.gz")
+        compressed.write_bytes(gzip.compress(plain.read_bytes(), mtime=0))
+        plain.unlink()
+        data = self.build()
+        self.assertIn("graph", data["extraction"]["artifacts"])
+        self.assertIn("1 extracted functions", self.html("inventory.html"))
+        self.assertIn('/blob/rust/port/extractor/generated/graph.json.gz', self.html())
 
     def test_empty_golden_and_missing_golden_are_distinct(self):
         self.unit("math.empty")

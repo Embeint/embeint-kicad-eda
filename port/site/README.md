@@ -70,11 +70,14 @@ Unit golden files are `port/goldens/<id>.jsonl`; case files are
 `port/cases/<id>.jsonl`. Counts exclude blank lines, and duplicate keys/case IDs or
 malformed protocol envelopes fail the build. Requests are `{unit,case,input}`;
 replies are `{unit,case,result}` or `{unit,case,error}`. `unported` and `deferred`
-errors are counted as deferrals, separately from domain errors. Stored counts
+errors are counted as deferrals; all other error envelopes count as failures.
+Legitimate upstream operation statuses belong inside `result`. Stored counts
 are expectations, not runtime results. A green declaration with recorded
-deferrals, coverage gaps or no tests is **reported as partial**, with its original
-declaration preserved on the unit page and in `progress.json`. Partial lines are
-always counted separately from green lines.
+deferrals, coverage gaps or no tests is **reported as partial**; a green declaration
+with failed replies is **reported as blocked**. The original declaration is
+preserved on the unit page and in `progress.json`. Partial lines are always
+counted separately from green lines. The graph reader supports both `graph.json`
+and the extractor's canonical deterministic `graph.json.gz` artifact.
 
 Evidence links come from `port/goldens/evidence/*.json`, `port/evidence/*.json`
 and `port/evidence/*.md`. A file named `<id>.json` or beginning `<id>-` is linked
