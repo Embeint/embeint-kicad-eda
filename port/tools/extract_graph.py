@@ -15,7 +15,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from extractor.clang_graph import extract_translation_unit
 from extractor.model import PIN, classify, digest, expand_virtual, materialize_definitions, read_json, write_cache, write_json
-from extractor.generated_sources import verify as verify_generated
+from extractor.generated_sources import generator_dependencies, verify as verify_generated
 
 SUFFIXES = {".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx", ".m", ".mm"}
 
@@ -187,8 +187,7 @@ def main():
                   "source_inventory_sha256": snapshot, "compile_commands_sha256": digest(raw),
                   "tracked_source_inventory_sha256": tracked_snapshot,
                   "generated_sources_manifest_sha256": digest(a.generated_manifest.read_bytes()) if a.generated_manifest else None,
-                  "generated_input_dependencies": {e['path']: e.get('generator_inputs', []) for e in inventory
-                                                   if e.get('origin') == 'build-generated'},
+                  "generated_input_dependencies": generator_dependencies(generated_manifest) if build else {},
                   "source_manifest_sha256": digest(a.manifest.read_bytes().replace(b"\r\n", b"\n")),
                   "source_manifest_hash_policy": "SHA-256 after CRLF-to-LF normalization",
                   "source_hash_policy": "SHA-256 after CRLF-to-LF normalization; function offsets refer to snapshot bytes",

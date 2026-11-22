@@ -21,7 +21,7 @@ import drift_report
 from extractor.reconcile_database import compare, cmake_options
 from extractor.compact_cache import compact
 from extraction_report import summarize, measure_units
-from extractor.generated_sources import capture_recipes, freeze, verify, source_path
+from extractor.generated_sources import capture_recipes, freeze, generator_dependencies, verify, source_path
 
 
 def fixture(root):
@@ -313,6 +313,17 @@ class ValidationTests(unittest.TestCase):
             self.assertEqual(report['accounted_lines'], 3)
             self.assertTrue(any('@build/lexer.cpp' in u['upstream'] for u in units.values()))
             self.assertEqual(validate(root), [])
+            manifest['source_generator_dependencies'] = {'a.cpp': ['schema.md']}
+            write_json(generated/'generated-sources.json', manifest)
+            provenance['generated_sources_manifest_sha256'] = digest((generated/'generated-sources.json').read_bytes())
+            provenance['generated_input_dependencies'] = generator_dependencies(manifest)
+            save_fixture(root, graph, inventory)
+            self.assertEqual(validate(root), [])
+            provenance['generated_input_dependencies'] = {}
+            save_fixture(root, graph, inventory)
+            self.assertTrue(any('recipe dependencies differ' in e for e in validate(root)))
+            provenance['generated_input_dependencies'] = generator_dependencies(manifest)
+            save_fixture(root, graph, inventory)
             compressed_recipe = generated/'generated-recipes.json.gz'
             compressed_recipe.write_bytes(gzip.compress(recipe_bytes, mtime=0))
             (generated/'generated-recipes.json').unlink()
@@ -421,10 +432,11 @@ class DriftTests(unittest.TestCase):
             (root / 'api').mkdir(parents=True)
             (build / 'api').mkdir(parents=True)
             (root / 'api/schema.proto').write_text('first\n')
-            for name in ('direct', 'relative', 'absolute'):
+            names = ('direct', 'relative', 'absolute', 'absolute_only')
+            for name in names:
                 (root / (name + '.cpp')).write_text('int value() { return 1; }\n')
             for name in ('api/direct.pb.h', 'api/relative.pb.h', 'api/absolute.pb.h',
-                         'stage.h', 'stage.tokens', 'consumer.o'):
+                         'api/absolute_only.pb.h', 'stage.h', 'stage.tokens', 'only.tokens', 'consumer.o'):
                 (build / name).write_text('// generated fixture\n')
 
             def ninja_path(path):
@@ -432,13 +444,16 @@ class DriftTests(unittest.TestCase):
 
             proto = ninja_path(root / 'api/schema.proto')
             tokens = ninja_path(build / 'stage.tokens')
+            only_tokens = ninja_path(build / 'only.tokens')
             (build / 'build.ninja').write_text(
                 'rule gen\n  command = true\n'
                 f'build api/direct.pb.h: gen {proto}\n'
                 f'build stage.h: gen {proto}\n'
                 f'build stage.tokens: gen {proto}\n'
+                f'build {only_tokens}: gen {proto}\n'
                 'build api/relative.pb.h: gen stage.h\n'
                 f'build api/absolute.pb.h: gen {tokens}\n'
+                f'build api/absolute_only.pb.h: gen {only_tokens}\n'
                 'build consumer.o: gen api/relative.pb.h\n')
             manifest = freeze(build, parent / 'frozen', {})
             recipes = capture_recipes(build, root, manifest['files'])
@@ -448,6 +463,9 @@ class DriftTests(unittest.TestCase):
                              ['@build/stage.h', 'api/schema.proto'])
             self.assertEqual(dependencies['@build/api/absolute.pb.h'],
                              ['@build/stage.tokens', 'api/schema.proto'])
+            self.assertEqual(dependencies['@build/api/absolute_only.pb.h'],
+                             ['@build/only.tokens', 'api/schema.proto'])
+            self.assertEqual(recipes['@build/only.tokens']['target'], (build / 'only.tokens').as_posix())
             self.assertNotIn('@build/stage.tokens', dependencies)
             self.assertEqual(recipes['@build/stage.tokens']['query_exit'], 0)
             self.assertNotIn('@build/consumer.o', dependencies['@build/api/relative.pb.h'])
@@ -464,7 +482,7 @@ class DriftTests(unittest.TestCase):
                                    'generated_input_dependencies': dependencies},
                      'functions': {}, 'translation_units': []}
             units = []
-            for name in ('direct', 'relative', 'absolute'):
+            for name in names:
                 path = name + '.cpp'
                 graph['functions'][name] = {'name': 'value', 'file': path, 'start': 1, 'end': 1}
                 graph['translation_units'].append({'file': path,
@@ -479,9 +497,69 @@ class DriftTests(unittest.TestCase):
                 drift_report.PIN = base
                 result = drift_report.report(root, graph, units)
                 self.assertEqual(result['affected'], [])
-                self.assertEqual(result['affected_units'], ['absolute', 'direct', 'relative'])
+                self.assertEqual(result['affected_units'], ['absolute', 'absolute_only', 'direct', 'relative'])
                 self.assertEqual([review['changed_inputs'] for review in result['dependency_reviews']],
-                                 [['api/schema.proto']] * 3)
+                                 [['api/schema.proto']] * 4)
+            finally:
+                drift_report.PIN = original
+
+    @unittest.skipUnless(shutil.which('ninja'), 'Ninja is needed for real recipe capture')
+    def test_source_tree_generator_nodes_reach_direct_and_build_consumers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            parent = Path(tmp)
+            root, build = parent / 'source', parent / 'build'
+            root.mkdir(); build.mkdir()
+            for name in ('schema.md', 'direct.md', 'derived.h', 'direct.h', 'direct.cpp', 'indirect.cpp'):
+                (root / name).write_text('// public fixture\n')
+            (build / 'final.h').write_text('// generated fixture\n')
+            def escaped(path):
+                return path.as_posix().replace('$', '$$').replace(' ', '$ ').replace(':', '$:')
+            # A source-tree output reached only by a tracked consumer must be
+            # captured too. Both relative and absolute-only target names occur.
+            (build / 'build.ninja').write_text(
+                'rule gen\n  command = true\n'
+                f'build ../source/derived.h: phony {escaped(root / "derived.h")}\n'
+                f'build {escaped(root / "derived.h")}: gen ../source/schema.md\n'
+                f'build {escaped(root / "direct.h")}: gen ../source/direct.md\n'
+                'build final.h: gen ../source/derived.h\n'
+                'build unrelated.o: gen final.h\n')
+            manifest = freeze(build, parent / 'frozen', {})
+            manifest['source_generator_dependencies'] = {}
+            recipes = capture_recipes(build, root, manifest['files'], manifest['source_generator_dependencies'])
+            dependencies = generator_dependencies(manifest)
+            self.assertEqual(dependencies['derived.h'], ['schema.md'])
+            self.assertEqual(dependencies['direct.h'], ['direct.md'])
+            self.assertEqual(dependencies['@build/final.h'], ['derived.h', 'schema.md'])
+            self.assertEqual(recipes['direct.h']['target'], (root / 'direct.h').as_posix())
+            self.assertEqual(len(recipes['derived.h']['query_attempts']), 2)
+            self.assertTrue(all(attempt['exit'] == 0 for attempt in recipes['derived.h']['query_attempts']))
+            self.assertNotIn('@build/unrelated.o', dependencies['@build/final.h'])
+            def git(*args):
+                return subprocess.check_output(['git', '-C', str(root), *args], text=True).strip()
+            git('init', '--quiet'); git('add', '.')
+            git('-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '-qm', 'test source outputs')
+            base = git('rev-parse', 'HEAD')
+            graph = {'provenance': {'upstream_pin': base, 'source_commit': base,
+                                   'generated_input_dependencies': dependencies},
+                     'functions': {}, 'translation_units': []}
+            units = []
+            for name, header in [('direct', 'direct.h'), ('indirect', '@build/final.h')]:
+                path = name + '.cpp'
+                graph['functions'][name] = {'name': 'value', 'file': path, 'start': 1, 'end': 1}
+                graph['translation_units'].append({'file': path, 'includes': [header]})
+                units.append({'id': name, 'status': 'partial', 'functions': [name], 'upstream': [path]})
+            for name in ('schema.md', 'direct.md'):
+                (root / name).write_text('// changed public fixture\n')
+            git('add', '.')
+            git('-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '-qm', 'test changed source inputs')
+            original = drift_report.PIN
+            try:
+                drift_report.PIN = base
+                result = drift_report.report(root, graph, units)
+                self.assertEqual(result['affected'], [])
+                self.assertEqual(result['affected_units'], ['direct', 'indirect'])
+                self.assertEqual([review['changed_inputs'] for review in result['dependency_reviews']],
+                                 [['direct.md'], ['schema.md']])
             finally:
                 drift_report.PIN = original
 
