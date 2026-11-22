@@ -281,6 +281,15 @@ class ValidationTests(unittest.TestCase):
             self.assertEqual(report['accounted_lines'], 3)
             self.assertTrue(any('@build/lexer.cpp' in u['upstream'] for u in units.values()))
             self.assertEqual(validate(root), [])
+            manifest['provenance']['reconciliation.json'] = {'record': {'source_commit': 'b' * 40, 'upstream_pin': PIN}}
+            write_json(generated/'generated-sources.json', manifest)
+            provenance['generated_sources_manifest_sha256'] = digest((generated/'generated-sources.json').read_bytes())
+            save_fixture(root, graph, inventory)
+            self.assertTrue(any('configure source pin' in e for e in validate(root)))
+            del manifest['provenance']['reconciliation.json']
+            write_json(generated/'generated-sources.json', manifest)
+            provenance['generated_sources_manifest_sha256'] = digest((generated/'generated-sources.json').read_bytes())
+            save_fixture(root, graph, inventory)
             with self.assertRaises(ValueError):
                 source_path(dict(entries[0], storage_path='../lexer.cpp'), root, generated)
             source_path(entries[0], root, generated).write_bytes(b'int fake() { return 2; }\n')
@@ -398,6 +407,12 @@ class DriftTests(unittest.TestCase):
                 result = drift_report.report(root, graph, units)
                 self.assertEqual(result["affected_units"], ["u"])
                 self.assertEqual({a["file"] for a in result["affected"]}, {"a.cpp", "b.h"})
+                graph['functions']['generated'] = {'file': '@build/lexer.cpp', 'start': 1, 'end': 1, 'name': 'generated'}
+                graph['provenance']['generated_input_dependencies'] = {'@build/lexer.cpp': ['b.h']}
+                generated_unit = {'id': 'generated', 'status': 'partial', 'functions': ['generated'], 'upstream': ['@build/lexer.cpp']}
+                generated_report = drift_report.report(root, graph, units + [generated_unit])
+                self.assertTrue(any(r['unit'] == 'generated' and r['changed_inputs'] == ['b.h']
+                                    for r in generated_report['dependency_reviews']))
                 units[0]["status"] = "todo"
                 self.assertFalse(drift_report.report(root, graph, units)["affected"])
                 units[0]["status"] = "partial"
