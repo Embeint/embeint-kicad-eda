@@ -1,0 +1,48 @@
+test_freeze_cli_preserves_tool_symlink_invocation_names (test_extractor.ValidationTests.test_freeze_cli_preserves_tool_symlink_invocation_names) ... 
+  test_freeze_cli_preserves_tool_symlink_invocation_names (test_extractor.ValidationTests.test_freeze_cli_preserves_tool_symlink_invocation_names) (search_path='absolute') ... FAIL
+  test_freeze_cli_preserves_tool_symlink_invocation_names (test_extractor.ValidationTests.test_freeze_cli_preserves_tool_symlink_invocation_names) (search_path='relative') ... FAIL
+
+======================================================================
+FAIL: test_freeze_cli_preserves_tool_symlink_invocation_names (test_extractor.ValidationTests.test_freeze_cli_preserves_tool_symlink_invocation_names) (search_path='absolute')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/karlvonrichter/kicad-port/freeze-symlink-preflight/old-control/port/extractor/test_extractor.py", line 388, in test_freeze_cli_preserves_tool_symlink_invocation_names
+    self.assertEqual(run.returncode, 0, run.stderr)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : Traceback (most recent call last):
+  File "/home/karlvonrichter/kicad-port/freeze-symlink-preflight/old-control/port/extractor/generated_sources.py", line 242, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/home/karlvonrichter/kicad-port/freeze-symlink-preflight/old-control/port/extractor/generated_sources.py", line 232, in main
+    recipes = capture_recipes(build, source, manifest['files'], manifest['source_generator_dependencies'],
+                              ninja=provenance['tools'].get('ninja', {}).get('path'))
+  File "/home/karlvonrichter/kicad-port/freeze-symlink-preflight/old-control/port/extractor/generated_sources.py", line 111, in capture_recipes
+    raise ValueError('Cannot inventory Ninja generator targets: ' + catalog.stderr)
+ValueError: Cannot inventory Ninja generator targets: tool-manager: invoke through a tool symlink
+
+
+
+======================================================================
+FAIL: test_freeze_cli_preserves_tool_symlink_invocation_names (test_extractor.ValidationTests.test_freeze_cli_preserves_tool_symlink_invocation_names) (search_path='relative')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/karlvonrichter/kicad-port/freeze-symlink-preflight/old-control/port/extractor/test_extractor.py", line 388, in test_freeze_cli_preserves_tool_symlink_invocation_names
+    self.assertEqual(run.returncode, 0, run.stderr)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : Traceback (most recent call last):
+  File "/home/karlvonrichter/kicad-port/freeze-symlink-preflight/old-control/port/extractor/generated_sources.py", line 242, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/home/karlvonrichter/kicad-port/freeze-symlink-preflight/old-control/port/extractor/generated_sources.py", line 232, in main
+    recipes = capture_recipes(build, source, manifest['files'], manifest['source_generator_dependencies'],
+                              ninja=provenance['tools'].get('ninja', {}).get('path'))
+  File "/home/karlvonrichter/kicad-port/freeze-symlink-preflight/old-control/port/extractor/generated_sources.py", line 111, in capture_recipes
+    raise ValueError('Cannot inventory Ninja generator targets: ' + catalog.stderr)
+ValueError: Cannot inventory Ninja generator targets: tool-manager: invoke through a tool symlink
+
+
+
+----------------------------------------------------------------------
+Ran 1 test in 0.092s
+
+FAILED (failures=2)

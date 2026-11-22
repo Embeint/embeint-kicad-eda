@@ -1,0 +1,14 @@
+test_check_does_not_create_configuration (test_bootstrap_west.BootstrapTests.test_check_does_not_create_configuration) ... ok
+test_configuration_is_local_and_idempotent (test_bootstrap_west.BootstrapTests.test_configuration_is_local_and_idempotent) ... ok
+test_dirty_checkout_blocks_update (test_bootstrap_west.BootstrapTests.test_dirty_checkout_blocks_update) ... ok
+test_existing_manifest_is_preserved (test_bootstrap_west.BootstrapTests.test_existing_manifest_is_preserved) ... ok
+test_git_settings_are_process_local_and_keep_existing_overrides (test_bootstrap_west.BootstrapTests.test_git_settings_are_process_local_and_keep_existing_overrides) ... ok
+test_head_and_trailer_must_both_match (test_bootstrap_west.BootstrapTests.test_head_and_trailer_must_both_match) ... ok
+test_manifest_drift_is_rejected_before_west (test_bootstrap_west.BootstrapTests.test_manifest_drift_is_rejected_before_west) ... ok
+test_short_commit_is_rejected (test_bootstrap_west.BootstrapTests.test_short_commit_is_rejected) ... ok
+test_wrong_origin_blocks_update (test_bootstrap_west.BootstrapTests.test_wrong_origin_blocks_update) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.043s
+
+OK

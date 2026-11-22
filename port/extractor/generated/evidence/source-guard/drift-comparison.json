@@ -1,0 +1,13 @@
+{
+  "drift-all.json": {
+    "d2_target": "57e085ad043d5aee55de7bccd51b411d6c8526fc",
+    "equal_to_d2_except_target": true,
+    "target": "ce9681f06faa189eadb41d8475ef03ea784e4e2b"
+  },
+  "drift-ported.json": {
+    "d2_target": "57e085ad043d5aee55de7bccd51b411d6c8526fc",
+    "equal_to_d2_except_target": true,
+    "target": "ce9681f06faa189eadb41d8475ef03ea784e4e2b"
+  },
+  "target_policy": "drift_report.py records the commit it compared (HEAD when generated); a committed report names the parent of its publishing commit"
+}

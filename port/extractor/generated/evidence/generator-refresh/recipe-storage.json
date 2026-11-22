@@ -1,0 +1,8 @@
+{
+  "gzip_bytes": 31784116,
+  "gzip_sha256": "f5a91a1c6f5e2357aeb1db4f6499be3ba7bca7cc3b46fea793c74de42257064e",
+  "policy": "Deterministic gzip, level 9, mtime=0, OS=255; the refreshed manifest binds the unchanged decompressed JSON bytes",
+  "raw_bytes": 1640524798,
+  "raw_sha256": "f44049e2ea0a2ad8b1a16133e5c6bc25df084366d07995b7369d0d44fd9d1900",
+  "storage": "generated-recipes.json.gz"
+}
