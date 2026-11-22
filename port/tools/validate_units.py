@@ -103,6 +103,9 @@ def validate(root, require_complete=False, check_sources=True, source_root=None)
         if tu.get('category') == 'generated-build' and (not tu['file'].startswith('@build/')
                 or tu['file'] not in files or files[tu['file']].get('origin') != 'build-generated'):
             errors.append('active generated translation unit lacks frozen source mapping: ' + tu['file'])
+        for included in tu.get('includes', []):
+            if included.startswith('@build/') and (included not in files or files[included].get('origin') != 'build-generated'):
+                errors.append('generated include lacks frozen source mapping: ' + included)
     for usr, fn in graph["functions"].items():
         if fn["file"] not in files:
             errors.append(f"function source absent from inventory: {usr}")
@@ -129,6 +132,10 @@ def validate(root, require_complete=False, check_sources=True, source_root=None)
         expected = [{k: v for k, v in f.items() if k != 'coverage'} for f in build_files.values()]
         if manifest['files'] != expected or manifest['upstream_pin'] != PIN:
             errors.append('generated source inventory/provenance mismatch')
+        catalog = {record['path']: record['sha256'] for record in manifest.get('build_files', [])}
+        for entry in build_files.values():
+            if catalog.get(entry['path'].removeprefix('@build/')) != entry['bytes_sha256']:
+                errors.append('generated input missing from complete build fingerprint: ' + entry['path'])
         generation = manifest.get('provenance', {})
         configuration = generation.get('reconciliation.json', {}).get('record')
         if configuration is not None and (configuration.get('source_commit') != provenance.get('source_commit')
