@@ -1,7 +1,18 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 # MD5 local validation, 2026-11-22
 
-Latest corrected graph/nesting integration: runtime source
+Latest reserved-key envelope integration: runtime source
+`65d5b0a9732551db35a9348d69d7b2ccfa86a1fb` stacks reviewed PR #48 (exact head
+`1ec85a446741c9903963a7282eedddeea06e34e2`, since merged into `rust` by rebase
+as `1a2fb924d539d63a68f5696191907dc2aa6d6370` with an identical tree) and closes
+the final MD5 review finding. Each real adapter passes 194 complete refusal envelopes and five
+complete successes; the previous 154 checks are an unchanged byte prefix. The
+registered 5,973-case live check, 1,801-record source validation, oracle CTests
+and affected Rust tests pass. See
+[the reserved-key proof](validation/2026-11-22-65d5b0a9/README.md). The #39
+graph acceptance hold and provisional local green status are unchanged.
+
+Prior corrected graph/nesting integration: runtime source
 `a5ed3948399da32b64f7fad93e0394c64615f8ff` passes the registered 5,973-case
 live check, 1,801-record source validation, four CTests, 24 affected Rust tests
 and 153 complete refusal envelopes plus signed-zero success per real adapter.

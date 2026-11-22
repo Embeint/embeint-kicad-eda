@@ -29,6 +29,17 @@ envelopes are checked on both sides of that bound, including empty containers,
 identity/extra fields and unknown units. Historical corpus/goldens and proof
 artifacts remain unchanged.
 
+Reviewed PR #48 (exact head `1ec85a446741c9903963a7282eedddeea06e34e2`) was
+integrated as a stacked dependency and is now merged into `rust` by rebase as
+`1a2fb924d539d63a68f5696191907dc2aa6d6370`, with an identical tree. The shared helper now builds
+user objects from the validated exact tree, so objects keyed by serde's private
+`$serde_json::private::Number` or `$serde_json::private::RawValue` names stay
+ordinary objects and are refused by the adapter's type checks exactly as the C++
+oracle refuses them. Complete reserved-key envelopes (the review's 14 retained
+reproducers, every placement, multiple/escaped keys, string controls and
+successful new/bytes/finalize guards around refusals) are in
+[the reserved-key evidence](validation/2026-11-22-65d5b0a9/README.md).
+
 ## Input and observation contract
 
 Requests use the existing exact JSONL unit/case protocol, with
