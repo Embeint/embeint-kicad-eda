@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[package]
+name = "kicad-hash"
+description = "Portable port of KiCad's kimath header hash, MMH3, HASH_128 and TRANSFORM utilities"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+kicad-md5 = { path = "../kicad-md5" }
