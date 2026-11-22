@@ -93,6 +93,7 @@ def regression_cases():
                             else failure(None, None, "invalid_request", "invalid JSON or duplicate key"))
                 checks.append((wire, expected))
     checks.extend(reserved_key_cases(zero))
+    checks.extend(literal_escaped_key_cases(zero))
     return checks
 
 
@@ -249,6 +250,38 @@ def reserved_key_cases(zero):
 
 def failure(unit, case, kind, message):
     return {"unit": unit, "case": case, "error": {"kind": kind, "message": message}}
+
+
+def literal_escaped_key_cases(zero):
+    # Append after the historical 199 checks; raw strings retain KEY escapes.
+    checks = [
+        (request("reserved-literal-escaped-id",
+                 r'{"steps":[{"op":"new","id":{"\u0024serde_json::private::Number":"0"}}]}'),
+         failure(UNIT, "reserved-literal-escaped-id", "invalid_input", "integer out of range: id")),
+        (request("reserved-literal-escaped-byte",
+                 r'{"steps":[{"op":"new","id":0},{"op":"bytes","id":0,"data":[{"$serde_json::private::Raw\u0056alue":"0"}]}]}'),
+         failure(UNIT, "reserved-literal-escaped-byte", "invalid_input", "byte out of range")),
+        (request("reserved-literal-escaped-unit", '{"steps":[{"op":"new","id":0}]}',
+                 unit=r'{"\u0024serde_json::private::RawValue":"\"libs.kimath.src.md5_hash.application.pure.p001\""}'),
+         failure(None, "reserved-literal-escaped-unit", "invalid_request", "expected unit, case, input object")),
+    ]
+    spellings = [r'"\u0024serde_json::private::Number":',
+                 r'"$serde_json::private::Raw\u0056alue":',
+                 r'"\u0024serde_json::private::RawValue":']
+    for (wire, _), spelling in zip(checks, spellings):
+        assert spelling in wire, "The escaped marker key lost its literal wire spelling"
+    decoded = [json.loads(wire) for wire, _ in checks]
+    objects = [decoded[0]["input"]["steps"][0]["id"],
+               decoded[1]["input"]["steps"][1]["data"][0], decoded[2]["unit"]]
+    assert [list(value) for value in objects] == [
+        ["$serde_json::private::Number"], ["$serde_json::private::RawValue"],
+        ["$serde_json::private::RawValue"]]
+    checks.append((
+        request("reserved-literal-escaped-recovered",
+                '{"steps":[{"op":"new","id":0},{"op":"bytes","id":0,"data":[97,98,99]},{"op":"finalize","id":0}]}'),
+        {"unit": UNIT, "case": "reserved-literal-escaped-recovered",
+         "result": {"events": [zero, zero, kicad_format(b"abc")]}}))
+    return checks
 
 
 def request(case, input_text, unit=None, case_token=None):
