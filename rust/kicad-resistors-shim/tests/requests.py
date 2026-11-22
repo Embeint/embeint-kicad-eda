@@ -81,6 +81,10 @@ def corpus():
     replies=(fixtures/"resistor-private-keys.replies.jsonl").read_text(encoding="utf-8").split("\n")[:-1]
     assert len(requests)==len(replies)==889
     cases.extend(zip(requests,replies))
+    escaped_requests=(fixtures/"resistor-private-keys-escaped.requests.jsonl").read_text(encoding="utf-8").split("\n")[:-1]
+    escaped_replies=(fixtures/"resistor-private-keys-escaped.replies.jsonl").read_text(encoding="utf-8").split("\n")[:-1]
+    assert len(escaped_requests)==len(escaped_replies)==199
+    cases.extend(zip(escaped_requests,escaped_replies))
     return cases
 
 

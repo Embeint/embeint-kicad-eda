@@ -20,10 +20,14 @@ fn fixture(name: &str) -> Result<String, Box<dyn std::error::Error>> {
     Ok(text)
 }
 
-#[test]
-fn private_marker_keys_match_recorded_cpp_complete_replies() -> TestResult {
-    let requests = fixture("resistor-private-keys.requests.jsonl")?;
-    let replies = fixture("resistor-private-keys.replies.jsonl")?;
+fn replay(
+    request_name: &str,
+    reply_name: &str,
+    cases: usize,
+    expected_results: usize,
+) -> TestResult {
+    let requests = fixture(request_name)?;
+    let replies = fixture(reply_name)?;
     let mut child = Command::new(env!("CARGO_BIN_EXE_kicad-resistors-shim"))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -42,9 +46,9 @@ fn private_marker_keys_match_recorded_cpp_complete_replies() -> TestResult {
     let requests: Vec<_> = requests.lines().collect();
     let expected: Vec<_> = replies.lines().collect();
     let actual: Vec<_> = actual.lines().collect();
-    assert_eq!(requests.len(), CASES);
-    assert_eq!(expected.len(), CASES);
-    assert_eq!(actual.len(), CASES);
+    assert_eq!(requests.len(), cases);
+    assert_eq!(expected.len(), cases);
+    assert_eq!(actual.len(), cases);
     let mut results = 0;
     for ((request, want), got) in requests.iter().zip(&expected).zip(&actual) {
         // Exact trees keep number tokens and types; key order is not significant.
@@ -52,8 +56,39 @@ fn private_marker_keys_match_recorded_cpp_complete_replies() -> TestResult {
         assert_eq!(exact::parse(got)?, want, "{request}");
         results += usize::from(want.object()?.contains_key("result"));
     }
-    assert_eq!(results, 64);
+    assert_eq!(results, expected_results);
     Ok(())
+}
+
+#[test]
+fn private_marker_keys_match_recorded_cpp_complete_replies() -> TestResult {
+    replay(
+        "resistor-private-keys.requests.jsonl",
+        "resistor-private-keys.replies.jsonl",
+        CASES,
+        64,
+    )
+}
+
+#[test]
+fn escaped_marker_keys_and_decoded_duplicates_match_actual_cpp_replies() -> TestResult {
+    let requests = fixture("resistor-private-keys-escaped.requests.jsonl")?;
+    assert!(requests.contains(r#""\u0024serde_json::private::Number""#));
+    assert!(requests.contains(r#""$serde_json\u003a\u003aprivate\u003a\u003aRawValue""#));
+    assert!(requests.contains(r#""\u0024\u0073\u0065\u0072\u0064\u0065"#));
+    assert_eq!(
+        requests
+            .lines()
+            .filter(|line| line.contains("escaped-dup"))
+            .count(),
+        6
+    );
+    replay(
+        "resistor-private-keys-escaped.requests.jsonl",
+        "resistor-private-keys-escaped.replies.jsonl",
+        199,
+        1,
+    )
 }
 
 #[test]

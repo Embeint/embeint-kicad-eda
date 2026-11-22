@@ -1,0 +1,43 @@
+Waiting for shared lock; validation changes tests only and reuses the qualified ff419ad71f C++ executable.
+/home/karlvonrichter/kicad-port/resistor-escaped-fix-ec81fa0b-r2/oracle/kicad-oracle: OK
+Verified solidcore 7a588fa284765a83823293ae20b84da8356ab479
+west executable: /home/karlvonrichter/kicad-port/resistor-escaped-fix-ec81fa0b-r2/repo/.port-venv/linux/bin/west
+    Checking kicad-resistors v0.1.0 (/home/karlvonrichter/kicad-port/resistor-escaped-fix-ec81fa0b-r2/repo/rust/kicad-resistors)
+    Checking kicad-difftest v0.1.0 (/home/karlvonrichter/kicad-port/resistor-escaped-fix-ec81fa0b-r2/repo/rust/kicad-difftest)
+    Checking kicad-resistors-shim v0.1.0 (/home/karlvonrichter/kicad-port/resistor-escaped-fix-ec81fa0b-r2/repo/rust/kicad-resistors-shim)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.26s
+   Compiling kicad-resistors v0.1.0 (/home/karlvonrichter/kicad-port/resistor-escaped-fix-ec81fa0b-r2/repo/rust/kicad-resistors)
+   Compiling kicad-difftest v0.1.0 (/home/karlvonrichter/kicad-port/resistor-escaped-fix-ec81fa0b-r2/repo/rust/kicad-difftest)
+   Compiling kicad-resistors-shim v0.1.0 (/home/karlvonrichter/kicad-port/resistor-escaped-fix-ec81fa0b-r2/repo/rust/kicad-resistors-shim)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.94s
+     Running tests/private_keys.rs (rust/target/debug/deps/private_keys-e267b038b8bea014)
+
+running 3 tests
+test private_marker_key_objects_stay_ordinary_objects ... ok
+test escaped_marker_keys_and_decoded_duplicates_match_actual_cpp_replies ... ok
+test private_marker_keys_match_recorded_cpp_complete_replies ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+   Compiling kicad-resistors v0.1.0 (/home/karlvonrichter/kicad-port/resistor-escaped-fix-ec81fa0b-r2/repo/rust/kicad-resistors)
+   Compiling kicad-difftest v0.1.0 (/home/karlvonrichter/kicad-port/resistor-escaped-fix-ec81fa0b-r2/repo/rust/kicad-difftest)
+   Compiling kicad-resistors-shim v0.1.0 (/home/karlvonrichter/kicad-port/resistor-escaped-fix-ec81fa0b-r2/repo/rust/kicad-resistors-shim)
+    Finished `release` profile [optimized] target(s) in 5.95s
+     Running tests/private_keys.rs (rust/target/release/deps/private_keys-4fbbdace723e7e7a)
+
+running 3 tests
+test private_marker_key_objects_stay_ordinary_objects ... ok
+test escaped_marker_keys_and_decoded_duplicates_match_actual_cpp_replies ... ok
+test private_marker_keys_match_recorded_cpp_complete_replies ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+   Compiling kicad-difftest v0.1.0 (/home/karlvonrichter/kicad-port/resistor-escaped-fix-ec81fa0b-r2/repo/rust/kicad-difftest)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.37s
+199 literal escaped-key requests reproduce exactly
+1088 literal private-marker-key envelopes matched for 1 adapter(s): 65 results, 1023 refusals
+1088 literal private-marker-key envelopes matched for 2 adapter(s): 65 results, 1023 refusals
+1159 complete replies match: raw -0/full-u64, typed diagnostics, numeric overflow/fallback, private marker keys and recovery
+{"unit":"pcb_calculator.application.pure.p001","status":"green","action":"check","cases":1050,"deferred":0,"cases_sha256":"58dd1186c9f10c8efb54bc90102c71508c8e852c0b8c08d437380b112fe3c597","oracle_output_sha256":"8d1cc9e8c280b349294f9d512e450586c892a3170881afbba1c1b78de1a107a2","rust_output_sha256":"5fb5dfb6938e6a7b55c99416e46334b7e5f05ceb9821d053c442fa4dabc36441","oracle_sha256":"b0b167cb40bfcb3b2f8fa6791f36742bdab8a560d791acccb875b105ce9b632f","rust_sha256":"5babe7c7e738cf14ccb9ee44f7be23707a452298dc00ed56c71d8d250b7114d7"}
+{"unit":"pcb_calculator.application.pure.p001","status":"green","action":"compare","cases":1050,"deferred":0,"cases_sha256":"58dd1186c9f10c8efb54bc90102c71508c8e852c0b8c08d437380b112fe3c597","oracle_output_sha256":"8d1cc9e8c280b349294f9d512e450586c892a3170881afbba1c1b78de1a107a2","rust_output_sha256":"5fb5dfb6938e6a7b55c99416e46334b7e5f05ceb9821d053c442fa4dabc36441","oracle_sha256":"b0b167cb40bfcb3b2f8fa6791f36742bdab8a560d791acccb875b105ce9b632f","rust_sha256":"e5c6ba211c2c72001396da3026636e60a175dbf3b05c13cb3cbdf6e6c21a7046"}
+Escaped-key default guards, debug/release Rust tests, all 1159 envelopes and both 1050-case runs passed.
