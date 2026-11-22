@@ -1,0 +1,64 @@
+{
+  "head": "412b54a54637b44966cb8babc4a7bd4fc6a4c4c1",
+  "previous": "f7d98b47cb8345c65d3420b517df8254bd09423f",
+  "previous_is_ancestor": true,
+  "delta42_paths": 29,
+  "delta42_not_owner_blob": [],
+  "changed_outside_delta42": [],
+  "integration_evidence_paths": 87,
+  "integration_evidence_changed": [],
+  "md5_record_equals_owner": true,
+  "md5_record_unchanged_from_previous": true,
+  "unit_records": 1801,
+  "unit_records_changed_from_previous": [],
+  "guard": {
+    "old_checks": 199,
+    "new_checks": 203,
+    "new_refusals": 197,
+    "new_successes": 6,
+    "old_199_checks_are_prefix": true,
+    "raw_and_expected_byte_prefix": true,
+    "requests_equal_committed_transcript": true,
+    "expected_equal_committed_transcript": true
+  },
+  "golden_policy": {
+    "rust": {
+      "base": "1a2fb924d539d63a68f5696191907dc2aa6d6370",
+      "exit": 0,
+      "output": "Golden change evidence valid"
+    },
+    "39": {
+      "base": "328572624e382ad8c55bd1d45b207b740c2c5258",
+      "exit": 0,
+      "output": "Golden change evidence valid"
+    },
+    "42": {
+      "base": "c9266a341336baafdbe6536e1b935b5457c3b27d",
+      "exit": 0,
+      "output": "Golden change evidence valid"
+    },
+    "43": {
+      "base": "fc4718302716baf33e9b764e3bce30c2727f2706",
+      "exit": 0,
+      "output": "Golden change evidence valid"
+    },
+    "44": {
+      "base": "2c0817d575b26c0660a6ce0ad497fc3ee6cc3a6e",
+      "exit": 0,
+      "output": "Golden change evidence valid"
+    },
+    "published49": {
+      "base": "8928097f950c0113e63bc46910c6221cefe1a89d",
+      "exit": 0,
+      "output": "Golden change evidence valid"
+    },
+    "previous": {
+      "base": "f7d98b47cb8345c65d3420b517df8254bd09423f",
+      "exit": 0,
+      "output": "Golden change evidence valid"
+    }
+  },
+  "phase0_required": [
+    "HEAD:.github/workflows/rust-port.yml:18:  PHASE0_REQUIRED: \"false\""
+  ]
+}
