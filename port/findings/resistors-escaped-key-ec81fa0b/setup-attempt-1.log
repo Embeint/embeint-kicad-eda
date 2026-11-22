@@ -1,0 +1,3 @@
+Waiting for shared lock; validation changes tests only and reuses the qualified ff419ad71f C++ executable.
+rsync: [sender] change_dir "/home/karlvonrichter/kicad-port/pilot-resistors-private-keys/proof-ff419ad71f-r2/src/.port-deps" failed: No such file or directory (2)
+rsync error: some files/attrs were not transferred (see previous errors) (code 23) at main.c(1356) [sender=3.4.1]

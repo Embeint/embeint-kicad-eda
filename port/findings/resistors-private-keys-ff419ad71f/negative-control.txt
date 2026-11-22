@@ -1,0 +1,20 @@
+cc9b410fcb8a0463f8acc5fb5825459b7e882b51737c79cae3b73946ff3e0862  /home/karlvonrichter/kicad-port/pilot-resistors/src/rust/target/debug/kicad-resistors-shim
+Traceback (most recent call last):
+  File "/home/karlvonrichter/kicad-port/pilot-resistors-private-keys/proof-ff419ad71f-r2/src/port/oracle/test_resistor_private_keys.py", line 83, in <module>
+    main()
+    ~~~~^^
+  File "/home/karlvonrichter/kicad-port/pilot-resistors-private-keys/proof-ff419ad71f-r2/src/port/oracle/test_resistor_private_keys.py", line 77, in main
+    assert strict(got.decode()) == reply, (adapter, request, want, got)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: (PosixPath('/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/target/debug/kicad-resistors-shim'), b'{"unit":"pcb_calculator.application.pure.p001","case":"pk-001-format-bits-0","input":{"op":"format","values_bits":[{"$serde_json::private::Number":"0"}]}}', b'{"case":"pk-001-format-bits-0","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"},"unit":"pcb_calculator.application.pure.p001"}', b'{"unit":"pcb_calculator.application.pure.p001","case":"pk-001-format-bits-0","result":["-nanL"]}')
+expected failure: /home/karlvonrichter/kicad-port/pilot-resistors/src/rust/target/debug/kicad-resistors-shim
+61fa3cd93085f9f85aa5becabdc41d7a6a1a14c1bb6235acbca96b96a59d0c11  /home/karlvonrichter/kicad-port/pilot-resistors/src/rust/target/release/kicad-resistors-shim
+Traceback (most recent call last):
+  File "/home/karlvonrichter/kicad-port/pilot-resistors-private-keys/proof-ff419ad71f-r2/src/port/oracle/test_resistor_private_keys.py", line 83, in <module>
+    main()
+    ~~~~^^
+  File "/home/karlvonrichter/kicad-port/pilot-resistors-private-keys/proof-ff419ad71f-r2/src/port/oracle/test_resistor_private_keys.py", line 77, in main
+    assert strict(got.decode()) == reply, (adapter, request, want, got)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: (PosixPath('/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/target/release/kicad-resistors-shim'), b'{"unit":"pcb_calculator.application.pure.p001","case":"pk-001-format-bits-0","input":{"op":"format","values_bits":[{"$serde_json::private::Number":"0"}]}}', b'{"case":"pk-001-format-bits-0","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"},"unit":"pcb_calculator.application.pure.p001"}', b'{"unit":"pcb_calculator.application.pure.p001","case":"pk-001-format-bits-0","result":["-nanL"]}')
+expected failure: /home/karlvonrichter/kicad-port/pilot-resistors/src/rust/target/release/kicad-resistors-shim

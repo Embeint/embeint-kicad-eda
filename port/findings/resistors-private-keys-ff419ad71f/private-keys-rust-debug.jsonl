@@ -1,0 +1,889 @@
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-000-success-first","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-001-format-bits-0","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-002-format-bits-1","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-003-format-bits-2","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-004-format-bits-3","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-005-format-bits-4","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-006-format-bits-5","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-007-format-bits-6","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-008-format-bits-7","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-009-format-bits-8","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-010-format-bits-9","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-011-format-bits-10","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-012-format-bits-11","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-013-format-bits-12","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-014-format-bits-13","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-015-format-bits-14","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-016-format-bits-15","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-017-format-bits-16","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-018-format-bits-17","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-019-format-bits-18","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-020-format-bits-19","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-021-format-bits-20","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-022-format-bits-21","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-023-format-bits-22","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-024-format-bits-23","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-025-format-bits-24","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-026-format-bits-25","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-027-format-bits-26","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-028-format-bits-27","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-029-format-bits-28","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-030-format-bits-29","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-031-format-bits-30","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-032-format-bits-31","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-033-format-bits-32","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-034-format-bits-33","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-035-format-bits-34","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-036-format-bits-35","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-037-format-bits-36","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-038-format-bits-37","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-039-format-bits-38","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-040-format-bits-39","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-041-format-bits-40","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-042-format-bits-41","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-043-format-bits-42","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-044-format-bits-43","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-045-format-bits-44","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-046-format-bits-45","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-047-format-bits-46","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-048-format-bits-47","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-049-format-bits-48","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-050-format-bits-49","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-051-format-bits-50","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-052-format-bits-51","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-053-format-bits-52","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-054-format-bits-53","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-055-format-bits-54","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-056-success-after-format-bits","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-057-collector-target-0","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-058-collector-target-1","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-059-collector-target-2","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-060-collector-target-3","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-061-collector-target-4","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-062-collector-target-5","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-063-collector-target-6","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-064-collector-target-7","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-065-collector-target-8","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-066-collector-target-9","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-067-collector-target-10","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-068-collector-target-11","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-069-collector-target-12","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-070-collector-target-13","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-071-collector-target-14","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-072-collector-target-15","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-073-collector-target-16","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-074-collector-target-17","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-075-collector-target-18","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-076-collector-target-19","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-077-collector-target-20","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-078-collector-target-21","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-079-collector-target-22","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-080-collector-target-23","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-081-collector-target-24","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-082-collector-target-25","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-083-collector-target-26","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-084-collector-target-27","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-085-collector-target-28","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-086-collector-target-29","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-087-collector-target-30","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-088-collector-target-31","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-089-collector-target-32","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-090-collector-target-33","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-091-collector-target-34","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-092-collector-target-35","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-093-collector-target-36","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-094-collector-target-37","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-095-collector-target-38","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-096-collector-target-39","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-097-collector-target-40","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-098-collector-target-41","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-099-collector-target-42","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-100-collector-target-43","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-101-collector-target-44","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-102-collector-target-45","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-103-collector-target-46","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-104-collector-target-47","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-105-collector-target-48","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-106-collector-target-49","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-107-collector-target-50","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-108-collector-target-51","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-109-collector-target-52","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-110-collector-target-53","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-111-collector-target-54","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-112-success-after-collector-target","result":["-nanL","1R"]}
+{"unit":null,"case":"pk-unit-0","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-1","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-2","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-3","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-4","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-5","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-6","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-7","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-8","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-9","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-10","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-11","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-12","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-13","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-14","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-15","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-16","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-17","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-18","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-19","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-20","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-21","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-22","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-23","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-24","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-25","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-26","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-27","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-28","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-29","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-30","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-31","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-32","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-33","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-34","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-35","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-36","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-37","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-38","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-39","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-40","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-41","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-42","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-43","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-44","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-45","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-46","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-47","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-48","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-49","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-50","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-51","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-52","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-53","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":null,"case":"pk-unit-54","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-168-success-after-unit","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-224-success-after-case","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-225-input-root-0","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-226-input-root-1","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-227-input-root-2","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-228-input-root-3","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-229-input-root-4","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-230-input-root-5","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-231-input-root-6","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-232-input-root-7","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-233-input-root-8","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-234-input-root-9","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-235-input-root-10","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-236-input-root-11","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-237-input-root-12","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-238-input-root-13","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-239-input-root-14","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-240-input-root-15","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-241-input-root-16","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-242-input-root-17","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-243-input-root-18","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-244-input-root-19","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-245-input-root-20","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-246-input-root-21","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-247-input-root-22","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-248-input-root-23","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-249-input-root-24","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-250-input-root-25","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-251-input-root-26","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-252-input-root-27","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-253-input-root-28","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-254-input-root-29","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-255-input-root-30","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-256-input-root-31","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-257-input-root-32","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-258-input-root-33","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-259-input-root-34","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-260-input-root-35","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-261-input-root-36","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-262-input-root-37","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-263-input-root-38","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-264-input-root-39","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-265-input-root-40","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-266-input-root-41","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-267-input-root-42","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-268-input-root-43","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-269-input-root-44","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-270-input-root-45","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-271-input-root-46","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-272-input-root-47","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-273-input-root-48","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-274-input-root-49","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-275-input-root-50","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-276-input-root-51","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-277-input-root-52","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-278-input-root-53","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-279-input-root-54","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-280-success-after-input-root","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-281-op-0","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-282-op-1","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-283-op-2","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-284-op-3","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-285-op-4","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-286-op-5","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-287-op-6","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-288-op-7","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-289-op-8","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-290-op-9","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-291-op-10","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-292-op-11","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-293-success-after-op","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-294-op-format-0","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-295-op-format-1","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-296-op-format-2","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-297-op-format-3","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-298-op-format-4","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-299-op-format-5","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-300-op-format-6","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-301-op-format-7","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-302-op-format-8","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-303-op-format-9","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-304-op-format-10","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-305-op-format-11","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-306-success-after-op-format","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-307-format-array-0","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-308-format-array-1","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-309-format-array-2","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-310-format-array-3","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-311-format-array-4","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-312-format-array-5","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-313-format-array-6","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-314-format-array-7","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-315-format-array-8","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-316-format-array-9","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-317-format-array-10","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-318-format-array-11","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-319-success-after-format-array","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-320-format-second-0","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-321-format-second-1","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-322-format-second-2","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-323-format-second-3","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-324-format-second-4","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-325-format-second-5","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-326-format-second-6","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-327-format-second-7","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-328-format-second-8","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-329-format-second-9","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-330-format-second-10","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-331-format-second-11","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-332-success-after-format-second","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-333-resistance-array-0","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-334-resistance-array-1","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-335-resistance-array-2","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-336-resistance-array-3","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-337-resistance-array-4","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-338-resistance-array-5","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-339-resistance-array-6","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-340-resistance-array-7","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-341-resistance-array-8","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-342-resistance-array-9","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-343-resistance-array-10","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-344-resistance-array-11","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-345-success-after-resistance-array","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-346-resistance-item-0","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-347-resistance-item-1","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-348-resistance-item-2","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-349-resistance-item-3","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-350-resistance-item-4","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-351-resistance-item-5","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-352-resistance-item-6","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-353-resistance-item-7","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-354-resistance-item-8","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-355-resistance-item-9","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-356-resistance-item-10","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-357-resistance-item-11","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-358-success-after-resistance-item","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-359-resistance-value-0","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-360-resistance-value-1","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-361-resistance-value-2","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-362-resistance-value-3","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-363-resistance-value-4","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-364-resistance-value-5","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-365-resistance-value-6","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-366-resistance-value-7","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-367-resistance-value-8","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-368-resistance-value-9","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-369-resistance-value-10","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-370-resistance-value-11","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-371-success-after-resistance-value","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-372-resistance-name-0","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-373-resistance-name-1","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-374-resistance-name-2","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-375-resistance-name-3","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-376-resistance-name-4","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-377-resistance-name-5","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-378-resistance-name-6","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-379-resistance-name-7","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-380-resistance-name-8","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-381-resistance-name-9","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-382-resistance-name-10","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-383-resistance-name-11","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-384-success-after-resistance-name","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-385-resistance-parts-0","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-386-resistance-parts-1","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-387-resistance-parts-2","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-388-resistance-parts-3","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-389-resistance-parts-4","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-390-resistance-parts-5","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-391-resistance-parts-6","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-392-resistance-parts-7","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-393-resistance-parts-8","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-394-resistance-parts-9","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-395-resistance-parts-10","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-396-resistance-parts-11","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-397-success-after-resistance-parts","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-398-resistance-part-0","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-399-resistance-part-1","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-400-resistance-part-2","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-401-resistance-part-3","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-402-resistance-part-4","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-403-resistance-part-5","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-404-resistance-part-6","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-405-resistance-part-7","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-406-resistance-part-8","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-407-resistance-part-9","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-408-resistance-part-10","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-409-resistance-part-11","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-410-success-after-resistance-part","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-411-resistance-clear-0","error":{"kind":"invalid_input","message":"expected boolean"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-412-resistance-clear-1","error":{"kind":"invalid_input","message":"expected boolean"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-413-resistance-clear-2","error":{"kind":"invalid_input","message":"expected boolean"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-414-resistance-clear-3","error":{"kind":"invalid_input","message":"expected boolean"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-415-resistance-clear-4","error":{"kind":"invalid_input","message":"expected boolean"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-416-resistance-clear-5","error":{"kind":"invalid_input","message":"expected boolean"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-417-resistance-clear-6","error":{"kind":"invalid_input","message":"expected boolean"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-418-resistance-clear-7","error":{"kind":"invalid_input","message":"expected boolean"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-419-resistance-clear-8","error":{"kind":"invalid_input","message":"expected boolean"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-420-resistance-clear-9","error":{"kind":"invalid_input","message":"expected boolean"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-421-resistance-clear-10","error":{"kind":"invalid_input","message":"expected boolean"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-422-resistance-clear-11","error":{"kind":"invalid_input","message":"expected boolean"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-423-success-after-resistance-clear","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-424-calc-actions-0","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-425-calc-actions-1","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-426-calc-actions-2","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-427-calc-actions-3","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-428-calc-actions-4","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-429-calc-actions-5","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-430-calc-actions-6","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-431-calc-actions-7","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-432-calc-actions-8","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-433-calc-actions-9","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-434-calc-actions-10","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-435-calc-actions-11","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-436-success-after-calc-actions","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-437-calc-action-0","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-438-calc-action-1","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-439-calc-action-2","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-440-calc-action-3","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-441-calc-action-4","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-442-calc-action-5","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-443-calc-action-6","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-444-calc-action-7","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-445-calc-action-8","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-446-calc-action-9","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-447-calc-action-10","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-448-calc-action-11","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-449-success-after-calc-action","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-450-calc-action-op-0","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-451-calc-action-op-1","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-452-calc-action-op-2","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-453-calc-action-op-3","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-454-calc-action-op-4","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-455-calc-action-op-5","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-456-calc-action-op-6","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-457-calc-action-op-7","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-458-calc-action-op-8","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-459-calc-action-op-9","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-460-calc-action-op-10","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-461-calc-action-op-11","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-462-success-after-calc-action-op","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-463-set-series-0","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-464-set-series-1","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-465-set-series-2","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-466-set-series-3","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-467-set-series-4","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-468-set-series-5","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-469-set-series-6","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-470-set-series-7","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-471-set-series-8","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-472-set-series-9","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-473-set-series-10","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-474-set-series-11","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-475-success-after-set-series","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-476-new-target-0","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-477-new-target-1","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-478-new-target-2","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-479-new-target-3","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-480-new-target-4","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-481-new-target-5","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-482-new-target-6","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-483-new-target-7","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-484-new-target-8","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-485-new-target-9","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-486-new-target-10","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-487-new-target-11","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-488-success-after-new-target","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-489-exclude-value-0","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-490-exclude-value-1","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-491-exclude-value-2","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-492-exclude-value-3","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-493-exclude-value-4","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-494-exclude-value-5","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-495-exclude-value-6","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-496-exclude-value-7","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-497-exclude-value-8","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-498-exclude-value-9","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-499-exclude-value-10","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-500-exclude-value-11","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-501-success-after-exclude-value","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-502-find-value-0","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-503-find-value-1","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-504-find-value-2","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-505-find-value-3","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-506-find-value-4","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-507-find-value-5","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-508-find-value-6","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-509-find-value-7","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-510-find-value-8","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-511-find-value-9","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-512-find-value-10","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-513-find-value-11","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-514-success-after-find-value","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-515-solution-level-0","error":{"kind":"invalid_input","message":"integer out of range: level"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-516-solution-level-1","error":{"kind":"invalid_input","message":"integer out of range: level"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-517-solution-level-2","error":{"kind":"invalid_input","message":"integer out of range: level"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-518-solution-level-3","error":{"kind":"invalid_input","message":"integer out of range: level"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-519-solution-level-4","error":{"kind":"invalid_input","message":"integer out of range: level"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-520-solution-level-5","error":{"kind":"invalid_input","message":"integer out of range: level"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-521-solution-level-6","error":{"kind":"invalid_input","message":"integer out of range: level"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-522-solution-level-7","error":{"kind":"invalid_input","message":"integer out of range: level"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-523-solution-level-8","error":{"kind":"invalid_input","message":"integer out of range: level"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-524-solution-level-9","error":{"kind":"invalid_input","message":"integer out of range: level"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-525-solution-level-10","error":{"kind":"invalid_input","message":"integer out of range: level"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-526-solution-level-11","error":{"kind":"invalid_input","message":"integer out of range: level"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-527-success-after-solution-level","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-528-build-series-0","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-529-build-series-1","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-530-build-series-2","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-531-build-series-3","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-532-build-series-4","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-533-build-series-5","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-534-build-series-6","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-535-build-series-7","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-536-build-series-8","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-537-build-series-9","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-538-build-series-10","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-539-build-series-11","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-540-success-after-build-series","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-541-build-values-0","error":{"kind":"invalid_input","message":"integer out of range: value"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-542-build-values-1","error":{"kind":"invalid_input","message":"integer out of range: value"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-543-build-values-2","error":{"kind":"invalid_input","message":"integer out of range: value"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-544-build-values-3","error":{"kind":"invalid_input","message":"integer out of range: value"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-545-build-values-4","error":{"kind":"invalid_input","message":"integer out of range: value"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-546-build-values-5","error":{"kind":"invalid_input","message":"integer out of range: value"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-547-build-values-6","error":{"kind":"invalid_input","message":"integer out of range: value"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-548-build-values-7","error":{"kind":"invalid_input","message":"integer out of range: value"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-549-build-values-8","error":{"kind":"invalid_input","message":"integer out of range: value"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-550-build-values-9","error":{"kind":"invalid_input","message":"integer out of range: value"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-551-build-values-10","error":{"kind":"invalid_input","message":"integer out of range: value"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-552-build-values-11","error":{"kind":"invalid_input","message":"integer out of range: value"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-553-success-after-build-values","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-554-series-selector-0","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-555-series-selector-1","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-556-series-selector-2","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-557-series-selector-3","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-558-series-selector-4","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-559-series-selector-5","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-560-series-selector-6","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-561-series-selector-7","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-562-series-selector-8","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-563-series-selector-9","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-564-series-selector-10","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-565-series-selector-11","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-566-success-after-series-selector","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-567-series-decades-0","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-568-series-decades-1","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-569-series-decades-2","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-570-series-decades-3","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-571-series-decades-4","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-572-series-decades-5","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-573-series-decades-6","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-574-series-decades-7","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-575-series-decades-8","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-576-series-decades-9","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-577-series-decades-10","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-578-series-decades-11","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-579-success-after-series-decades","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-580-series-decade-0","error":{"kind":"invalid_input","message":"integer out of range: exponent"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-581-series-decade-1","error":{"kind":"invalid_input","message":"integer out of range: exponent"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-582-series-decade-2","error":{"kind":"invalid_input","message":"integer out of range: exponent"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-583-series-decade-3","error":{"kind":"invalid_input","message":"integer out of range: exponent"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-584-series-decade-4","error":{"kind":"invalid_input","message":"integer out of range: exponent"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-585-series-decade-5","error":{"kind":"invalid_input","message":"integer out of range: exponent"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-586-series-decade-6","error":{"kind":"invalid_input","message":"integer out of range: exponent"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-587-series-decade-7","error":{"kind":"invalid_input","message":"integer out of range: exponent"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-588-series-decade-8","error":{"kind":"invalid_input","message":"integer out of range: exponent"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-589-series-decade-9","error":{"kind":"invalid_input","message":"integer out of range: exponent"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-590-series-decade-10","error":{"kind":"invalid_input","message":"integer out of range: exponent"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-591-series-decade-11","error":{"kind":"invalid_input","message":"integer out of range: exponent"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-592-success-after-series-decade","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-593-collector-candidates-0","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-594-collector-candidates-1","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-595-collector-candidates-2","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-596-collector-candidates-3","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-597-collector-candidates-4","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-598-collector-candidates-5","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-599-collector-candidates-6","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-600-collector-candidates-7","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-601-collector-candidates-8","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-602-collector-candidates-9","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-603-collector-candidates-10","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-604-collector-candidates-11","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-605-success-after-collector-candidates","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-606-collector-candidate-0","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-607-collector-candidate-1","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-608-collector-candidate-2","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-609-collector-candidate-3","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-610-collector-candidate-4","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-611-collector-candidate-5","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-612-collector-candidate-6","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-613-collector-candidate-7","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-614-collector-candidate-8","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-615-collector-candidate-9","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-616-collector-candidate-10","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-617-collector-candidate-11","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-618-success-after-collector-candidate","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-619-candidate-value-0","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-620-candidate-value-1","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-621-candidate-value-2","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-622-candidate-value-3","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-623-candidate-value-4","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-624-candidate-value-5","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-625-candidate-value-6","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-626-candidate-value-7","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-627-candidate-value-8","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-628-candidate-value-9","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-629-candidate-value-10","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-630-candidate-value-11","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-631-success-after-candidate-value","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-632-candidate-name-0","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-633-candidate-name-1","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-634-candidate-name-2","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-635-candidate-name-3","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-636-candidate-name-4","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-637-candidate-name-5","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-638-candidate-name-6","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-639-candidate-name-7","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-640-candidate-name-8","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-641-candidate-name-9","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-642-candidate-name-10","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-643-candidate-name-11","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-644-success-after-candidate-name","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-645-candidate-parts-0","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-646-candidate-parts-1","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-647-candidate-parts-2","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-648-candidate-parts-3","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-649-candidate-parts-4","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-650-candidate-parts-5","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-651-candidate-parts-6","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-652-candidate-parts-7","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-653-candidate-parts-8","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-654-candidate-parts-9","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-655-candidate-parts-10","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-656-candidate-parts-11","error":{"kind":"invalid_input","message":"array bound exceeded or wrong type"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-657-success-after-candidate-parts","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-658-candidate-part-0","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-659-candidate-part-1","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-660-candidate-part-2","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-661-candidate-part-3","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-662-candidate-part-4","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-663-candidate-part-5","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-664-candidate-part-6","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-665-candidate-part-7","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-666-candidate-part-8","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-667-candidate-part-9","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-668-candidate-part-10","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-669-candidate-part-11","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-670-success-after-candidate-part","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-671-candidate-clear-0","error":{"kind":"invalid_input","message":"expected boolean"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-672-candidate-clear-1","error":{"kind":"invalid_input","message":"expected boolean"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-673-candidate-clear-2","error":{"kind":"invalid_input","message":"expected boolean"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-674-candidate-clear-3","error":{"kind":"invalid_input","message":"expected boolean"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-675-candidate-clear-4","error":{"kind":"invalid_input","message":"expected boolean"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-676-candidate-clear-5","error":{"kind":"invalid_input","message":"expected boolean"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-677-candidate-clear-6","error":{"kind":"invalid_input","message":"expected boolean"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-678-candidate-clear-7","error":{"kind":"invalid_input","message":"expected boolean"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-679-candidate-clear-8","error":{"kind":"invalid_input","message":"expected boolean"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-680-candidate-clear-9","error":{"kind":"invalid_input","message":"expected boolean"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-681-candidate-clear-10","error":{"kind":"invalid_input","message":"expected boolean"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-682-candidate-clear-11","error":{"kind":"invalid_input","message":"expected boolean"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-683-success-after-candidate-clear","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-684-reader-text-0","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-685-reader-text-1","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-686-reader-text-2","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-687-reader-text-3","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-688-reader-text-4","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-689-reader-text-5","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-690-reader-text-6","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-691-reader-text-7","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-692-reader-text-8","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-693-reader-text-9","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-694-reader-text-10","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-695-reader-text-11","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-696-success-after-reader-text","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-697-reader-source-0","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-698-reader-source-1","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-699-reader-source-2","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-700-reader-source-3","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-701-reader-source-4","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-702-reader-source-5","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-703-reader-source-6","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-704-reader-source-7","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-705-reader-source-8","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-706-reader-source-9","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-707-reader-source-10","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-708-reader-source-11","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-709-success-after-reader-source","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-710-reader-parser-0","error":{"kind":"invalid_input","message":"integer out of range: index"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-711-reader-parser-1","error":{"kind":"invalid_input","message":"integer out of range: index"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-712-reader-parser-2","error":{"kind":"invalid_input","message":"integer out of range: index"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-713-reader-parser-3","error":{"kind":"invalid_input","message":"integer out of range: index"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-714-reader-parser-4","error":{"kind":"invalid_input","message":"integer out of range: index"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-715-reader-parser-5","error":{"kind":"invalid_input","message":"integer out of range: index"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-716-reader-parser-6","error":{"kind":"invalid_input","message":"integer out of range: index"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-717-reader-parser-7","error":{"kind":"invalid_input","message":"integer out of range: index"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-718-reader-parser-8","error":{"kind":"invalid_input","message":"integer out of range: index"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-719-reader-parser-9","error":{"kind":"invalid_input","message":"integer out of range: index"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-720-reader-parser-10","error":{"kind":"invalid_input","message":"integer out of range: index"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-721-reader-parser-11","error":{"kind":"invalid_input","message":"integer out of range: index"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-722-success-after-reader-parser","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-723-reader-action-parser-0","error":{"kind":"invalid_input","message":"integer out of range: parser"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-724-reader-action-parser-1","error":{"kind":"invalid_input","message":"integer out of range: parser"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-725-reader-action-parser-2","error":{"kind":"invalid_input","message":"integer out of range: parser"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-726-reader-action-parser-3","error":{"kind":"invalid_input","message":"integer out of range: parser"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-727-reader-action-parser-4","error":{"kind":"invalid_input","message":"integer out of range: parser"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-728-reader-action-parser-5","error":{"kind":"invalid_input","message":"integer out of range: parser"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-729-reader-action-parser-6","error":{"kind":"invalid_input","message":"integer out of range: parser"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-730-reader-action-parser-7","error":{"kind":"invalid_input","message":"integer out of range: parser"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-731-reader-action-parser-8","error":{"kind":"invalid_input","message":"integer out of range: parser"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-732-reader-action-parser-9","error":{"kind":"invalid_input","message":"integer out of range: parser"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-733-reader-action-parser-10","error":{"kind":"invalid_input","message":"integer out of range: parser"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-734-reader-action-parser-11","error":{"kind":"invalid_input","message":"integer out of range: parser"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-735-success-after-reader-action-parser","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-736-reader-bind-0","error":{"kind":"invalid_input","message":"integer out of range: index"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-737-reader-bind-1","error":{"kind":"invalid_input","message":"integer out of range: index"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-738-reader-bind-2","error":{"kind":"invalid_input","message":"integer out of range: index"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-739-reader-bind-3","error":{"kind":"invalid_input","message":"integer out of range: index"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-740-reader-bind-4","error":{"kind":"invalid_input","message":"integer out of range: index"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-741-reader-bind-5","error":{"kind":"invalid_input","message":"integer out of range: index"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-742-reader-bind-6","error":{"kind":"invalid_input","message":"integer out of range: index"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-743-reader-bind-7","error":{"kind":"invalid_input","message":"integer out of range: index"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-744-reader-bind-8","error":{"kind":"invalid_input","message":"integer out of range: index"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-745-reader-bind-9","error":{"kind":"invalid_input","message":"integer out of range: index"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-746-reader-bind-10","error":{"kind":"invalid_input","message":"integer out of range: index"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-747-reader-bind-11","error":{"kind":"invalid_input","message":"integer out of range: index"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-748-success-after-reader-bind","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-749-helpers-first-0","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-750-helpers-first-1","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-751-helpers-first-2","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-752-helpers-first-3","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-753-helpers-first-4","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-754-helpers-first-5","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-755-helpers-first-6","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-756-helpers-first-7","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-757-helpers-first-8","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-758-helpers-first-9","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-759-helpers-first-10","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-760-helpers-first-11","error":{"kind":"invalid_input","message":"missing field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-761-success-after-helpers-first","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-762-helpers-text-0","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-763-helpers-text-1","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-764-helpers-text-2","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-765-helpers-text-3","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-766-helpers-text-4","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-767-helpers-text-5","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-768-helpers-text-6","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-769-helpers-text-7","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-770-helpers-text-8","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-771-helpers-text-9","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-772-helpers-text-10","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-773-helpers-text-11","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-774-success-after-helpers-text","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-775-helpers-symbol-0","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-776-helpers-symbol-1","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-777-helpers-symbol-2","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-778-helpers-symbol-3","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-779-helpers-symbol-4","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-780-helpers-symbol-5","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-781-helpers-symbol-6","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-782-helpers-symbol-7","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-783-helpers-symbol-8","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-784-helpers-symbol-9","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-785-helpers-symbol-10","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-786-helpers-symbol-11","error":{"kind":"invalid_input","message":"expected string"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-787-success-after-helpers-symbol","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-envelope-extra-0","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-envelope-lead-0","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-790-input-extra-0","error":{"kind":"invalid_input","message":"unknown field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-791-resistance-extra-0","error":{"kind":"invalid_input","message":"unknown field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-792-action-extra-0","error":{"kind":"invalid_input","message":"unknown field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-793-candidate-extra-0","error":{"kind":"invalid_input","message":"unknown field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-envelope-extra-1","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-envelope-lead-1","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-796-input-extra-1","error":{"kind":"invalid_input","message":"unknown field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-797-resistance-extra-1","error":{"kind":"invalid_input","message":"unknown field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-798-action-extra-1","error":{"kind":"invalid_input","message":"unknown field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-799-candidate-extra-1","error":{"kind":"invalid_input","message":"unknown field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-envelope-extra-2","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-envelope-lead-2","error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-802-input-extra-2","error":{"kind":"invalid_input","message":"unknown field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-803-resistance-extra-2","error":{"kind":"invalid_input","message":"unknown field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-804-action-extra-2","error":{"kind":"invalid_input","message":"unknown field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-805-candidate-extra-2","error":{"kind":"invalid_input","message":"unknown field"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-806-success-after-extra","result":["-nanL","1R"]}
+{"unit":"unknown","case":"pk-unknown-unit-0","error":{"kind":"unknown_unit","message":"unit has no registered shim"}}
+{"unit":"unknown","case":"pk-unknown-unit-1","error":{"kind":"unknown_unit","message":"unit has no registered shim"}}
+{"unit":"unknown","case":"pk-unknown-unit-2","error":{"kind":"unknown_unit","message":"unit has no registered shim"}}
+{"unit":"unknown","case":"pk-unknown-unit-3","error":{"kind":"unknown_unit","message":"unit has no registered shim"}}
+{"unit":"unknown","case":"pk-unknown-unit-4","error":{"kind":"unknown_unit","message":"unit has no registered shim"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-812-name-string-0","result":[{"value_bits":0,"name":"$serde_json::private::Number","parts_bits":[0]}]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-813-name-string-1","result":[{"value_bits":0,"name":"$serde_json::private::RawValue","parts_bits":[0]}]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-814-name-string-2","result":[{"value_bits":0,"name":"$serde_json::private::Number","parts_bits":[0]}]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-815-name-string-3","result":[{"value_bits":0,"name":"{\"$serde_json::private::Number\":\"0\"}","parts_bits":[0]}]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-816-name-string-4","result":[{"value_bits":0,"name":"{\"$serde_json::private::RawValue\":\"[0]\"}","parts_bits":[0]}]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-817-name-string-5","result":[{"value_bits":0,"name":"1e1000","parts_bits":[0]}]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-818-name-string-6","result":[{"value_bits":0,"name":"18446744073709551616","parts_bits":[0]}]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-819-name-string-7","result":[{"value_bits":0,"name":"-0","parts_bits":[0]}]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-820-name-string-8","result":[{"value_bits":0,"name":"[0]","parts_bits":[0]}]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-821-success-after-names","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-822-string-bits-0","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-823-string-target-0","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-824-string-series-0","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-825-string-bits-1","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-826-string-target-1","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-827-string-series-1","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-828-string-bits-2","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-829-string-target-2","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-830-string-series-2","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-831-string-bits-3","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-832-string-target-3","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-833-string-series-3","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-834-string-bits-4","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-835-string-target-4","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-836-string-series-4","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-837-string-bits-5","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-838-string-target-5","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-839-string-series-5","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-840-string-bits-6","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-841-string-target-6","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-842-string-series-6","error":{"kind":"invalid_input","message":"integer out of range: series"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-843-success-after-strings","result":["-nanL","1R"]}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-860-success-after-duplicates","result":["-nanL","1R"]}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-867-marker-finite-0","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-868-marker-finite-collector-0","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-869-marker-finite-1","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-870-marker-finite-collector-1","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-871-marker-finite-2","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-872-marker-finite-collector-2","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-873-marker-finite-3","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-874-marker-finite-collector-3","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-875-marker-finite-4","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-876-marker-finite-collector-4","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-877-success-after-marker-numbers","result":["-nanL","1R"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-878-literal-minus-zero","result":["-nanL"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-879-literal-full-u64","result":["-nanL"]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-880-literal-u64-overflow","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-881-literal-underflow","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-882-literal-negative-zero-float","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-883-literal-finite-max","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-885-collector-empty","result":{"exception":"Empty solution collector"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-886-collector-target-null","error":{"kind":"invalid_input","message":"expected u64 IEEE754 bits"}}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-887-calculator-series","result":[{"returned":null,"state":{"series":0,"target_bits":0,"exclusions":[],"buffer_1r_count":0,"buffer_2r_count":0,"results":[null,null,null]}},{"returned":null,"state":{"series":0,"target_bits":0,"exclusions":[],"buffer_1r_count":0,"buffer_2r_count":0,"results":[null,null,null]}}]}
+{"unit":"pcb_calculator.application.pure.p001","case":"pk-888-success-last","result":["-nanL","1R"]}

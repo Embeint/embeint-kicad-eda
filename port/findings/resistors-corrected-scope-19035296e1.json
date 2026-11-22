@@ -1,0 +1,257 @@
+{
+  "corrected_dependency": "19035296e129cf8640e89331bc9e8ad84f0fe38c",
+  "rust_dependency": "4c6c1e38ce2dead8db8a3193e7525d19532523e9",
+  "record": {
+    "id": "pcb_calculator.application.pure.p001",
+    "upstream": [
+      "pcb_calculator/common_data.h",
+      "pcb_calculator/eseries.cpp",
+      "pcb_calculator/eseries.h",
+      "pcb_calculator/pcb_calculator_utils.h",
+      "pcb_calculator/resistor_substitution_utils.cpp",
+      "pcb_calculator/resistor_substitution_utils.h",
+      "pcb_calculator/units_scales.h"
+    ],
+    "est_lines": 1126,
+    "layer": 0,
+    "wx_class": "pure",
+    "depends_on": [],
+    "soft_depends_on": [],
+    "coverage_gaps": [],
+    "source_ranges": [
+      "pcb_calculator/common_data.h:1:62",
+      "pcb_calculator/eseries.cpp:1:102",
+      "pcb_calculator/eseries.h:1:177",
+      "pcb_calculator/pcb_calculator_utils.h:1:33",
+      "pcb_calculator/resistor_substitution_utils.cpp:1:508",
+      "pcb_calculator/resistor_substitution_utils.h:1:168",
+      "pcb_calculator/units_scales.h:1:76"
+    ],
+    "functions": [
+      "c:@F@operator<#&1$@S@RESISTANCE#S0_#",
+      "c:@F@operator<#&1$@S@RESISTANCE#d#",
+      "c:@F@strValue#d#",
+      "c:@N@ESERIES@S@E12_VALUES@F@E12_VALUES#",
+      "c:@N@ESERIES@S@E192_VALUES@F@E192_VALUES#",
+      "c:@N@ESERIES@S@E1_VALUES@F@E1_VALUES#",
+      "c:@N@ESERIES@S@E24_VALUES@F@E24_VALUES#",
+      "c:@N@ESERIES@S@E3_VALUES@F@E3_VALUES#",
+      "c:@N@ESERIES@S@E48_VALUES@F@E48_VALUES#",
+      "c:@N@ESERIES@S@E6_VALUES@F@E6_VALUES#",
+      "c:@N@ESERIES@S@E96_VALUES@F@E96_VALUES#",
+      "c:@N@ESERIES@S@ESERIES_IN_DECADE@F@ESERIES_IN_DECADE#I#I#",
+      "c:@N@ESERIES@S@ESERIES_VALUES@F@ESERIES_VALUES#I#",
+      "c:@S@RESISTANCE@F@RESISTANCE#d#&1$@N@std@N@__cxx11@S@basic_string>#C#$@N@std@S@char_traits>#C#$@N@std@S@allocator>#C#$@N@std@S@vector>#d#$@N@std@S@allocator>#d#",
+      "c:@S@RES_EQUIV_CALC@F@Calculate#",
+      "c:@S@RES_EQUIV_CALC@F@Exclude#d#",
+      "c:@S@RES_EQUIV_CALC@F@GetResults#",
+      "c:@S@RES_EQUIV_CALC@F@NewCalc#d#",
+      "c:@S@RES_EQUIV_CALC@F@RES_EQUIV_CALC#",
+      "c:@S@RES_EQUIV_CALC@F@SetSeries#i#",
+      "c:@S@RES_EQUIV_CALC@F@buildSeriesData#&1$@N@ESERIES@S@ESERIES_VALUES#",
+      "c:@S@RES_EQUIV_CALC@F@calculate2RSolution#",
+      "c:@S@RES_EQUIV_CALC@F@calculate3RSolution#",
+      "c:@S@RES_EQUIV_CALC@F@calculate4RSolution#",
+      "c:@S@RES_EQUIV_CALC@F@findIn2RBuffer#d#",
+      "c:@S@RES_EQUIV_CALC@F@prepare1RBuffer#",
+      "c:@S@RES_EQUIV_CALC@F@prepare2RBuffer#",
+      "c:@S@SolutionCollector@F@Add2RLookupResults#$@N@std@S@pair>#&$@S@RESISTANCE#S1_#$@N@std@S@function>#Fd(#d)#$@N@std@S@function>#FS2_(#S1_)#",
+      "c:@S@SolutionCollector@F@GetBest#",
+      "c:@S@SolutionCollector@F@SolutionCollector#d#",
+      "c:@S@SolutionCollector@F@betterCandidate#&1$@S@RESISTANCE#S0_#S",
+      "c:@S@SolutionCollector@F@considerSolution#d#&$@S@RESISTANCE#&$@N@std@S@function>#FS1_(#S0_)#",
+      "c:@S@SolutionCollector@F@uniqueCount#&1$@S@RESISTANCE#S",
+      "c:resistor_substitution_utils.cpp@F@maybeEmbrace#&1$@N@std@N@__cxx11@S@basic_string>#C#$@N@std@S@char_traits>#C#$@N@std@S@allocator>#C#C#",
+      "c:resistor_substitution_utils.cpp@F@parallelResistance#&1$@S@RESISTANCE#S0_#",
+      "c:resistor_substitution_utils.cpp@F@parallelResistanceSimple#&1$@S@RESISTANCE#S0_#",
+      "c:resistor_substitution_utils.cpp@F@parallelValue#d#d#",
+      "c:resistor_substitution_utils.cpp@F@serialResistance#&1$@S@RESISTANCE#S0_#",
+      "c:resistor_substitution_utils.cpp@F@serialResistanceSimple#&1$@S@RESISTANCE#S0_#",
+      "c:resistor_substitution_utils.cpp@F@serialValue#d#d#"
+    ]
+  },
+  "owned_body_audit": [
+    {
+      "usr": "c:@F@operator<#&1$@S@RESISTANCE#S0_#",
+      "rust_body": "resistance_less"
+    },
+    {
+      "usr": "c:@F@operator<#&1$@S@RESISTANCE#d#",
+      "rust_body": "resistance_less_value"
+    },
+    {
+      "usr": "c:@F@strValue#d#",
+      "rust_body": "format::str_value"
+    },
+    {
+      "usr": "c:@N@ESERIES@S@E12_VALUES@F@E12_VALUES#",
+      "rust_body": "eseries::values (literal tables, selector and all named constructors)"
+    },
+    {
+      "usr": "c:@N@ESERIES@S@E192_VALUES@F@E192_VALUES#",
+      "rust_body": "eseries::values (literal tables, selector and all named constructors)"
+    },
+    {
+      "usr": "c:@N@ESERIES@S@E1_VALUES@F@E1_VALUES#",
+      "rust_body": "eseries::values (literal tables, selector and all named constructors)"
+    },
+    {
+      "usr": "c:@N@ESERIES@S@E24_VALUES@F@E24_VALUES#",
+      "rust_body": "eseries::values (literal tables, selector and all named constructors)"
+    },
+    {
+      "usr": "c:@N@ESERIES@S@E3_VALUES@F@E3_VALUES#",
+      "rust_body": "eseries::values (literal tables, selector and all named constructors)"
+    },
+    {
+      "usr": "c:@N@ESERIES@S@E48_VALUES@F@E48_VALUES#",
+      "rust_body": "eseries::values (literal tables, selector and all named constructors)"
+    },
+    {
+      "usr": "c:@N@ESERIES@S@E6_VALUES@F@E6_VALUES#",
+      "rust_body": "eseries::values (literal tables, selector and all named constructors)"
+    },
+    {
+      "usr": "c:@N@ESERIES@S@E96_VALUES@F@E96_VALUES#",
+      "rust_body": "eseries::values (literal tables, selector and all named constructors)"
+    },
+    {
+      "usr": "c:@N@ESERIES@S@ESERIES_IN_DECADE@F@ESERIES_IN_DECADE#I#I#",
+      "rust_body": "eseries::in_decade"
+    },
+    {
+      "usr": "c:@N@ESERIES@S@ESERIES_VALUES@F@ESERIES_VALUES#I#",
+      "rust_body": "eseries::values (literal tables, selector and all named constructors)"
+    },
+    {
+      "usr": "c:@S@RESISTANCE@F@RESISTANCE#d#&1$@N@std@N@__cxx11@S@basic_string>#C#$@N@std@S@char_traits>#C#$@N@std@S@allocator>#C#$@N@std@S@vector>#d#$@N@std@S@allocator>#d#",
+      "rust_body": "Resistance::new"
+    },
+    {
+      "usr": "c:@S@RES_EQUIV_CALC@F@Calculate#",
+      "rust_body": "Calculator::calculate"
+    },
+    {
+      "usr": "c:@S@RES_EQUIV_CALC@F@Exclude#d#",
+      "rust_body": "Calculator::exclude"
+    },
+    {
+      "usr": "c:@S@RES_EQUIV_CALC@F@GetResults#",
+      "rust_body": "Calculator::get_results"
+    },
+    {
+      "usr": "c:@S@RES_EQUIV_CALC@F@NewCalc#d#",
+      "rust_body": "Calculator::new_calc"
+    },
+    {
+      "usr": "c:@S@RES_EQUIV_CALC@F@RES_EQUIV_CALC#",
+      "rust_body": "Calculator::Default::default"
+    },
+    {
+      "usr": "c:@S@RES_EQUIV_CALC@F@SetSeries#i#",
+      "rust_body": "Calculator::set_series"
+    },
+    {
+      "usr": "c:@S@RES_EQUIV_CALC@F@buildSeriesData#&1$@N@ESERIES@S@ESERIES_VALUES#",
+      "rust_body": "eseries::values (literal tables, selector and all named constructors)"
+    },
+    {
+      "usr": "c:@S@RES_EQUIV_CALC@F@calculate2RSolution#",
+      "rust_body": "Calculator::solution_2r"
+    },
+    {
+      "usr": "c:@S@RES_EQUIV_CALC@F@calculate3RSolution#",
+      "rust_body": "Calculator::solution_3r"
+    },
+    {
+      "usr": "c:@S@RES_EQUIV_CALC@F@calculate4RSolution#",
+      "rust_body": "Calculator::solution_4r"
+    },
+    {
+      "usr": "c:@S@RES_EQUIV_CALC@F@findIn2RBuffer#d#",
+      "rust_body": "Calculator::find"
+    },
+    {
+      "usr": "c:@S@RES_EQUIV_CALC@F@prepare1RBuffer#",
+      "rust_body": "Calculator::prepare_1r"
+    },
+    {
+      "usr": "c:@S@RES_EQUIV_CALC@F@prepare2RBuffer#",
+      "rust_body": "Calculator::prepare_2r"
+    },
+    {
+      "usr": "c:@S@SolutionCollector@F@Add2RLookupResults#$@N@std@S@pair>#&$@S@RESISTANCE#S1_#$@N@std@S@function>#Fd(#d)#$@N@std@S@function>#FS2_(#S1_)#",
+      "rust_body": "Collector::add (real search callbacks and testing access)"
+    },
+    {
+      "usr": "c:@S@SolutionCollector@F@GetBest#",
+      "rust_body": "Collector::best (real search callbacks and testing access)"
+    },
+    {
+      "usr": "c:@S@SolutionCollector@F@SolutionCollector#d#",
+      "rust_body": "Collector::new (real search callbacks and testing access)"
+    },
+    {
+      "usr": "c:@S@SolutionCollector@F@betterCandidate#&1$@S@RESISTANCE#S0_#S",
+      "rust_body": "Collector::better (real search callbacks and testing access)"
+    },
+    {
+      "usr": "c:@S@SolutionCollector@F@considerSolution#d#&$@S@RESISTANCE#&$@N@std@S@function>#FS1_(#S0_)#",
+      "rust_body": "Collector::consider (real search callbacks and testing access)"
+    },
+    {
+      "usr": "c:@S@SolutionCollector@F@uniqueCount#&1$@S@RESISTANCE#S",
+      "rust_body": "Collector::unique (real search callbacks and testing access)"
+    },
+    {
+      "usr": "c:resistor_substitution_utils.cpp@F@maybeEmbrace#&1$@N@std@N@__cxx11@S@basic_string>#C#$@N@std@S@char_traits>#C#$@N@std@S@allocator>#C#C#",
+      "rust_body": "embrace"
+    },
+    {
+      "usr": "c:resistor_substitution_utils.cpp@F@parallelResistance#&1$@S@RESISTANCE#S0_#",
+      "rust_body": "combine (parallel/simple flags and complete expression/part continuations)"
+    },
+    {
+      "usr": "c:resistor_substitution_utils.cpp@F@parallelResistanceSimple#&1$@S@RESISTANCE#S0_#",
+      "rust_body": "combine (parallel/simple flags and complete expression/part continuations)"
+    },
+    {
+      "usr": "c:resistor_substitution_utils.cpp@F@parallelValue#d#d#",
+      "rust_body": "fp::parallel"
+    },
+    {
+      "usr": "c:resistor_substitution_utils.cpp@F@serialResistance#&1$@S@RESISTANCE#S0_#",
+      "rust_body": "combine (parallel/simple flags and complete expression/part continuations)"
+    },
+    {
+      "usr": "c:resistor_substitution_utils.cpp@F@serialResistanceSimple#&1$@S@RESISTANCE#S0_#",
+      "rust_body": "combine (parallel/simple flags and complete expression/part continuations)"
+    },
+    {
+      "usr": "c:resistor_substitution_utils.cpp@F@serialValue#d#d#",
+      "rust_body": "fp::serial"
+    }
+  ],
+  "reader_coport": {
+    "usr": "c:@S@PCB_CALCULATOR_DATAFILE_PARSER@F@GetReader#",
+    "owner": "pcb_calculator.application.thin.replacement.p001",
+    "layer": 0,
+    "wx_class": "thin-replacement",
+    "location": "pcb_calculator/datafile_read_write.h:55",
+    "rust": "rust/kicad-resistors/src/reader.rs::DatafileParserReader::get_reader",
+    "constructor_and_parse_owner": "pcb_calculator.application.ui.p001",
+    "constructor_and_parse_layer": 136,
+    "status": "co-port only; owning units remain todo"
+  },
+  "graph_acceptance": "pending final independent review and parent confirmation",
+  "source_sha256": {
+    "pcb_calculator/common_data.h": "63d3b344ba45bc8015b40c64d253965bae7c4de011e7d3617853fd313b630580",
+    "pcb_calculator/eseries.cpp": "6e434b90f0ada0b21982fa438e379238865580f0403cd2b2a6f7712507e5c224",
+    "pcb_calculator/eseries.h": "1ca8985a70f421b68f984298134a7fa9d7f3eb02dec48df28ec66ddb4ec8a5fe",
+    "pcb_calculator/pcb_calculator_utils.h": "cbbcf61417069a21265da0cd3fff66ee04d0479ed3275cfc55b90eae43119000",
+    "pcb_calculator/resistor_substitution_utils.cpp": "03adde0a3350cc2d837c42819fd7666d2ae20b1d7a333dc43a240704f7c1317e",
+    "pcb_calculator/resistor_substitution_utils.h": "d85ac3cb2cb4537461fa17cfa91ca1427748cb0b44ba32130339d3fee717e0af",
+    "pcb_calculator/units_scales.h": "e46c8d14e703f2d79f2b5c959a4d41f19dfd228a4a8404fb89fd688f9e9c07e0",
+    "pcb_calculator/datafile_read_write.h": "611402857435c6150008e4bfa89015311cc27cfbf96fc6169cebafc0fceb00f3"
+  }
+}

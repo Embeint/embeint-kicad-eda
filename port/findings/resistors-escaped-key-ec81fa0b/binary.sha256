@@ -1,0 +1,4 @@
+b0b167cb40bfcb3b2f8fa6791f36742bdab8a560d791acccb875b105ce9b632f  /home/karlvonrichter/kicad-port/resistor-escaped-fix-ec81fa0b-r2/oracle/kicad-oracle
+5babe7c7e738cf14ccb9ee44f7be23707a452298dc00ed56c71d8d250b7114d7  /home/karlvonrichter/kicad-port/resistor-escaped-fix-ec81fa0b-r2/repo/rust/target/debug/kicad-resistors-shim
+e5c6ba211c2c72001396da3026636e60a175dbf3b05c13cb3cbdf6e6c21a7046  /home/karlvonrichter/kicad-port/resistor-escaped-fix-ec81fa0b-r2/repo/rust/target/release/kicad-resistors-shim
+9a93f25fb792bcae7526f9f08af0c26bf90d85c4f124abfc71b4fccab642cdd2  /home/karlvonrichter/kicad-port/resistor-escaped-fix-ec81fa0b-r2/repo/rust/target/debug/kicad-difftest

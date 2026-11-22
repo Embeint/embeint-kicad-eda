@@ -10,25 +10,48 @@ from unittest.mock import patch
 from audit import audit
 
 
+# The integrated oracle also compiles the resistor and reader reference
+# closures. Every fixture supplies them completely, so each refusal below is
+# caused only by the IEC60664 compilation or archive under test.
+OTHER_TARGETS = ("core", "clipper2", "kimath", "fmt", "kicad-oracle")
+RESISTOR_SOURCES = ("pcb_calculator/eseries.cpp",)
+READER_SOURCES = ("pcb_calculator/datafile_read_write.cpp", "common/dsnlexer.cpp",
+                  "common/richio.cpp", "common/exceptions.cpp")
+READER_GENERATED = "reader-generated/pcb_calculator_datafile_keywords.cpp"
+OTHER_ARCHIVES = ("libresistor-reference.a", "libfmt.a", "libcalculator-reader-reference.a")
+
+
 class CalculatorReferenceGuards(unittest.TestCase):
-    def fixture(self, root, *, reference=True, archive=True, substitute=False):
+    def fixture(self, root, *, reference=True, archive=True, substitute=False, omit=()):
+        root = root.resolve()
         source, build, overlay = (root / name for name in ("source", "build", "overlay"))
         for path in (source, build, overlay):
             path.mkdir()
         (build / "config.h").write_text("config", encoding="utf-8")
+        wrapper = overlay / "reference/resistors_access.cpp"
+        wrapper.parent.mkdir()
+        wrapper.write_text("#include <resistor_substitution_utils.cpp>\n", encoding="utf-8")
         relative = "pcb_calculator/calculator_panels/iec60664.cpp"
-        database = []
-        for target in ("core", "clipper2", "kimath", "kicad-oracle") + (("iec60664-reference",) if reference else ()):
-            path = source / relative if target == "iec60664-reference" and not substitute else overlay / (target + ".cpp")
-            database.append({"file": str(path), "arguments": [
-                "g++", "-fno-fast-math", "-ffp-contract=off", "-c", str(path),
-                "-o", f"CMakeFiles/{target}.dir/impl.cpp.o"]})
+        compiled = [(target, overlay / (target + ".cpp")) for target in OTHER_TARGETS]
+        compiled += [("resistor-reference", source / path) for path in RESISTOR_SOURCES]
+        compiled.append(("resistor-reference", wrapper))
+        compiled += [("calculator-reader-reference", source / path) for path in READER_SOURCES]
+        compiled.append(("calculator-reader-reference", build / READER_GENERATED))
+        if reference:
+            compiled.append(("iec60664-reference",
+                             overlay / "iec60664.cpp" if substitute else source / relative))
+        database = [{"file": str(path), "arguments": [
+            "g++", "-fno-fast-math", "-ffp-contract=off", "-c", str(path),
+            "-o", f"CMakeFiles/{target}.dir/impl.cpp.o"]}
+            for target, path in compiled if target not in omit]
         (build / "compile_commands.json").write_text(json.dumps(database), encoding="utf-8")
-        manifest = {"files": {relative: "test-hash"}, "overlay_revision": "test-revision",
-                    "overlay_dirty_at_export": False}
+        pinned = (relative,) + RESISTOR_SOURCES + READER_SOURCES
+        manifest = {"files": {path: "test-hash" for path in pinned},
+                    "overlay_revision": "test-revision", "overlay_dirty_at_export": False}
         link = "g++ -fno-fast-math -ffp-contract=off -o kicad-oracle libkimath.a"
         if archive:
             link += " libiec60664-reference.a"
+        link += " " + " ".join(OTHER_ARCHIVES)
 
         def output(args, **_kwargs):
             return link if args[0] == "ninja" else "test-toolchain"
@@ -38,8 +61,9 @@ class CalculatorReferenceGuards(unittest.TestCase):
     def run_audit(self, root, **kwargs):
         build, source, overlay, manifest, output = self.fixture(root, **kwargs)
         with patch("audit.verify_source", return_value=(manifest, "manifest-test-hash")), \
+                patch("audit.verify_reader_generated", return_value={"test": "generated"}), \
                 patch("audit.subprocess.check_output", side_effect=output):
-            audit(build.resolve(), source.resolve(), overlay.resolve())
+            audit(build, source, overlay)
         return build
 
     def test_missing_calculator_compilation_is_refused_even_with_archive_link(self):
@@ -61,8 +85,14 @@ class CalculatorReferenceGuards(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             build = self.run_audit(Path(directory))
             record = json.loads((build / "oracle-provenance.json").read_text(encoding="utf-8"))
-            self.assertEqual(len(record["compile_commands"]), 5)
+            self.assertEqual(len(record["compile_commands"]), 13)
             self.assertIn("libiec60664-reference.a", record["build_commands"][0])
+
+    def test_other_reference_closures_remain_required_with_calculator_present(self):
+        for target in ("fmt", "resistor-reference", "calculator-reader-reference"):
+            with self.subTest(target=target), tempfile.TemporaryDirectory() as directory, \
+                    self.assertRaisesRegex(ValueError, "Unexpected reference target closure"):
+                self.run_audit(Path(directory), omit=(target,))
 
 
 if __name__ == "__main__":

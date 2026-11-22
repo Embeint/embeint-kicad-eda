@@ -1,0 +1,4 @@
+# Evidence hashes identify the exact bytes of this pilot on every host.
+cases/pcb_calculator.application.pure.p001.jsonl text eol=lf
+goldens/pcb_calculator.application.pure.p001.jsonl text eol=lf
+goldens/evidence/pcb_calculator.application.pure.p001*.json text eol=lf

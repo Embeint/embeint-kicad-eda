@@ -215,3 +215,41 @@ runner, `crates/goldens/README.md`, and `harness/plan/progress.py`.
 That pin no longer contains a C++ difftest/shim builder; its current policy uses
 Rust goldens and the C++ as a reading reference. This oracle follows KiCad's
 binding exact C++ comparison plan, not solidcore's later tolerance/policy changes.
+
+## Resistor reference extension
+
+Resistor pilot preparation adds the `resistor-reference` archive and pinned fmt
+(MIT). With the real reader-constructor closure, this extension exports 913 files
+before other pilots' additive closures.
+It compiles the original `pcb_calculator/eseries.cpp` and the original
+`resistor_substitution_utils.cpp`; the latter is included, unchanged, in a library
+test-accessor translation unit so the real source-local collector can be tested.
+The adapter calls the compiled reference library, including private helpers through
+standard explicit-instantiation member access. No C++ resistor algorithm lives in
+the JSON shim. The audit requires actual reference compilation and the archive/fmt
+links, retaining all existing kimath, source-integrity and fixed-FP checks.
+
+The added `calculator-reader-reference` archive compiles the unchanged parser
+constructor TU, `dsnlexer.cpp`, `richio.cpp` and `exceptions.cpp`. It constructs
+real parser and `STRING_LINE_READER` objects for the owned `GetReader` body.
+Unused GUI functions are discarded using function/data sections and linker
+garbage collection. Lexer files come from the pinned upstream CMake generator;
+the audit regenerates them separately and refuses any byte difference. Original
+inputs and generated outputs are hashed; no stand-in reader or parser is used.
+The generated-source command, CMake identity and system glibc version are recorded
+with the existing compiler and link provenance.
+
+`oracle-resistor-inputs` keeps malformed collector targets outside the real
+collector exception path. `oracle-resistor-private-keys` replays the literal
+requests in `fixtures/resistor-private-keys.requests.jsonl` and requires the
+recorded complete replies byte for byte; both fixture hashes are pinned in
+`test_resistor_private_keys.py`. They cover object keys spelled like serde's
+private `Number`/`RawValue` markers, which C++ treats as ordinary keys. The separate
+`resistor-private-keys-escaped.*.jsonl` set adds 199 literal escaped-key and decoded
+duplicate-key probes to the original 889; default C++ and Rust guards run both.
+
+The native registration uses the provisional ID
+`pcb_calculator.application.pure.p001`. It is preparation only: no published claim,
+unit record or completion status follows before the final extractor scope record.
+The complete protocol, owned-definition audit and dependency notices are in
+[`rust/kicad-resistors/README.md`](../../rust/kicad-resistors/README.md).

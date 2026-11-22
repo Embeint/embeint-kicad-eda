@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[package]
+name = "kicad-resistors-shim"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[package.metadata.kicad]
+portable = false
+
+[dependencies]
+kicad-resistors = { path = "../kicad-resistors" }
+serde_json.workspace = true
+kicad-difftest = { path = "../kicad-difftest" }
