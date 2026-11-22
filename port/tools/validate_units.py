@@ -99,6 +99,10 @@ def validate(root, require_complete=False, check_sources=True, source_root=None)
     files = {f["path"]: f for f in inventory["files"]}
     if len(files) != len(inventory["files"]):
         errors.append("duplicate inventory path")
+    for tu in translation_units or []:
+        if tu.get('category') == 'generated-build' and (not tu['file'].startswith('@build/')
+                or tu['file'] not in files or files[tu['file']].get('origin') != 'build-generated'):
+            errors.append('active generated translation unit lacks frozen source mapping: ' + tu['file'])
     for usr, fn in graph["functions"].items():
         if fn["file"] not in files:
             errors.append(f"function source absent from inventory: {usr}")
