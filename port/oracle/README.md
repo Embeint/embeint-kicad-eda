@@ -211,7 +211,8 @@ binding exact C++ comparison plan, not solidcore's later tolerance/policy change
 ## Resistor reference extension
 
 Resistor pilot preparation adds the `resistor-reference` archive and pinned fmt
-(MIT). This extension exports 873 files before other pilots' additive closures.
+(MIT). With the real reader-constructor closure, this extension exports 913 files
+before other pilots' additive closures.
 It compiles the original `pcb_calculator/eseries.cpp` and the original
 `resistor_substitution_utils.cpp`; the latter is included, unchanged, in a library
 test-accessor translation unit so the real source-local collector can be tested.
@@ -219,6 +220,16 @@ The adapter calls the compiled reference library, including private helpers thro
 standard explicit-instantiation member access. No C++ resistor algorithm lives in
 the JSON shim. The audit requires actual reference compilation and the archive/fmt
 links, retaining all existing kimath, source-integrity and fixed-FP checks.
+
+The added `calculator-reader-reference` archive compiles the unchanged parser
+constructor TU, `dsnlexer.cpp`, `richio.cpp` and `exceptions.cpp`. It constructs
+real parser and `STRING_LINE_READER` objects for the owned `GetReader` body.
+Unused GUI functions are discarded using function/data sections and linker
+garbage collection. Lexer files come from the pinned upstream CMake generator;
+the audit regenerates them separately and refuses any byte difference. Original
+inputs and generated outputs are hashed; no stand-in reader or parser is used.
+The generated-source command, CMake identity and system glibc version are recorded
+with the existing compiler and link provenance.
 
 The native registration uses the provisional ID
 `pcb_calculator.application.pure.p001`. It is preparation only: no published claim,

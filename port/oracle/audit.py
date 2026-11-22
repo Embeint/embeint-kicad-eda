@@ -165,6 +165,8 @@ def audit(build, source, overlay):
         "compiler_targets": {c: subprocess.check_output([c, "-dumpmachine"], text=True).strip()
                              for c in sorted(compilers)},
         "wx_version": subprocess.check_output(["wx-config", "--version"], text=True).strip(),
+        "system_libc_version": subprocess.check_output(["getconf", "GNU_LIBC_VERSION"], text=True).strip(),
+        "cmake_version": subprocess.check_output(["cmake", "--version"], text=True).strip(),
         "compile_commands": commands, "build_commands": link_commands,
         "reader_generated": generated,
         "config_h_sha256": sha(build / "config.h"),

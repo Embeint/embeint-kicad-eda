@@ -5,8 +5,8 @@ Unit `pcb_calculator.application.pure.p001`, at KiCad
 `4cf939778df04d2b747bb2c4714fc5014a7565c7`. The local finalizer record contains
 **1,186 physical lines and 41 owned definitions**, L0/pure, with no hard/soft
 dependencies or gaps. The committed #39 head remains an integration dependency.
-This preparation neither claims a unit nor supplies a unit TOML, golden, green
-status or phase-zero completion claim. The committed record must confirm the
+This preparation neither claims a unit nor supplies a unit TOML, green status
+or phase-zero completion claim. The committed record must confirm the
 complete local scope before those steps:
 
 | Accounted path | Inclusive lines |
@@ -171,14 +171,15 @@ an improvement installs a solution. Neither is removed for coverage convenience.
 
 ## Reproduce and validate
 
-`python rust/kicad-resistors/cases.py` regenerates the public fixed-seed corpus.
+`python rust/kicad-resistors/cases.py` regenerates the 198-case public fixed-seed corpus.
 The initial corpus is prepared before final extractor ownership confirmation.
 Run fmt, clippy `-D warnings`, tests and `wasm32-unknown-unknown` checks for both
 new crates (the shim is native), and the normal real-oracle build in an owned
 WSL rsync tree with the shared lock and at most eight jobs. Use the existing
 `kicad-difftest compare`, then `propose`/`bless` only after live agreement and
-verified executable/provenance identity. No golden/evidence is supplied until
-that has happened. A test run's final counts and tested commit must be recorded
+verified executable/provenance identity. A baseline records that live agreement;
+it does not publish a unit claim or complete the extractor integration. A test
+run's final counts and tested commit must be recorded
 separately; this source/case preparation is not a result claim.
 
 ## Dependencies and licences
