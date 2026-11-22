@@ -10,6 +10,11 @@ pub mod scales;
 mod sort;
 pub use format::str_value;
 
+/// Complete API for the extractor's pure calculator application unit.
+pub mod application {
+    pub use crate::{eseries, reader, scales, str_value, Calculator, Error, Resistance};
+}
+
 pub const EPSILON: f64 = 1e-12;
 
 #[derive(Clone, Debug, PartialEq)]

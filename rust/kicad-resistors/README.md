@@ -1,13 +1,15 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
-# Resistor pilot preparation
+# Resistor pilot
 
 Unit `pcb_calculator.application.pure.p001`, at KiCad
-`4cf939778df04d2b747bb2c4714fc5014a7565c7`. The local finalizer record contains
+`4cf939778df04d2b747bb2c4714fc5014a7565c7`. Canonical #39 head
+`a7ec77beffd3b2e5d60409423fa28b6c116c6e00` (unit blob
+`5f7870fc5921a7732db268be292aee3d56851b69`) confirms
 **1,186 physical lines and 41 owned definitions**, L0/pure, with no hard/soft
-dependencies or gaps. The committed #39 head remains an integration dependency.
-This preparation neither claims a unit nor supplies a unit TOML, green status
-or phase-zero completion claim. The committed record must confirm the
-complete local scope before those steps:
+dependencies or gaps. That exact dependency is merged into this topic and must
+land in `rust` before the pilot. Only this unit's port metadata and live shim
+registration are changed; canonical source/functions/ranges/accounting stay
+unchanged. A passing pilot does not establish phase-zero completion.
 
 | Accounted path | Inclusive lines |
 | --- | --- |
