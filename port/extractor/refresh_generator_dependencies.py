@@ -117,6 +117,9 @@ def verify_source(identity):
 
 def capture(base_manifest_path, source, output, *, inventory_path, generation_inputs_path):
     base = read_json(base_manifest_path)
+    ninja = base['provenance'].get('tools', {}).get('ninja', {}).get('path')
+    if not ninja or not Path(ninja).is_absolute():
+        raise ValueError('Capture requires a recorded absolute Ninja executable')
     build = Path(base['build_root']).resolve()
     if output.resolve().is_relative_to(build):
         raise ValueError('Keep capture output outside the private build tree')
@@ -127,13 +130,13 @@ def capture(base_manifest_path, source, output, *, inventory_path, generation_in
         raise ValueError('Private build files differ from the parse manifest; a refresh cannot reuse that parse')
     verify(base, build, base_manifest_path.parent)
     tools = check_tools(base, build)
-    catalog = subprocess.run(['ninja', '-C', str(build), '-t', 'targets', 'all'],
+    catalog = subprocess.run([ninja, '-C', str(build), '-t', 'targets', 'all'],
                              capture_output=True, encoding='utf-8')
     if catalog.returncode:
         raise ValueError('Cannot inventory Ninja targets: ' + catalog.stderr)
     entries = copy.deepcopy(base['files'])
     source_dependencies = {}
-    recipes = capture_recipes(build, Path(source), entries, source_dependencies, source_proof['files'])
+    recipes = capture_recipes(build, Path(source), entries, source_dependencies, source_proof['files'], ninja=ninja)
     if build_state(build) != base['build_files']:
         raise ValueError('Private build files changed during capture')
     verify(base, build, base_manifest_path.parent)
