@@ -103,11 +103,20 @@ never erases the outcomes of the other cases:
 | `compared` | Rust's result equals the oracle's result exactly | `oracle` only in a failed run |
 | `deferred` | well-formed Rust deferral; the oracle returned a result | `upstream`, `unit`, `oracle`, `rust` |
 | `failed` | mismatch, error reply on either side (including an oracle deferral), malformed, misplaced or missing reply | `reason`, and `oracle`/`rust` lines when present |
-| `unprocessed` | a process failure, timeout or start failure prevented evaluation | `reason`, and the other side's lines when present |
+| `unprocessed` | the program never started, or stopped (nonzero exit, timeout) before replying to this case | `reason`, and the other side's lines when present |
+
+Each program's stdout is captured however the run ends. Replies written before a
+nonzero exit or a timeout kill are still parsed, compared and checked against the
+golden, and keep their reference lines; a truncated final line is a malformed
+reply. The process fault itself (start failure, nonzero exit, timeout, non-UTF-8
+stdout) is always listed in `run_faults` with up to 64 KiB of stderr and always
+fails the run, so no recovered reply can make a faulted run pass. Timeouts still
+kill and reap the program; stdout is never truncated.
 
 Replies are aligned by position, as the protocol requires; a reply at the wrong
-position fails the case expected there, and lines beyond the corpus are listed in
-`run_faults`. `cases`, `compared`, `deferred`, `failures` and `unprocessed` count
+position fails the case expected there. Lines beyond the corpus are a run fault
+with their count; the first 16 of each program are kept in `extra_replies` (side,
+line number, raw text up to 4096 bytes, `truncated`). `cases`, `compared`, `deferred`, `failures` and `unprocessed` count
 the outcomes. An accepted report lists compared cases by ID only, since the agreed
 results equal the golden; a failed report includes every available oracle reply so
 the reference results stay recoverable. Failures take precedence over deferrals in
@@ -118,7 +127,12 @@ success, and an error is never counted as a deferral.
 `golden_checked` is `true` exactly for `check`. `golden.status` is `matched`,
 `failed` (with `error` or `mismatched_cases` listing case, golden and oracle lines),
 `incomplete` (with `unchecked_cases` whose oracle result was unavailable), or
-`not_requested` for `compare`. Hashes of unavailable output or executables are null.
+`not_requested` for `compare`. Output hashes cover every captured stdout byte,
+including output before a fault; they are null only when a program never ran.
+The report is built from the final outcome of the action: if a green comparison is
+followed by a failed `propose` or `bless` step (for example a missing
+`--provenance`), that failure is a run fault and the report keeps the full
+reference evidence of a failed run.
 Only a corpus that cannot be read or validated leaves `outcomes` absent, with the
 reason in `error`.
 

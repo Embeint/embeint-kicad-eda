@@ -1,5 +1,26 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-use kicad_difftest::evaluate::{check_golden, evaluate, Evaluation, Outcome};
+use kicad_difftest::evaluate::{
+    check_golden, evaluate, Evaluation, Outcome, EXTRA_LINES_KEPT, EXTRA_LINE_LIMIT,
+};
+use kicad_difftest::process::Captured;
+
+/// Output of a program that ran, optionally ending in a process fault.
+fn out(text: &str, fault: Option<&str>) -> Captured {
+    Captured {
+        started: true,
+        stdout: text.as_bytes().to_vec(),
+        stderr: String::new(),
+        fault: fault.map(str::to_owned),
+    }
+}
+
+/// A program that never started.
+fn never(fault: &str) -> Captured {
+    Captured {
+        fault: Some(fault.to_owned()),
+        ..Captured::default()
+    }
+}
 use kicad_difftest::{compare, exact::parse, golden, identities, partial_replies, records};
 use serde_json::json;
 
@@ -139,8 +160,8 @@ fn partial_replies_classify_only_well_formed_deferrals() -> Result<(), String> {
         true,
     )?;
     let oracle_text = format!("{}{}{}", ok("a", "1"), ok("b", "2"), ok("c", "3"));
-    let oracle = Ok(oracle_text.clone());
-    let run = |rust: &str| evaluate(&cases, "u", &oracle, &Ok(rust.to_owned()));
+    let oracle = out(&oracle_text, None);
+    let run = |rust: &str| evaluate(&cases, "u", &oracle, &out(rust, None));
     let names = |eval: &Evaluation| -> Vec<(String, &'static str)> {
         eval.outcomes
             .iter()
@@ -211,21 +232,24 @@ fn partial_replies_classify_only_well_formed_deferrals() -> Result<(), String> {
     assert!(partial_replies(&format!("{mixed}{}", defer("b", well_formed)), "u").is_err());
     // A Rust process failure leaves every case unprocessed with its reference kept;
     // an oracle failure leaves no reference, and an oracle deferral is a failure.
-    let crashed = evaluate(&cases, "u", &oracle, &Err("crashed".into()));
+    let crashed = evaluate(&cases, "u", &oracle, &never("cannot start"));
     assert_eq!(crashed.count("unprocessed"), 3);
     assert!(crashed.outcomes.iter().all(|c| c.oracle.is_some()));
-    let no_oracle = evaluate(&cases, "u", &Err("crashed".into()), &Ok(mixed.clone()));
+    let no_oracle = evaluate(&cases, "u", &never("cannot start"), &out(&mixed, None));
     assert_eq!(no_oracle.count("unprocessed"), 3);
     let oracle_defers = evaluate(
         &cases,
         "u",
-        &Ok(format!(
-            "{}{}{}",
-            ok("a", "1"),
-            defer("b", well_formed),
-            ok("c", "3")
-        )),
-        &Ok(mixed.clone()),
+        &out(
+            &format!(
+                "{}{}{}",
+                ok("a", "1"),
+                defer("b", well_formed),
+                ok("c", "3")
+            ),
+            None,
+        ),
+        &out(&mixed, None),
     );
     assert_eq!(
         names(&oracle_defers),
@@ -284,5 +308,102 @@ fn partial_replies_classify_only_well_formed_deferrals() -> Result<(), String> {
         r#"{"unit":"v","case":"a","error":{"kind":"unported","upstream":"f","unit":"o"}}"#;
     assert!(partial_replies(wrong_unit, "u").is_err());
     assert!(partial_replies("", "u").is_err());
+    Ok(())
+}
+
+#[test]
+fn output_before_a_process_fault_is_evaluated_and_the_fault_still_fails() -> Result<(), String> {
+    let line = |case: &str, value: &str| {
+        format!("{{\"unit\":\"u\",\"case\":\"{case}\",\"result\":{value}}}\n")
+    };
+    let cases = records(
+        "{\"unit\":\"u\",\"case\":\"a\",\"input\":{}}\n\
+         {\"unit\":\"u\",\"case\":\"b\",\"input\":{}}\n\
+         {\"unit\":\"u\",\"case\":\"c\",\"input\":{}}\n",
+        "u",
+        true,
+    )?;
+    let all = format!("{}{}{}", line("a", "1"), line("b", "2"), line("c", "3"));
+    let names = |eval: &Evaluation| -> Vec<&'static str> {
+        eval.outcomes.iter().map(|c| c.outcome.name()).collect()
+    };
+    let rust = out(&all, None);
+    // Three complete replies, then exit 7 or a timeout: every reply is compared and
+    // golden-checked, and the process fault is still a run fault.
+    for fault in ["oracle: process failed (exit status: 7)", "timeout"] {
+        let eval = evaluate(&cases, "u", &out(&all, Some(fault)), &rust);
+        assert_eq!(names(&eval), ["compared", "compared", "compared"]);
+        assert_eq!(eval.faults.len(), 1);
+        assert!(eval.faults[0].contains(fault));
+        assert!(eval.outcomes.iter().all(|c| c.oracle.is_some()));
+        assert_eq!(
+            check_golden(Ok(all.clone()), "u", &eval).status(),
+            "matched"
+        );
+        let stale = all.replace("\"result\":2", "\"result\":20");
+        let check = check_golden(Ok(stale), "u", &eval);
+        assert_eq!(check.status(), "failed");
+        assert_eq!(check.mismatched[0].0, "b");
+    }
+    // Output stopping early: answered cases keep their outcomes, the rest are
+    // unprocessed and their golden lines unchecked.
+    let two = format!("{}{}", line("a", "1"), line("b", "2"));
+    let eval = evaluate(&cases, "u", &out(&two, Some("timeout")), &rust);
+    assert_eq!(names(&eval), ["compared", "compared", "unprocessed"]);
+    let check = check_golden(Ok(all.clone()), "u", &eval);
+    assert_eq!(check.status(), "incomplete");
+    assert_eq!(check.unchecked, ["c"]);
+    // A truncated final line is a malformed reply; nothing after it is invented.
+    let truncated = format!("{}{{\"unit\":\"u\",\"case\":\"b\",\"res", line("a", "1"));
+    let eval = evaluate(&cases, "u", &out(&truncated, Some("timeout")), &rust);
+    assert_eq!(names(&eval), ["compared", "failed", "unprocessed"]);
+    assert!(eval.outcomes[1]
+        .oracle_raw
+        .as_deref()
+        .is_some_and(|r| r.ends_with("\"res")));
+    // The same output without a fault but with a missing final reply fails that case.
+    let eval = evaluate(&cases, "u", &out(&two, None), &rust);
+    assert_eq!(names(&eval), ["compared", "compared", "failed"]);
+    assert!(eval.faults.is_empty());
+    // Equivalent preservation for Rust: replies before its fault are compared.
+    let eval = evaluate(&cases, "u", &out(&all, None), &out(&two, Some("exit 3")));
+    assert_eq!(names(&eval), ["compared", "compared", "unprocessed"]);
+    assert_eq!(eval.faults.len(), 1);
+    // Malformed lines among recovered output fail only their own case.
+    let malformed = format!("{}not json\n{}", line("a", "1"), line("c", "3"));
+    let eval = evaluate(&cases, "u", &out(&malformed, Some("exit 1")), &rust);
+    assert_eq!(names(&eval), ["compared", "failed", "compared"]);
+    Ok(())
+}
+
+#[test]
+fn extra_reply_lines_are_kept_bounded_as_evidence() -> Result<(), String> {
+    let line = |case: &str| format!("{{\"unit\":\"u\",\"case\":\"{case}\",\"result\":1}}\n");
+    let cases = records("{\"unit\":\"u\",\"case\":\"a\",\"input\":{}}\n", "u", true)?;
+    let long = "x".repeat(EXTRA_LINE_LIMIT + 10);
+    let mut oracle = format!("{}EXTRA_REFERENCE_EVIDENCE\n{long}\n", line("a"));
+    for index in 0..EXTRA_LINES_KEPT {
+        oracle.push_str(&format!("more {index}\n"));
+    }
+    let eval = evaluate(&cases, "u", &out(&oracle, None), &out(&line("a"), None));
+    assert_eq!(eval.count("compared"), 1);
+    assert_eq!(eval.faults.len(), 1);
+    assert!(eval.faults[0].contains(&format!("{} reply lines", EXTRA_LINES_KEPT + 2)));
+    assert_eq!(eval.extra.len(), EXTRA_LINES_KEPT);
+    assert_eq!(eval.extra[0].raw, "EXTRA_REFERENCE_EVIDENCE");
+    assert_eq!((eval.extra[0].side, eval.extra[0].line), ("oracle", 2));
+    assert!(!eval.extra[0].truncated);
+    assert_eq!(eval.extra[1].raw.len(), EXTRA_LINE_LIMIT);
+    assert!(eval.extra[1].truncated);
+    // Multi-byte characters are never split by the bound.
+    let wide = "\u{e9}".repeat(EXTRA_LINE_LIMIT);
+    let eval = evaluate(
+        &cases,
+        "u",
+        &out(&line("a"), None),
+        &out(&format!("{}{wide}\n", line("a")), None),
+    );
+    assert_eq!(eval.extra[0].side, "Rust");
+    assert!(eval.extra[0].raw.len() <= EXTRA_LINE_LIMIT && eval.extra[0].truncated);
     Ok(())
 }

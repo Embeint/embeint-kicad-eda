@@ -6,7 +6,13 @@
 //! and what failed or could not be evaluated, instead of stopping at the first fault.
 //! Comparison stays exact; this module only refuses to discard the remaining cases.
 
+use crate::process::Captured;
 use crate::{parse_envelope, records, Deferral, Envelope, Record, Reply};
+
+/// At most this many reply lines beyond the corpus are kept per program, each
+/// truncated to `EXTRA_LINE_LIMIT` bytes; the fault message gives the full count.
+pub const EXTRA_LINES_KEPT: usize = 16;
+pub const EXTRA_LINE_LIMIT: usize = 4096;
 
 /// What happened to one corpus case.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -46,11 +52,24 @@ pub struct CaseOutcome {
     pub rust: Option<String>,
 }
 
+/// A reply line beyond the corpus, kept as failure evidence.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExtraLine {
+    pub side: &'static str,
+    /// One-based stdout line number.
+    pub line: usize,
+    pub raw: String,
+    pub truncated: bool,
+}
+
 #[derive(Debug, Clone)]
 pub struct Evaluation {
     pub outcomes: Vec<CaseOutcome>,
-    /// Faults not attributable to one case, such as extra reply lines.
+    /// Faults not attributable to one case: process faults (start, exit, timeout,
+    /// non-UTF-8 output) and reply lines beyond the corpus. Any fault fails the run.
     pub faults: Vec<String>,
+    /// The first `EXTRA_LINES_KEPT` extra lines of each program.
+    pub extra: Vec<ExtraLine>,
 }
 
 impl Evaluation {
@@ -71,33 +90,48 @@ enum Slot {
 /// Aligns one program's output with the corpus by position, as the protocol
 /// requires one reply per request in request order. A reply at the wrong position
 /// is a fault for the case expected there; extra lines are run-level faults.
+///
+/// Output written before a nonzero exit or timeout is still parsed, so every
+/// recoverable reply keeps its evidence; the process fault itself always fails
+/// the run. Cases the process never answered are unprocessed, not failed.
 fn slots(
-    output: &Result<String, String>,
+    output: &Captured,
     unit: &str,
     cases: &[Record],
-    label: &str,
+    label: &'static str,
     faults: &mut Vec<String>,
+    extra: &mut Vec<ExtraLine>,
 ) -> Vec<Slot> {
-    let text = match output {
-        Ok(text) => text,
-        Err(error) => {
-            return cases
-                .iter()
-                .map(|_| Slot::Unavailable(format!("{label}: {error}")))
-                .collect()
-        }
-    };
-    let mut lines = text.lines();
+    if let Some(fault) = &output.fault {
+        faults.push(format!("{label}: {fault}"));
+    }
+    if !output.started {
+        let reason = format!(
+            "{label}: {}",
+            output.fault.as_deref().unwrap_or("did not run")
+        );
+        return cases
+            .iter()
+            .map(|_| Slot::Unavailable(reason.clone()))
+            .collect();
+    }
+    let mut lines = output.text().lines();
     let mut result = Vec::with_capacity(cases.len());
     for (index, case) in cases.iter().enumerate() {
         let Some(line) = lines.next() else {
-            result.push(Slot::Fault {
-                reason: format!(
-                    "{label}: no reply for case {} (line {})",
-                    case.case,
-                    index + 1
-                ),
-                raw: None,
+            result.push(match &output.fault {
+                Some(fault) => Slot::Unavailable(format!(
+                    "{label}: no reply for case {} before the process fault: {fault}",
+                    case.case
+                )),
+                None => Slot::Fault {
+                    reason: format!(
+                        "{label}: no reply for case {} (line {})",
+                        case.case,
+                        index + 1
+                    ),
+                    raw: None,
+                },
             });
             continue;
         };
@@ -117,11 +151,27 @@ fn slots(
             Ok(reply) => Slot::Reply(reply),
         });
     }
-    let extra = lines.count();
-    if extra > 0 {
+    let mut count = 0;
+    for (offset, line) in lines.enumerate() {
+        count += 1;
+        if offset < EXTRA_LINES_KEPT {
+            let mut end = line.len().min(EXTRA_LINE_LIMIT);
+            while !line.is_char_boundary(end) {
+                end -= 1;
+            }
+            extra.push(ExtraLine {
+                side: label,
+                line: cases.len() + offset + 1,
+                raw: line.get(..end).unwrap_or_default().to_owned(),
+                truncated: end < line.len(),
+            });
+        }
+    }
+    if count > 0 {
         faults.push(format!(
-            "{label}: {extra} reply lines beyond the {} cases",
-            cases.len()
+            "{label}: {count} reply lines beyond the {} cases (first {} kept in extra_replies)",
+            cases.len(),
+            count.min(EXTRA_LINES_KEPT)
         ));
     }
     result
@@ -131,15 +181,11 @@ fn slots(
 /// error, including `unported`, fails that case, so a Rust deferral is only ever
 /// recorded against a real reference result. Deferral acceptance is the caller's
 /// policy; this function never turns an error into a deferral.
-pub fn evaluate(
-    cases: &[Record],
-    unit: &str,
-    oracle: &Result<String, String>,
-    rust: &Result<String, String>,
-) -> Evaluation {
+pub fn evaluate(cases: &[Record], unit: &str, oracle: &Captured, rust: &Captured) -> Evaluation {
     let mut faults = Vec::new();
-    let oracle_slots = slots(oracle, unit, cases, "oracle", &mut faults);
-    let rust_slots = slots(rust, unit, cases, "Rust", &mut faults);
+    let mut extra = Vec::new();
+    let oracle_slots = slots(oracle, unit, cases, "oracle", &mut faults, &mut extra);
+    let rust_slots = slots(rust, unit, cases, "Rust", &mut faults, &mut extra);
     let mut outcomes = Vec::with_capacity(cases.len());
     for ((case, o), r) in cases.iter().zip(oracle_slots).zip(rust_slots) {
         let rust_raw = match &r {
@@ -184,7 +230,11 @@ pub fn evaluate(
             rust: rust_raw,
         });
     }
-    Evaluation { outcomes, faults }
+    Evaluation {
+        outcomes,
+        faults,
+        extra,
+    }
 }
 
 /// The golden comparison of every oracle result, kept per case.

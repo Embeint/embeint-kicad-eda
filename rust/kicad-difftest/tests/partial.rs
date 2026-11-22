@@ -280,10 +280,11 @@ fn failures_always_fail_in_partial_mode() -> TestResult {
         ("ok", "defer-b,reorder", [F, D, F], 0),
         ("ok", "defer-b,noisy", [F, F, F], 1),
         ("defer-b,missing", "ok", [C, F, F], 0),
-        // Process faults leave the affected cases explicitly unprocessed.
-        ("ok", "defer-b,failure", [U, U, U], 0),
-        ("ok", "defer-b,timeout", [U, U, U], 0),
-        ("failure", "defer-b", [U, U, U], 0),
+        // Process faults before any output leave every case unprocessed and are
+        // also run faults.
+        ("ok", "defer-b,failure", [U, U, U], 1),
+        ("ok", "defer-b,timeout", [U, U, U], 1),
+        ("failure", "defer-b", [U, U, U], 1),
     ] {
         let label = format!("oracle {oracle} Rust {rust}");
         let (output, report) = run(temp.path(), "compare", oracle, rust, &["--partial"])?;
@@ -502,5 +503,179 @@ fn input_and_transport_faults_are_explicit() -> TestResult {
     assert!(report["error"]
         .as_str()
         .is_some_and(|e| e.contains("duplicate case")));
+    Ok(())
+}
+
+#[test]
+fn replies_written_before_a_process_fault_are_kept_and_golden_checked() -> TestResult {
+    let temp = tempfile::tempdir()?;
+    let root = temp.path();
+    setup(root)?;
+    bless(root)?;
+    let golden = root.join("port/goldens/test.unit.jsonl");
+    let blessed = fs::read_to_string(&golden)?;
+    // (oracle, Rust, outcomes, golden status, run faults, a fault text). The process
+    // fault always fails the run, but recovered replies keep their outcomes and
+    // their reference lines, and are compared with the golden.
+    for (oracle, rust, expected, golden_status, faults, needle) in [
+        (
+            "exitafter",
+            "defer-b",
+            ["compared", "deferred", "compared"],
+            "matched",
+            1,
+            "exiting after replies",
+        ),
+        (
+            "sleepafter",
+            "defer-b",
+            ["compared", "deferred", "compared"],
+            "matched",
+            1,
+            "timeout",
+        ),
+        (
+            "exitafter,skip-c",
+            "defer-b",
+            ["compared", "deferred", "unprocessed"],
+            "incomplete",
+            1,
+            "process failed",
+        ),
+        (
+            "sleepafter,truncate",
+            "defer-b",
+            ["compared", "deferred", "failed"],
+            "incomplete",
+            1,
+            "timeout",
+        ),
+        (
+            "exitafter,garbage",
+            "defer-b",
+            ["compared", "deferred", "compared"],
+            "matched",
+            2,
+            "beyond the 3 cases",
+        ),
+        (
+            "ok",
+            "defer-b,exitafter",
+            ["compared", "deferred", "compared"],
+            "matched",
+            1,
+            "process failed",
+        ),
+        (
+            "ok",
+            "defer-b,sleepafter,skip-c",
+            ["compared", "deferred", "unprocessed"],
+            "matched",
+            1,
+            "timeout",
+        ),
+        (
+            "ok",
+            "defer-b,exitafter,truncate",
+            ["compared", "deferred", "failed"],
+            "matched",
+            1,
+            "process failed",
+        ),
+        // Without a process fault, a missing reply is a failure of its case.
+        (
+            "skip-c",
+            "defer-b",
+            ["compared", "deferred", "failed"],
+            "incomplete",
+            0,
+            "",
+        ),
+    ] {
+        let label = format!("oracle {oracle} Rust {rust}");
+        let (output, report) = run(root, "check", oracle, rust, &["--partial"])?;
+        assert!(!output.status.success(), "{label}");
+        let report = report.ok_or_else(|| format!("{label}: missing report"))?;
+        assert_eq!(report["status"], "failed", "{label}");
+        let expected_pairs = pairs(&[("a", expected[0]), ("b", expected[1]), ("c", expected[2])]);
+        assert_eq!(outcomes(&report), expected_pairs, "{label}");
+        assert_eq!(report["golden"]["status"], golden_status, "{label}");
+        let run_faults = report["run_faults"].as_array().ok_or("run_faults")?;
+        assert_eq!(run_faults.len(), faults, "{label}: {run_faults:?}");
+        assert!(
+            run_faults
+                .iter()
+                .any(|f| f.as_str().is_some_and(|f| f.contains(needle)))
+                || faults == 0,
+            "{label}: {run_faults:?}"
+        );
+        assert!(report["oracle_output_sha256"].is_string(), "{label}");
+        assert!(report["rust_output_sha256"].is_string(), "{label}");
+        for (index, entry) in report["outcomes"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .enumerate()
+        {
+            if expected[index] != "unprocessed" && expected[index] != "failed" || oracle == "ok" {
+                assert!(oracle_n(&entry["oracle"]), "{label} case {index}");
+            }
+        }
+        if oracle.contains("garbage") {
+            assert_eq!(
+                report["extra_replies"],
+                json!([{"side": "oracle", "line": 4, "raw": "EXTRA_REFERENCE_EVIDENCE",
+                    "truncated": false}])
+            );
+        } else {
+            assert_eq!(report["extra_replies"], json!([]), "{label}");
+        }
+    }
+    // A recovered reference reply that differs from the golden is reported as such.
+    let lines: Vec<&str> = blessed.lines().collect();
+    let stale = lines[1].replace("9007199254740993", "9007199254740992");
+    fs::write(&golden, format!("{}\n{stale}\n{}\n", lines[0], lines[2]))?;
+    let (output, report) = run(root, "check", "exitafter", "defer-b", &["--partial"])?;
+    assert!(!output.status.success());
+    let report = report.ok_or("missing report")?;
+    assert_eq!(report["golden"]["status"], "failed");
+    assert_eq!(report["golden"]["mismatched_cases"][0]["case"], "b");
+    fs::write(&golden, &blessed)?;
+    // Strict mode: a process fault fails even when every reply agrees.
+    let (output, report) = run(root, "check", "exitafter", "ok", &[])?;
+    assert!(!output.status.success());
+    let report = report.ok_or("missing report")?;
+    assert_eq!(report["status"], "failed");
+    assert_eq!(report["compared"], 3);
+    Ok(())
+}
+
+#[test]
+fn a_failed_blessing_step_keeps_reference_evidence() -> TestResult {
+    let temp = tempfile::tempdir()?;
+    let root = temp.path();
+    setup(root)?;
+    let approval = root.join("approval.json");
+    let a = approval.to_str().ok_or("path encoding")?;
+    // propose without --provenance: the comparison is green, the action fails.
+    let (output, report) = run(root, "propose", "ok", "ok", &["--approval", a])?;
+    assert!(!output.status.success());
+    let report = report.ok_or("missing report")?;
+    assert_eq!(report["status"], "failed");
+    assert!(report["run_faults"][0]
+        .as_str()
+        .is_some_and(|f| f.starts_with("propose: missing --provenance")));
+    assert!(report["error"]
+        .as_str()
+        .is_some_and(|e| e.contains("missing --provenance")));
+    assert_eq!(
+        outcomes(&report),
+        pairs(&[("a", "compared"), ("b", "compared"), ("c", "compared")])
+    );
+    for entry in report["outcomes"].as_array().into_iter().flatten() {
+        assert!(oracle_n(&entry["oracle"]));
+    }
+    assert!(!approval.exists());
+    assert!(!root.join("port/goldens/test.unit.jsonl").exists());
     Ok(())
 }
