@@ -1,0 +1,28 @@
+{
+  "cache_reused_commands": 2511,
+  "diagnostic_comparison": "All failure file/status/severity/message payloads compared exactly after sorting complete records; no diagnostic omitted",
+  "excluded_audit_fields": [
+    "provenance.cache_reused_commands",
+    "translation_units[].cache_reused_from"
+  ],
+  "graph_semantics_equal": true,
+  "interpretation": "Full aggregation replay from exact V5 AST cache. The first stricter comparison failed only on completion-order diagnostics; its log/difference remain preserved. Canonical splitter and post-adoption regeneration separately check all output bytes from identical recorded input.",
+  "inventory_semantics_equal": true,
+  "new_clang_parses": 0,
+  "original_failure_order": [
+    "thirdparty/fmt/src/fmt-c.cc",
+    "thirdparty/fmt/src/os.cc",
+    "thirdparty/fmt/src/format.cc",
+    "thirdparty/fmt/src/fmt.cc"
+  ],
+  "raw_artifacts_unchanged": true,
+  "raw_failure_reporting_order_is_nondeterministic": true,
+  "replay_failure_order": [
+    "thirdparty/fmt/src/fmt-c.cc",
+    "thirdparty/fmt/src/fmt.cc",
+    "thirdparty/fmt/src/format.cc",
+    "thirdparty/fmt/src/os.cc"
+  ],
+  "semantic_graph_sha256": "3f45280946f5cfa08a6712873454ec7d6d50373b5eb8abcc0f88ebe24805799e",
+  "semantic_inventory_sha256": "99dc34cd33a70b84abadcaab0b7e90ac2bbc7dd7155c8c9c276198a22d4e0ee2"
+}

@@ -2,10 +2,10 @@
 id = "eeschema.dialogs.generated.ui.p003"
 upstream = ["eeschema/dialogs/dialog_field_properties_base.cpp", "eeschema/dialogs/dialog_field_properties_base.h", "eeschema/dialogs/dialog_global_edit_text_and_graphics_base.cpp", "eeschema/dialogs/dialog_global_edit_text_and_graphics_base.h", "eeschema/dialogs/dialog_ibis_parser_reporter_base.cpp", "eeschema/dialogs/dialog_ibis_parser_reporter_base.h", "eeschema/dialogs/dialog_image_properties_base.cpp", "eeschema/dialogs/dialog_import_symbol_select_base.cpp", "eeschema/dialogs/dialog_import_symbol_select_base.h", "eeschema/dialogs/dialog_increment_annotations_base.cpp", "eeschema/dialogs/dialog_junction_props_base.cpp", "eeschema/dialogs/dialog_junction_props_base.h"]
 rust_module = "kicad_port::eeschema::dialogs::generated::ui::p003"
-depends_on = ["common.application.ui.p006", "common.widgets.application.ui.p001", "common.widgets.application.ui.p003", "common.widgets.application.ui.p013", "common.widgets.application.ui.p016", "common.widgets.application.ui.p017", "common.widgets.application.ui.p018", "pcbnew.application.ui.p045"]
+depends_on = ["common.application.ui.p006", "common.widgets.application.ui.p001", "common.widgets.application.ui.p003", "common.widgets.application.ui.p013", "common.widgets.application.ui.p016", "common.widgets.application.ui.p017", "common.widgets.application.ui.p018", "pcbnew.application.ui.p047"]
 soft_depends_on = []
 est_lines = 1685
-layer = 148
+layer = 201
 tests = []
 status = "todo"
 claimed_by = ""

@@ -65,3 +65,10 @@ thirdparty/json_schema_validator/**    -format.clang-format-kicad -whitespace
 
 # Tests compare fixtures byte for byte, so a Windows checkout must not add CR
 qa/data/**  -text
+
+# Frozen generator outputs are byte-hashed extraction inputs on every host.
+port/extractor/generated/sources/** generated -text -whitespace
+port/extractor/generated/**/*.json generated -text
+# Transcripts and historical snapshots retain original bytes, including whitespace.
+port/extractor/generated/evidence/** generated -text -whitespace
+port/extractor/generated/history/** generated -text -whitespace

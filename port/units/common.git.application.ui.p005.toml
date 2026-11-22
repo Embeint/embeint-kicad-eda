@@ -2,10 +2,10 @@
 id = "common.git.application.ui.p005"
 upstream = ["common/git/kigit_platform.cpp", "common/git/kigit_platform_install.cpp", "common/git/kigit_remote_url.cpp", "common/git/kigit_ssh_keys.cpp"]
 rust_module = "kicad_port::common::git::application::ui::p005"
-depends_on = []
-soft_depends_on = ["common.generated.ui.p002"]
+depends_on = ["common.generated.ui.p002"]
+soft_depends_on = []
 est_lines = 1529
-layer = 0
+layer = 38
 tests = []
 status = "todo"
 claimed_by = ""

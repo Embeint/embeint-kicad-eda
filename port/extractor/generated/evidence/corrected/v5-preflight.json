@@ -1,0 +1,22 @@
+{
+  "build_generated_lines_by_category": {
+    "generated": 424513,
+    "thirdparty": 1883
+  },
+  "extractor_sha256": "e1548c1fe920a05d882e3f2de1c14843ca0e7b3b04ca9441d4132e16de77b88d",
+  "frozen_build_files": 1612,
+  "frozen_sources": 178,
+  "generated_manifest_sha256": "a2466270bdf4aec52b7b8267140ac4b18c8295520c5b94e1ecb3dc8498dacb34",
+  "generator_configure_inputs_verified": 1164,
+  "parser_source_head": "1343c3a303bad371372bc2b34c63b0fb1f0fedf6",
+  "recipe_sha256_raw": "dff5b79afdbe58e2e4c7a4f0e4d8b093fd34a94a0302d38cddd6483660496951",
+  "semantic_runtime_matches_committed_parser": true,
+  "source_and_validator_head": "c586fcccf9da4982da0b69c277f315501faf732e",
+  "tracked_application_and_generated_lines": 1946361,
+  "tracked_lines_by_category": {
+    "application": 1836426,
+    "generated": 109935,
+    "qa": 340033,
+    "thirdparty": 1059199
+  }
+}

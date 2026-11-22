@@ -2,10 +2,10 @@
 id = "common.io.easypc.application.ui.p002"
 upstream = ["common/io/easypc/easypc_classes_library.cpp", "common/io/easypc/easypc_classes_root.cpp", "common/io/easypc/easypc_classes_styles.cpp", "common/io/easypc/easypc_design_settings.cpp", "common/io/easypc/easypc_document.cpp"]
 rust_module = "kicad_port::common::io::easypc::application::ui::p002"
-depends_on = ["common.application.ui.p029", "common.io.easypc.application.pure.p001", "common.io.easypc.application.thin.replacement.p001", "common.io.easypc.application.ui.p001", "common.io.easypc.application.ui.p003", "include.application.ui.p008", "include.application.ui.p010", "include.application.ui.p012", "libs.kimath.include.math.application.ui.p001"]
+depends_on = ["common.application.ui.p029", "common.io.easypc.application.pure.p001", "common.io.easypc.application.thin.replacement.p001", "common.io.easypc.application.ui.p001", "common.io.easypc.application.ui.p003", "include.application.ui.p008", "include.application.ui.p010", "include.application.ui.p013", "libs.kimath.include.math.application.ui.p001"]
 soft_depends_on = []
 est_lines = 1941
-layer = 73
+layer = 85
 tests = []
 status = "todo"
 claimed_by = ""

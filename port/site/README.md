@@ -61,14 +61,18 @@ Available inventory is not synonymous with complete parsing or full coverage.
 
 The plan phase 0 gate requires three units green against the live oracle in CI
 and every generated unit file valid, with coverage gaps disclosed. This static
-site does not execute or certify that gate. Bootstrap output says **phase 0
-incomplete: pending pilot verification**, including when there are no records.
-Current CI is linked separately. No current pass is inferred from a green
-declaration, committed golden or blessing evidence.
+site does not execute or certify that gate. The overview heading is **Phase 0
+verification requires live CI evidence**, including when there are no records or
+stored evidence reports a pass. `phase0_gate` remains `"not_verified"`; current CI
+is linked separately. No current pass is inferred from unit statuses, case/golden
+counts, generated artifacts, an empty inventory or stored evidence.
 
 Unit golden files are `port/goldens/<id>.jsonl`; case files are
-`port/cases/<id>.jsonl`. Counts exclude blank lines, and duplicate keys/case IDs or
-malformed protocol envelopes fail the build. Requests are `{unit,case,input}`;
+`port/cases/<id>.jsonl`. Records are framed only by LF; CRLF and a final record
+without LF are accepted. Literal U+0085, U+2028 and U+2029 inside JSON strings
+remain part of the value or case identity. Bare CR does not frame a new record.
+Counts exclude whitespace-only lines, and duplicate keys/case IDs or malformed
+protocol envelopes fail the build. Requests are `{unit,case,input}`;
 replies are `{unit,case,result}` or `{unit,case,error}`. `unported` and `deferred`
 errors are counted as deferrals; all other error envelopes count as failures.
 Legitimate upstream operation statuses belong inside `result`. Stored counts

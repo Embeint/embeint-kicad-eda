@@ -2,10 +2,10 @@
 id = "common.database.application.ui.p006"
 upstream = ["common/database/sqlite_backend.cpp"]
 rust_module = "kicad_port::common::database::application::ui::p006"
-depends_on = ["common.database.application.pure.p001", "common.database.application.ui.p004"]
+depends_on = ["common.database.application.pure.p001", "common.database.application.ui.p004", "include.database.application.ui.p001"]
 soft_depends_on = []
 est_lines = 1306
-layer = 45
+layer = 56
 tests = []
 status = "todo"
 claimed_by = ""

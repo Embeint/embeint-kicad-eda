@@ -2,10 +2,10 @@
 id = "pcbnew.dialogs.application.ui.p036"
 upstream = ["pcbnew/dialogs/panel_setup_tracks_and_vias.cpp", "pcbnew/dialogs/panel_setup_tuning_patterns.cpp"]
 rust_module = "kicad_port::pcbnew::dialogs::application::ui::p036"
-depends_on = ["common.application.ui.p002", "common.application.ui.p022", "common.widgets.application.ui.p011", "common.widgets.application.ui.p013", "common.widgets.application.ui.p014", "common.widgets.application.ui.p017", "include.application.thin.replacement.p002", "include.application.ui.p010", "include.application.ui.p012", "include.widgets.application.ui.p004", "include.widgets.application.ui.p005", "pcbnew.application.ui.p001", "pcbnew.application.ui.p006", "pcbnew.application.ui.p057", "pcbnew.dialogs.generated.ui.p018"]
+depends_on = ["common.application.ui.p002", "common.application.ui.p022", "common.widgets.application.ui.p011", "common.widgets.application.ui.p013", "common.widgets.application.ui.p014", "common.widgets.application.ui.p017", "include.application.ui.p001", "include.application.ui.p010", "include.application.ui.p013", "include.widgets.application.ui.p004", "include.widgets.application.ui.p005", "pcbnew.application.ui.p001", "pcbnew.application.ui.p006", "pcbnew.application.ui.p058", "pcbnew.dialogs.generated.ui.p018"]
 soft_depends_on = []
 est_lines = 721
-layer = 146
+layer = 176
 tests = []
 status = "todo"
 claimed_by = ""

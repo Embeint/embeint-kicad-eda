@@ -2,10 +2,10 @@
 id = "pcbnew.pcb_io.ipc2581.application.ui.p001"
 upstream = ["pcbnew/pcb_io/ipc2581/ipc2581_avl_order.cpp", "pcbnew/pcb_io/ipc2581/ipc2581_export_job.cpp", "pcbnew/pcb_io/ipc2581/ipc2581_function_mode.cpp"]
 rust_module = "kicad_port::pcbnew::pcb_io::ipc2581::application::ui::p001"
-depends_on = ["common.application.ui.p019", "common.application.ui.p021", "common.application.ui.p030", "common.application.ui.p033", "common.application.ui.p035", "common.jobs.application.ui.p001", "common.jobs.application.ui.p002", "common.jobs.application.ui.p003", "common.widgets.application.ui.p017", "common.widgets.application.ui.p018", "eeschema.sch_io.cadstar.application.thin.replacement.p001", "eeschema.sim.generated.ui.p001", "include.application.thin.replacement.p003", "include.application.ui.p009", "include.application.ui.p011", "include.io.generated.ui.p001", "kicad.application.ui.p004", "libs.core.application.ui.p001", "libs.core.include.core.application.ui.p001", "pcbnew.application.ui.p004", "pcbnew.exporters.fab_model.application.pure.p001", "pcbnew.exporters.fab_model.application.ui.p001", "pcbnew.pcb_io.ipc2581.application.pure.p001", "pcbnew.pcb_io.ipc2581.application.ui.p004"]
-soft_depends_on = ["pcbnew.tools.application.ui.p004"]
+depends_on = ["common.application.ui.p019", "common.application.ui.p021", "common.application.ui.p030", "common.application.ui.p033", "common.application.ui.p035", "common.jobs.application.ui.p001", "common.jobs.application.ui.p002", "common.jobs.application.ui.p003", "common.widgets.application.ui.p017", "common.widgets.application.ui.p018", "include.application.thin.replacement.p002", "include.application.ui.p009", "include.application.ui.p011", "include.application.ui.p012", "include.io.generated.ui.p001", "kicad.application.ui.p004", "libs.core.application.ui.p001", "libs.core.include.core.application.ui.p001", "pcbnew.application.ui.p004", "pcbnew.exporters.fab_model.application.pure.p001", "pcbnew.exporters.fab_model.application.ui.p001", "pcbnew.pcb_io.ipc2581.application.thin.replacement.p001", "pcbnew.pcb_io.ipc2581.application.ui.p002", "pcbnew.pcb_io.ipc2581.application.ui.p004"]
+soft_depends_on = ["eeschema.sch_io.cadstar.application.ui.p004", "eeschema.sim.generated.ui.p001", "pcbnew.tools.application.ui.p004"]
 est_lines = 482
-layer = 294
+layer = 202
 tests = []
 status = "todo"
 claimed_by = ""

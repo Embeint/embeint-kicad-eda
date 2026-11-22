@@ -2,10 +2,10 @@
 id = "pcbnew.dialogs.application.ui.p037"
 upstream = ["pcbnew/dialogs/panel_setup_tuning_profile_info.cpp", "pcbnew/dialogs/panel_setup_tuning_profile_info.h"]
 rust_module = "kicad_port::pcbnew::dialogs::application::ui::p037"
-depends_on = ["common.application.ui.p002", "common.application.ui.p004", "common.application.ui.p018", "common.application.ui.p022", "common.transline_calculations.application.pure.p001", "common.transline_calculations.application.pure.p002", "common.transline_calculations.application.pure.p003", "common.transline_calculations.generated.pure.p001", "common.widgets.application.ui.p011", "common.widgets.application.ui.p013", "common.widgets.application.ui.p014", "common.widgets.application.ui.p016", "common.widgets.application.ui.p017", "common.widgets.application.ui.p018", "include.application.pure.p001", "include.application.ui.p009", "include.application.ui.p012", "include.project.application.thin.replacement.p001", "include.widgets.application.ui.p002", "include.widgets.application.ui.p004", "include.widgets.application.ui.p005", "pcbnew.application.ui.p001", "pcbnew.application.ui.p002", "pcbnew.board_stackup_manager.application.thin.replacement.p001", "pcbnew.board_stackup_manager.application.ui.p001", "pcbnew.dialogs.generated.ui.p018"]
+depends_on = ["common.application.ui.p002", "common.application.ui.p004", "common.application.ui.p018", "common.application.ui.p022", "common.transline_calculations.application.pure.p001", "common.transline_calculations.application.pure.p002", "common.transline_calculations.application.pure.p003", "common.transline_calculations.generated.pure.p001", "common.widgets.application.ui.p011", "common.widgets.application.ui.p013", "common.widgets.application.ui.p014", "common.widgets.application.ui.p016", "common.widgets.application.ui.p017", "common.widgets.application.ui.p018", "include.application.pure.p001", "include.application.ui.p009", "include.application.ui.p013", "include.project.application.ui.p001", "include.widgets.application.ui.p002", "include.widgets.application.ui.p004", "include.widgets.application.ui.p005", "pcbnew.application.ui.p001", "pcbnew.application.ui.p002", "pcbnew.board_stackup_manager.application.thin.replacement.p001", "pcbnew.board_stackup_manager.application.ui.p001", "pcbnew.dialogs.generated.ui.p018"]
 soft_depends_on = ["pcbnew.dialogs.application.ui.p038"]
 est_lines = 1810
-layer = 174
+layer = 191
 tests = []
 status = "todo"
 claimed_by = ""

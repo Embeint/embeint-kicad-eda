@@ -2,10 +2,10 @@
 id = "common.plotters.application.ui.p004"
 upstream = ["common/plotters/PDF_plotter.cpp"]
 rust_module = "kicad_port::common::plotters::application::ui::p004"
-depends_on = ["common.application.ui.p001", "common.application.ui.p003", "common.application.ui.p017", "common.application.ui.p035", "common.gal.application.ui.p001", "common.plotters.application.pure.p001", "common.plotters.application.ui.p007", "common.plotters.application.ui.p008", "include.application.ui.p010", "include.application.ui.p011", "include.drawing_sheet.application.ui.p001", "include.plotters.application.pure.p001", "include.plotters.application.thin.replacement.p001", "include.plotters.application.ui.p001", "libs.core.include.core.application.pure.p001", "libs.kimath.include.geometry.application.ui.p001", "libs.kimath.include.geometry.application.ui.p004", "libs.kimath.include.geometry.application.ui.p006", "libs.kimath.include.math.application.ui.p001", "libs.kimath.include.math.application.ui.p002", "libs.kimath.src.geometry.shape_arc.application.ui.p001", "libs.kimath.src.geometry.shape_line_chain.application.ui.p001", "libs.kimath.src.geometry.shape_line_chain.application.ui.p002", "libs.kimath.src.geometry.shape_rect.application.ui.p001"]
-soft_depends_on = ["common.plotters.application.ui.p005", "eeschema.application.ui.p042", "gerbview.application.ui.p008", "pcbnew.application.ui.p049"]
+depends_on = ["common.application.ui.p001", "common.application.ui.p003", "common.application.ui.p017", "common.application.ui.p035", "common.gal.application.ui.p001", "common.plotters.application.pure.p001", "common.plotters.application.ui.p007", "common.plotters.application.ui.p008", "include.application.ui.p010", "include.application.ui.p011", "include.drawing_sheet.application.ui.p001", "include.plotters.application.thin.replacement.p001", "include.plotters.application.ui.p001", "include.plotters.application.ui.p002", "libs.core.include.core.application.pure.p001", "libs.kimath.include.geometry.application.ui.p001", "libs.kimath.include.geometry.application.ui.p004", "libs.kimath.include.geometry.application.ui.p006", "libs.kimath.include.math.application.ui.p001", "libs.kimath.include.math.application.ui.p002", "libs.kimath.src.geometry.shape_arc.application.ui.p001", "libs.kimath.src.geometry.shape_line_chain.application.ui.p001", "libs.kimath.src.geometry.shape_line_chain.application.ui.p002", "libs.kimath.src.geometry.shape_rect.application.ui.p001"]
+soft_depends_on = ["common.plotters.application.ui.p005", "eeschema.application.ui.p043", "gerbview.application.ui.p008", "pcbnew.application.ui.p050"]
 est_lines = 2060
-layer = 87
+layer = 104
 tests = []
 status = "todo"
 claimed_by = ""

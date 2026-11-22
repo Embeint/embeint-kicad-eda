@@ -2,10 +2,10 @@
 id = "pcbnew.application.ui.p004"
 upstream = ["pcbnew/board.h"]
 rust_module = "kicad_port::pcbnew::application::ui::p004"
-depends_on = ["common.gal.application.ui.p001", "include.application.pure.p001", "include.application.pure.p005", "include.application.ui.p005", "libs.kimath.include.application.pure.p001", "libs.kimath.include.math.application.ui.p001", "pcbnew.application.pure.p001"]
+depends_on = ["common.gal.application.ui.p001", "include.application.pure.p001", "include.application.pure.p004", "include.application.ui.p005", "libs.kimath.include.application.pure.p001", "libs.kimath.include.math.application.ui.p001"]
 soft_depends_on = ["common.application.ui.p025", "common.application.ui.p028", "pcbnew.application.ui.p001", "pcbnew.application.ui.p002", "pcbnew.application.ui.p007", "pcbnew.application.ui.p028"]
 est_lines = 1971
-layer = 17
+layer = 40
 tests = []
 status = "todo"
 claimed_by = ""

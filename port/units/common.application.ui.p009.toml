@@ -2,10 +2,10 @@
 id = "common.application.ui.p009"
 upstream = ["common/dsnlexer.cpp"]
 rust_module = "kicad_port::common::application::ui::p009"
-depends_on = ["common.application.ui.p033", "include.application.thin.replacement.p004", "include.application.ui.p003", "include.application.ui.p008"]
-soft_depends_on = []
+depends_on = ["common.application.ui.p033", "include.application.thin.replacement.p004", "include.application.ui.p004", "include.application.ui.p008"]
+soft_depends_on = ["common.application.ui.p019"]
 est_lines = 885
-layer = 29
+layer = 42
 tests = []
 status = "todo"
 claimed_by = ""

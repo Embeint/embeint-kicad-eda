@@ -2,10 +2,10 @@
 id = "include.widgets.application.ui.p004"
 upstream = ["include/widgets/paged_dialog.h", "include/widgets/resettable_panel.h", "include/widgets/search_pane.h", "include/widgets/search_pane_tab.h", "include/widgets/text_ctrl_eval.h", "include/widgets/unit_binder.h", "include/widgets/webview_panel.h", "include/widgets/widget_diff_canvas.h", "include/widgets/widget_save_restore.h", "include/widgets/wx_aui_art_providers.h", "include/widgets/wx_collapsible_pane.h", "include/widgets/wx_dataviewctrl.h"]
 rust_module = "kicad_port::include::widgets::application::ui::p004"
-depends_on = ["common.widgets.application.ui.p016", "include.application.ui.p010"]
+depends_on = ["common.libeval.application.ui.p001", "common.widgets.application.ui.p016", "include.application.ui.p010"]
 soft_depends_on = ["3d.viewer.dialogs.application.ui.p002", "common.dialogs.application.ui.p008", "common.dialogs.application.ui.p010", "common.dialogs.application.ui.p011", "common.dialogs.application.ui.p012", "common.dialogs.git.application.ui.p007", "common.widgets.application.ui.p014", "eeschema.dialogs.application.ui.p020", "eeschema.dialogs.application.ui.p021", "eeschema.dialogs.application.ui.p022", "gerbview.dialogs.application.ui.p001", "include.dialogs.application.ui.p001", "pagelayout_editor.dialogs.application.ui.p001", "pcbnew.dialogs.application.ui.p029", "pcbnew.dialogs.application.ui.p030", "pcbnew.dialogs.application.ui.p031", "pcbnew.dialogs.application.ui.p032"]
 est_lines = 1949
-layer = 7
+layer = 3
 tests = []
 status = "todo"
 claimed_by = ""

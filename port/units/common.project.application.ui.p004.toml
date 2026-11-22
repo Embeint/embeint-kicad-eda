@@ -2,10 +2,10 @@
 id = "common.project.application.ui.p004"
 upstream = ["common/project/project_file_downgrade.cpp", "common/project/project_local_settings.cpp"]
 rust_module = "kicad_port::common::project::application::ui::p004"
-depends_on = ["common.application.ui.p003", "common.application.ui.p030", "common.settings.application.thin.replacement.p001", "common.settings.application.ui.p003", "include.application.pure.p001", "include.application.ui.p002", "include.application.ui.p009", "include.project.application.ui.p001", "include.settings.application.ui.p001"]
+depends_on = ["common.application.ui.p003", "common.application.ui.p031", "common.settings.application.thin.replacement.p001", "common.settings.application.ui.p003", "include.application.pure.p001", "include.application.ui.p002", "include.application.ui.p009", "include.project.application.ui.p001", "include.settings.application.ui.p001", "include.settings.application.ui.p002"]
 soft_depends_on = ["common.application.ui.p028", "common.jobs.application.ui.p003", "common.project.application.ui.p003"]
 est_lines = 1853
-layer = 41
+layer = 53
 tests = []
 status = "todo"
 claimed_by = ""
