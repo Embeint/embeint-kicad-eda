@@ -1,0 +1,93 @@
+{
+  "tested_source": "af47b0e73160ed7672846d8b9f329b08465a38d4",
+  "workspace_tests": 110,
+  "workspace_test_failures": 0,
+  "workspace_test_ignored": 0,
+  "ctests": 3,
+  "audited_compilations": 70,
+  "reference_files": 913,
+  "compilers": {
+    "/usr/bin/g++": "g++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0\nCopyright (C) 2025 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+  },
+  "libc": "glibc 2.43",
+  "floating_point": {
+    "contract": "off",
+    "fast_math": false
+  },
+  "wasm_sha256": "2a492466ad5a3ffe64ba443b34d0020dd82a22b8a81216357597231ef874e4a2",
+  "evidence_sha256": "2983c643c643fb6f2ba00c85ae6edd4ed13f77669cafd09e66ad50fe488f9479",
+  "runtime": {
+    "cpp": {
+      "seconds": 0.3017537249834277,
+      "executable_sha256": "6bc97c0160e724de4a8106683e3983d8936c7902cfa5ce731f041b6450b81184",
+      "output_sha256": "8d1cc9e8c280b349294f9d512e450586c892a3170881afbba1c1b78de1a107a2",
+      "output_bytes": 8534585
+    },
+    "rust_debug": {
+      "seconds": 2.607325513032265,
+      "executable_sha256": "cc9b410fcb8a0463f8acc5fb5825459b7e882b51737c79cae3b73946ff3e0862",
+      "output_sha256": "5fb5dfb6938e6a7b55c99416e46334b7e5f05ceb9821d053c442fa4dabc36441",
+      "output_bytes": 8534585
+    },
+    "rust_release": {
+      "seconds": 0.4751702790381387,
+      "executable_sha256": "61fa3cd93085f9f85aa5becabdc41d7a6a1a14c1bb6235acbca96b96a59d0c11",
+      "output_sha256": "5fb5dfb6938e6a7b55c99416e46334b7e5f05ceb9821d053c442fa4dabc36441",
+      "output_bytes": 8534585
+    },
+    "cases": 1050,
+    "cases_sha256": "58dd1186c9f10c8efb54bc90102c71508c8e852c0b8c08d437380b112fe3c597",
+    "operation_counts": {
+      "series": 12,
+      "format": 9,
+      "resistance": 1,
+      "helpers": 860,
+      "collector": 7,
+      "calculator": 157,
+      "reader": 3,
+      "unit_scales": 1
+    },
+    "calculated_outcomes": {
+      "calculate_success": 148,
+      "solution_exception": 2,
+      "solution_success": 54,
+      "calculate_exception": 15
+    },
+    "format_values": 15502
+  },
+  "provenance_keys": [
+    "build_commands",
+    "cmake_version",
+    "compile_commands",
+    "compiler_targets",
+    "compilers",
+    "config_h_sha256",
+    "floating_point",
+    "kicad_pin",
+    "overlay_dirty_at_export",
+    "overlay_files_sha256",
+    "overlay_revision",
+    "reader_generated",
+    "reference_file_count",
+    "reference_source",
+    "schema",
+    "source_manifest_sha256",
+    "system_libc_version",
+    "system_libraries",
+    "wx_version"
+  ],
+  "evidence_keys": [
+    "cases_sha256",
+    "changes",
+    "format",
+    "new_sha256",
+    "old_sha256",
+    "oracle",
+    "reason",
+    "unit"
+  ],
+  "prep_log_sha256": "14477c02bd64b311791646c7fc66e95e7ed09f797b8335b9ac5a249936e2f1eb",
+  "baseline_log_sha256": "28a2c2e88981c56c472c8dcd6dda661f5fafbd052bf4ba0289db8988607319aa",
+  "final_log_sha256": "cf391af6e1a63863f0e662489811f4c49a4f64898f90234538c4c1472463ee8d",
+  "driver_log_sha256": "036c52e2dac762ab08a9c5b2b82b5a5574b7424a8de4e305bf50a515107d680f"
+}

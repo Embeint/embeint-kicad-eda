@@ -10,8 +10,8 @@ dependencies or gaps. Independent review subsequently identified extraction
 omissions involving virtual destructors/overrides, active generated definitions
 and wx aliases. Corrected ownership/dependencies and the final scope remain a
 readiness dependency; the current record stays `claimed`, not green. The a7
-snapshot was merged into this topic before that review hold; no further merge
-or completion claim is authorized until the correction is confirmed.
+snapshot was merged into this topic before that review hold. Corrected #39
+ownership and any readiness claim remain pending confirmation.
 Only this unit's port metadata and live shim
 registration are changed; canonical source/functions/ranges/accounting stay
 unchanged. A passing pilot does not establish phase-zero completion.
@@ -28,7 +28,7 @@ unchanged. A passing pilot does not establish phase-zero completion.
 | `pcb_calculator/units_scales.h` | 1–76 |
 
 Interface declarations do not claim their out-of-unit bodies. The frame and
-transline headers from the early audit are not owned by this final local unit.
+transline headers from the early audit are not owned by this provisional snapshot.
 
 `kicad-resistors` owns its calculator state and performs no I/O. The separate
 `kicad-resistors-shim` is a native JSONL process (`portable = false`). No reference
@@ -159,7 +159,7 @@ from a deferred or failed harness operation.
 
 ## Definition and branch audit
 
-| Owned definitions (41 local final) | Portable bodies and differential observations |
+| Owned definitions (41 listed in the provisional snapshot) | Portable bodies and differential observations |
 | --- | --- |
 | `ESERIES_VALUES`, eight named constructors, `ESERIES_IN_DECADE` (10) | Literal tables, stride/fallback branches, full i32 exponents, multiplication before division; every literal and scaled bit is returned. |
 | `RESISTANCE` (1) | Explicit parts, omitted/default and empty parts; exact part order and value/name. |
@@ -206,8 +206,9 @@ validation order, raw integer `-0` versus floating `-0.0`, full unsigned domains
 finite numbers outside integer storage ranges, parser overflow before identity
 extraction, and successful recovery. Run it with `--oracle PATH` and one or more
 `--rust PATH` arguments. The native shim calls the reviewed common
-`kicad_difftest::request::parse` API before extracting identities (stacked #45,
-`8f5f45729c733d8f1695dda9ee6d953f9bb4d400`); the exact comparator retains arbitrary
+`kicad_difftest::request::parse` API before extracting identities (reviewed #45
+at `8f5f45729c733d8f1695dda9ee6d953f9bb4d400`, now merged into `rust` as
+`f72e08a883509c0bf451b00905718a9a83249fb1`); the exact comparator retains arbitrary
 numeric tokens. Finite numbers outside integer storage ranges are parsed and
 then checked against each operation's actual domain.
 
@@ -220,15 +221,16 @@ nonfinite_parity --target wasm32-unknown-unknown --release` and run
 and performs no filesystem/process/thread operations. A wasm build alone does
 not certify bit parity; record actual runtime results separately.
 
-The initial corpus is prepared before final extractor ownership confirmation.
-Run fmt, clippy `-D warnings`, tests and `wasm32-unknown-unknown` checks for both
-new crates (the shim is native), and the normal real-oracle build in an owned
-WSL rsync tree with the shared lock and at most eight jobs. Use the existing
-`kicad-difftest compare`, then `propose`/`bless` only after live agreement and
-verified executable/provenance identity. A baseline records that live agreement;
-it does not publish a unit claim or complete the extractor integration. A test
-run's final counts and tested commit must be recorded
-separately; this source/case preparation is not a result claim.
+Source checkpoint `af47b0e73160ed7672846d8b9f329b08465a38d4` passed workspace
+fmt/clippy, 110 tests, native debug/release and registered 1,050-case exact
+comparisons, 63 complete request-envelope checks, every portable wasm build and
+all 1,050 operation results in Node's wasm runtime. The original 199 request
+bytes/results and both historical evidence files remain unchanged. See
+[`resistors-review-fixes-af47b0e731.md`](../../port/findings/resistors-review-fixes-af47b0e731.md)
+for all five review fixes, executable identities, timings and coverage limits.
+Fresh complete evidence records the standard live `propose`/`bless`/`check`
+sequence against an absent base golden. This parity evidence leaves the unit
+claimed and corrected #39 ownership pending; phase zero remains incomplete.
 
 ## Dependencies and licences
 
