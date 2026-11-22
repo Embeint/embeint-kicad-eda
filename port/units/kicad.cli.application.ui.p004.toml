@@ -2,10 +2,10 @@
 id = "kicad.cli.application.ui.p004"
 upstream = ["kicad/cli/command_pcb_export_ps.cpp", "kicad/cli/command_pcb_export_specctra.cpp", "kicad/cli/command_pcb_export_stackup.cpp", "kicad/cli/command_pcb_export_stats.cpp", "kicad/cli/command_pcb_export_svg.cpp", "kicad/cli/command_pcb_import.cpp", "kicad/cli/command_pcb_render.cpp", "kicad/cli/command_pcb_upgrade.cpp", "kicad/cli/command_project.h", "kicad/cli/command_project_downgrade.cpp", "kicad/cli/command_sch.h", "kicad/cli/command_sch_diff.cpp", "kicad/cli/command_sch_downgrade.cpp", "kicad/cli/command_sch_erc.cpp"]
 rust_module = "kicad_port::kicad::cli::application::ui::p004"
-depends_on = ["common.application.ui.p024", "common.application.ui.p033", "common.application.ui.p035", "common.jobs.application.ui.p001", "common.jobs.application.ui.p002", "include.application.ui.p002", "kicad.application.ui.p004", "kicad.cli.application.ui.p001", "kicad.cli.generated.ui.p001", "libs.kiplatform.os.common.application.ui.p001"]
+depends_on = ["common.application.ui.p024", "common.application.ui.p033", "common.application.ui.p035", "common.jobs.application.ui.p001", "common.jobs.application.ui.p002", "include.application.ui.p002", "include.application.ui.p003", "kicad.application.ui.p004", "kicad.cli.application.ui.p001", "kicad.cli.generated.ui.p001", "libs.kiplatform.os.common.application.ui.p001"]
 soft_depends_on = []
 est_lines = 1991
-layer = 104
+layer = 129
 tests = []
 status = "todo"
 claimed_by = ""

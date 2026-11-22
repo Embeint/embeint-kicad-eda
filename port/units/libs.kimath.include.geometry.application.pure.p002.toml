@@ -2,10 +2,10 @@
 id = "libs.kimath.include.geometry.application.pure.p002"
 upstream = ["libs/kimath/include/geometry/point_types.h", "libs/kimath/include/geometry/poisson_disk.h", "libs/kimath/include/geometry/roundrect.h", "libs/kimath/include/geometry/segment_index.h", "libs/kimath/include/geometry/shape_file_io.h", "libs/kimath/include/geometry/shape_null.h", "libs/kimath/include/geometry/shape_utils.h", "libs/kimath/include/geometry/transform_trs.h", "libs/kimath/include/geometry/vector_utils.h", "libs/kimath/include/geometry/vertex_set.h"]
 rust_module = "kicad_port::libs::kimath::include::geometry::application::pure::p002"
-depends_on = ["libs.kimath.include.geometry.application.ui.p003", "libs.kimath.include.geometry.application.ui.p006", "libs.kimath.include.geometry.rtree.application.pure.p002", "libs.kimath.include.math.application.ui.p001", "libs.kimath.include.math.application.ui.p002", "libs.kimath.src.geometry.shape_file_io.application.pure.p001", "libs.kimath.src.geometry.transform_trs.application.ui.p001"]
+depends_on = ["libs.kimath.include.geometry.application.ui.p003", "libs.kimath.include.geometry.application.ui.p006", "libs.kimath.include.geometry.rtree.application.pure.p002", "libs.kimath.include.math.application.ui.p001", "libs.kimath.include.math.application.ui.p002", "libs.kimath.src.geometry.shape_file_io.application.pure.p001", "libs.kimath.src.geometry.transform_trs.application.ui.p001", "plugins.3d.vrml.application.ui.p001"]
 soft_depends_on = ["libs.kimath.src.geometry.vertex_set.application.pure.p001"]
 est_lines = 1306
-layer = 13
+layer = 21
 tests = []
 status = "todo"
 claimed_by = ""

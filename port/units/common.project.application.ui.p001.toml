@@ -2,10 +2,10 @@
 id = "common.project.application.ui.p001"
 upstream = ["common/project/board_project_settings.cpp", "common/project/component_class_settings.cpp"]
 rust_module = "kicad_port::common::project::application::ui::p001"
-depends_on = ["common.settings.application.ui.p003", "include.application.pure.p001", "include.application.ui.p009", "include.project.application.thin.replacement.p001", "include.project.application.ui.p001", "include.settings.application.ui.p001", "libs.kimath.include.math.application.ui.p001"]
+depends_on = ["common.settings.application.ui.p003", "include.application.pure.p001", "include.application.ui.p009", "include.project.application.ui.p001", "include.settings.application.ui.p002", "libs.kimath.include.math.application.ui.p001"]
 soft_depends_on = ["common.application.ui.p025", "common.application.ui.p028"]
 est_lines = 817
-layer = 25
+layer = 41
 tests = []
 status = "todo"
 claimed_by = ""

@@ -1,0 +1,114 @@
+[
+  {
+    "classification": "interrupted diagnostic attempt; never canonical success",
+    "directory": "corrected-review",
+    "logs": {
+      "corrected-tests.log": {
+        "bytes": 4381,
+        "sha256": "224a0a9f5ab087f037a84f7a0ddb16e22746047842182bcc0e5dc6ae73d2076c",
+        "stored": "corrected-review-corrected-tests.log.gz"
+      },
+      "driver.log": {
+        "bytes": 1346,
+        "sha256": "c3b54e780ba3711f881acba90336b5c148a52554fe45e9ae304d831f32b074b3",
+        "stored": "corrected-review-driver.log.gz"
+      },
+      "extraction.log": {
+        "bytes": 26925,
+        "sha256": "95e4803a731a4b1e2a281df11852534dcd755d9dee1f037e6cbd396292e520eb",
+        "stored": "corrected-review-extraction.log.gz"
+      }
+    },
+    "reason": "scoped alias cache key refined",
+    "runtime_code_sha256_lf": {
+      "port/extractor/clang_graph.py": "2f8c519a74626a8e8bbe6a3ad97630f18529a4cd60efb9c362f310eb7947f2cc",
+      "port/extractor/generated_sources.py": "3135f6ea0bff828928ba051246458af144a8d785758c51eed659d97b32c9b194",
+      "port/extractor/model.py": "435d03e5af3801acce8a4270e2dd9a2b453c0aad3b00a4778696b99dd763704c",
+      "port/tools/extract_graph.py": "e1eb6b0c3f82f5336d08c4abff1fa8c701a64417f0a3d5d77ab882a29a96ca7e"
+    }
+  },
+  {
+    "classification": "interrupted diagnostic attempt; never canonical success",
+    "directory": "corrected-review-v2",
+    "logs": {
+      "corrected-tests.log": {
+        "bytes": 4381,
+        "sha256": "d803be15c4ccebd3aa8d224b96bffe1416a538dcf7f8d1fef0edeffee24c6399",
+        "stored": "corrected-review-v2-corrected-tests.log.gz"
+      },
+      "driver.log": {
+        "bytes": 1352,
+        "sha256": "979dcc02070ba2c60f838002ccf175483a44f8b8bb5b6686653c335748fa8767",
+        "stored": "corrected-review-v2-driver.log.gz"
+      },
+      "extraction.log": {
+        "bytes": 227943,
+        "sha256": "12574015ae31ee3a28c3e88a2244bac1c2c96164fdcf2185ddba15eb92800365",
+        "stored": "corrected-review-v2-extraction.log.gz"
+      }
+    },
+    "reason": "virtual conversion operators and explicit lifetime-site diagnostics added",
+    "runtime_code_sha256_lf": {
+      "port/extractor/clang_graph.py": "74840ee05523ea015fd2fa4896762b5326a7e61c8dd24fa13109a111b880449c",
+      "port/extractor/generated_sources.py": "3135f6ea0bff828928ba051246458af144a8d785758c51eed659d97b32c9b194",
+      "port/extractor/model.py": "435d03e5af3801acce8a4270e2dd9a2b453c0aad3b00a4778696b99dd763704c",
+      "port/tools/extract_graph.py": "e1eb6b0c3f82f5336d08c4abff1fa8c701a64417f0a3d5d77ab882a29a96ca7e"
+    }
+  },
+  {
+    "classification": "interrupted diagnostic attempt; never canonical success",
+    "directory": "corrected-review-v3",
+    "logs": {
+      "corrected-tests.log": {
+        "bytes": 4545,
+        "sha256": "0bd16416ab6cac3350d53a528af65013bb128552c6b4ff0ce22c7c3587d635a6",
+        "stored": "corrected-review-v3-corrected-tests.log.gz"
+      },
+      "driver.log": {
+        "bytes": 1352,
+        "sha256": "1dbb6b65b6587448c25d1c6874ab1f7a6c63ece88409464cd0f68491e0e5850c",
+        "stored": "corrected-review-v3-driver.log.gz"
+      },
+      "extraction.log": {
+        "bytes": 381959,
+        "sha256": "7a87d37d9733528a41dff69e73517e547d870c106a890b53815e4a72fa2c73bb",
+        "stored": "corrected-review-v3-extraction.log.gz"
+      }
+    },
+    "reason": "partial class template owner storage included",
+    "runtime_code_sha256_lf": {
+      "port/extractor/clang_graph.py": "fec1b39e1c2ea122c44528867528cd5ac9f21cd80704d41e5124b065b5927439",
+      "port/extractor/generated_sources.py": "3135f6ea0bff828928ba051246458af144a8d785758c51eed659d97b32c9b194",
+      "port/extractor/model.py": "435d03e5af3801acce8a4270e2dd9a2b453c0aad3b00a4778696b99dd763704c",
+      "port/tools/extract_graph.py": "e1eb6b0c3f82f5336d08c4abff1fa8c701a64417f0a3d5d77ab882a29a96ca7e"
+    }
+  },
+  {
+    "classification": "interrupted diagnostic attempt; never canonical success",
+    "directory": "corrected-review-v4",
+    "logs": {
+      "corrected-tests.log": {
+        "bytes": 4891,
+        "sha256": "528ed5fde1b6aeabec89caa191647b7837bf8129a624550b0425ad93051b277f",
+        "stored": "corrected-review-v4-corrected-tests.log.gz"
+      },
+      "driver.log": {
+        "bytes": 1396,
+        "sha256": "0898ae10235c14cadb70547763d941db1acbfb030553fce46ede6ebb890473ef",
+        "stored": "corrected-review-v4-driver.log.gz"
+      },
+      "extraction.log": {
+        "bytes": 316952,
+        "sha256": "71acd55bca9a6f92506c8527788a1b8245cd901b07d95098a854acfacb0b8722",
+        "stored": "corrected-review-v4-extraction.log.gz"
+      }
+    },
+    "reason": "matching21 confirmed alias delete and opaque template storage gaps; complete generated include fingerprint and recipe capture corrected",
+    "runtime_code_sha256_lf": {
+      "port/extractor/clang_graph.py": "3702cc40646a3534363167bdf2c9ff870dab2c52ee24ba9fd8b57cbaddff88ec",
+      "port/extractor/generated_sources.py": "3135f6ea0bff828928ba051246458af144a8d785758c51eed659d97b32c9b194",
+      "port/extractor/model.py": "435d03e5af3801acce8a4270e2dd9a2b453c0aad3b00a4778696b99dd763704c",
+      "port/tools/extract_graph.py": "e1eb6b0c3f82f5336d08c4abff1fa8c701a64417f0a3d5d77ab882a29a96ca7e"
+    }
+  }
+]

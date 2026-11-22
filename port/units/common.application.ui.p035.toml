@@ -2,10 +2,10 @@
 id = "common.application.ui.p035"
 upstream = ["common/string_utils.cpp"]
 rust_module = "kicad_port::common::application::ui::p035"
-depends_on = ["common.application.ui.p030", "common.libeval.application.ui.p001", "libs.core.include.core.application.thin.replacement.p001"]
-soft_depends_on = ["common.application.ui.p003"]
+depends_on = ["common.libeval.application.ui.p001", "libs.core.include.core.application.thin.replacement.p001"]
+soft_depends_on = ["common.application.ui.p003", "common.application.ui.p031"]
 est_lines = 2039
-layer = 21
+layer = 1
 tests = []
 status = "todo"
 claimed_by = ""

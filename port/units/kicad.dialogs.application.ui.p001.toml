@@ -2,10 +2,10 @@
 id = "kicad.dialogs.application.ui.p001"
 upstream = ["kicad/dialogs/dialog_archive_job_settings.cpp", "kicad/dialogs/dialog_copyfiles_job_settings.cpp", "kicad/dialogs/dialog_destination.cpp", "kicad/dialogs/dialog_edit_cfg.cpp", "kicad/dialogs/dialog_executecommand_job_settings.cpp"]
 rust_module = "kicad_port::kicad::dialogs::application::ui::p001"
-depends_on = ["common.application.ui.p001", "common.application.ui.p002", "common.application.ui.p003", "common.application.ui.p004", "common.application.ui.p006", "common.application.ui.p007", "common.application.ui.p018", "common.application.ui.p019", "common.application.ui.p022", "common.application.ui.p024", "common.application.ui.p030", "common.application.ui.p033", "common.generated.ui.p002", "common.jobs.application.thin.replacement.p001", "common.jobs.application.ui.p001", "common.jobs.application.ui.p002", "common.jobs.application.ui.p003", "common.widgets.application.ui.p001", "common.widgets.application.ui.p004", "common.widgets.application.ui.p013", "common.widgets.application.ui.p017", "include.application.thin.replacement.p001", "include.widgets.application.ui.p001", "include.widgets.application.ui.p002", "include.widgets.application.ui.p005", "kicad.dialogs.generated.ui.p001", "libs.kiplatform.port.wxgtk.application.ui.p001"]
+depends_on = ["common.application.ui.p001", "common.application.ui.p002", "common.application.ui.p003", "common.application.ui.p004", "common.application.ui.p006", "common.application.ui.p007", "common.application.ui.p018", "common.application.ui.p019", "common.application.ui.p022", "common.application.ui.p024", "common.application.ui.p030", "common.application.ui.p031", "common.application.ui.p034", "common.generated.ui.p002", "common.jobs.application.thin.replacement.p001", "common.jobs.application.ui.p001", "common.jobs.application.ui.p002", "common.jobs.application.ui.p003", "common.widgets.application.ui.p001", "common.widgets.application.ui.p004", "common.widgets.application.ui.p013", "common.widgets.application.ui.p017", "include.application.thin.replacement.p001", "include.widgets.application.ui.p001", "include.widgets.application.ui.p002", "include.widgets.application.ui.p005", "kicad.dialogs.generated.ui.p001", "libs.kiplatform.port.wxgtk.application.ui.p001"]
 soft_depends_on = []
 est_lines = 1106
-layer = 91
+layer = 129
 tests = []
 status = "todo"
 claimed_by = ""

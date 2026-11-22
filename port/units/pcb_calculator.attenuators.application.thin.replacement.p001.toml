@@ -2,10 +2,10 @@
 id = "pcb_calculator.attenuators.application.thin.replacement.p001"
 upstream = ["pcb_calculator/attenuators/attenuator_classes.h"]
 rust_module = "kicad_port::pcb_calculator::attenuators::application::thin::replacement::p001"
-depends_on = []
+depends_on = ["pcb_calculator.attenuators.application.ui.p001"]
 soft_depends_on = []
 est_lines = 106
-layer = 0
+layer = 293
 tests = []
 status = "todo"
 claimed_by = ""

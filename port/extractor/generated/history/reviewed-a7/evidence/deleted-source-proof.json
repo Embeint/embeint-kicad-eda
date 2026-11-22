@@ -1,0 +1,39 @@
+{
+  "classification": "stale-deleted/excluded; never parse success",
+  "source_commit": "3cd2c9afc6d2749b7d3a79fd1deaa86ac51cb3a7",
+  "sources": [
+    {
+      "absent_at_source_commit": true,
+      "absent_at_upstream_pin": true,
+      "file": "common/dialogs/rule_editor_dialog_base.cpp",
+      "last_change": "3ac0ec003d72760106d673493225b7eda9cf54e8",
+      "present_before_last_change": true,
+      "subject": "ADDED: Edit design rules on their constraint pages in Board Setup"
+    },
+    {
+      "absent_at_source_commit": true,
+      "absent_at_upstream_pin": true,
+      "file": "pcbnew/drc/rule_editor/dialog_drc_rule_editor.cpp",
+      "last_change": "3ac0ec003d72760106d673493225b7eda9cf54e8",
+      "present_before_last_change": true,
+      "subject": "ADDED: Edit design rules on their constraint pages in Board Setup"
+    },
+    {
+      "absent_at_source_commit": true,
+      "absent_at_upstream_pin": true,
+      "file": "pcbnew/drc/rule_editor/panel_drc_group_header.cpp",
+      "last_change": "3ac0ec003d72760106d673493225b7eda9cf54e8",
+      "present_before_last_change": true,
+      "subject": "ADDED: Edit design rules on their constraint pages in Board Setup"
+    },
+    {
+      "absent_at_source_commit": true,
+      "absent_at_upstream_pin": true,
+      "file": "pcbnew/tools/drc_rule_editor_tool.cpp",
+      "last_change": "3ac0ec003d72760106d673493225b7eda9cf54e8",
+      "present_before_last_change": true,
+      "subject": "ADDED: Edit design rules on their constraint pages in Board Setup"
+    }
+  ],
+  "upstream_pin": "4cf939778df04d2b747bb2c4714fc5014a7565c7"
+}

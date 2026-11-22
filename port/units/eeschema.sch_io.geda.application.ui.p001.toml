@@ -2,10 +2,10 @@
 id = "eeschema.sch_io.geda.application.ui.p001"
 upstream = ["eeschema/sch_io/geda/sch_io_geda.cpp"]
 rust_module = "kicad_port::eeschema::sch_io::geda::application::ui::p001"
-depends_on = ["common.application.ui.p017", "common.application.ui.p025", "common.application.ui.p030", "eeschema.application.ui.p034", "eeschema.application.ui.p044", "eeschema.application.ui.p060", "eeschema.sch_io.application.ui.p001", "libs.core.application.ui.p001", "libs.kimath.include.math.application.ui.p002", "pcbnew.application.ui.p054", "pcbnew.application.ui.p055"]
+depends_on = ["common.application.ui.p017", "common.application.ui.p025", "common.application.ui.p031", "eeschema.application.ui.p035", "eeschema.application.ui.p045", "eeschema.application.ui.p061", "eeschema.sch_io.application.ui.p001", "libs.core.application.ui.p001", "libs.kimath.include.math.application.ui.p002", "pcbnew.application.ui.p055", "pcbnew.application.ui.p056"]
 soft_depends_on = ["eeschema.sch_io.geda.application.ui.p002", "eeschema.sch_io.geda.application.ui.p003"]
 est_lines = 2037
-layer = 252
+layer = 269
 tests = []
 status = "todo"
 claimed_by = ""

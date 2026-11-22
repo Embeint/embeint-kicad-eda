@@ -1,0 +1,26 @@
+{
+  "base": "4c6c1e38ce2dead8db8a3193e7525d19532523e9",
+  "cargo_tests_passed": 13,
+  "commands": [
+    "cargo fmt --all -- --check",
+    "cargo test --locked -p kicad-difftest -j8 -- --test-threads=8",
+    "cargo clippy --locked -p kicad-difftest --all-targets -j8 -- -D warnings"
+  ],
+  "exit_codes": [
+    0,
+    0,
+    0
+  ],
+  "head": "d1667ca05c170ce8aacd2060fa41d7764a6c4885",
+  "request_cpp_fixture_tests": 2,
+  "scope": "Actual merged-base native request/C++ transport fixtures; not own-library oracle or pilot parity",
+  "suite_counts": [
+    0,
+    0,
+    2,
+    3,
+    6,
+    2,
+    0
+  ]
+}

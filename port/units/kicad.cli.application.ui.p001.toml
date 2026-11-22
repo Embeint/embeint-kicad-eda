@@ -2,10 +2,10 @@
 id = "kicad.cli.application.ui.p001"
 upstream = ["kicad/cli/command.cpp", "kicad/cli/command_api_server.cpp", "kicad/cli/command_export_bom.cpp", "kicad/cli/command_fp.h", "kicad/cli/command_fp_diff.cpp", "kicad/cli/command_fp_downgrade.cpp", "kicad/cli/command_fp_export.h", "kicad/cli/command_fp_export_svg.cpp", "kicad/cli/command_fp_upgrade.cpp", "kicad/cli/command_gerber.h", "kicad/cli/command_gerber_convert.h", "kicad/cli/command_gerber_convert_png.cpp", "kicad/cli/command_gerber_diff.cpp"]
 rust_module = "kicad_port::kicad::cli::application::ui::p001"
-depends_on = ["common.api.application.ui.p001", "common.api.application.ui.p003", "common.api.application.ui.p004", "common.api.application.ui.p005", "common.application.ui.p024", "common.application.ui.p025", "common.application.ui.p030", "common.application.ui.p035", "common.generated.ui.p002", "common.jobs.application.ui.p001", "common.settings.application.ui.p004", "include.api.application.pure.p001", "include.api.application.thin.replacement.p001", "include.api.application.ui.p001", "include.application.ui.p002", "include.application.ui.p008", "include.application.ui.p009", "include.generated.ui.p001", "kicad.cli.generated.ui.p001", "libs.core.application.ui.p001"]
-soft_depends_on = ["eeschema.application.ui.p006", "kicad.cli.application.ui.p002", "kicad.cli.application.ui.p003", "kicad.cli.application.ui.p004", "kicad.cli.application.ui.p005", "pcbnew.application.ui.p061"]
+depends_on = ["build.api.cpp.api.common.commands.generated.pure.p038", "build.api.cpp.api.common.commands.generated.pure.p040", "build.api.cpp.api.common.commands.generated.pure.p041", "build.api.cpp.api.common.commands.generated.pure.p042", "build.api.cpp.api.common.generated.pure.p001", "build.api.cpp.api.common.generated.pure.p002", "build.api.cpp.api.common.types.generated.pure.p013", "common.api.application.ui.p001", "common.api.application.ui.p003", "common.api.application.ui.p004", "common.api.application.ui.p005", "common.application.ui.p024", "common.application.ui.p025", "common.application.ui.p031", "common.application.ui.p035", "common.generated.ui.p002", "common.jobs.application.ui.p001", "common.settings.application.ui.p004", "include.api.application.ui.p001", "include.application.ui.p003", "include.application.ui.p008", "include.application.ui.p009", "include.generated.ui.p001", "kicad.cli.generated.ui.p001", "libs.core.application.ui.p001"]
+soft_depends_on = ["eeschema.application.ui.p006", "kicad.cli.application.ui.p002", "kicad.cli.application.ui.p003", "kicad.cli.application.ui.p004", "kicad.cli.application.ui.p005", "pcbnew.application.ui.p062"]
 est_lines = 1960
-layer = 92
+layer = 127
 tests = []
 status = "todo"
 claimed_by = ""

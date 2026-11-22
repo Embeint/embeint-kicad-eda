@@ -1,0 +1,12 @@
+{
+  "clang": "Ubuntu clang version 21.1.8 (6ubuntu1)",
+  "clang_python": "21.1.7",
+  "cmake": "cmake version 4.2.3",
+  "gcc": "g++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+  "libclang_binary_sha256": "2c262ccd53ce702daa87c95aa84b2936e13c14f974504dc58f3ed93b12def23b",
+  "libclang_path": "/usr/lib/llvm-21/lib/libclang-21.so.1",
+  "ninja": "1.13.2",
+  "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+  "python": "3.14.4 (main, Aug 20 2026, 10:41:58) [GCC 15.2.0]",
+  "scope": "Observed tool environment during the reconciled extraction; this observation does not reconstruct historical raw cache tool versions"
+}

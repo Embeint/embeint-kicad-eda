@@ -1,0 +1,225 @@
+{
+  "separate_default_argument": {
+    "status": "ok",
+    "diagnostics": [],
+    "functions": {
+      "helper()": {
+        "wx": [],
+        "virtual": false
+      },
+      "f(int)": {
+        "wx": [],
+        "virtual": false
+      },
+      "caller()": {
+        "wx": [],
+        "virtual": false
+      }
+    },
+    "calls": [
+      [
+        "f(int)",
+        "helper()",
+        false
+      ],
+      [
+        "caller()",
+        "f(int)",
+        false
+      ]
+    ],
+    "overrides": [],
+    "unresolved": []
+  },
+  "default_member_initializer": {
+    "status": "ok",
+    "diagnostics": [],
+    "functions": {
+      "helper()": {
+        "wx": [],
+        "virtual": false
+      },
+      "Obj::Obj()": {
+        "wx": [],
+        "virtual": false
+      },
+      "caller()": {
+        "wx": [],
+        "virtual": false
+      }
+    },
+    "calls": [
+      [
+        "caller()",
+        "Obj::Obj()",
+        false
+      ]
+    ],
+    "overrides": [],
+    "unresolved": []
+  },
+  "destructor": {
+    "status": "ok",
+    "diagnostics": [],
+    "functions": {
+      "cleanup()": {
+        "wx": [],
+        "virtual": false
+      },
+      "Base::~Base()": {
+        "wx": [],
+        "virtual": false
+      },
+      "Derived::~Derived()": {
+        "wx": [],
+        "virtual": false
+      },
+      "destroy(Base *)": {
+        "wx": [],
+        "virtual": false
+      }
+    },
+    "calls": [
+      [
+        "Derived::~Derived()",
+        "cleanup()",
+        false
+      ]
+    ],
+    "overrides": [],
+    "unresolved": []
+  },
+  "default_argument": {
+    "status": "ok",
+    "diagnostics": [],
+    "functions": {
+      "helper()": {
+        "wx": [],
+        "virtual": false
+      },
+      "f(int)": {
+        "wx": [],
+        "virtual": false
+      },
+      "caller()": {
+        "wx": [],
+        "virtual": false
+      }
+    },
+    "calls": [
+      [
+        "f(int)",
+        "helper()",
+        false
+      ],
+      [
+        "caller()",
+        "f(int)",
+        false
+      ]
+    ],
+    "overrides": [],
+    "unresolved": []
+  },
+  "lambda": {
+    "status": "ok",
+    "diagnostics": [],
+    "functions": {
+      "helper()": {
+        "wx": [],
+        "virtual": false
+      },
+      "caller()": {
+        "wx": [],
+        "virtual": false
+      }
+    },
+    "calls": [
+      [
+        "caller()",
+        "helper()",
+        false
+      ],
+      [
+        "caller()",
+        "c:a.cpp@50@F@caller#@Sa@F@operator()#1",
+        false
+      ]
+    ],
+    "overrides": [],
+    "unresolved": []
+  },
+  "wx_typedef": {
+    "status": "ok",
+    "diagnostics": [],
+    "functions": {
+      "Owner::f()": {
+        "wx": [],
+        "virtual": false
+      },
+      "g(Widget *)": {
+        "wx": [],
+        "virtual": false
+      }
+    },
+    "calls": [],
+    "overrides": [],
+    "unresolved": []
+  },
+  "wx_static": {
+    "status": "ok",
+    "diagnostics": [],
+    "functions": {
+      "Owner::f()": {
+        "wx": [
+          "wxFrame"
+        ],
+        "virtual": false
+      }
+    },
+    "calls": [],
+    "overrides": [],
+    "unresolved": []
+  },
+  "explicit_virtual": {
+    "status": "ok",
+    "diagnostics": [],
+    "functions": {
+      "helper()": {
+        "wx": [],
+        "virtual": false
+      },
+      "Base::f()": {
+        "wx": [],
+        "virtual": true
+      },
+      "Derived::f()": {
+        "wx": [],
+        "virtual": true
+      },
+      "caller(Base *)": {
+        "wx": [],
+        "virtual": false
+      }
+    },
+    "calls": [
+      [
+        "Derived::f()",
+        "helper()",
+        false
+      ],
+      [
+        "caller(Base *)",
+        "Base::f()",
+        true
+      ]
+    ],
+    "overrides": [
+      [
+        "Base::f()",
+        "Derived::f()"
+      ]
+    ],
+    "unresolved": []
+  }
+}

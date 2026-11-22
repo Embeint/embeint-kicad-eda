@@ -2,10 +2,10 @@
 id = "plugins.3d.idf.application.ui.p001"
 upstream = ["plugins/3d/idf/s3d_plugin_idf.cpp"]
 rust_module = "kicad_port::plugins::unit_3d::idf::application::ui::p001"
-depends_on = ["3d.viewer.3d_cache.sg.application.ui.p001", "3d.viewer.3d_cache.sg.application.ui.p002", "3d.viewer.3d_cache.sg.generated.ui.p001", "common.application.ui.p001", "common.io.idf.application.pure.p001", "common.io.idf.application.pure.p002", "common.io.idf.application.thin.replacement.p001", "common.io.idf.application.thin.replacement.p002", "common.io.idf.application.ui.p001", "common.io.idf.application.ui.p002", "common.io.idf.application.ui.p003", "common.io.idf.application.ui.p004"]
-soft_depends_on = ["plugins.3d.oce.application.ui.p001", "plugins.3d.vrml.application.ui.p001"]
+depends_on = ["3d.viewer.3d_cache.sg.application.ui.p001", "3d.viewer.3d_cache.sg.application.ui.p002", "3d.viewer.3d_cache.sg.generated.ui.p001", "common.io.idf.application.pure.p001", "common.io.idf.application.pure.p002", "common.io.idf.application.thin.replacement.p001", "common.io.idf.application.thin.replacement.p002", "common.io.idf.application.ui.p001", "common.io.idf.application.ui.p002", "common.io.idf.application.ui.p003", "common.io.idf.application.ui.p004"]
+soft_depends_on = ["common.application.ui.p001", "plugins.3d.oce.application.ui.p001", "plugins.3d.vrml.application.ui.p001"]
 est_lines = 927
-layer = 271
+layer = 11
 tests = []
 status = "todo"
 claimed_by = ""

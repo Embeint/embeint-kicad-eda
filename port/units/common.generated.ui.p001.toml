@@ -2,10 +2,10 @@
 id = "common.generated.ui.p001"
 upstream = ["common/bitmap_base.cpp", "common/kiface_base.cpp", "common/marker_base.cpp"]
 rust_module = "kicad_port::common::generated::ui::p001"
-depends_on = ["common.application.ui.p002", "common.application.ui.p021", "common.application.ui.p024", "common.application.ui.p032", "common.application.ui.p033", "common.application.ui.p036", "common.gal.application.ui.p001", "common.plotters.application.ui.p008", "include.application.thin.replacement.p004", "include.generated.ui.p001", "include.plotters.application.thin.replacement.p001", "libs.kimath.include.geometry.application.ui.p001", "libs.kimath.include.geometry.application.ui.p004", "libs.kimath.include.math.application.ui.p001", "libs.kimath.include.math.application.ui.p002", "libs.kimath.src.geometry.geometry_utils.application.ui.p001", "libs.kimath.src.geometry.shape_line_chain.application.ui.p001"]
+depends_on = ["common.application.ui.p002", "common.application.ui.p021", "common.application.ui.p024", "common.application.ui.p033", "common.application.ui.p036", "common.gal.application.ui.p001", "common.plotters.application.ui.p008", "include.application.thin.replacement.p004", "include.generated.ui.p001", "include.plotters.application.ui.p001", "libs.kimath.include.geometry.application.ui.p001", "libs.kimath.include.geometry.application.ui.p004", "libs.kimath.include.math.application.ui.p001", "libs.kimath.include.math.application.ui.p002", "libs.kimath.src.geometry.geometry_utils.application.ui.p001", "libs.kimath.src.geometry.shape_line_chain.application.ui.p001"]
 soft_depends_on = ["common.application.ui.p019", "common.plotters.application.ui.p001", "common.plotters.application.ui.p003", "common.plotters.application.ui.p004", "common.plotters.application.ui.p005", "common.plotters.application.ui.p006", "common.plotters.application.ui.p007"]
 est_lines = 887
-layer = 51
+layer = 67
 tests = []
 status = "todo"
 claimed_by = ""

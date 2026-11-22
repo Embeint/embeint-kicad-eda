@@ -2,10 +2,10 @@
 id = "common.plotters.application.ui.p003"
 upstream = ["common/plotters/GERBER_plotter.cpp"]
 rust_module = "kicad_port::common::plotters::application::ui::p003"
-depends_on = ["common.application.ui.p002", "common.application.ui.p020", "common.plotters.application.ui.p001", "common.plotters.application.ui.p005", "common.plotters.application.ui.p006", "common.plotters.application.ui.p007", "common.plotters.application.ui.p008", "include.application.thin.replacement.p003", "include.application.ui.p011", "include.plotters.application.pure.p001", "include.plotters.application.ui.p001", "libs.kimath.include.application.ui.p001", "libs.kimath.include.geometry.application.ui.p001", "libs.kimath.include.geometry.application.ui.p003", "libs.kimath.include.geometry.application.ui.p004", "libs.kimath.include.geometry.application.ui.p005", "libs.kimath.include.math.application.ui.p001", "libs.kimath.include.math.application.ui.p002", "libs.kimath.src.convert_basic_shapes_to_polygon.application.ui.p001", "libs.kimath.src.geometry.eda_angle.application.pure.p001", "libs.kimath.src.geometry.shape_arc.application.ui.p001", "libs.kimath.src.geometry.shape_poly_set.application.ui.p001"]
+depends_on = ["common.application.ui.p002", "common.application.ui.p020", "common.plotters.application.ui.p001", "common.plotters.application.ui.p005", "common.plotters.application.ui.p006", "common.plotters.application.ui.p007", "common.plotters.application.ui.p008", "include.application.thin.replacement.p002", "include.application.ui.p011", "include.plotters.application.pure.p001", "include.plotters.application.ui.p001", "libs.kimath.include.application.ui.p001", "libs.kimath.include.geometry.application.ui.p001", "libs.kimath.include.geometry.application.ui.p003", "libs.kimath.include.geometry.application.ui.p004", "libs.kimath.include.geometry.application.ui.p005", "libs.kimath.include.math.application.ui.p001", "libs.kimath.include.math.application.ui.p002", "libs.kimath.src.convert_basic_shapes_to_polygon.application.ui.p001", "libs.kimath.src.geometry.eda_angle.application.pure.p001", "libs.kimath.src.geometry.shape_arc.application.ui.p001", "libs.kimath.src.geometry.shape_poly_set.application.ui.p001"]
 soft_depends_on = ["common.plotters.application.ui.p002"]
 est_lines = 1919
-layer = 91
+layer = 108
 tests = []
 status = "todo"
 claimed_by = ""

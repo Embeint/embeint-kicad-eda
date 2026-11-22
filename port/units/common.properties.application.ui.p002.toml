@@ -2,8 +2,8 @@
 id = "common.properties.application.ui.p002"
 upstream = ["common/properties/property_mgr.cpp", "common/properties/std_optional_variants.cpp", "common/properties/wx_any_utils.cpp"]
 rust_module = "kicad_port::common::properties::application::ui::p002"
-depends_on = ["common.gal.application.ui.p001", "include.application.pure.p003", "include.properties.application.ui.p001", "include.properties.application.ui.p002", "libs.kimath.include.geometry.application.ui.p001", "libs.kimath.include.math.application.ui.p001"]
-soft_depends_on = ["common.application.ui.p013", "eeschema.application.ui.p047", "eeschema.application.ui.p051", "include.application.pure.p004", "pcbnew.application.ui.p013"]
+depends_on = ["common.gal.application.ui.p001", "include.properties.application.ui.p001", "include.properties.application.ui.p002", "libs.kimath.include.geometry.application.ui.p001", "libs.kimath.include.math.application.ui.p001"]
+soft_depends_on = ["common.application.ui.p013", "eeschema.application.ui.p048", "eeschema.application.ui.p052", "include.application.pure.p004", "include.application.ui.p008", "pcbnew.application.ui.p013"]
 est_lines = 762
 layer = 4
 tests = []

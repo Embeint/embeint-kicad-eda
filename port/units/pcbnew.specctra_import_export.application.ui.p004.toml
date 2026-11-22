@@ -2,10 +2,10 @@
 id = "pcbnew.specctra_import_export.application.ui.p004"
 upstream = ["pcbnew/specctra_import_export/specctra.h"]
 rust_module = "kicad_port::pcbnew::specctra_import_export::application::ui::p004"
-depends_on = ["common.application.ui.p009", "common.application.ui.p033", "pcbnew.specctra_import_export.application.ui.p001", "pcbnew.specctra_import_export.application.ui.p002", "pcbnew.specctra_import_export.application.ui.p003"]
-soft_depends_on = []
+depends_on = ["build.pcbnew.specctra_import_export.generated.ui.p001", "common.application.ui.p009", "common.application.ui.p033", "libs.kimath.src.geometry.shape_poly_set.application.ui.p001", "pcbnew.specctra_import_export.application.ui.p002", "pcbnew.specctra_import_export.application.ui.p003"]
+soft_depends_on = ["pcbnew.specctra_import_export.application.ui.p001"]
 est_lines = 2000
-layer = 371
+layer = 385
 tests = []
 status = "todo"
 claimed_by = ""

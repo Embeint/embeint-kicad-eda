@@ -75,6 +75,9 @@ The small inventory and splitter report remain plain `inventory.json` and
 The graph includes definitions keyed by clang USR, source ranges, normalized body
 hashes, static/virtual/override edges, override relationships, unresolved call
 sites, definition variants and per-command status/diagnostics/include provenance.
+Unresolved records retain the translation unit as context; their AST line may
+refer to an included declaration. Repeated header observations across TUs are
+counted separately, so their count is not a count of unique source call sites.
 Definitions repeated in headers are deduplicated by USR; configuration variants
 are recorded and their wx dependencies/calls are unioned conservatively. Primary
 ranges are chosen deterministically by command identity. SHA-256 source hashes
@@ -320,6 +323,10 @@ bytes before rerunning; no compiler flags or source files are fabricated.
 Large raw recipe evidence can be published as `generated-recipes.json.gz` using
 deterministic gzip. Its manifest hash still binds the decompressed original JSON
 bytes, and validation checks the same hash for either storage form.
+When publishing snapshots, use `git add --force -- port/extractor/generated/sources`
+so build-ignore rules do not omit frozen inputs such as `config.h` or `CMakeFiles/`.
+Generated inputs, historical snapshots and machine transcripts retain exact bytes;
+their recorded hashes, rather than whitespace normalization, validate them.
 
 Frozen compiler-ID probes originate in CMake (BSD-3-Clause). Protobuf tooling is
 BSD-3-Clause and Ninja is Apache-2.0; notices are retained in

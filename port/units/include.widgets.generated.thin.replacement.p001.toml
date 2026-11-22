@@ -2,10 +2,10 @@
 id = "include.widgets.generated.thin.replacement.p001"
 upstream = ["include/widgets/progress_reporter_base.h"]
 rust_module = "kicad_port::include::widgets::generated::thin::replacement::p001"
-depends_on = []
+depends_on = ["include.application.pure.p005"]
 soft_depends_on = []
 est_lines = 127
-layer = 0
+layer = 1
 tests = []
 status = "todo"
 claimed_by = ""

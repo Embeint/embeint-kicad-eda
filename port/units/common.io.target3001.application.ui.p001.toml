@@ -2,10 +2,10 @@
 id = "common.io.target3001.application.ui.p001"
 upstream = ["common/io/target3001/target3001_fonts.cpp", "common/io/target3001/target3001_parser.cpp"]
 rust_module = "kicad_port::common::io::target3001::application::ui::p001"
-depends_on = ["common.application.ui.p017", "common.font.application.ui.p001", "common.font.application.ui.p002", "eeschema.application.ui.p029", "include.application.ui.p006", "include.application.ui.p008", "include.font.application.thin.replacement.p001", "include.font.application.ui.p001", "libs.core.application.pure.p001", "libs.kimath.include.application.ui.p001", "libs.kimath.include.math.application.ui.p001", "libs.kimath.include.math.application.ui.p002", "libs.kimath.src.geometry.shape_compound.application.ui.p001", "pcbnew.application.ui.p054", "pcbnew.application.ui.p055"]
-soft_depends_on = ["eeschema.application.ui.p028"]
+depends_on = ["common.application.ui.p017", "common.font.application.ui.p001", "common.font.application.ui.p002", "eeschema.application.ui.p030", "include.application.ui.p006", "include.application.ui.p008", "include.font.application.thin.replacement.p001", "include.font.application.ui.p001", "libs.core.application.pure.p001", "libs.kimath.include.application.ui.p001", "libs.kimath.include.math.application.ui.p001", "libs.kimath.include.math.application.ui.p002", "libs.kimath.src.geometry.shape_compound.application.ui.p001", "pcbnew.application.ui.p055", "pcbnew.application.ui.p056"]
+soft_depends_on = ["eeschema.application.ui.p029"]
 est_lines = 1559
-layer = 135
+layer = 165
 tests = []
 status = "todo"
 claimed_by = ""

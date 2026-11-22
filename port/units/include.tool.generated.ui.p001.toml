@@ -2,10 +2,10 @@
 id = "include.tool.generated.ui.p001"
 upstream = ["include/tool/edit_table_tool_base.h", "include/tool/tool_base.h"]
 rust_module = "kicad_port::include::tool::generated::ui::p001"
-depends_on = ["common.tool.generated.pure.p001", "include.application.ui.p005", "include.tool.application.ui.p003"]
-soft_depends_on = ["common.tool.application.ui.p003", "common.tool.application.ui.p006", "eeschema.tools.application.ui.p006", "pcbnew.tools.application.ui.p025", "pcbnew.tools.application.ui.p026"]
+depends_on = ["common.tool.application.ui.p006", "common.tool.generated.ui.p001", "include.application.ui.p005", "include.tool.application.ui.p003"]
+soft_depends_on = ["common.tool.application.ui.p003", "eeschema.tools.application.ui.p006", "pcbnew.tools.application.ui.p027", "pcbnew.tools.application.ui.p028"]
 est_lines = 1094
-layer = 38
+layer = 99
 tests = []
 status = "todo"
 claimed_by = ""
