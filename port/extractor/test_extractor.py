@@ -295,6 +295,10 @@ class ValidationTests(unittest.TestCase):
             graph, inventory = fixture(root)
             generated = root / 'port/extractor/generated'
             manifest = freeze(build, generated, {'source_commit': 'a' * 40})
+            recipe_bytes = b'{"@build/lexer.cpp":{"query":"public generator input"}}\n'
+            (generated/'generated-recipes.json').write_bytes(recipe_bytes)
+            manifest['recipes_sha256'] = digest(recipe_bytes)
+            write_json(generated/'generated-sources.json', manifest)
             entries = verify(manifest, build, generated)
             inventory['files'].extend(dict(e, coverage='parsed') for e in entries)
             provenance = graph['provenance']
@@ -309,6 +313,13 @@ class ValidationTests(unittest.TestCase):
             self.assertEqual(report['accounted_lines'], 3)
             self.assertTrue(any('@build/lexer.cpp' in u['upstream'] for u in units.values()))
             self.assertEqual(validate(root), [])
+            compressed_recipe = generated/'generated-recipes.json.gz'
+            compressed_recipe.write_bytes(gzip.compress(recipe_bytes, mtime=0))
+            (generated/'generated-recipes.json').unlink()
+            self.assertEqual(validate(root), [])
+            compressed_recipe.write_bytes(gzip.compress(recipe_bytes+b' ', mtime=0))
+            self.assertTrue(any('recipes fingerprint mismatch' in e for e in validate(root)))
+            compressed_recipe.write_bytes(gzip.compress(recipe_bytes, mtime=0))
             manifest['provenance']['reconciliation.json'] = {'record': {'source_commit': 'b' * 40, 'upstream_pin': PIN}}
             write_json(generated/'generated-sources.json', manifest)
             provenance['generated_sources_manifest_sha256'] = digest((generated/'generated-sources.json').read_bytes())

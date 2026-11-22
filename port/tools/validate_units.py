@@ -8,6 +8,7 @@ No clang installation or upstream build is needed in CI.
 """
 import argparse
 from collections import defaultdict
+import gzip
 import json
 from pathlib import Path, PurePosixPath
 import re
@@ -142,8 +143,11 @@ def validate(root, require_complete=False, check_sources=True, source_root=None)
                 or configuration.get('upstream_pin') != PIN):
             errors.append('generated configure source pin differs from extraction')
         recipes = generated / 'generated-recipes.json'
-        if manifest.get('recipes_sha256') and digest(recipes.read_bytes().replace(b'\r\n', b'\n')) != manifest['recipes_sha256']:
-            errors.append('generated recipes fingerprint mismatch')
+        if manifest.get('recipes_sha256'):
+            recipe_bytes = (recipes.read_bytes() if recipes.exists() else
+                            gzip.decompress(recipes.with_suffix('.json.gz').read_bytes()))
+            if digest(recipe_bytes.replace(b'\r\n', b'\n')) != manifest['recipes_sha256']:
+                errors.append('generated recipes fingerprint mismatch')
         for entry in build_files.values():
             source_path(entry, source_root or root, generated)
         tracked_inventory = [{k:v for k,v in f.items() if k != 'coverage'} for f in inventory['files']
