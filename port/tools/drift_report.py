@@ -10,6 +10,7 @@ import argparse
 from collections import defaultdict
 import json
 from pathlib import Path
+import posixpath
 import re
 import subprocess
 import sys
@@ -126,7 +127,7 @@ def report(root, graph, units, target="HEAD", include_todo=False):
         generated_dependencies = graph['provenance'].get('generated_input_dependencies', {})
         for path in unit['upstream']:
             if path.startswith('@build/'):
-                reasons.update(changed_paths & set(generated_dependencies.get(path, [])))
+                reasons.update(changed_paths & {posixpath.normpath(p) for p in generated_dependencies.get(path, [])})
                 reasons.update(p for p in changed_paths if p.endswith(('CMakeLists.txt', '.cmake')))
         if reasons:
             dependency_reviews.append({"unit": unit["id"], "changed_inputs": sorted(reasons),
