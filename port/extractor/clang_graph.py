@@ -115,7 +115,7 @@ def extract_translation_unit(job):
             """
             def key(t):
                 decl = t.get_declaration()
-                return t.kind.value, t.spelling, decl.get_usr() if decl else ""
+                return t.kind.value, t.spelling, t.get_canonical().spelling, decl.get_usr() if decl else ""
 
             initial = key(type)
             if initial in type_cache:

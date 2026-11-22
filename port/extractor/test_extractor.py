@@ -468,12 +468,17 @@ int direct(Window* value) { return 0; }
 int nested(Widgets const& value) { return 0; }
 NETNAMES_MAP const& names(NETNAMES_MAP const& value) { return value; }
 int recursive(Node const* value) { return 0; }
+namespace Plain { struct Value {}; using Alias = Value; int get(Alias*) { return 1; } }
+namespace Gui { using Alias = wxFrame; int get(Alias*) { return 1; } }
 ''', encoding='utf-8')
             result = extract_translation_unit(dict(root=tmp, old_root=tmp, file=str(source), directory=tmp,
                 arguments=['clang++', '-std=c++20', '-c', str(source)],
                 libclang='/usr/lib/llvm-21/lib/libclang-21.so.1'))
             self.assertEqual(result['status'], 'ok', result['diagnostics'])
             for f in result['functions'].values():
+                if f['name'].startswith('Plain::'):
+                    self.assertEqual(f['wx'], [])
+                    continue
                 self.assertIn('wxString' if f['name'].startswith('names(') else 'wxFrame', f['wx'], f)
             classify(result['functions'], expand_virtual(result['calls'], result['overrides']))
             self.assertEqual(next(f['wx_class'] for f in result['functions'].values()
