@@ -554,10 +554,8 @@ impl<E: Coord + Wire + Into<Value>, const D: usize, const M: usize> Program<E, D
                         return Err(lib(RtreeError::CountOutOfDomain));
                     }
                 } else {
+                    // An overlapping slot from 32 upwards is refused by the library.
                     Self::count_domain(node)?;
-                    if node.count > 32 {
-                        return Err(lib(RtreeError::CountOutOfDomain));
-                    }
                 }
                 let mask = node.child_overlap_mask(&min, &max).map_err(lib)?;
                 Ok(json!({"value": mask}))
@@ -655,13 +653,14 @@ fn slab(input: &Value) -> Outcome {
         .get("config")
         .and_then(Value::as_str)
         .ok_or("unknown config")?;
-    const CONFIGS: [&str; 9] = [
+    const CONFIGS: [&str; 10] = [
         "i32.d2.m16",
         "i32.d2.m4",
         "i32.d2.m28",
         "i32.d3.m16",
         "i32.d3.m5",
         "i32.d3.m32",
+        "i32.d3.m33",
         "i32.d1.m8",
         "i64.d2.m16",
         "i64.d3.m8",
@@ -683,6 +682,7 @@ fn slab(input: &Value) -> Outcome {
         "i32.d3.m16" => run_slab::<i32, 3, 16>(steps),
         "i32.d3.m5" => run_slab::<i32, 3, 5>(steps),
         "i32.d3.m32" => run_slab::<i32, 3, 32>(steps),
+        "i32.d3.m33" => run_slab::<i32, 3, 33>(steps),
         "i32.d1.m8" => run_slab::<i32, 1, 8>(steps),
         "i64.d2.m16" => run_slab::<i64, 2, 16>(steps),
         _ => run_slab::<i64, 3, 8>(steps),

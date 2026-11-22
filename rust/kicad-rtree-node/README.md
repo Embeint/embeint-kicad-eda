@@ -93,7 +93,7 @@ live oracle for every configuration.
 | Hilbert order outside 1..=32 (2D); Morton order `INT_MIN`, or above 32 with at most 64 dimensions; zero dimensions | `OrderOutOfDomain`, `DimensionsOutOfDomain` |
 | `OverlapMask2D` count outside 0..=31, short lanes, invalid fanout | `CountOutOfDomain`, `SliceTooShort`, `FanoutOutOfDomain` |
 | Slot outside `0..MAXNODES`; `RemoveChild` slot not below `count` (the reference asserts) | `SlotOutOfRange` |
-| `count` above `MAXNODES` for loops that index with it; non-2D mask counts above 32 | `CountOutOfDomain` |
+| `count` above `MAXNODES` for loops that index with it; a non-2D mask whose overlapping slot is 32 or above (`1U << i` runs only for overlapping slots) | `CountOutOfDomain` |
 | Signed 64-bit overflow in area, perimeter, overlap area or enlargement | `Overflow` |
 | Access to or `Free` of a freed node (use after free, double destruction) | `NodeNotLive` |
 | Typed read of the inactive union member | `InactiveUnionMember` |

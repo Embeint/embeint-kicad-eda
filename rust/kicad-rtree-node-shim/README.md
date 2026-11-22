@@ -16,8 +16,8 @@ same schema, validate fields in the same order and refuse with the same messages
   "min0","max0","min1","max1":[E; fanout],"qmin","qmax":[E; 2]}` returns `{"mask":u32}`.
 * `{"kind":"slab","config":C,"steps":[...]}` (1 to 4096 steps) returns
   `{"events":[...]}` with one object per step. `C` is one of `i32.d2.m16`, `i32.d2.m4`,
-  `i32.d2.m28`, `i32.d3.m16`, `i32.d3.m5`, `i32.d3.m32`, `i32.d1.m8`, `i64.d2.m16`,
-  `i64.d3.m8` (`ELEMTYPE`, `NUMDIMS`, `MAXNODES`; `DATATYPE` is a pointer to one of 64
+  `i32.d2.m28`, `i32.d3.m16`, `i32.d3.m5`, `i32.d3.m32`, `i32.d3.m33`, `i32.d1.m8`,
+  `i64.d2.m16`, `i64.d3.m8` (`ELEMTYPE`, `NUMDIMS`, `MAXNODES`; `DATATYPE` is a pointer to one of 64
   request-local items).
 
 Allocators `a`/`src` are 0..3. Nodes are numbered by first allocation (a reused node keeps

@@ -137,6 +137,26 @@ fn remove_child_moves_last_slot_and_keeps_stale_tail() {
 }
 
 #[test]
+fn n_dimensional_mask_shifts_only_overlapping_slots() {
+    let mut node = RtreeNode::<Item, i32, 3, 33>::new();
+    node.count = 33;
+    let point = [1; 3];
+    assert_eq!(node.child_overlap_mask(&point, &point), Ok(0));
+    node.set_child_bounds(0, &point, &point).unwrap();
+    assert_eq!(node.child_overlap_mask(&point, &point), Ok(1));
+    // Every zero box overlaps the origin, including slot 32: 1U << 32 is undefined.
+    assert_eq!(
+        node.child_overlap_mask(&[0; 3], &[0; 3]),
+        Err(RtreeError::CountOutOfDomain)
+    );
+    node.count = 34;
+    assert_eq!(
+        node.child_overlap_mask(&[9; 3], &[9; 3]),
+        Err(RtreeError::CountOutOfDomain)
+    );
+}
+
+#[test]
 fn reference_layout_matches_the_pinned_linux_abi() {
     let node = Node::reference_layout().unwrap();
     assert_eq!((node.size, node.align), (656, 8));

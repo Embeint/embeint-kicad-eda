@@ -313,6 +313,7 @@ RTREE_CONFIG( int, 2, 28 )
 RTREE_CONFIG( int, 3, 16 )
 RTREE_CONFIG( int, 3, 5 )
 RTREE_CONFIG( int, 3, 32 )
+RTREE_CONFIG( int, 3, 33 )
 RTREE_CONFIG( int, 1, 8 )
 RTREE_CONFIG( int64_t, 2, 16 )
 RTREE_CONFIG( int64_t, 3, 8 )
@@ -886,10 +887,15 @@ private:
             }
             else
             {
+                // ChildOverlaps reads slot i < count; the shift 1U << i runs only for
+                // an overlapping slot and is undefined from 32 upwards.
                 CountDomain( node );
 
-                if( node->count > 32 )
-                    Refuse( "count outside reference domain" );
+                for( int i = 32; i < node->count; ++i )
+                {
+                    if( node->ChildOverlaps( i, query.min, query.max ) )
+                        Refuse( "count outside reference domain" );
+                }
             }
 
             return { { "value", node->ChildOverlapMask( query.min, query.max ) } };
@@ -1023,6 +1029,7 @@ JSON SlabCase( const JSON& aInput )
 
     if( name != "i32.d2.m16" && name != "i32.d2.m4" && name != "i32.d2.m28"
         && name != "i32.d3.m16" && name != "i32.d3.m5" && name != "i32.d3.m32"
+        && name != "i32.d3.m33"
         && name != "i32.d1.m8" && name != "i64.d2.m16" && name != "i64.d3.m8" )
     {
         Refuse( "unknown config" );
@@ -1040,6 +1047,7 @@ JSON SlabCase( const JSON& aInput )
     if( name == "i32.d3.m16" ) return RunSlab<int, 3, 16>( steps );
     if( name == "i32.d3.m5" ) return RunSlab<int, 3, 5>( steps );
     if( name == "i32.d3.m32" ) return RunSlab<int, 3, 32>( steps );
+    if( name == "i32.d3.m33" ) return RunSlab<int, 3, 33>( steps );
     if( name == "i32.d1.m8" ) return RunSlab<int, 1, 8>( steps );
     if( name == "i64.d2.m16" ) return RunSlab<int64_t, 2, 16>( steps );
     return RunSlab<int64_t, 3, 8>( steps );

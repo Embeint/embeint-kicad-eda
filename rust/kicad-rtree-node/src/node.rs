@@ -254,15 +254,17 @@ impl<T: NodeData, E: Coord, const NUMDIMS: usize, const MAXNODES: usize>
             );
         }
 
+        // ChildOverlaps reads slot i, so count may not exceed MAXNODES; the shift
+        // 1U << i runs only for an overlapping slot and is undefined from 32 upwards.
         let visited = self.visited()?;
-        if visited > 32 {
-            return Err(RtreeError::CountOutOfDomain);
-        }
         let mut mask: u32 = 0;
         for i in 0..visited {
             if self.child_overlaps(i, min, max)? {
-                let shift = u32::try_from(i).map_err(|_| RtreeError::CountOutOfDomain)?;
-                mask |= 1_u32 << shift;
+                let bit = u32::try_from(i)
+                    .ok()
+                    .and_then(|shift| 1_u32.checked_shl(shift))
+                    .ok_or(RtreeError::CountOutOfDomain)?;
+                mask |= bit;
             }
         }
         Ok(mask)

@@ -488,6 +488,31 @@ def review_cases():
         cases.append(request(f"review-hilbert-nd-d{dims}-o-min-plus-one", {
             "kind": "hilbert_nd", "dims": dims, "order": I32[0] + 1,
             "coords": [rng.randint(0, U32) for _ in range(dims)]}))
+    # N-dimensional ChildOverlapMask shifts 1U << i only for overlapping slots, so a
+    # 33-slot node may visit slot 32 while it does not overlap the query.
+    point = [1, 1, 1]
+    steps = [{"op": "layout"}, {"op": "new", "a": 0}, {"op": "alloc", "a": 0},
+             {"op": "set_count", "node": 0, "value": 33}, {"op": "predicates", "node": 0},
+             {"op": "mask", "node": 0, "min": point, "max": point},
+             {"op": "set_bounds", "node": 0, "slot": 0, "min": point, "max": point},
+             {"op": "mask", "node": 0, "min": point, "max": point},
+             {"op": "set_bounds", "node": 0, "slot": 31, "min": point, "max": point},
+             {"op": "mask", "node": 0, "min": point, "max": point},
+             {"op": "set_bounds", "node": 0, "slot": 32, "min": [5] * 3, "max": [5] * 3},
+             {"op": "mask", "node": 0, "min": point, "max": point},
+             {"op": "mask", "node": 0, "min": [0] * 3, "max": [0] * 3},
+             {"op": "set_count", "node": 0, "value": 32},
+             {"op": "mask", "node": 0, "min": [5] * 3, "max": [5] * 3},
+             {"op": "set_count", "node": 0, "value": 33},
+             {"op": "enclosing", "node": 0}, {"op": "area", "node": 0, "slot": 32},
+             {"op": "overlaps", "node": 0, "slot": 32, "min": [5] * 3, "max": [5] * 3},
+             {"op": "remove", "node": 0, "slot": 0}, {"op": "snapshot", "node": 0},
+             {"op": "mask", "node": 0, "min": point, "max": point}]
+    cases.append(request("review-slab-i32.d3.m33-mask",
+                         {"kind": "slab", "config": "i32.d3.m33", "steps": steps}))
+    for case, steps in fixed_programs("i32.d3.m33", I32, 3, 33):
+        cases.append(request("review-" + case, {"kind": "slab", "config": "i32.d3.m33",
+                                                "steps": steps}))
     return cases
 
 
@@ -664,6 +689,14 @@ def refusals():
             nd_min)
     for dims in [1, 33, 64]:
         add(f"review-nd-d{dims}-order-33", dict(nd, dims=dims, coords=[0] * dims, order=33), nd_min)
+    m33 = [new, alloc, {"op": "set_count", "node": 0, "value": 33}]
+    slab("review-mask-m33-overlapping-slot-32",
+         m33 + [{"op": "mask", "node": 0, "min": [0] * 3, "max": [0] * 3}],
+         "count outside reference domain", config="i32.d3.m33")
+    slab("review-mask-m33-count-34",
+         [new, alloc, {"op": "set_count", "node": 0, "value": 34},
+          {"op": "mask", "node": 0, "min": [9] * 3, "max": [9] * 3}],
+         "count outside reference domain", config="i32.d3.m33")
     # Envelope-level refusals use the shared transport messages.
     checks.append(({"unit": "other.unit", "case": "unit", "input": {}},
                    failure("unit", "unit has no registered shim", "unknown_unit", "other.unit")))
