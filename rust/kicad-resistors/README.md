@@ -6,9 +6,12 @@ Unit `pcb_calculator.application.pure.p001`, at KiCad
 `19035296e129cf8640e89331bc9e8ad84f0fe38c` records **1,126 physical lines,
 40 owned definitions and seven files**, L0/pure, with no hard/soft dependencies
 or gaps. Its exact source/functions/ranges/accounting are retained alongside
-this pilot's port metadata and difftest registration. Final independent graph
-review and parent acceptance remain pending; status stays `claimed`, not green.
-A passing pilot does not establish phase-zero completion.
+this pilot's port metadata and difftest registration. #39 is merged into `rust`
+as `9a48bb6636`, whose tree equals the reviewed `328572624e`; every protected
+field of this record is unchanged there. The parent accepted the owned
+implementation and the corrected scope, so the status is `green` (see
+[Acceptance status](#acceptance-status)). A passing pilot does not establish
+phase-zero completion.
 
 | Accounted path | Inclusive lines |
 | --- | --- |
@@ -262,8 +265,8 @@ bytes/results and both historical evidence files remain unchanged. See
 [`resistors-review-fixes-af47b0e731.md`](../../port/findings/resistors-review-fixes-af47b0e731.md)
 for all five review fixes, executable identities, timings and coverage limits.
 Fresh complete evidence records the standard live `propose`/`bless`/`check`
-sequence against an absent base golden. This parity evidence leaves the unit
-claimed; phase zero remains incomplete.
+sequence against an absent base golden. At that checkpoint the unit stayed
+claimed and phase zero was incomplete.
 
 Corrected-scope integration at clean source
 `1b42b8368eaf369102b8fc2f58a8af3428eb6a66` passed 112 workspace tests, four
@@ -273,7 +276,28 @@ and the corrected 1,801-record source validator. No case, golden or historical
 evidence byte changed and no reblessing was needed. Fresh source/provenance and
 executable identities are in
 [`resistors-corrected-integration-19035296e1.md`](../../port/findings/resistors-corrected-integration-19035296e1.md).
-Final independent #39 review and parent graph acceptance remain holds.
+Final independent #39 review and parent graph acceptance were holds at that point.
+
+## Acceptance status
+
+#39 passed its independent reviews and is merged into `rust` as `9a48bb6636`. The
+parent accepted:
+
+- the owned 40-definition implementation and the corrected scope;
+- the NaN qualification, which covers GCC 13/15 Release x86-64 only (no GCC O0,
+  Clang or NaN payload claim);
+- the 1,050-case native and wasm parity and the request protocol reviews.
+
+The unit is therefore `green`. The GetReader thin owner stays `todo`.
+
+The phase zero integration (#49) checked this unit together with the MD5 and
+IEC60664 pilots in one oracle and workspace. Runtime `7207de24ed` passed all
+1,050 registered cases among 21,213, with zero deferrals or failures, and 1,159
+complete replies on the oracle and both shim profiles; see
+[`phase0-final-integration-7207de24ed.md`](../../port/findings/phase0-final-integration-7207de24ed.md).
+The pilot PR merges and the hosted strict phase-zero gate are still pending.
+Green alone does not establish phase-zero completion. All earlier evidence above
+stays as recorded.
 
 ## Dependencies and licences
 
