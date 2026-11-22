@@ -9,7 +9,8 @@ or gaps. Its exact source/functions/ranges/accounting are retained alongside
 this pilot's port metadata and difftest registration. #39 is merged into `rust`
 as `9a48bb6636`, whose tree equals the reviewed `328572624e`; every protected
 field of this record is unchanged there. The parent accepted the owned
-implementation and the corrected scope, so the status is `green` (see
+implementation and the corrected scope, and this pilot (#44) is merged into
+`rust` as `cb4e5daa74`, so the status is `green` (see
 [Acceptance status](#acceptance-status)). A passing pilot does not establish
 phase-zero completion.
 
@@ -295,10 +296,17 @@ IEC60664 pilots in one oracle and workspace. Runtime `7207de24ed` passed all
 1,050 registered cases among 21,213, with zero deferrals or failures, and 1,159
 complete replies on the oracle and both shim profiles; see
 [`phase0-final-integration-7207de24ed.md`](../../port/findings/phase0-final-integration-7207de24ed.md).
-The IEC60664 pilot (#43) is merged into `rust`. The #42 and #44 merges and the
-hosted strict phase-zero gate are still pending.
-Green alone does not establish phase-zero completion. All earlier evidence above
-stays as recorded.
+
+All three pilots are merged into `rust`. This one (#44) merged as `cb4e5daa74`,
+whose tree equals the reviewed head `5275f29be6`, after its independent reviews
+and passing head CI. The hosted
+[rust-port run](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45015332781/job/137186313699)
+at that head built and audited a fresh oracle (`9feca7f0...`), passed 8 CTests
+and all 21,213 registered cases with zero deferrals. The record was still
+`claimed` and the flag `false` in that run, so its phase-zero summary read
+INCOMPLETE 2/3. The strict hosted CI run of the combined integration is the
+phase-zero acceptance authority and is pending. Green alone does not establish
+phase-zero completion. All earlier evidence above stays as recorded.
 
 ## Dependencies and licences
 

@@ -7,14 +7,14 @@ IEC60664-1:2020-05 tables and computation order. It makes no safety certificatio
 claim. It uses the reference's scalar units directly, including the different
 voltage scales used by different helpers; it performs no unit conversion.
 
-Unit: `pcb_calculator.calculator_panels.application.pure.p001`. **Provisional
-dependency:** corrected #39 at `19035296e129cf8640e89331bc9e8ad84f0fe38c`
-(virtual destruction, active generated definitions and wx alias corrections) is
-published but still under independent review; the parent must accept that review
-and merge #39 before this pilot. Its canonical record (blob
-`d4983c3c8cd1bbfe65a6889048dbaf833228b96b`) is byte-identical to the historical
-provisional snapshot `a7ec77beffd3b2e5d60409423fa28b6c116c6e00` this pilot was
-first built on. None of its scope is frozen by this pilot, and no scope is
+Unit: `pcb_calculator.calculator_panels.application.pure.p001`. **Accepted
+graph:** corrected #39 (`19035296e129cf8640e89331bc9e8ad84f0fe38c`: virtual
+destruction, active generated definitions and wx alias corrections) passed its
+independent review and is merged into `rust` as `9a48bb6636`. This pilot (#43) is
+merged as `e3d4122a44`. When the pilot was built, its canonical record (blob
+`d4983c3c8cd1bbfe65a6889048dbaf833228b96b`) was byte-identical to the historical
+provisional snapshot `a7ec77beffd3b2e5d60409423fa28b6c116c6e00`; every protected
+field still is. None of its scope is frozen by this pilot, and no scope is
 reduced to preserve L0. It accounts for **1,943 physical lines
 across nine files, with the same
 28 IEC60664 definitions**, layer 0, pure, no hard/soft dependencies and no coverage
@@ -200,12 +200,11 @@ independent review were pending merge gates. Local exact agreement and stored
 goldens do not establish the full three-pilot phase-zero gate or
 all-configuration extraction completeness. `PHASE0_REQUIRED` was false then.
 
-Current integration status: #39 is merged into `rust`, and this pilot (#43) is
-merged as `e3d4122a44` with its reviewed tree. The phase zero integration
-candidate (#49) checks this unit with the MD5 and resistor pilots and sets
-`PHASE0_REQUIRED` to true. The #42 and #44 merges and their current CI, the
-independent review of the candidate and hosted strict-gate acceptance remain
-pending. Extraction
+Current integration status: #39 and all three pilots (#42, #43 and #44) are
+merged into `rust`; this pilot merged as `e3d4122a44` with its reviewed tree. The
+phase zero integration (#49) checks this unit with the MD5 and resistor pilots
+and sets `PHASE0_REQUIRED` to true. Its strict hosted CI run is the phase zero
+acceptance authority and is pending. Extraction
 completeness is still not part of that gate.
 
 ## Adapter review corrections
@@ -259,7 +258,8 @@ adapter treats as plain objects. `port/oracle/iec60664-reserved-key-guards.jsonl
 (88 complete envelopes) holds the C++ expectations; at `f1556f90` the oracle
 passed them and the Rust shim diverged on 50
 ([validation](validation/2026-11-22-f1556f90/README.md)). With #48's reviewed
-object-preserving helper integrated (`1ec85a44`, not yet merged into rust), both
+object-preserving helper integrated (`1ec85a44`, not yet merged into rust at
+that time; since merged as `1a2fb924d5`), both
 processes pass all 636 envelopes by default at `32b88a6c`, and a shim test checks
 marker objects and their strings survive at every request position
 ([validation](validation/2026-11-22-32b88a6c/README.md)).
