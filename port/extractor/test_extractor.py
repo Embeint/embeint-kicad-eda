@@ -524,6 +524,8 @@ using Widgets = Map<int, Map<int, Window*>>;
 struct Node { Node* next; Widget* widget; int get() { return 1; } };
 struct Owner { Widget* widget; int get() { return 2; } };
 union UnionOwner { Widget* widget; int number; int get() { return 2; } };
+template<class T> struct Partial;
+template<class T> struct Partial<T*> { Widget* widget; int get() { return 2; } };
 int direct(Window* value) { return 0; }
 int nested(Widgets const& value) { return 0; }
 NETNAMES_MAP const& names(NETNAMES_MAP const& value) { return value; }
