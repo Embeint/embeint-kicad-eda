@@ -174,10 +174,11 @@ these results were recorded, the PR was a draft, dependent on #39 and pending
 independent review and hosted CI. `PHASE0_REQUIRED=false` was unchanged, because
 one pilot does not satisfy the three-pilot phase-zero gate.
 
-Current integration status: #39 is merged into `rust`. The phase zero integration
-candidate (#49) checks this unit with the IEC60664 and resistor pilots and sets
-`PHASE0_REQUIRED=true`. The pilot merges, current pilot CI, independent review
-of the candidate and hosted strict-gate acceptance remain pending.
+Current integration status: #39 and the IEC60664 pilot (#43) are merged into
+`rust`. The phase zero integration candidate (#49) checks this unit with the
+IEC60664 and resistor pilots and sets `PHASE0_REQUIRED=true`. The #42 and #44
+merges and their current CI, the independent review of the candidate and hosted
+strict-gate acceptance remain pending.
 
 ## Adapter review corrections
 

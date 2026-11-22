@@ -295,7 +295,8 @@ IEC60664 pilots in one oracle and workspace. Runtime `7207de24ed` passed all
 1,050 registered cases among 21,213, with zero deferrals or failures, and 1,159
 complete replies on the oracle and both shim profiles; see
 [`phase0-final-integration-7207de24ed.md`](../../port/findings/phase0-final-integration-7207de24ed.md).
-The pilot PR merges and the hosted strict phase-zero gate are still pending.
+The IEC60664 pilot (#43) is merged into `rust`. The #42 and #44 merges and the
+hosted strict phase-zero gate are still pending.
 Green alone does not establish phase-zero completion. All earlier evidence above
 stays as recorded.
 

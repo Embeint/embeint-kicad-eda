@@ -200,10 +200,12 @@ independent review were pending merge gates. Local exact agreement and stored
 goldens do not establish the full three-pilot phase-zero gate or
 all-configuration extraction completeness. `PHASE0_REQUIRED` was false then.
 
-Current integration status: #39 is merged into `rust`. The phase zero integration
+Current integration status: #39 is merged into `rust`, and this pilot (#43) is
+merged as `e3d4122a44` with its reviewed tree. The phase zero integration
 candidate (#49) checks this unit with the MD5 and resistor pilots and sets
-`PHASE0_REQUIRED` to true. The pilot merges, current pilot CI, independent review
-of the candidate and hosted strict-gate acceptance remain pending. Extraction
+`PHASE0_REQUIRED` to true. The #42 and #44 merges and their current CI, the
+independent review of the candidate and hosted strict-gate acceptance remain
+pending. Extraction
 completeness is still not part of that gate.
 
 ## Adapter review corrections
