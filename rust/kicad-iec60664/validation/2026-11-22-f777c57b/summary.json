@@ -1,0 +1,9 @@
+{
+  "tested_source": "f777c57baaf1813f210e3ce022db553b301c5dd6",
+  "parser_dependency": "8f5f45729c733d8f1695dda9ee6d953f9bb4d400",
+  "cases": 14190,
+  "complete_refusals_per_adapter": 106,
+  "pinned_files": 824,
+  "compile_commands": 60,
+  "original_artifacts_unchanged": true
+}

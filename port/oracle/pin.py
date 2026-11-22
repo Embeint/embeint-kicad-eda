@@ -6,4 +6,6 @@ SOURCE_PATHS = (
     "libs/core", "libs/kimath", "include", "thirdparty/clipper2",
     "thirdparty/rtree", "thirdparty/nlohmann_json",
     "cmake/config.h.cmake", "cmake/PerformFeatureChecks.cmake",
+    "pcb_calculator/calculator_panels/iec60664.cpp",
+    "pcb_calculator/calculator_panels/iec60664.h",
 )
