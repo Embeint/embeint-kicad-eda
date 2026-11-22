@@ -8,12 +8,14 @@ claim. It uses the reference's scalar units directly, including the different
 voltage scales used by different helpers; it performs no unit conversion.
 
 Unit: `pcb_calculator.calculator_panels.application.pure.p001`. **Provisional
-dependency snapshot:** independent #39 review requires graph corrections for
-virtual destruction, active generated definitions and wx aliases. Corrected
-ownership, scope and layers must be reconfirmed by the parent before merge; none
-is frozen by this pilot. No scope is reduced to preserve L0. The #39
-record at `a7ec77beffd3b2e5d60409423fa28b6c116c6e00` (blob
-`d4983c3c8cd1bbfe65a6889048dbaf833228b96b`) accounts for **1,943 physical lines
+dependency:** corrected #39 at `19035296e129cf8640e89331bc9e8ad84f0fe38c`
+(virtual destruction, active generated definitions and wx alias corrections) is
+published but still under independent review; the parent must accept that review
+and merge #39 before this pilot. Its canonical record (blob
+`d4983c3c8cd1bbfe65a6889048dbaf833228b96b`) is byte-identical to the historical
+provisional snapshot `a7ec77beffd3b2e5d60409423fa28b6c116c6e00` this pilot was
+first built on. None of its scope is frozen by this pilot, and no scope is
+reduced to preserve L0. It accounts for **1,943 physical lines
 across nine files, with the same
 28 IEC60664 definitions**, layer 0, pure, no hard/soft dependencies and no coverage
 gaps. The actual Rust module is `kicad_iec60664::iec60664`; root reexports preserve
@@ -190,8 +192,8 @@ nine return NOT_INSULATING. Every one of the 4,069 Compute calls returns true;
 counts describe reference behavior, not design approval. The corpus also checks
 29,417 setters, 13 state reads and the named-category inventory.
 
-The pilot PR provisionally depends on #39 and targets `rust`; the parent must
-confirm its corrected generated scope, then review and merge #39 first.
+The pilot PR provisionally depends on corrected #39 at `19035296` and targets
+`rust`; the parent must accept #39's independent review and merge it first.
 The unit's local green metadata records exact implementation evidence. Hosted
 pilot CI and independent review remain pending merge gates. Local exact agreement
 and stored goldens do not establish the full three-pilot phase-zero gate or
@@ -227,3 +229,17 @@ clean source `f777c57baaf1813f210e3ce022db553b301c5dd6`, five CTests, 106 comple
 refusal envelopes on each actual process and all 14,190 unchanged live cases.
 No reblessing occurred. The parent has merged reviewed #45; corrected #39 scope
 confirmation, hosted pilot CI and independent review remain required.
+
+## Corrected extractor and nesting bound
+
+Runtime source `7903c45d1cfdad45439608f244f8cfbe2a5a2d70` integrates corrected
+#39 `19035296` (still under independent review) and origin/rust `4c6c1e38`,
+including the C++ 127-open-container transport bound (#47). The canonical unit
+record is unchanged from the historical `a7ec77be` snapshot. A separate shared
+fixture set (`port/oracle/iec60664-nesting-guards.jsonl`, 442 complete envelopes)
+checks IEC replies at 126 to 129 open containers, with nested input, step,
+top-level, unknown-unit and identity fields. The original 106 fixtures are
+unchanged.
+[Validation](validation/2026-11-22-7903c45d/README.md) records five CTests, 548
+complete envelopes on each actual process, all 1,801 unit records and all 14,190
+unchanged live cases. No reblessing occurred.
