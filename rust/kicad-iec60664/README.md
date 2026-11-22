@@ -7,7 +7,11 @@ IEC60664-1:2020-05 tables and computation order. It makes no safety certificatio
 claim. It uses the reference's scalar units directly, including the different
 voltage scales used by different helpers; it performs no unit conversion.
 
-Unit: `pcb_calculator.calculator_panels.application.pure.p001`. The canonical #39
+Unit: `pcb_calculator.calculator_panels.application.pure.p001`. **Provisional
+dependency snapshot:** independent #39 review requires graph corrections for
+virtual destruction, active generated definitions and wx aliases. Corrected
+ownership, scope and layers must be reconfirmed by the parent before merge; none
+is frozen by this pilot. No scope is reduced to preserve L0. The #39
 record at `a7ec77beffd3b2e5d60409423fa28b6c116c6e00` (blob
 `d4983c3c8cd1bbfe65a6889048dbaf833228b96b`) accounts for **1,943 physical lines
 across nine files, with the same
@@ -186,7 +190,8 @@ nine return NOT_INSULATING. Every one of the 4,069 Compute calls returns true;
 counts describe reference behavior, not design approval. The corpus also checks
 29,417 setters, 13 state reads and the named-category inventory.
 
-The pilot PR depends on #39 and targets `rust`; the parent must merge #39 first.
+The pilot PR provisionally depends on #39 and targets `rust`; the parent must
+confirm its corrected generated scope, then review and merge #39 first.
 The unit's local green metadata records exact implementation evidence. Hosted
 pilot CI and independent review remain pending merge gates. Local exact agreement
 and stored goldens do not establish the full three-pilot phase-zero gate or
