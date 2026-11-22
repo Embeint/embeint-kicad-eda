@@ -378,8 +378,13 @@ parse root. All tracked C/C++ files and the pinned generator/configure input
 audit (including Markdown, schemas and scripts) must match their recorded
 CRLF-to-LF-normalized hashes. Unrecorded Ninja source inputs fail rather than
 disappearing from the map. Source, build, frozen inputs and external tools are
-checked again after capture. `apply` binds the same complete source identity and
-input-audit hash to the original inventory and pins, without reading the physical
+checked again after capture. Capture invokes the manifest's verified absolute
+Ninja executable for every target catalog, query and command listing, regardless
+of PATH. A missing or
+relative recorded Ninja path is refused; the executable actually invoked is
+covered by the checks before and after capture.
+`apply` binds the same complete source identity and input-audit hash to the
+original inventory and pins, without reading the physical
 source tree; it therefore still runs on Windows. It needs neither clang
 nor Ninja. It replaces only the generator dependency map, the build-generated
 `generator_inputs`, the manifest and inventory fingerprints derived from them, and

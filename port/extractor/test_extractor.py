@@ -4,6 +4,7 @@ import importlib.util
 import gzip
 import json
 import os
+import shlex
 import shutil
 from pathlib import Path
 import subprocess
@@ -371,6 +372,14 @@ class ValidationTests(unittest.TestCase):
             version = subprocess.run([str(tool), '--version'], capture_output=True, text=True)
             tool_proof = {'path': str(tool), 'sha256': digest(tool.read_bytes()),
                           'version_exit': version.returncode, 'version': version.stdout, 'stderr': version.stderr}
+            real_ninja = Path(shutil.which('ninja')).resolve()
+            pinned_ninja = parent / 'recorded-ninja'
+            pinned_ninja.write_text('#!/bin/sh\nexec ' + shlex.quote(str(real_ninja)) + ' "$@"\n')
+            pinned_ninja.chmod(0o755)
+            ninja_version = subprocess.run([str(pinned_ninja), '--version'], capture_output=True, text=True)
+            ninja_proof = {'path': str(pinned_ninja), 'sha256': digest(pinned_ninja.read_bytes()),
+                           'version_exit': ninja_version.returncode, 'version': ninja_version.stdout,
+                           'stderr': ninja_version.stderr}
             graph['provenance']['source_root'] = str(root.resolve())
             generation_inputs = parent / 'generation-inputs.json'
             write_json(generation_inputs, {'source_commit': graph['provenance']['source_commit'],
@@ -378,7 +387,7 @@ class ValidationTests(unittest.TestCase):
                                               for name in ('derived.h', 'schema.md')]})
             manifest = freeze(build, generated, {'reconciliation.json': {'record': {
                 'source_root': str(root.resolve()), 'source_commit': graph['provenance']['source_commit'],
-                'upstream_pin': PIN}}, 'tools': {'fixture-tool': tool_proof}})
+                'upstream_pin': PIN}}, 'tools': {'fixture-tool': tool_proof, 'ninja': ninja_proof}})
             # Simulate a parse whose older capture treated derived.h as a leaf.
             manifest['files'][0]['generator_inputs'] = ['derived.h']
             recipes = b'{"@build/final.h":{"query":"older capture"}}\n'
@@ -405,6 +414,41 @@ class ValidationTests(unittest.TestCase):
             captured = refresh.capture(base / 'generated-sources.json', root, parent / 'capture', **options)
             self.assertEqual(captured['generator_inputs']['@build/final.h'], ['derived.h', 'schema.md'])
             self.assertEqual(captured['source_generator_dependencies']['derived.h'], ['schema.md'])
+            # A PATH wrapper queries a different real Ninja graph, omitting the
+            # Markdown edge. It must never run: all invocations use pinned_ninja.
+            shadow = parent / 'shadow'; shadow.mkdir()
+            alternate = parent / 'alternate'; alternate.mkdir()
+            (alternate / 'build.ninja').write_text('rule gen\n  command = true\n'
+                                                  f'build {derived}: gen\n'
+                                                  'build final.h: gen ../source/derived.h\n')
+            called = parent / 'shadow-called'
+            wrapper = shadow / 'ninja'
+            wrapper.write_text('#!/bin/sh\nprintf used >> ' + shlex.quote(str(called))
+                               + '\nshift 2\nexec ' + shlex.quote(str(real_ninja)) + ' -C '
+                               + shlex.quote(str(alternate)) + ' "$@"\n')
+            wrapper.chmod(0o755)
+            with mock.patch.dict(os.environ, {'PATH': str(shadow) + os.pathsep + os.environ.get('PATH', '')}):
+                alternate_entries = [dict(entry) for entry in manifest['files']]
+                capture_recipes(build, root, alternate_entries, ninja=str(wrapper))
+                self.assertEqual(alternate_entries[0]['generator_inputs'], ['derived.h'])
+                self.assertTrue(called.exists(), 'The substitution control did not invoke its wrapper')
+                called.unlink()
+                shadow_capture = refresh.capture(base / 'generated-sources.json', root,
+                                                  parent / 'capture-shadowed', **options)
+            self.assertFalse(called.exists(), 'Capture invoked an unrecorded PATH executable')
+            self.assertEqual(shadow_capture['generator_inputs'], captured['generator_inputs'])
+            self.assertEqual(shadow_capture['source_generator_dependencies'], captured['source_generator_dependencies'])
+            self.assertEqual((parent / 'capture-shadowed/generated-recipes.json').read_bytes(),
+                             (parent / 'capture/generated-recipes.json').read_bytes())
+            for missing_or_relative in (None, 'ninja'):
+                bad_manifest = read_json(base / 'generated-sources.json')
+                if missing_or_relative is None:
+                    del bad_manifest['provenance']['tools']['ninja']
+                else:
+                    bad_manifest['provenance']['tools']['ninja']['path'] = missing_or_relative
+                write_json(parent / 'bad-tool-manifest.json', bad_manifest)
+                with self.assertRaisesRegex(ValueError, 'recorded absolute Ninja'):
+                    refresh.capture(parent / 'bad-tool-manifest.json', root, parent / 'bad-tool', **options)
             capture_args = (base / 'generated-sources.json', parent / 'capture/generator-dependency-capture.json',
                             parent / 'capture/generated-recipes.json')
             result = refresh.apply(base / 'graph.json', base / 'inventory.json', *capture_args, parent / 'out', **apply_options)
@@ -479,6 +523,7 @@ class ValidationTests(unittest.TestCase):
                 return changed
             for path, message in [(root / 'a.cpp', 'Pinned refresh source'),
                                   (base / 'sources/final.h', 'Frozen generated input changed'),
+                                  (pinned_ninja, 'Generator tool identity changed'),
                                   (tool, 'Generator tool identity changed')]:
                 original_bytes = path.read_bytes()
                 try:
