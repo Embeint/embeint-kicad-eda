@@ -7,6 +7,7 @@ namespace resistor_test
 struct COLLECTED
 {
     RESISTANCE best;
+    RESISTANCE again;
     size_t     callbacks;
 };
 

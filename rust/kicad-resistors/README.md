@@ -113,7 +113,7 @@ missing keys are refused. Arrays and names are checked before allocation/iterati
 | `format` | `values_bits: [u64]` (up to 4,096); returns complete `strValue` strings. |
 | `resistance` | `values: [resistance input]` (up to 256); returns constructor results. |
 | `helpers` | `first`, `second` resistance inputs; `text` (up to 4,096 UTF-8 bytes), `symbol` (one ASCII byte); returns real unique counts, both better-candidate decisions, both comparison overloads, parentheses and all four simple/full series/parallel combinations. |
-| `collector` | `target_bits`, `candidates` (up to 256 resistance inputs); returns best resistance and real continuation count, or the reference exception. |
+| `collector` | `target_bits`, `candidates` (up to 256 resistance inputs); returns two complete repeated `GetBest` copies and the real continuation count, or the reference exception. |
 | `calculator` | `actions` (up to 64); returns each action's return value and state immediately afterward. |
 | `reader` | `readers` (up to 16 `{text,source}` objects, each string at most 4,096 bytes), `parsers` (up to 16 nullable reader indices), `actions` (up to 64 `{op,parser,reader?}`). `get` observes and `bind` supplies surrounding reader state. Every result returns actual reader identity, identity with the initial reader, and repeated-get identity. |
 | `unit_scales` | Returns the exact bits of all 36 literal unit conversion macros in the accounted `units_scales.h`, retaining each C++ expression order. |

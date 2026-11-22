@@ -58,7 +58,10 @@ pub mod testing {
     use super::*;
     use std::cell::Cell;
 
-    pub fn collect(target: f64, candidates: &[Resistance]) -> Result<(Resistance, usize), Error> {
+    pub fn collect(
+        target: f64,
+        candidates: &[Resistance],
+    ) -> Result<(Resistance, Resistance, usize), Error> {
         let mut collector = Collector::new(target);
         let callbacks = Cell::new(0usize);
         for candidate in candidates {
@@ -71,7 +74,7 @@ pub mod testing {
                 },
             );
         }
-        Ok((collector.best()?, callbacks.get()))
+        Ok((collector.best()?, collector.best()?, callbacks.get()))
     }
     pub fn unique(value: &Resistance) -> usize {
         Collector::unique(value)
@@ -215,8 +218,10 @@ impl Collector {
         self.consider(value(pair.1.value), pair.1, &result);
     }
 
-    fn best(self) -> Result<Resistance, Error> {
-        self.best.ok_or(Error::Logic("Empty solution collector"))
+    fn best(&self) -> Result<Resistance, Error> {
+        self.best
+            .clone()
+            .ok_or(Error::Logic("Empty solution collector"))
     }
 }
 

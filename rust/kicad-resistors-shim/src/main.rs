@@ -301,7 +301,9 @@ fn run(input: &Value) -> Result<Value> {
                 sortable_parts(candidate)?;
             }
             match testing::collect(float(field(input, "target_bits")?)?, &candidates) {
-                Ok((best, callbacks)) => Ok(json!({"best":res(&best),"callbacks":callbacks})),
+                Ok((best, again, callbacks)) => {
+                    Ok(json!({"best":res(&best),"again":res(&again),"callbacks":callbacks}))
+                }
                 Err(Error::Logic(message)) => Ok(json!({"exception":message})),
                 Err(Error::Domain(message)) => Err(message.into()),
             }

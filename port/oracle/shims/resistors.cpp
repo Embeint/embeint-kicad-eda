@@ -322,7 +322,9 @@ JSON Run( const JSON& input )
         try
         {
             auto result = resistor_test::Collect( Float( input.at( "target_bits" ) ), candidates );
-            return { { "best", Res( result.best ) }, { "callbacks", result.callbacks } };
+            return { { "best", Res( result.best ) },
+                     { "again", Res( result.again ) },
+                     { "callbacks", result.callbacks } };
         }
         catch( const std::logic_error& error )
         {

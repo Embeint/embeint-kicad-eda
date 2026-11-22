@@ -46,7 +46,7 @@ COLLECTED Collect( double target, std::vector<RESISTANCE>& candidates )
                     return value;
                 } );
     }
-    return { collector.GetBest(), callbacks };
+    return { collector.GetBest(), collector.GetBest(), callbacks };
 }
 
 int Unique( const RESISTANCE& value )
