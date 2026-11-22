@@ -347,6 +347,92 @@ class ValidationTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'changed'):
                 verify(manifest, build, generated)
 
+    @unittest.skipUnless(shutil.which('ninja'), 'Ninja is needed for real recipe capture')
+    def test_post_parse_dependency_refresh_changes_only_generator_metadata(self):
+        from extractor import refresh_generator_dependencies as refresh
+        with tempfile.TemporaryDirectory() as tmp:
+            parent = Path(tmp)
+            root, build = parent / 'source', parent / 'build'
+            root.mkdir(); build.mkdir()
+            graph, inventory = fixture(root)
+            (root / 'schema.md').write_text('# public fixture\n')
+            (root / 'derived.h').write_text('// generated from schema.md\n')
+            (build / 'final.h').write_text('// generated fixture\n')
+            derived = (root / 'derived.h').as_posix().replace('$', '$$').replace(' ', '$ ').replace(':', '$:')
+            # The source-tree output is declared only by its absolute name.
+            (build / 'build.ninja').write_text('rule gen\n  command = true\n'
+                                               f'build {derived}: gen ../source/schema.md\n'
+                                               'build final.h: gen ../source/derived.h\n')
+            generated = root / 'port/extractor/generated'
+            manifest = freeze(build, generated, {})
+            # Simulate a parse whose older capture treated derived.h as a leaf.
+            manifest['files'][0]['generator_inputs'] = ['derived.h']
+            recipes = b'{"@build/final.h":{"query":"older capture"}}\n'
+            (generated / 'generated-recipes.json').write_bytes(recipes)
+            manifest['recipes_sha256'] = digest(recipes)
+            write_json(generated / 'generated-sources.json', manifest)
+            entries = verify(manifest, build, generated)
+            inventory['files'].extend(dict(e, coverage='parsed') for e in entries)
+            provenance = graph['provenance']
+            provenance.update(extractor_sha256='e' * 64,
+                tracked_source_inventory_sha256=digest(json.dumps([{k: v for k, v in f.items() if k != 'coverage'}
+                    for f in inventory['files'] if f.get('origin') != 'build-generated'], sort_keys=True).encode()),
+                source_inventory_sha256=digest(json.dumps([{k: v for k, v in f.items() if k != 'coverage'}
+                    for f in inventory['files']], sort_keys=True).encode()),
+                generated_sources_manifest_sha256=digest((generated / 'generated-sources.json').read_bytes()),
+                generated_input_dependencies=generator_dependencies(manifest))
+            units, report = save_fixture(root, graph, inventory)
+            self.assertEqual(validate(root), [])
+            unit_bytes = {p.name: p.read_bytes().replace(b'\r\n', b'\n') for p in (root / 'port/units').glob('*.toml')}
+            base = parent / 'base'
+            shutil.copytree(generated, base)
+            captured = refresh.capture(base / 'generated-sources.json', root, parent / 'capture')
+            self.assertEqual(captured['generator_inputs']['@build/final.h'], ['derived.h', 'schema.md'])
+            self.assertEqual(captured['source_generator_dependencies']['derived.h'], ['schema.md'])
+            capture_args = (base / 'generated-sources.json', parent / 'capture/generator-dependency-capture.json',
+                            parent / 'capture/generated-recipes.json')
+            result = refresh.apply(base / 'graph.json', base / 'inventory.json', *capture_args, parent / 'out')
+            self.assertEqual(result['build_generated_inputs_added'], 1)
+            self.assertEqual(result['build_generated_inputs_removed'], 0)
+            repeat = refresh.apply(base / 'graph.json', base / 'inventory.json', *capture_args, parent / 'repeat')
+            for name in ('graph.json.gz', 'inventory.json', 'generated-sources.json', 'refresh-report.json'):
+                self.assertEqual((parent / 'out' / name).read_bytes(), (parent / 'repeat' / name).read_bytes())
+            self.assertEqual(repeat, result)
+            for name in ('graph.json.gz', 'inventory.json', 'generated-sources.json'):
+                shutil.copyfile(parent / 'out' / name, generated / name)
+            (generated / 'graph.json').unlink()
+            shutil.copyfile(parent / 'capture/generated-recipes.json', generated / 'generated-recipes.json')
+            self.assertEqual(validate(root), [])
+            refreshed = read_json(generated / 'graph.json')
+            record = refreshed['provenance']['generator_dependency_refresh']
+            self.assertEqual(record['parse_extractor_sha256'], 'e' * 64)
+            self.assertEqual(record['parse_source_inventory_sha256'], provenance['source_inventory_sha256'])
+            self.assertEqual(refreshed['provenance']['extractor_sha256'], 'e' * 64)
+            self.assertEqual(refreshed['provenance']['generated_input_dependencies']['derived.h'], ['schema.md'])
+            self.assertEqual(refreshed['functions'], graph['functions'])
+            # CLI regeneration of the units is unaffected by the provenance refresh.
+            subprocess.run([sys.executable, str(Path(__file__).resolve().parents[1] / 'tools/split_units.py'),
+                            '--graph', str(generated / 'graph.json'), '--inventory', str(generated / 'inventory.json'),
+                            '--units-dir', str(root / 'port/units'), '--report', str(generated / 'units.json'),
+                            '--source-root', str(root), '--target-lines', '1'], check=True, capture_output=True)
+            self.assertEqual({p.name: p.read_bytes() for p in (root / 'port/units').glob('*.toml')}, unit_bytes)
+            self.assertEqual(read_json(generated / 'units.json')['function_units'], report['function_units'])
+            # Negative controls: refreshed input, a foreign capture, tampered recipes and a changed build.
+            with self.assertRaisesRegex(ValueError, 'original parse'):
+                refresh.apply(generated / 'graph.json', generated / 'inventory.json', *capture_args, parent / 'bad')
+            foreign = read_json(capture_args[1]); foreign['base_manifest_sha256'] = '0' * 64
+            write_json(parent / 'foreign.json', foreign)
+            with self.assertRaisesRegex(ValueError, 'different generated-source manifest'):
+                refresh.apply(base / 'graph.json', base / 'inventory.json', capture_args[0], parent / 'foreign.json',
+                              capture_args[2], parent / 'bad')
+            write_json(parent / 'recipes.json', {})
+            with self.assertRaisesRegex(ValueError, 'Recaptured recipes'):
+                refresh.apply(base / 'graph.json', base / 'inventory.json', *capture_args[:2], parent / 'recipes.json',
+                              parent / 'bad')
+            (build / 'late.h').write_text('// added after the parse\n')
+            with self.assertRaisesRegex(ValueError, 'differ from the parse manifest'):
+                refresh.capture(base / 'generated-sources.json', root, parent / 'capture-late')
+
     def test_inventory_coverage_and_categories_cannot_be_hidden_by_unit_edits(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

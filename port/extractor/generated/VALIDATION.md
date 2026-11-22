@@ -1,8 +1,46 @@
 # Corrected extraction validation
 
+## Generator dependency refresh
+
+Validated code head `57e085ad043d5aee55de7bccd51b411d6c8526fc` plus the refresh command, tests and
+generated files committed with this section. The AST was produced by parser
+`e1548c1fe920a05d882e3f2de1c14843ca0e7b3b04ca9441d4132e16de77b88d` (frozen V5 runtime). Its
+`clang_graph.py`/`model.py` are unchanged at this head, while `generated_sources.py` changed
+only recipe capture. The refresh code identity `1a7ea4bc` is recorded separately.
+Commands, logs and scripts are in `evidence/generator-refresh/`.
+
+| Check | Result |
+| --- | --- |
+| V5 read-only replay (frozen runtime, manifest, cache) | 2,511 cache results reused, 0 parses, no cache artifact changed; graph/inventory semantics equal (`v5-replay.json`) |
+| Pre-refresh canonical reproduction | V5 splitter reproduces graph `146e2cca`, report `0aac5390` and all 1,801 unit files byte for byte (`canonical-from-v5.json`) |
+| Capture preconditions | 1,612 build files, 178 frozen inputs, tools and CMake/Ninja files equal the parse manifest before and after |
+| Refresh invariants | Only declared provenance fields and build-generated `generator_inputs` differ; repeated application byte-identical in WSL and in a Windows CLI replay |
+| Canonical regeneration | Two WSL and two Windows split runs keep graph, inventory, report and every unit byte |
+| Validation (WSL and Windows) | Default passes; `--require-complete` fails only on the four fmt module parses |
+| Extractor suites | WSL 36/36 with no skips (8 real-libclang, 3 real-Ninja); Windows 25 passed, 11 tool-dependent skips (8 libclang, 3 Ninja) |
+| Progress / bootstrap / policy suites, progress build, golden policy | 28 / 9 / 7 passed; build and golden policy pass |
+| Pinned solidcore loader | All 1,801 records round-trip |
+| Reviewed reproducers | Absolute-only stage and source-tree output fixtures now reach the consumer; reverse-output and unrelated controls stay clear (`reviewed-reproducers.json`) |
+| Real relation | `pcbnew/pcb_text_help_md.h` -> `pcb_text_help.md` + `markdown2C.cmake`; Markdown-only change reviews 384 units, including the direct consumer `pcbnew/pcb_text.cpp`; the V5 map reviews none (`relations.json`) |
+| Generator/configure inputs | 1,202 tracked inputs equal pinned Git blobs (`generation-input-audit.json`) |
+| Measurement | Identical apart from the canonical graph/inventory fingerprints; all protected unit metrics and pilots unchanged (`checks.json`) |
+| Indexed artifact bytes | 2,270 staged blobs verified: 465 byte-preserved (all 178 frozen sources, history, evidence, published JSON/gzip) and 1,805 LF-normalized text files (1,801 units, top-level logs); `evidence/generator-refresh/index-artifact-audit.json` |
+| Blob limit | Largest generated blob 69,906,624 bytes (refreshed graph), below 100 MB |
+
+All-record drift against target `57e085ad04` keeps 56 changed files, 188 direct
+findings and 1,715 affected/dependency-review units. 55 of those reviews list
+additional library sources, reached through order-only Ninja inputs
+(`drift-comparison.json`). A committed drift report names the commit it compared,
+which is the parent of the commit publishing it.
+
+The V5 publication checks below were made at `d1667ca05c` and remain historical
+evidence for the parse; their `evidence/corrected/` files are unchanged.
+
+## V5 publication
+
 Validated code head `d1667ca05c170ce8aacd2060fa41d7764a6c4885` and the generated files committed with
-this report. Parser/cache identity is `e1548c1fe920a05d882e3f2de1c14843ca0e7b3b04ca9441d4132e16de77b88d`; its four
-implementation files match the frozen runtime. Later validator/source-manifest/
+that report. Parser/cache identity is `e1548c1fe920a05d882e3f2de1c14843ca0e7b3b04ca9441d4132e16de77b88d`; its four
+implementation files matched the frozen runtime at that head. Later validator/source-manifest/
 drift checks do not change AST semantics. Parent wiring fix `77c144493f` remains.
 
 | Check | Result |

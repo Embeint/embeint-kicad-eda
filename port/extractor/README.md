@@ -349,6 +349,38 @@ python3 port/extractor/generated_sources.py \
   --output ~/kicad-port/corrected-review/inputs
 ```
 
+### Post-parse generator dependency refresh
+
+A fix that changes only recipe capture does not change the AST, source bytes or
+compile flags, but its code is part of the extractor identity and its dependency
+map is part of the inventory fingerprint, so rerunning `extract_graph.py` would
+miss every cache entry. `refresh_generator_dependencies.py` instead recaptures
+the map and applies it to the existing parse:
+
+```sh
+python3 port/extractor/refresh_generator_dependencies.py capture \
+  --base-manifest <parse>/generated-sources.json \
+  --source-root ~/kicad-port/extract-source --output <capture>
+python3 port/extractor/refresh_generator_dependencies.py apply \
+  --graph <canonical>/graph.json.gz --inventory <canonical>/inventory.json \
+  --base-manifest <parse>/generated-sources.json \
+  --capture <capture>/generator-dependency-capture.json \
+  --recipes <capture>/generated-recipes.json --output <refreshed>
+```
+
+`capture` needs the shared lock. It refuses to run unless every private build
+file, frozen generated input, tool binary and CMake/Ninja file matches the parse
+manifest, and it checks the build again afterwards. `apply` needs neither clang
+nor Ninja. It replaces only the generator dependency map, the build-generated
+`generator_inputs`, the manifest and inventory fingerprints derived from them, and
+adds `generator_dependency_refresh`. That record keeps the parse identities
+(`parse_extractor_sha256`, `parse_source_inventory_sha256`, parse manifest and
+recipe hashes) separate from the capture and refresh code hashes. The graph's
+`extractor_sha256` remains the parser that produced the AST. `apply` rejects an
+already refreshed graph, a capture of another manifest and mismatched recipes,
+then reloads its outputs and checks that nothing else changed. The same inputs
+give byte-identical outputs, and unit records are unaffected.
+
 ## Drift report
 
 `drift_report.py` compares the upstream pin to a committed `--target` (default

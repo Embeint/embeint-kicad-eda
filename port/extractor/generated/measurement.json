@@ -2,14 +2,14 @@
   "canonical": {
     "artifacts": [
       {
-        "bytes": 69706076,
+        "bytes": 69906624,
         "filename": "graph.json.gz",
-        "sha256": "146e2ccac0e8d0ba6d37ceadb26ae5a84d0223609dd55abebb0b5451bfe45735"
+        "sha256": "8c39a7f481663b011fb37404004874b781aa77a0e35397b8f563d08417f498c8"
       },
       {
-        "bytes": 9283317,
+        "bytes": 10985728,
         "filename": "inventory.json",
-        "sha256": "b9e6986b36529fdf4041712dfb258af050c2ff61bb3971875394eb16e2a47682"
+        "sha256": "9b6f09351a5f7b59ca790c1d80301c69373e3f6a04fc5a28082733171fb4b742"
       },
       {
         "bytes": 21417027,

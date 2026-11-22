@@ -1,7 +1,17 @@
 {
   "drift-all": 0,
   "drift-ported": 0,
-  "head_at_validation": "d1667ca05c170ce8aacd2060fa41d7764a6c4885",
+  "generator_dependency_refresh": {
+    "canonical_graph_sha256": "8c39a7f481663b011fb37404004874b781aa77a0e35397b8f563d08417f498c8",
+    "canonical_inventory_sha256": "9b6f09351a5f7b59ca790c1d80301c69373e3f6a04fc5a28082733171fb4b742",
+    "evidence": "evidence/generator-refresh/",
+    "parse_extractor_sha256": "e1548c1fe920a05d882e3f2de1c14843ca0e7b3b04ca9441d4132e16de77b88d",
+    "pilot_records_unchanged": true,
+    "refresh_code_sha256": "1a7ea4bc86028ebccd5cb527b37c7f3fd053d259ca735c2195593d8b1f569f93",
+    "refreshed_manifest_sha256": "071a18f4c9ad6d0a6ed39ed84e4cbbc33f984f8bc4896b45f4e9de8b4a132792",
+    "unit_records_unchanged": 1801
+  },
+  "head_at_validation": "57e085ad043d5aee55de7bccd51b411d6c8526fc",
   "pilots": [
     {
       "coverage_gaps": [],
@@ -144,6 +154,7 @@
     }
   ],
   "reviewed_reconciled_preserved": true,
+  "v5_publication_head": "d1667ca05c170ce8aacd2060fa41d7764a6c4885",
   "validate-strict-windows": 1,
   "validate-windows": 0
 }

@@ -9,7 +9,67 @@ four prior fixes and negative controls, but reported one remaining recipe-captur
 P2. Parent resolved it at `1343c3a303` with a real-Ninja capture-to-drift regression.
 This is not an independent clean disposition for 1343. The storage-only follow-up
 `c586fcccf9` validates deterministic gzip recipe evidence against its unchanged
-decompressed-byte hash. Final independent code/artifact review remains pending.
+decompressed-byte hash.
+
+The independent full review of `19035296e1` verified the graph, ownership, layers,
+indexed bytes and cache replay, but required two recipe-capture fixes: absolute-only
+Ninja outputs were queried by a relative name, and Ninja-generated source-tree
+files were treated as leaves. Parent fix `57e085ad04` corrects both. The relations
+are now republished by a separately identified post-parse refresh (below), not a
+new parse. A new independent review of this refresh remains required.
+
+## Generator dependency refresh
+
+`refresh_generator_dependencies.py` recaptured the dependency map from the
+unchanged private build and applied it to the existing parse. The AST,
+definitions, calls, coverage, source bytes, unit records and every unit metric
+are those of the V5 parse; only generator dependency metadata and the
+fingerprints derived from it changed. Evidence is in
+`evidence/generator-refresh/`.
+
+- **Parse identities, unchanged:** parser `e1548c1f`, parse manifest `a2466270`,
+  parse recipes `dff5b79a`, parse inventory snapshot `3d52afc6`. The graph's
+  `extractor_sha256` still names that parser. The V5 manifest and recipes now sit
+  in `corrected-extraction/` beside the V5 AST they produced, byte-identical.
+- **Refresh identities:** capture/refresh code `1a7ea4bc`, capture record
+  `f4126f13`, refreshed manifest `071a18f4`, recaptured recipes `f44049e2`
+  (1,640,524,798 raw bytes, deterministic gzip 31,784,116 bytes `f5a91a1c`).
+- **Base reproduction:** the frozen V5 runtime replayed all 2,511 V5 cache results
+  read-only with zero parses, and its semantics match the V5 graph/inventory.
+  Its splitter reproduces the pre-refresh canonical graph `146e2cca`, report and
+  all 1,801 unit files byte for byte. The refresh was applied to that graph.
+- **Capture checks:** before and after the capture, all 1,612 private build files,
+  178 frozen inputs, tool binaries and CMake/Ninja files matched the parse manifest.
+  The Ninja catalog has 5,709 target records, 237 alias groups and 359
+  absolute-only outputs. 1,435 recipe records were captured. 1,272 of the 1,273 V5
+  queries are identical. The other is the build directory node `@build/.`,
+  which had no input edges and is no longer an input.
+- **Relation changes:** 163 source-tree generator outputs are now published in
+  `source_generator_dependencies`, 27 with recipe inputs. Four build-generated
+  entries gained `pcbnew/pcb_text_help.md` and `cmake/BuildSteps/markdown2C.cmake`
+  through `pcbnew/pcb_text_help_md.h`. All 56 V5 entries dropped only `@build/.`.
+  No other input was removed. 1,202 tracked generator/configure inputs (38 beyond
+  the V5 audit's 1,164) equal pinned Git blobs.
+- **Real drift proof:** in a disposable repository that changes only
+  `pcbnew/pcb_text_help.md`, the refreshed graph sends 384 units to review. They
+  include the owner of `pcbnew/pcb_text.cpp`, which includes the tracked header
+  but no build-generated route. The V5 map sends none. An unrelated Markdown
+  change sends none.
+- **Limits:** order-only and implicit Ninja inputs are followed conservatively,
+  as in V5. The 56 V5 build entries already carried 23,072 object-node
+  references. 14 source-tree help/formula headers now do the same, which adds
+  library sources to the all-record drift inputs of 55 units without adding or
+  removing any reviewed unit. Two CMake-configure/probe outputs have no Ninja rule
+  and remain labelled, without guessed edges.
+
+| Refresh artifact | SHA256 |
+| --- | --- |
+| canonical graph.json.gz (refreshed) | `8c39a7f481663b011fb37404004874b781aa77a0e35397b8f563d08417f498c8` |
+| canonical inventory.json (refreshed) | `9b6f09351a5f7b59ca790c1d80301c69373e3f6a04fc5a28082733171fb4b742` |
+| generated-sources.json (refreshed, LF) | `071a18f4c9ad6d0a6ed39ed84e4cbbc33f984f8bc4896b45f4e9de8b4a132792` |
+| generated-recipes.json.gz | `f5a91a1c6f5e2357aeb1db4f6499be3ba7bca7cc3b46fea793c74de42257064e` |
+| pre-refresh canonical graph.json.gz | `146e2ccac0e8d0ba6d37ceadb26ae5a84d0223609dd55abebb0b5451bfe45735` |
+| units.json (unchanged) | `0aac539054de1437248d5f97c510efee16de779cf546919c136a23938b023753` |
 
 | Run | Recorded commands | Successful parses | Definition entries | Generated-build definitions | Edges |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -25,8 +85,8 @@ decompressed-byte hash. Final independent code/artifact review remains pending.
 | reconciled original graph gzip | `133c45e58c4f42fade25280971cf2f9c67433bbe83efb0051cbeddef24e3967f` |
 | corrected database | `bc402ade70f0304ed5018793a5d8c37749df978dfd7859ee87e655ee3a616196` |
 | corrected original graph gzip | `40861e9ca678464cedc513561e6e559cbcb5f902bb5b221fe2b6c378fb803e18` |
-| canonical graph.json.gz | `146e2ccac0e8d0ba6d37ceadb26ae5a84d0223609dd55abebb0b5451bfe45735` |
-| canonical inventory.json | `b9e6986b36529fdf4041712dfb258af050c2ff61bb3971875394eb16e2a47682` |
+| pre-refresh canonical graph.json.gz | `146e2ccac0e8d0ba6d37ceadb26ae5a84d0223609dd55abebb0b5451bfe45735` |
+| corrected inventory.json (V5 parse) | `b9e6986b36529fdf4041712dfb258af050c2ff61bb3971875394eb16e2a47682` |
 | canonical units.json | `0aac539054de1437248d5f97c510efee16de779cf546919c136a23938b023753` |
 
 `raw/` retains the historical graph/inventory and deletion-aware coverage.
@@ -44,8 +104,9 @@ The corrected inventory additionally freezes 178 build
 inputs and their exact public bytes. Generated application lines are measured
 separately from CMake compiler-ID tooling probes. `generated-sources.json` maps
 logical `@build/<relative>` locations to `sources/<relative>`; these are explicitly
-not pinned Git paths. `generated-recipes.json.gz` (unchanged raw-byte hash), tool identities and the 1,164-file
-pinned generator/configure-input audit make the generation provenance reviewable.
+not pinned Git paths. The refreshed `generated-recipes.json.gz` (manifest binds its raw-byte
+hash), tool identities and the 1,202-file pinned generator/configure-input audit
+make the generation provenance reviewable; the V5 1,164-file audit is retained.
 CI validates committed source snapshots, with `-text` preserving generated bytes.
 Future source manifests exclude port tooling/artifact copies to avoid double counts.
 

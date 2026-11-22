@@ -1,0 +1,90 @@
+{
+  "absolute_only_output": {
+    "absolute": {
+      "affected": [
+        "u"
+      ],
+      "deps": [
+        "@build/stage.tokens",
+        "schema.proto"
+      ]
+    },
+    "absoluteonly": {
+      "affected": [
+        "u"
+      ],
+      "deps": [
+        "@build/only.tokens",
+        "schema.proto"
+      ]
+    },
+    "cycle": {
+      "affected": [
+        "u"
+      ],
+      "deps": [
+        "@build/a.tokens",
+        "@build/b.tokens",
+        "schema.proto"
+      ]
+    },
+    "direct": {
+      "affected": [
+        "u"
+      ],
+      "deps": [
+        "schema.proto"
+      ]
+    },
+    "negative_reverse_output": {
+      "downstream.o_in_relative_inputs": false
+    },
+    "negative_unrelated_include": {
+      "affected": []
+    },
+    "normalized": {
+      "affected": [
+        "u"
+      ],
+      "deps": [
+        "@build/stage.tokens",
+        "schema.proto"
+      ]
+    },
+    "only_tokens_query_attempts": [
+      {
+        "exit": 0,
+        "stderr": "",
+        "stdout": "/home/karlvonrichter/kicad-port/generator-refresh-57e/fixtures/absolute-only/build/only.tokens:\n  input: gen\n    ../source/schema.proto\n  outputs:\n    absoluteonly.h\n",
+        "target": "/home/karlvonrichter/kicad-port/generator-refresh-57e/fixtures/absolute-only/build/only.tokens"
+      }
+    ],
+    "relative": {
+      "affected": [
+        "u"
+      ],
+      "deps": [
+        "@build/stage.tokens",
+        "schema.proto"
+      ]
+    }
+  },
+  "source_tree_output": {
+    "build_consumer": [
+      "u"
+    ],
+    "deps": {
+      "@build/final.h": [
+        "derived.h",
+        "schema.md"
+      ],
+      "derived.h": [
+        "schema.md"
+      ]
+    },
+    "direct_tracked_consumer": [
+      "u"
+    ],
+    "negative_unrelated_include": []
+  }
+}
