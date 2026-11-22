@@ -40,6 +40,22 @@ fn hilbert_refuses_undefined_shifts() {
 }
 
 #[test]
+fn morton_refuses_only_the_undefined_intermediates() {
+    // Above 64 dimensions no bit is selected and nothing is shifted.
+    for order in [33, 64, i32::MAX, 0, -1, i32::MIN + 1] {
+        assert_eq!(hilbert_nd(order, &[u32::MAX; 65]), Ok(0), "order {order}");
+    }
+    // bits - 1 overflows in the loop initializer.
+    assert_eq!(hilbert_nd(i32::MIN, &[0; 65]), Err(RtreeError::OrderOutOfDomain));
+    assert_eq!(hilbert_nd(i32::MIN, &[0; 3]), Err(RtreeError::OrderOutOfDomain));
+    assert_eq!(hilbert_nd(i32::MIN + 1, &[u32::MAX; 3]), Ok(0));
+    // Whenever the loop runs, the first shift is aOrder - 1.
+    assert_eq!(hilbert_nd(33, &[0; 64]), Err(RtreeError::OrderOutOfDomain));
+    assert_eq!(hilbert_nd(33, &[0; 1]), Err(RtreeError::OrderOutOfDomain));
+    assert_eq!(hilbert_nd(32, &[u32::MAX; 1]), Ok(u64::from(u32::MAX)));
+}
+
+#[test]
 fn overlap_mask_masks_by_count_and_checks_lanes() {
     let lo = [0, 10, 20, 30];
     let hi = [5, 15, 25, 35];

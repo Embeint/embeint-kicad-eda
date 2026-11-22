@@ -466,6 +466,28 @@ def corpus():
         for index in range(4):
             case, steps = random_program(rng, name, element, dims, maxnodes, index)
             cases.append(request(case, {"kind": "slab", "config": name, "steps": steps}))
+    # Appended after the original corpus so every earlier case keeps its bytes and
+    # index; see review_cases.
+    return cases + review_cases()
+
+
+def review_cases():
+    """Regressions for the first independent review of PR 52, in source order."""
+    rng = random.Random(52)
+    cases = []
+    # Morton fallback: above 64 dimensions no bit is selected and the loop never
+    # shifts, so every order except INT_MIN (bits - 1 overflows) returns 0.
+    for order in [33, 64, 1000, I32[1], 1, 0, -1, I32[0] + 1]:
+        for variant, coords in [("zero", [0] * 65), ("max", [U32] * 65),
+                                ("random", [rng.randint(0, U32) for _ in range(65)])]:
+            cases.append(request(f"review-hilbert-nd-d65-o{order}-{variant}",
+                                 {"kind": "hilbert_nd", "dims": 65, "order": order,
+                                  "coords": coords}))
+    # The lowest order whose loop initializer is still defined.
+    for dims in [d for d in DIMS if d != 2]:
+        cases.append(request(f"review-hilbert-nd-d{dims}-o-min-plus-one", {
+            "kind": "hilbert_nd", "dims": dims, "order": I32[0] + 1,
+            "coords": [rng.randint(0, U32) for _ in range(dims)]}))
     return cases
 
 
@@ -634,6 +656,14 @@ def refusals():
     slab("move-destroyed-child", retire + [{"op": "move_assign", "a": 1, "src": 2},
                                            {"op": "set_child", "node": 0, "slot": 0, "child": 1}],
          "node is destroyed")
+    # Review regressions: the Morton loop initializer overflows at INT_MIN; a shift of
+    # aOrder - 1 >= 32 happens whenever the loop runs (dimensions 1..64).
+    nd_min = "order outside reference domain"
+    for dims in [1, 3, 64, 65]:
+        add(f"review-nd-d{dims}-order-min", dict(nd, dims=dims, coords=[0] * dims, order=I32[0]),
+            nd_min)
+    for dims in [1, 33, 64]:
+        add(f"review-nd-d{dims}-order-33", dict(nd, dims=dims, coords=[0] * dims, order=33), nd_min)
     # Envelope-level refusals use the shared transport messages.
     checks.append(({"unit": "other.unit", "case": "unit", "input": {}},
                    failure("unit", "unit has no registered shim", "unknown_unit", "other.unit")))

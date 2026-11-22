@@ -13,7 +13,7 @@ no `unwrap`/`expect`/`panic`, no global state, and builds for `wasm32-unknown-un
 | Reference | Rust | Notes |
 | --- | --- | --- |
 | `HilbertXY2D` | `hilbert_xy2d` | Orders 1..=32 (the initial `1U << ( aOrder - 1 )`); modular `uint32_t`/`uint64_t` arithmetic as wrapping ops; coordinates at or above `2^aOrder` behave as in C++ |
-| `HilbertND2D<NUMDIMS>` | `hilbert_nd2d` (slice), `hilbert_nd::<N>` | Two dimensions delegate; the Morton fallback keeps `min( aOrder, 64 / NUMDIMS )` high bits; orders <= 0 return 0; orders > 32 shift past the width and are refused; `NUMDIMS = 0` does not compile in C++ and is refused |
+| `HilbertND2D<NUMDIMS>` | `hilbert_nd2d` (slice), `hilbert_nd::<N>` | Two dimensions delegate; the Morton fallback keeps `min( aOrder, 64 / NUMDIMS )` high bits. Only its undefined steps are refused: `bits - 1` at `aOrder == INT_MIN`, and a shift of `aOrder - 1 >= 32`, which happens only when the loop runs (`bits >= 1`). Above 64 dimensions every other order returns 0, as do orders <= 0. `NUMDIMS = 0` does not compile in C++ and is refused |
 | `OverlapMask2D<ELEMTYPE, FANOUT>` | `overlap_mask_2d::<E, F>`, `overlap_mask_2d_dyn` | Static assertions at compile time (run time in the `_dyn` form); reads all `FANOUT` lanes; `aCount` 0..=31 |
 | `RTREE_NODE` constructor, `MINNODES` | `RtreeNode::new`, `MIN_NODES` | Zero bounds, insertion bounds and union, refcount 1 |
 | `IsLeaf`, `IsInternal`, `IsFull`, `IsUnderflow` | same names, snake case | Negative levels are neither leaf nor internal, as in C++ |
@@ -90,7 +90,7 @@ live oracle for every configuration.
 
 | Input | Error |
 | --- | --- |
-| Hilbert order outside 1..=32 (2D) or above 32 (Morton); zero dimensions | `OrderOutOfDomain`, `DimensionsOutOfDomain` |
+| Hilbert order outside 1..=32 (2D); Morton order `INT_MIN`, or above 32 with at most 64 dimensions; zero dimensions | `OrderOutOfDomain`, `DimensionsOutOfDomain` |
 | `OverlapMask2D` count outside 0..=31, short lanes, invalid fanout | `CountOutOfDomain`, `SliceTooShort`, `FanoutOutOfDomain` |
 | Slot outside `0..MAXNODES`; `RemoveChild` slot not below `count` (the reference asserts) | `SlotOutOfRange` |
 | `count` above `MAXNODES` for loops that index with it; non-2D mask counts above 32 | `CountOutOfDomain` |

@@ -152,7 +152,11 @@ template <int N>
 uint64_t HilbertNd( int aOrder, const std::vector<uint32_t>& aCoords )
 {
     uint32_t coords[N];
-    std::copy( aCoords.begin(), aCoords.end(), coords );
+
+    // Values() already checked aCoords.size() == N.
+    for( int i = 0; i < N; ++i )
+        coords[i] = aCoords[i];
+
     return KIRTREE::HilbertND2D<N>( aOrder, coords );
 }
 
@@ -164,9 +168,17 @@ JSON HilbertNdCase( const JSON& aInput )
     const int order = Int( aInput, "order" );
     const std::vector<uint32_t> coords = Values<uint32_t>( aInput, "coords", dims );
 
-    // HilbertXY2D needs 1..32; the Morton fallback shifts by up to aOrder - 1.
-    if( ( dims == 2 && ( order < 1 || order > 32 ) ) || order > 32 )
+    // HilbertXY2D needs 1..32.  The Morton fallback evaluates bits - 1, which
+    // overflows only for INT_MIN, and shifts coordinates by up to aOrder - 1, but
+    // only when its loop runs (min( aOrder, 64 / NUMDIMS ) >= 1).
+    const bool mortonShifts = dims <= 64 && order >= 1;
+
+    if( ( dims == 2 && ( order < 1 || order > 32 ) )
+        || ( dims != 2
+             && ( order == std::numeric_limits<int>::min() || ( mortonShifts && order > 32 ) ) ) )
+    {
         Refuse( "order outside reference domain" );
+    }
 
     uint64_t index = 0;
 

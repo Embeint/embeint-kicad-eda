@@ -107,7 +107,11 @@ fn hilbert_nd(input: &Value) -> Outcome {
     let order = int(input, "order")?;
     let length = usize::try_from(dims).map_err(|_| "integer out of range: dims")?;
     let coords = values::<u32>(input, "coords", length)?;
-    if (dims == 2 && !(1..=32).contains(&order)) || order > 32 {
+    // Same domain as the oracle adapter: see hilbert_nd2d for the source order.
+    let morton_shifts = dims <= 64 && order >= 1;
+    if (dims == 2 && !(1..=32).contains(&order))
+        || (dims != 2 && (order == i32::MIN || (morton_shifts && order > 32)))
+    {
         return Err(RtreeError::OrderOutOfDomain.to_string());
     }
     if !DIMS.contains(&dims) {

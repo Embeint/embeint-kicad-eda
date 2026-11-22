@@ -46,8 +46,16 @@ pub fn hilbert_xy2d(order: i32, x: u32, y: u32) -> Result<u64, RtreeError> {
 /// `KIRTREE::HilbertND2D<NUMDIMS>` with `NUMDIMS = coords.len()`.
 ///
 /// Two dimensions delegate to [`hilbert_xy2d`].  Other dimensions take the
-/// Morton fallback, whose shifts reach `aOrder - 1`, so orders above 32 are
-/// undefined; orders of zero or below select no bits and return 0, as in C++.
+/// Morton fallback.  Each signed intermediate and shift is checked where the
+/// reference evaluates it, so only genuinely undefined inputs are refused:
+///
+/// * `bits - 1` in the loop initializer overflows when `aOrder == INT_MIN`;
+/// * a coordinate is shifted by `bit + drop`, at most `aOrder - 1`, which is
+///   undefined from 32 upwards.  The shift runs only when the loop does, that is
+///   when `bits = min( aOrder, 64 / NUMDIMS ) >= 1`.
+///
+/// So above 64 dimensions (`64 / NUMDIMS == 0`) every order except `INT_MIN`
+/// returns 0, and other orders of zero or below also return 0, as in C++.
 pub fn hilbert_nd2d(order: i32, coords: &[u32]) -> Result<u64, RtreeError> {
     if let [x, y] = coords {
         return hilbert_xy2d(order, *x, *y);
@@ -56,18 +64,20 @@ pub fn hilbert_nd2d(order: i32, coords: &[u32]) -> Result<u64, RtreeError> {
     if dims == 0 {
         return Err(RtreeError::DimensionsOutOfDomain);
     }
-    if order > 32 {
-        return Err(RtreeError::OrderOutOfDomain);
-    }
 
     // const int bits = std::min( aOrder, 64 / NUMDIMS ); const int drop = aOrder - bits;
     let per_axis = i32::try_from(64 / dims).map_err(|_| RtreeError::DimensionsOutOfDomain)?;
     let bits = order.min(per_axis);
-    let drop = order - bits;
+    let drop = order.checked_sub(bits).ok_or(RtreeError::OrderOutOfDomain)?;
+    // for( int bit = bits - 1; bit >= 0; --bit ): the initializer itself can overflow.
+    let first = bits.checked_sub(1).ok_or(RtreeError::OrderOutOfDomain)?;
     let mut d: u64 = 0;
 
-    for bit in (0..bits).rev() {
-        let shift = u32::try_from(bit + drop).map_err(|_| RtreeError::OrderOutOfDomain)?;
+    for bit in (0..=first).rev() {
+        let shift = bit
+            .checked_add(drop)
+            .and_then(|shift| u32::try_from(shift).ok())
+            .ok_or(RtreeError::OrderOutOfDomain)?;
         for coord in coords.iter().rev() {
             d <<= 1;
             d |= u64::from(
