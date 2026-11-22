@@ -1,6 +1,29 @@
 # Corrected extraction validation
 
-## Guarded source recapture (current)
+## Verified Ninja recapture (current)
+
+Validated clean code `c1e8a467da149eac67341d31de0228e498916ba3`. Evidence:
+`evidence/verified-ninja/`. The AST parser and original V5 identities are unchanged.
+
+| Check | Result |
+| --- | --- |
+| Executable binding | Every catalog/query/command invokes the manifest's verified absolute Ninja; missing/relative records refused |
+| Regression controls | PATH wrapper selects a second real graph and is never invoked by guarded capture; invoked-tool mutation after querying refused; published 2888 implementation fails the new focused regression |
+| Fresh real capture | Original V5 inputs, unchanged pinned audit; 9,655 source files, 1,612 build files, 178 frozen inputs and tools checked before/after under the shared lock |
+| Dependency equivalence | Raw recipes and catalog byte-identical to D2; both relation maps unchanged; graph and inventory differ only in refresh metadata and derived identities |
+| Application/regeneration | Two WSL applications and two canonical splits byte-identical; Windows pure apply and two canonical splits also preserve every byte |
+| Extractor suites | WSL 36 passed, no skips; Windows 25 passed and 11 expected libclang/Ninja skips |
+| Source validation | Default passes on WSL and Windows; strict fails only on the four known fmt module parses |
+| Records/measurement | All 1,801 units unchanged and round-trip through pinned solidcore; only graph/inventory measurement hashes change; all pilot scopes/GetReader owner preserved |
+| Prior guards | All 14 actual-snapshot and 10 synthetic invalid-source controls rejected; valid Markdown drift still reaches consumers |
+| Maintained checks | Progress/bootstrap/policy 28/9/7, progress build and committed golden-change policy pass |
+
+No full AST parse/replay or pilot numerical validation was performed. V5/D2
+replay and ownership evidence is reused after checking its bound inputs. Historical
+V5, D2 and source-guard evidence remains unchanged. Fresh independent review,
+parent acceptance and the three-pilot gate remain outstanding.
+
+## Guarded source recapture (historical 2888)
 
 Validated code head `ce9681f06faa189eadb41d8475ef03ea784e4e2b` and the generated files committed with
 this section. AST parser `e1548c1f` and the V5 parse identities are unchanged; the

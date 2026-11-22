@@ -65179,8 +65179,8 @@
   "generator_dependency_refresh": {
     "base_manifest_sha256": "a2466270bdf4aec52b7b8267140ac4b18c8295520c5b94e1ecb3dc8498dacb34",
     "base_recipes_sha256": "dff5b79afdbe58e2e4c7a4f0e4d8b093fd34a94a0302d38cddd6483660496951",
-    "capture_code_sha256": "01ad5e63f289ef80906fe2e2731928b04bef9c76b766f0240c83281cfa032c2a",
-    "capture_sha256": "8a3d842c23c2c8f67ac493a5e0e3e5ca747d9d27ad5f70b76ecff4e471b8687d",
+    "capture_code_sha256": "2b4eca5d431fd57fe824e54eaa384bea5215abe29cefa0cff9d9238269f4e929",
+    "capture_sha256": "7705a33563f736295944934e98f3fd629f869408a2d22e6a34a11501b0aac685",
     "policy": "Post-parse generator dependency refresh. AST, definitions, calls, overrides, unresolved records, translation units, coverage and source bytes are those of the original parse (parse_* identities); only generator dependency metadata and the fingerprints derived from it were recaptured from the unchanged private build.",
     "source_identity": {
       "generation_inputs_sha256": "bf7a1689587de011b7f2b8879e7d6284827a451ee43155ad72b8963fe30a6de6",
