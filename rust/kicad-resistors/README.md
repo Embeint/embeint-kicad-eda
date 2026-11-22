@@ -2,24 +2,17 @@
 # Resistor pilot
 
 Unit `pcb_calculator.application.pure.p001`, at KiCad
-`4cf939778df04d2b747bb2c4714fc5014a7565c7`. Provisional #39 snapshot
-`a7ec77beffd3b2e5d60409423fa28b6c116c6e00` (unit blob
-`5f7870fc5921a7732db268be292aee3d56851b69`) records
-**1,186 physical lines and 41 owned definitions**, L0/pure, with no hard/soft
-dependencies or gaps. Independent review subsequently identified extraction
-omissions involving virtual destructors/overrides, active generated definitions
-and wx aliases. Corrected ownership/dependencies and the final scope remain a
-readiness dependency; the current record stays `claimed`, not green. The a7
-snapshot was merged into this topic before that review hold. Corrected #39
-ownership and any readiness claim remain pending confirmation.
-Only this unit's port metadata and live shim
-registration are changed; canonical source/functions/ranges/accounting stay
-unchanged. A passing pilot does not establish phase-zero completion.
+`4cf939778df04d2b747bb2c4714fc5014a7565c7`. Corrected #39 snapshot
+`19035296e129cf8640e89331bc9e8ad84f0fe38c` records **1,126 physical lines,
+40 owned definitions and seven files**, L0/pure, with no hard/soft dependencies
+or gaps. Its exact source/functions/ranges/accounting are retained alongside
+this pilot's port metadata and difftest registration. Final independent graph
+review and parent acceptance remain pending; status stays `claimed`, not green.
+A passing pilot does not establish phase-zero completion.
 
 | Accounted path | Inclusive lines |
 | --- | --- |
 | `pcb_calculator/common_data.h` | 1–62 |
-| `pcb_calculator/datafile_read_write.h` | 1–60 |
 | `pcb_calculator/eseries.cpp` | 1–102 |
 | `pcb_calculator/eseries.h` | 1–177 |
 | `pcb_calculator/pcb_calculator_utils.h` | 1–33 |
@@ -27,8 +20,16 @@ unchanged. A passing pilot does not establish phase-zero completion.
 | `pcb_calculator/resistor_substitution_utils.h` | 1–168 |
 | `pcb_calculator/units_scales.h` | 1–76 |
 
-Interface declarations do not claim their out-of-unit bodies. The frame and
-transline headers from the early audit are not owned by this provisional snapshot.
+`GetReader` and `datafile_read_write.h:1:60` moved out of the pure record into
+`pcb_calculator.application.thin.replacement.p001` (L0/thin-replacement). The
+getter at header line 55 remains implemented as a documented reader/type co-port,
+with all three real reader identity cases retained. Its owning thin unit's notes
+record the co-port; that unit's other bodies and todo status are unchanged.
+Parser constructors and Parse remain in `pcb_calculator.application.ui.p001`
+(L136/UI); the supplied Rust constructor APIs remain explicitly Unported.
+Neither the getter nor its header is counted among these 40 pure definitions.
+Interface declarations do not claim out-of-unit bodies; frame/transline headers
+are outside the pure unit.
 
 `kicad-resistors` owns its calculator state and performs no I/O. The separate
 `kicad-resistors-shim` is a native JSONL process (`portable = false`). No reference
@@ -68,7 +69,7 @@ reader archive link is a refusal regression.
 Getter cases construct real `PCB_CALCULATOR_DATAFILE_PARSER` objects using the
 original constructor and real `STRING_LINE_READER` instances. Null, aliased and
 distinct equal-content readers, repeated calls and protected-reader rebinding
-are compared through the actual owned inline `GetReader` method. Stable caller
+are compared through the actual thin-owned inline `GetReader` method. Stable caller
 indices encode pointer identity, not pointer addresses or guessed values.
 `reader::DatafileParserReader` is the minimal borrowed reader-state co-port; its
 getter returns the actual current nullable reference, without copying a reader
@@ -159,7 +160,7 @@ from a deferred or failed harness operation.
 
 ## Definition and branch audit
 
-| Owned definitions (41 listed in the provisional snapshot) | Portable bodies and differential observations |
+| Owned definitions (40 in the corrected snapshot) | Portable bodies and differential observations |
 | --- | --- |
 | `ESERIES_VALUES`, eight named constructors, `ESERIES_IN_DECADE` (10) | Literal tables, stride/fallback branches, full i32 exponents, multiplication before division; every literal and scaled bit is returned. |
 | `RESISTANCE` (1) | Explicit parts, omitted/default and empty parts; exact part order and value/name. |
@@ -168,7 +169,10 @@ from a deferred or failed harness operation.
 | `maybeEmbrace`, serial/parallel value and four resistance helpers (7) | Nested/top-level parentheses, arbitrary parts, all combinations and expression order. |
 | `strValue` (1) | Three-significant-digit rounding, six-significant-digit `g` conversion, every unit boundary, finite extremes, non-finite/zero inputs. |
 | Calculator constructor, `SetSeries`, `NewCalc`, `Exclude`, `Calculate`, `GetResults`, build, prepare1/2, find, calculate2/3/4 (13) | Default and repeated state, every series/decade, exclusions/reset, exact/near/tie/mixed targets, full buffers, all four 4R topologies and actual private helper calls. |
-| `PCB_CALCULATOR_DATAFILE_PARSER::GetReader` (1) | Direct nullable borrowed-reader return; real constructed C++ parser/reader objects, exact identity, aliasing, rebinding and repeated calls. |
+
+Separate co-port: `PCB_CALCULATOR_DATAFILE_PARSER::GetReader` (thin owner above)
+returns nullable borrowed reader identity. Real constructed C++ parser/readers
+exercise null, aliasing, rebinding and repeated access without fabricated layouts.
 
 `findIn2RBuffer` retains both post-lower_bound edge branches. For a nonempty,
 sorted, finite positive generated buffer the earlier min/max checks make those
@@ -192,13 +196,14 @@ pin the original prefix, historical powers and literal integer `-0` requests.
 The additional cases include the complete 28-by-28 IEEE operand matrix (signed
 zeros, subnormal/normal extremes, infinities and signed quiet/signaling NaNs),
 64 fixed-seed NaN payload pairs, explicit formatting classes and raw `-0` tokens.
-`fp.rs` explicitly implements the observed pinned GCC/x86 operation semantics:
+`fp.rs` explicitly implements the observed pinned GCC 13/15 Release x86-64 semantics:
 a NaN operand is quieted with its sign and payload retained, choosing the second
 operand when both are NaNs; an invalid operation without an input NaN produces
 x86's negative indefinite NaN. Ordinary Rust arithmetic does not guarantee
 this payload choice. Constructor values and parts remain verbatim. Formatting
 also spells these measured exceptional cases explicitly for wasm portability;
-neither adapter nor comparator normalizes returned bits.
+neither adapter nor comparator normalizes returned bits. GCC O0 and Clang 18
+NaN payload equivalence is not claimed; independent review observed differences.
 
 Both owned adapters use explicit typed guards with matching complete diagnostic
 envelopes. `kicad-resistors-shim/tests/requests.py` exercises malformed fields,

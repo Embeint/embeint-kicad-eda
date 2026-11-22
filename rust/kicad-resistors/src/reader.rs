@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Minimal parser/lexer reader state co-port for the owned GetReader accessor.
+//! Reader-state co-port for GetReader, owned by pcb_calculator.application.thin.replacement.p001.
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Unported {

@@ -12,7 +12,7 @@ pub mod scales;
 mod sort;
 pub use format::str_value;
 
-/// Complete API for the extractor's pure calculator application unit.
+/// Pure calculator API plus the separately owned, documented reader co-port.
 pub mod application {
     pub use crate::{
         eseries, reader, resistance_less, resistance_less_value, scales, str_value, Calculator,
