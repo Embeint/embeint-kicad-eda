@@ -281,6 +281,9 @@ class ValidationTests(unittest.TestCase):
             graph['translation_units']=[{'file':'/private/build/lexer.cpp','status':'ok','category':'generated-build'}]
             save_fixture(root,graph,inventory)
             self.assertTrue(any('lacks frozen source mapping' in e for e in validate(root)))
+            graph['translation_units']=[{'file':'a.cpp','status':'ok','category':'tracked-source','includes':['@build/late.h']}]
+            save_fixture(root,graph,inventory)
+            self.assertTrue(any('generated include lacks' in e for e in validate(root)))
 
     def test_generated_source_storage_accounting_and_tampering(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -398,6 +401,32 @@ class ValidationTests(unittest.TestCase):
 
 
 class DriftTests(unittest.TestCase):
+    def test_generated_header_recipe_changes_reach_tracked_owners_transitively(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);(root/'api').mkdir()
+            (root/'a.cpp').write_text('int value() { return 1; }\n')
+            (root/'api/schema.proto').write_text('first\n')
+            def git(*args):
+                return subprocess.check_output(['git','-C',str(root),*args],text=True).strip()
+            git('init','--quiet');git('add','.')
+            git('-c','user.name=Test','-c','user.email=test@example.invalid','commit','-qm','test generator fixture')
+            base=git('rev-parse','HEAD')
+            graph={'provenance':{'upstream_pin':base,'source_commit':base,'generated_input_dependencies':{
+                '@build/api/schema.pb.h':['api/schema.proto','@build/cycle.h'],
+                '@build/cycle.h':['@build/api/schema.pb.h']}},
+                'functions':{'f':{'name':'value','file':'a.cpp','start':1,'end':1}},
+                'translation_units':[{'file':'a.cpp','includes':['@build/api/schema.pb.h']}]}
+            units=[{'id':'tracked','status':'partial','functions':['f'],'upstream':['a.cpp']}]
+            (root/'api/schema.proto').write_text('second\n');git('add','.')
+            git('-c','user.name=Test','-c','user.email=test@example.invalid','commit','-qm','test changed generator input')
+            original=drift_report.PIN
+            try:
+                drift_report.PIN=base;result=drift_report.report(root,graph,units)
+                self.assertEqual(result['affected'],[])
+                self.assertEqual(result['affected_units'],['tracked'])
+                self.assertEqual(result['dependency_reviews'][0]['changed_inputs'],['api/schema.proto'])
+            finally:drift_report.PIN=original
+
     def test_insert_delete_mapping(self):
         self.assertEqual(drift_report.hunks("@@ -2,0 +3,5 @@\n@@ -9 +14 @@"), [(2, 0, 3, 5), (9, 1, 14, 1)])
         self.assertEqual(drift_report.map_range(13, 18, [(2, 0, 3, 5)]), (8, 13))
@@ -485,6 +514,10 @@ struct Unused : Base { ~Unused() override {} };
 struct Implicit : Base {};
 void destroy(Base* b) { delete b; }
 void explicit_destroy(Base* b) { b->~Base(); }
+using Ptr=Base*;
+using NestedPtr=Ptr;
+void alias_destroy(Ptr b) { delete b; }
+void chained_destroy(NestedPtr b) { delete b; }
 void array_destroy(Left* b) { delete[] b; }
 void local(Left value) { Leaf leaf; Implicit implicit; }
 Leaf make();
@@ -496,7 +529,7 @@ void temporary() { make(); }
             self.assertEqual(result['status'], 'ok', result['diagnostics'])
             names = {u:f['name'] for u,f in result['functions'].items()}
             edges = [(names.get(a,a), names.get(b,b), k) for a,b,k in expand_virtual(result['calls'],result['overrides'])]
-            for caller in ['destroy(Base *)', 'explicit_destroy(Base *)']:
+            for caller in ['destroy(Base *)', 'explicit_destroy(Base *)','alias_destroy(Ptr)','chained_destroy(NestedPtr)']:
                 self.assertEqual({b for a,b,k in edges if a==caller},
                     {'Base::~Base()', 'Left::~Left()', 'Leaf::~Leaf()', 'Unused::~Unused()'})
             self.assertIn(('Left::~Left()', 'Base::~Base()', 'static'), edges)
@@ -526,6 +559,15 @@ struct Owner { Widget* widget; int get() { return 2; } };
 union UnionOwner { Widget* widget; int number; int get() { return 2; } };
 template<class T> struct Partial;
 template<class T> struct Partial<T*> { Widget* widget; int get() { return 2; } };
+struct Hidden { Widget* widget; };
+template<class T> struct BaseOnly : Hidden {};
+BaseOnly<double> instantiated;
+int base_complete(BaseOnly<double>* value) { return 0; }
+template<class T> struct Fixed { Widget* widget; };
+int primary_pointer(Fixed<int>* value) { return 0; }
+int partial_pointer(Partial<int*>* value) { return 0; }
+template<class T> struct Generic { T value; };
+int plain_storage(Generic<int>* value) { return 0; }
 int direct(Window* value) { return 0; }
 int nested(Widgets const& value) { return 0; }
 NETNAMES_MAP const& names(NETNAMES_MAP const& value) { return value; }
@@ -538,7 +580,7 @@ namespace Gui { using Alias = wxFrame; int get(Alias*) { return 1; } }
                 libclang='/usr/lib/llvm-21/lib/libclang-21.so.1'))
             self.assertEqual(result['status'], 'ok', result['diagnostics'])
             for f in result['functions'].values():
-                if f['name'].startswith('Plain::'):
+                if f['name'].startswith(('Plain::','plain_storage(')):
                     self.assertEqual(f['wx'], [])
                     continue
                 self.assertIn('wxString' if f['name'].startswith('names(') else 'wxFrame', f['wx'], f)
@@ -584,6 +626,52 @@ namespace Gui { using Alias = wxFrame; int get(Alias*) { return 1; } }
                 '--inventory', str(output/'inventory.json'), '--units-dir', str(root/'port/units'),
                 '--report', str(output/'units.json'), '--source-root', str(root)], check=True, capture_output=True)
             self.assertEqual(validate(root), [])
+
+    def test_macro_only_generated_includes_are_frozen_and_invalidate_cache(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base=Path(tmp);root=base/'repo';root.mkdir();build=base/'build';build.mkdir()
+            out=root/'port/extractor/generated';freeze(build,out,{'source_commit':'a'*40})
+            source=root/'entry.cpp'
+            source.write_text('#include "late.h"\nint first(){return 1;}\nint second(){return 2;}\nint entry(){return TARGET();}\n')
+            (build/'late.h').write_text('#define TARGET first\n')
+            write_json(out/'source-manifest.json',{'source_commit':'a'*40,'upstream_pin':PIN,'files':['entry.cpp']})
+            db=base/'compile_commands.json';write_json(db,[dict(file=str(source),directory=str(root),
+                arguments=['clang++','-I'+str(build),'-c',str(source)])])
+            tools=Path(__file__).resolve().parents[1]/'tools'
+            def extract(cache,success=True):
+                command=[sys.executable,str(tools/'extract_graph.py'),'--compile-commands',str(db),'--source-root',str(root),
+                    '--original-source-root',str(root),'--manifest',str(out/'source-manifest.json'),
+                    '--generated-manifest',str(out/'generated-sources.json'),'--cache',str(cache),'--output',str(out),'--jobs','1']
+                result=subprocess.run(command,capture_output=True,text=True,cwd=root)
+                self.assertEqual(result.returncode==0,success,result.stdout+result.stderr)
+                if not success:return result
+                graph=read_json(out/'graph.json');names={u:f['name'] for u,f in graph['functions'].items()}
+                targets={names.get(b,b) for a,b,k in graph['edges'] if names.get(a)=='entry()'}
+                self.assertIn('@build/late.h',graph['translation_units'][0]['includes'])
+                return graph,targets
+            failed=extract(base/'cache',False)
+            self.assertIn('Frozen build file inventory',failed.stderr)
+            freeze(build,out,{'source_commit':'a'*40})
+            first,targets=extract(base/'cache');self.assertEqual(targets,{'first()'})
+            (build/'late.h').write_text('#define TARGET second\n')
+            failed=extract(base/'cache',False);self.assertIn('Frozen build file inventory',failed.stderr)
+            freeze(build,out,{'source_commit':'a'*40})
+            after,targets=extract(base/'cache');self.assertEqual(targets,{'second()'})
+            fresh,fresh_targets=extract(base/'fresh-cache');self.assertEqual(targets,fresh_targets)
+            hit,hit_targets=extract(base/'cache');self.assertEqual(targets,hit_targets)
+            self.assertEqual(hit['provenance']['cache_reused_commands'],1)
+            subprocess.run([sys.executable,str(tools/'split_units.py'),'--graph',str(out/'graph.json'),
+                '--inventory',str(out/'inventory.json'),'--units-dir',str(root/'port/units'),'--report',str(out/'units.json'),
+                '--source-root',str(root)],check=True,capture_output=True,cwd=root)
+            self.assertEqual(validate(root),[])
+            # Unusual include suffixes must also get a stored source mapping.
+            (build/'extra.data').write_text('#define EXTRA 1\n')
+            source.write_text('#include "late.h"\n#include "extra.data"\nint first(){return 1;}\nint second(){return 2;}\nint entry(){return TARGET()+EXTRA;}\n')
+            freeze(build,out,{'source_commit':'a'*40})
+            failed=extract(base/'cache',False);self.assertIn('Generated includes lack frozen source mappings',failed.stderr)
+            freeze(build,out,{'source_commit':'a'*40},['extra.data'])
+            graph,_=extract(base/'cache')
+            self.assertIn('@build/extra.data',graph['translation_units'][0]['includes'])
 
     def test_include_aliases_and_constrained_auto_extents_have_real_owned_ranges(self):
         from extractor.clang_graph import extract_translation_unit

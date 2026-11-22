@@ -62,6 +62,9 @@ def main():
         generated_manifest = read_json(a.generated_manifest)
         build = Path(generated_manifest['build_root']).resolve()
         inventory.extend(verify_generated(generated_manifest, build, a.generated_manifest.parent))
+        if a.cache.resolve().is_relative_to(build) or a.output.resolve().is_relative_to(build):
+            p.error('Keep extraction cache/output outside the frozen build tree')
+    frozen_paths = {entry['path'] for entry in inventory}
     jobs = []
     libclang_sha256 = digest(Path(a.libclang).read_bytes())
     for command in commands:
@@ -97,6 +100,11 @@ def main():
     locations, location_primaries = {}, {}
 
     def consume(result):
+        missing_generated = {path for path in result.get('includes', []) + [result['file']]
+                             if path.startswith('@build/') and path not in frozen_paths}
+        if missing_generated:
+            raise ValueError('Generated includes lack frozen source mappings; refreeze with these inputs: '
+                             + ', '.join(sorted(missing_generated)))
         identity = (result["file"], result.get("command_sha256", ""))
         for usr, record in result["functions"].items():
             location = (record["file"], record["start"], record["end"])
@@ -162,6 +170,8 @@ def main():
             consume_safely(result)
             print(f"{len(results)}/{len(jobs)} {result['status']} {result['file']}", flush=True)
     calls, overrides, definition_copies = materialize_definitions(functions, calls, overrides, locations)
+    if a.generated_manifest:
+        verify_generated(generated_manifest, build, a.generated_manifest.parent)
     edges = expand_virtual(calls, overrides)
     classify(functions, edges)
     command_files = {r["file"] for r in results}
@@ -198,6 +208,7 @@ def main():
                   "gate_complete": not failures and len(results) == len(commands),
                   "gate_definition": "Extractor diagnostic only: all WSL commands parsed and all tracked sources inventoried; not the PORT_PLAN phase-0 gate",
                   "limitations": ["No Windows/macOS or inactive preprocessor branch extraction",
+                                  "Opaque template layouts conservatively union fixed storage/base types from visible primary and partial declarations; T is not assumed wx",
                                   "Indirect function pointers and unresolved dependent template calls are recorded, not guessed",
                                   "Delete and explicit destructors dispatch to observed virtual overrides; local/by-value objects and destructor bases/fields add visible cleanup dependencies",
                                   "Implicit destructor bodies/overrides absent from libclang are unresolved, not invented; temporary, exception-unwind, union/variant and global lifetime cleanup is not exhaustively modeled"],

@@ -14,6 +14,12 @@ from extractor.model import PIN, digest, read_json, write_json
 SUFFIXES = {'.c', '.cc', '.cpp', '.cxx', '.h', '.hh', '.hpp', '.hxx', '.m', '.mm', '.inc', '.ipp', '.tcc'}
 
 
+def build_state(build):
+    """Bind all private build files, including macro headers with unusual suffixes."""
+    return [{'path': p.relative_to(build).as_posix(), 'sha256': digest(p.read_bytes())}
+            for p in sorted(build.rglob('*')) if p.is_file()]
+
+
 def source_path(entry, source_root, generated_root):
     if entry.get('origin') != 'build-generated':
         if entry['path'].startswith('@build/'):
@@ -28,6 +34,8 @@ def source_path(entry, source_root, generated_root):
 
 
 def verify(manifest, build_root, generated_root):
+    if manifest.get('build_files') != build_state(build_root):
+        raise ValueError('Frozen build file inventory/bytes changed; refreeze generated inputs before using the cache')
     entries = manifest['files']
     if len({e['path'] for e in entries}) != len(entries):
         raise ValueError('Duplicate generated source path')
@@ -41,11 +49,18 @@ def verify(manifest, build_root, generated_root):
     return entries
 
 
-def freeze(build, output, provenance):
+def freeze(build, output, provenance, extra_inputs=()):
+    build, output = build.resolve(), output.resolve()
+    if output.resolve().is_relative_to(build.resolve()):
+        raise ValueError('Keep frozen output outside the private build tree')
     entries = []
-    for path in sorted(build.rglob('*')):
-        if not path.is_file() or path.suffix not in SUFFIXES:
-            continue
+    paths = {p for p in build.rglob('*') if p.is_file() and p.suffix.lower() in SUFFIXES}
+    for relative in extra_inputs:
+        path = (build / relative).resolve()
+        if not path.is_relative_to(build.resolve()) or not path.is_file():
+            raise ValueError('Extra generated input must be an existing private build file')
+        paths.add(path)
+    for path in sorted(paths):
         relative = path.relative_to(build).as_posix()
         content = path.read_bytes()
         storage = output / 'sources' / relative
@@ -60,7 +75,8 @@ def freeze(build, output, provenance):
                         'bytes_sha256': digest(content),
                         'category': 'thirdparty' if tooling else 'generated'})
     manifest = {'schema_version': 1, 'upstream_pin': PIN,
-                'build_root': str(build), 'provenance': provenance, 'files': entries}
+                'build_root': str(build), 'provenance': provenance, 'files': entries,
+                'build_files': build_state(build)}
     write_json(output / 'generated-sources.json', manifest)
     return manifest
 
@@ -70,6 +86,7 @@ def main():
     p.add_argument('--build-root', type=Path, required=True)
     p.add_argument('--reconciliation', type=Path, required=True)
     p.add_argument('--output', type=Path, required=True)
+    p.add_argument('--extra-input', action='append', default=[], help='existing build-relative include with a nonstandard suffix')
     a = p.parse_args()
     build = a.build_root.resolve()
     if build == (Path.home() / 'kicad-live/build').resolve():
@@ -91,7 +108,7 @@ def main():
     for name in ('CMakeCache.txt', 'build.ninja', 'CMakeFiles/rules.ninja'):
         path = build / name
         provenance[name] = {'sha256': digest(path.read_bytes())}
-    manifest = freeze(build, a.output, provenance)
+    manifest = freeze(build, a.output, provenance, a.extra_input)
     recipes = {}
     source = Path(read_json(a.reconciliation / 'reconciliation.json')['source_root'])
     for entry in manifest['files']:

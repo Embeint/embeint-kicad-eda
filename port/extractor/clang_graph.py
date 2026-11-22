@@ -60,6 +60,36 @@ def extract_translation_unit(job):
         type_nodes, type_cache = {}, {}
         destructor_cache = {}
         aliases = {}
+        template_partials = {}
+
+        def template_root(cursor):
+            seen = set()
+            while cursor and cursor.get_usr() not in seen:
+                seen.add(cursor.get_usr())
+                primary = cursor.specialized_template
+                if not primary:
+                    break
+                cursor = primary
+            return cursor
+
+        declaration_containers = {ci.CursorKind.TRANSLATION_UNIT, ci.CursorKind.NAMESPACE,
+            ci.CursorKind.LINKAGE_SPEC, ci.CursorKind.UNEXPOSED_DECL,
+            ci.CursorKind.CLASS_DECL, ci.CursorKind.STRUCT_DECL, ci.CursorKind.UNION_DECL,
+            ci.CursorKind.CLASS_TEMPLATE, ci.CursorKind.CLASS_TEMPLATE_PARTIAL_SPECIALIZATION}
+
+        def collect_partials(cursor):
+            # Partial specializations can be in external headers too. Function
+            # bodies cannot declare class templates, so prune them here.
+            if cursor.kind not in declaration_containers:
+                return
+            if cursor.kind == ci.CursorKind.CLASS_TEMPLATE_PARTIAL_SPECIALIZATION:
+                primary = template_root(cursor)
+                if primary:
+                    template_partials.setdefault(primary.get_usr(), []).append(cursor)
+            for child in cursor.get_children():
+                collect_partials(child)
+
+        collect_partials(tu.cursor)
 
         def identity(cursor):
             """Connect instantiated calls to the primary body that owns their source.
@@ -155,8 +185,18 @@ def extract_translation_unit(job):
                     if t.kind == ci.TypeKind.RECORD and not (declaration and re.match(r"wx[A-Z]", declaration.spelling)):
                         children.extend(field.type for field in t.get_fields())
                         if declaration:
-                            children.extend(c.type for c in declaration.get_children()
-                                            if c.kind == ci.CursorKind.CXX_BASE_SPECIFIER)
+                            primary = template_root(declaration)
+                            sources = [declaration.get_definition() or declaration]
+                            if primary and primary != declaration:
+                                sources.append(primary.get_definition() or primary)
+                                sources.extend(template_partials.get(primary.get_usr(), []))
+                            # libclang can expose an empty specialization cursor
+                            # even after layout instantiation. Union its visible
+                            # template source storage/bases; do not guess that T
+                            # itself is wx or inject instantiations into the TU.
+                            for owner in sources:
+                                children.extend(c.type for c in owner.get_children()
+                                    if c.kind in (ci.CursorKind.CXX_BASE_SPECIFIER, ci.CursorKind.FIELD_DECL))
                     type_nodes[k] = (set(re.findall(r"\bwx[A-Z]\w*", t.spelling)), children)
                 direct, children = type_nodes[k]
                 names.update(direct)
@@ -283,7 +323,7 @@ def extract_translation_unit(job):
                 if cursor.kind == ci.CursorKind.CXX_DELETE_EXPR:
                     operands = list(cursor.get_children())
                     if operands:
-                        if destruction(operands[-1].type.get_pointee(), current, cursor, dispatch=True):
+                        if destruction(operands[-1].type.get_canonical().get_pointee(), current, cursor, dispatch=True):
                             out['unresolved'].append({'caller': current, 'line': cursor.location.line,
                                 'expression': 'virtual destructor dispatch: compiler-implicit derived overrides may be absent'})
                     else:
