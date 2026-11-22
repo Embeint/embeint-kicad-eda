@@ -1,0 +1,55 @@
+    Checking libc v0.2.191
+    Checking hashbrown v0.17.1
+    Checking serde v1.0.229
+    Checking kicad-md5 v0.1.0 (/home/karlvonrichter/kicad-port/pilot-md5/repo/rust/kicad-md5)
+    Checking indexmap v2.14.2
+    Checking getrandom v0.3.4
+    Checking serde_json v1.0.154
+    Checking tempfile v3.27.0
+    Checking kicad-difftest v0.1.0 (/home/karlvonrichter/kicad-port/pilot-md5/repo/rust/kicad-difftest)
+    Checking kicad-md5-shim v0.1.0 (/home/karlvonrichter/kicad-port/pilot-md5/repo/rust/kicad-md5-shim)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.45s
+   Compiling kicad-md5 v0.1.0 (/home/karlvonrichter/kicad-port/pilot-md5/repo/rust/kicad-md5)
+   Compiling kicad-md5-shim v0.1.0 (/home/karlvonrichter/kicad-port/pilot-md5/repo/rust/kicad-md5-shim)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.68s
+     Running unittests src/lib.rs (rust/target/debug/deps/kicad_md5-c87a89e724579cb0)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/wrapper.rs (rust/target/debug/deps/wrapper-2201fa9238f27f05)
+
+running 3 tests
+test copied_partial_contexts_continue_independently ... ok
+test rfc_digest_and_reference_format ... ok
+test validity_is_independent_of_digest_and_pending_context ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (rust/target/debug/deps/kicad_md5_shim-eb6ffb475fae19fa)
+
+running 3 tests
+test tests::malformed_protocol_and_unknown_unit_fail ... ok
+test tests::resource_bounds_and_unconstructed_states_are_refused ... ok
+test tests::legitimate_noops_remain_successful_results ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests kicad_md5
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Compiling kicad-md5 v0.1.0 (/home/karlvonrichter/kicad-port/pilot-md5/repo/rust/kicad-md5)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.15s
+All unit records and source accounting valid
+   Compiling kicad-md5-shim v0.1.0 (/home/karlvonrichter/kicad-port/pilot-md5/repo/rust/kicad-md5-shim)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.41s
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","status":"green","action":"check","cases":5972,"deferred":0,"cases_sha256":"c0e63d835781b88cda40135b1b9d5c83a420964c885afeb65c6fc06c94021715","oracle_output_sha256":"c897427df65bb0c0ac199fc1bb8d89519382da0476119e01cc49094e1aa15132","rust_output_sha256":"da0d39f85f9a8a8e20a4eb13cf6756448fb6c0b878275a5b642ad15442e7f30f","oracle_sha256":"52d3fd4859fcc05a979eb3a115c435524f938758d8c19e79da84acd85b5d8608","rust_sha256":"0dc7e0fb863b781ee1dc1e53888bab88ac40d77a5e775c43093334949fdf5bdd"}
+Phase 0: INCOMPLETE; 1/3 live green layer-0 units; 1570 validated unit records.
+
+Extraction/configuration coverage (reported separately): `{"all_configurations_complete": false, "compile_database_complete": true, "gate_complete": false, "inventory_complete": true, "parse_complete": false, "parse_failures": 4, "uncompiled_application_sources": 63, "unresolved_call_count": 5247105}`
+
+Registered unit integration gates complete; strict phase-zero gate unchanged

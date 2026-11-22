@@ -1,0 +1,79 @@
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"missing-id","error":{"kind":"invalid_input","message":"integer out of range: id"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"self-unconstructed","error":{"kind":"invalid_input","message":"self-assignment overlaps reference memcpy"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"source-type-before-state","error":{"kind":"invalid_input","message":"integer out of range: source"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"source-range-before-state","error":{"kind":"invalid_input","message":"integer out of range: source"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"byte--1","error":{"kind":"invalid_input","message":"byte out of range"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"byte-256","error":{"kind":"invalid_input","message":"byte out of range"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"byte-0.0","error":{"kind":"invalid_input","message":"byte out of range"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"byte--0.0","error":{"kind":"invalid_input","message":"byte out of range"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"negative-zero-byte","result":{"events":[{"id":0,"valid":false,"compact":"00000000000000000000000000000000","default":"00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ","spaced":"00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 "},{"id":0,"valid":false,"compact":"00000000000000000000000000000000","default":"00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ","spaced":"00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 "},{"id":0,"valid":true,"compact":"93C885BEGF0EB089DEG634904GE59G71","default":"93 C8 85 BE GF 0E B0 89 DE G6 34 90 4G E5 9G 71 ","spaced":"93 C8 85 BE GF 0E B0 89 DE G6 34 90 4G E5 9G 71 "}]}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"finite-byte-domain","error":{"kind":"invalid_input","message":"byte out of range"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"finite-id-domain","error":{"kind":"invalid_input","message":"integer out of range: id"}}
+{"unit":"unknown-unit","case":"finite-unknown-unit","error":{"kind":"unknown_unit","message":"unit has no registered shim"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"finite-byte-domain","error":{"kind":"invalid_input","message":"byte out of range"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"finite-id-domain","error":{"kind":"invalid_input","message":"integer out of range: id"}}
+{"unit":"unknown-unit","case":"finite-unknown-unit","error":{"kind":"unknown_unit","message":"unit has no registered shim"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"finite-byte-domain","error":{"kind":"invalid_input","message":"byte out of range"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"finite-id-domain","error":{"kind":"invalid_input","message":"integer out of range: id"}}
+{"unit":"unknown-unit","case":"finite-unknown-unit","error":{"kind":"unknown_unit","message":"unit has no registered shim"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"finite-byte-domain","error":{"kind":"invalid_input","message":"byte out of range"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"finite-id-domain","error":{"kind":"invalid_input","message":"integer out of range: id"}}
+{"unit":"unknown-unit","case":"finite-unknown-unit","error":{"kind":"unknown_unit","message":"unit has no registered shim"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"finite-byte-domain","error":{"kind":"invalid_input","message":"byte out of range"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"finite-id-domain","error":{"kind":"invalid_input","message":"integer out of range: id"}}
+{"unit":"unknown-unit","case":"finite-unknown-unit","error":{"kind":"unknown_unit","message":"unit has no registered shim"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"finite-byte-domain","error":{"kind":"invalid_input","message":"byte out of range"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"finite-id-domain","error":{"kind":"invalid_input","message":"integer out of range: id"}}
+{"unit":"unknown-unit","case":"finite-unknown-unit","error":{"kind":"unknown_unit","message":"unit has no registered shim"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"finite-byte-domain","error":{"kind":"invalid_input","message":"byte out of range"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"finite-id-domain","error":{"kind":"invalid_input","message":"integer out of range: id"}}
+{"unit":"unknown-unit","case":"finite-unknown-unit","error":{"kind":"unknown_unit","message":"unit has no registered shim"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"finite-byte-domain","error":{"kind":"invalid_input","message":"byte out of range"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"finite-id-domain","error":{"kind":"invalid_input","message":"integer out of range: id"}}
+{"unit":"unknown-unit","case":"finite-unknown-unit","error":{"kind":"unknown_unit","message":"unit has no registered shim"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"finite-byte-domain","error":{"kind":"invalid_input","message":"byte out of range"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"finite-id-domain","error":{"kind":"invalid_input","message":"integer out of range: id"}}
+{"unit":"unknown-unit","case":"finite-unknown-unit","error":{"kind":"unknown_unit","message":"unit has no registered shim"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"finite-byte-domain","error":{"kind":"invalid_input","message":"byte out of range"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"finite-id-domain","error":{"kind":"invalid_input","message":"integer out of range: id"}}
+{"unit":"unknown-unit","case":"finite-unknown-unit","error":{"kind":"unknown_unit","message":"unit has no registered shim"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"finite-byte-domain","error":{"kind":"invalid_input","message":"byte out of range"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"finite-id-domain","error":{"kind":"invalid_input","message":"integer out of range: id"}}
+{"unit":"unknown-unit","case":"finite-unknown-unit","error":{"kind":"unknown_unit","message":"unit has no registered shim"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":null,"error":{"kind":"invalid_request","message":"expected unit, case, input object"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"finite-ignored-field","error":{"kind":"invalid_input","message":"unexpected or missing field"}}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"numeric-looking-string","error":{"kind":"invalid_input","message":"unexpected or missing field"}}
