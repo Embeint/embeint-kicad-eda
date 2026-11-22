@@ -125,6 +125,10 @@ target_link_libraries( oracle-dispatch-test PRIVATE kimath nlohmann_json iec6066
 target_link_options( oracle-dispatch-test PRIVATE -Wl,--gc-sections )
 add_dependencies( oracle-dispatch-test oracle-audit )
 add_test( NAME oracle-dispatch COMMAND oracle-dispatch-test )
+add_test( NAME oracle-md5-inputs
+    COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_md5_inputs.py"
+            "$<TARGET_FILE:kicad-oracle>" )
+set_tests_properties( oracle-md5-inputs PROPERTIES TIMEOUT 60 )
 add_test( NAME oracle-iec60664-inputs
     COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_iec60664_inputs.py"
             "$<TARGET_FILE:kicad-oracle>" )

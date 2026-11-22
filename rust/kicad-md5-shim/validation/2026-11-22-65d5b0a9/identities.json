@@ -1,0 +1,12 @@
+{
+  "adapter_stdout_sha256": {
+    "kicad-md5-shim": "6a11e45ecafa7df0a4db2127977483ff1e8a4d672b2e29aeea72a74878a0b5d6",
+    "kicad-oracle": "caae6f2db4c49bea71bfcf6a548a809e2f967f44054aadc2020d58753bbe229e"
+  },
+  "kicad-difftest": "5d07329ad8d10ff7363d83d8e72f570e336125eca0500b8cb842354660f3264c",
+  "kicad-md5-shim": "ed5f93fd81835cf5dcf30b7b0a27bf7dc9eeae01550c74ef5042a3890c4442a6",
+  "kicad-oracle": "ef081cadadaadc81a14b966e492d312872ef3429e20d02ee44ef51af98ead6d1",
+  "oracle_provenance_sha256": "a1814b2726e80179130ce4d17cf6f0fc85fe0ab6ae1e7972f6e3bf614af72c8d",
+  "raw_regression_requests_sha256": "fd7d8399c348c63a6e777c6ee13d96594f6059f8a29ef8065cfa2eb9ce802c30",
+  "regression_expected_sha256": "cb8f38533012e1ae3d88cd384f9fda8279cd187bf22b1547122022e3ec167ebf"
+}

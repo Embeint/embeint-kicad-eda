@@ -1,0 +1,837 @@
+Waiting for the shared build lock before preparing the private fix tree
+Collecting west==1.5.0 (from -r /home/karlvonrichter/kicad-port/md5-input-fix/repo/port/tools/requirements-west.txt (line 3))
+  Using cached west-1.5.0-py3-none-any.whl.metadata (19 kB)
+Collecting colorama==0.4.6 (from -r /home/karlvonrichter/kicad-port/md5-input-fix/repo/port/tools/requirements-west.txt (line 4))
+  Using cached colorama-0.4.6-py2.py3-none-any.whl.metadata (17 kB)
+Collecting packaging==26.0 (from -r /home/karlvonrichter/kicad-port/md5-input-fix/repo/port/tools/requirements-west.txt (line 5))
+  Using cached packaging-26.0-py3-none-any.whl.metadata (3.3 kB)
+Collecting pykwalify==1.8.0 (from -r /home/karlvonrichter/kicad-port/md5-input-fix/repo/port/tools/requirements-west.txt (line 6))
+  Using cached pykwalify-1.8.0-py2.py3-none-any.whl.metadata (5.3 kB)
+Collecting PyYAML==6.0.3 (from -r /home/karlvonrichter/kicad-port/md5-input-fix/repo/port/tools/requirements-west.txt (line 7))
+  Using cached pyyaml-6.0.3-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)
+Collecting docopt==0.6.2 (from -r /home/karlvonrichter/kicad-port/md5-input-fix/repo/port/tools/requirements-west.txt (line 8))
+  Using cached docopt-0.6.2-py2.py3-none-any.whl
+Collecting python-dateutil==2.9.0.post0 (from -r /home/karlvonrichter/kicad-port/md5-input-fix/repo/port/tools/requirements-west.txt (line 9))
+  Using cached python_dateutil-2.9.0.post0-py2.py3-none-any.whl.metadata (8.4 kB)
+Collecting ruamel.yaml==0.19.1 (from -r /home/karlvonrichter/kicad-port/md5-input-fix/repo/port/tools/requirements-west.txt (line 10))
+  Using cached ruamel_yaml-0.19.1-py3-none-any.whl.metadata (16 kB)
+Collecting six==1.17.0 (from -r /home/karlvonrichter/kicad-port/md5-input-fix/repo/port/tools/requirements-west.txt (line 11))
+  Using cached six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)
+Using cached west-1.5.0-py3-none-any.whl (106 kB)
+Using cached colorama-0.4.6-py2.py3-none-any.whl (25 kB)
+Using cached packaging-26.0-py3-none-any.whl (74 kB)
+Using cached pykwalify-1.8.0-py2.py3-none-any.whl (24 kB)
+Using cached pyyaml-6.0.3-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (794 kB)
+Using cached python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)
+Using cached ruamel_yaml-0.19.1-py3-none-any.whl (118 kB)
+Using cached six-1.17.0-py2.py3-none-any.whl (11 kB)
+Installing collected packages: docopt, six, ruamel.yaml, PyYAML, packaging, colorama, python-dateutil, pykwalify, west
+
+Successfully installed PyYAML-6.0.3 colorama-0.4.6 docopt-0.6.2 packaging-26.0 pykwalify-1.8.0 python-dateutil-2.9.0.post0 ruamel.yaml-0.19.1 six-1.17.0 west-1.5.0
+=== updating solidcore (.port-deps/solidcore):
+--- solidcore: initializing
+Initialized empty Git repository in /home/karlvonrichter/kicad-port/md5-input-fix/repo/.port-deps/solidcore/.git/
+--- solidcore: fetching, need revision 7a588fa284765a83823293ae20b84da8356ab479
+From https://github.com/tangency-labs/solidcore
+ * [new branch]          agents-detached          -> refs/west/agents-detached
+ * [new branch]          agents-migration-exception -> refs/west/agents-migration-exception
+ * [new branch]          agents-root-causes       -> refs/west/agents-root-causes
+ * [new branch]          agents/claims-lapse      -> refs/west/agents/claims-lapse
+ * [new branch]          agents/claims-lapse-3h   -> refs/west/agents/claims-lapse-3h
+ * [new branch]          agents/claims-lapse-90m  -> refs/west/agents/claims-lapse-90m
+ * [new branch]          archive/full-history     -> refs/west/archive/full-history
+ * [new branch]          ball-patch-definition-record-on-main -> refs/west/ball-patch-definition-record-on-main
+ * [new branch]          ball-patch-definition-record-rebased -> refs/west/ball-patch-definition-record-rebased
+ * [new branch]          ball-patch-flat-arrays   -> refs/west/ball-patch-flat-arrays
+ * [new branch]          batch/b1-set-a           -> refs/west/batch/b1-set-a
+ * [new branch]          batch/clean-2026-10-19   -> refs/west/batch/clean-2026-10-19
+ * [new branch]          batch/clean-2026-10-19b  -> refs/west/batch/clean-2026-10-19b
+ * [new branch]          batch/clean-2026-10-20   -> refs/west/batch/clean-2026-10-20
+ * [new branch]          batch/clean-2026-10-20b  -> refs/west/batch/clean-2026-10-20b
+ * [new branch]          batch/clean-2026-10-20c  -> refs/west/batch/clean-2026-10-20c
+ * [new branch]          batch/clean-2026-10-20e  -> refs/west/batch/clean-2026-10-20e
+ * [new branch]          batch/clean-2026-10-21   -> refs/west/batch/clean-2026-10-21
+ * [new branch]          batch/clean-2026-10-21b  -> refs/west/batch/clean-2026-10-21b
+ * [new branch]          batch/clean-2026-10-21c  -> refs/west/batch/clean-2026-10-21c
+ * [new branch]          batch/crvonsurf          -> refs/west/batch/crvonsurf
+ * [new branch]          batch/fillet-1           -> refs/west/batch/fillet-1
+ * [new branch]          batch/finish-1           -> refs/west/batch/finish-1
+ * [new branch]          batch/finish-2           -> refs/west/batch/finish-2
+ * [new branch]          batch/finish-3           -> refs/west/batch/finish-3
+ * [new branch]          batch/leader-3           -> refs/west/batch/leader-3
+ * [new branch]          batch/leader-4           -> refs/west/batch/leader-4
+ * [new branch]          batch/local-ops-1        -> refs/west/batch/local-ops-1
+ * [new branch]          batch/offset-fixes       -> refs/west/batch/offset-fixes
+ * [new branch]          batch/parked-cpp-defects -> refs/west/batch/parked-cpp-defects
+ * [new branch]          batch/shepherd-1         -> refs/west/batch/shepherd-1
+ * [new branch]          batch/shepherd-1b        -> refs/west/batch/shepherd-1b
+ * [new branch]          batch/shepherd-2         -> refs/west/batch/shepherd-2
+ * [new branch]          batch/wr-audit-cleanup   -> refs/west/batch/wr-audit-cleanup
+ * [new branch]          blend-definition-check   -> refs/west/blend-definition-check
+ * [new branch]          blend-offset-on-definition -> refs/west/blend-offset-on-definition
+ * [new branch]          blend-offset-on-definition-2 -> refs/west/blend-offset-on-definition-2
+ * [new branch]          blend-reach              -> refs/west/blend-reach
+ * [new branch]          blend/2400-delete-old-corners -> refs/west/blend/2400-delete-old-corners
+ * [new branch]          blend/2400-delete-old-corners-rebased -> refs/west/blend/2400-delete-old-corners-rebased
+ * [new branch]          blend/setback-convexity-module -> refs/west/blend/setback-convexity-module
+ * [new branch]          blend/setback-fill-orders -> refs/west/blend/setback-fill-orders
+ * [new branch]          blend/setback-graph-fill-orders -> refs/west/blend/setback-graph-fill-orders
+ * [new branch]          chamfers-as-definitions  -> refs/west/chamfers-as-definitions
+ * [new branch]          chore/2843-render        -> refs/west/chore/2843-render
+ * [new branch]          chore/2950-render        -> refs/west/chore/2950-render
+ * [new branch]          chore/ci-test-fast       -> refs/west/chore/ci-test-fast
+ * [new branch]          chore/drop-pin101-waivers -> refs/west/chore/drop-pin101-waivers
+ * [new branch]          chore/goldens-to-solidcore-goldens -> refs/west/chore/goldens-to-solidcore-goldens
+ * [new branch]          chore/or-fun-call-lint   -> refs/west/chore/or-fun-call-lint
+ * [new branch]          chore/remove-smlib-api   -> refs/west/chore/remove-smlib-api
+ * [new branch]          chore/solution-array-uvdomain-proof -> refs/west/chore/solution-array-uvdomain-proof
+ * [new branch]          chore/unported-ok-or-else -> refs/west/chore/unported-ok-or-else
+ * [new branch]          chore/xtask-rm           -> refs/west/chore/xtask-rm
+ * [new branch]          ci-blacksmith            -> refs/west/ci-blacksmith
+ * [new branch]          ci-difftest-on-demand    -> refs/west/ci-difftest-on-demand
+ * [new branch]          ci-speed                 -> refs/west/ci-speed
+ * [new branch]          ci/all-blacksmith        -> refs/west/ci/all-blacksmith
+ * [new branch]          ci/blacksmith-runners    -> refs/west/ci/blacksmith-runners
+ * [new branch]          ci/check-record-ids      -> refs/west/ci/check-record-ids
+ * [new branch]          ci/cpp-prebuilt          -> refs/west/ci/cpp-prebuilt
+ * [new branch]          ci/drop-difftest-placeholder -> refs/west/ci/drop-difftest-placeholder
+ * [new branch]          ci/kernel-rig            -> refs/west/ci/kernel-rig
+ * [new branch]          ci/merge-queue           -> refs/west/ci/merge-queue
+ * [new branch]          ci/pin-sccache-version   -> refs/west/ci/pin-sccache-version
+ * [new branch]          ci/progress-on-site      -> refs/west/ci/progress-on-site
+ * [new branch]          ci/sccache-ignore-io-error -> refs/west/ci/sccache-ignore-io-error
+ * [new branch]          ci/skip-docs-and-main-dupes -> refs/west/ci/skip-docs-and-main-dupes
+ * [new branch]          ci/sweep-on-prs          -> refs/west/ci/sweep-on-prs
+ * [new branch]          ci/test-job-runs-upstream-tests -> refs/west/ci/test-job-runs-upstream-tests
+ * [new branch]          claim/2886-relative-scale-floor -> refs/west/claim/2886-relative-scale-floor
+ * [new branch]          claim/2974-growth-bound  -> refs/west/claim/2974-growth-bound
+ * [new branch]          claim/2977-exact-stop    -> refs/west/claim/2977-exact-stop
+ * [new branch]          claim/2979-coaxial-uv    -> refs/west/claim/2979-coaxial-uv
+ * [new branch]          claim/2983-ops-session-order -> refs/west/claim/2983-ops-session-order
+ * [new branch]          claim/3016-kept-edge-split -> refs/west/claim/3016-kept-edge-split
+ * [new branch]          claim/3100-recertify-offset -> refs/west/claim/3100-recertify-offset
+ * [new branch]          claim/3152-tess-collapse-per-surface -> refs/west/claim/3152-tess-collapse-per-surface
+ * [new branch]          codeowners-owner-paths   -> refs/west/codeowners-owner-paths
+ * [new branch]          coderabbit-aligned       -> refs/west/coderabbit-aligned
+ * [new branch]          coderabbit-config        -> refs/west/coderabbit-config
+ * [new branch]          corner-definitions       -> refs/west/corner-definitions
+ * [new branch]          definition-eval-via-net  -> refs/west/definition-eval-via-net
+ * [new branch]          definition-eval-via-net-2 -> refs/west/definition-eval-via-net-2
+ * [new branch]          diagnostics-helper       -> refs/west/diagnostics-helper
+ * [new branch]          difftest-jobs            -> refs/west/difftest-jobs
+ * [new branch]          difftest/1485-plate-cylinder-fillet -> refs/west/difftest/1485-plate-cylinder-fillet
+ * [new branch]          difftest/analytic-bpt    -> refs/west/difftest/analytic-bpt
+ * [new branch]          difftest/api-files-op3-guard -> refs/west/difftest/api-files-op3-guard
+ * [new branch]          difftest/api-intersectors-ordered-input -> refs/west/difftest/api-intersectors-ordered-input
+ * [new branch]          difftest/api-intersectors-recover-rejections -> refs/west/difftest/api-intersectors-recover-rejections
+ * [new branch]          difftest/arc-lengths-boolean -> refs/west/difftest/arc-lengths-boolean
+ * [new branch]          difftest/blo-fillet-cone-uv-coverage -> refs/west/difftest/blo-fillet-cone-uv-coverage
+ * [new branch]          difftest/boolean-moved-operand -> refs/west/difftest/boolean-moved-operand
+ * [new branch]          difftest/boolean-skin-operand -> refs/west/difftest/boolean-skin-operand
+ * [new branch]          difftest/brep-p1-rust-reader-remainder -> refs/west/difftest/brep-p1-rust-reader-remainder
+ * [new branch]          difftest/brep-p2-build-owners -> refs/west/difftest/brep-p2-build-owners
+ * [new branch]          difftest/brep-p2-rust-reader -> refs/west/difftest/brep-p2-rust-reader
+ * [new branch]          difftest/brep-p3-real-geometry -> refs/west/difftest/brep-p3-real-geometry
+ * [new branch]          difftest/brep-p4-rust-built -> refs/west/difftest/brep-p4-rust-built
+ * [new branch]          difftest/brep-p6-build-owners -> refs/west/difftest/brep-p6-build-owners
+ * [new branch]          difftest/brep-p6-rust-reader -> refs/west/difftest/brep-p6-rust-reader
+ * [new branch]          difftest/brep-p7-rust-built -> refs/west/difftest/brep-p7-rust-built
+ * [new branch]          difftest/brep-p9-build-owners -> refs/west/difftest/brep-p9-build-owners
+ * [new branch]          difftest/brep-p9-rust-reader -> refs/west/difftest/brep-p9-rust-reader
+ * [new branch]          difftest/brep-validation-grid -> refs/west/difftest/brep-validation-grid
+ * [new branch]          difftest/brep-validation-rust-reader -> refs/west/difftest/brep-validation-rust-reader
+ * [new branch]          difftest/bti1-relabel-owned-only -> refs/west/difftest/bti1-relabel-owned-only
+ * [new branch]          difftest/corpus-parity-drop-sphere-diff -> refs/west/difftest/corpus-parity-drop-sphere-diff
+ * [new branch]          difftest/dead-case-b     -> refs/west/difftest/dead-case-b
+ * [new branch]          difftest/dead-generated-cases -> refs/west/difftest/dead-generated-cases
+ * [new branch]          difftest/edgeuse-p1-rust-reader -> refs/west/difftest/edgeuse-p1-rust-reader
+ * [new branch]          difftest/face-closest-point-live -> refs/west/difftest/face-closest-point-live
+ * [new branch]          difftest/face-p1-key-of-owners -> refs/west/difftest/face-p1-key-of-owners
+ * [new branch]          difftest/face-p3-key-of-owners -> refs/west/difftest/face-p3-key-of-owners
+ * [new branch]          difftest/fillet-exec-p1-no-holder-owners -> refs/west/difftest/fillet-exec-p1-no-holder-owners
+ * [new branch]          difftest/fillet-full-width-919-920 -> refs/west/difftest/fillet-full-width-919-920
+ * [new branch]          difftest/geom-object-own-model -> refs/west/difftest/geom-object-own-model
+ * [new branch]          difftest/heal-data-owner-block -> refs/west/difftest/heal-data-owner-block
+ * [new branch]          difftest/heal-runner-arena-owners -> refs/west/difftest/heal-runner-arena-owners
+ * [new branch]          difftest/issue-1528-box-cylinder-ub242 -> refs/west/difftest/issue-1528-box-cylinder-ub242
+ * [new branch]          difftest/issue-1528-plate-shell -> refs/west/difftest/issue-1528-plate-shell
+ * [new branch]          difftest/issue-1528-volume-query-operand-state -> refs/west/difftest/issue-1528-volume-query-operand-state
+ * [new branch]          difftest/issue-880-half-arc-rim -> refs/west/difftest/issue-880-half-arc-rim
+ * [new branch]          difftest/loopuse-rust-reader -> refs/west/difftest/loopuse-rust-reader
+ * [new branch]          difftest/merge-p1-build-owners -> refs/west/difftest/merge-p1-build-owners
+ * [new branch]          difftest/merge-p2-rust-built -> refs/west/difftest/merge-p2-rust-built
+ * [new branch]          difftest/merge-p4-relabel-owned-only -> refs/west/difftest/merge-p4-relabel-owned-only
+ * [new branch]          difftest/merge-p5-rust-built -> refs/west/difftest/merge-p5-rust-built
+ * [new branch]          difftest/nd3-parent-latch -> refs/west/difftest/nd3-parent-latch
+ * [new branch]          difftest/ogc-rust-built-inputs -> refs/west/difftest/ogc-rust-built-inputs
+ * [new branch]          difftest/owner-export-compare -> refs/west/difftest/owner-export-compare
+ * [new branch]          difftest/p7-op13-real-faces -> refs/west/difftest/p7-op13-real-faces
+ * [new branch]          difftest/query-brep-rust-built-inputs -> refs/west/difftest/query-brep-rust-built-inputs
+ * [new branch]          difftest/query-face-p2-rust-built -> refs/west/difftest/query-face-p2-rust-built
+ * [new branch]          difftest/radius-supported-cases -> refs/west/difftest/radius-supported-cases
+ * [new branch]          difftest/shell-rust-reader -> refs/west/difftest/shell-rust-reader
+ * [new branch]          difftest/status-is-compared -> refs/west/difftest/status-is-compared
+ * [new branch]          difftest/step-cpp-nondeterministic -> refs/west/difftest/step-cpp-nondeterministic
+ * [new branch]          difftest/surface-p5-analytic-cover -> refs/west/difftest/surface-p5-analytic-cover
+ * [new branch]          difftest/topology-solver-analytic-faces -> refs/west/difftest/topology-solver-analytic-faces
+ * [new branch]          difftest/traverser-rust-reader -> refs/west/difftest/traverser-rust-reader
+ * [new branch]          difftest/trimming-tools-no-set-naming -> refs/west/difftest/trimming-tools-no-set-naming
+ * [new branch]          difftest/trimming-tools-rust-built -> refs/west/difftest/trimming-tools-rust-built
+ * [new branch]          difftest/ub280-park-box-large-fillet-2 -> refs/west/difftest/ub280-park-box-large-fillet-2
+ * [new branch]          difftest/vertex-rust-reader -> refs/west/difftest/vertex-rust-reader
+ * [new branch]          difftest/vertexuse-rust-reader -> refs/west/difftest/vertexuse-rust-reader
+ * [new branch]          difftest/wr471-rotational-volume -> refs/west/difftest/wr471-rotational-volume
+ * [new branch]          docs-case-gallery        -> refs/west/docs-case-gallery
+ * [new branch]          docs-coordinating        -> refs/west/docs-coordinating
+ * [new branch]          docs-disclaimer          -> refs/west/docs-disclaimer
+ * [new branch]          docs-generic-blend       -> refs/west/docs-generic-blend
+ * [new branch]          docs-layers              -> refs/west/docs-layers
+ * [new branch]          docs-live-text-figures   -> refs/west/docs-live-text-figures
+ * [new branch]          docs-own-path            -> refs/west/docs-own-path
+ * [new branch]          docs-procedural-reference -> refs/west/docs-procedural-reference
+ * [new branch]          docs/agents-priorities   -> refs/west/docs/agents-priorities
+ * [new branch]          docs/agents-slim         -> refs/west/docs/agents-slim
+ * [new branch]          docs/agents-stable-kernel-first -> refs/west/docs/agents-stable-kernel-first
+ * [new branch]          docs/blacksmith-sponsor  -> refs/west/docs/blacksmith-sponsor
+ * [new branch]          docs/brep-clone-drops-owners -> refs/west/docs/brep-clone-drops-owners
+ * [new branch]          docs/finding-1485-parity -> refs/west/docs/finding-1485-parity
+ * [new branch]          docs/finding-wr306-small-closed-curves -> refs/west/docs/finding-wr306-small-closed-curves
+ * [new branch]          docs/finding-wr306-wr214-breakages -> refs/west/docs/finding-wr306-wr214-breakages
+ * [new branch]          docs/findings-transient-approx -> refs/west/docs/findings-transient-approx
+ * [new branch]          docs/nd494-topology-sweep-stitch -> refs/west/docs/nd494-topology-sweep-stitch
+ * [new branch]          docs/reference-docs      -> refs/west/docs/reference-docs
+ * [new branch]          docs/setback-scale-claim -> refs/west/docs/setback-scale-claim
+ * [new branch]          docs/setback-scale-claim-fix -> refs/west/docs/setback-scale-claim-fix
+ * [new branch]          docs/wr617-addendum-tangent-corner -> refs/west/docs/wr617-addendum-tangent-corner
+ * [new branch]          docs/wr655-ascii-double-format -> refs/west/docs/wr655-ascii-double-format
+ * [new branch]          exact-rounds-as-definitions -> refs/west/exact-rounds-as-definitions
+ * [new branch]          feat/2572-procedural-sweep -> refs/west/feat/2572-procedural-sweep
+ * [new branch]          feat/3137-convert-flat-parity -> refs/west/feat/3137-convert-flat-parity
+ * [new branch]          feat/3139-sweep-stations -> refs/west/feat/3139-sweep-stations
+ * [new branch]          feat/3140-section-blend  -> refs/west/feat/3140-section-blend
+ * [new branch]          feat/3141-tangent-edge-proved -> refs/west/feat/3141-tangent-edge-proved
+ * [new branch]          feat/3143-ops-exact-measures -> refs/west/feat/3143-ops-exact-measures
+ * [new branch]          feat/3145-ops-no-geometry-a -> refs/west/feat/3145-ops-no-geometry-a
+ * [new branch]          feat/3145-ops-no-geometry-b -> refs/west/feat/3145-ops-no-geometry-b
+ * [new branch]          feat/3218-defeature-limits -> refs/west/feat/3218-defeature-limits
+ * [new branch]          feat/pages-site          -> refs/west/feat/pages-site
+ * [new branch]          feat/profiler            -> refs/west/feat/profiler
+ * [new branch]          feat/s1-writer-part-reader-corpus -> refs/west/feat/s1-writer-part-reader-corpus
+ * [new branch]          feat/s2-lazy-nurb        -> refs/west/feat/s2-lazy-nurb
+ * [new branch]          feat/step-import         -> refs/west/feat/step-import
+ * [new branch]          feat/sweep-screw         -> refs/west/feat/sweep-screw
+ * [new branch]          feat/tessellate          -> refs/west/feat/tessellate
+ * [new branch]          figures/2982-tangent-end -> refs/west/figures/2982-tangent-end
+ * [new branch]          figures/3094-refused-bodies -> refs/west/figures/3094-refused-bodies
+ * [new branch]          fillet-classify-consistent-faces-2624 -> refs/west/fillet-classify-consistent-faces-2624
+ * [new branch]          findings/curve-class-reach -> refs/west/findings/curve-class-reach
+ * [new branch]          fix-2546-chamfer-apex-near-axis -> refs/west/fix-2546-chamfer-apex-near-axis
+ * [new branch]          fix-3021-concave-corner  -> refs/west/fix-3021-concave-corner
+ * [new branch]          fix/2404-strip-below-resolution -> refs/west/fix/2404-strip-below-resolution
+ * [new branch]          fix/2426-retire-keep-features -> refs/west/fix/2426-retire-keep-features
+ * [new branch]          fix/2497-oblique-wall-and-seam-cut -> refs/west/fix/2497-oblique-wall-and-seam-cut
+ * [new branch]          fix/2500-remove-wr641    -> refs/west/fix/2500-remove-wr641
+ * [new branch]          fix/2570-round-on-round-pieces -> refs/west/fix/2570-round-on-round-pieces
+ * [new branch]          fix/2570-round-on-round-pieces-rebased -> refs/west/fix/2570-round-on-round-pieces-rebased
+ * [new branch]          fix/2695-branch-directions -> refs/west/fix/2695-branch-directions
+ * [new branch]          fix/2704-gate-plane-equation -> refs/west/fix/2704-gate-plane-equation
+ * [new branch]          fix/2730-exact-extension -> refs/west/fix/2730-exact-extension
+ * [new branch]          fix/2730-exact-extension-v2 -> refs/west/fix/2730-exact-extension-v2
+ * [new branch]          fix/2730-exact-extension-v3 -> refs/west/fix/2730-exact-extension-v3
+ * [new branch]          fix/2730-exact-extension-v4 -> refs/west/fix/2730-exact-extension-v4
+ * [new branch]          fix/2768-last-sweep-cases -> refs/west/fix/2768-last-sweep-cases
+ * [new branch]          fix/2768-last-sweep-cases-v2 -> refs/west/fix/2768-last-sweep-cases-v2
+ * [new branch]          fix/2843-round-ends-on-tangent-line -> refs/west/fix/2843-round-ends-on-tangent-line
+ * [new branch]          fix/2845-crossing-rails  -> refs/west/fix/2845-crossing-rails
+ * [new branch]          fix/2878-analytic-exact  -> refs/west/fix/2878-analytic-exact
+ * [new branch]          fix/2878-ruled-product   -> refs/west/fix/2878-ruled-product
+ * [new branch]          fix/2892-followup        -> refs/west/fix/2892-followup
+ * [new branch]          fix/2905-join-offsets-refused -> refs/west/fix/2905-join-offsets-refused
+ * [new branch]          fix/2905-round-past-the-edge -> refs/west/fix/2905-round-past-the-edge
+ * [new branch]          fix/2906-end-section-plane -> refs/west/fix/2906-end-section-plane
+ * [new branch]          fix/2907-band-check      -> refs/west/fix/2907-band-check
+ * [new branch]          fix/2907-surface-plane-ends -> refs/west/fix/2907-surface-plane-ends
+ * [new branch]          fix/2908-basin-shell-reach -> refs/west/fix/2908-basin-shell-reach
+ * [new branch]          fix/2947-mitre-contact-lines -> refs/west/fix/2947-mitre-contact-lines
+ * [new branch]          fix/2950-chain-offset    -> refs/west/fix/2950-chain-offset
+ * [new branch]          fix/2952-conic-pair-plane -> refs/west/fix/2952-conic-pair-plane
+ * [new branch]          fix/2953-mixed-ring-four-edges -> refs/west/fix/2953-mixed-ring-four-edges
+ * [new branch]          fix/2983-thread-scoped-fixes -> refs/west/fix/2983-thread-scoped-fixes
+ * [new branch]          fix/3062-grazing-vertex-certified -> refs/west/fix/3062-grazing-vertex-certified
+ * [new branch]          fix/3066-round-on-own-torus -> refs/west/fix/3066-round-on-own-torus
+ * [new branch]          fix/3093-defeature-keeps-unrebuilt -> refs/west/fix/3093-defeature-keeps-unrebuilt
+ * [new branch]          fix/3093-known-failing-extrusion -> refs/west/fix/3093-known-failing-extrusion
+ * [new branch]          fix/3093-mirror-knot-sliver -> refs/west/fix/3093-mirror-knot-sliver
+ * [new branch]          fix/3093-mirror-step-beside-a-knot -> refs/west/fix/3093-mirror-step-beside-a-knot
+ * [new branch]          fix/3094-offset-refuses-lost-solid -> refs/west/fix/3094-offset-refuses-lost-solid
+ * [new branch]          fix/3098-3-certify-iso-own-size -> refs/west/fix/3098-3-certify-iso-own-size
+ * [new branch]          fix/3098-4-enclosed-no-fold -> refs/west/fix/3098-4-enclosed-no-fold
+ * [new branch]          fix/3100-recertify-extension -> refs/west/fix/3100-recertify-extension
+ * [new branch]          fix/3100-thumbweight-from-definition -> refs/west/fix/3100-thumbweight-from-definition
+ * [new branch]          fix/3100-turned-offset-sides-at-face -> refs/west/fix/3100-turned-offset-sides-at-face
+ * [new branch]          fix/3131-far-sphere-meridian -> refs/west/fix/3131-far-sphere-meridian
+ * [new branch]          fix/3185-derived-label-bound -> refs/west/fix/3185-derived-label-bound
+ * [new branch]          fix/60b1c6a-boolean2d-faces-apart -> refs/west/fix/60b1c6a-boolean2d-faces-apart
+ * [new branch]          fix/960-no-room-reason   -> refs/west/fix/960-no-room-reason
+ * [new branch]          fix/api-projection-clone-exact -> refs/west/fix/api-projection-clone-exact
+ * [new branch]          fix/boolean-api-e2e      -> refs/west/fix/boolean-api-e2e
+ * [new branch]          fix/boolean-batch-1120-1057-1058-1059 -> refs/west/fix/boolean-batch-1120-1057-1058-1059
+ * [new branch]          fix/boolean-uv-trim-owners -> refs/west/fix/boolean-uv-trim-owners
+ * [new branch]          fix/brep-deleted-records-follow-up -> refs/west/fix/brep-deleted-records-follow-up
+ * [new branch]          fix/brep-local-op-green  -> refs/west/fix/brep-local-op-green
+ * [new branch]          fix/brep-p3-delete-removes-records -> refs/west/fix/brep-p3-delete-removes-records
+ * [new branch]          fix/brep-writer-caller-naming -> refs/west/fix/brep-writer-caller-naming
+ * [new branch]          fix/bspline-surface-cast-subclasses -> refs/west/fix/bspline-surface-cast-subclasses
+ * [new branch]          fix/cached-topology-refresh -> refs/west/fix/cached-topology-refresh
+ * [new branch]          fix/chain-no-fold-wedge  -> refs/west/fix/chain-no-fold-wedge
+ * [new branch]          fix/copy-attributes-shared-naming -> refs/west/fix/copy-attributes-shared-naming
+ * [new branch]          fix/cover-nonoverlap-clip -> refs/west/fix/cover-nonoverlap-clip
+ * [new branch]          fix/curve-natural-intervals -> refs/west/fix/curve-natural-intervals
+ * [new branch]          fix/curve-owner-zone-tolerance -> refs/west/fix/curve-owner-zone-tolerance
+ * [new branch]          fix/do-cut-stitch-notified -> refs/west/fix/do-cut-stitch-notified
+ * [new branch]          fix/drop-edge-curve-point-test-off -> refs/west/fix/drop-edge-curve-point-test-off
+ * [new branch]          fix/edgeuse-uv-trim-owner-identity -> refs/west/fix/edgeuse-uv-trim-owner-identity
+ * [new branch]          fix/extend-label-drop    -> refs/west/fix/extend-label-drop
+ * [new branch]          fix/extrusion-wrapped-target -> refs/west/fix/extrusion-wrapped-target
+ * [new branch]          fix/fast-drop-cache-state -> refs/west/fix/fast-drop-cache-state
+ * [new branch]          fix/fast-drop-contexts   -> refs/west/fix/fast-drop-contexts
+ * [new branch]          fix/fexec-patch-copy-attribute-carry -> refs/west/fix/fexec-patch-copy-attribute-carry
+ * [new branch]          fix/ffi-build-support-headers -> refs/west/fix/ffi-build-support-headers
+ * [new branch]          fix/fillet-extended-rail-end-1022 -> refs/west/fix/fillet-extended-rail-end-1022
+ * [new branch]          fix/fillet-failure-notes-status -> refs/west/fix/fillet-failure-notes-status
+ * [new branch]          fix/fillet-removal-owner-identity -> refs/west/fix/fillet-removal-owner-identity
+ * [new branch]          fix/gen1440-rail-trim-tolerance -> refs/west/fix/gen1440-rail-trim-tolerance
+ * [new branch]          fix/glue-vertices-stitch -> refs/west/fix/glue-vertices-stitch
+ * [new branch]          fix/gn-certificate-componentwise-accept -> refs/west/fix/gn-certificate-componentwise-accept
+ * [new branch]          fix/hcr-curved-solids    -> refs/west/fix/hcr-curved-solids
+ * [new branch]          fix/hcr-silhouette-order -> refs/west/fix/hcr-silhouette-order
+ * [new branch]          fix/knife-edge-chamfer-chord -> refs/west/fix/knife-edge-chamfer-chord
+ * [new branch]          fix/knife-edge-tip-refused -> refs/west/fix/knife-edge-tip-refused
+ * [new branch]          fix/lamina-kept-trimmed-tree -> refs/west/fix/lamina-kept-trimmed-tree
+ * [new branch]          fix/local-operation-refresh-cached-topology -> refs/west/fix/local-operation-refresh-cached-topology
+ * [new branch]          fix/main-api-projection-curve -> refs/west/fix/main-api-projection-curve
+ * [new branch]          fix/main-red-geom-tol-heal-gap -> refs/west/fix/main-red-geom-tol-heal-gap
+ * [new branch]          fix/main-red-geom-tol-own-model -> refs/west/fix/main-red-geom-tol-own-model
+ * [new branch]          fix/main-sweep-statuses-and-records -> refs/west/fix/main-sweep-statuses-and-records
+ * [new branch]          fix/max-solve-branches-2pow23 -> refs/west/fix/max-solve-branches-2pow23
+ * [new branch]          fix/merge-brep-carries-attributes -> refs/west/fix/merge-brep-carries-attributes
+ * [new branch]          fix/nightly-fuzz         -> refs/west/fix/nightly-fuzz
+ * [new branch]          fix/noisy-class-keeps-no-definition -> refs/west/fix/noisy-class-keeps-no-definition
+ * [new branch]          fix/offset-exec-edgeuse-args -> refs/west/fix/offset-exec-edgeuse-args
+ * [new branch]          fix/offset-sizeless-refusal -> refs/west/fix/offset-sizeless-refusal
+ * [new branch]          fix/own-builder-uvtrim-owner -> refs/west/fix/own-builder-uvtrim-owner
+ * [new branch]          fix/p5-join-owner-identity -> refs/west/fix/p5-join-owner-identity
+ * [new branch]          fix/park-blo-nurb-fillet-face5 -> refs/west/fix/park-blo-nurb-fillet-face5
+ * [new branch]          fix/park-nm-box-linear-z-stitch -> refs/west/fix/park-nm-box-linear-z-stitch
+ * [new branch]          fix/poly-destroy-proofs  -> refs/west/fix/poly-destroy-proofs
+ * [new branch]          fix/preset-wr590         -> refs/west/fix/preset-wr590
+ * [new branch]          fix/query-loop-ignored-trim-eval -> refs/west/fix/query-loop-ignored-trim-eval
+ * [new branch]          fix/revert-1295          -> refs/west/fix/revert-1295
+ * [new branch]          fix/s2b3-natural-uv-domain-rename -> refs/west/fix/s2b3-natural-uv-domain-rename
+ * [new branch]          fix/s2b4-lazy-domains-1-3 -> refs/west/fix/s2b4-lazy-domains-1-3
+ * [new branch]          fix/side-flags           -> refs/west/fix/side-flags
+ * [new branch]          fix/small-fixes          -> refs/west/fix/small-fixes
+ * [new branch]          fix/smooth-vertex-run-on -> refs/west/fix/smooth-vertex-run-on
+ * [new branch]          fix/solidcraft-cases-triage -> refs/west/fix/solidcraft-cases-triage
+ * [new branch]          fix/sphere-evaluate-point-status -> refs/west/fix/sphere-evaluate-point-status
+ * [new branch]          fix/sphere-offset-surface-match -> refs/west/fix/sphere-offset-surface-match
+ * [new branch]          fix/sphere-pole-load-time-cache -> refs/west/fix/sphere-pole-load-time-cache
+ * [new branch]          fix/split-at-seam-vertex-resolve -> refs/west/fix/split-at-seam-vertex-resolve
+ * [new branch]          fix/squeeze-face-nested-edit -> refs/west/fix/squeeze-face-nested-edit
+ * [new branch]          fix/srf-in-volume-convert-uv -> refs/west/fix/srf-in-volume-convert-uv
+ * [new branch]          fix/step-derivs-undef    -> refs/west/fix/step-derivs-undef
+ * [new branch]          fix/step-export-step-params -> refs/west/fix/step-export-step-params
+ * [new branch]          fix/surface-cache-face-trim -> refs/west/fix/surface-cache-face-trim
+ * [new branch]          fix/sweep-clone-exact    -> refs/west/fix/sweep-clone-exact
+ * [new branch]          fix/sweeps-batch-411-478-892-1112-1113 -> refs/west/fix/sweeps-batch-411-478-892-1112-1113
+ * [new branch]          fix/tolerance-on-object-handles -> refs/west/fix/tolerance-on-object-handles
+ * [new branch]          fix/torus-uv-dispatch-383 -> refs/west/fix/torus-uv-dispatch-383
+ * [new branch]          fix/ub175-v101-guards    -> refs/west/fix/ub175-v101-guards
+ * [new branch]          fix/ub242-glue-goes-on   -> refs/west/fix/ub242-glue-goes-on
+ * [new branch]          fix/ub288-crv-eval-guard -> refs/west/fix/ub288-crv-eval-guard
+ * [new branch]          fix/variable-round-closes-onto-vertex -> refs/west/fix/variable-round-closes-onto-vertex
+ * [new branch]          fix/wr-460-duplicate     -> refs/west/fix/wr-460-duplicate
+ * [new branch]          fix/wr-723-duplicate     -> refs/west/fix/wr-723-duplicate
+ * [new branch]          fix/wr-728-duplicate-id  -> refs/west/fix/wr-728-duplicate-id
+ * [new branch]          fix/wr211-step-interval-keeps-turns -> refs/west/fix/wr211-step-interval-keeps-turns
+ * [new branch]          fix/wr344-unmated-edges  -> refs/west/fix/wr344-unmated-edges
+ * [new branch]          fix/wr385-fork-5df5b27   -> refs/west/fix/wr385-fork-5df5b27
+ * [new branch]          fix/wr471-fork-c4209ab   -> refs/west/fix/wr471-fork-c4209ab
+ * [new branch]          fix/wr56-good-drop-result -> refs/west/fix/wr56-good-drop-result
+ * [new branch]          fix/wr566-local-op-closes-walls -> refs/west/fix/wr566-local-op-closes-walls
+ * [new branch]          fix/wr569-stitch-nests-cavities -> refs/west/fix/wr569-stitch-nests-cavities
+ * [new branch]          fix/wr572-chamfer-cone-stored -> refs/west/fix/wr572-chamfer-cone-stored
+ * [new branch]          fix/wr573-approximate-bezier-starter -> refs/west/fix/wr573-approximate-bezier-starter
+ * [new branch]          fix/wr575-trim-rational-end-spans -> refs/west/fix/wr575-trim-rational-end-spans
+ * [new branch]          fix/wr578-offset-closes-loop-gaps -> refs/west/fix/wr578-offset-closes-loop-gaps
+ * [new branch]          fix/wr579-proto-edge-split-captured -> refs/west/fix/wr579-proto-edge-split-captured
+ * [new branch]          fix/wr580-imprint-coincident-edge -> refs/west/fix/wr580-imprint-coincident-edge
+ * [new branch]          fix/wr581-blend-curve-full-width -> refs/west/fix/wr581-blend-curve-full-width
+ * [new branch]          fix/wr587-fork-statuses-be45e8d -> refs/west/fix/wr587-fork-statuses-be45e8d
+ * [new branch]          fix/wr605-ring-fillet-removal -> refs/west/fix/wr605-ring-fillet-removal
+ * [new branch]          fix/wr606-exact-fillet-removal -> refs/west/fix/wr606-exact-fillet-removal
+ * [new branch]          fix/wr607-glue-every-region -> refs/west/fix/wr607-glue-every-region
+ * [new branch]          fix/wr609-half-degree-crease -> refs/west/fix/wr609-half-degree-crease
+ * [new branch]          fix/wr611-trim-inside-best-dot -> refs/west/fix/wr611-trim-inside-best-dot
+ * [new branch]          fix/wr612-split-edge-near-half -> refs/west/fix/wr612-split-edge-near-half
+ * [new branch]          fix/wr613-corner-patch-face-side-twist -> refs/west/fix/wr613-corner-patch-face-side-twist
+ * [new branch]          fix/wr614-coincident-strip -> refs/west/fix/wr614-coincident-strip
+ * [new branch]          fix/wr619-imprint-skips-collapsed-definition -> refs/west/fix/wr619-imprint-skips-collapsed-definition
+ * [new branch]          fix/wr619-union-solid-leak -> refs/west/fix/wr619-union-solid-leak
+ * [new branch]          fix/wr647-fork-04b42b4-opt-in -> refs/west/fix/wr647-fork-04b42b4-opt-in
+ * [new branch]          fix/wr659-eased-corner-halves -> refs/west/fix/wr659-eased-corner-halves
+ * [new branch]          fix/wr704-cone-iso-circle-opt-in -> refs/west/fix/wr704-cone-iso-circle-opt-in
+ * [new branch]          fix/wr715-classify-loops-zeroed-slack -> refs/west/fix/wr715-classify-loops-zeroed-slack
+ * [new branch]          fork/0cd9d08-daba678     -> refs/west/fork/0cd9d08-daba678
+ * [new branch]          fork/0dbe681             -> refs/west/fork/0dbe681
+ * [new branch]          fork/1072d1b             -> refs/west/fork/1072d1b
+ * [new branch]          fork/183ea65             -> refs/west/fork/183ea65
+ * [new branch]          fork/23c5b0a             -> refs/west/fork/23c5b0a
+ * [new branch]          fork/38b4212             -> refs/west/fork/38b4212
+ * [new branch]          fork/5533bbb             -> refs/west/fork/5533bbb
+ * [new branch]          fork/577f7be             -> refs/west/fork/577f7be
+ * [new branch]          fork/67b8a1e             -> refs/west/fork/67b8a1e
+ * [new branch]          fork/8b2090f             -> refs/west/fork/8b2090f
+ * [new branch]          fork/8d95600             -> refs/west/fork/8d95600
+ * [new branch]          fork/985faae             -> refs/west/fork/985faae
+ * [new branch]          fork/a1ee273             -> refs/west/fork/a1ee273
+ * [new branch]          fork/b283ea2             -> refs/west/fork/b283ea2
+ * [new branch]          fork/b7ec55b             -> refs/west/fork/b7ec55b
+ * [new branch]          fork/bc6ddf9             -> refs/west/fork/bc6ddf9
+ * [new branch]          fork/c0d74ee             -> refs/west/fork/c0d74ee
+ * [new branch]          fork/c4e378d             -> refs/west/fork/c4e378d
+ * [new branch]          fork/cae8618             -> refs/west/fork/cae8618
+ * [new branch]          fork/cd85d34             -> refs/west/fork/cd85d34
+ * [new branch]          fork/d2d9586             -> refs/west/fork/d2d9586
+ * [new branch]          fork/d5dadaa             -> refs/west/fork/d5dadaa
+ * [new branch]          fork/e36feb1             -> refs/west/fork/e36feb1
+ * [new branch]          fork/e881cdb             -> refs/west/fork/e881cdb
+ * [new branch]          fork/f11d0ac             -> refs/west/fork/f11d0ac
+ * [new branch]          fork/f2-iso              -> refs/west/fork/f2-iso
+ * [new branch]          fork/f2-offset-step-walls -> refs/west/fork/f2-offset-step-walls
+ * [new branch]          fork/f2-rev              -> refs/west/fork/f2-rev
+ * [new branch]          fork/ssi-tangent-tracer  -> refs/west/fork/ssi-tangent-tracer
+ * [new branch]          fork/uv-trim-on-surface  -> refs/west/fork/uv-trim-on-surface
+ * [new branch]          gh-pages                 -> refs/west/gh-pages
+ * [new branch]          gh-readonly-queue/main/pr-1179-1d5602ab2dd64ad3b8c0023dbf4b3d6f38f4fa38 -> refs/west/gh-readonly-queue/main/pr-1179-1d5602ab2dd64ad3b8c0023dbf4b3d6f38f4fa38
+ * [new branch]          gh-readonly-queue/main/pr-1179-659e291802fbc37adf201cdbcab572fb0155e024 -> refs/west/gh-readonly-queue/main/pr-1179-659e291802fbc37adf201cdbcab572fb0155e024
+ * [new branch]          gh-readonly-queue/main/pr-1179-d765989248d286a6a6ff43722054301c4f7089f4 -> refs/west/gh-readonly-queue/main/pr-1179-d765989248d286a6a6ff43722054301c4f7089f4
+ * [new branch]          gh-readonly-queue/main/pr-1284-736b33c01e159d24da165ecee7a331eed6d1c9be -> refs/west/gh-readonly-queue/main/pr-1284-736b33c01e159d24da165ecee7a331eed6d1c9be
+ * [new branch]          gh-readonly-queue/main/pr-1284-e8a3c9bb903bb2b7917750c108c5451b0b8fb2ee -> refs/west/gh-readonly-queue/main/pr-1284-e8a3c9bb903bb2b7917750c108c5451b0b8fb2ee
+ * [new branch]          gh-readonly-queue/main/pr-1293-ac1319182c7e075556b162b9e0b03bbf2a175922 -> refs/west/gh-readonly-queue/main/pr-1293-ac1319182c7e075556b162b9e0b03bbf2a175922
+ * [new branch]          gh-readonly-queue/main/pr-1314-0b9d16a5010435e9356d51470cbde8a6fa4f32b1 -> refs/west/gh-readonly-queue/main/pr-1314-0b9d16a5010435e9356d51470cbde8a6fa4f32b1
+ * [new branch]          gh-readonly-queue/main/pr-1314-3cd14031baca4ce4184d8c87a3f35c332eb75b07 -> refs/west/gh-readonly-queue/main/pr-1314-3cd14031baca4ce4184d8c87a3f35c332eb75b07
+ * [new branch]          gh-readonly-queue/main/pr-1314-80da2941253b1db3fb4db8e7ab4ba50403e25486 -> refs/west/gh-readonly-queue/main/pr-1314-80da2941253b1db3fb4db8e7ab4ba50403e25486
+ * [new branch]          gh-readonly-queue/main/pr-1315-53976421f4846163d407580c25719ecf44aa05c1 -> refs/west/gh-readonly-queue/main/pr-1315-53976421f4846163d407580c25719ecf44aa05c1
+ * [new branch]          gh-readonly-queue/main/pr-1323-9a3ae6151cbb80e79b0ecc525bccd94a49f71a79 -> refs/west/gh-readonly-queue/main/pr-1323-9a3ae6151cbb80e79b0ecc525bccd94a49f71a79
+ * [new branch]          gh-readonly-queue/main/pr-1323-f5ac7c3ff845039ae66a569495a1018239eaeb15 -> refs/west/gh-readonly-queue/main/pr-1323-f5ac7c3ff845039ae66a569495a1018239eaeb15
+ * [new branch]          gh-readonly-queue/main/pr-1327-d4a2a6207da0b241efc05f5d245ebd5d9bca1fcf -> refs/west/gh-readonly-queue/main/pr-1327-d4a2a6207da0b241efc05f5d245ebd5d9bca1fcf
+ * [new branch]          gh-readonly-queue/main/pr-1327-d765989248d286a6a6ff43722054301c4f7089f4 -> refs/west/gh-readonly-queue/main/pr-1327-d765989248d286a6a6ff43722054301c4f7089f4
+ * [new branch]          gh-readonly-queue/main/pr-1345-6765a1901994db11d7497534143c72e34e34d148 -> refs/west/gh-readonly-queue/main/pr-1345-6765a1901994db11d7497534143c72e34e34d148
+ * [new branch]          gh-readonly-queue/main/pr-1571-901089a2361ad72c37a8dfa67fc937d6a989f2a7 -> refs/west/gh-readonly-queue/main/pr-1571-901089a2361ad72c37a8dfa67fc937d6a989f2a7
+ * [new branch]          gh-readonly-queue/main/pr-1685-89111e7eafd204df16fe227d5b5dd28c1643b612 -> refs/west/gh-readonly-queue/main/pr-1685-89111e7eafd204df16fe227d5b5dd28c1643b612
+ * [new branch]          gh-readonly-queue/main/pr-1689-643e843d9780d1826a237f0c30268408d7a988ac -> refs/west/gh-readonly-queue/main/pr-1689-643e843d9780d1826a237f0c30268408d7a988ac
+ * [new branch]          gh-readonly-queue/main/pr-1707-c289fb8b0577edd1fe140b17f6973bfd9898664d -> refs/west/gh-readonly-queue/main/pr-1707-c289fb8b0577edd1fe140b17f6973bfd9898664d
+ * [new branch]          gh-readonly-queue/main/pr-212-4f6c534da2bfd6a427e6810fa0c7d90b545a46ad -> refs/west/gh-readonly-queue/main/pr-212-4f6c534da2bfd6a427e6810fa0c7d90b545a46ad
+ * [new branch]          gh-readonly-queue/main/pr-343-100535f45775a5db3a110a3ce3ab0d764082c6e5 -> refs/west/gh-readonly-queue/main/pr-343-100535f45775a5db3a110a3ce3ab0d764082c6e5
+ * [new branch]          gh-readonly-queue/main/pr-665-923b5c7c5fa2e5a92d60431ad88e6ef6320eb400 -> refs/west/gh-readonly-queue/main/pr-665-923b5c7c5fa2e5a92d60431ad88e6ef6320eb400
+ * [new branch]          gh-readonly-queue/main/pr-754-3507405fb8a187fcbebf162f0c0d4d69e0656c13 -> refs/west/gh-readonly-queue/main/pr-754-3507405fb8a187fcbebf162f0c0d4d69e0656c13
+ * [new branch]          gn-round-plane-section   -> refs/west/gn-round-plane-section
+ * [new branch]          goldens                  -> refs/west/goldens
+ * [new branch]          guard/assert-valid-native-faults -> refs/west/guard/assert-valid-native-faults
+ * [new branch]          harness/rollover-worker-stage-statuses -> refs/west/harness/rollover-worker-stage-statuses
+ * [new branch]          infra/findings-per-file  -> refs/west/infra/findings-per-file
+ * [new branch]          infra/no-shared-file-conflicts -> refs/west/infra/no-shared-file-conflicts
+ * [new branch]          infra/per-file-registries -> refs/west/infra/per-file-registries
+ * [new branch]          infra/split-archives     -> refs/west/infra/split-archives
+ * [new branch]          ivl-knot-differences-2559 -> refs/west/ivl-knot-differences-2559
+ * [new branch]          kernel-cases-contributing -> refs/west/kernel-cases-contributing
+ * [new branch]          kernel-rig-corpus        -> refs/west/kernel-rig-corpus
+ * [new branch]          layer-record             -> refs/west/layer-record
+ * [new branch]          layer-split/conv2        -> refs/west/layer-split/conv2
+ * [new branch]          layer-split/convert      -> refs/west/layer-split/convert
+ * [new branch]          layer-split/draft-fixed  -> refs/west/layer-split/draft-fixed
+ * [new branch]          layer-split/draft-on-main -> refs/west/layer-split/draft-on-main
+ * [new branch]          layer-split/eval         -> refs/west/layer-split/eval
+ * [new branch]          layer-split/fillets-on-main -> refs/west/layer-split/fillets-on-main
+ * [new branch]          layer-split/ops          -> refs/west/layer-split/ops
+ * [new branch]          layer-split/ops-on-main  -> refs/west/layer-split/ops-on-main
+ * [new branch]          layer-split/prism-on-main -> refs/west/layer-split/prism-on-main
+ * [new branch]          layer-split/queries      -> refs/west/layer-split/queries
+ * [new branch]          layer-split/queries-fixed -> refs/west/layer-split/queries-fixed
+ * [new branch]          layer-split/runner-on-main -> refs/west/layer-split/runner-on-main
+ * [new branch]          layer-split/split-on-main -> refs/west/layer-split/split-on-main
+ * [new branch]          layer-split/sweeps-fixed -> refs/west/layer-split/sweeps-fixed
+ * [new branch]          layer-split/tess         -> refs/west/layer-split/tess
+ * [new branch]          layer-split/tess-on-main -> refs/west/layer-split/tess-on-main
+ * [new branch]          local-operations         -> refs/west/local-operations
+ * [new branch]          localop/for-2842         -> refs/west/localop/for-2842
+ * [new branch]          logo                     -> refs/west/logo
+ * [new branch]          main                     -> refs/west/main
+ * [new branch]          massprops/sweep-api-brep-moves -> refs/west/massprops/sweep-api-brep-moves
+ * [new branch]          massprops/trim-base-v-default -> refs/west/massprops/trim-base-v-default
+ * [new branch]          perf/2690-certificate-root-cause -> refs/west/perf/2690-certificate-root-cause
+ * [new branch]          perf/84a7998-face-pair-box-search -> refs/west/perf/84a7998-face-pair-box-search
+ * [new branch]          perf/box-lazy-ray-copies -> refs/west/perf/box-lazy-ray-copies
+ * [new branch]          perf/check-curve-analysis-shortcuts -> refs/west/perf/check-curve-analysis-shortcuts
+ * [new branch]          perf/classify-curve-cache -> refs/west/perf/classify-curve-cache
+ * [new branch]          perf/crvonsurf-approx-cache -> refs/west/perf/crvonsurf-approx-cache
+ * [new branch]          perf/crvonsurf-drop-cache -> refs/west/perf/crvonsurf-drop-cache
+ * [new branch]          perf/crvonsurf-seam-cache -> refs/west/perf/crvonsurf-seam-cache
+ * [new branch]          perf/drop-offset-once    -> refs/west/perf/drop-offset-once
+ * [new branch]          perf/ef9041d-level2-candidates -> refs/west/perf/ef9041d-level2-candidates
+ * [new branch]          perf/evaluate-alloc      -> refs/west/perf/evaluate-alloc
+ * [new branch]          perf/face37-winding-hulls -> refs/west/perf/face37-winding-hulls
+ * [new branch]          perf/gn-series-add-scaled-in-place -> refs/west/perf/gn-series-add-scaled-in-place
+ * [new branch]          perf/incremental-seed    -> refs/west/perf/incremental-seed
+ * [new branch]          perf/lazy-ray-copies     -> refs/west/perf/lazy-ray-copies
+ * [new branch]          perf/ray-solve-slot-vector-copies -> refs/west/perf/ray-solve-slot-vector-copies
+ * [new branch]          perf/stitch-notify-reseed-reuse -> refs/west/perf/stitch-notify-reseed-reuse
+ * [new branch]          pin-release              -> refs/west/pin-release
+ * [new branch]          pin/v1.0.1               -> refs/west/pin/v1.0.1
+ * [new branch]          pin/v1.0.1-tests         -> refs/west/pin/v1.0.1-tests
+ * [new branch]          plan/1954-unit-only-flags -> refs/west/plan/1954-unit-only-flags
+ * [new branch]          plan/1954-wr643-sweep    -> refs/west/plan/1954-wr643-sweep
+ * [new branch]          plan/audit-62762b8       -> refs/west/plan/audit-62762b8
+ * [new branch]          plan/audit-section-a-covered -> refs/west/plan/audit-section-a-covered
+ * [new branch]          plan/drop-2639-waivers   -> refs/west/plan/drop-2639-waivers
+ * [new branch]          plan/edge-tolerance-audit-not-changed -> refs/west/plan/edge-tolerance-audit-not-changed
+ * [new branch]          plan/fillet-executive-p1-green -> refs/west/plan/fillet-executive-p1-green
+ * [new branch]          plan/finding-stage3-cci-nasty-cheese -> refs/west/plan/finding-stage3-cci-nasty-cheese
+ * [new branch]          plan/fork-audit-addendum-five-commits -> refs/west/plan/fork-audit-addendum-five-commits
+ * [new branch]          plan/fork-fixed-differently -> refs/west/plan/fork-fixed-differently
+ * [new branch]          plan/forkd-partials-no-difference -> refs/west/plan/forkd-partials-no-difference
+ * [new branch]          plan/jack52-seam-box-volume-finding -> refs/west/plan/jack52-seam-box-volume-finding
+ * [new branch]          plan/nd1-bull-ub287-jack29 -> refs/west/plan/nd1-bull-ub287-jack29
+ * [new branch]          plan/object-tolerance-audit -> refs/west/plan/object-tolerance-audit
+ * [new branch]          plan/promote-9-green     -> refs/west/plan/promote-9-green
+ * [new branch]          plan/smlib-fork-port-audit -> refs/west/plan/smlib-fork-port-audit
+ * [new branch]          plan/surface-attribute-copy-hazards -> refs/west/plan/surface-attribute-copy-hazards
+ * [new branch]          plan/swarm-records-1-0-1 -> refs/west/plan/swarm-records-1-0-1
+ * [new branch]          plan/torii-glue-walk-bad-knot-finding -> refs/west/plan/torii-glue-walk-bad-knot-finding
+ * [new branch]          plan/ub288-ub289         -> refs/west/plan/ub288-ub289
+ * [new branch]          plan/ub289-addendum      -> refs/west/plan/ub289-addendum
+ * [new branch]          plan/ub289-addendum-rear-body-5 -> refs/west/plan/ub289-addendum-rear-body-5
+ * [new branch]          plan/ub67-heal-addendum  -> refs/west/plan/ub67-heal-addendum
+ * [new branch]          plan/wr-449-472-v1-0-1   -> refs/west/plan/wr-449-472-v1-0-1
+ * [new branch]          plan/wr-473-coincident-skins -> refs/west/plan/wr-473-coincident-skins
+ * [new branch]          plan/wr306-more0033-mechanism -> refs/west/plan/wr306-more0033-mechanism
+ * [new branch]          plan/wr530-addendum-step-walls -> refs/west/plan/wr530-addendum-step-walls
+ * [new branch]          plan/wr530-move3-addendum -> refs/west/plan/wr530-move3-addendum
+ * [new branch]          plan/wr575-addendum-pending-fork -> refs/west/plan/wr575-addendum-pending-fork
+ * [new branch]          plan/wr604-renumber-674  -> refs/west/plan/wr604-renumber-674
+ * [new branch]          port/approximate-surface -> refs/west/port/approximate-surface
+ * [new branch]          port/assert-valid-level2-green -> refs/west/port/assert-valid-level2-green
+ * [new branch]          port/blend-fillet-removal -> refs/west/port/blend-fillet-removal
+ * [new branch]          port/blend-identify-fillet -> refs/west/port/blend-identify-fillet
+ * [new branch]          port/brep-p6-closure-coverage -> refs/west/port/brep-p6-closure-coverage
+ * [new branch]          port/offset-faces-part1  -> refs/west/port/offset-faces-part1
+ * [new branch]          port/offset-faces-part2a -> refs/west/port/offset-faces-part2a
+ * [new branch]          port/offset-faces-part2b -> refs/west/port/offset-faces-part2b
+ * [new branch]          port/planar-section-curves -> refs/west/port/planar-section-curves
+ * [new branch]          port/smapi-booleans      -> refs/west/port/smapi-booleans
+ * [new branch]          port/smapi-curve-approx-points -> refs/west/port/smapi-curve-approx-points
+ * [new branch]          port/smapi-curves-surfaces -> refs/west/port/smapi-curves-surfaces
+ * [new branch]          port/smapi-cut           -> refs/west/port/smapi-cut
+ * [new branch]          port/smapi-files         -> refs/west/port/smapi-files
+ * [new branch]          port/smapi-fillet-preview-offset-profile -> refs/west/port/smapi-fillet-preview-offset-profile
+ * [new branch]          port/smapi-intersect     -> refs/west/port/smapi-intersect
+ * [new branch]          port/smapi-ordered-points -> refs/west/port/smapi-ordered-points
+ * [new branch]          port/smapi-poly-copy     -> refs/west/port/smapi-poly-copy
+ * [new branch]          port/smapi-poly-properties -> refs/west/port/smapi-poly-properties
+ * [new branch]          port/smapi-project       -> refs/west/port/smapi-project
+ * [new branch]          port/smapi-projection    -> refs/west/port/smapi-projection
+ * [new branch]          port/smapi-s2            -> refs/west/port/smapi-s2
+ * [new branch]          port/smapi-surfaces      -> refs/west/port/smapi-surfaces
+ * [new branch]          port/smapi-trim          -> refs/west/port/smapi-trim
+ * [new branch]          port/subdivide-face-at-discontinuities -> refs/west/port/subdivide-face-at-discontinuities
+ * [new branch]          pr-assets-2957           -> refs/west/pr-assets-2957
+ * [new branch]          pr-media                 -> refs/west/pr-media
+ * [new branch]          procedural-blend-record  -> refs/west/procedural-blend-record
+ * [new branch]          release/solidcore-1.0.1  -> refs/west/release/solidcore-1.0.1
+ * [new branch]          revert-2859              -> refs/west/revert-2859
+ * [new branch]          revert/2859-rig-2992     -> refs/west/revert/2859-rig-2992
+ * [new branch]          rig-list-two-failures    -> refs/west/rig-list-two-failures
+ * [new branch]          rig/851-listed-pass      -> refs/west/rig/851-listed-pass
+ * [new branch]          rig/list-knife-edge-chamfers -> refs/west/rig/list-knife-edge-chamfers
+ * [new branch]          rig/wire-ops             -> refs/west/rig/wire-ops
+ * [new branch]          round-ends-on-outline    -> refs/west/round-ends-on-outline
+ * [new branch]          round-on-gn-round        -> refs/west/round-on-gn-round
+ * [new branch]          rust-1.99.1              -> refs/west/rust-1.99.1
+ * [new branch]          s2b/lazy-nurb-callers    -> refs/west/s2b/lazy-nurb-callers
+ * [new branch]          s2b2/edge-ends-lazy-nurb -> refs/west/s2b2/edge-ends-lazy-nurb
+ * [new branch]          setback-known-failing-2492 -> refs/west/setback-known-failing-2492
+ * [new branch]          setback-tests-back-2491  -> refs/west/setback-tests-back-2491
+ * [new branch]          site/area-charts         -> refs/west/site/area-charts
+ * [new branch]          site/graph-clusters      -> refs/west/site/graph-clusters
+ * [new branch]          site/graph-view          -> refs/west/site/graph-view
+ * [new branch]          site/local-times         -> refs/west/site/local-times
+ * [new branch]          site/solids              -> refs/west/site/solids
+ * [new branch]          site/sprint-pages        -> refs/west/site/sprint-pages
+ * [new branch]          site/viewer-link         -> refs/west/site/viewer-link
+ * [new branch]          smlib-api/f1-core        -> refs/west/smlib-api/f1-core
+ * [new branch]          smlib-api/f2-blends      -> refs/west/smlib-api/f2-blends
+ * [new branch]          smlib-api/f3a-sweeps     -> refs/west/smlib-api/f3a-sweeps
+ * [new branch]          smlib-api/f4-offsets     -> refs/west/smlib-api/f4-offsets
+ * [new branch]          smlib-api/f5-surface-tools -> refs/west/smlib-api/f5-surface-tools
+ * [new branch]          sprint-local-operation   -> refs/west/sprint-local-operation
+ * [new branch]          step/file-pcurves        -> refs/west/step/file-pcurves
+ * [new branch]          step/topology-first      -> refs/west/step/topology-first
+ * [new branch]          step/topology-first-speed -> refs/west/step/topology-first-speed
+ * [new branch]          surface/exact-extension-only -> refs/west/surface/exact-extension-only
+ * [new branch]          surface/exact-extension-only-v2 -> refs/west/surface/exact-extension-only-v2
+ * [new branch]          swarm/b1                 -> refs/west/swarm/b1
+ * [new branch]          test/1060-mitred-moved-down -> refs/west/test/1060-mitred-moved-down
+ * [new branch]          test/1795-pins-wr617     -> refs/west/test/1795-pins-wr617
+ * [new branch]          test/1875-local-operation-marks -> refs/west/test/1875-local-operation-marks
+ * [new branch]          test/2929-aarch64-qp-budget-known-failure -> refs/west/test/2929-aarch64-qp-budget-known-failure
+ * [new branch]          test/2929-aarch64-qp-budget-skip -> refs/west/test/2929-aarch64-qp-budget-skip
+ * [new branch]          test/3098-2986-derived-straightness -> refs/west/test/3098-2986-derived-straightness
+ * [new branch]          test/3098-3004-sound-solid -> refs/west/test/3098-3004-sound-solid
+ * [new branch]          test/arc-flags-compose   -> refs/west/test/arc-flags-compose
+ * [new branch]          test/cut-heavy-test-overhead -> refs/west/test/cut-heavy-test-overhead
+ * [new branch]          test/ffi-native-early-return-index -> refs/west/test/ffi-native-early-return-index
+ * [new branch]          test/issue-1061-boss-top-cylinder -> refs/west/test/issue-1061-boss-top-cylinder
+ * [new branch]          test/issue-1176-fillet-cleanup-identity -> refs/west/test/issue-1176-fillet-cleanup-identity
+ * [new branch]          test/issue-1441-offset-surface-export -> refs/west/test/issue-1441-offset-surface-export
+ * [new branch]          test/issue-1511-revolve-disc-axis -> refs/west/test/issue-1511-revolve-disc-axis
+ * [new branch]          test/issue-377-far-box   -> refs/west/test/issue-377-far-box
+ * [new branch]          test/issues-1502-1513    -> refs/west/test/issues-1502-1513
+ * [new branch]          test/kernel-cases-dedupe -> refs/west/test/kernel-cases-dedupe
+ * [new branch]          test/own-builder-trim-owners -> refs/west/test/own-builder-trim-owners
+ * [new branch]          test/ub285-ignore-slow   -> refs/west/test/ub285-ignore-slow
+ * [new branch]          test/wr530-own-surface-offsets -> refs/west/test/wr530-own-surface-offsets
+ * [new branch]          test/wr698-solves-breakdown -> refs/west/test/wr698-solves-breakdown
+ * [new branch]          unit/heal.heal_data_p1   -> refs/west/unit/heal.heal_data_p1
+ * [new branch]          unit/intersect.curve_class_p1 -> refs/west/unit/intersect.curve_class_p1
+ * [new branch]          unit/intersect.curve_class_p7 -> refs/west/unit/intersect.curve_class_p7
+ * [new branch]          unit/intersect.surface_drop_lib_p1 -> refs/west/unit/intersect.surface_drop_lib_p1
+ * [new branch]          unit/query.brep-takeover -> refs/west/unit/query.brep-takeover
+ * [new branch]          unit/query.poly          -> refs/west/unit/query.poly
+ * [new branch]          unit/surface.trim_srf_cache -> refs/west/unit/surface.trim_srf_cache
+ * [new branch]          unit/topology.brep_constructor -> refs/west/unit/topology.brep_constructor
+ * [new branch]          unit/topology.brep_p6-make-face-topology -> refs/west/unit/topology.brep_p6-make-face-topology
+ * [new branch]          unit/topology.brep_p8    -> refs/west/unit/topology.brep_p8
+ * [new branch]          unit/topology.edgeuse_p1 -> refs/west/unit/topology.edgeuse_p1
+ * [new branch]          unit/topology.face_p4    -> refs/west/unit/topology.face_p4
+ * [new branch]          unit/topology.proto_topology_p1 -> refs/west/unit/topology.proto_topology_p1
+ * [new branch]          wip/2361-step2-parked    -> refs/west/wip/2361-step2-parked
+ * [new branch]          wip/2690-affine-adaptive -> refs/west/wip/2690-affine-adaptive
+ * [new branch]          wip/2690-affine-adaptive-rebased -> refs/west/wip/2690-affine-adaptive-rebased
+ * [new branch]          wip/b1-backup            -> refs/west/wip/b1-backup
+ * [new branch]          wip/fix-intersect.surface_intersector_p2 -> refs/west/wip/fix-intersect.surface_intersector_p2
+ * [new branch]          wip/fix-intersect.surface_silhouette -> refs/west/wip/fix-intersect.surface_silhouette
+ * [new branch]          wip/fix-surface.volume_p2 -> refs/west/wip/fix-surface.volume_p2
+ * [new branch]          wip/fix-sweep.api_surfaces -> refs/west/wip/fix-sweep.api_surfaces
+ * [new branch]          wip/merge-intersect.topology_solver_p1 -> refs/west/wip/merge-intersect.topology_solver_p1
+ * [new branch]          wire/brep-p3-bbox        -> refs/west/wire/brep-p3-bbox
+ * [new branch]          wire/brep-p5-find-vertex-sector -> refs/west/wire/brep-p5-find-vertex-sector
+ * [new branch]          wire/curve-on-surf       -> refs/west/wire/curve-on-surf
+ * [new branch]          wire/dispatch-gaps-curve-point-class -> refs/west/wire/dispatch-gaps-curve-point-class
+ * [new branch]          wire/fillet-geom         -> refs/west/wire/fillet-geom
+ * [new branch]          wire/fillet-geom-p3-ccs-port-invariant -> refs/west/wire/fillet-geom-p3-ccs-port-invariant
+ * [new branch]          wire/primitive-api       -> refs/west/wire/primitive-api
+ * [new branch]          wire/topology-edge-brep  -> refs/west/wire/topology-edge-brep
+ * [new branch]          wire/topology-faces      -> refs/west/wire/topology-faces
+ * [new branch]          wire/topology-uses       -> refs/west/wire/topology-uses
+ * [new tag]             cpp-ref-v1-3fd5b9548d19-726643fb17a52b7d -> cpp-ref-v1-3fd5b9548d19-726643fb17a52b7d
+ * [new tag]             cpp-ref-v1-c9c5979f04ce-726643fb17a52b7d -> cpp-ref-v1-c9c5979f04ce-726643fb17a52b7d
+ * [new tag]             last-with-upstream-fixes -> last-with-upstream-fixes
+ * [new tag]             solidcore-v0.0.1         -> solidcore-v0.0.1
+ * [new tag]             solidcore-v1.0.1         -> solidcore-v1.0.1
+HEAD is now at 7a588fa28 solidcore: a round or chamfer of a tangent chain that ends at a sphere's pole builds (#20334) (#20336)
+HEAD is now at 7a588fa28 solidcore: a round or chamfer of a tangent chain that ends at a sphere's pole builds (#20334) (#20336)
+Verified solidcore 7a588fa284765a83823293ae20b84da8356ab479
+west executable: /home/karlvonrichter/kicad-port/md5-input-fix/repo/.port-venv/linux/bin/west
+=== updating solidcore (.port-deps/solidcore):
+HEAD is now at 7a588fa28 solidcore: a round or chamfer of a tangent chain that ends at a sphere's pole builds (#20334) (#20336)
+Verified solidcore 7a588fa284765a83823293ae20b84da8356ab479
+west executable: /home/karlvonrichter/kicad-port/md5-input-fix/repo/.port-venv/linux/bin/west
+-- The C compiler identification is GNU 15.2.0
+-- The CXX compiler identification is GNU 15.2.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/gcc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/g++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found Python3: /usr/bin/python3 (found version "3.14.4") found components: Interpreter
+-- Found wxWidgets: -L/usr/lib/x86_64-linux-gnu;-pthread;;;-lwx_baseu-3.2;-lwx_gtk3u_core-3.2 (found suitable version "3.2.9", minimum required is "3.2")
+-- Looking for malloc.h
+-- Looking for malloc.h - found
+-- Looking for iso646.h
+-- Looking for iso646.h - found
+-- Looking for stdint.h
+-- Looking for stdint.h - found
+-- Looking for strcasecmp
+-- Looking for strcasecmp - found
+-- Looking for strncasecmp
+-- Looking for strncasecmp - found
+-- Looking for strtok_r
+-- Looking for strtok_r - found
+-- Looking for strtok_s
+-- Looking for strtok_s - not found
+-- Looking for malloc
+-- Looking for malloc - found
+-- Looking for math.h
+-- Looking for math.h - found
+-- Looking for C++ include cmath
+-- Looking for C++ include cmath - found
+-- Looking for asinh
+-- Looking for asinh - found
+-- Looking for acosh
+-- Looking for acosh - found
+-- Looking for atanh
+-- Looking for atanh - found
+-- Performing Test HAVE_CMATH_ISINF
+-- Performing Test HAVE_CMATH_ISINF - Success
+-- Looking for clock_gettime in rt
+-- Looking for clock_gettime in rt - found
+-- Looking for gettimeofday
+-- Looking for gettimeofday - found
+-- Looking for getc_unlocked
+-- Looking for getc_unlocked - found
+-- Configuring done (6.4s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/karlvonrichter/kicad-port/md5-input-fix/oracle-build
+[0/2] Re-checking globbed directories...
+[1/66] cd /home/karlvonrichter/kicad-port/md5-input-fix/oracle-build && /usr/bin/python3 /home/karlvonrichter/kicad-port/md5-input-fix/oracle-src/overlay/audit.py --build /home/karlvonrichter/kicad-port/md5-input-fix/oracle-build --source /home/karlvonrichter/kicad-port/md5-input-fix/oracle-src/reference --overlay /home/karlvonrichter/kicad-port/md5-input-fix/oracle-src/overlay
+Oracle audit: 59 compilations, pin 4cf939778df04d2b747bb2c4714fc5014a7565c7, strict FP flags verified
+[2/66] Building CXX object reference/core/CMakeFiles/core.dir/base64.cpp.o
+[3/66] Building CXX object reference/core/CMakeFiles/core.dir/version_compare.cpp.o
+[4/66] Building CXX object reference/core/CMakeFiles/core.dir/observable.cpp.o
+[5/66] Building CXX object reference/core/CMakeFiles/core.dir/utf8.cpp.o
+[6/66] Building CXX object reference/core/CMakeFiles/core.dir/wx_stl_compat.cpp.o
+[7/66] Building CXX object reference/core/CMakeFiles/core.dir/profile.cpp.o
+[8/66] Linking CXX static library reference/core/libcore.a
+[9/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/md5_hash.cpp.o
+[10/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/transform.cpp.o
+[11/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/arc_chord_params.cpp.o
+[12/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/trigo.cpp.o
+[13/66] Building CXX object reference/clipper2/CMakeFiles/clipper2.dir/Clipper2Lib/src/clipper.rectclip.cpp.o
+[14/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/arc_construction.cpp.o
+[15/66] Building CXX object reference/clipper2/CMakeFiles/clipper2.dir/Clipper2Lib/src/clipper.offset.cpp.o
+[16/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/distribute.cpp.o
+[17/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/eda_angle.cpp.o
+[18/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/bezier_curves.cpp.o
+[19/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/ellipse.cpp.o
+[20/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/circle.cpp.o
+[21/66] Building CXX object reference/clipper2/CMakeFiles/clipper2.dir/Clipper2Lib/src/clipper.engine.cpp.o
+[22/66] Linking CXX static library reference/clipper2/libclipper2.a
+[23/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/grid_geometry.cpp.o
+[24/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/corner_operations.cpp.o
+[25/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/convert_basic_shapes_to_polygon.cpp.o
+[26/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/convex_hull.cpp.o
+[27/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/direction_45.cpp.o
+[28/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/line.cpp.o
+[29/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/geometry_utils.cpp.o
+[30/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/half_line.cpp.o
+[31/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/poisson_disk.cpp.o
+[32/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/seg.cpp.o
+[33/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/nearest.cpp.o
+[34/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/oval.cpp.o
+[35/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/intersection.cpp.o
+[36/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/roundrect.cpp.o
+[37/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape.cpp.o
+[38/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_compound.cpp.o
+[39/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_file_io.cpp.o
+[40/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_arc.cpp.o
+[41/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/transform_trs.cpp.o
+[42/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_nearest_points.cpp.o
+[43/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_rect.cpp.o
+[44/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_segment.cpp.o
+[45/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/vector_utils.cpp.o
+[46/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_ellipse.cpp.o
+[47/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_collisions.cpp.o
+[48/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/math/util.cpp.o
+[49/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/vertex_set.cpp.o
+[50/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_utils.cpp.o
+[51/66] Building CXX object CMakeFiles/kicad-oracle.dir/shims/example_rescale.cpp.o
+[52/66] Building CXX object CMakeFiles/kicad-oracle.dir/registry.cpp.o
+[53/66] Building CXX object CMakeFiles/kicad-oracle.dir/main.cpp.o
+[54/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_line_chain.cpp.o
+[55/66] Building CXX object CMakeFiles/oracle-dispatch-test.dir/registry.cpp.o
+[56/66] Building CXX object CMakeFiles/oracle-dispatch-test.dir/shims/example_rescale.cpp.o
+[57/66] Building CXX object CMakeFiles/kicad-oracle.dir/shims/md5.cpp.o
+[58/66] Building CXX object CMakeFiles/kicad-oracle.dir/protocol.cpp.o
+[59/66] Building CXX object CMakeFiles/oracle-dispatch-test.dir/test_dispatch.cpp.o
+[60/66] Building CXX object CMakeFiles/oracle-dispatch-test.dir/protocol.cpp.o
+[61/66] Building CXX object CMakeFiles/oracle-dispatch-test.dir/shims/md5.cpp.o
+[62/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_poly_set.cpp.o
+[63/66] Linking CXX static library reference/kimath/libkimath.a
+[64/66] Linking CXX executable oracle-dispatch-test
+[65/66] Linking CXX executable kicad-oracle
+Test project /home/karlvonrichter/kicad-port/md5-input-fix/oracle-build
+    Start 1: oracle-protocol
+1/4 Test #1: oracle-protocol ..................   Passed    0.03 sec
+    Start 2: oracle-build-guards
+2/4 Test #2: oracle-build-guards ..............   Passed    0.08 sec
+    Start 3: oracle-dispatch
+3/4 Test #3: oracle-dispatch ..................   Passed    0.00 sec
+    Start 4: oracle-md5-inputs
+4/4 Test #4: oracle-md5-inputs ................   Passed    0.02 sec
+
+100% tests passed, 0 tests failed out of 4
+
+Total Test time (real) =   0.14 sec
+Oracle: /home/karlvonrichter/kicad-port/md5-input-fix/oracle-build/kicad-oracle
+Provenance: /home/karlvonrichter/kicad-port/md5-input-fix/oracle-build/oracle-provenance.json
+Waiting for the shared lock before Rust and live comparison checks
+    Checking kicad-md5-shim v0.1.0 (/home/karlvonrichter/kicad-port/md5-input-fix/repo/rust/kicad-md5-shim)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.16s
+   Compiling kicad-md5-shim v0.1.0 (/home/karlvonrichter/kicad-port/md5-input-fix/repo/rust/kicad-md5-shim)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.47s
+     Running unittests src/lib.rs (rust/target/debug/deps/kicad_md5-c87a89e724579cb0)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/wrapper.rs (rust/target/debug/deps/wrapper-2201fa9238f27f05)
+
+running 3 tests
+test copied_partial_contexts_continue_independently ... ok
+test rfc_digest_and_reference_format ... ok
+test validity_is_independent_of_digest_and_pending_context ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (rust/target/debug/deps/kicad_md5_shim-eb6ffb475fae19fa)
+
+running 5 tests
+test tests::malformed_protocol_and_unknown_unit_fail ... ok
+test tests::malformed_assignment_validation_matches_reference_order ... ok
+test tests::resource_bounds_and_unconstructed_states_are_refused ... ok
+test tests::legitimate_noops_remain_successful_results ... ok
+test tests::integer_negative_zero_byte_matches_zero_without_accepting_floats ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests kicad_md5
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Compiling typenum v1.20.1
+   Compiling generic-array v0.14.7
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling digest v0.10.7
+   Compiling sha2 v0.10.9
+   Compiling kicad-difftest v0.1.0 (/home/karlvonrichter/kicad-port/md5-input-fix/repo/rust/kicad-difftest)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.54s
+   Compiling kicad-md5-shim v0.1.0 (/home/karlvonrichter/kicad-port/md5-input-fix/repo/rust/kicad-md5-shim)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.39s
+MD5 adapter: 8 exact refusals and literal -0 byte passed
+Wrote 5973 public generated cases to /home/karlvonrichter/kicad-port/md5-input-fix/regenerated.jsonl
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","status":"green","action":"compare","cases":5973,"deferred":0,"cases_sha256":"0d2232c3b758cb67acdc486cbe420350394502fdf2df591e356280468df00795","oracle_output_sha256":"9b8b9a761911d19c39e45136b28d17eb47ef50dc582102b4b4e538ba909034cb","rust_output_sha256":"709084cd7bce4bd431415418ae7456b198d0d30d80613d2c9be373e8f67c6cf4","oracle_sha256":"2b907fba102d813d6d2cf9670c21884240bb78a2b9c3a1cab19d337a1a2f0cdb","rust_sha256":"670250110b8b5e43dc46ff37ba247ca2dd4fee18ee120dc3133b20ab76bcbc27"}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","status":"green","action":"propose","cases":5973,"deferred":0,"cases_sha256":"0d2232c3b758cb67acdc486cbe420350394502fdf2df591e356280468df00795","oracle_output_sha256":"9b8b9a761911d19c39e45136b28d17eb47ef50dc582102b4b4e538ba909034cb","rust_output_sha256":"709084cd7bce4bd431415418ae7456b198d0d30d80613d2c9be373e8f67c6cf4","oracle_sha256":"2b907fba102d813d6d2cf9670c21884240bb78a2b9c3a1cab19d337a1a2f0cdb","rust_sha256":"670250110b8b5e43dc46ff37ba247ca2dd4fee18ee120dc3133b20ab76bcbc27"}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","status":"green","action":"bless","cases":5973,"deferred":0,"cases_sha256":"0d2232c3b758cb67acdc486cbe420350394502fdf2df591e356280468df00795","oracle_output_sha256":"9b8b9a761911d19c39e45136b28d17eb47ef50dc582102b4b4e538ba909034cb","rust_output_sha256":"709084cd7bce4bd431415418ae7456b198d0d30d80613d2c9be373e8f67c6cf4","oracle_sha256":"2b907fba102d813d6d2cf9670c21884240bb78a2b9c3a1cab19d337a1a2f0cdb","rust_sha256":"670250110b8b5e43dc46ff37ba247ca2dd4fee18ee120dc3133b20ab76bcbc27"}
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","status":"green","action":"check","cases":5973,"deferred":0,"cases_sha256":"0d2232c3b758cb67acdc486cbe420350394502fdf2df591e356280468df00795","oracle_output_sha256":"9b8b9a761911d19c39e45136b28d17eb47ef50dc582102b4b4e538ba909034cb","rust_output_sha256":"709084cd7bce4bd431415418ae7456b198d0d30d80613d2c9be373e8f67c6cf4","oracle_sha256":"2b907fba102d813d6d2cf9670c21884240bb78a2b9c3a1cab19d337a1a2f0cdb","rust_sha256":"670250110b8b5e43dc46ff37ba247ca2dd4fee18ee120dc3133b20ab76bcbc27"}
+All 5973 cases match; original 5972 golden lines are byte-identical
+MD5 input fixes, full live comparison and complete baseline evidence are ready

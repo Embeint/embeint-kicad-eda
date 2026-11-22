@@ -1,0 +1,197 @@
+{
+  "phase0": "INCOMPLETE",
+  "strict_gate_enabled": false,
+  "live_green_units": 1,
+  "required_green_units": 3,
+  "required_layer": 0,
+  "total_live_green_units": 1,
+  "validated_unit_records": 1570,
+  "extraction": {
+    "additional_definition_body_count": 244,
+    "all_configurations_complete": false,
+    "cache_reused_commands": 288,
+    "clang_python": "21.1.7",
+    "commands_attempted": 2511,
+    "compile_commands_count": 2511,
+    "compile_commands_path": "/home/karlvonrichter/kicad-port/extract-build/compile_commands.json",
+    "compile_commands_sha256": "bc402ade70f0304ed5018793a5d8c37749df978dfd7859ee87e655ee3a616196",
+    "compile_database_complete": true,
+    "configuration": "Linux WSL compile database; active preprocessor branches only",
+    "counts": {
+      "application": 4599,
+      "generated": 693,
+      "qa": 1000,
+      "thirdparty": 3109
+    },
+    "definition_variant_count": 94,
+    "extra_args": [
+      "-isystem",
+      "/usr/include/c++/15",
+      "-isystem",
+      "/usr/include/x86_64-linux-gnu/c++/15",
+      "-ivfsoverlay",
+      "/home/karlvonrichter/kicad-port/reconciled-cache/source-overlay.json"
+    ],
+    "extractor_sha256": "95743d0fe1c1967ae7609b2afecb59ea7e26c8b2ac41361d058ac8f32aff0806",
+    "gate_complete": false,
+    "gate_definition": "Extractor diagnostic only: all WSL commands parsed and all tracked sources inventoried; not the PORT_PLAN phase-0 gate",
+    "inventory_complete": true,
+    "jobs": 8,
+    "libclang": "/usr/lib/llvm-21/lib/libclang-21.so.1",
+    "limitations": [
+      "No Windows/macOS or inactive preprocessor branch extraction",
+      "Indirect function pointers and unresolved dependent template calls are recorded, not guessed",
+      "Implicit compiler-generated calls may not appear in libclang cursors"
+    ],
+    "original_source_root": "/home/karlvonrichter/kicad-port/extract-source",
+    "parse_complete": false,
+    "parse_failures": [
+      {
+        "diagnostics": [
+          {
+            "message": "error: unknown argument: '-fmodules-ts'",
+            "severity": 3
+          },
+          {
+            "message": "error: unknown argument: '-fmodule-mapper=thirdparty/fmt/CMakeFiles/fmt-c.dir/src/fmt-c.cc.o.modmap'",
+            "severity": 3
+          },
+          {
+            "message": "error: unknown argument: '-fdeps-format=p1689r5'",
+            "severity": 3
+          }
+        ],
+        "file": "thirdparty/fmt/src/fmt-c.cc",
+        "status": "parse-error"
+      },
+      {
+        "diagnostics": [
+          {
+            "message": "error: unknown argument: '-fmodules-ts'",
+            "severity": 3
+          },
+          {
+            "message": "error: unknown argument: '-fmodule-mapper=thirdparty/fmt/CMakeFiles/fmt.dir/src/os.cc.o.modmap'",
+            "severity": 3
+          },
+          {
+            "message": "error: unknown argument: '-fdeps-format=p1689r5'",
+            "severity": 3
+          }
+        ],
+        "file": "thirdparty/fmt/src/os.cc",
+        "status": "parse-error"
+      },
+      {
+        "diagnostics": [
+          {
+            "message": "error: unknown argument: '-fmodules-ts'",
+            "severity": 3
+          },
+          {
+            "message": "error: unknown argument: '-fmodule-mapper=thirdparty/fmt/CMakeFiles/fmt.dir/src/format.cc.o.modmap'",
+            "severity": 3
+          },
+          {
+            "message": "error: unknown argument: '-fdeps-format=p1689r5'",
+            "severity": 3
+          }
+        ],
+        "file": "thirdparty/fmt/src/format.cc",
+        "status": "parse-error"
+      },
+      {
+        "diagnostics": [
+          {
+            "message": "error: unknown argument: '-fmodules-ts'",
+            "severity": 3
+          },
+          {
+            "message": "error: unknown argument: '-fmodule-mapper=thirdparty/fmt/CMakeFiles/fmt-module.dir/src/fmt.cc.o.modmap'",
+            "severity": 3
+          },
+          {
+            "message": "error: unknown argument: '-fdeps-format=p1689r5'",
+            "severity": 3
+          }
+        ],
+        "file": "thirdparty/fmt/src/fmt.cc",
+        "status": "parse-error"
+      }
+    ],
+    "source_commit": "3cd2c9afc6d2749b7d3a79fd1deaa86ac51cb3a7",
+    "source_hash_policy": "SHA-256 after CRLF-to-LF normalization; function offsets refer to snapshot bytes",
+    "source_inventory_sha256": "da0820c028bc23f338b6a6256e38dc984bd79f323f02737b93e7e5e499d57a2f",
+    "source_manifest_hash_policy": "SHA-256 after CRLF-to-LF normalization",
+    "source_manifest_sha256": "9fd04872118352d8ba6e54bb6c799a3087c2a0bf4d681dbb7afce07b7464eca9",
+    "source_root": "/home/karlvonrichter/kicad-port/extract-source",
+    "template_alias_variant_count": 35,
+    "uncompiled_application_sources": [
+      "3d-viewer/3d_navlib/nl_3d_viewer_plugin.cpp",
+      "3d-viewer/3d_navlib/nl_3d_viewer_plugin_impl.cpp",
+      "3d-viewer/3d_navlib/nl_footprint_properties_plugin.cpp",
+      "3d-viewer/3d_navlib/nl_footprint_properties_plugin_impl.cpp",
+      "3d-viewer/dialogs/model_preview_manager_windows.cpp",
+      "3d-viewer/dialogs/native_model_file_picker_windows.cpp",
+      "common/database/ace_backend.cpp",
+      "common/dialogs/git/dialog_git_progress.cpp",
+      "common/dialogs/panel_data_collection.cpp",
+      "common/dialogs/panel_data_collection_base.cpp",
+      "common/rhi/rhi_metal_device.mm",
+      "common/rhi/rhi_metal_view.mm",
+      "common/spacemouse.cpp",
+      "common/streamwrapper.cpp",
+      "common/widgets/grid_striped_renderer.cpp",
+      "eeschema/multiline_pin_text.cpp",
+      "include/tool/examples/delegate_example.cpp",
+      "libs/kiplatform/os/apple/app.mm",
+      "libs/kiplatform/os/apple/drivers.mm",
+      "libs/kiplatform/os/apple/environment.mm",
+      "libs/kiplatform/os/apple/io.mm",
+      "libs/kiplatform/os/apple/policy.mm",
+      "libs/kiplatform/os/apple/printing.mm",
+      "libs/kiplatform/os/apple/secrets.mm",
+      "libs/kiplatform/os/apple/sysinfo.cpp",
+      "libs/kiplatform/os/windows/app.cpp",
+      "libs/kiplatform/os/windows/drivers.cpp",
+      "libs/kiplatform/os/windows/environment.cpp",
+      "libs/kiplatform/os/windows/io.cpp",
+      "libs/kiplatform/os/windows/policy.cpp",
+      "libs/kiplatform/os/windows/printing.cpp",
+      "libs/kiplatform/os/windows/secrets.cpp",
+      "libs/kiplatform/os/windows/sysinfo.cpp",
+      "libs/kiplatform/port/wxmsw/touchpad.cpp",
+      "libs/kiplatform/port/wxmsw/ui.cpp",
+      "libs/kiplatform/port/wxmsw/webview.cpp",
+      "libs/kiplatform/port/wxosx/touchpad.mm",
+      "libs/kiplatform/port/wxosx/ui.mm",
+      "libs/kiplatform/port/wxosx/webview.mm",
+      "pcbnew/board_bounding_box.cpp",
+      "pcbnew/dialogs/dialog_produce_pcb_base.cpp",
+      "pcbnew/edit.cpp",
+      "pcbnew/navlib/nl_pcbnew_plugin.cpp",
+      "pcbnew/navlib/nl_pcbnew_plugin_impl.cpp",
+      "pcbnew/netlist_reader/pcb_component.cpp",
+      "pcbnew/specctra_import_export/specctra_test.cpp",
+      "tools/gal_bitmap_font/bitmap_font_2048_0_img.c",
+      "tools/gal_bitmap_font/bitmap_font_2048_desc.c",
+      "tools/gal_bitmap_font/bitmap_font_desc.c",
+      "tools/gal_bitmap_font/bitmap_font_img.c",
+      "tools/gal_bitmap_font/hiero_desc.c",
+      "tools/gal_bitmap_font/hiero_img.c",
+      "tools/newstroke/font_header.cpp",
+      "utils/preview_handlers/kicad_3d_model_preview_handler/dllmain.cpp",
+      "utils/preview_handlers/kicad_3d_model_preview_handler/kicad_3d_model_to_occ.cpp",
+      "utils/preview_handlers/kicad_3d_model_preview_handler/kicad_3d_preview_class_factory.cpp",
+      "utils/preview_handlers/kicad_3d_model_preview_handler/kicad_3d_preview_handler.cpp",
+      "utils/preview_handlers/kicad_3d_model_preview_handler/kicad_3d_preview_register.cpp",
+      "utils/quicklook/Preview/kiql_preview_view_controller.mm",
+      "utils/quicklook/Thumbnail/kiql_thumbnail_provider.mm",
+      "utils/quicklook/kiql_import_queue.mm",
+      "utils/quicklook/kiql_model_scene.mm",
+      "utils/quicklook/kiql_preview_view.mm"
+    ],
+    "unresolved_call_count": 5247105,
+    "upstream_pin": "4cf939778df04d2b747bb2c4714fc5014a7565c7"
+  }
+}

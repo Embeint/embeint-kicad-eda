@@ -1,0 +1,18 @@
+{
+  "tested_source_revision": "352773eb4b7f00d554140c5ccdb90543a1d547bb",
+  "canonical_dependency": "a7ec77beffd3b2e5d60409423fa28b6c116c6e00",
+  "full_unit_source_validator": "pass",
+  "validated_unit_records": 1570,
+  "fmt": "pass",
+  "clippy_warnings_denied": "pass",
+  "relevant_rust_tests_passed": 6,
+  "portable_wasm": "pass",
+  "cases": 5972,
+  "failures": 0,
+  "deferrals": 0,
+  "phase0": "INCOMPLETE",
+  "strict_gate_enabled": false,
+  "oracle_provenance": "Original clean a295db8b overlay retained; no C++ source/overlay changes.",
+  "rust_sha256": "0dc7e0fb863b781ee1dc1e53888bab88ac40d77a5e775c43093334949fdf5bdd",
+  "hosted_ci": "pending publication/review"
+}

@@ -1,0 +1,6 @@
+   Compiling tokio v1.54.1
+   Compiling embeint-layout-cli v0.1.0 (/home/karlvonrichter/kicad-port/pilot-md5/repo/rust/embeint-layout-cli)
+   Compiling kicad-md5-shim v0.1.0 (/home/karlvonrichter/kicad-port/pilot-md5/repo/rust/kicad-md5-shim)
+   Compiling embeint-ipc v0.1.0 (/home/karlvonrichter/kicad-port/pilot-md5/repo/rust/embeint-ipc)
+   Compiling embeint-mcp v0.1.0 (/home/karlvonrichter/kicad-port/pilot-md5/repo/rust/embeint-mcp)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 9.97s
