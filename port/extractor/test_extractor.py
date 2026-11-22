@@ -11,6 +11,7 @@ import sys
 import tempfile
 import tomllib
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
@@ -364,7 +365,20 @@ class ValidationTests(unittest.TestCase):
                                                f'build {derived}: gen ../source/schema.md\n'
                                                'build final.h: gen ../source/derived.h\n')
             generated = root / 'port/extractor/generated'
-            manifest = freeze(build, generated, {})
+            tool = parent / 'private-tool'
+            tool.write_text('#!/bin/sh\necho fixture-version\n')
+            tool.chmod(0o755)
+            version = subprocess.run([str(tool), '--version'], capture_output=True, text=True)
+            tool_proof = {'path': str(tool), 'sha256': digest(tool.read_bytes()),
+                          'version_exit': version.returncode, 'version': version.stdout, 'stderr': version.stderr}
+            graph['provenance']['source_root'] = str(root.resolve())
+            generation_inputs = parent / 'generation-inputs.json'
+            write_json(generation_inputs, {'source_commit': graph['provenance']['source_commit'],
+                'upstream_pin': PIN, 'inputs': [{'path': name, 'normalized_sha256': digest((root / name).read_bytes())}
+                                              for name in ('derived.h', 'schema.md')]})
+            manifest = freeze(build, generated, {'reconciliation.json': {'record': {
+                'source_root': str(root.resolve()), 'source_commit': graph['provenance']['source_commit'],
+                'upstream_pin': PIN}}, 'tools': {'fixture-tool': tool_proof}})
             # Simulate a parse whose older capture treated derived.h as a leaf.
             manifest['files'][0]['generator_inputs'] = ['derived.h']
             recipes = b'{"@build/final.h":{"query":"older capture"}}\n'
@@ -386,15 +400,17 @@ class ValidationTests(unittest.TestCase):
             unit_bytes = {p.name: p.read_bytes().replace(b'\r\n', b'\n') for p in (root / 'port/units').glob('*.toml')}
             base = parent / 'base'
             shutil.copytree(generated, base)
-            captured = refresh.capture(base / 'generated-sources.json', root, parent / 'capture')
+            options = {'inventory_path': base / 'inventory.json', 'generation_inputs_path': generation_inputs}
+            apply_options = {'generation_inputs_path': generation_inputs}
+            captured = refresh.capture(base / 'generated-sources.json', root, parent / 'capture', **options)
             self.assertEqual(captured['generator_inputs']['@build/final.h'], ['derived.h', 'schema.md'])
             self.assertEqual(captured['source_generator_dependencies']['derived.h'], ['schema.md'])
             capture_args = (base / 'generated-sources.json', parent / 'capture/generator-dependency-capture.json',
                             parent / 'capture/generated-recipes.json')
-            result = refresh.apply(base / 'graph.json', base / 'inventory.json', *capture_args, parent / 'out')
+            result = refresh.apply(base / 'graph.json', base / 'inventory.json', *capture_args, parent / 'out', **apply_options)
             self.assertEqual(result['build_generated_inputs_added'], 1)
             self.assertEqual(result['build_generated_inputs_removed'], 0)
-            repeat = refresh.apply(base / 'graph.json', base / 'inventory.json', *capture_args, parent / 'repeat')
+            repeat = refresh.apply(base / 'graph.json', base / 'inventory.json', *capture_args, parent / 'repeat', **apply_options)
             for name in ('graph.json.gz', 'inventory.json', 'generated-sources.json', 'refresh-report.json'):
                 self.assertEqual((parent / 'out' / name).read_bytes(), (parent / 'repeat' / name).read_bytes())
             self.assertEqual(repeat, result)
@@ -419,19 +435,62 @@ class ValidationTests(unittest.TestCase):
             self.assertEqual(read_json(generated / 'units.json')['function_units'], report['function_units'])
             # Negative controls: refreshed input, a foreign capture, tampered recipes and a changed build.
             with self.assertRaisesRegex(ValueError, 'original parse'):
-                refresh.apply(generated / 'graph.json', generated / 'inventory.json', *capture_args, parent / 'bad')
+                refresh.apply(generated / 'graph.json', generated / 'inventory.json', *capture_args, parent / 'bad', **apply_options)
             foreign = read_json(capture_args[1]); foreign['base_manifest_sha256'] = '0' * 64
             write_json(parent / 'foreign.json', foreign)
             with self.assertRaisesRegex(ValueError, 'different generated-source manifest'):
                 refresh.apply(base / 'graph.json', base / 'inventory.json', capture_args[0], parent / 'foreign.json',
-                              capture_args[2], parent / 'bad')
+                              capture_args[2], parent / 'bad', **apply_options)
             write_json(parent / 'recipes.json', {})
             with self.assertRaisesRegex(ValueError, 'Recaptured recipes'):
                 refresh.apply(base / 'graph.json', base / 'inventory.json', *capture_args[:2], parent / 'recipes.json',
-                              parent / 'bad')
+                              parent / 'bad', **apply_options)
+            # Bind source root, all tracked bodies and non-C++ generator leaves.
+            foreign_root = parent / 'foreign-root'; foreign_root.mkdir()
+            with self.assertRaisesRegex(ValueError, 'original parse source root'):
+                refresh.capture(base / 'generated-sources.json', foreign_root, parent / 'bad-root', **options)
+            for name in ('schema.md', 'derived.h', 'a.cpp'):
+                original_bytes = (root / name).read_bytes()
+                try:
+                    (root / name).unlink()
+                    with self.assertRaisesRegex(ValueError, 'missing or changed'):
+                        refresh.capture(base / 'generated-sources.json', root, parent / 'bad-source', **options)
+                    (root / name).write_bytes(original_bytes + b'// stale source\n')
+                    with self.assertRaisesRegex(ValueError, 'missing or changed'):
+                        refresh.capture(base / 'generated-sources.json', root, parent / 'bad-source', **options)
+                finally:
+                    (root / name).write_bytes(original_bytes)
+            for key, value in [('source_root', str(foreign_root)), ('source_commit', 'b' * 40),
+                               ('source_files_sha256', '0' * 64)]:
+                altered = read_json(capture_args[1])
+                altered['source_identity'][key] = value
+                write_json(parent / 'foreign-source.json', altered)
+                with self.assertRaisesRegex(ValueError, 'Capture source identity'):
+                    refresh.apply(base / 'graph.json', base / 'inventory.json', capture_args[0], parent / 'foreign-source.json',
+                                  capture_args[2], parent / 'bad-source-apply', **apply_options)
+            with self.assertRaisesRegex(ValueError, 'Ninja source lacks a pinned snapshot'):
+                capture_recipes(build, root, [], {}, {})
+            capture_impl = refresh.capture_recipes
+            def mutate_after_query(path, content):
+                def changed(*args, **kwargs):
+                    result = capture_impl(*args, **kwargs)
+                    path.write_bytes(content)
+                    return result
+                return changed
+            for path, message in [(root / 'a.cpp', 'Pinned refresh source'),
+                                  (base / 'sources/final.h', 'Frozen generated input changed'),
+                                  (tool, 'Generator tool identity changed')]:
+                original_bytes = path.read_bytes()
+                try:
+                    with mock.patch.object(refresh, 'capture_recipes',
+                                           side_effect=mutate_after_query(path, original_bytes + b'\n# changed\n')):
+                        with self.assertRaisesRegex(ValueError, message):
+                            refresh.capture(base / 'generated-sources.json', root, parent / 'bad-after', **options)
+                finally:
+                    path.write_bytes(original_bytes)
             (build / 'late.h').write_text('// added after the parse\n')
             with self.assertRaisesRegex(ValueError, 'differ from the parse manifest'):
-                refresh.capture(base / 'generated-sources.json', root, parent / 'capture-late')
+                refresh.capture(base / 'generated-sources.json', root, parent / 'capture-late', **options)
 
     def test_inventory_coverage_and_categories_cannot_be_hidden_by_unit_edits(self):
         with tempfile.TemporaryDirectory() as tmp:
