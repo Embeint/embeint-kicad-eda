@@ -1,0 +1,3 @@
+Traceback (most recent call last):
+  File "<stdin>", line 12, in <module>
+AssertionError: Cache replay changed semantic graph beyond explicitly removed cache trace fields

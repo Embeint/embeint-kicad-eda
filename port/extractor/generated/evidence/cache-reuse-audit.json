@@ -1,0 +1,11 @@
+{
+  "source_inventory_sha256": "da0820c028bc23f338b6a6256e38dc984bd79f323f02737b93e7e5e499d57a2f",
+  "extractor_sha256": "aabb3c0be3176689df4f9d383aa145d6613ab48c354f7d3380f781c4fb6ad89a",
+  "reusable_commands": 1136,
+  "statuses": {
+    "ok": 1135,
+    "extract-error": 1
+  },
+  "runner": "/home/karlvonrichter/kicad-port/raw-runner",
+  "reason": "Use original extractor bytes; pending model change only changes gzip serialization, not TU extraction"
+}

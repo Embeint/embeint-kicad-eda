@@ -1,0 +1,10 @@
+{
+  "current_parser_hash_policy_sha256": "bd6bbc057f4e9ae058adf63bc6cab4a2ca89d48e681984fdf3abdcdb63188fd7",
+  "current_refresh_code_sha256": "1a7ea4bc86028ebccd5cb527b37c7f3fd053d259ca735c2195593d8b1f569f93",
+  "libclang_sha256": "2c262ccd53ce702daa87c95aa84b2936e13c14f974504dc58f3ed93b12def23b",
+  "v5_ast_files_equal_current": {
+    "clang_graph.py": true,
+    "model.py": true
+  },
+  "v5_runtime_parser_sha256": "e1548c1fe920a05d882e3f2de1c14843ca0e7b3b04ca9441d4132e16de77b88d"
+}

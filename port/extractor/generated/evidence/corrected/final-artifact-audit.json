@@ -1,0 +1,293 @@
+{
+  "active_generated_tus_mapped": 86,
+  "all_blobs_below_github_limit": true,
+  "artifact_identities": [
+    {
+      "bytes": 40925438,
+      "filename": "graph.json.gz",
+      "path": "port/extractor/generated/raw/graph.json.gz",
+      "run": "raw",
+      "sha256": "a4768bc824e8947f3373dbec4afc939c91ac94ee6ac9ff22355eeedf70a2e516"
+    },
+    {
+      "bytes": 2296170,
+      "filename": "inventory.json",
+      "path": "port/extractor/generated/raw/inventory.json",
+      "run": "raw",
+      "sha256": "e19e921c1d668d67d9f413aab119fa0a5e8425aa30a2dee84f88599563117158"
+    },
+    {
+      "bytes": 41947024,
+      "filename": "graph.json.gz",
+      "path": "port/extractor/generated/reconciled-extraction/graph.json.gz",
+      "run": "reconciled",
+      "sha256": "133c45e58c4f42fade25280971cf2f9c67433bbe83efb0051cbeddef24e3967f"
+    },
+    {
+      "bytes": 2290402,
+      "filename": "inventory.json",
+      "path": "port/extractor/generated/reconciled-extraction/inventory.json",
+      "run": "reconciled",
+      "sha256": "be68a91671554abd34719c169feaaa9724072a27d60c5dd18d6b69cf48d100d4"
+    },
+    {
+      "bytes": 69704688,
+      "filename": "graph.json.gz",
+      "path": "port/extractor/generated/corrected-extraction/graph.json.gz",
+      "run": "corrected",
+      "sha256": "40861e9ca678464cedc513561e6e559cbcb5f902bb5b221fe2b6c378fb803e18"
+    },
+    {
+      "bytes": 9283317,
+      "filename": "inventory.json",
+      "path": "port/extractor/generated/corrected-extraction/inventory.json",
+      "run": "corrected",
+      "sha256": "b9e6986b36529fdf4041712dfb258af050c2ff61bb3971875394eb16e2a47682"
+    },
+    {
+      "bytes": 69706076,
+      "filename": "graph.json.gz",
+      "path": "port/extractor/generated/graph.json.gz",
+      "run": "canonical",
+      "sha256": "146e2ccac0e8d0ba6d37ceadb26ae5a84d0223609dd55abebb0b5451bfe45735"
+    },
+    {
+      "bytes": 9283317,
+      "filename": "inventory.json",
+      "path": "port/extractor/generated/inventory.json",
+      "run": "canonical",
+      "sha256": "b9e6986b36529fdf4041712dfb258af050c2ff61bb3971875394eb16e2a47682"
+    },
+    {
+      "bytes": 21417027,
+      "filename": "units.json",
+      "path": "port/extractor/generated/units.json",
+      "run": "canonical",
+      "sha256": "0aac539054de1437248d5f97c510efee16de779cf546919c136a23938b023753"
+    }
+  ],
+  "cached_aggregation_replay": {
+    "cache_reused_commands": 2511,
+    "diagnostic_comparison": "All failure file/status/severity/message payloads compared exactly after sorting complete records; no diagnostic omitted",
+    "excluded_audit_fields": [
+      "provenance.cache_reused_commands",
+      "translation_units[].cache_reused_from"
+    ],
+    "graph_semantics_equal": true,
+    "interpretation": "Full aggregation replay from exact V5 AST cache. The first stricter comparison failed only on completion-order diagnostics; its log/difference remain preserved. Canonical splitter and post-adoption regeneration separately check all output bytes from identical recorded input.",
+    "inventory_semantics_equal": true,
+    "new_clang_parses": 0,
+    "original_failure_order": [
+      "thirdparty/fmt/src/fmt-c.cc",
+      "thirdparty/fmt/src/os.cc",
+      "thirdparty/fmt/src/format.cc",
+      "thirdparty/fmt/src/fmt.cc"
+    ],
+    "raw_artifacts_unchanged": true,
+    "raw_failure_reporting_order_is_nondeterministic": true,
+    "replay_failure_order": [
+      "thirdparty/fmt/src/fmt-c.cc",
+      "thirdparty/fmt/src/fmt.cc",
+      "thirdparty/fmt/src/format.cc",
+      "thirdparty/fmt/src/os.cc"
+    ],
+    "semantic_graph_sha256": "3f45280946f5cfa08a6712873454ec7d6d50373b5eb8abcc0f88ebe24805799e",
+    "semantic_inventory_sha256": "99dc34cd33a70b84abadcaab0b7e90ac2bbc7dd7155c8c9c276198a22d4e0ee2"
+  },
+  "complete_build_fingerprint_files": 1612,
+  "compressed_recipe_storage": {
+    "gzip_bytes": 14431755,
+    "gzip_sha256": "e0d935a1588f0951462e35aaa49f36a1ba58787043ad2a266dc1412ae1705d2e",
+    "policy": "Deterministic gzip, mtime=0, OS=255; original manifest binds unchanged decompressed JSON bytes",
+    "raw_bytes": 729057013,
+    "raw_sha256": "dff5b79afdbe58e2e4c7a4f0e4d8b093fd34a94a0302d38cddd6483660496951",
+    "storage": "generated-recipes.json.gz"
+  },
+  "database_and_log_hashes_verified": true,
+  "extractor_sha256": "e1548c1fe920a05d882e3f2de1c14843ca0e7b3b04ca9441d4132e16de77b88d",
+  "frozen_generated_files_verified": 178,
+  "generator_and_configure_inputs_verified_at_pin": 1164,
+  "historical_a7_artifacts_unchanged": true,
+  "measurement_recomputed": true,
+  "netinfo_alias_wx_proof": [
+    {
+      "name": "NETINFO_LIST::NetsByName()",
+      "wx": [
+        "wxAny",
+        "wxArrayString",
+        "wxEvtHandler",
+        "wxFileName",
+        "wxFrame",
+        "wxPGChoices",
+        "wxPaperSize",
+        "wxString",
+        "wxWindowID"
+      ],
+      "wx_class": "UI"
+    }
+  ],
+  "owned_generated_lexer_examples": [
+    {
+      "end": 37,
+      "file": "@build/eeschema/dialogs/dialog_bom_cfg_keywords.cpp",
+      "name": "DIALOG_BOM_CFG_LEXER::TokenName(T)",
+      "start": 25,
+      "unit": "build.eeschema.dialogs.generated.thin.replacement.p001"
+    },
+    {
+      "end": 88,
+      "file": "@build/common/drawing_sheet/drawing_sheet_keywords.cpp",
+      "name": "DRAWING_SHEET_LEXER::TokenName(T)",
+      "start": 76,
+      "unit": "build.common.drawing_sheet.generated.thin.replacement.p001"
+    },
+    {
+      "end": 112,
+      "file": "@build/common/drc_rules_keywords.cpp",
+      "name": "DRC_RULES_LEXER::TokenName(T)",
+      "start": 100,
+      "unit": "build.common.generated.thin.replacement.p001"
+    },
+    {
+      "end": 46,
+      "file": "@build/common/embedded_files_keywords.cpp",
+      "name": "EMBEDDED_FILES_LEXER::TokenName(T)",
+      "start": 34,
+      "unit": "build.common.generated.thin.replacement.p001"
+    },
+    {
+      "end": 45,
+      "file": "@build/common/lib_table_keywords.cpp",
+      "name": "LIB_TABLE_LEXER::TokenName(T)",
+      "start": 33,
+      "unit": "build.common.generated.thin.replacement.p001"
+    },
+    {
+      "end": 215,
+      "file": "@build/common/netlist_lexer.h",
+      "name": "NETLIST_LEXER::CurTok()",
+      "start": 212,
+      "unit": "build.common.generated.ui.p001"
+    },
+    {
+      "end": 231,
+      "file": "@build/common/netlist_lexer.h",
+      "name": "NETLIST_LEXER::GetCurStrAsToken()",
+      "start": 228,
+      "unit": "build.common.generated.ui.p001"
+    },
+    {
+      "end": 134,
+      "file": "@build/common/netlist_lexer.h",
+      "name": "NETLIST_LEXER::NETLIST_LEXER(const std::string &, const wxString &)",
+      "start": 131,
+      "unit": "build.common.generated.ui.p001"
+    },
+    {
+      "end": 164,
+      "file": "@build/common/netlist_lexer.h",
+      "name": "NETLIST_LEXER::NETLIST_LEXER(LINE_READER *)",
+      "start": 161,
+      "unit": "build.common.generated.ui.p001"
+    },
+    {
+      "end": 148,
+      "file": "@build/common/netlist_lexer.h",
+      "name": "NETLIST_LEXER::NETLIST_LEXER(FILE *, const wxString &)",
+      "start": 145,
+      "unit": "build.common.generated.ui.p001"
+    },
+    {
+      "end": 196,
+      "file": "@build/common/netlist_lexer.h",
+      "name": "NETLIST_LEXER::NeedSYMBOL()",
+      "start": 193,
+      "unit": "build.common.generated.ui.p001"
+    },
+    {
+      "end": 207,
+      "file": "@build/common/netlist_lexer.h",
+      "name": "NETLIST_LEXER::NeedSYMBOLorNUMBER()",
+      "start": 204,
+      "unit": "build.common.generated.ui.p001"
+    },
+    {
+      "end": 185,
+      "file": "@build/common/netlist_lexer.h",
+      "name": "NETLIST_LEXER::NextTok()",
+      "start": 182,
+      "unit": "build.common.generated.ui.p001"
+    },
+    {
+      "end": 223,
+      "file": "@build/common/netlist_lexer.h",
+      "name": "NETLIST_LEXER::PrevTok()",
+      "start": 220,
+      "unit": "build.common.generated.ui.p001"
+    },
+    {
+      "end": 97,
+      "file": "@build/common/netlist_keywords.cpp",
+      "name": "NETLIST_LEXER::TokenName(T)",
+      "start": 85,
+      "unit": "build.common.generated.thin.replacement.p001"
+    },
+    {
+      "end": 43,
+      "file": "@build/pcb_calculator/pcb_calculator_datafile_keywords.cpp",
+      "name": "PCB_CALCULATOR_DATAFILE_LEXER::TokenName(T)",
+      "start": 31,
+      "unit": "build.pcb_calculator.generated.thin.replacement.p001"
+    },
+    {
+      "end": 518,
+      "file": "@build/common/pcb_keywords.cpp",
+      "name": "PCB_LEXER::TokenName(T)",
+      "start": 506,
+      "unit": "build.common.generated.thin.replacement.p001"
+    },
+    {
+      "end": 88,
+      "file": "@build/common/pcb_plot_params_keywords.cpp",
+      "name": "PCB_PLOT_PARAMS_LEXER::TokenName(T)",
+      "start": 76,
+      "unit": "build.common.generated.thin.replacement.p001"
+    },
+    {
+      "end": 251,
+      "file": "@build/eeschema/schematic_keywords.cpp",
+      "name": "SCHEMATIC_LEXER::TokenName(T)",
+      "start": 239,
+      "unit": "build.eeschema.generated.thin.replacement.p001"
+    },
+    {
+      "end": 421,
+      "file": "@build/pcbnew/specctra_import_export/specctra_keywords.cpp",
+      "name": "SPECCTRA_LEXER::TokenName(T)",
+      "start": 409,
+      "unit": "build.pcbnew.specctra_import_export.generated.thin.replacement.p001"
+    },
+    {
+      "end": 43,
+      "file": "@build/common/stroke_params_keywords.cpp",
+      "name": "STROKE_PARAMS_LEXER::TokenName(T)",
+      "start": 31,
+      "unit": "build.common.generated.thin.replacement.p001"
+    },
+    {
+      "end": 39,
+      "file": "@build/common/template_fieldnames_keywords.cpp",
+      "name": "TEMPLATE_FIELDNAMES_LEXER::TokenName(T)",
+      "start": 27,
+      "unit": "build.common.generated.thin.replacement.p001"
+    }
+  ],
+  "parent_wiring_fix_preserved": true,
+  "post_adoption_unit_bytes_verified": 1801,
+  "solidcore_roundtrip_units": 1801,
+  "validated_code_head": "d1667ca05c170ce8aacd2060fa41d7764a6c4885",
+  "virtual_eda_item_destructor": {
+    "definitions": 1,
+    "direct_override_relations": 11
+  }
+}

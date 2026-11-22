@@ -1,0 +1,392 @@
+[
+  {
+    "classification": "interrupted diagnostic attempt; never canonical success",
+    "directory": "corrected-review",
+    "files": [
+      {
+        "bytes": 4381,
+        "sha256": "224a0a9f5ab087f037a84f7a0ddb16e22746047842182bcc0e5dc6ae73d2076c",
+        "source": "corrected-tests.log",
+        "stored": "diagnostic-history/corrected-review/corrected-tests.log.gz"
+      },
+      {
+        "bytes": 1346,
+        "sha256": "c3b54e780ba3711f881acba90336b5c148a52554fe45e9ae304d831f32b074b3",
+        "source": "driver.log",
+        "stored": "diagnostic-history/corrected-review/driver.log.gz"
+      },
+      {
+        "bytes": 7,
+        "sha256": "a5fd52b8cfbcf81357026ec7823b805f62f58cdca2bf1c3ea1b51c1b005fe70e",
+        "source": "driver.pid",
+        "stored": "diagnostic-history/corrected-review/driver.pid.gz"
+      },
+      {
+        "bytes": 4,
+        "sha256": "9d9b18720961e9b4689fd763b85e7b6f36160ccd3a8a1c9ddc5103bb0f66c396",
+        "source": "extraction-exit.txt",
+        "stored": "diagnostic-history/corrected-review/extraction-exit.txt.gz"
+      },
+      {
+        "bytes": 26925,
+        "sha256": "95e4803a731a4b1e2a281df11852534dcd755d9dee1f037e6cbd396292e520eb",
+        "source": "extraction.log",
+        "stored": "diagnostic-history/corrected-review/extraction.log.gz"
+      },
+      {
+        "bytes": 3550,
+        "sha256": "6e9d3f6a3ee834ac84f85dca3e7f87007af7f1b9aa2fea9e7aabc2e9bf0db1c6",
+        "source": "full.sh",
+        "stored": "diagnostic-history/corrected-review/full.sh.gz"
+      },
+      {
+        "bytes": 1119,
+        "sha256": "464d17371c2284b39d78296241ac7f13d76fbb214a9c7ee7a0d801322680df30",
+        "source": "historical-preservation.json",
+        "stored": "diagnostic-history/corrected-review/historical-preservation.json.gz"
+      },
+      {
+        "bytes": 4381,
+        "sha256": "fc50bdad8780be0cd39bbf231d15b0f4c3dbff21edd33a9ce95656b1707f6ea7",
+        "source": "preflight-tests.log",
+        "stored": "diagnostic-history/corrected-review/preflight-tests.log.gz"
+      }
+    ],
+    "runtime_code_sha256_lf": {
+      "port/extractor/clang_graph.py": "2f8c519a74626a8e8bbe6a3ad97630f18529a4cd60efb9c362f310eb7947f2cc",
+      "port/extractor/generated_sources.py": "3135f6ea0bff828928ba051246458af144a8d785758c51eed659d97b32c9b194",
+      "port/extractor/model.py": "435d03e5af3801acce8a4270e2dd9a2b453c0aad3b00a4778696b99dd763704c",
+      "port/tools/drift_report.py": "2c0b293b0d3cfdaa47fa2d7b1d560477dffff99720d75c72ee0dcca76c9f7795",
+      "port/tools/extract_graph.py": "e1eb6b0c3f82f5336d08c4abff1fa8c701a64417f0a3d5d77ab882a29a96ca7e",
+      "port/tools/split_units.py": "7b97cbc5f1edcf28d9ef77ea0b5956a5a0e51fc260b74c5877a989925d035961",
+      "port/tools/validate_units.py": "779d104e2ff5b67ae799f0a37fcb3fa02e3e2fa2e0fdf54147fcaa542d9afa38"
+    }
+  },
+  {
+    "classification": "interrupted diagnostic attempt; never canonical success",
+    "directory": "corrected-review-v2",
+    "files": [
+      {
+        "bytes": 4381,
+        "sha256": "d803be15c4ccebd3aa8d224b96bffe1416a538dcf7f8d1fef0edeffee24c6399",
+        "source": "corrected-tests.log",
+        "stored": "diagnostic-history/corrected-review-v2/corrected-tests.log.gz"
+      },
+      {
+        "bytes": 1352,
+        "sha256": "979dcc02070ba2c60f838002ccf175483a44f8b8bb5b6686653c335748fa8767",
+        "source": "driver.log",
+        "stored": "diagnostic-history/corrected-review-v2/driver.log.gz"
+      },
+      {
+        "bytes": 7,
+        "sha256": "996f97cf43150224c30111703e996f851bf5fc356ef53f7bec2547dbb0926c88",
+        "source": "driver.pid",
+        "stored": "diagnostic-history/corrected-review-v2/driver.pid.gz"
+      },
+      {
+        "bytes": 4,
+        "sha256": "9d9b18720961e9b4689fd763b85e7b6f36160ccd3a8a1c9ddc5103bb0f66c396",
+        "source": "extraction-exit.txt",
+        "stored": "diagnostic-history/corrected-review-v2/extraction-exit.txt.gz"
+      },
+      {
+        "bytes": 227943,
+        "sha256": "12574015ae31ee3a28c3e88a2244bac1c2c96164fdcf2185ddba15eb92800365",
+        "source": "extraction.log",
+        "stored": "diagnostic-history/corrected-review-v2/extraction.log.gz"
+      },
+      {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "source": "finalize.log",
+        "stored": "diagnostic-history/corrected-review-v2/finalize.log.gz"
+      },
+      {
+        "bytes": 4721,
+        "sha256": "3fdf33abe45c0f38f42a01a7030efd1105183d75dc982ec92785eee2524738f8",
+        "source": "finalize.sh",
+        "stored": "diagnostic-history/corrected-review-v2/finalize.sh.gz"
+      },
+      {
+        "bytes": 7,
+        "sha256": "366bb70386672c299b13f719302ad0f3dca0cda737fcbd8889b5dea3492adf33",
+        "source": "finalizer.pid",
+        "stored": "diagnostic-history/corrected-review-v2/finalizer.pid.gz"
+      },
+      {
+        "bytes": 3559,
+        "sha256": "8603f1a721028f2df75855552e2242913f4d5db3af0a6a30f9e7965d940556be",
+        "source": "full.sh",
+        "stored": "diagnostic-history/corrected-review-v2/full.sh.gz"
+      },
+      {
+        "bytes": 1119,
+        "sha256": "464d17371c2284b39d78296241ac7f13d76fbb214a9c7ee7a0d801322680df30",
+        "source": "historical-preservation.json",
+        "stored": "diagnostic-history/corrected-review-v2/historical-preservation.json.gz"
+      }
+    ],
+    "runtime_code_sha256_lf": {
+      "port/extractor/clang_graph.py": "74840ee05523ea015fd2fa4896762b5326a7e61c8dd24fa13109a111b880449c",
+      "port/extractor/generated_sources.py": "3135f6ea0bff828928ba051246458af144a8d785758c51eed659d97b32c9b194",
+      "port/extractor/model.py": "435d03e5af3801acce8a4270e2dd9a2b453c0aad3b00a4778696b99dd763704c",
+      "port/tools/drift_report.py": "2c0b293b0d3cfdaa47fa2d7b1d560477dffff99720d75c72ee0dcca76c9f7795",
+      "port/tools/extract_graph.py": "e1eb6b0c3f82f5336d08c4abff1fa8c701a64417f0a3d5d77ab882a29a96ca7e",
+      "port/tools/split_units.py": "7b97cbc5f1edcf28d9ef77ea0b5956a5a0e51fc260b74c5877a989925d035961",
+      "port/tools/validate_units.py": "779d104e2ff5b67ae799f0a37fcb3fa02e3e2fa2e0fdf54147fcaa542d9afa38"
+    }
+  },
+  {
+    "classification": "interrupted diagnostic attempt; never canonical success",
+    "directory": "corrected-review-v3",
+    "files": [
+      {
+        "bytes": 26118,
+        "sha256": "48dcb4ff2d72ef11ea37446ded2facc3bbab016310af8a7d11539bef0cd7a22c",
+        "source": "configure-inputs.txt",
+        "stored": "diagnostic-history/corrected-review-v3/configure-inputs.txt.gz"
+      },
+      {
+        "bytes": 4545,
+        "sha256": "0bd16416ab6cac3350d53a528af65013bb128552c6b4ff0ce22c7c3587d635a6",
+        "source": "corrected-tests.log",
+        "stored": "diagnostic-history/corrected-review-v3/corrected-tests.log.gz"
+      },
+      {
+        "bytes": 1352,
+        "sha256": "1dbb6b65b6587448c25d1c6874ab1f7a6c63ece88409464cd0f68491e0e5850c",
+        "source": "driver.log",
+        "stored": "diagnostic-history/corrected-review-v3/driver.log.gz"
+      },
+      {
+        "bytes": 7,
+        "sha256": "d8f47105e39bfe62f4bea4019b78e786a4da46056b8e6842b4a732f28aee79b6",
+        "source": "driver.pid",
+        "stored": "diagnostic-history/corrected-review-v3/driver.pid.gz"
+      },
+      {
+        "bytes": 4,
+        "sha256": "9d9b18720961e9b4689fd763b85e7b6f36160ccd3a8a1c9ddc5103bb0f66c396",
+        "source": "extraction-exit.txt",
+        "stored": "diagnostic-history/corrected-review-v3/extraction-exit.txt.gz"
+      },
+      {
+        "bytes": 381959,
+        "sha256": "7a87d37d9733528a41dff69e73517e547d870c106a890b53815e4a72fa2c73bb",
+        "source": "extraction.log",
+        "stored": "diagnostic-history/corrected-review-v3/extraction.log.gz"
+      },
+      {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "source": "finalize.log",
+        "stored": "diagnostic-history/corrected-review-v3/finalize.log.gz"
+      },
+      {
+        "bytes": 4721,
+        "sha256": "f35c7758745dfcd88f0122bdb4e44afa2655cb14fa317c80f78022e37c74a392",
+        "source": "finalize.sh",
+        "stored": "diagnostic-history/corrected-review-v3/finalize.sh.gz"
+      },
+      {
+        "bytes": 7,
+        "sha256": "21d383740687a738925e9e8affffe3e09d8847b647ca10c14fd87c97387aa8f8",
+        "source": "finalizer.pid",
+        "stored": "diagnostic-history/corrected-review-v3/finalizer.pid.gz"
+      },
+      {
+        "bytes": 3559,
+        "sha256": "ba51dcea1f3be5de502b02e19f42b4da21b2c849c201a2ee9d66c694911254cd",
+        "source": "full.sh",
+        "stored": "diagnostic-history/corrected-review-v3/full.sh.gz"
+      },
+      {
+        "bytes": 530620,
+        "sha256": "d10fccb293601b02c1ceef30f2319db60501fca54a3943ce0c30db8b2461caf3",
+        "source": "generation-input-audit.json",
+        "stored": "diagnostic-history/corrected-review-v3/generation-input-audit.json.gz"
+      },
+      {
+        "bytes": 451641,
+        "sha256": "c849951dca1cf6d73e93f2202abc7231df24139b2d44782cac903ce3a1c3e068",
+        "source": "generation-input-candidates.json",
+        "stored": "diagnostic-history/corrected-review-v3/generation-input-candidates.json.gz"
+      },
+      {
+        "bytes": 1119,
+        "sha256": "464d17371c2284b39d78296241ac7f13d76fbb214a9c7ee7a0d801322680df30",
+        "source": "historical-preservation.json",
+        "stored": "diagnostic-history/corrected-review-v3/historical-preservation.json.gz"
+      },
+      {
+        "bytes": 4,
+        "sha256": "9d9b18720961e9b4689fd763b85e7b6f36160ccd3a8a1c9ddc5103bb0f66c396",
+        "source": "interrupted-1-exit.txt",
+        "stored": "diagnostic-history/corrected-review-v3/interrupted-1-exit.txt.gz"
+      },
+      {
+        "bytes": 381959,
+        "sha256": "7a87d37d9733528a41dff69e73517e547d870c106a890b53815e4a72fa2c73bb",
+        "source": "interrupted-1-extraction.log",
+        "stored": "diagnostic-history/corrected-review-v3/interrupted-1-extraction.log.gz"
+      },
+      {
+        "bytes": 127,
+        "sha256": "504b9137beccefae5c28d4210cfff71703aa44dd57add3fadaf44791f49e7771",
+        "source": "interrupted-1.json",
+        "stored": "diagnostic-history/corrected-review-v3/interrupted-1.json.gz"
+      },
+      {
+        "bytes": 64,
+        "sha256": "e0b585c1a26584c95cb853504289abee0554cbe9cb9b018f9c901fa70cbb8906",
+        "source": "resume.log",
+        "stored": "diagnostic-history/corrected-review-v3/resume.log.gz"
+      }
+    ],
+    "runtime_code_sha256_lf": {
+      "port/extractor/clang_graph.py": "fec1b39e1c2ea122c44528867528cd5ac9f21cd80704d41e5124b065b5927439",
+      "port/extractor/generated_sources.py": "3135f6ea0bff828928ba051246458af144a8d785758c51eed659d97b32c9b194",
+      "port/extractor/model.py": "435d03e5af3801acce8a4270e2dd9a2b453c0aad3b00a4778696b99dd763704c",
+      "port/tools/drift_report.py": "2c0b293b0d3cfdaa47fa2d7b1d560477dffff99720d75c72ee0dcca76c9f7795",
+      "port/tools/extract_graph.py": "e1eb6b0c3f82f5336d08c4abff1fa8c701a64417f0a3d5d77ab882a29a96ca7e",
+      "port/tools/split_units.py": "7b97cbc5f1edcf28d9ef77ea0b5956a5a0e51fc260b74c5877a989925d035961",
+      "port/tools/validate_units.py": "24b4f2b786c492716283d3884f6330eb2c121c80551b033fbcb0fc7f5f0cf7a5"
+    }
+  },
+  {
+    "classification": "interrupted diagnostic attempt; never canonical success",
+    "directory": "corrected-review-v4",
+    "files": [
+      {
+        "bytes": 234,
+        "sha256": "0209e6f26fda59993cbb65ae6f31717383190461df3ad0c97f787687b5374a07",
+        "source": "actual-include-inventory-audit.json",
+        "stored": "diagnostic-history/corrected-review-v4/actual-include-inventory-audit.json.gz"
+      },
+      {
+        "bytes": 26118,
+        "sha256": "48dcb4ff2d72ef11ea37446ded2facc3bbab016310af8a7d11539bef0cd7a22c",
+        "source": "configure-inputs.txt",
+        "stored": "diagnostic-history/corrected-review-v4/configure-inputs.txt.gz"
+      },
+      {
+        "bytes": 4891,
+        "sha256": "528ed5fde1b6aeabec89caa191647b7837bf8129a624550b0425ad93051b277f",
+        "source": "corrected-tests.log",
+        "stored": "diagnostic-history/corrected-review-v4/corrected-tests.log.gz"
+      },
+      {
+        "bytes": 1711,
+        "sha256": "1410cf069a65d4ae97d18d18b5a29e4926ef34bbbabda6d257c5b21e99ed8c24",
+        "source": "drift-recipe-negative-control.json",
+        "stored": "diagnostic-history/corrected-review-v4/drift-recipe-negative-control.json.gz"
+      },
+      {
+        "bytes": 113,
+        "sha256": "5d40619c7cffd1633aaa1ca65f60b15f55db358be263638c241bbcbe0744f243",
+        "source": "driver-lock-busy-second.log",
+        "stored": "diagnostic-history/corrected-review-v4/driver-lock-busy-second.log.gz"
+      },
+      {
+        "bytes": 113,
+        "sha256": "5d40619c7cffd1633aaa1ca65f60b15f55db358be263638c241bbcbe0744f243",
+        "source": "driver-lock-busy.log",
+        "stored": "diagnostic-history/corrected-review-v4/driver-lock-busy.log.gz"
+      },
+      {
+        "bytes": 1396,
+        "sha256": "0898ae10235c14cadb70547763d941db1acbfb030553fce46ede6ebb890473ef",
+        "source": "driver.log",
+        "stored": "diagnostic-history/corrected-review-v4/driver.log.gz"
+      },
+      {
+        "bytes": 7,
+        "sha256": "9d3daf7ee5659f0873c2b749a3ef14524d29afd85d16374cf3576fe30565c2b0",
+        "source": "driver.pid",
+        "stored": "diagnostic-history/corrected-review-v4/driver.pid.gz"
+      },
+      {
+        "bytes": 4,
+        "sha256": "9d9b18720961e9b4689fd763b85e7b6f36160ccd3a8a1c9ddc5103bb0f66c396",
+        "source": "extraction-exit.txt",
+        "stored": "diagnostic-history/corrected-review-v4/extraction-exit.txt.gz"
+      },
+      {
+        "bytes": 316952,
+        "sha256": "71acd55bca9a6f92506c8527788a1b8245cd901b07d95098a854acfacb0b8722",
+        "source": "extraction.log",
+        "stored": "diagnostic-history/corrected-review-v4/extraction.log.gz"
+      },
+      {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "source": "finalize.log",
+        "stored": "diagnostic-history/corrected-review-v4/finalize.log.gz"
+      },
+      {
+        "bytes": 4688,
+        "sha256": "141bf498d305f14bd7cc34819bfca7840bd5e2de3f0eb99ab69b6e8c89b1a93d",
+        "source": "finalize.sh",
+        "stored": "diagnostic-history/corrected-review-v4/finalize.sh.gz"
+      },
+      {
+        "bytes": 7,
+        "sha256": "ba7ddef165b572d3d200144874aebe3930ad82eed09d6307e10ef33e177f9aeb",
+        "source": "finalizer.pid",
+        "stored": "diagnostic-history/corrected-review-v4/finalizer.pid.gz"
+      },
+      {
+        "bytes": 3721,
+        "sha256": "cf022d9ae7dc399127a35fa64f7115c46a56bcfb404edfcab8744708414633ac",
+        "source": "full.sh",
+        "stored": "diagnostic-history/corrected-review-v4/full.sh.gz"
+      },
+      {
+        "bytes": 530620,
+        "sha256": "d10fccb293601b02c1ceef30f2319db60501fca54a3943ce0c30db8b2461caf3",
+        "source": "generation-input-audit.json",
+        "stored": "diagnostic-history/corrected-review-v4/generation-input-audit.json.gz"
+      },
+      {
+        "bytes": 451641,
+        "sha256": "c849951dca1cf6d73e93f2202abc7231df24139b2d44782cac903ce3a1c3e068",
+        "source": "generation-input-candidates.json",
+        "stored": "diagnostic-history/corrected-review-v4/generation-input-candidates.json.gz"
+      },
+      {
+        "bytes": 1119,
+        "sha256": "464d17371c2284b39d78296241ac7f13d76fbb214a9c7ee7a0d801322680df30",
+        "source": "historical-preservation.json",
+        "stored": "diagnostic-history/corrected-review-v4/historical-preservation.json.gz"
+      },
+      {
+        "bytes": 450,
+        "sha256": "5dcb20532cc4f0eba4f3ffa1e94403703da1bc0beebe6255e0b48344050268e8",
+        "source": "matching21-generated-cache-negative-control.json",
+        "stored": "diagnostic-history/corrected-review-v4/matching21-generated-cache-negative-control.json.gz"
+      },
+      {
+        "bytes": 3524,
+        "sha256": "d95a5c79d4c8f4c7fb41ae0df2051f90475d6d428d04ccafca6d9798b181ff6c",
+        "source": "matching21-review-confirmation.json",
+        "stored": "diagnostic-history/corrected-review-v4/matching21-review-confirmation.json.gz"
+      },
+      {
+        "bytes": 771,
+        "sha256": "d3faf6ff005c6e733e46c6873b68e081b60cefcbf99b87ec5bb507b394534f68",
+        "source": "record-owner-proof.json",
+        "stored": "diagnostic-history/corrected-review-v4/record-owner-proof.json.gz"
+      }
+    ],
+    "runtime_code_sha256_lf": {
+      "port/extractor/clang_graph.py": "3702cc40646a3534363167bdf2c9ff870dab2c52ee24ba9fd8b57cbaddff88ec",
+      "port/extractor/generated_sources.py": "3135f6ea0bff828928ba051246458af144a8d785758c51eed659d97b32c9b194",
+      "port/extractor/model.py": "435d03e5af3801acce8a4270e2dd9a2b453c0aad3b00a4778696b99dd763704c",
+      "port/tools/drift_report.py": "38a8354edc50d4608d0f0da5eb9005fee8016b7881ee3ee519157e1172c15956",
+      "port/tools/extract_graph.py": "e1eb6b0c3f82f5336d08c4abff1fa8c701a64417f0a3d5d77ab882a29a96ca7e",
+      "port/tools/split_units.py": "7b97cbc5f1edcf28d9ef77ea0b5956a5a0e51fc260b74c5877a989925d035961",
+      "port/tools/validate_units.py": "befcf8f20526e0aff80317c2265cf451345e9561ca7fcaebe1e62b7b4399d474"
+    }
+  }
+]

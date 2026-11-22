@@ -87,24 +87,54 @@ that runs headless or bridged to the app, and a web build.
 
 ## Size
 
-Counted on `main` at `a5e5eafe95` (C/C++ lines, excluding `thirdparty/`; at `d5109cdfd6`, 138
-lines of C++ outside `qa/` and `thirdparty/` differ, so the counts stand):
+Measured at fork source `3cd2c9afc6d2749b7d3a79fd1deaa86ac51cb3a7` and upstream pin
+`4cf939778df04d2b747bb2c4714fc5014a7565c7`. The tracked inventory is unchanged at
+9,401 C/C++ files. Corrected extraction additionally
+freezes 178 generated build inputs under explicit
+logical `@build/` locations, backed by committed source bytes and generation
+provenance. Counts are physical lines, with tracked CRLF normalized to LF.
 
 | Area | Lines |
 | --- | ---: |
-| All, excluding `qa/` | 1,925,000 |
-| `pcbnew` / `common` / `eeschema` | 652,000 / 439,000 / 436,000 |
-| Importers (`pcbnew/pcb_io`, `eeschema/sch_io`, incl. the KiCad formats) | 243,000 |
-| Dialogs (incl. 100,000 generated `_base` lines) | 234,000 |
-| Tool framework and tools | 125,000 |
-| DRC / router / simulator / renderer (GAL) / geometry (`kimath`) | 46,000 / 45,000 / 42,000 / 43,000 / 42,000 |
-| `qa/` tests (cases and data for the oracle) | 333,000 |
+| Tracked application and generated C/C++ | 1,946,361 |
+| Tracked application / generated | 1,836,426 / 109,935 |
+| Tracked pcbnew / common / eeschema | 656,560 / 448,496 / 440,108 |
+| Additional generated application build inputs | 424,513 |
+| Generator tooling probes (separate) | 1,883 |
+| Tracked QA (separate) | 340,033 |
+| Tracked third-party (separate) | 1,059,199 |
 
-Roughly 1.1 to 1.3 million lines are headless and can be ported faithfully (500 to 650 units at
-solidcore's size), and roughly 500,000 lines of user interface are re-implemented. Third-party
-code needs a decision per library: Clipper2 is ported as units, because zone fills must match
-exactly; ngspice stays a C library behind a narrow interface; OpenCascade is replaced by
-solidcore; libgit2, nanodbc and curl have Rust equivalents.
+The corrected graph yields **1,801 units**, owning **2,380,947
+physical lines**: tracked application/generated sources, additional generated
+application inputs, and Clipper2; QA and other third-party/tooling sources remain
+separately inventoried. There are **392 topological layers**,
+**9,548 back-edges** (dropped weight 106,538)
+and 46,894 hard dependency edges.
+
+| Propagated wx classification | Units | Owned physical lines |
+| --- | ---: | ---: |
+| pure | 553 | 666,688 |
+| thin-replacement | 101 | 53,714 |
+| UI | 1,147 | 1,660,545 |
+
+Coverage remains three separate measurements: raw **2,462/2,471**
+successful parses (four stale/deleted exclusions and five other failures), reviewed
+reconciled **2,507/2,511**, and corrected
+**2,507/2,511**. Both reconciled runs retain
+four fmt GCC-module failures. No historical AST result was relabelled as corrected.
+The corrected graph owns 37,838 generated-build
+definition entries that the reviewed graph omitted. Exact counts, diagnostics and
+independent hashes are in [the measurement](../port/extractor/generated/measurement.json).
+
+These are scope/coupling measurements, not a measured implementation rate or
+literal UI effort. 282 units exceed the 2,000-line target,
+retaining function boundaries and conservative enclosing ranges. wx-pure does not
+establish portability; I/O, globals and supporting types still require audit.
+64 units remain blocked. Implicit lifetime paths,
+indirect/dependent calls and inactive platforms/configurations remain explicit
+limits. No unit is ported or oracle-green here; the three-live-green-pilot gate
+remains incomplete. [Pilot scopes](../port/extractor/PILOTS.md) must be re-confirmed
+against the corrected records before implementation publication.
 
 ## Architecture of the Rust application
 

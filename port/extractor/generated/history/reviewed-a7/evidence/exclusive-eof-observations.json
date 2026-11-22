@@ -1,0 +1,38 @@
+[
+  {
+    "end": 4346,
+    "end_offset": 144948,
+    "ends_lf": true,
+    "file": "common/gal/gal_modern.cpp",
+    "name": "buildDescForPool(FRAME_DRAW_DESC &, const auto &, const std::vector<LAYER_RANGE> &)",
+    "physical_lines": 4345,
+    "range_kind": "enclosing-declaration",
+    "source_bytes": 144948,
+    "start": 1,
+    "usr": "c:gal_modern.cpp@FT@>1#TbuildDescForPool#&$@N@KIGFX@S@FRAME_DRAW_DESC#&1t0.0#&1$@N@std@S@vector>#$@N@KIGFX@S@LAYER_RANGE#$@N@std@S@allocator>#S6_#v#"
+  },
+  {
+    "end": 4501,
+    "end_offset": 164109,
+    "ends_lf": true,
+    "file": "pcbnew/exporters/step/step_pcb_model.cpp",
+    "name": "fuseShapes(auto &, TopoDS_Shape &, REPORTER *)",
+    "physical_lines": 4500,
+    "range_kind": "enclosing-declaration",
+    "source_bytes": 164109,
+    "start": 1,
+    "usr": "c:step_pcb_model.cpp@FT@>1#TfuseShapes#&t0.0#&$@S@TopoDS_Shape#*$@S@REPORTER#b#"
+  },
+  {
+    "end": 4501,
+    "end_offset": 164109,
+    "ends_lf": true,
+    "file": "pcbnew/exporters/step/step_pcb_model.cpp",
+    "name": "makeCompound(const auto &)",
+    "physical_lines": 4500,
+    "range_kind": "enclosing-declaration",
+    "source_bytes": 164109,
+    "start": 1,
+    "usr": "c:step_pcb_model.cpp@FT@>1#TmakeCompound#&1t0.0#$@S@TopoDS_Compound#"
+  }
+]

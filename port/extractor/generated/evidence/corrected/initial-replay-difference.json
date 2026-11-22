@@ -1,0 +1,162 @@
+{
+  "provenance": {
+    "changed_keys": 1,
+    "examples": [
+      {
+        "key": "parse_failures",
+        "original": [
+          {
+            "diagnostics": [
+              {
+                "message": "error: unknown argument: '-fmodules-ts'",
+                "severity": 3
+              },
+              {
+                "message": "error: unknown argument: '-fmodule-mapper=thirdparty/fmt/CMakeFiles/fmt-c.dir/src/fmt-c.cc.o.modmap'",
+                "severity": 3
+              },
+              {
+                "message": "error: unknown argument: '-fdeps-format=p1689r5'",
+                "severity": 3
+              }
+            ],
+            "file": "thirdparty/fmt/src/fmt-c.cc",
+            "status": "parse-error"
+          },
+          {
+            "diagnostics": [
+              {
+                "message": "error: unknown argument: '-fmodules-ts'",
+                "severity": 3
+              },
+              {
+                "message": "error: unknown argument: '-fmodule-mapper=thirdparty/fmt/CMakeFiles/fmt.dir/src/os.cc.o.modmap'",
+                "severity": 3
+              },
+              {
+                "message": "error: unknown argument: '-fdeps-format=p1689r5'",
+                "severity": 3
+              }
+            ],
+            "file": "thirdparty/fmt/src/os.cc",
+            "status": "parse-error"
+          },
+          {
+            "diagnostics": [
+              {
+                "message": "error: unknown argument: '-fmodules-ts'",
+                "severity": 3
+              },
+              {
+                "message": "error: unknown argument: '-fmodule-mapper=thirdparty/fmt/CMakeFiles/fmt.dir/src/format.cc.o.modmap'",
+                "severity": 3
+              },
+              {
+                "message": "error: unknown argument: '-fdeps-format=p1689r5'",
+                "severity": 3
+              }
+            ],
+            "file": "thirdparty/fmt/src/format.cc",
+            "status": "parse-error"
+          },
+          {
+            "diagnostics": [
+              {
+                "message": "error: unknown argument: '-fmodules-ts'",
+                "severity": 3
+              },
+              {
+                "message": "error: unknown argument: '-fmodule-mapper=thirdparty/fmt/CMakeFiles/fmt-module.dir/src/fmt.cc.o.modmap'",
+                "severity": 3
+              },
+              {
+                "message": "error: unknown argument: '-fdeps-format=p1689r5'",
+                "severity": 3
+              }
+            ],
+            "file": "thirdparty/fmt/src/fmt.cc",
+            "status": "parse-error"
+          }
+        ],
+        "replay": [
+          {
+            "diagnostics": [
+              {
+                "message": "error: unknown argument: '-fmodules-ts'",
+                "severity": 3
+              },
+              {
+                "message": "error: unknown argument: '-fmodule-mapper=thirdparty/fmt/CMakeFiles/fmt-c.dir/src/fmt-c.cc.o.modmap'",
+                "severity": 3
+              },
+              {
+                "message": "error: unknown argument: '-fdeps-format=p1689r5'",
+                "severity": 3
+              }
+            ],
+            "file": "thirdparty/fmt/src/fmt-c.cc",
+            "status": "parse-error"
+          },
+          {
+            "diagnostics": [
+              {
+                "message": "error: unknown argument: '-fmodules-ts'",
+                "severity": 3
+              },
+              {
+                "message": "error: unknown argument: '-fmodule-mapper=thirdparty/fmt/CMakeFiles/fmt-module.dir/src/fmt.cc.o.modmap'",
+                "severity": 3
+              },
+              {
+                "message": "error: unknown argument: '-fdeps-format=p1689r5'",
+                "severity": 3
+              }
+            ],
+            "file": "thirdparty/fmt/src/fmt.cc",
+            "status": "parse-error"
+          },
+          {
+            "diagnostics": [
+              {
+                "message": "error: unknown argument: '-fmodules-ts'",
+                "severity": 3
+              },
+              {
+                "message": "error: unknown argument: '-fmodule-mapper=thirdparty/fmt/CMakeFiles/fmt.dir/src/format.cc.o.modmap'",
+                "severity": 3
+              },
+              {
+                "message": "error: unknown argument: '-fdeps-format=p1689r5'",
+                "severity": 3
+              }
+            ],
+            "file": "thirdparty/fmt/src/format.cc",
+            "status": "parse-error"
+          },
+          {
+            "diagnostics": [
+              {
+                "message": "error: unknown argument: '-fmodules-ts'",
+                "severity": 3
+              },
+              {
+                "message": "error: unknown argument: '-fmodule-mapper=thirdparty/fmt/CMakeFiles/fmt.dir/src/os.cc.o.modmap'",
+                "severity": 3
+              },
+              {
+                "message": "error: unknown argument: '-fdeps-format=p1689r5'",
+                "severity": 3
+              }
+            ],
+            "file": "thirdparty/fmt/src/os.cc",
+            "status": "parse-error"
+          }
+        ]
+      }
+    ],
+    "field_counts": {},
+    "original_count": 38,
+    "replay_count": 38,
+    "type": "dict"
+  }
+}
