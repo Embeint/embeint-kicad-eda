@@ -938,6 +938,27 @@ private:
             NODE*     node = Node( aStep, "node" );
             const int slot = Slot( aStep );
             Live( node );
+
+            if( aOp == "remove" )
+            {
+                // RemoveChild's explicit precondition is assert( i < count ).  When
+                // i == count - 1 it touches no array; otherwise slots i and
+                // count - 1 are copied and must both lie inside the node.
+                if( slot >= node->count )
+                    Refuse( "slot outside node" );
+
+                if( slot != node->count - 1 )
+                {
+                    if( slot < 0 )
+                        Refuse( "slot outside node" );
+
+                    CountDomain( node );
+                }
+
+                node->RemoveChild( slot );
+                return JSON::object();
+            }
+
             SlotDomain( slot );
 
             if( aOp == "area" )
@@ -950,18 +971,6 @@ private:
             {
                 PerimeterDomain( node, slot );
                 return { { "value", node->ChildPerimeter( slot ) } };
-            }
-
-            if( aOp == "remove" )
-            {
-                CountDomain( node );
-
-                // RemoveChild asserts aSlot < count.
-                if( slot >= node->count )
-                    Refuse( "slot outside node" );
-
-                node->RemoveChild( slot );
-                return JSON::object();
             }
 
             E min[D], max[D];

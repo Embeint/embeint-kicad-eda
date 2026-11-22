@@ -157,6 +157,32 @@ fn n_dimensional_mask_shifts_only_overlapping_slots() {
 }
 
 #[test]
+fn remove_child_last_slot_touches_no_array() {
+    let mut node = Node::new();
+    node.set_data(15, Some(Item(7))).unwrap();
+    // i == count - 1 above MAXNODES: only count changes.
+    node.count = 17;
+    node.remove_child(16).unwrap();
+    assert_eq!(node.count, 16);
+    assert_eq!(node.data(15), Ok(Some(&Item(7))));
+    node.count = 0;
+    node.remove_child(-1).unwrap();
+    assert_eq!(node.count, -1);
+    node.count = i32::MAX;
+    node.remove_child(i32::MAX - 1).unwrap();
+    assert_eq!(node.count, i32::MAX - 1);
+    // The explicit precondition assert( i < count ).
+    node.count = i32::MIN;
+    assert_eq!(node.remove_child(0), Err(RtreeError::SlotOutOfRange));
+    // A copy needs both slots inside the arrays.
+    node.count = 3;
+    assert_eq!(node.remove_child(-1), Err(RtreeError::SlotOutOfRange));
+    node.count = 18;
+    assert_eq!(node.remove_child(16), Err(RtreeError::CountOutOfDomain));
+    assert_eq!(node.count, 18);
+}
+
+#[test]
 fn reference_layout_matches_the_pinned_linux_abi() {
     let node = Node::reference_layout().unwrap();
     assert_eq!((node.size, node.align), (656, 8));

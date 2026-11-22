@@ -590,18 +590,16 @@ impl<E: Coord + Wire + Into<Value>, const D: usize, const M: usize> Program<E, D
                 let handle = self.node(step, "node")?;
                 let slot = int(step, "slot")?;
                 let node = self.live(&handle)?;
+                if op == "remove" {
+                    // The library applies RemoveChild's precondition and array bounds
+                    // in the oracle adapter's order.
+                    node.remove_child(slot).map_err(lib)?;
+                    return empty();
+                }
                 let index = Self::slot_domain(slot)?;
                 match op {
                     "area" => Ok(json!({"value": node.child_area(index).map_err(lib)?})),
                     "perimeter" => Ok(json!({"value": node.child_perimeter(index).map_err(lib)?})),
-                    "remove" => {
-                        Self::count_domain(node)?;
-                        if slot >= node.count {
-                            return Err(lib(RtreeError::SlotOutOfRange));
-                        }
-                        node.remove_child(index).map_err(lib)?;
-                        empty()
-                    }
                     "get_bounds" => {
                         let (min, max) = node.get_child_bounds(index).map_err(lib)?;
                         Ok(Self::boxed(min, max))

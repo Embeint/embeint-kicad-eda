@@ -513,6 +513,22 @@ def review_cases():
     for case, steps in fixed_programs("i32.d3.m33", I32, 3, 33):
         cases.append(request("review-" + case, {"kind": "slab", "config": "i32.d3.m33",
                                                 "steps": steps}))
+    # RemoveChild with i == count - 1 copies nothing and only decrements count, even
+    # above MAXNODES or for a negative i; its precondition is assert( i < count ).
+    for config, maxnodes in [("i32.d2.m16", 16), ("i32.d2.m4", 4), ("i64.d3.m8", 8)]:
+        dims = CONFIGS[config][1]
+        steps = [{"op": "new", "a": 0}, {"op": "alloc", "a": 0},
+                 {"op": "set_bounds", "node": 0, "slot": maxnodes - 1, "min": [-3] * dims,
+                  "max": [4] * dims},
+                 {"op": "set_data", "node": 0, "slot": maxnodes - 1, "item": 9}]
+        for count in [maxnodes + 1, maxnodes + 40, 1, 0, -5, I32[1], I32[0] + 1]:
+            steps += [{"op": "set_count", "node": 0, "value": count},
+                      {"op": "remove", "node": 0, "slot": count - 1},
+                      {"op": "predicates", "node": 0}, {"op": "snapshot", "node": 0}]
+        steps += [{"op": "set_count", "node": 0, "value": maxnodes},
+                  {"op": "remove", "node": 0, "slot": 0}, {"op": "snapshot", "node": 0}]
+        cases.append(request(f"review-slab-{config}-remove-last",
+                             {"kind": "slab", "config": config, "steps": steps}))
     return cases
 
 
@@ -697,6 +713,16 @@ def refusals():
          [new, alloc, {"op": "set_count", "node": 0, "value": 34},
           {"op": "mask", "node": 0, "min": [9] * 3, "max": [9] * 3}],
          "count outside reference domain", config="i32.d3.m33")
+    # RemoveChild: the precondition assert( i < count ), then a copy needs both slots.
+    slab("review-remove-precondition-int-min",
+         node + [{"op": "set_count", "node": 0, "value": I32[0]},
+                 {"op": "remove", "node": 0, "slot": I32[0]}], "slot outside node")
+    slab("review-remove-negative-copy",
+         node + [{"op": "set_count", "node": 0, "value": 3},
+                 {"op": "remove", "node": 0, "slot": -1}], "slot outside node")
+    slab("review-remove-last-past-array",
+         node + [{"op": "set_count", "node": 0, "value": 18},
+                 {"op": "remove", "node": 0, "slot": 16}], "count outside reference domain")
     # Envelope-level refusals use the shared transport messages.
     checks.append(({"unit": "other.unit", "case": "unit", "input": {}},
                    failure("unit", "unit has no registered shim", "unknown_unit", "other.unit")))

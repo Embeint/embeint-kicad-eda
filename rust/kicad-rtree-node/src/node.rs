@@ -380,30 +380,45 @@ impl<T: NodeData, E: Coord, const NUMDIMS: usize, const MAXNODES: usize>
 
     /// `RemoveChild`: move the last child into slot `i`, then decrement `count`.
     ///
-    /// The reference asserts `i < count`; the vacated last slot keeps its bounds,
-    /// insertion bounds and pointer.  The leaf branch copies `data[i]` and the
-    /// other branch `children[i]`; with pointer-sized `DATATYPE` both copy the
-    /// same 8 union bytes, which is the whole-slot copy made here.
-    pub fn remove_child(&mut self, i: usize) -> Result<(), RtreeError> {
-        let i = Self::slot(i)?;
-        if self.count > Self::MAX_NODES {
-            return Err(RtreeError::CountOutOfDomain);
-        }
-        let count = usize::try_from(self.count).map_err(|_| RtreeError::SlotOutOfRange)?;
-        if i >= count {
+    /// `i` is the reference's `int`.  Its explicit precondition is
+    /// `assert( i < count )` (`rtree_node.h:522`); a call violating it is refused
+    /// with [`RtreeError::SlotOutOfRange`].  Then `last = count - 1`:
+    ///
+    /// * when `i == last` no array or union slot is touched and only `count` is
+    ///   decremented, so this is defined for any such `i`, including a count above
+    ///   `MAXNODES` or a negative `i == count - 1`;
+    /// * otherwise slots `i` and `last` are read and written, so both must lie in
+    ///   `0..MAXNODES` (`last` beyond it is [`RtreeError::CountOutOfDomain`], a
+    ///   negative `i` [`RtreeError::SlotOutOfRange`]).
+    ///
+    /// The vacated last slot keeps its bounds, insertion bounds and pointer.  The
+    /// leaf branch copies `data[i]` and the other branch `children[i]`; with
+    /// pointer-sized `DATATYPE` both copy the same 8 union bytes, which is the
+    /// whole-slot copy made here.
+    pub fn remove_child(&mut self, i: i32) -> Result<(), RtreeError> {
+        if i >= self.count {
             return Err(RtreeError::SlotOutOfRange);
         }
-        let last = count - 1;
+        // count > i >= INT_MIN, so count - 1 cannot overflow.
+        let last = self
+            .count
+            .checked_sub(1)
+            .ok_or(RtreeError::CountOutOfDomain)?;
 
         if i != last {
+            let to = usize::try_from(i).map_err(|_| RtreeError::SlotOutOfRange)?;
+            let from = usize::try_from(last)
+                .ok()
+                .filter(|from| *from < MAXNODES)
+                .ok_or(RtreeError::CountOutOfDomain)?;
             for axis in self.bounds.iter_mut().chain(self.insert_bounds.iter_mut()) {
                 for side in axis.iter_mut() {
-                    side[i] = side[last];
+                    side[to] = side[from];
                 }
             }
-            self.payload[i] = self.payload[last].clone();
+            self.payload[to] = self.payload[from].clone();
         }
-        self.count -= 1;
+        self.count = last;
         Ok(())
     }
 

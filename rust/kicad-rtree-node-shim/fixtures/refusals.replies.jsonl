@@ -103,4 +103,7 @@
 {"case":"review-nd-d64-order-33","error":{"kind":"invalid_input","message":"order outside reference domain"},"unit":"libs.kimath.include.geometry.rtree.application.pure.p003"}
 {"case":"review-mask-m33-overlapping-slot-32","error":{"kind":"invalid_input","message":"count outside reference domain"},"unit":"libs.kimath.include.geometry.rtree.application.pure.p003"}
 {"case":"review-mask-m33-count-34","error":{"kind":"invalid_input","message":"count outside reference domain"},"unit":"libs.kimath.include.geometry.rtree.application.pure.p003"}
+{"case":"review-remove-precondition-int-min","error":{"kind":"invalid_input","message":"slot outside node"},"unit":"libs.kimath.include.geometry.rtree.application.pure.p003"}
+{"case":"review-remove-negative-copy","error":{"kind":"invalid_input","message":"slot outside node"},"unit":"libs.kimath.include.geometry.rtree.application.pure.p003"}
+{"case":"review-remove-last-past-array","error":{"kind":"invalid_input","message":"count outside reference domain"},"unit":"libs.kimath.include.geometry.rtree.application.pure.p003"}
 {"case":"unit","error":{"kind":"unknown_unit","message":"unit has no registered shim"},"unit":"other.unit"}

@@ -21,7 +21,7 @@ no `unwrap`/`expect`/`panic`, no global state, and builds for `wasm32-unknown-un
 | `ChildArea`, `ChildPerimeter`, `ChildOverlapArea`, `ChildEnlargement` | same | `int64_t` chains in reference evaluation order; signed overflow (undefined in C++) is `Err(Overflow)` |
 | `ChildOverlaps`, `ChildOverlapMask` | same | 2D uses `OverlapMask2D<ELEMTYPE, MAXNODES>` including counts above `MAXNODES` up to 31; other dimensions loop over `count` |
 | `Set/GetChildBounds`, `Set/GetInsertBounds` | same | Any slot `0..MAXNODES` |
-| `RemoveChild` | `remove_child` | Last slot moved into `i`; the vacated slot's bounds, insertion bounds and pointer stay (stale), `count` decremented |
+| `RemoveChild` | `remove_child` (takes the reference's `int`) | Precondition `assert( i < count )`. For `i == count - 1` no slot is touched and only `count` is decremented (defined even above `MAXNODES` or for negative `i`); otherwise the last slot is moved into `i` and both must be inside the arrays. The vacated slot's bounds, insertion bounds and pointer stay (stale) |
 | `children`/`data` union, `refcount` | `payload`, `child`, `data`, `set_child`, `set_data`, `refcount_*` | See storage below |
 | `SLAB_ALLOCATOR`: `PAGE()`, `Allocate`, `Free`, `MemoryUsage`, `Owns`, move constructor/assignment, private `findOwningPage`, `markUsed`, `markUnused` | `SlabAllocator::{allocate, free, memory_usage, owns, take, move_assign, find_owning_page}` | `markUsed`/`markUnused` are the bit updates inside `allocate`/`free` |
 
@@ -92,7 +92,7 @@ live oracle for every configuration.
 | --- | --- |
 | Hilbert order outside 1..=32 (2D); Morton order `INT_MIN`, or above 32 with at most 64 dimensions; zero dimensions | `OrderOutOfDomain`, `DimensionsOutOfDomain` |
 | `OverlapMask2D` count outside 0..=31, short lanes, invalid fanout | `CountOutOfDomain`, `SliceTooShort`, `FanoutOutOfDomain` |
-| Slot outside `0..MAXNODES`; `RemoveChild` slot not below `count` (the reference asserts) | `SlotOutOfRange` |
+| Slot outside `0..MAXNODES` where a slot is accessed; `RemoveChild` slot not below `count` (its `assert` precondition) or negative when a copy is made | `SlotOutOfRange` |
 | `count` above `MAXNODES` for loops that index with it; a non-2D mask whose overlapping slot is 32 or above (`1U << i` runs only for overlapping slots) | `CountOutOfDomain` |
 | Signed 64-bit overflow in area, perimeter, overlap area or enlargement | `Overflow` |
 | Access to or `Free` of a freed node (use after free, double destruction) | `NodeNotLive` |
