@@ -87,24 +87,46 @@ that runs headless or bridged to the app, and a web build.
 
 ## Size
 
-Counted on `main` at `a5e5eafe95` (C/C++ lines, excluding `thirdparty/`; at `d5109cdfd6`, 138
-lines of C++ outside `qa/` and `thirdparty/` differ, so the counts stand):
+Measured at fork source `3cd2c9afc6d2749b7d3a79fd1deaa86ac51cb3a7` and upstream pin
+`4cf939778df04d2b747bb2c4714fc5014a7565c7`. The tracked inventory covers 9,401 C/C++
+source/header files; counts are physical lines with CRLF normalized to LF.
 
 | Area | Lines |
 | --- | ---: |
-| All, excluding `qa/` | 1,925,000 |
-| `pcbnew` / `common` / `eeschema` | 652,000 / 439,000 / 436,000 |
-| Importers (`pcbnew/pcb_io`, `eeschema/sch_io`, incl. the KiCad formats) | 243,000 |
-| Dialogs (incl. 100,000 generated `_base` lines) | 234,000 |
-| Tool framework and tools | 125,000 |
-| DRC / router / simulator / renderer (GAL) / geometry (`kimath`) | 46,000 / 45,000 / 42,000 / 43,000 / 42,000 |
-| `qa/` tests (cases and data for the oracle) | 333,000 |
+| Tracked application and generated C/C++ | 1,946,361 |
+| Application / generated | 1,836,426 / 109,935 |
+| pcbnew / common / eeschema | 656,560 / 448,496 / 440,108 |
+| QA (separate) | 340,033 |
+| Third-party (separate) | 1,059,199 |
 
-Roughly 1.1 to 1.3 million lines are headless and can be ported faithfully (500 to 650 units at
-solidcore's size), and roughly 500,000 lines of user interface are re-implemented. Third-party
-code needs a decision per library: Clipper2 is ported as units, because zone fills must match
-exactly; ngspice stays a C library behind a narrow interface; OpenCascade is replaced by
-solidcore; libgit2, nanodbc and curl have Rust equivalents.
+The reconciled graph yields **1,570 units**, owning **1,956,434
+physical lines** (application/generated plus Clipper2; other third-party code and QA
+remain separately inventoried). There are **385 topological layers** and
+**8,631 weighted cycle back-edges** (dropped weight 73,460).
+
+| Propagated wx classification | Units | Owned physical lines |
+| --- | ---: | ---: |
+| pure | 333 | 292,894 |
+| thin-replacement | 130 | 63,635 |
+| UI | 1,107 | 1,599,905 |
+
+Raw coverage is **2,462/2,471 successful parses**, with
+4 proven-deleted sources classified stale/excluded and
+5 other failed commands. Reconciled coverage is independently
+**2,507/2,511 successful parses**, with
+4 failed commands. Every command, diagnostic and both database
+hashes remain in [the measurement](../port/extractor/generated/measurement.json);
+[the inventory](../port/extractor/generated/inventory.json) records source fingerprints,
+and [the extraction guide](../port/extractor/README.md) states the method and limits.
+
+These span/dependency counts replace the earlier source-size estimates, not the
+effort forecast with a measured porting rate. wx-pure does not establish portability:
+I/O, globals and platform code require audit, and declaration-only header spans
+are accounting rather than implemented functions. Uncovered sources remain blocked
+(64 units). The Linux configuration does not cover other
+platforms or inactive branches, and no unit is claimed ported or oracle-green here.
+The three [pilot recommendations](../port/extractor/PILOTS.md) still need the exact
+C++/Rust difftest gate before throughput can be measured.
 
 ## Architecture of the Rust application
 
