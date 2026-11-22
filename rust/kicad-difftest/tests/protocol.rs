@@ -2,15 +2,15 @@
 use kicad_difftest::evaluate::{
     check_golden, evaluate, Evaluation, Outcome, EXTRA_LINES_KEPT, EXTRA_LINE_LIMIT,
 };
-use kicad_difftest::process::Captured;
+use kicad_difftest::process::{read_bounded, read_diagnostic, Captured};
 
 /// Output of a program that ran, optionally ending in a process fault.
 fn out(text: &str, fault: Option<&str>) -> Captured {
     Captured {
         started: true,
         stdout: text.as_bytes().to_vec(),
-        stderr: String::new(),
         fault: fault.map(str::to_owned),
+        ..Captured::default()
     }
 }
 
@@ -405,5 +405,55 @@ fn extra_reply_lines_are_kept_bounded_as_evidence() -> Result<(), String> {
     );
     assert_eq!(eval.extra[0].side, "Rust");
     assert!(eval.extra[0].raw.len() <= EXTRA_LINE_LIMIT && eval.extra[0].truncated);
+    Ok(())
+}
+
+/// An endless reader that counts every byte it hands out.
+struct Endless {
+    served: std::rc::Rc<std::cell::Cell<usize>>,
+}
+
+impl std::io::Read for Endless {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        buf.fill(b'e');
+        self.served.set(self.served.get() + buf.len());
+        Ok(buf.len())
+    }
+}
+
+#[test]
+fn diagnostics_are_read_bounded_not_truncated_after_reading() -> Result<(), String> {
+    use std::io::Write;
+    // The read itself is bounded: an endless reader would never finish a full read.
+    let served = std::rc::Rc::new(std::cell::Cell::new(0));
+    let bounded = read_bounded(
+        Endless {
+            served: served.clone(),
+        },
+        1000,
+    );
+    assert_eq!(bounded.bytes.len(), 1000);
+    assert!(bounded.error.is_none());
+    assert!(served.get() <= 1000, "served {}", served.get());
+    // File diagnostics: totals come from metadata, at, below and above the limit.
+    let limit = kicad_difftest::process::STDERR_LIMIT;
+    for size in [0, 1, limit - 1, limit, limit + 1, 3 * limit + 7] {
+        let mut file = tempfile::tempfile().map_err(|e| e.to_string())?;
+        file.write_all(&vec![b'x'; size])
+            .map_err(|e| e.to_string())?;
+        let (text, total) = read_diagnostic(&mut file, limit);
+        assert_eq!(total, Some(size as u64), "{size}");
+        let kept = size.min(limit);
+        assert!(text.starts_with(&"x".repeat(kept)), "{size}");
+        if size > limit {
+            assert_eq!(
+                &text[kept..],
+                format!(" [{} more bytes omitted]", size - limit),
+                "{size}"
+            );
+        } else {
+            assert_eq!(text.len(), size, "{size}");
+        }
+    }
     Ok(())
 }

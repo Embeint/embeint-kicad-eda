@@ -23,8 +23,11 @@ pub struct Captured {
     /// Every stdout byte the program wrote, including output flushed before a
     /// nonzero exit or a timeout kill.
     pub stdout: Vec<u8>,
-    /// Bounded, lossily decoded stderr for diagnostics.
+    /// At most `STDERR_LIMIT` bytes of stderr, lossily decoded for diagnostics,
+    /// followed by a note of how many bytes were not read.
     pub stderr: String,
+    /// The total stderr size from file metadata, when available.
+    pub stderr_total: Option<u64>,
     /// Why the run cannot be trusted: start failure, timeout, wait failure,
     /// nonzero exit or non-UTF-8 stdout. Any fault fails the run.
     pub fault: Option<String>,
@@ -55,17 +58,50 @@ fn read_bytes(file: &mut File) -> Result<Vec<u8>, String> {
     Ok(bytes)
 }
 
-/// Lossy decoding of at most `limit` bytes, noting how many were omitted.
-fn bounded(bytes: &[u8], limit: usize) -> String {
-    let shown = bytes.get(..limit).unwrap_or(bytes);
-    let mut text = String::from_utf8_lossy(shown).into_owned();
-    if bytes.len() > shown.len() {
-        text.push_str(&format!(
-            " [{} more bytes omitted]",
-            bytes.len() - shown.len()
-        ));
+/// Bytes read from a reader under a hard limit, kept even if reading failed.
+#[derive(Debug, Default)]
+pub struct Bounded {
+    pub bytes: Vec<u8>,
+    pub error: Option<String>,
+}
+
+/// Reads at most `limit` bytes. Only `limit` bytes are ever requested from
+/// `reader` (`Read::take`), so a huge stream is never loaded; bytes read before
+/// an error are kept.
+pub fn read_bounded<R: Read>(reader: R, limit: usize) -> Bounded {
+    let mut bounded = Bounded::default();
+    let limit = u64::try_from(limit).unwrap_or(u64::MAX);
+    if let Err(error) = reader.take(limit).read_to_end(&mut bounded.bytes) {
+        bounded.error = Some(error.to_string());
     }
-    text
+    bounded
+}
+
+/// Reads at most `limit` bytes of a captured diagnostic file, taking its total
+/// size from metadata rather than from reading. Returns the lossy text with a
+/// note of omitted bytes (or of a read error), and the total size when known.
+pub fn read_diagnostic(file: &mut File, limit: usize) -> (String, Option<u64>) {
+    let total = file.metadata().ok().map(|m| m.len());
+    let bounded = match file.seek(SeekFrom::Start(0)) {
+        Ok(_) => read_bounded(&mut *file, limit),
+        Err(error) => Bounded {
+            bytes: Vec::new(),
+            error: Some(io(error)),
+        },
+    };
+    let mut text = String::from_utf8_lossy(&bounded.bytes).into_owned();
+    let read = u64::try_from(bounded.bytes.len()).unwrap_or(u64::MAX);
+    match total {
+        Some(total) if total > read => {
+            text.push_str(&format!(" [{} more bytes omitted]", total - read));
+        }
+        None if bounded.bytes.len() >= limit => text.push_str(" [total size unknown]"),
+        _ => {}
+    }
+    if let Some(error) = bounded.error {
+        text.push_str(&format!(" [read error: {error}]"));
+    }
+    (text, total)
 }
 
 /// Runs `program` with `input` on stdin and captures its output.
@@ -132,10 +168,7 @@ pub fn capture(program: &Program, input: &[u8], timeout: Duration) -> Captured {
             }
         }
     };
-    let stderr_text = match read_bytes(&mut stderr) {
-        Ok(bytes) => bounded(&bytes, STDERR_LIMIT),
-        Err(error) => format!("[stderr unreadable: {error}]"),
-    };
+    let (stderr_text, stderr_total) = read_diagnostic(&mut stderr, STDERR_LIMIT);
     let stdout_bytes = match read_bytes(&mut stdout) {
         Ok(bytes) => bytes,
         Err(error) => {
@@ -157,6 +190,7 @@ pub fn capture(program: &Program, input: &[u8], timeout: Duration) -> Captured {
         started: true,
         stdout: stdout_bytes,
         stderr: stderr_text,
+        stderr_total,
         fault,
     }
 }
