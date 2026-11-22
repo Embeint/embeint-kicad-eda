@@ -196,3 +196,18 @@ The unit's local green metadata records exact implementation evidence. Hosted
 pilot CI and independent review remain pending merge gates. Local exact agreement
 and stored goldens do not establish the full three-pilot phase-zero gate or
 all-configuration extraction completeness. `PHASE0_REQUIRED` remains false.
+
+## Adapter review corrections
+
+Revision `0659b51c6564a98868841f655b4dadc710e15c5a` accepts literal integer
+negative-zero bits, preserves the full unsigned domain, and aligns complete
+identity/refusal envelopes and validation order. Both real processes pass 38
+shared refusal fixtures. All 14,190 live cases pass compare/propose/bless/check;
+the original 14,189 golden replies remain byte-identical. Original immutable
+evidence is retained beside a new complete initial-baseline artifact.
+[Commands, reports and actual provenance](validation/2026-11-22-0659b51c/README.md)
+record the clean tested overlay, five CTests and affected Rust checks.
+
+The additional numeric-overflow envelope finding remains open pending the
+shared native request parser. Corrected graph scope/layer review and hosted CI
+remain merge requirements; this local pass does not establish the phase-zero gate.
