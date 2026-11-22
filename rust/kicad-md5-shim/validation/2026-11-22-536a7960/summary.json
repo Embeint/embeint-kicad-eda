@@ -1,0 +1,8 @@
+{
+  "source_revision": "536a79601d3116e8a30befacc07127ef05b052f1",
+  "cases": 5973,
+  "original_results_unchanged": 5972,
+  "literal_negative_zero_retained": true,
+  "refusals_checked_per_adapter": 8,
+  "complete_baseline_against_absent_pr_base": true
+}

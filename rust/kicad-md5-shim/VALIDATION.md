@@ -145,3 +145,17 @@ The unit's local `green` metadata describes complete owned implementation and
 zero local comparison failures/deferrals. The PR remains draft, dependent on
 #39 and pending independent review and hosted CI. `PHASE0_REQUIRED=false` remains
 unchanged; one pilot does not satisfy the three-pilot phase-zero gate.
+
+## Adapter review corrections
+
+Revision `536a79601d3116e8a30befacc07127ef05b052f1` accepts literal integer
+negative-zero bytes and aligns missing-ID and assignment validation diagnostics.
+Both real processes pass eight complete refusal regressions. All 5,973 live
+cases pass compare/propose/bless/check at the unchanged 60-second budget; every
+original golden reply remains byte-identical. A new complete initial-baseline
+artifact accompanies the untouched original evidence.
+[Commands, reports and actual provenance](validation/2026-11-22-536a7960/README.md)
+record the clean overlay, four CTests and affected Rust checks.
+
+The numeric-overflow envelope finding remains open pending shared native parser
+adoption. Corrected graph scope/layer review and hosted CI remain merge gates.
