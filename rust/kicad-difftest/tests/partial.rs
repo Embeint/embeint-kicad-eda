@@ -680,6 +680,134 @@ fn a_failed_blessing_step_keeps_reference_evidence() -> TestResult {
     Ok(())
 }
 
+/// The bytes the peer writes for `modes` on this corpus, hashed like the runner.
+fn peer_stdout_sha256(root: &Path, modes: &str) -> Result<String, Box<dyn std::error::Error>> {
+    use sha2::{Digest, Sha256};
+    use std::io::Write;
+    let peer = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/peer.py");
+    let mut child = Command::new(python()?)
+        .arg(&peer)
+        .arg(modes)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()?;
+    child
+        .stdin
+        .take()
+        .ok_or("stdin")?
+        .write_all(&fs::read(root.join("port/cases/test.unit.jsonl"))?)?;
+    let output = child.wait_with_output()?;
+    Ok(format!("{:x}", Sha256::digest(&output.stdout)))
+}
+
+#[test]
+fn invalid_utf8_reply_fails_its_case_and_later_replies_are_still_evaluated() -> TestResult {
+    let temp = tempfile::tempdir()?;
+    let root = temp.path();
+    setup(root)?;
+    bless(root)?;
+    let cases = ["a", "b", "c"];
+    for fault in ["badbyte", "badcont", "truncmb"] {
+        for (index, case) in cases.iter().enumerate() {
+            // Timeouts cost the full timeout, so they run at the middle position only;
+            // the evaluator test covers every position with every fault.
+            for (after, faults) in [("", 0), (",exitafter", 1), (",sleepafter", 1)] {
+                if after == ",sleepafter" && index != 1 {
+                    continue;
+                }
+                let bad = format!("{fault}-{case}{after}");
+                for (oracle, rust, side) in [
+                    (bad.as_str(), "defer-b", "oracle"),
+                    ("ok", bad.as_str(), "rust"),
+                ] {
+                    let label = format!("oracle {oracle} Rust {rust}");
+                    let (output, report) = run(root, "check", oracle, rust, &["--partial"])?;
+                    assert!(!output.status.success(), "{label}");
+                    let report = report.ok_or_else(|| format!("{label}: missing report"))?;
+                    assert_eq!(report["status"], "failed", "{label}");
+                    let mut expected = if side == "oracle" {
+                        ["compared", "deferred", "compared"]
+                    } else {
+                        ["compared"; 3]
+                    };
+                    expected[index] = "failed";
+                    assert_eq!(
+                        outcomes(&report),
+                        pairs(&[("a", expected[0]), ("b", expected[1]), ("c", expected[2])]),
+                        "{label}"
+                    );
+                    let entry = &report["outcomes"][index];
+                    assert!(
+                        entry["reason"]
+                            .as_str()
+                            .is_some_and(|r| r.contains("not valid UTF-8")),
+                        "{label}"
+                    );
+                    // The malformed line is kept as exact hex, never as decoded text.
+                    let hex_key = format!("{side}_hex");
+                    assert!(entry[&hex_key].is_string(), "{label}: {entry}");
+                    assert!(entry.get(side).is_none(), "{label}");
+                    // Later (and earlier) replies keep their real positions, and
+                    // every recovered oracle result is golden-checked.
+                    for (other, item) in report["outcomes"]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .enumerate()
+                    {
+                        if other != index || side == "rust" {
+                            assert!(oracle_n(&item["oracle"]), "{label} case {other}");
+                        }
+                    }
+                    let golden = &report["golden"];
+                    if side == "oracle" {
+                        assert_eq!(golden["status"], "incomplete", "{label}");
+                        assert_eq!(golden["unchecked_cases"], json!([case]), "{label}");
+                    } else {
+                        assert_eq!(golden["status"], "matched", "{label}");
+                    }
+                    assert_eq!(
+                        report["run_faults"].as_array().map(Vec::len),
+                        Some(faults),
+                        "{label}"
+                    );
+                }
+            }
+        }
+    }
+    // The output hash covers the exact raw bytes, invalid ones included.
+    let (_, report) = run(root, "check", "badbyte-b", "defer-b", &["--partial"])?;
+    let report = report.ok_or("missing report")?;
+    assert_eq!(
+        report["oracle_output_sha256"],
+        json!(peer_stdout_sha256(root, "badbyte-b")?)
+    );
+    let hex = report["outcomes"][1]["oracle_hex"].as_str().ok_or("hex")?;
+    assert!(hex.starts_with("7b22ff22"), "{hex}");
+    // CRLF line endings are accepted line terminators, as before.
+    let (output, report) = run(root, "check", "crlf", "defer-b,crlf", &["--partial"])?;
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(status(&report), Some("partial"));
+    // An invalid extra line is kept as exact bytes in extra_replies.
+    let (output, report) = run(root, "check", "badextra", "defer-b", &["--partial"])?;
+    assert!(!output.status.success());
+    let report = report.ok_or("missing report")?;
+    assert_eq!(
+        report["extra_replies"],
+        json!([{"side": "oracle", "line": 4, "raw_hex": "4558545241ff45564944454e4345",
+            "truncated": false}])
+    );
+    assert_eq!(
+        outcomes(&report),
+        pairs(&[("a", "compared"), ("b", "deferred"), ("c", "compared")])
+    );
+    Ok(())
+}
+
 #[test]
 fn large_stderr_is_bounded_on_clean_failed_and_timed_out_runs() -> TestResult {
     let temp = tempfile::tempdir()?;

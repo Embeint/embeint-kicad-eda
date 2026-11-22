@@ -20,8 +20,9 @@ pub const STDERR_LIMIT: usize = 64 * 1024;
 pub struct Captured {
     /// False when the program never ran (setup or start failure); no output exists.
     pub started: bool,
-    /// Every stdout byte the program wrote, including output flushed before a
-    /// nonzero exit or a timeout kill.
+    /// Every stdout byte the program wrote, exactly, including output flushed before
+    /// a nonzero exit or a timeout kill and bytes that are not valid UTF-8. Lines are
+    /// split and validated individually by the evaluator.
     pub stdout: Vec<u8>,
     /// At most `STDERR_LIMIT` bytes of stderr, lossily decoded for diagnostics,
     /// followed by a note of how many bytes were not read.
@@ -29,33 +30,12 @@ pub struct Captured {
     /// The total stderr size from file metadata, when available.
     pub stderr_total: Option<u64>,
     /// Why the run cannot be trusted: start failure, timeout, wait failure,
-    /// nonzero exit or non-UTF-8 stdout. Any fault fails the run.
+    /// nonzero exit or unreadable output. Any fault fails the run.
     pub fault: Option<String>,
-}
-
-impl Captured {
-    /// The longest valid UTF-8 prefix of stdout. Invalid bytes are already a fault.
-    pub fn text(&self) -> &str {
-        match std::str::from_utf8(&self.stdout) {
-            Ok(text) => text,
-            Err(error) => self
-                .stdout
-                .get(..error.valid_up_to())
-                .and_then(|bytes| std::str::from_utf8(bytes).ok())
-                .unwrap_or(""),
-        }
-    }
 }
 
 fn io(error: std::io::Error) -> String {
     error.to_string()
-}
-
-fn read_bytes(file: &mut File) -> Result<Vec<u8>, String> {
-    file.seek(SeekFrom::Start(0)).map_err(io)?;
-    let mut bytes = Vec::new();
-    file.read_to_end(&mut bytes).map_err(io)?;
-    Ok(bytes)
 }
 
 /// Bytes read from a reader under a hard limit, kept even if reading failed.
@@ -73,6 +53,21 @@ pub fn read_bounded<R: Read>(reader: R, limit: usize) -> Bounded {
     let limit = u64::try_from(limit).unwrap_or(u64::MAX);
     if let Err(error) = reader.take(limit).read_to_end(&mut bounded.bytes) {
         bounded.error = Some(error.to_string());
+    }
+    bounded
+}
+
+/// The complete contents of a captured file; bytes read before an error are kept.
+fn read_all(file: &mut File) -> Bounded {
+    if let Err(error) = file.seek(SeekFrom::Start(0)) {
+        return Bounded {
+            bytes: Vec::new(),
+            error: Some(io(error)),
+        };
+    }
+    let mut bounded = Bounded::default();
+    if let Err(error) = file.read_to_end(&mut bounded.bytes) {
+        bounded.error = Some(io(error));
     }
     bounded
 }
@@ -169,26 +164,23 @@ pub fn capture(program: &Program, input: &[u8], timeout: Duration) -> Captured {
         }
     };
     let (stderr_text, stderr_total) = read_diagnostic(&mut stderr, STDERR_LIMIT);
-    let stdout_bytes = match read_bytes(&mut stdout) {
-        Ok(bytes) => bytes,
-        Err(error) => {
-            fault.get_or_insert(format!("stdout unreadable: {error}"));
-            Vec::new()
-        }
-    };
+    // Stdout is protocol data: read completely and kept byte for byte. Invalid
+    // UTF-8 is judged per line by the evaluator, never here for the whole stream.
+    let stdout_read = read_all(&mut stdout);
+    if let Some(error) = stdout_read.error {
+        fault.get_or_insert(format!(
+            "{}: stdout unreadable after {} bytes: {error}",
+            program.executable.display(),
+            stdout_read.bytes.len()
+        ));
+    }
     if let Some(message) = &mut fault {
         message.push_str(": ");
         message.push_str(&stderr_text);
-    } else if let Err(error) = std::str::from_utf8(&stdout_bytes) {
-        fault = Some(format!(
-            "{}: stdout is not valid UTF-8 after byte {}",
-            program.executable.display(),
-            error.valid_up_to()
-        ));
     }
     Captured {
         started: true,
-        stdout: stdout_bytes,
+        stdout: stdout_read.bytes,
         stderr: stderr_text,
         stderr_total,
         fault,
@@ -199,8 +191,14 @@ pub fn capture(program: &Program, input: &[u8], timeout: Duration) -> Captured {
 /// `timeout` and wrote valid UTF-8; otherwise the fault, with bounded stderr.
 pub fn run(program: &Program, input: &[u8], timeout: Duration) -> Result<String, String> {
     let captured = capture(program, input, timeout);
-    match captured.fault {
-        Some(fault) => Err(fault),
-        None => Ok(captured.text().to_owned()),
+    if let Some(fault) = captured.fault {
+        return Err(fault);
     }
+    String::from_utf8(captured.stdout).map_err(|error| {
+        format!(
+            "{}: stdout is not valid UTF-8 after byte {}",
+            program.executable.display(),
+            error.utf8_error().valid_up_to()
+        )
+    })
 }

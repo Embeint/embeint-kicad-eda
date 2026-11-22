@@ -1,16 +1,29 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use kicad_difftest::evaluate::{
-    check_golden, evaluate, Evaluation, Outcome, EXTRA_LINES_KEPT, EXTRA_LINE_LIMIT,
+    check_golden, evaluate, split_lines, Evaluation, Outcome, RawLine, EXTRA_LINES_KEPT,
+    EXTRA_LINE_LIMIT,
 };
 use kicad_difftest::process::{read_bounded, read_diagnostic, Captured};
 
 /// Output of a program that ran, optionally ending in a process fault.
 fn out(text: &str, fault: Option<&str>) -> Captured {
+    out_bytes(text.as_bytes(), fault)
+}
+
+/// Output given as raw bytes, which need not be valid UTF-8.
+fn out_bytes(bytes: &[u8], fault: Option<&str>) -> Captured {
     Captured {
         started: true,
-        stdout: text.as_bytes().to_vec(),
+        stdout: bytes.to_vec(),
         fault: fault.map(str::to_owned),
         ..Captured::default()
+    }
+}
+
+fn text(raw: &RawLine) -> Option<&str> {
+    match raw {
+        RawLine::Text(text) => Some(text),
+        RawLine::Bytes(_) => None,
     }
 }
 
@@ -359,7 +372,8 @@ fn output_before_a_process_fault_is_evaluated_and_the_fault_still_fails() -> Res
     assert_eq!(names(&eval), ["compared", "failed", "unprocessed"]);
     assert!(eval.outcomes[1]
         .oracle_raw
-        .as_deref()
+        .as_ref()
+        .and_then(text)
         .is_some_and(|r| r.ends_with("\"res")));
     // The same output without a fault but with a missing final reply fails that case.
     let eval = evaluate(&cases, "u", &out(&two, None), &rust);
@@ -390,10 +404,16 @@ fn extra_reply_lines_are_kept_bounded_as_evidence() -> Result<(), String> {
     assert_eq!(eval.faults.len(), 1);
     assert!(eval.faults[0].contains(&format!("{} reply lines", EXTRA_LINES_KEPT + 2)));
     assert_eq!(eval.extra.len(), EXTRA_LINES_KEPT);
-    assert_eq!(eval.extra[0].raw, "EXTRA_REFERENCE_EVIDENCE");
+    assert_eq!(
+        eval.extra[0].raw,
+        RawLine::Text("EXTRA_REFERENCE_EVIDENCE".into())
+    );
     assert_eq!((eval.extra[0].side, eval.extra[0].line), ("oracle", 2));
     assert!(!eval.extra[0].truncated);
-    assert_eq!(eval.extra[1].raw.len(), EXTRA_LINE_LIMIT);
+    assert_eq!(
+        text(&eval.extra[1].raw).map(str::len),
+        Some(EXTRA_LINE_LIMIT)
+    );
     assert!(eval.extra[1].truncated);
     // Multi-byte characters are never split by the bound.
     let wide = "\u{e9}".repeat(EXTRA_LINE_LIMIT);
@@ -404,7 +424,138 @@ fn extra_reply_lines_are_kept_bounded_as_evidence() -> Result<(), String> {
         &out(&format!("{}{wide}\n", line("a")), None),
     );
     assert_eq!(eval.extra[0].side, "Rust");
-    assert!(eval.extra[0].raw.len() <= EXTRA_LINE_LIMIT && eval.extra[0].truncated);
+    assert!(
+        text(&eval.extra[0].raw).is_some_and(|t| t.len() <= EXTRA_LINE_LIMIT)
+            && eval.extra[0].truncated
+    );
+    // Invalid UTF-8 beyond the corpus is kept as exact bytes, bounded too.
+    let mut bad = line("a").into_bytes();
+    bad.extend_from_slice(b"EXTRA\xffEVIDENCE\n");
+    bad.extend(std::iter::repeat_n(0xffu8, EXTRA_LINE_LIMIT + 5));
+    let eval = evaluate(&cases, "u", &out(&line("a"), None), &out_bytes(&bad, None));
+    assert_eq!(
+        eval.extra[0].raw,
+        RawLine::Bytes(b"EXTRA\xffEVIDENCE".to_vec())
+    );
+    assert!(!eval.extra[0].truncated);
+    assert_eq!(
+        eval.extra[1].raw,
+        RawLine::Bytes(vec![0xff; EXTRA_LINE_LIMIT])
+    );
+    assert!(eval.extra[1].truncated);
+    Ok(())
+}
+
+#[test]
+fn byte_lines_split_exactly_like_str_lines() {
+    for text in [
+        "",
+        "\n",
+        "a",
+        "a\n",
+        "a\r\n",
+        "a\r",
+        "a\r\r\n",
+        "\r\n\r\n",
+        "a\n\nb",
+        "a\nb\r",
+        "\u{e9}\nx\r\ny",
+        "\r",
+        "\n\n",
+        "x\ry\n",
+    ] {
+        let expected: Vec<&[u8]> = text.lines().map(str::as_bytes).collect();
+        assert_eq!(split_lines(text.as_bytes()), expected, "{text:?}");
+    }
+}
+
+#[test]
+fn invalid_utf8_fails_only_its_line_and_later_replies_keep_their_positions() -> Result<(), String> {
+    let line = |case: &str, value: &str| {
+        format!("{{\"unit\":\"u\",\"case\":\"{case}\",\"result\":{value}}}").into_bytes()
+    };
+    let cases = records(
+        "{\"unit\":\"u\",\"case\":\"a\",\"input\":{}}\n\
+         {\"unit\":\"u\",\"case\":\"b\",\"input\":{}}\n\
+         {\"unit\":\"u\",\"case\":\"c\",\"input\":{}}\n",
+        "u",
+        true,
+    )?;
+    let good: Vec<Vec<u8>> = vec![line("a", "1"), line("b", "2"), line("c", "3")];
+    let golden = String::from_utf8(good.join(&b'\n')).map_err(|e| e.to_string())? + "\n";
+    let corrupt = |bytes: &[u8], kind: &str| -> Vec<u8> {
+        match kind {
+            // A stray continuation-range byte, a lead byte followed by ASCII, and a
+            // multibyte character cut at the end of the line.
+            "byte" => [b"{\"\xff\":0,".as_slice(), &bytes[1..]].concat(),
+            "continuation" => [b"{\"\xc3\x28\":0,".as_slice(), &bytes[1..]].concat(),
+            _ => [bytes, b"\xe2\x82".as_slice()].concat(),
+        }
+    };
+    let names = |eval: &Evaluation| -> Vec<&'static str> {
+        eval.outcomes.iter().map(|c| c.outcome.name()).collect()
+    };
+    for kind in ["byte", "continuation", "truncated multibyte"] {
+        for bad in 0..3 {
+            for ending in ["\n", "\r\n"] {
+                for (fault, final_newline) in [
+                    (None, true),
+                    (None, false),
+                    (Some("timeout"), false),
+                    (Some("exit 7"), true),
+                ] {
+                    let mut lines = good.clone();
+                    lines[bad] = corrupt(&lines[bad], kind);
+                    let mut bytes = lines.join(ending.as_bytes());
+                    if final_newline {
+                        bytes.extend_from_slice(ending.as_bytes());
+                    }
+                    let label = format!("{kind} at {bad} {ending:?} {fault:?} {final_newline}");
+                    let mut expected = ["compared"; 3];
+                    expected[bad] = "failed";
+                    // Oracle side: the bad case fails, the others are compared in
+                    // their real positions and still golden-checked.
+                    let eval = evaluate(
+                        &cases,
+                        "u",
+                        &out_bytes(&bytes, fault),
+                        &out_bytes(&good.join(&b'\n'), None),
+                    );
+                    assert_eq!(names(&eval), expected, "oracle {label}");
+                    assert_eq!(
+                        eval.outcomes[bad].oracle_raw,
+                        Some(RawLine::Bytes(
+                            lines[bad]
+                                .strip_suffix(b"\r")
+                                .unwrap_or(&lines[bad])
+                                .to_vec()
+                        )),
+                        "oracle {label}"
+                    );
+                    assert!(matches!(&eval.outcomes[bad].outcome,
+                        Outcome::Failed(r) if r.contains("not valid UTF-8")));
+                    let check = check_golden(Ok(golden.clone()), "u", &eval);
+                    assert_eq!(check.status(), "incomplete", "oracle {label}");
+                    assert_eq!(check.unchecked, [["a", "b", "c"][bad]], "oracle {label}");
+                    assert_eq!(eval.faults.len(), usize::from(fault.is_some()));
+                    // Rust side: the same, with the oracle references all kept.
+                    let eval = evaluate(
+                        &cases,
+                        "u",
+                        &out_bytes(&good.join(&b'\n'), None),
+                        &out_bytes(&bytes, fault),
+                    );
+                    assert_eq!(names(&eval), expected, "Rust {label}");
+                    assert!(matches!(eval.outcomes[bad].rust, Some(RawLine::Bytes(_))));
+                    assert!(eval.outcomes.iter().all(|c| c.oracle.is_some()));
+                    assert_eq!(
+                        check_golden(Ok(golden.clone()), "u", &eval).status(),
+                        "matched"
+                    );
+                }
+            }
+        }
+    }
     Ok(())
 }
 

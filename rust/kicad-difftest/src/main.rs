@@ -2,7 +2,7 @@
 #![forbid(unsafe_code)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use kicad_difftest::evaluate::{check_golden, evaluate, Evaluation, GoldenCheck, Outcome};
+use kicad_difftest::evaluate::{check_golden, evaluate, Evaluation, GoldenCheck, Outcome, RawLine};
 use kicad_difftest::process::Program;
 use kicad_difftest::{golden, process, records, valid_unit, Record};
 use serde_json::{json, Value};
@@ -280,14 +280,15 @@ fn report(
                 }
             }
             if c.outcome != Outcome::Compared || !accepted_run {
-                let oracle = c.oracle.as_ref().map(|r| &r.raw).or(c.oracle_raw.as_ref());
-                if let Some(line) = oracle {
-                    entry["oracle"] = json!(line);
+                match (&c.oracle, &c.oracle_raw) {
+                    (Some(record), _) => entry["oracle"] = json!(record.raw),
+                    (None, Some(raw)) => put_raw(&mut entry, "oracle", raw),
+                    (None, None) => {}
                 }
             }
             if c.outcome != Outcome::Compared {
-                if let Some(line) = &c.rust {
-                    entry["rust"] = json!(line);
+                if let Some(raw) = &c.rust {
+                    put_raw(&mut entry, "rust", raw);
                 }
             }
             entry
@@ -296,7 +297,11 @@ fn report(
     let extra: Vec<Value> = eval
         .extra
         .iter()
-        .map(|e| json!({"side": e.side, "line": e.line, "raw": e.raw, "truncated": e.truncated}))
+        .map(|e| {
+            let mut entry = json!({"side": e.side, "line": e.line, "truncated": e.truncated});
+            put_raw(&mut entry, "raw", &e.raw);
+            entry
+        })
         .collect();
     let golden = match golden_check {
         None => json!({"status": "not_requested"}),
@@ -319,6 +324,18 @@ fn report(
         report["error"] = json!(first_error(status, eval, golden_check));
     }
     report
+}
+
+/// Stores a raw line under `key` when it is valid UTF-8, otherwise its exact bytes
+/// as lowercase hex under `<key>_hex`; invalid bytes are never decoded lossily.
+fn put_raw(entry: &mut Value, key: &str, raw: &RawLine) {
+    match raw {
+        RawLine::Text(text) => entry[key] = json!(text),
+        RawLine::Bytes(bytes) => {
+            let hex: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
+            entry[format!("{key}_hex")] = json!(hex);
+        }
+    }
 }
 
 /// The SHA-256 of every captured stdout byte, or null if the program never ran.

@@ -7,8 +7,11 @@ the case after a hyphen: defer-<case> (well-formed unported reply), error-<case>
 changed-<case>, and malformed deferrals nounit-<case>, extra-<case>, badowner-<case>
 and emptyupstream-<case>. Output faults after flushing the replies: exitafter (exit 7),
 sleepafter (outlive the timeout), truncate (cut the last reply mid-line, no newline),
-garbage (append a non-reply line) and skip-<case> (omit that reply). stderrbig
-writes STDERR_BYTES (default 4 MiB) of diagnostics before replying.
+garbage (append a non-reply line) and skip-<case> (omit that reply). Byte faults:
+badbyte-<case> (an 0xff byte), badcont-<case> (a broken continuation byte) and
+truncmb-<case> (a multibyte character cut at the end of the line) make that reply
+invalid UTF-8; badextra appends an invalid UTF-8 line; crlf ends lines with CRLF;
+stderrbig writes STDERR_BYTES (default 4 MiB) of diagnostics before replying.
 """
 import os
 import json
@@ -62,17 +65,31 @@ if "duplicate" in modes:
 if "reorder" in modes:
     replies.reverse()
 if "noisy" in modes:
-    print("unexpected diagnostic on stdout")
+    sys.stdout.buffer.write(b"unexpected diagnostic on stdout\n")
 replies = [reply for reply in replies if f"skip-{reply['case']}" not in modes]
-lines = [json.dumps(reply) for reply in replies]
+lines = []
+for reply in replies:
+    line = json.dumps(reply).encode()
+    case = reply["case"]
+    # Each byte fault leaves the rest of the line intact so only UTF-8 is wrong.
+    if f"badbyte-{case}" in modes:
+        line = line[:1] + b'"\xff": 0, ' + line[1:]
+    if f"badcont-{case}" in modes:
+        line = line[:1] + b'"\xc3\x28": 0, ' + line[1:]
+    if f"truncmb-{case}" in modes:
+        line = line + b"\xe2\x82"
+    lines.append(line)
 if "truncate" in modes:
     lines[-1] = lines[-1][: len(lines[-1]) // 2]
 if "garbage" in modes:
-    lines.append("EXTRA_REFERENCE_EVIDENCE")
+    lines.append(b"EXTRA_REFERENCE_EVIDENCE")
+if "badextra" in modes:
+    lines.append(b"EXTRA\xffEVIDENCE")
+ending = b"\r\n" if "crlf" in modes else b"\n"
 for index, line in enumerate(lines):
     last = index == len(lines) - 1
-    sys.stdout.write(line + ("" if last and "truncate" in modes else "\n"))
-    sys.stdout.flush()
+    sys.stdout.buffer.write(line + (b"" if last and "truncate" in modes else ending))
+    sys.stdout.buffer.flush()
 if "exitafter" in modes:
     print("exiting after replies", file=sys.stderr)
     sys.exit(7)

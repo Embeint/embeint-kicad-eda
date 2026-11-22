@@ -108,17 +108,25 @@ never erases the outcomes of the other cases:
 Each program's stdout is captured however the run ends. Replies written before a
 nonzero exit or a timeout kill are still parsed, compared and checked against the
 golden, and keep their reference lines; a truncated final line is a malformed
-reply. The process fault itself (start failure, nonzero exit, timeout, non-UTF-8
-stdout) is always listed in `run_faults` with up to 64 KiB of stderr and always
+reply. The process fault itself (start failure, nonzero exit, timeout, unreadable
+output) is always listed in `run_faults` with up to 64 KiB of stderr and always
 fails the run, so no recovered reply can make a faulted run pass. Only those 64 KiB
 of stderr are read (`Read::take`); the omitted count comes from the file size, so
 a huge diagnostic stream costs no memory. Timeouts still kill and reap the
 program; stdout is never truncated.
 
+Stdout is kept byte for byte (the output hash covers every byte) and split into
+lines at LF bytes before any line's UTF-8 is checked, exactly as `str::lines`
+would split valid text: `\n` or `\r\n` ends a line and an unterminated final line
+is kept. A line that is not valid UTF-8 fails its own case and is kept as exact
+lowercase hex (`oracle_hex`, `rust_hex`, or `raw_hex` in `extra_replies`), never
+decoded lossily; the lines after it keep their positions and are evaluated and
+golden-checked normally.
+
 Replies are aligned by position, as the protocol requires; a reply at the wrong
 position fails the case expected there. Lines beyond the corpus are a run fault
 with their count; the first 16 of each program are kept in `extra_replies` (side,
-line number, raw text up to 4096 bytes, `truncated`). `cases`, `compared`, `deferred`, `failures` and `unprocessed` count
+line number, `raw` text or `raw_hex` bytes up to 4096 bytes, `truncated`). `cases`, `compared`, `deferred`, `failures` and `unprocessed` count
 the outcomes. An accepted report lists compared cases by ID only, since the agreed
 results equal the golden; a failed report includes every available oracle reply so
 the reference results stay recoverable. Failures take precedence over deferrals in
