@@ -1,6 +1,13 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 # MD5 local validation, 2026-11-22
 
+Latest native parser adoption: source `8259981dde8c9632c3b1194e8cc9362fe87a45b9`
+passes all 5,973 existing live cases and 78 complete refusal envelopes plus
+integer signed-zero success per real adapter. The reviewed shared parser is now
+merged through PR #45; no portable body, corpus, golden or prior evidence changed.
+See [the new validation entry](validation/2026-11-22-8259981d/README.md) for actual
+commands/provenance and the preserved corrected #39 graph confirmation hold.
+
 All local gates below ran on **code revision
 `a295db8bcadb8de7ae084178c2e1705fcf99d762`**. The subsequent baseline/evidence/docs
 commit does not change the tested implementation. These are the original
@@ -157,5 +164,6 @@ artifact accompanies the untouched original evidence.
 [Commands, reports and actual provenance](validation/2026-11-22-536a7960/README.md)
 record the clean overlay, four CTests and affected Rust checks.
 
-The numeric-overflow envelope finding remains open pending shared native parser
-adoption. Corrected graph scope/layer review and hosted CI remain merge gates.
+That checkpoint left the numeric-overflow finding open; the latest adoption
+entry above resolves it. Corrected graph scope/layer confirmation, updated
+hosted CI and parent review remain merge gates.

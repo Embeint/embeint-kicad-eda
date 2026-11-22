@@ -4,9 +4,10 @@
 The candidate scope is `libs.kimath.src.md5_hash.application.pure.p001`,
 `libs/kimath/src/md5_hash.cpp:1-289` at
 `4cf939778df04d2b747bb2c4714fc5014a7565c7`, with the supporting class declaration
-in `libs/kimath/include/md5_hash.h`. The canonical committed record in PR #39 at
-`a7ec77beffd3b2e5d60409423fa28b6c116c6e00` confirms the full scope. This pilot
-depends on that PR. The implementation module is `kicad_md5::md5_hash`; its types
+in `libs/kimath/include/md5_hash.h`. The provisional committed record in PR #39
+at `a7ec77beffd3b2e5d60409423fa28b6c116c6e00` is preserved pending parent
+confirmation of the corrected graph's ownership/scope/layer. This pilot depends
+on that PR and remains draft. The implementation module is `kicad_md5::md5_hash`; its types
 remain re-exported from the crate root for callers.
 
 `kicad-md5` is the portable implementation. It forbids unsafe code, uses the
@@ -15,6 +16,12 @@ This crate is a native stdin/stdout adapter, explicitly `portable = false`.
 `port/oracle/shims/md5.cpp` adapts the real pinned `MD5_HASH` class, without
 reimplementing the reference algorithm. The existing oracle source/flag audits,
 protocol and golden-review checks remain in force.
+
+Native requests use the reviewed `kicad_difftest::request::parse` helper from
+merged PR #45. Numeric overflow is rejected before identities; finite out-of-range
+numbers retain their parse-versus-domain distinction. The exact result comparator
+and portable engine are unchanged. Complete-envelope wire regressions and current
+provenance are in [the parser adoption evidence](validation/2026-11-22-8259981d/README.md).
 
 ## Input and observation contract
 
