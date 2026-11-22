@@ -4,6 +4,7 @@ import importlib.util
 import gzip
 import json
 import os
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -20,7 +21,7 @@ import drift_report
 from extractor.reconcile_database import compare, cmake_options
 from extractor.compact_cache import compact
 from extraction_report import summarize, measure_units
-from extractor.generated_sources import freeze, verify, source_path
+from extractor.generated_sources import capture_recipes, freeze, verify, source_path
 
 
 def fixture(root):
@@ -401,6 +402,78 @@ class ValidationTests(unittest.TestCase):
 
 
 class DriftTests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which('ninja'), 'Ninja is needed for real recipe capture')
+    def test_captured_multistage_generator_inputs_reach_tracked_consumers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            parent = Path(tmp)
+            root, build = parent / 'source', parent / 'build'
+            (root / 'api').mkdir(parents=True)
+            (build / 'api').mkdir(parents=True)
+            (root / 'api/schema.proto').write_text('first\n')
+            for name in ('direct', 'relative', 'absolute'):
+                (root / (name + '.cpp')).write_text('int value() { return 1; }\n')
+            for name in ('api/direct.pb.h', 'api/relative.pb.h', 'api/absolute.pb.h',
+                         'stage.h', 'stage.tokens', 'consumer.o'):
+                (build / name).write_text('// generated fixture\n')
+
+            def ninja_path(path):
+                return str(path.as_posix()).replace('$', '$$').replace(' ', '$ ').replace(':', '$:')
+
+            proto = ninja_path(root / 'api/schema.proto')
+            tokens = ninja_path(build / 'stage.tokens')
+            (build / 'build.ninja').write_text(
+                'rule gen\n  command = true\n'
+                f'build api/direct.pb.h: gen {proto}\n'
+                f'build stage.h: gen {proto}\n'
+                f'build stage.tokens: gen {proto}\n'
+                'build api/relative.pb.h: gen stage.h\n'
+                f'build api/absolute.pb.h: gen {tokens}\n'
+                'build consumer.o: gen api/relative.pb.h\n')
+            manifest = freeze(build, parent / 'frozen', {})
+            recipes = capture_recipes(build, root, manifest['files'])
+            dependencies = {entry['path']: entry['generator_inputs'] for entry in manifest['files']}
+            self.assertEqual(dependencies['@build/api/direct.pb.h'], ['api/schema.proto'])
+            self.assertEqual(dependencies['@build/api/relative.pb.h'],
+                             ['@build/stage.h', 'api/schema.proto'])
+            self.assertEqual(dependencies['@build/api/absolute.pb.h'],
+                             ['@build/stage.tokens', 'api/schema.proto'])
+            self.assertNotIn('@build/stage.tokens', dependencies)
+            self.assertEqual(recipes['@build/stage.tokens']['query_exit'], 0)
+            self.assertNotIn('@build/consumer.o', dependencies['@build/api/relative.pb.h'])
+
+            def git(*args):
+                return subprocess.check_output(['git', '-C', str(root), *args], text=True).strip()
+
+            git('init', '--quiet')
+            git('add', '.')
+            git('-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                'commit', '-qm', 'test generator fixture')
+            base = git('rev-parse', 'HEAD')
+            graph = {'provenance': {'upstream_pin': base, 'source_commit': base,
+                                   'generated_input_dependencies': dependencies},
+                     'functions': {}, 'translation_units': []}
+            units = []
+            for name in ('direct', 'relative', 'absolute'):
+                path = name + '.cpp'
+                graph['functions'][name] = {'name': 'value', 'file': path, 'start': 1, 'end': 1}
+                graph['translation_units'].append({'file': path,
+                    'includes': ['@build/api/' + name + '.pb.h']})
+                units.append({'id': name, 'status': 'partial', 'functions': [name], 'upstream': [path]})
+            (root / 'api/schema.proto').write_text('second\n')
+            git('add', '.')
+            git('-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                'commit', '-qm', 'test changed generator input')
+            original = drift_report.PIN
+            try:
+                drift_report.PIN = base
+                result = drift_report.report(root, graph, units)
+                self.assertEqual(result['affected'], [])
+                self.assertEqual(result['affected_units'], ['absolute', 'direct', 'relative'])
+                self.assertEqual([review['changed_inputs'] for review in result['dependency_reviews']],
+                                 [['api/schema.proto']] * 3)
+            finally:
+                drift_report.PIN = original
+
     def test_generated_header_recipe_changes_reach_tracked_owners_transitively(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);(root/'api').mkdir()

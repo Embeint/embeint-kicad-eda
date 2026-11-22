@@ -81,6 +81,56 @@ def freeze(build, output, provenance, extra_inputs=()):
     return manifest
 
 
+def capture_recipes(build, source, entries):
+    """Retain generated links and flatten tracked inputs through all Ninja stages."""
+    build, source = build.resolve(), source.resolve()
+    recipes, dependencies = {}, {}
+
+    def query(logical):
+        if logical in dependencies:
+            return dependencies[logical]
+        relative = logical.removeprefix('@build/')
+        result = subprocess.run(['ninja', '-C', str(build), '-t', 'query', relative],
+                                capture_output=True, text=True, encoding='utf-8')
+        commands = subprocess.run(['ninja', '-C', str(build), '-t', 'commands', relative],
+                                  capture_output=True, text=True, encoding='utf-8')
+        recipes[logical] = {'query_exit': result.returncode, 'query': result.stdout,
+            'query_stderr': result.stderr, 'commands_exit': commands.returncode,
+            'commands': commands.stdout, 'commands_stderr': commands.stderr,
+            'stage': 'ninja-target' if result.returncode == 0 else 'cmake-configure output or compiler probe'}
+        inputs, in_inputs = set(), False
+        for line in result.stdout.splitlines():
+            if line.startswith('  input:'):
+                in_inputs = True
+            elif line.startswith('  ') and not line.startswith('    '):
+                in_inputs = False
+            elif in_inputs and line.startswith('    '):
+                candidate = Path(line.strip().lstrip('| '))
+                candidate = (candidate if candidate.is_absolute() else build / candidate).resolve()
+                if candidate.is_relative_to(source) and candidate.is_file():
+                    inputs.add(candidate.relative_to(source).as_posix())
+                elif candidate.is_relative_to(build):
+                    inputs.add('@build/' + candidate.relative_to(build).as_posix())
+        dependencies[logical] = inputs
+        return inputs
+
+    for entry in entries:
+        pending, seen, inputs = [entry['path']], set(), set()
+        while pending:
+            logical = pending.pop()
+            if logical in seen:
+                continue
+            seen.add(logical)
+            for dependency in query(logical):
+                inputs.add(dependency)
+                if dependency.startswith('@build/'):
+                    pending.append(dependency)
+        # Intermediates need not be C/C++ files in the frozen source inventory.
+        # Keep their source leaves here so the published drift graph still closes.
+        entry['generator_inputs'] = sorted(inputs - {entry['path']})
+    return recipes
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--build-root', type=Path, required=True)
@@ -109,24 +159,8 @@ def main():
         path = build / name
         provenance[name] = {'sha256': digest(path.read_bytes())}
     manifest = freeze(build, a.output, provenance, a.extra_input)
-    recipes = {}
     source = Path(read_json(a.reconciliation / 'reconciliation.json')['source_root'])
-    for entry in manifest['files']:
-        relative = entry['path'].removeprefix('@build/')
-        query = subprocess.run(['ninja', '-C', str(build), '-t', 'query', relative],
-                               capture_output=True, text=True, encoding='utf-8')
-        commands = subprocess.run(['ninja', '-C', str(build), '-t', 'commands', relative],
-                                  capture_output=True, text=True, encoding='utf-8')
-        recipes[entry['path']] = {'query_exit': query.returncode, 'query': query.stdout,
-            'query_stderr': query.stderr, 'commands_exit': commands.returncode,
-            'commands': commands.stdout, 'commands_stderr': commands.stderr,
-            'stage': 'ninja-target' if query.returncode == 0 else 'cmake-configure output or compiler probe'}
-        inputs = []
-        for line in query.stdout.splitlines():
-            candidate = Path(line.strip().lstrip('| '))
-            if candidate.is_absolute() and candidate.is_relative_to(source) and candidate.is_file():
-                inputs.append(candidate.relative_to(source).as_posix())
-        entry['generator_inputs'] = sorted(set(inputs))
+    recipes = capture_recipes(build, source, manifest['files'])
     write_json(a.output / 'generated-recipes.json', recipes)
     manifest['recipes_sha256'] = digest((a.output / 'generated-recipes.json').read_bytes())
     write_json(a.output / 'generated-sources.json', manifest)
