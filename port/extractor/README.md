@@ -360,17 +360,27 @@ the map and applies it to the existing parse:
 ```sh
 python3 port/extractor/refresh_generator_dependencies.py capture \
   --base-manifest <parse>/generated-sources.json \
+  --inventory <canonical>/inventory.json \
+  --generation-inputs <pinned-generation-input-audit.json> \
   --source-root ~/kicad-port/extract-source --output <capture>
 python3 port/extractor/refresh_generator_dependencies.py apply \
   --graph <canonical>/graph.json.gz --inventory <canonical>/inventory.json \
   --base-manifest <parse>/generated-sources.json \
   --capture <capture>/generator-dependency-capture.json \
+  --generation-inputs <pinned-generation-input-audit.json> \
   --recipes <capture>/generated-recipes.json --output <refreshed>
 ```
 
 `capture` needs the shared lock. It refuses to run unless every private build
 file, frozen generated input, tool binary and CMake/Ninja file matches the parse
-manifest, and it checks the build again afterwards. `apply` needs neither clang
+manifest. The physical source root must equal the original reconciliation and
+parse root. All tracked C/C++ files and the pinned generator/configure input
+audit (including Markdown, schemas and scripts) must match their recorded
+CRLF-to-LF-normalized hashes. Unrecorded Ninja source inputs fail rather than
+disappearing from the map. Source, build, frozen inputs and external tools are
+checked again after capture. `apply` binds the same complete source identity and
+input-audit hash to the original inventory and pins, without reading the physical
+source tree; it therefore still runs on Windows. It needs neither clang
 nor Ninja. It replaces only the generator dependency map, the build-generated
 `generator_inputs`, the manifest and inventory fingerprints derived from them, and
 adds `generator_dependency_refresh`. That record keeps the parse identities

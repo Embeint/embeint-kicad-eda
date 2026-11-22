@@ -81,10 +81,16 @@ def freeze(build, output, provenance, extra_inputs=()):
     return manifest
 
 
-def capture_recipes(build, source, entries, source_dependencies=None):
+def capture_recipes(build, source, entries, source_dependencies=None, source_files=None):
     """Retain generated links and flatten tracked inputs through all Ninja stages."""
     build, source = build.resolve(), source.resolve()
     recipes, dependencies = {}, {}
+
+    def check_source(path, logical):
+        if (source_files is not None and logical is not None
+                and not logical.startswith('@build/') and not path.is_dir()
+                and logical not in source_files):
+            raise ValueError('Ninja source lacks a pinned snapshot: ' + logical)
 
     def logical_path(path):
         if path.is_relative_to(source):
@@ -105,6 +111,7 @@ def capture_recipes(build, source, entries, source_dependencies=None):
         path = Path(target)
         path = (path if path.is_absolute() else build / path).resolve()
         logical = logical_path(path)
+        check_source(path, logical)
         if logical is not None:
             targets.setdefault(logical, []).append(target)
 
@@ -148,6 +155,7 @@ def capture_recipes(build, source, entries, source_dependencies=None):
                 candidate = Path(line.strip().lstrip('| '))
                 candidate = (candidate if candidate.is_absolute() else build / candidate).resolve()
                 dependency = logical_path(candidate)
+                check_source(candidate, dependency)
                 if dependency is not None and (candidate.is_file() or dependency in targets):
                     inputs.add(dependency)
         dependencies[logical] = inputs
