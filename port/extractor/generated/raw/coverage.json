@@ -1,0 +1,622 @@
+{
+  "additional_definition_bodies": 0,
+  "artifacts": [
+    {
+      "bytes": 40925438,
+      "filename": "graph.json.gz",
+      "sha256": "a4768bc824e8947f3373dbec4afc939c91ac94ee6ac9ff22355eeedf70a2e516"
+    },
+    {
+      "bytes": 2296170,
+      "filename": "inventory.json",
+      "sha256": "e19e921c1d668d67d9f413aab119fa0a5e8425aa30a2dee84f88599563117158"
+    }
+  ],
+  "attempted": 2471,
+  "commands": 2471,
+  "compile_commands_sha256": "10519703c213d66a3abf4e00fa091bdaa616d9865c4ec47ecad0acca91c2fa8b",
+  "conservative_range_count": 0,
+  "coverage_flags": {
+    "all_configurations_complete": false,
+    "compile_database_complete": true,
+    "gate_complete": false,
+    "inventory_complete": true,
+    "parse_complete": false
+  },
+  "edge_kinds": {
+    "override": 105001,
+    "static": 427985,
+    "virtual": 40773
+  },
+  "edges": 573759,
+  "extractor_sha256": "aabb3c0be3176689df4f9d383aa145d6613ab48c354f7d3380f781c4fb6ad89a",
+  "function_wx_classes": {
+    "UI": 31469,
+    "pure": 27839,
+    "thin-replacement": 9631
+  },
+  "functions": 68939,
+  "interpretation": "Historical raw runner, original identity aabb3c0b; noncanonical include aliases, constrained-template ranges and same-USR body ownership are corrected only in the separately extracted reconciled graph. No canonical units are generated from this raw graph.",
+  "non_stale_failures": [
+    {
+      "category": "tracked-source",
+      "command_sha256": "de832da3b2a35d66c08849d5cd662cc46100a88de604f6f245f0accdb9d2efd2",
+      "diagnostics": [
+        {
+          "message": "warning: precompiled header '/home/karlvonrichter/kicad-live/build/common/CMakeFiles/pcbcommon.dir/cmake_pch.hxx.gch' was ignored because it is not a clang PCH file [-Wignored-gch]",
+          "severity": 2
+        },
+        {
+          "message": "warning: unknown warning option '-Wduplicated-branches' [-Wunknown-warning-option]",
+          "severity": 2
+        },
+        {
+          "message": "warning: unknown warning option '-Wduplicated-cond' [-Wunknown-warning-option]",
+          "severity": 2
+        },
+        {
+          "message": "warning: unknown warning option '-Wimplicit-fallthrough=5'; did you mean '-Wimplicit-fallthrough'? [-Wunknown-warning-option]",
+          "severity": 2
+        },
+        {
+          "message": "/home/karlvonrichter/kicad-port/extract-source/pcbnew/api/api_pcb_enums.cpp:2408:64: error: no member named 'DRCET_MICROVIA_SPANS_DIELECTRICS' in 'kiapi::board::DrcErrorType'",
+          "severity": 3
+        },
+        {
+          "message": "/home/karlvonrichter/kicad-port/extract-source/pcbnew/api/api_pcb_enums.cpp:2497:24: error: no member named 'DRCET_MICROVIA_SPANS_DIELECTRICS' in 'kiapi::board::DrcErrorType'",
+          "severity": 3
+        }
+      ],
+      "file": "pcbnew/api/api_pcb_enums.cpp",
+      "function_count": 5503,
+      "includes": [
+        "api/../include/import_export.h",
+        "common/./eda_group.h",
+        "common/./io/idf/idf_settings.h",
+        "common/./jobs/job.h",
+        "common/./jobs/job_export_pcb_3d.h",
+        "common/./jobs/job_export_pcb_drill.h",
+        "common/./jobs/job_export_pcb_dxf.h",
+        "common/./jobs/job_export_pcb_fab.h",
+        "common/./jobs/job_export_pcb_idf.h",
+        "common/./jobs/job_export_pcb_ipc2581.h",
+        "common/./jobs/job_export_pcb_odb.h",
+        "common/./jobs/job_export_pcb_pdf.h",
+        "common/./jobs/job_export_pcb_plot.h",
+        "common/./jobs/job_export_pcb_png.h",
+        "common/./jobs/job_export_pcb_pos.h",
+        "common/./jobs/job_export_pcb_ps.h",
+        "common/./jobs/job_export_pcb_stats.h",
+        "common/./jobs/job_export_pcb_svg.h",
+        "common/./jobs/job_pcb_render.h",
+        "common/./transline_calculations/dielectric_djordjevic_sarkar.h",
+        "common/./transline_calculations/transline_calculation_base.h",
+        "include/api/api_enums.h",
+        "include/api/plugin_action_scope.h",
+        "include/api/serializable.h",
+        "include/base_screen.h",
+        "include/base_set.h",
+        "include/base_units.h",
+        "include/bitmaps.h",
+        "include/bitmaps/bitmap_types.h",
+        "include/bitmaps/bitmaps_list.h",
+        "include/board_item.h",
+        "include/case_insensitive_map.h",
+        "include/class_draw_panel_gal.h",
+        "include/commit.h",
+        "include/common.h",
+        "include/core/inplace_function.h",
+        "include/core/mirror.h",
+        "include/core/typeinfo.h",
+        "include/dpi_scaling.h",
+        "include/dpi_scaling_common.h",
+        "include/eda_base_frame.h",
+        "include/eda_cursor_broadcaster.h",
+        "include/eda_draw_frame.h",
+        "include/eda_fill.h",
+        "include/eda_item.h",
+        "include/eda_item_flags.h",
+        "include/eda_pattern_match.h",
+        "include/eda_search_data.h",
+        "include/eda_text.h",
+        "include/eda_units.h",
+        "include/embedded_files.h",
+        "include/font/font.h",
+        "include/font/font_metrics.h",
+        "include/font/glyph.h",
+        "include/font/text_attributes.h",
+        "include/frame_type.h",
+        "include/gal/color4d.h",
+        "include/gal/cursors.h",
+        "include/gal/definitions.h",
+        "include/gal/gal.h",
+        "include/gal/gal_display_options.h",
+        "include/gal_display_options_common.h",
+        "include/gr_basic.h",
+        "include/gr_text.h",
+        "include/hotkeys_basic.h",
+        "include/i18n_utility.h",
+        "include/inspectable.h",
+        "include/json_common.h",
+        "include/json_conversions.h",
+        "include/jumper_group.h",
+        "include/ki_any.h",
+        "include/ki_error.h",
+        "include/ki_exception.h",
+        "include/kicommon.h",
+        "include/kiid.h",
+        "include/kiway_holder.h",
+        "include/kiway_player.h",
+        "include/layer_ids.h",
+        "include/lib_id.h",
+        "include/lib_tree_item.h",
+        "include/libeval_compiler/libeval_compiler.h",
+        "include/libraries/library_table.h",
+        "include/lseq.h",
+        "include/lset.h",
+        "include/macros.h",
+        "include/marker_base.h",
+        "include/mouse_drag_action.h",
+        "include/netclass.h",
+        "include/origin_transforms.h",
+        "include/page_info.h",
+        "include/pcb_base_frame.h",
+        "include/pcb_display_options.h",
+        "include/pcb_screen.h",
+        "include/plotters/plotter.h",
+        "include/project.h",
+        "include/project/board_project_settings.h",
+        "include/properties/color4d_variant.h",
+        "include/properties/eda_angle_variant.h",
+        "include/properties/property.h",
+        "include/properties/property_validator.h",
+        "include/properties/std_optional_variants.h",
+        "include/rc_item.h",
+        "include/render_settings.h",
+        "include/reporter.h",
+        "include/rhi/frame_packet.h",
+        "include/rhi/rhi_handle.h",
+        "include/rhi/rhi_surface.h",
+        "include/rhi/rhi_texture.h",
+        "include/scoped_set_reset.h",
+        "include/settings/json_settings.h",
+        "include/settings/nested_settings.h",
+        "include/string_any_map.h",
+        "include/stroke_params.h",
+        "include/template_fieldnames.h",
+        "include/text_var_dependency.h",
+        "include/thread_pool.h",
+        "include/title_block.h",
+        "include/tool/arc_draw_mode.h",
+        "include/tool/selection.h",
+        "include/tool/tool_action.h",
+        "include/tool/tool_event.h",
+        "include/tool/tools_holder.h",
+        "include/ui_events.h",
+        "include/undo_redo_container.h",
+        "include/units_provider.h",
+        "include/view/automatic_fit.h",
+        "include/view/view.h",
+        "include/view/view_group.h",
+        "include/view/view_item.h",
+        "include/view/view_overlay.h",
+        "include/widgets/msgpanel.h",
+        "include/widgets/report_severity.h",
+        "include/widgets/ui_common.h",
+        "include/widgets/wx_infobar_message_type.h",
+        "include/wildcards_and_files_ext.h",
+        "include/wx_filename.h",
+        "libs/core/include/core/arraydim.h",
+        "libs/core/include/core/kicad_algo.h",
+        "libs/core/include/core/minoptmax.h",
+        "libs/core/include/core/observable.h",
+        "libs/core/include/core/spinlock.h",
+        "libs/core/include/core/utf8.h",
+        "libs/core/include/core/wx_stl_compat.h",
+        "libs/kimath/include/geometry/approximation.h",
+        "libs/kimath/include/geometry/circle.h",
+        "libs/kimath/include/geometry/corner_strategy.h",
+        "libs/kimath/include/geometry/direction45.h",
+        "libs/kimath/include/geometry/eda_angle.h",
+        "libs/kimath/include/geometry/geometry_utils.h",
+        "libs/kimath/include/geometry/rtree/dynamic_rtree.h",
+        "libs/kimath/include/geometry/rtree/dynamic_rtree_cow.h",
+        "libs/kimath/include/geometry/rtree/rtree_node.h",
+        "libs/kimath/include/geometry/seg.h",
+        "libs/kimath/include/geometry/shape.h",
+        "libs/kimath/include/geometry/shape_arc.h",
+        "libs/kimath/include/geometry/shape_circle.h",
+        "libs/kimath/include/geometry/shape_compound.h",
+        "libs/kimath/include/geometry/shape_index.h",
+        "libs/kimath/include/geometry/shape_line_chain.h",
+        "libs/kimath/include/geometry/shape_poly_set.h",
+        "libs/kimath/include/geometry/shape_rect.h",
+        "libs/kimath/include/geometry/shape_segment.h",
+        "libs/kimath/include/geometry/shape_simple.h",
+        "libs/kimath/include/geometry/transform_trs.h",
+        "libs/kimath/include/hash.h",
+        "libs/kimath/include/hash_128.h",
+        "libs/kimath/include/math/box2.h",
+        "libs/kimath/include/math/util.h",
+        "libs/kimath/include/math/vector2d.h",
+        "libs/kimath/include/math/vector3.h",
+        "libs/kimath/include/trigo.h",
+        "pcbnew/board.h",
+        "pcbnew/board_commit.h",
+        "pcbnew/board_connected_item.h",
+        "pcbnew/board_item_container.h",
+        "pcbnew/board_item_index.h",
+        "pcbnew/board_stackup_manager/board_stackup.h",
+        "pcbnew/board_tables/generated_table_schema.h",
+        "pcbnew/connectivity/connectivity_data.h",
+        "pcbnew/constraints/pcb_constraint.h",
+        "pcbnew/convert_shape_list_to_polygon.h",
+        "pcbnew/drc/drc_constraint_types.h",
+        "pcbnew/drc/drc_engine.h",
+        "pcbnew/drc/drc_item.h",
+        "pcbnew/drc/drc_rule.h",
+        "pcbnew/drill/drill_chart_model.h",
+        "pcbnew/drill/drill_chart_template.h",
+        "pcbnew/drill/drill_operation.h",
+        "pcbnew/drill/drill_span.h",
+        "pcbnew/drill/drill_symbol_assigner.h",
+        "pcbnew/drill/drill_symbol_profile.h",
+        "pcbnew/footprint.h",
+        "pcbnew/generators/pcb_tuning_pattern.h",
+        "pcbnew/generators/pcb_via_stack.h",
+        "pcbnew/generators/pcb_via_stitch.h",
+        "pcbnew/generators_mgr.h",
+        "pcbnew/netinfo.h",
+        "pcbnew/padstack.h",
+        "pcbnew/pcb_base_edit_frame.h",
+        "pcbnew/pcb_dimension.h",
+        "pcbnew/pcb_draw_panel_gal.h",
+        "pcbnew/pcb_field.h",
+        "pcbnew/pcb_generator.h",
+        "pcbnew/pcb_group.h",
+        "pcbnew/pcb_item_containers.h",
+        "pcbnew/pcb_origin_transforms.h",
+        "pcbnew/pcb_plot_params.h",
+        "pcbnew/pcb_text.h",
+        "pcbnew/pcb_track.h",
+        "pcbnew/pcb_track_types.h",
+        "pcbnew/pcb_view.h",
+        "pcbnew/plotprint_opts.h",
+        "pcbnew/router/pns_algo_base.h",
+        "pcbnew/router/pns_hole.h",
+        "pcbnew/router/pns_item.h",
+        "pcbnew/router/pns_itemset.h",
+        "pcbnew/router/pns_joint.h",
+        "pcbnew/router/pns_layerset.h",
+        "pcbnew/router/pns_line.h",
+        "pcbnew/router/pns_link_holder.h",
+        "pcbnew/router/pns_linked_item.h",
+        "pcbnew/router/pns_meander.h",
+        "pcbnew/router/pns_meander_placer_base.h",
+        "pcbnew/router/pns_node.h",
+        "pcbnew/router/pns_placement_algo.h",
+        "pcbnew/router/pns_router.h",
+        "pcbnew/router/pns_routing_settings.h",
+        "pcbnew/router/pns_segment.h",
+        "pcbnew/router/pns_sizes_settings.h",
+        "pcbnew/router/pns_via.h",
+        "pcbnew/router/time_limit.h",
+        "pcbnew/sharded_cache.h",
+        "pcbnew/teardrop/teardrop_parameters.h",
+        "pcbnew/teardrop/teardrop_types.h",
+        "pcbnew/zone.h",
+        "pcbnew/zone_settings.h",
+        "pcbnew/zones.h",
+        "thirdparty/clipper2/Clipper2Lib/include/clipper2/clipper.core.h",
+        "thirdparty/clipper2/Clipper2Lib/include/clipper2/clipper.engine.h",
+        "thirdparty/clipper2/Clipper2Lib/include/clipper2/clipper.h",
+        "thirdparty/clipper2/Clipper2Lib/include/clipper2/clipper.minkowski.h",
+        "thirdparty/clipper2/Clipper2Lib/include/clipper2/clipper.offset.h",
+        "thirdparty/clipper2/Clipper2Lib/include/clipper2/clipper.rectclip.h",
+        "thirdparty/clipper2/Clipper2Lib/include/clipper2/clipper.triangulation.h",
+        "thirdparty/clipper2/Clipper2Lib/include/clipper2/clipper.version.h",
+        "thirdparty/dynamic_bitset/dynamic_bitset.h",
+        "thirdparty/expected/include/tl/expected.hpp",
+        "thirdparty/libpopcnt/libpopcnt.h",
+        "thirdparty/nlohmann_json/nlohmann/detail/abi_macros.hpp",
+        "thirdparty/nlohmann_json/nlohmann/json.hpp",
+        "thirdparty/nlohmann_json/nlohmann/json_fwd.hpp",
+        "thirdparty/thread-pool/bs_thread_pool.hpp"
+      ],
+      "source_sha256": "727a57107e3eb7a1b668c9f73acf9473501f443bb101a42267995f4464da8a67",
+      "status": "parse-error"
+    },
+    {
+      "category": "tracked-source",
+      "command_sha256": "e14223a171e686541953d82f24dfb27b8f0cb25910633c881e08a1e2b10432e0",
+      "diagnostics": [
+        {
+          "message": "error: unknown argument: '-fmodules-ts'",
+          "severity": 3
+        },
+        {
+          "message": "error: unknown argument: '-fmodule-mapper=thirdparty/fmt/CMakeFiles/fmt-c.dir/src/fmt-c.cc.o.modmap'",
+          "severity": 3
+        },
+        {
+          "message": "error: unknown argument: '-fdeps-format=p1689r5'",
+          "severity": 3
+        }
+      ],
+      "file": "thirdparty/fmt/src/fmt-c.cc",
+      "function_count": 286,
+      "includes": [
+        "thirdparty/fmt/include/fmt/base.h",
+        "thirdparty/fmt/include/fmt/fmt-c.h"
+      ],
+      "source_sha256": "520b441d5f02f78a7d3d2f704f8479d4a0b3ef4adb4552ff8680edf88ad2da4a",
+      "status": "parse-error"
+    },
+    {
+      "category": "tracked-source",
+      "command_sha256": "6d489c82dde55b9b4946e55c183da744ee6ee4b0dd76c11cdfaba072b7a37afc",
+      "diagnostics": [
+        {
+          "message": "error: unknown argument: '-fmodules-ts'",
+          "severity": 3
+        },
+        {
+          "message": "error: unknown argument: '-fmodule-mapper=thirdparty/fmt/CMakeFiles/fmt-module.dir/src/fmt.cc.o.modmap'",
+          "severity": 3
+        },
+        {
+          "message": "error: unknown argument: '-fdeps-format=p1689r5'",
+          "severity": 3
+        }
+      ],
+      "file": "thirdparty/fmt/src/fmt.cc",
+      "function_count": 681,
+      "includes": [
+        "thirdparty/fmt/include/fmt/args.h",
+        "thirdparty/fmt/include/fmt/base.h",
+        "thirdparty/fmt/include/fmt/chrono.h",
+        "thirdparty/fmt/include/fmt/color.h",
+        "thirdparty/fmt/include/fmt/compile.h",
+        "thirdparty/fmt/include/fmt/format-inl.h",
+        "thirdparty/fmt/include/fmt/format.h",
+        "thirdparty/fmt/include/fmt/os.h",
+        "thirdparty/fmt/include/fmt/ostream.h",
+        "thirdparty/fmt/include/fmt/printf.h",
+        "thirdparty/fmt/include/fmt/ranges.h",
+        "thirdparty/fmt/include/fmt/std.h",
+        "thirdparty/fmt/include/fmt/xchar.h",
+        "thirdparty/fmt/src/format.cc",
+        "thirdparty/fmt/src/os.cc"
+      ],
+      "source_sha256": "3d1cc876bc65298de1fe3c73cad95f0bef2153068d82696a98210253a4b779f5",
+      "status": "parse-error"
+    },
+    {
+      "category": "tracked-source",
+      "command_sha256": "b5e7b5a61a4d24f7a68370da12c73f40e3e8ef97733ba8487a7d349c17df9f4a",
+      "diagnostics": [
+        {
+          "message": "error: unknown argument: '-fmodules-ts'",
+          "severity": 3
+        },
+        {
+          "message": "error: unknown argument: '-fmodule-mapper=thirdparty/fmt/CMakeFiles/fmt.dir/src/format.cc.o.modmap'",
+          "severity": 3
+        },
+        {
+          "message": "error: unknown argument: '-fdeps-format=p1689r5'",
+          "severity": 3
+        }
+      ],
+      "file": "thirdparty/fmt/src/format.cc",
+      "function_count": 703,
+      "includes": [
+        "thirdparty/fmt/include/fmt/base.h",
+        "thirdparty/fmt/include/fmt/format-inl.h",
+        "thirdparty/fmt/include/fmt/format.h"
+      ],
+      "source_sha256": "d40f9d9069904926d1f3e18913fe62eaafdfeebd141ed6707ec169780fe912cc",
+      "status": "parse-error"
+    },
+    {
+      "category": "tracked-source",
+      "command_sha256": "87494bacbb258a06f45289aa3e458de2dda67ebb595b168a68b7dc77ba25e014",
+      "diagnostics": [
+        {
+          "message": "error: unknown argument: '-fmodules-ts'",
+          "severity": 3
+        },
+        {
+          "message": "error: unknown argument: '-fmodule-mapper=thirdparty/fmt/CMakeFiles/fmt.dir/src/os.cc.o.modmap'",
+          "severity": 3
+        },
+        {
+          "message": "error: unknown argument: '-fdeps-format=p1689r5'",
+          "severity": 3
+        }
+      ],
+      "file": "thirdparty/fmt/src/os.cc",
+      "function_count": 654,
+      "includes": [
+        "thirdparty/fmt/include/fmt/base.h",
+        "thirdparty/fmt/include/fmt/format.h",
+        "thirdparty/fmt/include/fmt/os.h"
+      ],
+      "source_sha256": "7a8f6915126bff32f21ba4db42519c53003e6c7885f5ba11b13b6aa993c68b4f",
+      "status": "parse-error"
+    }
+  ],
+  "override_relationships": 10530,
+  "parsed_ok": 2462,
+  "recorded_statuses": {
+    "extract-error": 1,
+    "ok": 2462,
+    "parse-error": 5,
+    "stale-excluded": 3
+  },
+  "source_files": 9401,
+  "source_inventory_sha256": "da0820c028bc23f338b6a6256e38dc984bd79f323f02737b93e7e5e499d57a2f",
+  "source_lines_by_category": {
+    "application": 1836426,
+    "generated": 109935,
+    "qa": 340033,
+    "thirdparty": 1059199
+  },
+  "source_lines_by_category_and_coverage": {
+    "application": {
+      "command-only": 2867,
+      "parsed": 1716255,
+      "uncompiled": 117304
+    },
+    "generated": {
+      "parsed": 107622,
+      "uncompiled": 2313
+    },
+    "qa": {
+      "uncompiled": 340033
+    },
+    "thirdparty": {
+      "command-only": 668,
+      "parsed": 450903,
+      "uncompiled": 607628
+    }
+  },
+  "source_manifest_sha256": "9fd04872118352d8ba6e54bb6c799a3087c2a0bf4d681dbb7afce07b7464eca9",
+  "stale_deleted_excluded": [
+    {
+      "classification": "stale-deleted/excluded",
+      "diagnostics": [
+        {
+          "message": "TranslationUnitLoadError('Error parsing translation unit.')",
+          "severity": 4
+        }
+      ],
+      "file": "common/dialogs/rule_editor_dialog_base.cpp",
+      "recorded_status": "extract-error"
+    },
+    {
+      "classification": "stale-deleted/excluded",
+      "diagnostics": [
+        {
+          "message": "Source proven deleted by pinned manifest and CMake reconciliation; not parsed",
+          "severity": 0
+        }
+      ],
+      "file": "pcbnew/drc/rule_editor/dialog_drc_rule_editor.cpp",
+      "recorded_status": "stale-excluded"
+    },
+    {
+      "classification": "stale-deleted/excluded",
+      "diagnostics": [
+        {
+          "message": "Source proven deleted by pinned manifest and CMake reconciliation; not parsed",
+          "severity": 0
+        }
+      ],
+      "file": "pcbnew/drc/rule_editor/panel_drc_group_header.cpp",
+      "recorded_status": "stale-excluded"
+    },
+    {
+      "classification": "stale-deleted/excluded",
+      "diagnostics": [
+        {
+          "message": "Source proven deleted by pinned manifest and CMake reconciliation; not parsed",
+          "severity": 0
+        }
+      ],
+      "file": "pcbnew/tools/drc_rule_editor_tool.cpp",
+      "recorded_status": "stale-excluded"
+    }
+  ],
+  "template_aliases": 0,
+  "uncompiled_application_sources": [
+    "3d-viewer/3d_navlib/nl_3d_viewer_plugin.cpp",
+    "3d-viewer/3d_navlib/nl_3d_viewer_plugin_impl.cpp",
+    "3d-viewer/3d_navlib/nl_footprint_properties_plugin.cpp",
+    "3d-viewer/3d_navlib/nl_footprint_properties_plugin_impl.cpp",
+    "3d-viewer/dialogs/model_preview_manager_windows.cpp",
+    "3d-viewer/dialogs/native_model_file_picker_windows.cpp",
+    "common/database/ace_backend.cpp",
+    "common/dialogs/git/dialog_git_progress.cpp",
+    "common/dialogs/panel_data_collection.cpp",
+    "common/dialogs/panel_data_collection_base.cpp",
+    "common/git/kigit_author.cpp",
+    "common/git/kigit_ignore.cpp",
+    "common/git/kigit_lock_retry.cpp",
+    "common/git/kigit_platform.cpp",
+    "common/git/kigit_platform_install.cpp",
+    "common/git/kigit_remote_url.cpp",
+    "common/git/libgit_backend_history.cpp",
+    "common/git/libgit_backend_refs.cpp",
+    "common/git/project_git_hash.cpp",
+    "common/jobs/job_export_pcb_hyperlynx.cpp",
+    "common/r_divider_solver.cpp",
+    "common/rhi/rhi_metal_device.mm",
+    "common/rhi/rhi_metal_view.mm",
+    "common/spacemouse.cpp",
+    "common/streamwrapper.cpp",
+    "common/widgets/grid_striped_renderer.cpp",
+    "common/widgets/kistatusbar_popup.cpp",
+    "eeschema/multiline_pin_text.cpp",
+    "eeschema/sim/sim_signal_utils.cpp",
+    "include/tool/examples/delegate_example.cpp",
+    "kicad/cli/command_pcb_export_hyperlynx.cpp",
+    "libs/kiplatform/os/apple/app.mm",
+    "libs/kiplatform/os/apple/drivers.mm",
+    "libs/kiplatform/os/apple/environment.mm",
+    "libs/kiplatform/os/apple/io.mm",
+    "libs/kiplatform/os/apple/policy.mm",
+    "libs/kiplatform/os/apple/printing.mm",
+    "libs/kiplatform/os/apple/secrets.mm",
+    "libs/kiplatform/os/apple/sysinfo.cpp",
+    "libs/kiplatform/os/windows/app.cpp",
+    "libs/kiplatform/os/windows/drivers.cpp",
+    "libs/kiplatform/os/windows/environment.cpp",
+    "libs/kiplatform/os/windows/io.cpp",
+    "libs/kiplatform/os/windows/policy.cpp",
+    "libs/kiplatform/os/windows/printing.cpp",
+    "libs/kiplatform/os/windows/secrets.cpp",
+    "libs/kiplatform/os/windows/sysinfo.cpp",
+    "libs/kiplatform/port/wxmsw/touchpad.cpp",
+    "libs/kiplatform/port/wxmsw/ui.cpp",
+    "libs/kiplatform/port/wxmsw/webview.cpp",
+    "libs/kiplatform/port/wxosx/touchpad.mm",
+    "libs/kiplatform/port/wxosx/ui.mm",
+    "libs/kiplatform/port/wxosx/webview.mm",
+    "pcb_calculator/calculator_panels/panel_r_divider.cpp",
+    "pcb_calculator/calculator_panels/panel_r_divider_base.cpp",
+    "pcbnew/api/api_pcb_enums.cpp",
+    "pcbnew/board_bounding_box.cpp",
+    "pcbnew/dialogs/constraint_rules_list.cpp",
+    "pcbnew/dialogs/constraint_rules_list_base.cpp",
+    "pcbnew/dialogs/dialog_produce_pcb_base.cpp",
+    "pcbnew/dialogs/panel_project_defaults.cpp",
+    "pcbnew/dialogs/panel_project_defaults_base.cpp",
+    "pcbnew/dialogs/panel_setup_constraint_rules.cpp",
+    "pcbnew/drc/rule_editor/drc_rule_document.cpp",
+    "pcbnew/edit.cpp",
+    "pcbnew/navlib/nl_pcbnew_plugin.cpp",
+    "pcbnew/navlib/nl_pcbnew_plugin_impl.cpp",
+    "pcbnew/netlist_reader/pcb_component.cpp",
+    "pcbnew/specctra_import_export/specctra_test.cpp",
+    "pcbnew/undo_group_state.cpp",
+    "tools/gal_bitmap_font/bitmap_font_2048_0_img.c",
+    "tools/gal_bitmap_font/bitmap_font_2048_desc.c",
+    "tools/gal_bitmap_font/bitmap_font_desc.c",
+    "tools/gal_bitmap_font/bitmap_font_img.c",
+    "tools/gal_bitmap_font/hiero_desc.c",
+    "tools/gal_bitmap_font/hiero_img.c",
+    "tools/newstroke/font_header.cpp",
+    "utils/preview_handlers/kicad_3d_model_preview_handler/dllmain.cpp",
+    "utils/preview_handlers/kicad_3d_model_preview_handler/kicad_3d_model_to_occ.cpp",
+    "utils/preview_handlers/kicad_3d_model_preview_handler/kicad_3d_preview_class_factory.cpp",
+    "utils/preview_handlers/kicad_3d_model_preview_handler/kicad_3d_preview_handler.cpp",
+    "utils/preview_handlers/kicad_3d_model_preview_handler/kicad_3d_preview_register.cpp",
+    "utils/quicklook/Preview/kiql_preview_view_controller.mm",
+    "utils/quicklook/Thumbnail/kiql_thumbnail_provider.mm",
+    "utils/quicklook/kiql_import_queue.mm",
+    "utils/quicklook/kiql_model_scene.mm",
+    "utils/quicklook/kiql_preview_view.mm"
+  ],
+  "unresolved_call_sites": 5216898
+}
