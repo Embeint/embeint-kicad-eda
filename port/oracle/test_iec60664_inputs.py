@@ -215,10 +215,9 @@ def reserved_key_refusals():
     """Ordinary objects whose keys match serde_json's private marker names.
 
     The pinned C++ adapter treats them as plain objects, so a value field holding
-    one is not a number and an identity holding one is not a string. These raw
-    literals are checked against the oracle now. The Rust request helper still
-    decodes the markers, so the Rust process is held to them only with
-    --include-pending-reserved, once the shared parser fix is adopted.
+    one is not a number and an identity holding one is not a string. Both real
+    processes must give these complete envelopes; the shared Rust request helper
+    builds user objects directly instead of through serde_json's marker decoding.
     """
     items = []
     number = "$serde_json::private::Number"
@@ -343,10 +342,8 @@ def main():
     parser.add_argument("oracle", type=Path, nargs="?")
     parser.add_argument("rust", type=Path, nargs="?")
     parser.add_argument("--write-fixtures", action="store_true")
-    parser.add_argument("--include-pending-reserved", action="store_true",
-                        help="also hold the Rust process to the reserved-key fixtures")
     args = parser.parse_args()
-    sets = []
+    fixtures = []
     # The original 106-envelope contract stays byte-identical; later sets are separate.
     for path, generated in ((FIXTURES, refusals()), (NESTING_FIXTURES, nesting_refusals()),
                             (RESERVED_FIXTURES, reserved_key_refusals())):
@@ -355,20 +352,11 @@ def main():
                             encoding="utf-8", newline="\n")
         stored = [json.loads(line) for line in path.read_text(encoding="utf-8").split("\n") if line]
         assert stored == generated, "regenerate the shared input contract with --write-fixtures"
-        sets.append(stored)
-    fixtures = sets[0] + sets[1]
-    reserved = sets[2]
+        fixtures += stored
     if args.oracle is not None:
-        # The C++ reference must already satisfy every set, including reserved keys.
-        actual = check(args.oracle.resolve(), fixtures + reserved)
+        actual = check(args.oracle.resolve(), fixtures)
         if args.rust is not None:
-            if args.include_pending_reserved:
-                assert check(args.rust.resolve(), fixtures + reserved) == actual
-            else:
-                # Pending the shared parser fix: compare everything except reserved keys.
-                rust = check(args.rust.resolve(), fixtures)
-                assert rust[:len(fixtures)] == actual[:len(fixtures)]
-                assert rust[len(fixtures):] == actual[len(fixtures) + len(reserved):]
+            assert check(args.rust.resolve(), fixtures) == actual
     elif not args.write_fixtures:
         parser.error("provide an oracle executable or --write-fixtures")
 

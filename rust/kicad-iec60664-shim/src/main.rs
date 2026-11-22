@@ -353,10 +353,7 @@ mod tests {
         Ok(())
     }
 
-    // The shared request helper still decodes serde_json's private Number/RawValue
-    // marker keys; this runs once the common parser fix is adopted.
     #[test]
-    #[ignore = "pending the shared request parser reserved-key fix"]
     fn reserved_marker_keys_match_the_shared_oracle_contract(
     ) -> Result<(), Box<dyn std::error::Error>> {
         for line in include_str!("../../../port/oracle/iec60664-reserved-key-guards.jsonl").lines()
@@ -364,6 +361,93 @@ mod tests {
             let fixture: serde_json::Value = serde_json::from_str(line)?;
             let wire = fixture["wire"].as_str().ok_or("missing fixture wire")?;
             assert_eq!(dispatch(wire), fixture["expected"], "request: {wire}");
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn reserved_marker_keys_stay_ordinary_objects_with_their_strings(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use kicad_difftest::request;
+        use serde_json::{Map, Value};
+
+        let marker = |key: &str, content: &str| {
+            Value::Object(Map::from_iter([(
+                key.to_owned(),
+                Value::String(content.to_owned()),
+            )]))
+        };
+        let wrap = |key: &str, content: &str| format!(r#"{{{}:{}}}"#, json!(key), json!(content));
+        let number = "$serde_json::private::Number";
+        let raw = "$serde_json::private::RawValue";
+        // Contents that the markers would otherwise decode as a number, a JSON string,
+        // a request object, an array or invalid JSON, plus escapes that must decode once.
+        let contents = [
+            "0",
+            "18446744073709551615",
+            "1e1000",
+            "abc",
+            r#""state""#,
+            r#"{"unit":"u","case":"c","input":{}}"#,
+            "[1,2]",
+            "[",
+            "\u{e9}\\\"",
+            "",
+        ];
+        for key in [number, raw] {
+            for content in contents {
+                let m = wrap(key, content);
+                let state = r#"[{"op":"state"}]"#;
+                let shapes = [
+                    (m.clone(), ""),
+                    (
+                        format!(r#"{{"unit":"{UNIT}","case":"c","input":{m}}}"#),
+                        "/input",
+                    ),
+                    (
+                        format!(r#"{{"unit":{m},"case":"c","input":{{}}}}"#),
+                        "/unit",
+                    ),
+                    (
+                        format!(r#"{{"unit":"{UNIT}","case":{m},"input":{{}}}}"#),
+                        "/case",
+                    ),
+                    (
+                        format!(r#"{{"unit":"{UNIT}","case":"c","input":{{"steps":[{m}]}}}}"#),
+                        "/input/steps/0",
+                    ),
+                    (
+                        format!(
+                            r#"{{"unit":"{UNIT}","case":"c","input":{{"steps":[{{"op":"set","field":"altitude","value":{m}}}]}}}}"#
+                        ),
+                        "/input/steps/0/value",
+                    ),
+                    (
+                        format!(
+                            r#"{{"unit":"{UNIT}","case":"c","input":{{"steps":{state},"extra":[0,{m},[{m}]]}}}}"#
+                        ),
+                        "/input/extra/1",
+                    ),
+                    (
+                        format!(
+                            r#"{{"unit":"{UNIT}","case":"c","input":{{"steps":{state},"extra":[0,{m},[{m}]]}}}}"#
+                        ),
+                        "/input/extra/2/0",
+                    ),
+                ];
+                for (wire, pointer) in shapes {
+                    let value = request::parse(&wire)?;
+                    assert_eq!(
+                        value.pointer(pointer),
+                        Some(&marker(key, content)),
+                        "{wire}"
+                    );
+                    assert!(dispatch(&wire).get("result").is_none(), "{wire}");
+                }
+            }
+            // Escaped key spellings decode to the same ordinary object.
+            let escaped = format!(r#"{{"\u0024{}":"0"}}"#, &key[1..]);
+            assert_eq!(request::parse(&escaped)?, marker(key, "0"));
         }
         Ok(())
     }
