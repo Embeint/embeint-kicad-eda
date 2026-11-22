@@ -1,0 +1,32 @@
+{
+  "tested_source": "1b42b8368eaf369102b8fc2f58a8af3428eb6a66",
+  "corrected_dependency": "19035296e129cf8640e89331bc9e8ad84f0fe38c",
+  "rust_dependency": "4c6c1e38ce2dead8db8a3193e7525d19532523e9",
+  "collector_fix": "1dd31a7493189ca694bc09020a3a84bf9fb6082e",
+  "case_count": 1050,
+  "cases_sha256": "58dd1186c9f10c8efb54bc90102c71508c8e852c0b8c08d437380b112fe3c597",
+  "golden_sha256": "8d1cc9e8c280b349294f9d512e450586c892a3170881afbba1c1b78de1a107a2",
+  "oracle_sha256": "582917dab13b99729a2ef15d47c72e396630a2045ad50b23c6fb109226ca801e",
+  "rust_debug_sha256": "cc9b410fcb8a0463f8acc5fb5825459b7e882b51737c79cae3b73946ff3e0862",
+  "rust_release_sha256": "61fa3cd93085f9f85aa5becabdc41d7a6a1a14c1bb6235acbca96b96a59d0c11",
+  "oracle_provenance_sha256": "806dfb23aef6071f7a8c96a21706406a96c618c839c745d237d49dc28da4ae13",
+  "status": "claimed; draft; final graph review and parent acceptance pending",
+  "compiler_qualification": "GCC 13/15 Release x86-64; GCC O0 and Clang18 NaN payload equivalence not claimed",
+  "goldens_reblessed": false,
+  "workspace_tests": 112,
+  "workspace_failures": 0,
+  "workspace_ignored": 0,
+  "complete_native_envelopes": 71,
+  "ctests": 4,
+  "audited_compilations": 70,
+  "reference_files": 913,
+  "source_manifest_sha256": "d659ab9c1b319f85a4fc6d2eb3e15b78bfce96a6b75eda7511bdc1cf34e6dfb1",
+  "compilers": {
+    "/usr/bin/g++": "g++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0\nCopyright (C) 2025 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+  },
+  "floating_point": {
+    "contract": "off",
+    "fast_math": false
+  },
+  "integration_log_sha256": "f48855f73a84280f9e4a2b1af7bc851b0218d9eddae60f8e7131a2bc840a94b0"
+}

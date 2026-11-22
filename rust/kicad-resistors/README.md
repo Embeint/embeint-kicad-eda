@@ -235,7 +235,17 @@ bytes/results and both historical evidence files remain unchanged. See
 for all five review fixes, executable identities, timings and coverage limits.
 Fresh complete evidence records the standard live `propose`/`bless`/`check`
 sequence against an absent base golden. This parity evidence leaves the unit
-claimed and corrected #39 ownership pending; phase zero remains incomplete.
+claimed; phase zero remains incomplete.
+
+Corrected-scope integration at clean source
+`1b42b8368eaf369102b8fc2f58a8af3428eb6a66` passed 112 workspace tests, four
+actual oracle CTests (including the parent collector-target refusal fix), 71
+complete native envelopes, all 1,050 registered live cases, portable wasm builds
+and the corrected 1,801-record source validator. No case, golden or historical
+evidence byte changed and no reblessing was needed. Fresh source/provenance and
+executable identities are in
+[`resistors-corrected-integration-19035296e1.md`](../../port/findings/resistors-corrected-integration-19035296e1.md).
+Final independent #39 review and parent graph acceptance remain holds.
 
 ## Dependencies and licences
 
