@@ -357,4 +357,228 @@ mod tests {
             }
         }
     }
+
+    // Expected replies are the actual C++ oracle's complete replies to these
+    // literal requests (port/oracle/test_md5_inputs.py runs both adapters).
+    /// Request wire text, expected unit, case, error kind and message.
+    type Retained = (
+        &'static str,
+        Option<&'static str>,
+        Option<&'static str>,
+        &'static str,
+        &'static str,
+    );
+
+    const RESERVED_KEY_RETAINED: [Retained; 14] = [
+        (
+            r#"{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"$serde_json::private::Number:data","input":{"steps":[{"op":"new","id":0},{"op":"bytes","id":0,"data":[{"$serde_json::private::Number":"0"}]},{"op":"finalize","id":0}]}}"#,
+            Some(UNIT),
+            Some("$serde_json::private::Number:data"),
+            "invalid_input",
+            "byte out of range",
+        ),
+        (
+            r#"{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"$serde_json::private::Number:id","input":{"steps":[{"op":"new","id":{"$serde_json::private::Number":"0"}}]}}"#,
+            Some(UNIT),
+            Some("$serde_json::private::Number:id"),
+            "invalid_input",
+            "integer out of range: id",
+        ),
+        (
+            r#"{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"$serde_json::private::Number:op","input":{"steps":[{"op":{"$serde_json::private::Number":"\"new\""},"id":0}]}}"#,
+            Some(UNIT),
+            Some("$serde_json::private::Number:op"),
+            "invalid_input",
+            "expected op string",
+        ),
+        (
+            r#"{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"$serde_json::private::Number:steps","input":{"steps":{"$serde_json::private::Number":"[{\"op\":\"new\",\"id\":0}]"}}}"#,
+            Some(UNIT),
+            Some("$serde_json::private::Number:steps"),
+            "invalid_input",
+            "expected steps array",
+        ),
+        (
+            r#"{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"$serde_json::private::Number:input","input":{"$serde_json::private::Number":"{\"steps\":[{\"op\":\"new\",\"id\":0}]}"}}"#,
+            Some(UNIT),
+            Some("$serde_json::private::Number:input"),
+            "invalid_input",
+            "unexpected or missing field",
+        ),
+        (
+            r#"{"unit":{"$serde_json::private::Number":"\"libs.kimath.src.md5_hash.application.pure.p001\""},"case":"$serde_json::private::Number:unit","input":{"steps":[{"op":"new","id":0},{"op":"bytes","id":0,"data":[{"$serde_json::private::Number":"0"}]},{"op":"finalize","id":0}]}}"#,
+            None,
+            Some("$serde_json::private::Number:unit"),
+            "invalid_request",
+            "expected unit, case, input object",
+        ),
+        (
+            r#"{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":{"$serde_json::private::Number":"\"coerced\""},"input":{"steps":[{"op":"new","id":0},{"op":"bytes","id":0,"data":[{"$serde_json::private::Number":"0"}]},{"op":"finalize","id":0}]}}"#,
+            Some(UNIT),
+            None,
+            "invalid_request",
+            "expected unit, case, input object",
+        ),
+        (
+            r#"{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"$serde_json::private::RawValue:data","input":{"steps":[{"op":"new","id":0},{"op":"bytes","id":0,"data":[{"$serde_json::private::RawValue":"0"}]},{"op":"finalize","id":0}]}}"#,
+            Some(UNIT),
+            Some("$serde_json::private::RawValue:data"),
+            "invalid_input",
+            "byte out of range",
+        ),
+        (
+            r#"{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"$serde_json::private::RawValue:id","input":{"steps":[{"op":"new","id":{"$serde_json::private::RawValue":"0"}}]}}"#,
+            Some(UNIT),
+            Some("$serde_json::private::RawValue:id"),
+            "invalid_input",
+            "integer out of range: id",
+        ),
+        (
+            r#"{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"$serde_json::private::RawValue:op","input":{"steps":[{"op":{"$serde_json::private::RawValue":"\"new\""},"id":0}]}}"#,
+            Some(UNIT),
+            Some("$serde_json::private::RawValue:op"),
+            "invalid_input",
+            "expected op string",
+        ),
+        (
+            r#"{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"$serde_json::private::RawValue:steps","input":{"steps":{"$serde_json::private::RawValue":"[{\"op\":\"new\",\"id\":0}]"}}}"#,
+            Some(UNIT),
+            Some("$serde_json::private::RawValue:steps"),
+            "invalid_input",
+            "expected steps array",
+        ),
+        (
+            r#"{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"$serde_json::private::RawValue:input","input":{"$serde_json::private::RawValue":"{\"steps\":[{\"op\":\"new\",\"id\":0}]}"}}"#,
+            Some(UNIT),
+            Some("$serde_json::private::RawValue:input"),
+            "invalid_input",
+            "unexpected or missing field",
+        ),
+        (
+            r#"{"unit":{"$serde_json::private::RawValue":"\"libs.kimath.src.md5_hash.application.pure.p001\""},"case":"$serde_json::private::RawValue:unit","input":{"steps":[{"op":"new","id":0},{"op":"bytes","id":0,"data":[{"$serde_json::private::RawValue":"0"}]},{"op":"finalize","id":0}]}}"#,
+            None,
+            Some("$serde_json::private::RawValue:unit"),
+            "invalid_request",
+            "expected unit, case, input object",
+        ),
+        (
+            r#"{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":{"$serde_json::private::RawValue":"\"coerced\""},"input":{"steps":[{"op":"new","id":0},{"op":"bytes","id":0,"data":[{"$serde_json::private::RawValue":"0"}]},{"op":"finalize","id":0}]}}"#,
+            Some(UNIT),
+            None,
+            "invalid_request",
+            "expected unit, case, input object",
+        ),
+    ];
+
+    #[test]
+    fn reserved_serde_keys_stay_ordinary_objects_in_retained_requests() {
+        for (text, unit, case, kind, message) in RESERVED_KEY_RETAINED {
+            assert_eq!(
+                dispatch(text),
+                json!({"unit":unit,"case":case,"error":{"kind":kind,"message":message}}),
+                "{text}"
+            );
+        }
+    }
+
+    #[test]
+    fn reserved_serde_keys_are_refused_at_every_placement_with_state_guards() {
+        let abc = |case: &str| {
+            let zero = json!({"id":0,"valid":false,"compact":"00000000000000000000000000000000",
+                "spaced":"00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ",
+                "default":"00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 "});
+            let digest = "90 01 50 98 3D E2 4G C0 E6 96 3G 7E 28 F1 7G 72 ";
+            json!({"unit":UNIT,"case":case,"result":{"events":[zero, zero, {"id":0,"valid":true,
+                "compact":"900150983DE24GC0E6963G7E28F17G72","spaced":digest,"default":digest}]}})
+        };
+        let request = |case: &str, steps: &str| {
+            format!(r#"{{"unit":"{UNIT}","case":"{case}","input":{{"steps":{steps}}}}}"#)
+        };
+        let refused = |case: &str, message: &str| json!({"unit":UNIT,"case":case,"error":{"kind":"invalid_input","message":message}});
+        let valid = r#"[{"op":"new","id":0},{"op":"bytes","id":0,"data":[97,98,99]},{"op":"finalize","id":0}]"#;
+        assert_eq!(dispatch(&request("before", valid)), abc("before"));
+        for (steps, message) in [
+            (
+                r#"[{"op":"new","id":0},{"op":"bytes","id":0,"data":[97,{"$serde_json::private::Number":"98"},99]},{"op":"finalize","id":0}]"#,
+                "byte out of range",
+            ),
+            (
+                r#"[{"op":"new","id":0},{"op":"bytes","id":0,"data":[97,98,99]},{"op":"finalize","id":0},{"op":"bytes","id":0,"data":[{"$serde_json::private::RawValue":"0"}]}]"#,
+                "byte out of range",
+            ),
+            (
+                r#"[{"op":"new","id":0},{"$serde_json::private::Number":"{\"op\":\"finalize\",\"id\":0}"}]"#,
+                "expected op string",
+            ),
+            (
+                r#"[{"op":"new","id":0,"x":{"$serde_json::private::RawValue":"not json"}}]"#,
+                "unexpected or missing field",
+            ),
+            (
+                r#"[{"op":"new","id":0},{"op":"bytes","id":0,"data":[1],"repeat":{"$serde_json::private::Number":"1"}}]"#,
+                "integer out of range: repeat",
+            ),
+            (
+                r#"[{"op":"new","id":0},{"op":"valid","id":0,"value":{"$serde_json::private::RawValue":"true"}}]"#,
+                "expected boolean value",
+            ),
+            (
+                r#"[{"op":"new","id":{"$serde_json::private::Number":"0","$serde_json::private::RawValue":"0"}}]"#,
+                "integer out of range: id",
+            ),
+            (
+                r#"[{"op":"new","id":{"$serde_json::private::Number":"0"}}]"#,
+                "integer out of range: id",
+            ),
+            (
+                r#"[{"op":"new","id":0},{"op":"bytes","id":0,"data":[{"$serde_json::private::RawValue":"0"}]}]"#,
+                "byte out of range",
+            ),
+            (
+                r#"[{"op":"new","id":{"$serde_json::private::Number":0}}]"#,
+                "integer out of range: id",
+            ),
+            (
+                r#"[{"op":"new","id":0},{"op":"$serde_json::private::Number","id":0}]"#,
+                "unknown operation",
+            ),
+        ] {
+            let text = request("placement", steps);
+            assert_eq!(dispatch(&text), refused("placement", message), "{text}");
+            assert_eq!(dispatch(&request("after", valid)), abc("after"));
+        }
+
+        let envelope = |unit: Option<&str>, case: Option<&str>| {
+            json!({"unit":unit,"case":case,"error":{
+                "kind":"invalid_request","message":"expected unit, case, input object"}})
+        };
+        assert_eq!(
+            dispatch(r#"{"$serde_json::private::Number":"0"}"#),
+            envelope(None, None)
+        );
+        assert_eq!(
+            dispatch(
+                r#"{"$serde_json::private::RawValue":"{\"unit\":\"libs.kimath.src.md5_hash.application.pure.p001\",\"case\":\"raw-root\",\"input\":{\"steps\":[{\"op\":\"new\",\"id\":0}]}}"}"#
+            ),
+            envelope(None, None)
+        );
+        let text = format!(
+            r#"{{"unit":"{UNIT}","case":"extra","input":{{"steps":{valid}}},"extra":{{"$serde_json::private::Number":"bad"}}}}"#
+        );
+        assert_eq!(dispatch(&text), envelope(Some(UNIT), Some("extra")));
+        let text = format!(
+            r#"{{"unit":{{"$serde_json::private::RawValue":"\"{UNIT}\""}},"case":"escaped-unit","input":{{"steps":{valid}}}}}"#
+        );
+        assert_eq!(dispatch(&text), envelope(None, Some("escaped-unit")));
+        let text = request(
+            "duplicate",
+            r#"[{"op":"new","id":{"$serde_json::private::Number":"0","$serde_json::private::Number":"0"}}]"#,
+        );
+        assert_eq!(
+            dispatch(&text),
+            json!({"unit":null,"case":null,"error":{
+                "kind":"invalid_request","message":"invalid JSON or duplicate key"}})
+        );
+        assert_eq!(dispatch(&request("recovered", valid)), abc("recovered"));
+    }
 }

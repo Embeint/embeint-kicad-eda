@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Check real MD5 adapter input regressions; optionally compare the Rust adapter."""
+import hashlib
 import json
 import subprocess
 import sys
@@ -91,6 +92,158 @@ def regression_cases():
                 expected = (failure(unit, case, "invalid_request", "expected unit, case, input object") if parsed
                             else failure(None, None, "invalid_request", "invalid JSON or duplicate key"))
                 checks.append((wire, expected))
+    checks.extend(reserved_key_cases(zero))
+    return checks
+
+
+# serde_json reserves these object keys internally. User objects that contain them
+# must stay ordinary objects, as nlohmann sees them. Requests are literal wire text
+# so key spelling, JSON escapes, member order and value types are exactly as tested.
+# The first 14 are the independent review's retained reproducers, each with the
+# complete reply the actual C++ oracle returned: (wire, unit, case, kind, message).
+RESERVED_KEY_RETAINED = [
+    (r'{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"$serde_json::private::Number:data","input":{"steps":[{"op":"new","id":0},{"op":"bytes","id":0,"data":[{"$serde_json::private::Number":"0"}]},{"op":"finalize","id":0}]}}',
+     UNIT, "$serde_json::private::Number:data", "invalid_input", "byte out of range"),
+    (r'{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"$serde_json::private::Number:id","input":{"steps":[{"op":"new","id":{"$serde_json::private::Number":"0"}}]}}',
+     UNIT, "$serde_json::private::Number:id", "invalid_input", "integer out of range: id"),
+    (r'{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"$serde_json::private::Number:op","input":{"steps":[{"op":{"$serde_json::private::Number":"\"new\""},"id":0}]}}',
+     UNIT, "$serde_json::private::Number:op", "invalid_input", "expected op string"),
+    (r'{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"$serde_json::private::Number:steps","input":{"steps":{"$serde_json::private::Number":"[{\"op\":\"new\",\"id\":0}]"}}}',
+     UNIT, "$serde_json::private::Number:steps", "invalid_input", "expected steps array"),
+    (r'{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"$serde_json::private::Number:input","input":{"$serde_json::private::Number":"{\"steps\":[{\"op\":\"new\",\"id\":0}]}"}}',
+     UNIT, "$serde_json::private::Number:input", "invalid_input", "unexpected or missing field"),
+    (r'{"unit":{"$serde_json::private::Number":"\"libs.kimath.src.md5_hash.application.pure.p001\""},"case":"$serde_json::private::Number:unit","input":{"steps":[{"op":"new","id":0},{"op":"bytes","id":0,"data":[{"$serde_json::private::Number":"0"}]},{"op":"finalize","id":0}]}}',
+     None, "$serde_json::private::Number:unit", "invalid_request", "expected unit, case, input object"),
+    (r'{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":{"$serde_json::private::Number":"\"coerced\""},"input":{"steps":[{"op":"new","id":0},{"op":"bytes","id":0,"data":[{"$serde_json::private::Number":"0"}]},{"op":"finalize","id":0}]}}',
+     UNIT, None, "invalid_request", "expected unit, case, input object"),
+    (r'{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"$serde_json::private::RawValue:data","input":{"steps":[{"op":"new","id":0},{"op":"bytes","id":0,"data":[{"$serde_json::private::RawValue":"0"}]},{"op":"finalize","id":0}]}}',
+     UNIT, "$serde_json::private::RawValue:data", "invalid_input", "byte out of range"),
+    (r'{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"$serde_json::private::RawValue:id","input":{"steps":[{"op":"new","id":{"$serde_json::private::RawValue":"0"}}]}}',
+     UNIT, "$serde_json::private::RawValue:id", "invalid_input", "integer out of range: id"),
+    (r'{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"$serde_json::private::RawValue:op","input":{"steps":[{"op":{"$serde_json::private::RawValue":"\"new\""},"id":0}]}}',
+     UNIT, "$serde_json::private::RawValue:op", "invalid_input", "expected op string"),
+    (r'{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"$serde_json::private::RawValue:steps","input":{"steps":{"$serde_json::private::RawValue":"[{\"op\":\"new\",\"id\":0}]"}}}',
+     UNIT, "$serde_json::private::RawValue:steps", "invalid_input", "expected steps array"),
+    (r'{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"$serde_json::private::RawValue:input","input":{"$serde_json::private::RawValue":"{\"steps\":[{\"op\":\"new\",\"id\":0}]}"}}',
+     UNIT, "$serde_json::private::RawValue:input", "invalid_input", "unexpected or missing field"),
+    (r'{"unit":{"$serde_json::private::RawValue":"\"libs.kimath.src.md5_hash.application.pure.p001\""},"case":"$serde_json::private::RawValue:unit","input":{"steps":[{"op":"new","id":0},{"op":"bytes","id":0,"data":[{"$serde_json::private::RawValue":"0"}]},{"op":"finalize","id":0}]}}',
+     None, "$serde_json::private::RawValue:unit", "invalid_request", "expected unit, case, input object"),
+    (r'{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":{"$serde_json::private::RawValue":"\"coerced\""},"input":{"steps":[{"op":"new","id":0},{"op":"bytes","id":0,"data":[{"$serde_json::private::RawValue":"0"}]},{"op":"finalize","id":0}]}}',
+     UNIT, None, "invalid_request", "expected unit, case, input object"),
+]
+
+# (case, steps wire text, expected invalid_input message or None for the abc digest).
+RESERVED_KEY_STEPS = [
+    ("reserved-guard-before",
+     r'[{"op":"new","id":0},{"op":"bytes","id":0,"data":[97,98,99]},{"op":"finalize","id":0}]', None),
+    ("reserved-byte-between-valid",
+     r'[{"op":"new","id":0},{"op":"bytes","id":0,"data":[97,{"$serde_json::private::Number":"98"},99]},{"op":"finalize","id":0}]',
+     "byte out of range"),
+    ("reserved-byte-after-finalize",
+     r'[{"op":"new","id":0},{"op":"bytes","id":0,"data":[97,98,99]},{"op":"finalize","id":0},{"op":"bytes","id":0,"data":[{"$serde_json::private::RawValue":"0"}]}]',
+     "byte out of range"),
+    ("reserved-guard-between",
+     r'[{"op":"new","id":0},{"op":"bytes","id":0,"data":[97,98,99]},{"op":"finalize","id":0}]', None),
+    ("reserved-number-step",
+     r'[{"op":"new","id":0},{"$serde_json::private::Number":"{\"op\":\"finalize\",\"id\":0}"}]',
+     "expected op string"),
+    ("reserved-rawvalue-step",
+     r'[{"op":"new","id":0},{"$serde_json::private::RawValue":"{\"op\":\"finalize\",\"id\":0}"}]',
+     "expected op string"),
+    ("reserved-invalid-marker-step-field",
+     r'[{"op":"new","id":0,"x":{"$serde_json::private::RawValue":"not json"}}]',
+     "unexpected or missing field"),
+    ("reserved-repeat",
+     r'[{"op":"new","id":0},{"op":"bytes","id":0,"data":[1],"repeat":{"$serde_json::private::Number":"1"}}]',
+     "integer out of range: repeat"),
+    ("reserved-int-value",
+     r'[{"op":"new","id":0},{"op":"int","id":0,"value":{"$serde_json::private::Number":"7"}}]',
+     "integer out of range: value"),
+    ("reserved-valid-value",
+     r'[{"op":"new","id":0},{"op":"valid","id":0,"value":{"$serde_json::private::RawValue":"true"}}]',
+     "expected boolean value"),
+    ("reserved-clone-source",
+     r'[{"op":"new","id":0},{"op":"clone","id":1,"source":{"$serde_json::private::Number":"0"}}]',
+     "integer out of range: source"),
+    ("reserved-compare-other",
+     r'[{"op":"new","id":0},{"op":"compare","id":0,"other":{"$serde_json::private::RawValue":"0"}}]',
+     "integer out of range: other"),
+    ("reserved-multiple-keys-id",
+     r'[{"op":"new","id":{"$serde_json::private::Number":"0","$serde_json::private::RawValue":"0"}}]',
+     "integer out of range: id"),
+    ("reserved-multiple-keys-byte",
+     r'[{"op":"new","id":0},{"op":"bytes","id":0,"data":[{"$serde_json::private::RawValue":"0","$serde_json::private::Number":"0","other":1}]}]',
+     "byte out of range"),
+    ("reserved-escaped-id",
+     r'[{"op":"new","id":{"$serde_json::private::Number":"0"}}]',
+     "integer out of range: id"),
+    ("reserved-escaped-byte",
+     r'[{"op":"new","id":0},{"op":"bytes","id":0,"data":[{"$serde_json::private::RawValue":"0"}]}]',
+     "byte out of range"),
+    ("reserved-number-typed-id",
+     r'[{"op":"new","id":{"$serde_json::private::Number":0}}]',
+     "integer out of range: id"),
+    ("reserved-rawvalue-array-byte",
+     r'[{"op":"new","id":0},{"op":"bytes","id":0,"data":[{"$serde_json::private::RawValue":[0]}]}]',
+     "byte out of range"),
+    ("reserved-null-op",
+     r'[{"op":{"$serde_json::private::Number":null},"id":0}]',
+     "expected op string"),
+    ("reserved-string-op",
+     r'[{"op":"new","id":0},{"op":"$serde_json::private::Number","id":0}]',
+     "unknown operation"),
+    ("reserved-string-byte",
+     r'[{"op":"new","id":0},{"op":"bytes","id":0,"data":["$serde_json::private::RawValue"]}]',
+     "byte out of range"),
+    ("reserved-near-miss-key",
+     r'[{"op":"new","id":{"$serde_json::private::number":"0"}}]',
+     "integer out of range: id"),
+]
+
+
+def kicad_format(data):
+    """Return MD5 text in KiCad's pinned format (md5-format-nibble-offset: 10..15 map to B..G)."""
+    text = "".join("0123456789BCDEFG"[nibble] for byte in hashlib.md5(data).digest()
+                   for nibble in (byte >> 4, byte & 15))
+    spaced = "".join(text[index:index + 2] + " " for index in range(0, 32, 2))
+    return {"id": 0, "valid": True, "compact": text, "default": spaced, "spaced": spaced}
+
+
+def reserved_key_cases(zero):
+    abc = {"events": [zero, zero, kicad_format(b"abc")]}
+    checks = []
+    for wire, unit, case, kind, message in RESERVED_KEY_RETAINED:
+        checks.append((wire, failure(unit, case, kind, message)))
+    for case, steps, message in RESERVED_KEY_STEPS:
+        wire = request(case, '{"steps":' + steps + '}')
+        expected = ({"unit": UNIT, "case": case, "result": abc} if message is None
+                    else failure(UNIT, case, "invalid_input", message))
+        checks.append((wire, expected))
+
+    envelope = failure(None, None, "invalid_request", "expected unit, case, input object")
+    invalid = failure(None, None, "invalid_request", "invalid JSON or duplicate key")
+    unknown = "unknown_unit", "unit has no registered shim"
+    valid_steps = '{"steps":[{"op":"new","id":0},{"op":"bytes","id":0,"data":[0]},{"op":"finalize","id":0}]}'
+    checks.extend([
+        (r'{"$serde_json::private::Number":"0"}', envelope),
+        (r'{"$serde_json::private::RawValue":"{\"unit\":\"libs.kimath.src.md5_hash.application.pure.p001\",\"case\":\"raw-root\",\"input\":{\"steps\":[{\"op\":\"new\",\"id\":0}]}}"}',
+         envelope),
+        (request("reserved-extra-invalid-marker", valid_steps)[:-1] + r',"extra":{"$serde_json::private::Number":"bad"}}',
+         failure(UNIT, "reserved-extra-invalid-marker", "invalid_request", "expected unit, case, input object")),
+        (request("reserved-escaped-unit", valid_steps, unit=r'{"$serde_json::private::RawValue":"\"libs.kimath.src.md5_hash.application.pure.p001\""}'),
+         failure(None, "reserved-escaped-unit", "invalid_request", "expected unit, case, input object")),
+        (request("reserved-duplicate", '{"steps":[{"op":"new","id":{"$serde_json::private::Number":"0","$serde_json::private::Number":"0"}}]}'),
+         invalid),
+        (request("reserved-escaped-duplicate", '{"steps":[{"op":"new","id":{"$serde_json::private::Number":"0","\\u0024serde_json::private::Number":"0"}}]}'),
+         invalid),
+        (request("reserved-unknown-unit", r'{"$serde_json::private::Number":"0"}', unit='"unknown-unit"'),
+         failure("unknown-unit", "reserved-unknown-unit", *unknown)),
+        (request("$serde_json::private::RawValue", valid_steps),
+         {"unit": UNIT, "case": "$serde_json::private::RawValue",
+          "result": {"events": [zero, zero, kicad_format(b"\0")]}}),
+        (request("reserved-guard-after", '{"steps":[{"op":"new","id":0},{"op":"bytes","id":0,"data":[97,98,99]},{"op":"finalize","id":0}]}'),
+         {"unit": UNIT, "case": "reserved-guard-after", "result": abc}),
+    ])
     return checks
 
 
@@ -122,7 +275,8 @@ def main():
             assert replies == previous
         previous = replies
     refusals = sum("error" in expected for _, expected in checks)
-    print(f"MD5 adapter: {refusals} complete refusal envelopes and literal -0 success passed per adapter")
+    successes = len(checks) - refusals
+    print(f"MD5 adapter: {refusals} complete refusal envelopes and {successes} complete successes passed per adapter")
 
 
 if __name__ == "__main__":
