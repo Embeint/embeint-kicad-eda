@@ -20,6 +20,7 @@ import drift_report
 from extractor.reconcile_database import compare, cmake_options
 from extractor.compact_cache import compact
 from extraction_report import summarize, measure_units
+from extractor.generated_sources import freeze, verify, source_path
 
 
 def fixture(root):
@@ -257,6 +258,36 @@ class GraphTests(unittest.TestCase):
 
 
 class ValidationTests(unittest.TestCase):
+    def test_generated_source_storage_accounting_and_tampering(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            build = root / 'private-build'
+            build.mkdir()
+            (build / 'lexer.cpp').write_bytes(b'int generated() { return 1; }\n')
+            graph, inventory = fixture(root)
+            generated = root / 'port/extractor/generated'
+            manifest = freeze(build, generated, {'source_commit': 'a' * 40})
+            entries = verify(manifest, build, generated)
+            inventory['files'].extend(dict(e, coverage='parsed') for e in entries)
+            provenance = graph['provenance']
+            provenance['tracked_source_inventory_sha256'] = digest(json.dumps([{k:v for k,v in f.items() if k!='coverage'}
+                for f in inventory['files'] if f.get('origin') != 'build-generated'], sort_keys=True).encode())
+            provenance['generated_sources_manifest_sha256'] = digest((generated / 'generated-sources.json').read_bytes())
+            provenance['source_inventory_sha256'] = digest(json.dumps([{k:v for k,v in f.items() if k!='coverage'}
+                for f in inventory['files']], sort_keys=True).encode())
+            graph['functions']['generated'] = dict(graph['functions']['a.cpp'], file='@build/lexer.cpp', name='generated')
+            graph['edges'].append(['a.cpp', 'generated', 'static'])
+            units, report = save_fixture(root, graph, inventory)
+            self.assertEqual(report['accounted_lines'], 3)
+            self.assertTrue(any('@build/lexer.cpp' in u['upstream'] for u in units.values()))
+            self.assertEqual(validate(root), [])
+            with self.assertRaises(ValueError):
+                source_path(dict(entries[0], storage_path='../lexer.cpp'), root, generated)
+            source_path(entries[0], root, generated).write_bytes(b'int fake() { return 2; }\n')
+            self.assertTrue(any('source changed' in e for e in validate(root)))
+            with self.assertRaisesRegex(ValueError, 'changed'):
+                verify(manifest, build, generated)
+
     def test_inventory_coverage_and_categories_cannot_be_hidden_by_unit_edits(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -382,6 +413,111 @@ class DriftTests(unittest.TestCase):
 
 @unittest.skipUnless(importlib.util.find_spec("clang"), "matching libclang Python bindings unavailable")
 class ClangIntegrationTests(unittest.TestCase):
+    def test_destructor_override_delete_dispatch_and_lifetime_limits(self):
+        from extractor.clang_graph import extract_translation_unit
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / 'lifetime.cpp'
+            source.write_text('''
+void cleanup() {}
+struct Base { virtual ~Base() {} };
+struct Left : Base { ~Left() override { cleanup(); } };
+struct Leaf : Left { ~Leaf() override {} };
+struct Unused : Base { ~Unused() override {} };
+struct Implicit : Base {};
+void destroy(Base* b) { delete b; }
+void explicit_destroy(Base* b) { b->~Base(); }
+void array_destroy(Left* b) { delete[] b; }
+void local(Left value) { Leaf leaf; Implicit implicit; }
+Leaf make();
+void temporary() { make(); }
+''', encoding='utf-8')
+            result = extract_translation_unit(dict(root=tmp, old_root=tmp, file=str(source), directory=tmp,
+                arguments=['clang++', '-std=c++20', '-c', str(source)],
+                libclang='/usr/lib/llvm-21/lib/libclang-21.so.1'))
+            self.assertEqual(result['status'], 'ok', result['diagnostics'])
+            names = {u:f['name'] for u,f in result['functions'].items()}
+            edges = [(names.get(a,a), names.get(b,b), k) for a,b,k in expand_virtual(result['calls'],result['overrides'])]
+            for caller in ['destroy(Base *)', 'explicit_destroy(Base *)']:
+                self.assertEqual({b for a,b,k in edges if a==caller},
+                    {'Base::~Base()', 'Left::~Left()', 'Leaf::~Leaf()', 'Unused::~Unused()'})
+            self.assertIn(('Left::~Left()', 'Base::~Base()', 'static'), edges)
+            self.assertIn(('Leaf::~Leaf()', 'Left::~Left()', 'static'), edges)
+            self.assertIn(('local(Left)', 'Left::~Left()', 'static'), edges)
+            self.assertIn(('local(Left)', 'Leaf::~Leaf()', 'static'), edges)
+            self.assertTrue(all(f['virtual'] for f in result['functions'].values() if '::~' in f['name']))
+            self.assertTrue(any('implicit destructor' in c['expression'] for c in result['unresolved']))
+            self.assertTrue(any('temporary lifetime' in c['expression'] for c in result['unresolved']))
+
+    def test_canonical_alias_nested_template_and_recursive_record_wx(self):
+        from extractor.clang_graph import extract_translation_unit
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / 'aliases.cpp'
+            source.write_text('''
+struct wxFrame {};
+struct wxString {};
+using Widget = wxFrame;
+typedef Widget Window;
+template<class K, class V> struct Map { K key; V value; };
+using NETNAMES_MAP = Map<wxString, int>;
+using Widgets = Map<int, Map<int, Window*>>;
+struct Node { Node* next; Widget* widget; int get() { return 1; } };
+struct Owner { Widget* widget; int get() { return 2; } };
+int direct(Window* value) { return 0; }
+int nested(Widgets const& value) { return 0; }
+NETNAMES_MAP const& names(NETNAMES_MAP const& value) { return value; }
+int recursive(Node const* value) { return 0; }
+''', encoding='utf-8')
+            result = extract_translation_unit(dict(root=tmp, old_root=tmp, file=str(source), directory=tmp,
+                arguments=['clang++', '-std=c++20', '-c', str(source)],
+                libclang='/usr/lib/llvm-21/lib/libclang-21.so.1'))
+            self.assertEqual(result['status'], 'ok', result['diagnostics'])
+            for f in result['functions'].values():
+                self.assertIn('wxString' if f['name'].startswith('names(') else 'wxFrame', f['wx'], f)
+            classify(result['functions'], expand_virtual(result['calls'], result['overrides']))
+            self.assertEqual(next(f['wx_class'] for f in result['functions'].values()
+                                  if f['name'].startswith('names(')), 'thin-replacement')
+
+    def test_generated_lexer_definition_ownership_outside_source_root(self):
+        from extractor.clang_graph import extract_translation_unit
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            root, build = base/'src', base/'build'
+            root.mkdir(); build.mkdir()
+            (root/'caller.h').write_text('inline int caller() { return 3; }\n')
+            (build/'lexer.h').write_text('struct Lexer { Lexer(); const char* TokenName(); };\n')
+            source = build/'lexer.cpp'
+            source.write_text('#include "lexer.h"\n#include "caller.h"\nLexer::Lexer() { caller(); }\nconst char* Lexer::TokenName() { return "token"; }\n')
+            result = extract_translation_unit(dict(root=str(root), old_root=str(root), build_root=str(build),
+                file=str(source), directory=str(build), arguments=['clang++','-I'+str(root),'-c',str(source)],
+                libclang='/usr/lib/llvm-21/lib/libclang-21.so.1'))
+            self.assertEqual(result['status'], 'ok', result['diagnostics'])
+            self.assertEqual(result['file'], '@build/lexer.cpp')
+            self.assertEqual({f['file'] for f in result['functions'].values()}, {'caller.h','@build/lexer.cpp'})
+            self.assertIn('@build/lexer.h', result['includes'])
+            names = {u:f['name'] for u,f in result['functions'].items()}
+            self.assertIn(('Lexer::Lexer()', 'caller()'), [(names[a],names[b]) for a,b,_ in result['calls']])
+            output = root/'port/extractor/generated'
+            freeze(build, output, {'source_commit': 'a' * 40})
+            manifest = output/'source-manifest.json'
+            write_json(manifest, {'source_commit': 'a' * 40, 'upstream_pin': PIN, 'files': ['caller.h']})
+            database = base/'compile_commands.json'
+            write_json(database, [dict(file=str(source), directory=str(build),
+                arguments=['clang++','-I'+str(root),'-c',str(source)])])
+            tools = Path(__file__).resolve().parents[1]/'tools'
+            command = [sys.executable, str(tools/'extract_graph.py'), '--compile-commands', str(database),
+                '--source-root', str(root), '--original-source-root', str(root), '--manifest', str(manifest),
+                '--generated-manifest', str(output/'generated-sources.json'), '--cache', str(base/'cache'),
+                '--output', str(output), '--jobs', '1']
+            subprocess.run(command, check=True, capture_output=True)
+            full_graph = read_json(output/'graph.json')
+            self.assertEqual({f['file'] for f in full_graph['functions'].values()}, {'caller.h','@build/lexer.cpp'})
+            subprocess.run([sys.executable, str(tools/'split_units.py'), '--graph', str(output/'graph.json'),
+                '--inventory', str(output/'inventory.json'), '--units-dir', str(root/'port/units'),
+                '--report', str(output/'units.json'), '--source-root', str(root)], check=True, capture_output=True)
+            self.assertEqual(validate(root), [])
+
     def test_include_aliases_and_constrained_auto_extents_have_real_owned_ranges(self):
         from extractor.clang_graph import extract_translation_unit
         with tempfile.TemporaryDirectory() as tmp:

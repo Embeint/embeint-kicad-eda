@@ -12,7 +12,17 @@ from .model import digest
 def extract_translation_unit(job):
     root, old = job["root"], job["old_root"]
     source = job["file"].replace(old, root)
-    out = {"file": source.removeprefix(root + "/"), "functions": {},
+    build = job.get("build_root")
+
+    def logical(file):
+        path = os.path.normpath(str(file))
+        if path.startswith(root + "/"):
+            return path.removeprefix(root + "/")
+        if build and path.startswith(build + "/"):
+            return "@build/" + path.removeprefix(build + "/")
+        return None
+
+    out = {"file": logical(source) or source, "functions": {},
            "calls": [], "overrides": [], "unresolved": [], "diagnostics": []}
     if not Path(source).is_file():
         out["status"] = "missing-source"
@@ -47,7 +57,8 @@ def extract_translation_unit(job):
         dispose = ci.conf.lib.clang_disposeOverriddenCursors
         dispose.argtypes = [ctypes.POINTER(ci.Cursor)]
         text_cache = {}
-        class_cache = {}
+        type_nodes, type_cache = {}, {}
+        destructor_cache = {}
         aliases = {}
 
         def identity(cursor):
@@ -76,7 +87,7 @@ def extract_translation_unit(job):
 
         def local(cursor):
             file = cursor.location.file
-            return file and os.path.normpath(str(file)).startswith(root + "/")
+            return file and logical(file) is not None
 
         def source_range(cursor, file):
             """Use a conservative clang parent range for null template extents.
@@ -96,36 +107,112 @@ def extract_translation_unit(job):
                 candidate = candidate.semantic_parent
             raise ValueError(f"No valid clang source extent for {cursor.get_usr()} in {file}")
 
+        def type_wx(type):
+            """Follow canonical types, template arguments and record storage.
+
+            Cache only complete reachable closures. A recursive field graph must
+            not cache an incomplete result while another node is being visited.
+            """
+            def key(t):
+                decl = t.get_declaration()
+                return t.kind.value, t.spelling, decl.get_usr() if decl else ""
+
+            initial = key(type)
+            if initial in type_cache:
+                return type_cache[initial]
+            names, visited, pending = set(), set(), [type]
+            while pending:
+                t = pending.pop()
+                k = key(t)
+                if k in visited or t.kind == ci.TypeKind.INVALID:
+                    continue
+                visited.add(k)
+                if k in type_cache:
+                    names.update(type_cache[k])
+                    continue
+                if k not in type_nodes:
+                    children = []
+                    canonical = t.get_canonical()
+                    if key(canonical) != k:
+                        children.append(canonical)
+                    if t.kind in (ci.TypeKind.POINTER, ci.TypeKind.LVALUEREFERENCE,
+                                  ci.TypeKind.RVALUEREFERENCE, ci.TypeKind.MEMBERPOINTER):
+                        children.append(t.get_pointee())
+                    if t.kind in (ci.TypeKind.CONSTANTARRAY, ci.TypeKind.INCOMPLETEARRAY,
+                                  ci.TypeKind.VARIABLEARRAY, ci.TypeKind.DEPENDENTSIZEDARRAY):
+                        children.append(t.get_array_element_type())
+                    if t.kind in (ci.TypeKind.FUNCTIONPROTO, ci.TypeKind.FUNCTIONNOPROTO):
+                        children.append(t.get_result())
+                        if t.kind == ci.TypeKind.FUNCTIONPROTO:
+                            children.extend(t.argument_types())
+                    children.extend(t.get_template_argument_type(i)
+                                    for i in range(max(0, t.get_num_template_arguments())))
+                    declaration = t.get_declaration()
+                    if declaration and declaration.kind in (ci.CursorKind.TYPEDEF_DECL, ci.CursorKind.TYPE_ALIAS_DECL):
+                        children.append(declaration.underlying_typedef_type)
+                    # wx replacement types are atomic classification inputs;
+                    # their private implementation is not part of the port.
+                    if t.kind == ci.TypeKind.RECORD and not (declaration and re.match(r"wx[A-Z]", declaration.spelling)):
+                        children.extend(field.type for field in t.get_fields())
+                        if declaration:
+                            children.extend(c.type for c in declaration.get_children()
+                                            if c.kind == ci.CursorKind.CXX_BASE_SPECIFIER)
+                    type_nodes[k] = (set(re.findall(r"\bwx[A-Z]\w*", t.spelling)), children)
+                direct, children = type_nodes[k]
+                names.update(direct)
+                pending.extend(children)
+            type_cache[initial] = names
+            return names
+
         def wx(cursor):
             texts = [cursor.type.spelling, cursor.spelling]
+            names = set(type_wx(cursor.type))
             ref = cursor.referenced
             if ref:
                 texts.extend([ref.type.spelling, ref.spelling])
+                names.update(type_wx(ref.type))
                 parent = ref.semantic_parent
                 if parent:
                     texts.append(parent.spelling)
-            return set(re.findall(r"\bwx[A-Z]\w*", " ".join(texts)))
+            return names | set(re.findall(r"\bwx[A-Z]\w*", " ".join(texts)))
 
-        def class_wx(cursor, visiting=None):
+        def class_wx(cursor):
             if not cursor or cursor.kind not in (ci.CursorKind.CLASS_DECL, ci.CursorKind.STRUCT_DECL,
                                                   ci.CursorKind.CLASS_TEMPLATE):
                 return set()
-            key = cursor.get_usr()
-            if key in class_cache:
-                return class_cache[key]
-            visiting = set() if visiting is None else visiting
-            if key in visiting:
-                return set()
-            visiting.add(key)
-            names = wx(cursor)
+            names = set(type_wx(cursor.type))
             for child in cursor.get_children():
-                if child.kind == ci.CursorKind.CXX_BASE_SPECIFIER:
-                    names.update(wx(child))
-                    names.update(class_wx(child.referenced, visiting))
-                elif child.kind == ci.CursorKind.FIELD_DECL:
-                    names.update(re.findall(r"\bwx[A-Z]\w*", child.type.spelling))
-            class_cache[key] = names
+                if child.kind in (ci.CursorKind.CXX_BASE_SPECIFIER, ci.CursorKind.FIELD_DECL):
+                    names.update(type_wx(child.type))
             return names
+
+        def virtual(cursor):
+            return cursor.kind in (ci.CursorKind.CXX_METHOD, ci.CursorKind.DESTRUCTOR) and cursor.is_virtual_method()
+
+        def destruction(type, owner, cursor, dispatch=False):
+            type = type.get_canonical()
+            while type.kind in (ci.TypeKind.CONSTANTARRAY, ci.TypeKind.INCOMPLETEARRAY,
+                                ci.TypeKind.VARIABLEARRAY, ci.TypeKind.DEPENDENTSIZEDARRAY):
+                type = type.get_array_element_type().get_canonical()
+            if type.kind != ci.TypeKind.RECORD:
+                return
+            decl = type.get_declaration()
+            if not decl:
+                out["unresolved"].append({"caller": owner, "line": cursor.location.line,
+                                          "expression": "destructor type unavailable: " + type.spelling})
+                return
+            decl = decl.get_definition() or decl
+            key = decl.get_usr(), type.spelling
+            if key not in destructor_cache:
+                destructor_cache[key] = next((c for c in decl.get_children()
+                                              if c.kind == ci.CursorKind.DESTRUCTOR), None)
+            target = destructor_cache[key]
+            if target and target.get_usr():
+                out["calls"].append([owner, identity(target), dispatch and virtual(target)])
+                return
+            if not type.is_pod():
+                out["unresolved"].append({"caller": owner, "line": cursor.location.line,
+                    "expression": "implicit destructor not exposed by libclang: " + type.spelling})
 
         def qualified(cursor):
             parts = [cursor.displayname]
@@ -136,13 +223,13 @@ def extract_translation_unit(job):
                 parent = parent.semantic_parent
             return "::".join(reversed(parts))
 
-        def walk(cursor, owner=None):
+        def walk(cursor, owner=None, parent_kind=None):
             if owner is None and cursor.kind != ci.CursorKind.TRANSLATION_UNIT and not local(cursor):
                 return
             current = owner
             if cursor.kind in functions:
                 usr = identity(cursor)
-                if cursor.kind == ci.CursorKind.CXX_METHOD:
+                if cursor.kind in (ci.CursorKind.CXX_METHOD, ci.CursorKind.DESTRUCTOR):
                     ptr, count = ctypes.POINTER(ci.Cursor)(), ctypes.c_uint()
                     get_overrides(cursor, ctypes.byref(ptr), ctypes.byref(count))
                     for i in range(count.value):
@@ -150,7 +237,7 @@ def extract_translation_unit(job):
                         base._tu = cursor._tu
                         out["overrides"].append([identity(base), usr])
                     dispose(ptr)
-                if cursor.is_definition() and usr:
+                if cursor.is_definition() and usr and local(cursor):
                     current = usr
                     file = os.path.normpath(str(cursor.location.file))
                     if file not in text_cache:
@@ -158,13 +245,16 @@ def extract_translation_unit(job):
                     start, end, range_kind = source_range(cursor, file)
                     body = text_cache[file][start.offset:end.offset]
                     out["functions"][usr] = {
-                        "name": qualified(cursor), "file": file.removeprefix(root + "/"),
+                        "name": qualified(cursor), "file": logical(file),
                         "start": start.line, "end": end.line,
                         "start_offset": start.offset, "end_offset": end.offset,
                         "range_kind": range_kind, "definition_line": cursor.location.line,
                         "lines": end.line - start.line + 1, "sha256": digest(body.replace(b"\r\n", b"\n")),
-                        "wx": sorted(wx(cursor) | class_wx(cursor.semantic_parent)), "virtual": cursor.kind == ci.CursorKind.CXX_METHOD
-                        and cursor.is_virtual_method()}
+                        "wx": sorted(wx(cursor) | class_wx(cursor.semantic_parent)), "virtual": virtual(cursor)}
+                    if cursor.kind == ci.CursorKind.DESTRUCTOR:
+                        for member in cursor.semantic_parent.get_children():
+                            if member.kind in (ci.CursorKind.CXX_BASE_SPECIFIER, ci.CursorKind.FIELD_DECL):
+                                destruction(member.type, current, cursor)
                 else:
                     current = None
             if current:
@@ -174,20 +264,31 @@ def extract_translation_unit(job):
                 if cursor.kind == ci.CursorKind.CALL_EXPR:
                     ref = cursor.referenced
                     if ref and ref.kind in functions and ref.get_usr():
-                        virtual = ref.kind == ci.CursorKind.CXX_METHOD and ref.is_virtual_method()
-                        out["calls"].append([current, identity(ref), virtual])
+                        out["calls"].append([current, identity(ref), virtual(ref)])
                         # External wx calls still contribute direct classification.
                         record["wx"] = sorted(set(record["wx"]) | wx(ref))
                     else:
                         out["unresolved"].append({"caller": current, "line": cursor.location.line,
                                                   "expression": cursor.spelling})
+                    result_type = cursor.type.get_canonical()
+                    if (result_type.kind == ci.TypeKind.RECORD and not result_type.is_pod()
+                            and parent_kind not in (ci.CursorKind.VAR_DECL, ci.CursorKind.CXX_NEW_EXPR)):
+                        out['unresolved'].append({'caller': current, 'line': cursor.location.line,
+                            'expression': 'temporary lifetime cleanup/elision not modeled: ' + result_type.spelling})
+                if cursor.kind == ci.CursorKind.CXX_DELETE_EXPR:
+                    operands = list(cursor.get_children())
+                    if operands:
+                        destruction(operands[-1].type.get_pointee(), current, cursor, dispatch=True)
+                    else:
+                        out["unresolved"].append({"caller": current, "line": cursor.location.line,
+                                                  "expression": "delete operand type unavailable"})
+                elif cursor.kind in (ci.CursorKind.VAR_DECL, ci.CursorKind.PARM_DECL):
+                    destruction(cursor.type, current, cursor)
             for child in cursor.get_children():
-                walk(child, current)
+                walk(child, current, cursor.kind)
 
         walk(tu.cursor)
-        out["includes"] = sorted({os.path.normpath(str(i.include)).removeprefix(root + "/")
-                                  for i in tu.get_includes()
-                                  if os.path.normpath(str(i.include)).startswith(root + "/")})
+        out["includes"] = sorted({logical(i.include) for i in tu.get_includes() if logical(i.include) is not None})
         out["template_aliases"] = aliases
         out["status"] = "parse-error" if any(d["severity"] >= 3 for d in out["diagnostics"]) else "ok"
     except Exception as exc:

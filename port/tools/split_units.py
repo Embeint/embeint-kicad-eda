@@ -10,13 +10,14 @@ import tomllib
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from extractor.model import CLASSES, digest, identifier, layers, weighted_dag, write_json, read_json, write_graph
+from extractor.generated_sources import source_path
 
 CORE = ("id", "upstream", "rust_module", "depends_on", "soft_depends_on", "est_lines",
         "layer", "tests", "status", "claimed_by", "claimed_at", "notes")
 PORT_FIELDS = ("rust_module", "status", "claimed_by", "claimed_at", "tests", "notes", "difftest")
 
 
-def normalize_eof_ranges(graph, inventory, source_root):
+def normalize_eof_ranges(graph, inventory, source_root, generated_root=None):
     """Convert proven exclusive EOF locations to inclusive physical lines.
 
     A null function extent can recover to the translation unit's range, whose
@@ -29,7 +30,7 @@ def normalize_eof_ranges(graph, inventory, source_root):
         entry = files.get(fn["file"])
         if not entry or fn["end"] <= entry["lines"]:
             continue
-        data = (source_root / fn["file"]).read_bytes()
+        data = source_path(entry, source_root, generated_root or source_root / 'port/extractor/generated').read_bytes()
         if (fn.get("range_kind") != "enclosing-declaration"
                 or fn["end"] != entry["lines"] + 1 or not data.endswith(b"\n")
                 or fn.get("end_offset") != len(data)
@@ -170,7 +171,7 @@ def main():
     source_root = a.source_root or Path(graph.get("provenance", {}).get("source_root", "."))
     if not source_root.is_dir():
         source_root = Path(__file__).resolve().parents[2]
-    corrections = normalize_eof_ranges(graph, inventory, source_root)
+    corrections = normalize_eof_ranges(graph, inventory, source_root, a.inventory.parent)
     if corrections:
         original = a.graph if a.graph.exists() else a.graph.with_suffix(a.graph.suffix + ".gz")
         graph["range_normalizations"] = corrections

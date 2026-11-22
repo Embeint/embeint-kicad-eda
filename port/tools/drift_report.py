@@ -123,9 +123,14 @@ def report(root, graph, units, target="HEAD", include_todo=False):
         reasons = set()
         for path in owned_files:
             reasons.update(input_changes[path])
+        generated_dependencies = graph['provenance'].get('generated_input_dependencies', {})
+        for path in unit['upstream']:
+            if path.startswith('@build/'):
+                reasons.update(changed_paths & set(generated_dependencies.get(path, [])))
+                reasons.update(p for p in changed_paths if p.endswith(('CMakeLists.txt', '.cmake')))
         if reasons:
             dependency_reviews.append({"unit": unit["id"], "changed_inputs": sorted(reasons),
-                                       "reason": "an extraction translation unit containing ported functions has changed inputs; conservative dependency review"})
+                                       "reason": "an extraction translation unit or generated-source recipe has changed inputs; conservative dependency review"})
     return {"schema_version": 1, "upstream_pin": pin, "extraction_commit": base,
             "target": target_sha, "ported_statuses": ["partial", "green"],
             "include_todo": include_todo, "affected": affected,

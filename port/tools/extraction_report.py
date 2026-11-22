@@ -41,6 +41,10 @@ def summarize(graph, inventory, stale=()):
         "coverage_flags": {k: provenance[k] for k in ("inventory_complete", "parse_complete",
             "compile_database_complete", "all_configurations_complete", "gate_complete")},
         "functions": len(graph["functions"]), "edges": len(graph["edges"]),
+        "virtual_destructors": sum(f.get('virtual', False) and '::~' in f.get('name','') for f in graph['functions'].values()),
+        "build_generated_definitions": sum(f['file'].startswith('@build/') for f in graph['functions'].values()),
+        "implicit_lifetime_diagnostics": sum('implicit destructor' in c['expression'] or 'temporary lifetime' in c['expression']
+                                              for c in graph.get('unresolved_calls', [])),
         "edge_kinds": dict(sorted(Counter(e[2] for e in graph["edges"]).items())),
         "override_relationships": len(graph["overrides"]),
         "template_aliases": len(graph.get("template_aliases", {})),
@@ -52,6 +56,12 @@ def summarize(graph, inventory, stale=()):
         "unresolved_call_sites": provenance["unresolved_call_count"],
         "function_wx_classes": dict(sorted(Counter(f["wx_class"] for f in graph["functions"].values()).items())),
         "source_files": len(inventory["files"]),
+        "tracked_source_files": sum(f.get('origin') != 'build-generated' for f in inventory['files']),
+        "build_generated_files": sum(f.get('origin') == 'build-generated' for f in inventory['files']),
+        "tracked_source_lines_by_category": dict(sorted(Counter({c: sum(f['lines'] for f in inventory['files']
+            if f['category'] == c and f.get('origin') != 'build-generated') for c in coverage}).items())),
+        "build_generated_lines_by_category": dict(sorted(Counter({c: sum(f['lines'] for f in inventory['files']
+            if f['category'] == c and f.get('origin') == 'build-generated') for c in coverage}).items())),
         "source_lines_by_category": dict(sorted(Counter({c: sum(values.values())
             for c, values in coverage.items()}).items())),
         "source_lines_by_category_and_coverage": {c: dict(sorted(values.items()))
@@ -93,6 +103,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--raw-output", type=Path, required=True)
     p.add_argument("--reconciled-output", type=Path, required=True)
+    p.add_argument("--corrected-output", type=Path, help="separate post-review extraction; never replaces historical reconciled coverage")
     p.add_argument("--reconciliation", type=Path, required=True)
     p.add_argument("--units-dir", type=Path, default=Path("port/units"))
     p.add_argument("--units-report", type=Path, default=Path("port/extractor/generated/units.json"))
@@ -100,15 +111,22 @@ def main():
     a = p.parse_args()
     reconciliation = read_json(a.reconciliation)
     runs = {}
-    for name, directory in (("raw", a.raw_output), ("reconciled", a.reconciled_output)):
+    directories = [("raw", a.raw_output), ("reconciled", a.reconciled_output)]
+    if a.corrected_output:
+        directories.append(('corrected', a.corrected_output))
+    for name, directory in directories:
         graph, inventory = (read_json(directory / f"{file}.json") for file in ("graph", "inventory"))
         runs[name] = summarize(graph, inventory, reconciliation["stale_deleted_sources"] if name == "raw" else ())
-        expected = reconciliation[f"{name}_compile_commands_sha256"]
+        expected = reconciliation[f"{'reconciled' if name == 'corrected' else name}_compile_commands_sha256"]
         if runs[name]["compile_commands_sha256"] != expected:
             raise ValueError(f"{name} compile database hash differs from reconciliation")
         runs[name]["artifacts"] = [fingerprint(directory / f"{file}.json") for file in ("graph", "inventory")]
     if runs["raw"]["source_inventory_sha256"] != runs["reconciled"]["source_inventory_sha256"]:
         raise ValueError("raw and reconciled runs used different source inventories")
+    if a.corrected_output:
+        corrected = read_json(a.corrected_output / 'inventory.json')
+        if corrected['provenance']['tracked_source_inventory_sha256'] != runs['raw']['source_inventory_sha256']:
+            raise ValueError('corrected run changed the tracked source snapshot')
     units = [tomllib.loads(path.read_text(encoding="utf-8")) for path in sorted(a.units_dir.glob("*.toml"))]
     if not units:
         raise ValueError("no unit records to measure")
@@ -120,7 +138,7 @@ def main():
                             "range_normalizations": unit_report.get("range_normalizations", []),
                             "range_postprocessing": unit_report.get("range_postprocessing")},
               "reconciliation": reconciliation,
-              "interpretation": "Raw exclusions remain non-successes; reconciled coverage is independent. Linux active branches only. No port or oracle parity is claimed."}
+              "interpretation": "Raw and reviewed reconciled coverage remain historical. Corrected coverage, when present, is an independent extraction with its own AST/cache identity and generated-source inventory. Linux active branches only. No port or oracle parity is claimed."}
     write_json(a.output, result)
     print(json.dumps({"output": str(a.output), "unit_count": len(units),
                       "raw_parsed_ok": runs["raw"]["parsed_ok"],
