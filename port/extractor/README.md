@@ -245,12 +245,14 @@ results as corrected. Extractor identity hashes the four implementation files
 named in provenance after LF normalization. All generated input bytes also enter
 the inventory/cache fingerprint.
 
-Virtual destructors participate in override discovery and virtual call expansion.
+Virtual destructors and conversion operators participate in override discovery
+and virtual call expansion.
 Explicit destructor calls and typed `delete`/`delete[]` create destructor edges;
 visible destructors of local/by-value objects and destructor bases/fields create
 conservative cleanup dependencies. A compiler-implicit non-POD destructor absent
 from libclang emits an unresolved diagnostic, not a guessed USR or body.
-Temporary cleanup/elision sites are diagnosed. Exception unwinding, global
+Temporary cleanup/elision sites, implicit virtual destructor override gaps and
+unexposed delete deallocation-function selection are diagnosed. Exception unwinding, global
 lifetime, implicit derived overrides and union/variant lifetime paths are not
 exhaustively modeled. This remains a conservative source-level graph, not an
 exhaustive lowered C++ lifetime graph.

@@ -428,6 +428,25 @@ class DriftTests(unittest.TestCase):
 
 @unittest.skipUnless(importlib.util.find_spec("clang"), "matching libclang Python bindings unavailable")
 class ClangIntegrationTests(unittest.TestCase):
+    def test_virtual_conversion_operators_include_unused_overrides(self):
+        from extractor.clang_graph import extract_translation_unit
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);source=root/'conversion.cpp'
+            source.write_text('''
+struct Base { virtual operator int() { return 0; } };
+struct Derived : Base { operator int() override { return 1; } };
+struct Unused : Derived { operator int() override { return 2; } };
+int dispatch(Base& value) { return value; }
+''',encoding='utf-8')
+            result=extract_translation_unit(dict(root=tmp,old_root=tmp,file=str(source),directory=tmp,
+                arguments=['clang++','-std=c++20','-c',str(source)],libclang='/usr/lib/llvm-21/lib/libclang-21.so.1'))
+            self.assertEqual(result['status'],'ok',result['diagnostics'])
+            names={u:f['name'] for u,f in result['functions'].items()}
+            targets={names.get(b,b) for a,b,_ in expand_virtual(result['calls'],result['overrides'])
+                     if names.get(a,'').startswith('dispatch(')}
+            self.assertEqual(targets,{'Base::operator int()','Derived::operator int()','Unused::operator int()'})
+            self.assertTrue(all(f['virtual'] for f in result['functions'].values() if 'operator int' in f['name']))
+
     def test_destructor_override_delete_dispatch_and_lifetime_limits(self):
         from extractor.clang_graph import extract_translation_unit
         with tempfile.TemporaryDirectory() as tmp:
@@ -463,6 +482,7 @@ void temporary() { make(); }
             self.assertTrue(all(f['virtual'] for f in result['functions'].values() if '::~' in f['name']))
             self.assertTrue(any('implicit destructor' in c['expression'] for c in result['unresolved']))
             self.assertTrue(any('temporary lifetime' in c['expression'] for c in result['unresolved']))
+            self.assertTrue(any('deallocation function selection' in c['expression'] for c in result['unresolved']))
 
     def test_canonical_alias_nested_template_and_recursive_record_wx(self):
         from extractor.clang_graph import extract_translation_unit
@@ -479,6 +499,7 @@ using NETNAMES_MAP = Map<wxString, int>;
 using Widgets = Map<int, Map<int, Window*>>;
 struct Node { Node* next; Widget* widget; int get() { return 1; } };
 struct Owner { Widget* widget; int get() { return 2; } };
+union UnionOwner { Widget* widget; int number; int get() { return 2; } };
 int direct(Window* value) { return 0; }
 int nested(Widgets const& value) { return 0; }
 NETNAMES_MAP const& names(NETNAMES_MAP const& value) { return value; }
