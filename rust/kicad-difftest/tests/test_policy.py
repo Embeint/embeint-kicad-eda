@@ -246,6 +246,70 @@ class PolicyTests(unittest.TestCase):
                     POLICY.ci(root, Path("runner"), Path("oracle"), root / "reports", False)
             self.assertFalse(report.exists())
 
+    def test_report_counts_and_golden_marker_are_exact(self):
+        units = {"u": {"status": "partial"}, "owner": {"status": "todo"}}
+
+        def base(action, mode="strict"):
+            deferred = ([{"case": "b", "upstream": "F::g", "unit": "owner"}] if mode == "partial" else [])
+            return {"unit": "u", "status": "partial" if deferred else "green", "action": action,
+                    "mode": mode, "cases": 1 + len(deferred), "compared": 1, "deferred": len(deferred),
+                    "failures": 0, "golden_checked": action == "check", "compared_cases": ["a"],
+                    "deferred_cases": deferred}
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "report.json"
+
+            def verify(text, action, mode):
+                path.write_text(text, encoding="utf-8")
+                cases = ["a", "b"] if mode == "partial" else ["a"]
+                return POLICY.verify_report(path, "u", mode, action, cases, units)
+
+            for action in ("check", "compare"):
+                for mode in ("strict", "partial"):
+                    text = json.dumps(base(action, mode))
+                    with self.subTest(action=action, mode=mode, probe="control"):
+                        verify(text, action, mode)
+                    cases = base(action, mode)["cases"]
+                    # Ordinary JSON decoding would accept every one of these as 0 or 1.
+                    probes = {
+                        "failures underflow": text.replace('"failures": 0', '"failures": 1e-400'),
+                        "integral float count": text.replace('"compared": 1', '"compared": 1.0'),
+                        "exponent count": text.replace('"compared": 1', '"compared": 1e0'),
+                        "rounded case count": text.replace(
+                            f'"cases": {cases}', f'"cases": {cases}.00000000000000000000001'),
+                        "negative zero failures": text.replace('"failures": 0', '"failures": -0'),
+                        "negative float zero": text.replace('"failures": 0', '"failures": -0.0'),
+                        "negative count": text.replace('"failures": 0', '"failures": -1'),
+                        "NaN extra field": text[:-1] + ', "oracle_sha256": NaN}',
+                        "Infinity extra field": text[:-1] + ', "x": Infinity}',
+                        "-Infinity count": text.replace('"failures": 0', '"failures": -Infinity'),
+                        "duplicate key": text[:-1] + ', "failures": 0}',
+                    }
+                    for name, changes in {
+                        "boolean counts": dict(cases=True, compared=True, deferred=False, failures=False),
+                        "boolean failures": dict(failures=False),
+                        "string count": dict(compared="1"),
+                        "null count": dict(failures=None),
+                        "missing failures": dict(failures="<drop>"),
+                        "missing golden_checked": dict(golden_checked="<drop>"),
+                        "golden_checked string": dict(golden_checked=str(action == "check").lower()),
+                        "golden_checked integer": dict(golden_checked=int(action == "check")),
+                        "golden_checked null": dict(golden_checked=None),
+                        "golden_checked contradicts action": dict(golden_checked=action != "check"),
+                    }.items():
+                        value = base(action, mode)
+                        for key, new in changes.items():
+                            if new == "<drop>":
+                                value.pop(key)
+                            else:
+                                value[key] = new
+                        probes[name] = json.dumps(value)
+                    for name, probe in probes.items():
+                        with self.subTest(action=action, mode=mode, probe=name):
+                            self.assertNotEqual(probe, text, name)
+                            with self.assertRaises(ValueError):
+                                verify(probe, action, mode)
+
     @unittest.skipUnless(RUNNER.exists(), "build kicad-difftest first (CI builds it before this suite)")
     def test_real_runner_reports_satisfy_the_policy_contract(self):
         peer = ROOT / "rust/kicad-difftest/tests/peer.py"

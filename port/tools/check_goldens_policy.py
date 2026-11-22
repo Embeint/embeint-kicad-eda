@@ -194,18 +194,53 @@ def case_ids(path, uid):
     return ids
 
 
+def report_count(token):
+    """Integer tokens in a runner report are counts: canonical, nonnegative, exact."""
+    if not re.fullmatch(r"0|[1-9][0-9]*", token):
+        raise ValueError(f"report number {token} is not a canonical nonnegative integer")
+    return int(token)
+
+
+def report_json(text):
+    """Parse a runner report without numeric coercion.
+
+    Unlike ordinary JSON decoding, a fraction or exponent (1.0, 1e-400, -0.0), a
+    negative or non-canonical integer and NaN/Infinity all fail, so no value can be
+    rounded, underflowed or sign-folded into an accepted count.
+    """
+    def fraction(token):
+        raise ValueError(f"report number {token} is not an integer count")
+
+    def constant(token):
+        raise ValueError(f"non-JSON number {token} in report")
+    return json.loads(text, object_pairs_hook=unique, parse_int=report_count,
+                      parse_float=fraction, parse_constant=constant)
+
+
 def verify_report(path, uid, mode, action, cases, units):
     """Check the runner's own report against the declared mode and corpus.
 
     A strict run must be green with every case compared. A partial run is accepted as
     green or partial: at least one exact comparison, no failures, and every remaining
-    case listed as a deferral owned by an existing unit record. Returns the summary.
+    case listed as a deferral owned by an existing unit record. Counts are exact
+    integers and golden_checked is the boolean for the action. Returns the summary.
     """
-    report = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique)
+    report = report_json(path.read_text(encoding="utf-8"))
+    if type(report) is not dict:
+        raise ValueError(f"{uid}: report must be a JSON object")
     accepted = {"strict": {"green"}, "partial": {"green", "partial"}}[mode]
     if (report.get("unit") != uid or report.get("mode") != mode or report.get("action") != action
-            or report.get("status") not in accepted or report.get("failures") != 0):
+            or report.get("status") not in accepted):
         raise ValueError(f"{uid}: {mode} {action} report is not an accepted run: {report.get('status')}")
+    for key in ("cases", "compared", "deferred", "failures"):
+        value = report.get(key)
+        if type(value) is not int or value < 0:
+            raise ValueError(f"{uid}: report {key} must be a nonnegative integer, not {value!r}")
+    if report["failures"]:
+        raise ValueError(f"{uid}: accepted run reports failures")
+    checked = report.get("golden_checked")
+    if type(checked) is not bool or checked != (action == "check"):
+        raise ValueError(f"{uid}: golden_checked {checked!r} contradicts action {action}")
     compared, deferred = report.get("compared_cases"), report.get("deferred_cases")
     if not isinstance(compared, list) or not isinstance(deferred, list):
         raise ValueError(f"{uid}: report must list compared and deferred case IDs")
