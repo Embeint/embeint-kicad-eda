@@ -258,6 +258,14 @@ class GraphTests(unittest.TestCase):
 
 
 class ValidationTests(unittest.TestCase):
+    def test_active_generated_tu_cannot_be_silently_uninventoried(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);graph,inventory=fixture(root)
+            graph['provenance'].update(commands_attempted=1,compile_commands_count=1)
+            graph['translation_units']=[{'file':'/private/build/lexer.cpp','status':'ok','category':'generated-build'}]
+            save_fixture(root,graph,inventory)
+            self.assertTrue(any('lacks frozen source mapping' in e for e in validate(root)))
+
     def test_generated_source_storage_accounting_and_tampering(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
