@@ -131,3 +131,44 @@ fn comparator_still_accepts_and_distinguishes_arbitrary_precision_tokens() -> Re
     }
     Ok(())
 }
+
+#[test]
+fn request_container_bound_is_stricter_than_exact_comparison() -> Result<(), String> {
+    for shape in 0..4 {
+        for (leaf, leaf_containers) in [
+            ("0", 0),
+            ("null", 0),
+            ("true", 0),
+            (r#""[{}]""#, 0),
+            ("[]", 1),
+            ("{}", 1),
+        ] {
+            for count in 0..=130 {
+                let mut text = leaf.to_owned();
+                for level in 0..count {
+                    text = if shape == 0 || (shape >= 2 && level % 2 == shape - 2) {
+                        format!("[{text}]")
+                    } else {
+                        format!(r#"{{"x":{text}}}"#)
+                    };
+                }
+                // Value's default budget starts at 128 and rejects when a container
+                // start decrements it to zero. Empty containers count; scalar leaves do not.
+                let accepted = count + leaf_containers <= 127;
+                assert_eq!(request::parse(&text).is_ok(), accepted, "{text}");
+                assert_eq!(
+                    serde_json::from_str::<Value>(&text).is_ok(),
+                    accepted,
+                    "{text}"
+                );
+            }
+        }
+    }
+    // The exact comparator's existing bound and token semantics are independent.
+    for leaf in ["0", "[]", "{}", "1e1000", "-0", "18446744073709551615"] {
+        let text = format!("{}{leaf}{}", "[".repeat(128), "]".repeat(128));
+        assert!(exact::parse(&text).is_ok(), "{text}");
+        invalid(&text);
+    }
+    Ok(())
+}
