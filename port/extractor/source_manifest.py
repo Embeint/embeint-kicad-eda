@@ -17,11 +17,16 @@ def main():
     a = parser.parse_args()
     def git(*args):
         return subprocess.check_output(["git", "-C", str(a.root), *args], encoding="utf-8")
-    files = sorted(p for p in git("ls-files", "-z").split("\0") if Path(p).suffix.lower() in SUFFIXES)
+    tracked = sorted(p for p in git("ls-files", "-z").split("\0") if Path(p).suffix.lower() in SUFFIXES)
+    tooling = [p for p in tracked if p.startswith(('port/', 'rust/'))]
+    tooling_set = set(tooling)
+    files = [p for p in tracked if p not in tooling_set]
     modified = set(git("diff", "HEAD", "--name-only", "-z").split("\0")) & set(files)
     if modified:
         raise ValueError("Commit tracked source edits before snapshotting: " + ", ".join(sorted(modified)))
     value = {"source_commit": git("rev-parse", "HEAD").strip(), "upstream_pin": PIN, "files": files}
+    if tooling:
+        value['excluded_port_tooling'] = tooling
     a.output.parent.mkdir(parents=True, exist_ok=True)
     a.output.write_text(json.dumps(value, indent=2, ensure_ascii=True) + "\n", encoding="utf-8", newline="\n")
     print(f"{len(files)} tracked sources at {value['source_commit']}")
