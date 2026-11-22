@@ -352,4 +352,19 @@ mod tests {
         );
         Ok(())
     }
+
+    // The shared request helper still decodes serde_json's private Number/RawValue
+    // marker keys; this runs once the common parser fix is adopted.
+    #[test]
+    #[ignore = "pending the shared request parser reserved-key fix"]
+    fn reserved_marker_keys_match_the_shared_oracle_contract(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        for line in include_str!("../../../port/oracle/iec60664-reserved-key-guards.jsonl").lines()
+        {
+            let fixture: serde_json::Value = serde_json::from_str(line)?;
+            let wire = fixture["wire"].as_str().ok_or("missing fixture wire")?;
+            assert_eq!(dispatch(wire), fixture["expected"], "request: {wire}");
+        }
+        Ok(())
+    }
 }

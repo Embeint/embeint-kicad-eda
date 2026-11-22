@@ -9,6 +9,7 @@ import subprocess
 UNIT = "pcb_calculator.calculator_panels.application.pure.p001"
 FIXTURES = Path(__file__).with_name("iec60664-input-guards.jsonl")
 NESTING_FIXTURES = Path(__file__).with_name("iec60664-nesting-guards.jsonl")
+RESERVED_FIXTURES = Path(__file__).with_name("iec60664-reserved-key-guards.jsonl")
 
 
 def request(steps, case="guard"):
@@ -210,6 +211,109 @@ def nesting_refusals():
     return items
 
 
+def reserved_key_refusals():
+    """Ordinary objects whose keys match serde_json's private marker names.
+
+    The pinned C++ adapter treats them as plain objects, so a value field holding
+    one is not a number and an identity holding one is not a string. These raw
+    literals are checked against the oracle now. The Rust request helper still
+    decodes the markers, so the Rust process is held to them only with
+    --include-pending-reserved, once the shared parser fix is adopted.
+    """
+    items = []
+    number = "$serde_json::private::Number"
+    raw = "$serde_json::private::RawValue"
+
+    def marker(key, content, extra=""):
+        return "{" + json.dumps(key) + ":" + json.dumps(content) + extra + "}"
+
+    def envelope(unit, case, kind, message):
+        return {"unit": unit, "case": case, "error": {"kind": kind, "message": message}}
+
+    def steps(case, steps_text):
+        return '{"unit":"' + UNIT + '","case":"' + case + '","input":{"steps":' + steps_text + "}}"
+
+    def value(case, field, value_text):
+        return steps(case, '[{"op":"set","field":"' + field + '","value":' + value_text + "}]")
+
+    def add(wire, expected):
+        items.append({"wire": wire, "expected": expected})
+
+    def bad_input(case, message):
+        return envelope(UNIT, case, "invalid_input", message)
+
+    # Value markers that serde_json would decode as numbers, booleans or raw JSON.
+    value_markers = [
+        ("number-0", marker(number, "0")), ("number-1", marker(number, "1")),
+        ("number-max", marker(number, "18446744073709551615")),
+        ("number-negative", marker(number, "-1")), ("number-float", marker(number, "1.5")),
+        ("number-overflow", marker(number, "1e1000")), ("number-text", marker(number, "abc")),
+        ("number-extra-key", marker(number, "0", ',"x":1')),
+        ("number-escaped-key", '{"\\u0024serde_json::private::Number":"0"}'),
+        ("raw-0", marker(raw, "0")), ("raw-true", marker(raw, "true")),
+        ("raw-invalid", marker(raw, "[")), ("raw-overflow", marker(raw, "1e1000")),
+        ("raw-deep", marker(raw, "[" * 200 + "]" * 200)),
+        ("raw-escaped-key", '{"\\u0024serde_json::private::RawValue":"0"}'),
+        # A near-miss key is an ordinary object for both parsers.
+        ("near-miss", marker(number + "s", "0")),
+    ]
+    for name, text in value_markers:
+        case = "reserved-altitude-" + name
+        add(value(case, "altitude", text), bad_input(case, "expected u64 bits"))
+        case = "reserved-groove-" + name
+        add(steps(case, '[{"op":"groove","pd":1,"distance":' + text + "}]"),
+            bad_input(case, "expected u64 bits"))
+        case = "reserved-pd-" + name
+        add(value(case, "pollution_degree", text), bad_input(case, "integer out of range: value"))
+        case = "reserved-pcb-" + name
+        add(value(case, "pcb_material", text), bad_input(case, "expected boolean: value"))
+
+    state = '[{"op":"state"}]'
+    for key in (number, raw):
+        tag = "number" if key == number else "raw"
+        case = f"reserved-op-{tag}"
+        add(steps(case, '[{"op":' + marker(key, '"state"') + "}]"),
+            bad_input(case, "expected string: op"))
+        case = f"reserved-field-{tag}"
+        add(steps(case, '[{"op":"set","field":' + marker(key, '"altitude"') + ',"value":0}]'),
+            bad_input(case, "expected string: field"))
+        case = f"reserved-step-{tag}"
+        add(steps(case, "[" + marker(key, '{"op":"state"}') + "]"),
+            bad_input(case, "expected string: op"))
+        case = f"reserved-steps-{tag}"
+        add(steps(case, marker(key, state)), bad_input(case, "expected 1..256 steps"))
+        case = f"reserved-step-extra-{tag}"
+        add(steps(case, '[{"op":"state","extra":' + marker(key, "0") + "}]"),
+            bad_input(case, "unexpected field"))
+        case = f"reserved-input-{tag}"
+        add('{"unit":"' + UNIT + '","case":"' + case + '","input":'
+            + marker(key, '{"steps":' + state + "}") + "}", bad_input(case, "missing field"))
+        case = f"reserved-input-sibling-{tag}"
+        add('{"unit":"' + UNIT + '","case":"' + case + '","input":{"steps":' + state
+            + "," + json.dumps(key) + ':"0"}}', bad_input(case, "unexpected field"))
+        case = f"reserved-unit-{tag}"
+        add('{"unit":' + marker(key, json.dumps(UNIT)) + ',"case":"' + case
+            + '","input":{"steps":' + state + "}}",
+            envelope(None, case, "invalid_request", "expected unit, case, input object"))
+        case = f"reserved-case-{tag}"
+        add('{"unit":"' + UNIT + '","case":' + marker(key, json.dumps(case))
+            + ',"input":{"steps":' + state + "}}",
+            envelope(UNIT, None, "invalid_request", "expected unit, case, input object"))
+        case = f"reserved-top-extra-{tag}"
+        add('{"unit":"' + UNIT + '","case":"' + case + '","input":{"steps":' + state
+            + '},"extra":' + marker(key, "0") + "}",
+            envelope(UNIT, case, "invalid_request", "expected unit, case, input object"))
+        case = f"reserved-unknown-unit-{tag}"
+        add('{"unit":"unregistered-iec-unit","case":"' + case + '","input":{"n":'
+            + marker(key, "0") + "}}",
+            envelope("unregistered-iec-unit", case, "unknown_unit", "unit has no registered shim"))
+        # A whole request wrapped in a marker is a one-key object, not a request.
+        inner = '{"unit":"' + UNIT + '","case":"wrapped","input":{"steps":' + state + "}}"
+        add(marker(key, inner if key == raw else "0"),
+            envelope(None, None, "invalid_request", "expected unit, case, input object"))
+    return items
+
+
 def check(binary, fixtures):
     zero = json.dumps(request([{"op": "set", "field": "altitude", "value": 0}], "integer-zero"),
                       separators=(",", ":")).replace('"value":0', '"value":-0')
@@ -239,20 +343,32 @@ def main():
     parser.add_argument("oracle", type=Path, nargs="?")
     parser.add_argument("rust", type=Path, nargs="?")
     parser.add_argument("--write-fixtures", action="store_true")
+    parser.add_argument("--include-pending-reserved", action="store_true",
+                        help="also hold the Rust process to the reserved-key fixtures")
     args = parser.parse_args()
-    fixtures = []
-    # The original 106-envelope contract stays byte-identical; nesting is separate.
-    for path, generated in ((FIXTURES, refusals()), (NESTING_FIXTURES, nesting_refusals())):
+    sets = []
+    # The original 106-envelope contract stays byte-identical; later sets are separate.
+    for path, generated in ((FIXTURES, refusals()), (NESTING_FIXTURES, nesting_refusals()),
+                            (RESERVED_FIXTURES, reserved_key_refusals())):
         if args.write_fixtures:
             path.write_text("".join(json.dumps(item, separators=(",", ":")) + "\n" for item in generated),
                             encoding="utf-8", newline="\n")
         stored = [json.loads(line) for line in path.read_text(encoding="utf-8").split("\n") if line]
         assert stored == generated, "regenerate the shared input contract with --write-fixtures"
-        fixtures += stored
+        sets.append(stored)
+    fixtures = sets[0] + sets[1]
+    reserved = sets[2]
     if args.oracle is not None:
-        actual = check(args.oracle.resolve(), fixtures)
+        # The C++ reference must already satisfy every set, including reserved keys.
+        actual = check(args.oracle.resolve(), fixtures + reserved)
         if args.rust is not None:
-            assert check(args.rust.resolve(), fixtures) == actual
+            if args.include_pending_reserved:
+                assert check(args.rust.resolve(), fixtures + reserved) == actual
+            else:
+                # Pending the shared parser fix: compare everything except reserved keys.
+                rust = check(args.rust.resolve(), fixtures)
+                assert rust[:len(fixtures)] == actual[:len(fixtures)]
+                assert rust[len(fixtures):] == actual[len(fixtures) + len(reserved):]
     elif not args.write_fixtures:
         parser.error("provide an oracle executable or --write-fixtures")
 
