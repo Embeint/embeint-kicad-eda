@@ -8,6 +8,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import tomllib
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -53,6 +54,39 @@ def save_fixture(root, graph, inventory, target=1):
 
 
 class GraphTests(unittest.TestCase):
+    def test_cli_regeneration_preserves_port_wiring_and_refreshes_accounting(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            graph, inventory = fixture(root)
+            units, _ = save_fixture(root, graph, inventory)
+            uid = sorted(units)[0]
+            previous = dict(units[uid])
+            previous.update(rust_module="kicad_md5::md5_hash", status="claimed",
+                            claimed_by="worker", claimed_at="2026-11-22T00:00:00Z",
+                            tests=["difftest::md5"], notes="Preserve portable wiring: \u03bc")
+            previous["difftest"] = {"rust_package": "kicad-md5-shim",
+                                    "rust_binary": "kicad-md5-shim", "rust_args": []}
+            previous.update(est_lines=999, depends_on=["stale-dependency"],
+                            source_ranges=["stale.cpp:1:999"])
+            path = root / "port/units" / (uid + ".toml")
+            path.write_text(dump(previous), encoding="utf-8", newline="\n")
+            generated = root / "port/extractor/generated"
+            command = [sys.executable, str(Path(__file__).resolve().parents[1] / "tools/split_units.py"),
+                       "--graph", str(generated / "graph.json"),
+                       "--inventory", str(generated / "inventory.json"),
+                       "--units-dir", str(path.parent), "--report", str(generated / "units.json"),
+                       "--source-root", str(root), "--target-lines", "1"]
+            subprocess.run(command, check=True, capture_output=True, text=True)
+            restored = tomllib.loads(path.read_text(encoding="utf-8"))
+            for key in ("rust_module", "status", "claimed_by", "claimed_at", "tests", "notes", "difftest"):
+                self.assertEqual(restored[key], previous[key])
+            for key in ("est_lines", "depends_on", "source_ranges", "functions", "layer"):
+                self.assertEqual(restored[key], units[uid][key])
+            self.assertEqual(validate(root), [])
+            first = path.read_bytes()
+            subprocess.run(command, check=True, capture_output=True, text=True)
+            self.assertEqual(path.read_bytes(), first)
+
     def test_exclusive_eof_recovery_counts_only_verified_physical_lines(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
