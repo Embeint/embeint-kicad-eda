@@ -337,4 +337,24 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn complete_nesting_envelopes_match_the_shared_container_bound() {
+        for (leaf, leaf_containers) in [("0", 0), ("[]", 1), ("{}", 1)] {
+            for arrays in [124, 125, 126, 127, 128] {
+                let nested = format!("{}{leaf}{}", "[".repeat(arrays), "]".repeat(arrays));
+                let text = format!(
+                    r#"{{"unit":"{UNIT}","case":"nested","input":{{"steps":[{{"op":"new","id":0}}],"extra":{nested}}}}}"#
+                );
+                let expected = if 2 + arrays + leaf_containers <= 127 {
+                    json!({"unit":UNIT,"case":"nested","error":{
+                        "kind":"invalid_input","message":"unexpected or missing field"}})
+                } else {
+                    json!({"unit":null,"case":null,"error":{
+                        "kind":"invalid_request","message":"invalid JSON or duplicate key"}})
+                };
+                assert_eq!(dispatch(&text), expected, "{text}");
+            }
+        }
+    }
 }

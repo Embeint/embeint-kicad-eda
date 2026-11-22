@@ -69,6 +69,28 @@ def regression_cases():
                    failure(UNIT, "finite-ignored-field", "invalid_input", "unexpected or missing field")))
     checks.append((request("numeric-looking-string", '{"steps":[{"op":"new","id":0,"n":"1e1000"}]}'),
                    failure(UNIT, "numeric-looking-string", "invalid_input", "unexpected or missing field")))
+
+    for leaf, leaf_containers in [("0", 0), ("[]", 1), ("{}", 1)]:
+        for arrays in [124, 125, 126, 127, 128]:
+            nested = "[" * arrays + leaf + "]" * arrays
+            parsed = 2 + arrays + leaf_containers <= 127
+            wire = request("nested-input", '{"steps":[{"op":"new","id":0}],"extra":' + nested + '}')
+            expected = (failure(UNIT, "nested-input", "invalid_input", "unexpected or missing field") if parsed
+                        else failure(None, None, "invalid_request", "invalid JSON or duplicate key"))
+            checks.append((wire, expected))
+            wire = request("nested-unknown-unit", '{"extra":' + nested + '}', unit='"unknown-unit"')
+            expected = (failure("unknown-unit", "nested-unknown-unit", "unknown_unit", "unit has no registered shim") if parsed
+                        else failure(None, None, "invalid_request", "invalid JSON or duplicate key"))
+            checks.append((wire, expected))
+            parsed = 1 + arrays + leaf_containers <= 127
+            for wire, unit, case in [
+                (request("nested-unit", '{}', unit=nested), None, "nested-unit"),
+                (request("nested-case", '{}', case_token=nested), UNIT, None),
+                (request("nested-extra", '{}')[:-1] + ',"extra":' + nested + '}', UNIT, "nested-extra"),
+            ]:
+                expected = (failure(unit, case, "invalid_request", "expected unit, case, input object") if parsed
+                            else failure(None, None, "invalid_request", "invalid JSON or duplicate key"))
+                checks.append((wire, expected))
     return checks
 
 
