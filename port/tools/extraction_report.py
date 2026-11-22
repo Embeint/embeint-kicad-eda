@@ -43,7 +43,8 @@ def summarize(graph, inventory, stale=()):
         "functions": len(graph["functions"]), "edges": len(graph["edges"]),
         "virtual_destructors": sum(f.get('virtual', False) and '::~' in f.get('name','') for f in graph['functions'].values()),
         "build_generated_definitions": sum(f['file'].startswith('@build/') for f in graph['functions'].values()),
-        "implicit_lifetime_diagnostics": sum('implicit destructor' in c['expression'] or 'temporary lifetime' in c['expression']
+        "implicit_lifetime_diagnostics": sum(any(text in c['expression'] for text in
+                                              ('implicit destructor', 'temporary lifetime', 'virtual destructor dispatch', 'deallocation function selection'))
                                               for c in graph.get('unresolved_calls', [])),
         "edge_kinds": dict(sorted(Counter(e[2] for e in graph["edges"]).items())),
         "override_relationships": len(graph["overrides"]),

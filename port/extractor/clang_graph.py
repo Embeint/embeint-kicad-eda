@@ -178,7 +178,7 @@ def extract_translation_unit(job):
 
         def class_wx(cursor):
             if not cursor or cursor.kind not in (ci.CursorKind.CLASS_DECL, ci.CursorKind.STRUCT_DECL,
-                                                  ci.CursorKind.CLASS_TEMPLATE):
+                                                  ci.CursorKind.CLASS_TEMPLATE, ci.CursorKind.UNION_DECL):
                 return set()
             names = set(type_wx(cursor.type))
             for child in cursor.get_children():
@@ -187,7 +187,8 @@ def extract_translation_unit(job):
             return names
 
         def virtual(cursor):
-            return cursor.kind in (ci.CursorKind.CXX_METHOD, ci.CursorKind.DESTRUCTOR) and cursor.is_virtual_method()
+            return cursor.kind in (ci.CursorKind.CXX_METHOD, ci.CursorKind.DESTRUCTOR,
+                                   ci.CursorKind.CONVERSION_FUNCTION) and cursor.is_virtual_method()
 
         def destruction(type, owner, cursor, dispatch=False):
             type = type.get_canonical()
@@ -209,7 +210,7 @@ def extract_translation_unit(job):
             target = destructor_cache[key]
             if target and target.get_usr():
                 out["calls"].append([owner, identity(target), dispatch and virtual(target)])
-                return
+                return virtual(target)
             if not type.is_pod():
                 out["unresolved"].append({"caller": owner, "line": cursor.location.line,
                     "expression": "implicit destructor not exposed by libclang: " + type.spelling})
@@ -229,7 +230,7 @@ def extract_translation_unit(job):
             current = owner
             if cursor.kind in functions:
                 usr = identity(cursor)
-                if cursor.kind in (ci.CursorKind.CXX_METHOD, ci.CursorKind.DESTRUCTOR):
+                if cursor.kind in (ci.CursorKind.CXX_METHOD, ci.CursorKind.DESTRUCTOR, ci.CursorKind.CONVERSION_FUNCTION):
                     ptr, count = ctypes.POINTER(ci.Cursor)(), ctypes.c_uint()
                     get_overrides(cursor, ctypes.byref(ptr), ctypes.byref(count))
                     for i in range(count.value):
@@ -265,6 +266,9 @@ def extract_translation_unit(job):
                     ref = cursor.referenced
                     if ref and ref.kind in functions and ref.get_usr():
                         out["calls"].append([current, identity(ref), virtual(ref)])
+                        if ref.kind == ci.CursorKind.DESTRUCTOR and virtual(ref):
+                            out['unresolved'].append({'caller': current, 'line': cursor.location.line,
+                                'expression': 'virtual destructor dispatch: compiler-implicit derived overrides may be absent'})
                         # External wx calls still contribute direct classification.
                         record["wx"] = sorted(set(record["wx"]) | wx(ref))
                     else:
@@ -278,10 +282,14 @@ def extract_translation_unit(job):
                 if cursor.kind == ci.CursorKind.CXX_DELETE_EXPR:
                     operands = list(cursor.get_children())
                     if operands:
-                        destruction(operands[-1].type.get_pointee(), current, cursor, dispatch=True)
+                        if destruction(operands[-1].type.get_pointee(), current, cursor, dispatch=True):
+                            out['unresolved'].append({'caller': current, 'line': cursor.location.line,
+                                'expression': 'virtual destructor dispatch: compiler-implicit derived overrides may be absent'})
                     else:
                         out["unresolved"].append({"caller": current, "line": cursor.location.line,
                                                   "expression": "delete operand type unavailable"})
+                    out['unresolved'].append({'caller': current, 'line': cursor.location.line,
+                        'expression': 'delete deallocation function selection is not exposed by libclang'})
                 elif cursor.kind in (ci.CursorKind.VAR_DECL, ci.CursorKind.PARM_DECL):
                     destruction(cursor.type, current, cursor)
             for child in cursor.get_children():
