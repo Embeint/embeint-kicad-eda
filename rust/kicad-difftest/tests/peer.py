@@ -7,8 +7,10 @@ the case after a hyphen: defer-<case> (well-formed unported reply), error-<case>
 changed-<case>, and malformed deferrals nounit-<case>, extra-<case>, badowner-<case>
 and emptyupstream-<case>. Output faults after flushing the replies: exitafter (exit 7),
 sleepafter (outlive the timeout), truncate (cut the last reply mid-line, no newline),
-garbage (append a non-reply line) and skip-<case> (omit that reply).
+garbage (append a non-reply line) and skip-<case> (omit that reply). stderrbig
+writes STDERR_BYTES (default 4 MiB) of diagnostics before replying.
 """
+import os
 import json
 import sys
 import time
@@ -18,6 +20,13 @@ if "--provenance" in sys.argv:
     print(json.dumps({"upstream_commit": "pin", "compiler": "test peer", "flags": "test only"}))
     sys.exit(0)
 raw = sys.stdin.buffer.read()
+if "stderrbig" in modes:
+    chunk = b"e" * 65536
+    remaining = int(os.environ.get("STDERR_BYTES", str(4 * 1024 * 1024)))
+    while remaining > 0:
+        sys.stderr.buffer.write(chunk[:remaining])
+        remaining -= len(chunk)
+    sys.stderr.buffer.flush()
 if "failure" in modes:
     print("oracle crashed", file=sys.stderr)
     sys.exit(7)

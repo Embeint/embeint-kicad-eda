@@ -679,3 +679,48 @@ fn a_failed_blessing_step_keeps_reference_evidence() -> TestResult {
     assert!(!root.join("port/goldens/test.unit.jsonl").exists());
     Ok(())
 }
+
+#[test]
+fn large_stderr_is_bounded_on_clean_failed_and_timed_out_runs() -> TestResult {
+    let temp = tempfile::tempdir()?;
+    let root = temp.path();
+    setup(root)?;
+    // Clean run with 4 MiB of stderr on both sides: still green.
+    let (output, report) = run(root, "compare", "stderrbig", "stderrbig", &[])?;
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(status(&report), Some("green"));
+    let limit = kicad_difftest::process::STDERR_LIMIT;
+    // exitafter also writes its 22-byte "exiting after replies\n" line.
+    let written = |modes: &str| 4 * 1024 * 1024 + if modes.contains("exitafter") { 22 } else { 0 };
+    for (oracle, rust, needle) in [
+        ("stderrbig,exitafter", "ok", "process failed"),
+        ("stderrbig,sleepafter", "ok", "timeout"),
+        ("ok", "stderrbig,exitafter", "process failed"),
+    ] {
+        let (output, report) = run(root, "compare", oracle, rust, &[])?;
+        assert!(!output.status.success());
+        let report = report.ok_or("missing report")?;
+        let faults = report["run_faults"].as_array().ok_or("run_faults")?;
+        assert_eq!(faults.len(), 1, "{oracle} {rust}");
+        let fault = faults[0].as_str().ok_or("fault")?;
+        let omitted = written(if oracle == "ok" { rust } else { oracle }) - limit;
+        assert!(fault.contains(needle), "{oracle} {rust}");
+        assert!(
+            fault.contains(&format!("[{omitted} more bytes omitted]")),
+            "{oracle} {rust}: {}",
+            &fault[fault.len().saturating_sub(200)..]
+        );
+        assert!(
+            fault.len() < limit + 1024,
+            "{oracle} {rust}: {}",
+            fault.len()
+        );
+        // The replies written alongside the diagnostics are still compared.
+        assert_eq!(report["compared"], 3, "{oracle} {rust}");
+    }
+    Ok(())
+}

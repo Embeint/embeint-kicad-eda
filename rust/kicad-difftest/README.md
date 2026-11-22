@@ -110,8 +110,10 @@ nonzero exit or a timeout kill are still parsed, compared and checked against th
 golden, and keep their reference lines; a truncated final line is a malformed
 reply. The process fault itself (start failure, nonzero exit, timeout, non-UTF-8
 stdout) is always listed in `run_faults` with up to 64 KiB of stderr and always
-fails the run, so no recovered reply can make a faulted run pass. Timeouts still
-kill and reap the program; stdout is never truncated.
+fails the run, so no recovered reply can make a faulted run pass. Only those 64 KiB
+of stderr are read (`Read::take`); the omitted count comes from the file size, so
+a huge diagnostic stream costs no memory. Timeouts still kill and reap the
+program; stdout is never truncated.
 
 Replies are aligned by position, as the protocol requires; a reply at the wrong
 position fails the case expected there. Lines beyond the corpus are a run fault
