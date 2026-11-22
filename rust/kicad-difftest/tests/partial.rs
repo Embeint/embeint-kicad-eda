@@ -75,6 +75,41 @@ fn status(report: &Option<Value>) -> Option<&str> {
     report.as_ref()?.get("status")?.as_str()
 }
 
+/// (case, outcome) for every reported case, in report order.
+fn outcomes(report: &Value) -> Vec<(String, String)> {
+    report["outcomes"]
+        .as_array()
+        .map(|items| {
+            items
+                .iter()
+                .map(|o| {
+                    let field = |k: &str| o[k].as_str().unwrap_or("?").to_owned();
+                    (field("case"), field("outcome"))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn pairs(expected: &[(&str, &str)]) -> Vec<(String, String)> {
+    expected
+        .iter()
+        .map(|(c, o)| ((*c).to_owned(), (*o).to_owned()))
+        .collect()
+}
+
+/// Parses a reported reply line and returns its `result`, or Null.
+fn result_of(line: &Value) -> Result<Value, Box<dyn std::error::Error>> {
+    let text = line.as_str().ok_or("reply line must be a string")?;
+    Ok(serde_json::from_str::<Value>(text)?["result"].clone())
+}
+
+/// The oracle peer's successful `n` field, kept as an exact token in the report line.
+fn oracle_n(line: &Value) -> bool {
+    line.as_str()
+        .is_some_and(|l| l.contains("\"n\": 9007199254740993") && l.contains("\"result\""))
+}
+
 /// Writes the golden from a strict, fully agreeing run through the reviewed path.
 fn bless(root: &Path) -> TestResult {
     let approval = root.join("approval.json");
@@ -120,22 +155,43 @@ fn mixed_success_and_deferral_is_partial_only_when_requested() -> TestResult {
     assert_eq!(report["compared"], 2);
     assert_eq!(report["deferred"], 1);
     assert_eq!(report["failures"], 0);
-    assert_eq!(report["compared_cases"], json!(["a", "c"]));
+    assert_eq!(report["unprocessed"], 0);
+    assert_eq!(report["golden_checked"], false);
+    assert_eq!(report["golden"], json!({"status": "not_requested"}));
+    assert_eq!(report["run_faults"], json!([]));
     assert_eq!(
-        report["deferred_cases"],
-        json!([{"case": "b", "upstream": "f", "unit": "dependency"}])
+        outcomes(&report),
+        pairs(&[("a", "compared"), ("b", "deferred"), ("c", "compared")])
     );
-    // stdout carries counts only; the report retains every case ID.
+    // The deferred case keeps its owner, symbol, the C++ success and the Rust reply.
+    let b = &report["outcomes"][1];
+    assert_eq!(
+        (&b["upstream"], &b["unit"]),
+        (&json!("f"), &json!("dependency"))
+    );
+    assert!(oracle_n(&b["oracle"]), "{}", b["oracle"]);
+    assert!(result_of(&b["oracle"])?.is_object());
+    assert!(b["rust"].as_str().is_some_and(|r| r.contains("unported")));
+    // An accepted report keeps compared cases as IDs only.
+    assert!(report["outcomes"][0].get("oracle").is_none());
+    // stdout carries counts only; the report retains every case outcome.
     let stdout: Value = serde_json::from_slice(&output.stdout)?;
     assert_eq!(stdout["status"], "partial");
-    assert!(stdout.get("compared_cases").is_none());
+    assert!(stdout.get("outcomes").is_none());
 
-    // Strict default: the same replies fail as deferred in compare and check.
-    for action in ["compare", "check"] {
+    // Strict default: the same replies fail. compare reports the deferral; check
+    // without a golden reports the golden failure, which takes precedence, and
+    // both keep the per-case outcomes.
+    for (action, expected) in [("compare", "deferred"), ("check", "failed")] {
         let (output, report) = run(root, action, "ok", "defer-b", &[])?;
         assert!(!output.status.success(), "strict {action}");
-        assert_eq!(status(&report), Some("deferred"), "strict {action}");
-        assert_eq!(report.ok_or("report")?["mode"], "strict");
+        let report = report.ok_or("report")?;
+        assert_eq!(report["status"], expected, "strict {action}");
+        assert_eq!(report["mode"], "strict");
+        assert_eq!(
+            outcomes(&report),
+            pairs(&[("a", "compared"), ("b", "deferred"), ("c", "compared")])
+        );
     }
     Ok(())
 }
@@ -149,8 +205,10 @@ fn partial_without_deferrals_reports_green() -> TestResult {
     let report = report.ok_or("missing report")?;
     assert_eq!(report["status"], "green");
     assert_eq!(report["mode"], "partial");
-    assert_eq!(report["compared_cases"], json!(["a", "b", "c"]));
-    assert_eq!(report["deferred_cases"], json!([]));
+    assert_eq!(
+        outcomes(&report),
+        pairs(&[("a", "compared"), ("b", "compared"), ("c", "compared")])
+    );
     let (output, report) = run(temp.path(), "compare", "ok", "ok", &[])?;
     assert!(output.status.success());
     let report = report.ok_or("missing report")?;
@@ -170,7 +228,10 @@ fn all_deferred_is_not_a_successful_unit() -> TestResult {
     assert_eq!(report["status"], "deferred");
     assert_eq!(report["compared"], 0);
     assert_eq!(report["deferred"], 3);
-    assert_eq!(report["compared_cases"], json!([]));
+    assert_eq!(
+        outcomes(&report),
+        pairs(&[("a", "deferred"), ("b", "deferred"), ("c", "deferred")])
+    );
     assert!(report["error"]
         .as_str()
         .is_some_and(|e| e.starts_with("DEFERRED all 3 cases")));
@@ -190,44 +251,84 @@ fn all_deferred_is_not_a_successful_unit() -> TestResult {
 fn failures_always_fail_in_partial_mode() -> TestResult {
     let temp = tempfile::tempdir()?;
     setup(temp.path())?;
-    for (oracle, rust) in [
-        // A mismatch among the successful cases.
-        ("ok", "changed-a,defer-b"),
-        ("ok", "changed-c,defer-b"),
+    const C: &str = "compared";
+    const D: &str = "deferred";
+    const F: &str = "failed";
+    const U: &str = "unprocessed";
+    // (oracle, Rust, outcomes of a/b/c, run-level faults). Every run fails, and
+    // every case keeps its own outcome: one fault never erases the others.
+    for (oracle, rust, expected, faults) in [
+        // A mismatch among the successful cases, before or after other outcomes.
+        ("ok", "changed-a,defer-b", [F, D, C], 0),
+        ("ok", "changed-c,defer-b", [C, D, F], 0),
         // Non-deferral errors, from either side or both.
-        ("ok", "error-a,defer-b"),
-        ("ok", "error"),
-        ("error", "error"),
-        ("error-b", "defer-b"),
+        ("ok", "error-a,defer-b", [F, D, C], 0),
+        ("ok", "error", [F, F, F], 0),
+        ("error", "error", [F, F, F], 0),
+        ("error-b", "defer-b", [C, F, C], 0),
         // The oracle never defers: a deferral there has no reference outcome.
-        ("defer-b", "defer-b"),
-        ("deferred", "ok"),
+        ("defer-b", "defer-b", [C, F, C], 0),
+        ("deferred", "ok", [F, F, F], 0),
         // Malformed deferral envelopes are failures, not deferrals.
-        ("ok", "nounit-b"),
-        ("ok", "extra-b"),
-        ("ok", "badowner-b"),
-        ("ok", "emptyupstream-b"),
-        // Identity and transport faults alongside a well-formed deferral.
-        ("ok", "defer-b,missing"),
-        ("ok", "defer-b,duplicate"),
-        ("ok", "defer-b,reorder"),
-        ("ok", "defer-b,noisy"),
-        ("ok", "defer-b,failure"),
-        ("ok", "defer-b,timeout"),
-        ("defer-b,missing", "ok"),
-        ("failure", "defer-b"),
+        ("ok", "nounit-b", [C, F, C], 0),
+        ("ok", "extra-b", [C, F, C], 0),
+        ("ok", "badowner-b", [C, F, C], 0),
+        ("ok", "emptyupstream-b", [C, F, C], 0),
+        // Identity faults alongside a well-formed deferral.
+        ("ok", "defer-b,missing", [C, D, F], 0),
+        ("ok", "defer-b,duplicate", [C, D, C], 1),
+        ("ok", "defer-b,reorder", [F, D, F], 0),
+        ("ok", "defer-b,noisy", [F, F, F], 1),
+        ("defer-b,missing", "ok", [C, F, F], 0),
+        // Process faults leave the affected cases explicitly unprocessed.
+        ("ok", "defer-b,failure", [U, U, U], 0),
+        ("ok", "defer-b,timeout", [U, U, U], 0),
+        ("failure", "defer-b", [U, U, U], 0),
     ] {
+        let label = format!("oracle {oracle} Rust {rust}");
         let (output, report) = run(temp.path(), "compare", oracle, rust, &["--partial"])?;
-        assert!(!output.status.success(), "oracle {oracle} Rust {rust}");
-        let state = status(&report);
-        assert!(
-            matches!(state, Some("failed" | "deferred")),
-            "oracle {oracle} Rust {rust}: {state:?}"
+        assert!(!output.status.success(), "{label}");
+        let report = report.ok_or_else(|| format!("{label}: missing report"))?;
+        assert_eq!(report["status"], "failed", "{label}");
+        assert_eq!(report["mode"], "partial", "{label}");
+        assert_eq!(report["cases"], 3, "{label}");
+        let expected_pairs = pairs(&[("a", expected[0]), ("b", expected[1]), ("c", expected[2])]);
+        assert_eq!(outcomes(&report), expected_pairs, "{label}");
+        let count = |name: &str| expected.iter().filter(|o| **o == name).count();
+        assert_eq!(report["compared"], count(C), "{label}");
+        assert_eq!(report["deferred"], count(D), "{label}");
+        assert_eq!(report["failures"], count(F), "{label}");
+        assert_eq!(report["unprocessed"], count(U), "{label}");
+        assert_eq!(
+            report["run_faults"].as_array().map(Vec::len),
+            Some(faults),
+            "{label}"
         );
-        if oracle == "ok" {
-            assert_eq!(state, Some("failed"), "oracle {oracle} Rust {rust}");
+        assert!(report["error"].as_str().is_some_and(|e| !e.is_empty()));
+        for (index, entry) in report["outcomes"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .enumerate()
+        {
+            match expected[index] {
+                F | U => assert!(entry["reason"].as_str().is_some_and(|r| !r.is_empty())),
+                D => assert_eq!(entry["unit"], "dependency"),
+                _ => assert!(entry.get("reason").is_none()),
+            }
+            // A failed run keeps every successful reference reply, compared cases
+            // included, and never labels an oracle error as a reference result.
+            if oracle == "ok" {
+                assert!(oracle_n(&entry["oracle"]), "{label} case {index}");
+            }
         }
     }
+    // Strict mode also enumerates outcomes on failure: a mismatch after a deferral.
+    let (output, report) = run(temp.path(), "compare", "ok", "changed-c,defer-b", &[])?;
+    assert!(!output.status.success());
+    let report = report.ok_or("missing report")?;
+    assert_eq!(report["status"], "failed");
+    assert_eq!(outcomes(&report), pairs(&[("a", C), ("b", D), ("c", F)]));
     Ok(())
 }
 
@@ -236,10 +337,18 @@ fn partial_check_retains_every_reference_reply_against_the_golden() -> TestResul
     let temp = tempfile::tempdir()?;
     let root = temp.path();
     setup(root)?;
-    // check needs the committed golden in both modes.
+    // check needs the committed golden in both modes; the live outcomes remain.
     let (output, report) = run(root, "check", "ok", "defer-b", &["--partial"])?;
     assert!(!output.status.success());
-    assert_eq!(status(&report), Some("failed"));
+    let report = report.ok_or("missing report")?;
+    assert_eq!(report["status"], "failed");
+    assert_eq!(report["golden_checked"], true);
+    assert_eq!(report["golden"]["status"], "failed");
+    assert!(report["golden"]["error"].is_string());
+    assert_eq!(
+        outcomes(&report),
+        pairs(&[("a", "compared"), ("b", "deferred"), ("c", "compared")])
+    );
     bless(root)?;
     let golden = root.join("port/goldens/test.unit.jsonl");
     let before = fs::read_to_string(&golden)?;
@@ -252,6 +361,8 @@ fn partial_check_retains_every_reference_reply_against_the_golden() -> TestResul
     let report = report.ok_or("missing report")?;
     assert_eq!(report["status"], "partial");
     assert_eq!(report["golden_checked"], true);
+    assert_eq!(report["golden"]["status"], "matched");
+    assert_eq!(report["golden"]["mismatched_cases"], json!([]));
     let lines: Vec<&str> = before.lines().collect();
     let [a, b, c] = lines[..] else {
         return Err("expected three golden lines".into());
@@ -269,8 +380,23 @@ fn partial_check_retains_every_reference_reply_against_the_golden() -> TestResul
         fs::write(&golden, &damaged)?;
         let (output, report) = run(root, "check", "ok", "defer-b", &["--partial"])?;
         assert!(!output.status.success(), "{damaged}");
-        assert_eq!(status(&report), Some("failed"));
+        let report = report.ok_or("missing report")?;
+        assert_eq!(report["status"], "failed");
+        assert_eq!(report["golden"]["status"], "failed");
+        // The golden fault does not erase the live oracle/Rust outcomes.
+        assert_eq!(
+            outcomes(&report),
+            pairs(&[("a", "compared"), ("b", "deferred"), ("c", "compared")])
+        );
     }
+    fs::write(&golden, format!("{a}\n{stale_b}\n{c}\n"))?;
+    let (_, report) = run(root, "check", "ok", "defer-b", &["--partial"])?;
+    let report = report.ok_or("missing report")?;
+    let mismatched = &report["golden"]["mismatched_cases"];
+    assert_eq!(mismatched.as_array().map(Vec::len), Some(1));
+    assert_eq!(mismatched[0]["case"], "b");
+    assert_eq!(mismatched[0]["golden"], json!(stale_b));
+    assert_eq!(mismatched[0]["oracle"], json!(b));
     fs::write(&golden, &before)?;
     // The oracle changing its reply for the deferred case is a golden failure.
     let (output, report) = run(root, "check", "changed-b", "defer-b", &["--partial"])?;
@@ -321,5 +447,60 @@ fn partial_never_blesses_and_is_an_explicit_single_flag() -> TestResult {
     assert!(!root.join("port/goldens/test.unit.jsonl").exists());
     let (output, _) = run(root, "compare", "ok", "ok", &["--partial", "--partial"])?;
     assert_eq!(output.status.code(), Some(2));
+    Ok(())
+}
+
+#[test]
+fn input_and_transport_faults_are_explicit() -> TestResult {
+    let temp = tempfile::tempdir()?;
+    let root = temp.path();
+    setup(root)?;
+    // A program that cannot start leaves every case unprocessed, and the other
+    // side's successful reference replies are retained.
+    let peer = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/peer.py");
+    let report_path = root.join("transport.json");
+    let output = Command::new(env!("CARGO_BIN_EXE_kicad-difftest"))
+        .args(["compare", "--partial", "--root"])
+        .arg(root)
+        .args([
+            "--unit",
+            "test.unit",
+            "--oracle",
+            &python()?,
+            "--oracle-arg",
+        ])
+        .arg(&peer)
+        .args(["--oracle-arg", "ok", "--rust"])
+        .arg(root.join("missing-shim"))
+        .arg("--report")
+        .arg(&report_path)
+        .output()?;
+    assert!(!output.status.success());
+    let report: Value = serde_json::from_slice(&fs::read(&report_path)?)?;
+    assert_eq!(report["status"], "failed");
+    assert_eq!(report["unprocessed"], 3);
+    assert_eq!(report["rust_output_sha256"], Value::Null);
+    assert_eq!(report["rust_sha256"], Value::Null);
+    assert!(report["oracle_output_sha256"].is_string());
+    for entry in report["outcomes"].as_array().into_iter().flatten() {
+        assert_eq!(entry["outcome"], "unprocessed");
+        assert!(entry["reason"]
+            .as_str()
+            .is_some_and(|r| r.contains("cannot start")));
+        assert!(oracle_n(&entry["oracle"]));
+    }
+    // An invalid corpus cannot be enumerated: the report says so and has no outcomes.
+    let cases = root.join("port/cases/test.unit.jsonl");
+    let text = fs::read_to_string(&cases)?;
+    let first = text.lines().next().ok_or("empty corpus")?.to_owned();
+    fs::write(&cases, format!("{text}{first}\n"))?;
+    let (output, report) = run(root, "compare", "ok", "defer-b", &["--partial"])?;
+    assert!(!output.status.success());
+    let report = report.ok_or("missing report")?;
+    assert_eq!(report["status"], "failed");
+    assert!(report.get("outcomes").is_none());
+    assert!(report["error"]
+        .as_str()
+        .is_some_and(|e| e.contains("duplicate case")));
     Ok(())
 }

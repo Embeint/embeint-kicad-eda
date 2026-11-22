@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-use kicad_difftest::{
-    compare, compare_partial, exact::parse, golden, identities, partial_replies, records,
-};
+use kicad_difftest::evaluate::{check_golden, evaluate, Evaluation, Outcome};
+use kicad_difftest::{compare, exact::parse, golden, identities, partial_replies, records};
 use serde_json::json;
 
 #[test]
@@ -132,11 +131,25 @@ fn partial_replies_classify_only_well_formed_deferrals() -> Result<(), String> {
         format!("{{\"unit\":\"u\",\"case\":\"{case}\",\"error\":{error}}}\n")
     };
     let well_formed = r#"{"kind":"unported","upstream":"MD5_HASH::Hash","unit":"owner.unit"}"#;
-    let oracle = records(
-        &format!("{}{}{}", ok("a", "1"), ok("b", "2"), ok("c", "3")),
+    let cases = records(
+        "{\"unit\":\"u\",\"case\":\"a\",\"input\":{}}\n\
+         {\"unit\":\"u\",\"case\":\"b\",\"input\":{}}\n\
+         {\"unit\":\"u\",\"case\":\"c\",\"input\":{}}\n",
         "u",
-        false,
+        true,
     )?;
+    let oracle_text = format!("{}{}{}", ok("a", "1"), ok("b", "2"), ok("c", "3"));
+    let oracle = Ok(oracle_text.clone());
+    let run = |rust: &str| evaluate(&cases, "u", &oracle, &Ok(rust.to_owned()));
+    let names = |eval: &Evaluation| -> Vec<(String, &'static str)> {
+        eval.outcomes
+            .iter()
+            .map(|c| (c.case.clone(), c.outcome.name()))
+            .collect()
+    };
+    let expect = |pairs: &[(&str, &'static str)]| -> Vec<(String, &'static str)> {
+        pairs.iter().map(|(c, n)| ((*c).to_owned(), *n)).collect()
+    };
     let mixed = format!(
         "{}{}{}",
         ok("a", "1"),
@@ -145,35 +158,79 @@ fn partial_replies_classify_only_well_formed_deferrals() -> Result<(), String> {
     );
     // Strict parsing is unchanged: any deferral rejects the reply set.
     assert!(matches!(records(&mixed, "u", false), Err(e) if e.starts_with("DEFERRED")));
-    let replies = partial_replies(&mixed, "u")?;
-    let outcome = compare_partial(&oracle, &replies, "partial")?;
-    assert_eq!(outcome.compared, ["a", "c"]);
-    assert_eq!(outcome.deferred.len(), 1);
-    assert_eq!(outcome.deferred[0].0, "b");
-    assert_eq!(outcome.deferred[0].1.upstream, "MD5_HASH::Hash");
-    assert_eq!(outcome.deferred[0].1.unit, "owner.unit");
+    assert!(partial_replies(&mixed, "u")?[1].deferral.is_some());
+    let eval = run(&mixed);
+    assert_eq!(
+        names(&eval),
+        expect(&[("a", "compared"), ("b", "deferred"), ("c", "compared")])
+    );
+    assert!(eval.faults.is_empty());
+    let Outcome::Deferred(deferral) = &eval.outcomes[1].outcome else {
+        return Err("b must be deferred".into());
+    };
+    assert_eq!(deferral.upstream, "MD5_HASH::Hash");
+    assert_eq!(deferral.unit, "owner.unit");
+    // The deferred case keeps the oracle's real reference result.
+    assert_eq!(
+        eval.outcomes[1].oracle.as_ref().map(|r| r.raw.as_str()),
+        Some(ok("b", "2").trim_end())
+    );
     let alias = well_formed.replace("unported", "deferred");
     assert!(partial_replies(&defer("a", &alias), "u")?[0]
         .deferral
         .is_some());
-    // A mismatch among the successful replies fails; so do identity faults.
+    // A mismatch after a success and a deferral keeps both earlier outcomes.
     let changed = format!(
         "{}{}{}",
-        ok("a", "1.0"),
+        ok("a", "1"),
         defer("b", well_formed),
-        ok("c", "3")
+        ok("c", "3.0")
     );
-    assert!(compare_partial(&oracle, &partial_replies(&changed, "u")?, "p").is_err());
+    assert_eq!(
+        names(&run(&changed)),
+        expect(&[("a", "compared"), ("b", "deferred"), ("c", "failed")])
+    );
+    // A missing reply fails only its own case; a misplaced one fails its position.
     let missing = format!("{}{}", ok("a", "1"), defer("b", well_formed));
-    assert!(compare_partial(&oracle, &partial_replies(&missing, "u")?, "p").is_err());
+    assert_eq!(
+        names(&run(&missing)),
+        expect(&[("a", "compared"), ("b", "deferred"), ("c", "failed")])
+    );
     let reordered = format!(
         "{}{}{}",
         defer("b", well_formed),
         ok("a", "1"),
         ok("c", "3")
     );
-    assert!(compare_partial(&oracle, &partial_replies(&reordered, "u")?, "p").is_err());
+    assert_eq!(
+        names(&run(&reordered)),
+        expect(&[("a", "failed"), ("b", "failed"), ("c", "compared")])
+    );
+    let extra = run(&format!("{mixed}{}", defer("b", well_formed)));
+    assert_eq!(extra.faults.len(), 1);
     assert!(partial_replies(&format!("{mixed}{}", defer("b", well_formed)), "u").is_err());
+    // A Rust process failure leaves every case unprocessed with its reference kept;
+    // an oracle failure leaves no reference, and an oracle deferral is a failure.
+    let crashed = evaluate(&cases, "u", &oracle, &Err("crashed".into()));
+    assert_eq!(crashed.count("unprocessed"), 3);
+    assert!(crashed.outcomes.iter().all(|c| c.oracle.is_some()));
+    let no_oracle = evaluate(&cases, "u", &Err("crashed".into()), &Ok(mixed.clone()));
+    assert_eq!(no_oracle.count("unprocessed"), 3);
+    let oracle_defers = evaluate(
+        &cases,
+        "u",
+        &Ok(format!(
+            "{}{}{}",
+            ok("a", "1"),
+            defer("b", well_formed),
+            ok("c", "3")
+        )),
+        &Ok(mixed.clone()),
+    );
+    assert_eq!(
+        names(&oracle_defers),
+        expect(&[("a", "compared"), ("b", "failed"), ("c", "compared")])
+    );
     // All-deferred compares nothing; the caller must refuse it.
     let all = format!(
         "{}{}{}",
@@ -181,9 +238,32 @@ fn partial_replies_classify_only_well_formed_deferrals() -> Result<(), String> {
         defer("b", well_formed),
         defer("c", well_formed)
     );
-    let outcome = compare_partial(&oracle, &partial_replies(&all, "u")?, "p")?;
-    assert!(outcome.compared.is_empty());
-    assert_eq!(outcome.deferred.len(), 3);
+    let eval = run(&all);
+    assert_eq!(eval.count("compared"), 0);
+    assert_eq!(eval.count("deferred"), 3);
+    // The golden is compared with every available oracle result, deferred or not.
+    let eval = run(&mixed);
+    assert_eq!(
+        check_golden(Ok(oracle_text.clone()), "u", &eval).status(),
+        "matched"
+    );
+    let stale = oracle_text.replace("\"result\":2", "\"result\":2.0");
+    let check = check_golden(Ok(stale), "u", &eval);
+    assert_eq!(check.status(), "failed");
+    assert_eq!(check.mismatched.len(), 1);
+    assert_eq!(check.mismatched[0].0, "b");
+    assert_eq!(
+        check_golden(Err("missing".into()), "u", &eval).status(),
+        "failed"
+    );
+    assert_eq!(
+        check_golden(Ok(oracle_text.clone()), "u", &crashed).status(),
+        "matched"
+    );
+    assert_eq!(
+        check_golden(Ok(oracle_text.clone()), "u", &no_oracle).status(),
+        "incomplete"
+    );
     // Other error kinds and malformed deferrals are failures, never deferrals.
     for error in [
         r#"{"kind":"execution_error","message":"x"}"#,

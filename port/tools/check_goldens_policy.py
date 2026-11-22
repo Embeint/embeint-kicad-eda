@@ -218,12 +218,13 @@ def report_json(text):
 
 
 def verify_report(path, uid, mode, action, cases, units):
-    """Check the runner's own report against the declared mode and corpus.
+    """Check the runner's own report against the declared mode, action and corpus.
 
-    A strict run must be green with every case compared. A partial run is accepted as
-    green or partial: at least one exact comparison, no failures, and every remaining
-    case listed as a deferral owned by an existing unit record. Counts are exact
-    integers and golden_checked is the boolean for the action. Returns the summary.
+    `outcomes` must list every corpus case exactly once, in corpus order. A strict run
+    must be green with every case compared. A partial run is accepted as green or
+    partial: at least one exact comparison, no failed or unprocessed case or run
+    fault, and every deferral owned by an existing unit record with its retained
+    oracle result. check must report a matched golden, compare none. Returns the summary.
     """
     report = report_json(path.read_text(encoding="utf-8"))
     if type(report) is not dict:
@@ -232,34 +233,49 @@ def verify_report(path, uid, mode, action, cases, units):
     if (report.get("unit") != uid or report.get("mode") != mode or report.get("action") != action
             or report.get("status") not in accepted):
         raise ValueError(f"{uid}: {mode} {action} report is not an accepted run: {report.get('status')}")
-    for key in ("cases", "compared", "deferred", "failures"):
+    counts = {}
+    for key in ("cases", "compared", "deferred", "failures", "unprocessed"):
         value = report.get(key)
         if type(value) is not int or value < 0:
             raise ValueError(f"{uid}: report {key} must be a nonnegative integer, not {value!r}")
-    if report["failures"]:
-        raise ValueError(f"{uid}: accepted run reports failures")
+        counts[key] = value
     checked = report.get("golden_checked")
     if type(checked) is not bool or checked != (action == "check"):
         raise ValueError(f"{uid}: golden_checked {checked!r} contradicts action {action}")
-    compared, deferred = report.get("compared_cases"), report.get("deferred_cases")
-    if not isinstance(compared, list) or not isinstance(deferred, list):
-        raise ValueError(f"{uid}: report must list compared and deferred case IDs")
-    deferred_ids = [d.get("case") if isinstance(d, dict) else None for d in deferred]
-    order = {case: index for index, case in enumerate(cases)}
-    for name, ids in (("compared", compared), ("deferred", deferred_ids)):
-        if ids != sorted(ids, key=lambda case: order.get(case, -1)) or any(i not in order for i in ids):
-            raise ValueError(f"{uid}: {name} case IDs do not follow the corpus")
-    if (sorted(compared + deferred_ids, key=order.get) != cases or report.get("cases") != len(cases)
-            or report.get("compared") != len(compared) or report.get("deferred") != len(deferred)):
-        raise ValueError(f"{uid}: report counts do not account for every case exactly once")
+    golden = report.get("golden")
+    expected_golden = ({"status": "matched", "error": None, "mismatched_cases": [], "unchecked_cases": []}
+                       if action == "check" else {"status": "not_requested"})
+    if golden != expected_golden:
+        raise ValueError(f"{uid}: golden result {golden!r} is not an accepted {action}")
+    if counts["failures"] or counts["unprocessed"] or report.get("run_faults") != []:
+        raise ValueError(f"{uid}: accepted run reports failures, unprocessed cases or run faults")
+    outcomes = report.get("outcomes")
+    if type(outcomes) is not list or not all(type(o) is dict for o in outcomes):
+        raise ValueError(f"{uid}: report must list every case outcome")
+    if [o.get("case") for o in outcomes] != cases or counts["cases"] != len(cases):
+        raise ValueError(f"{uid}: outcomes do not account for every corpus case exactly once, in order")
+    compared = [o for o in outcomes if o.get("outcome") == "compared"]
+    deferred = [o for o in outcomes if o.get("outcome") == "deferred"]
+    if len(compared) + len(deferred) != len(outcomes):
+        raise ValueError(f"{uid}: accepted run has a case that is neither compared nor deferred")
+    if counts["compared"] != len(compared) or counts["deferred"] != len(deferred):
+        raise ValueError(f"{uid}: report counts do not match its outcomes")
     if not compared:
         raise ValueError(f"{uid}: all-deferred run proves no successful operation")
     if (report["status"] == "partial") != bool(deferred) or (mode == "strict" and deferred):
         raise ValueError(f"{uid}: report status contradicts its deferrals")
+    for item in compared:
+        if set(item) != {"case", "outcome"}:
+            raise ValueError(f"{uid}: invalid compared record {item}")
     for item in deferred:
-        if (set(item) != {"case", "upstream", "unit"} or not isinstance(item["upstream"], str)
-                or not item["upstream"]):
+        if (set(item) - {"rust"} != {"case", "outcome", "upstream", "unit", "oracle"}
+                or not isinstance(item["upstream"], str) or not item["upstream"]
+                or not isinstance(item["unit"], str) or not isinstance(item["oracle"], str)):
             raise ValueError(f"{uid}: invalid deferral record {item}")
+        reference = exact(item["oracle"])
+        if (type(reference) is not dict or set(reference) != {"unit", "case", "result"}
+                or reference["unit"] != uid or reference["case"] != item["case"]):
+            raise ValueError(f"{uid}/{item['case']}: deferral lacks its oracle reference result")
         if item["unit"] not in units:
             raise ValueError(f"{uid}/{item['case']}: deferral owner {item['unit']!r} names no unit record")
     return {"declared_status": units[uid]["status"], "mode": mode, "action": action,

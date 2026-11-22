@@ -2,6 +2,7 @@
 #![forbid(unsafe_code)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
+pub mod evaluate;
 pub mod exact;
 pub mod golden;
 pub mod process;
@@ -45,7 +46,7 @@ pub struct Reply {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum Envelope {
+pub(crate) enum Envelope {
     Request,
     /// Every error envelope fails; deferrals report as `DEFERRED`.
     Strict,
@@ -98,64 +99,85 @@ fn envelopes(text: &str, unit: &str, kind: Envelope) -> Result<Vec<Reply>, Strin
     let mut seen = BTreeSet::new();
     let mut replies = Vec::new();
     for (index, line) in text.lines().enumerate() {
-        let context = || format!("{unit} line {}", index + 1);
-        let value = exact::parse(line).map_err(|e| format!("{}: {e}", context()))?;
-        let object = value.object()?;
-        let field = |key: &str| {
-            object
-                .get(key)
-                .ok_or_else(|| format!("{}: missing {key}", context()))
-        };
-        if field("unit")?.string()? != unit {
-            return Err(format!("{}: wrong unit identity", context()));
-        }
-        let case = field("case")?.string()?.to_owned();
+        let reply = parse_envelope(line, unit, kind, index)?;
+        let case = &reply.record.case;
         if !seen.insert(case.clone()) {
-            return Err(format!("{}: duplicate case {case}", context()));
+            return Err(format!("{unit} line {}: duplicate case {case}", index + 1));
         }
-        if object.len() != 3 {
-            return Err(format!(
-                "{}: expected exactly three envelope fields",
-                context()
-            ));
-        }
-        let mut deferred = None;
-        if kind == Envelope::Request {
-            field("input")?.object()?;
-        } else if let Some(error) = object.get("error") {
-            let error = error.object()?;
-            let error_kind = error
-                .get("kind")
-                .ok_or_else(|| format!("{}: error missing kind", context()))?
-                .string()?;
-            if !matches!(error_kind, "unported" | "deferred") {
-                return Err(format!("FAILURE {} case {case}: {line}", context()));
-            }
-            if kind == Envelope::Strict {
-                return Err(format!("DEFERRED {} case {case}: {line}", context()));
-            }
-            deferred = Some(deferral(error).map_err(|e| {
-                format!(
-                    "FAILURE {} case {case}: invalid deferral envelope ({e}): {line}",
-                    context()
-                )
-            })?);
-        } else {
-            field("result")?;
-        }
-        replies.push(Reply {
-            record: Record {
-                case,
-                raw: line.to_owned(),
-                value,
-            },
-            deferral: deferred,
-        });
+        replies.push(reply);
     }
     if replies.is_empty() {
         return Err(format!("{unit}: empty case set is not a pass"));
     }
     Ok(replies)
+}
+
+/// Validates one envelope line (zero-based `index`) with its identity and status.
+/// Set-level checks (duplicates, emptiness, order) belong to the caller.
+pub(crate) fn parse_envelope(
+    line: &str,
+    unit: &str,
+    kind: Envelope,
+    index: usize,
+) -> Result<Reply, String> {
+    let context = || format!("{unit} line {}", index + 1);
+    let value = exact::parse(line).map_err(|e| format!("{}: {e}", context()))?;
+    let object = value.object().map_err(|e| format!("{}: {e}", context()))?;
+    let field = |key: &str| {
+        object
+            .get(key)
+            .ok_or_else(|| format!("{}: missing {key}", context()))
+    };
+    if field("unit")?.string()? != unit {
+        return Err(format!("{}: wrong unit identity", context()));
+    }
+    let case = field("case")?.string()?.to_owned();
+    if object.len() != 3 {
+        return Err(format!(
+            "{}: expected exactly three envelope fields",
+            context()
+        ));
+    }
+    let mut deferred = None;
+    if kind == Envelope::Request {
+        field("input")?.object()?;
+    } else if let Some(error) = object.get("error") {
+        let error = error
+            .object()
+            .map_err(|e| format!("FAILURE {} case {case}: {e}: {line}", context()))?;
+        let error_kind = error
+            .get("kind")
+            .ok_or_else(|| {
+                format!(
+                    "FAILURE {} case {case}: error missing kind: {line}",
+                    context()
+                )
+            })?
+            .string()
+            .map_err(|e| format!("FAILURE {} case {case}: error kind {e}: {line}", context()))?;
+        if !matches!(error_kind, "unported" | "deferred") {
+            return Err(format!("FAILURE {} case {case}: {line}", context()));
+        }
+        if kind == Envelope::Strict {
+            return Err(format!("DEFERRED {} case {case}: {line}", context()));
+        }
+        deferred = Some(deferral(error).map_err(|e| {
+            format!(
+                "FAILURE {} case {case}: invalid deferral envelope ({e}): {line}",
+                context()
+            )
+        })?);
+    } else {
+        field("result")?;
+    }
+    Ok(Reply {
+        record: Record {
+            case,
+            raw: line.to_owned(),
+            value,
+        },
+        deferral: deferred,
+    })
 }
 
 pub fn identities(expected: &[Record], actual: &[Record], label: &str) -> Result<(), String> {
@@ -188,40 +210,4 @@ pub fn compare(expected: &[Record], actual: &[Record], label: &str) -> Result<()
         }
     }
     Ok(())
-}
-
-/// Outcome of a partial comparison: every successful Rust reply was compared
-/// exactly; each deferred case keeps its owning unit and upstream symbol.
-#[derive(Debug, Clone, Default)]
-pub struct Partial {
-    pub compared: Vec<String>,
-    pub deferred: Vec<(String, Deferral)>,
-}
-
-/// Compares every non-deferred Rust reply exactly with the oracle and lists the
-/// deferred cases in case order. The oracle replies must already be strict
-/// (no errors), so a deferred case always retains a real reference result.
-/// Identity faults and mismatches fail; deciding whether the outcome is
-/// acceptable (at least one comparison) is left to the caller's policy.
-pub fn compare_partial(
-    expected: &[Record],
-    actual: &[Reply],
-    label: &str,
-) -> Result<Partial, String> {
-    let records: Vec<Record> = actual.iter().map(|r| r.record.clone()).collect();
-    identities(expected, &records, label)?;
-    let mut outcome = Partial::default();
-    for (a, b) in expected.iter().zip(actual) {
-        match &b.deferral {
-            Some(deferral) => outcome.deferred.push((a.case.clone(), deferral.clone())),
-            None if a.value != b.record.value => {
-                return Err(format!(
-                    "{label}: changed case {}\nold: {}\nnew: {}",
-                    a.case, a.raw, b.record.raw
-                ));
-            }
-            None => outcome.compared.push(a.case.clone()),
-        }
-    }
-    Ok(outcome)
 }
