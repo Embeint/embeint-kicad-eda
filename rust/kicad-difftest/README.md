@@ -268,11 +268,15 @@ numeric coercion: a fraction, exponent, negative or non-canonical integer, boole
 `NaN` or `Infinity` fails, so `1e-400`, `0.0` or `true` cannot pass as a count. It
 then requires that unit, mode and action match; `golden_checked` is the boolean for
 the action and `golden` is `matched` for `check` or `not_requested` for `compare`;
-zero failed or unprocessed cases and no run faults; outcomes for every corpus case
-exactly once, in order, only `compared` or `deferred`, with matching counts; at
-least one compared case; a status that agrees with the deferrals; and every
-deferral owned by an existing unit record and carrying the oracle's result reply
-for that case. A previous report is deleted before each run.
+zero failed or unprocessed cases, no run faults and no extra replies; outcomes for
+every corpus case exactly once, in order, only `compared` or `deferred`, with
+matching counts; at least one compared case; a status that agrees with the
+deferrals; and every deferral owned by an existing unit record, carrying the
+oracle's result reply for that case and, as `rust`, a string that parses exactly
+(no duplicate keys, `NaN` or trailing data) to the deferral envelope for the same
+unit and case, with only `kind` (`unported` or `deferred`), `upstream` and `unit`,
+whose upstream and owner equal the reported outcome's. An error of another kind,
+a result, another case's or owner's reply, or missing or mistyped evidence fails. A previous report is deleted before each run.
 The shim should be a separate native crate; mark it in its Cargo manifest:
 
 ```toml

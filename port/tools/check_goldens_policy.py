@@ -217,14 +217,26 @@ def report_json(text):
                       parse_float=fraction, parse_constant=constant)
 
 
+def envelope(line, label):
+    """One protocol envelope line, parsed exactly (duplicate keys and NaN fail)."""
+    try:
+        value = exact(line)
+    except ValueError as error:
+        raise ValueError(f"{label} is not exact JSON: {error}") from None
+    if type(value) is not dict:
+        raise ValueError(f"{label} is not a JSON object")
+    return value
+
+
 def verify_report(path, uid, mode, action, cases, units):
     """Check the runner's own report against the declared mode, action and corpus.
 
     `outcomes` must list every corpus case exactly once, in corpus order. A strict run
     must be green with every case compared. A partial run is accepted as green or
-    partial: at least one exact comparison, no failed or unprocessed case or run
-    fault, and every deferral owned by an existing unit record with its retained
-    oracle result. check must report a matched golden, compare none. Returns the summary.
+    partial: at least one exact comparison, no failed or unprocessed case, run fault
+    or extra reply, and every deferral owned by an existing unit record, with its
+    retained oracle result and the exact Rust deferral envelope it reports. check
+    must report a matched golden, compare none. Returns the summary.
     """
     report = report_json(path.read_text(encoding="utf-8"))
     if type(report) is not dict:
@@ -247,8 +259,9 @@ def verify_report(path, uid, mode, action, cases, units):
                        if action == "check" else {"status": "not_requested"})
     if golden != expected_golden:
         raise ValueError(f"{uid}: golden result {golden!r} is not an accepted {action}")
-    if counts["failures"] or counts["unprocessed"] or report.get("run_faults") != []:
-        raise ValueError(f"{uid}: accepted run reports failures, unprocessed cases or run faults")
+    if (counts["failures"] or counts["unprocessed"] or report.get("run_faults") != []
+            or report.get("extra_replies") != []):
+        raise ValueError(f"{uid}: accepted run reports failures, unprocessed cases, run faults or extra replies")
     outcomes = report.get("outcomes")
     if type(outcomes) is not list or not all(type(o) is dict for o in outcomes):
         raise ValueError(f"{uid}: report must list every case outcome")
@@ -268,16 +281,27 @@ def verify_report(path, uid, mode, action, cases, units):
         if set(item) != {"case", "outcome"}:
             raise ValueError(f"{uid}: invalid compared record {item}")
     for item in deferred:
-        if (set(item) - {"rust"} != {"case", "outcome", "upstream", "unit", "oracle"}
+        if (set(item) != {"case", "outcome", "upstream", "unit", "oracle", "rust"}
                 or not isinstance(item["upstream"], str) or not item["upstream"]
-                or not isinstance(item["unit"], str) or not isinstance(item["oracle"], str)):
+                or not isinstance(item["unit"], str) or not isinstance(item["oracle"], str)
+                or not isinstance(item["rust"], str)):
             raise ValueError(f"{uid}: invalid deferral record {item}")
-        reference = exact(item["oracle"])
-        if (type(reference) is not dict or set(reference) != {"unit", "case", "result"}
-                or reference["unit"] != uid or reference["case"] != item["case"]):
-            raise ValueError(f"{uid}/{item['case']}: deferral lacks its oracle reference result")
+        case = item["case"]
+        reference = envelope(item["oracle"], f"{uid}/{case}: oracle reference")
+        if (set(reference) != {"unit", "case", "result"}
+                or reference["unit"] != uid or reference["case"] != case):
+            raise ValueError(f"{uid}/{case}: deferral lacks its oracle reference result")
+        # The Rust line must be exactly the deferral the outcome reports: never an
+        # error of another kind, a result, another case's reply or another owner.
+        rust = envelope(item["rust"], f"{uid}/{case}: Rust deferral evidence")
+        error = rust.get("error")
+        if (set(rust) != {"unit", "case", "error"} or rust["unit"] != uid or rust["case"] != case
+                or type(error) is not dict or set(error) != {"kind", "upstream", "unit"}
+                or error["kind"] not in ("unported", "deferred")
+                or error["upstream"] != item["upstream"] or error["unit"] != item["unit"]):
+            raise ValueError(f"{uid}/{case}: Rust evidence is not the reported deferral envelope")
         if item["unit"] not in units:
-            raise ValueError(f"{uid}/{item['case']}: deferral owner {item['unit']!r} names no unit record")
+            raise ValueError(f"{uid}/{case}: deferral owner {item['unit']!r} names no unit record")
     return {"declared_status": units[uid]["status"], "mode": mode, "action": action,
             "result": report["status"], "cases": len(cases), "compared": len(compared),
             "deferred": len(deferred)}

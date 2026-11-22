@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Regression checks for non-vacuous staging and golden review evidence."""
+import copy
 import importlib.util
 import gzip
 import json
@@ -64,7 +65,7 @@ class FakeRunner:
                   "mode": "partial" if partial else "strict", "cases": len(cases),
                   "compared": compared, "deferred": len(defer), "failures": 0, "unprocessed": 0,
                   "golden_checked": action == "check", "golden": golden, "run_faults": [],
-                  "outcomes": outcomes}
+                  "extra_replies": [], "outcomes": outcomes}
         if "mutate" in behaviour:
             behaviour["mutate"](report)
         text = json.dumps(report)
@@ -248,6 +249,9 @@ class PolicyTests(unittest.TestCase):
             "unprocessed count": {"mutate": lambda r: r.update(unprocessed=1)},
             "run fault": {"mutate": lambda r: r.update(run_faults=["Rust: 1 extra line"])},
             "missing run faults": {"mutate": lambda r: r.pop("run_faults")},
+            "extra replies": {"mutate": lambda r: r.update(extra_replies=[
+                {"side": "Rust", "line": 3, "raw": "x", "truncated": False}])},
+            "missing extra replies": {"mutate": lambda r: r.pop("extra_replies")},
             "unknown outcome": {"mutate": lambda r: r["outcomes"][1].update(outcome="skipped")},
             "compared with reason": {"mutate": lambda r: r["outcomes"][0].update(reason="x")},
             "empty upstream": {"defer": {"y": "a"}, "mutate": lambda r: r["outcomes"][1].update(
@@ -291,12 +295,14 @@ class PolicyTests(unittest.TestCase):
             outcomes = [{"case": "a", "outcome": "compared"}]
             if mode == "partial":
                 outcomes.append({"case": "b", "outcome": "deferred", "upstream": "F::g",
-                                 "unit": "owner", "oracle": reference})
+                                 "unit": "owner", "oracle": reference, "rust": json.dumps({
+                                     "unit": "u", "case": "b", "error": {
+                                         "kind": "unported", "upstream": "F::g", "unit": "owner"}})})
             return {"unit": "u", "status": "partial" if mode == "partial" else "green",
                     "action": action, "mode": mode, "cases": len(outcomes), "compared": 1,
                     "deferred": len(outcomes) - 1, "failures": 0, "unprocessed": 0,
                     "golden_checked": action == "check", "golden": golden, "run_faults": [],
-                    "outcomes": outcomes}
+                    "extra_replies": [], "outcomes": outcomes}
 
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "report.json"
@@ -367,6 +373,75 @@ class PolicyTests(unittest.TestCase):
                             with self.assertRaises(ValueError):
                                 verify(probe, action, mode)
 
+    def check_rust_evidence(self, base, path, cases, units):
+        """Every adversarial Rust line for deferred case b fails; legitimate ones pass."""
+        deferral = {"kind": "unported", "upstream": base["outcomes"][1]["upstream"],
+                    "unit": base["outcomes"][1]["unit"]}
+
+        def line(**fields):
+            return json.dumps(dict({"unit": base["unit"], "case": "b", "error": deferral}, **fields))
+
+        bad = {
+            "missing": "<drop>", "null": None, "integer": 7, "object": {}, "list": [],
+            "empty string": "", "not JSON": "not JSON", "JSON string": json.dumps("x"),
+            "JSON array": "[]", "truncated": line()[:-3],
+            "execution_error": line(error={"kind": "execution_error", "message": "x"}),
+            "invalid_input": line(error={"kind": "invalid_input", "message": "x"}),
+            "result envelope": json.dumps({"unit": base["unit"], "case": "b", "result": 2}),
+            "result and error": line(result=2),
+            "wrong unit": line(unit="wrong"),
+            "wrong case": line(case="a"),
+            "numeric case": line(case=1),
+            "other owner": line(error=dict(deferral, unit="dependency.other")),
+            "other upstream": line(error=dict(deferral, upstream="Other::fn")),
+            "unknown kind": line(error=dict(deferral, kind="skipped")),
+            "missing upstream": line(error={"kind": "unported", "unit": deferral["unit"]}),
+            "missing owner": line(error={"kind": "unported", "upstream": deferral["upstream"]}),
+            "extra error key": line(error=dict(deferral, message="x")),
+            "error not object": line(error="unported"),
+            "duplicate key": line()[:-1] + ', "case": "b"}',
+            "duplicate error key": line().replace('"kind": "unported"', '"kind": "unported", "kind": "unported"'),
+            "NaN": line()[:-1] + ', "x": NaN}',
+            "trailing garbage": line() + " x",
+        }
+        for action in ("compare", "check"):
+            value = copy.deepcopy(base)
+            value.update(action=action, golden_checked=action == "check", golden=(
+                {"status": "matched", "error": None, "mismatched_cases": [], "unchecked_cases": []}
+                if action == "check" else {"status": "not_requested"}))
+            for name, legitimate in (("as reported", line()),
+                                     ("deferred alias", line(error=dict(deferral, kind="deferred")))):
+                with self.subTest(action=action, legitimate=name):
+                    value["outcomes"][1]["rust"] = legitimate
+                    path.write_text(json.dumps(value), encoding="utf-8")
+                    POLICY.verify_report(path, base["unit"], "partial", action, cases, units)
+            for name, raw in bad.items():
+                with self.subTest(action=action, probe=name):
+                    probe = copy.deepcopy(value)
+                    if raw == "<drop>":
+                        probe["outcomes"][1].pop("rust")
+                    else:
+                        probe["outcomes"][1]["rust"] = raw
+                    path.write_text(json.dumps(probe), encoding="utf-8")
+                    with self.assertRaises(ValueError):
+                        POLICY.verify_report(path, base["unit"], "partial", action, cases, units)
+
+    def test_deferral_rust_evidence_must_be_the_exact_reported_envelope(self):
+        units = {"u": {"status": "partial"}, "owner.unit": {"status": "todo"},
+                 "dependency.other": {"status": "todo"}}
+        rust = json.dumps({"unit": "u", "case": "b", "error": {
+            "kind": "unported", "upstream": "Owner::fn", "unit": "owner.unit"}})
+        base = {"unit": "u", "status": "partial", "action": "compare", "mode": "partial",
+                "cases": 2, "compared": 1, "deferred": 1, "failures": 0, "unprocessed": 0,
+                "golden_checked": False, "golden": {"status": "not_requested"}, "run_faults": [],
+                "extra_replies": [], "outcomes": [
+                    {"case": "a", "outcome": "compared"},
+                    {"case": "b", "outcome": "deferred", "upstream": "Owner::fn",
+                     "unit": "owner.unit", "rust": rust,
+                     "oracle": json.dumps({"unit": "u", "case": "b", "result": 2})}]}
+        with tempfile.TemporaryDirectory() as directory:
+            self.check_rust_evidence(base, Path(directory) / "report.json", ["a", "b"], units)
+
     @unittest.skipUnless(RUNNER.exists(), "build kicad-difftest first (CI builds it before this suite)")
     def test_real_runner_reports_satisfy_the_policy_contract(self):
         peer = ROOT / "rust/kicad-difftest/tests/peer.py"
@@ -403,6 +478,11 @@ class PolicyTests(unittest.TestCase):
                 mode = "partial" if extra else "strict"
                 with self.assertRaises(ValueError):
                     POLICY.verify_report(report, "p", mode, "compare", cases, units)
+            # Rust evidence of a genuine partial report: every adversarial variant fails.
+            run("ok", "defer-b", "--partial")
+            genuine = json.loads(report.read_text(encoding="utf-8"))
+            self.check_rust_evidence(genuine, root / "probe.json", cases,
+                                     dict(units, **{"dependency.other": {"status": "todo"}}))
             # The owner must be a unit record.
             run("ok", "defer-b", "--partial")
             with self.assertRaisesRegex(ValueError, "names no unit record"):
