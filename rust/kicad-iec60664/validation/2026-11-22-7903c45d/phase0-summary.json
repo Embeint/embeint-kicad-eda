@@ -1,0 +1,20 @@
+{
+  "phase0": "INCOMPLETE",
+  "strict_gate_enabled": false,
+  "live_green_units": 1,
+  "required_green_units": 3,
+  "required_layer": 0,
+  "total_live_green_units": 1,
+  "validated_unit_records": 1801,
+  "extraction_coverage": {
+    "inventory_complete": true,
+    "parse_complete": false,
+    "compile_database_complete": true,
+    "all_configurations_complete": false,
+    "gate_complete": false,
+    "unresolved_call_count": 8899609,
+    "parse_failures": 4,
+    "uncompiled_application_sources": 63
+  },
+  "full_report_sha256": "9d60d6b627df02ccd3c5868251313ed56f98efa26f28d9947a3e40fd2efbeb25"
+}

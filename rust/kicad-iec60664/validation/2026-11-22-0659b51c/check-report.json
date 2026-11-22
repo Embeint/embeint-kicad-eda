@@ -1,0 +1,12 @@
+{
+  "unit": "pcb_calculator.calculator_panels.application.pure.p001",
+  "status": "green",
+  "action": "check",
+  "cases": 14190,
+  "deferred": 0,
+  "cases_sha256": "4e624fe320565d6894ece1432b5ff38fcab5aca92688996e97b4cd684f872aff",
+  "oracle_output_sha256": "3051d7e1269a8ba05dc50ccba3fa53faedd10ba71e3ec630e6e2c0f2c2fe366f",
+  "rust_output_sha256": "819f74f463f537c7e7fa29127e5d6e71ee628c87fec8e541b143a7d6f39c1f4d",
+  "oracle_sha256": "f8c0a640b668aa519b78188d56f33c1b5cbb4c85175cf116c07c188fcf47943b",
+  "rust_sha256": "ba62b2fbce1c25bbb04daaf33d1b29acafbcea75f5ede2e0171a6d389463b5ce"
+}

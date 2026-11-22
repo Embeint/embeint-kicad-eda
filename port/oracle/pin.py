@@ -6,6 +6,8 @@ SOURCE_PATHS = (
     "libs/core", "libs/kimath", "include", "thirdparty/clipper2",
     "thirdparty/rtree", "thirdparty/nlohmann_json",
     "cmake/config.h.cmake", "cmake/PerformFeatureChecks.cmake",
+    "pcb_calculator/calculator_panels/iec60664.cpp",
+    "pcb_calculator/calculator_panels/iec60664.h",
     "pcb_calculator/eseries.cpp", "pcb_calculator/eseries.h",
     "pcb_calculator/resistor_substitution_utils.cpp",
     "pcb_calculator/resistor_substitution_utils.h", "thirdparty/fmt",

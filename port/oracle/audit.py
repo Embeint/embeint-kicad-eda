@@ -136,12 +136,17 @@ def audit(build, source, overlay):
             if path != build / "reader-generated/pcb_calculator_datafile_keywords.cpp":
                 raise ValueError("Unexpected compilation outside pinned source/overlay: " + str(path))
             generated = verify_reader_generated(build, source)
-        for target in ("core", "clipper2", "kimath", "fmt", "resistor-reference", "calculator-reader-reference", "kicad-oracle"):
+        for target in ("core", "clipper2", "kimath", "fmt", "iec60664-reference", "resistor-reference",
+                       "calculator-reader-reference", "kicad-oracle"):
             if any("CMakeFiles/" + target + ".dir/" in token for token in tokens):
+                if (target == "iec60664-reference" and path != source /
+                        "pcb_calculator/calculator_panels/iec60664.cpp"):
+                    raise ValueError("IEC60664 reference target must compile the actual pinned source")
                 targets.add(target)
         compilers.add(tokens[0])
         commands.append({"file": str(path), "arguments": tokens})
-    if targets != {"core", "clipper2", "kimath", "fmt", "resistor-reference", "calculator-reader-reference", "kicad-oracle"}:
+    if targets != {"core", "clipper2", "kimath", "fmt", "iec60664-reference", "resistor-reference",
+                   "calculator-reader-reference", "kicad-oracle"}:
         raise ValueError("Unexpected reference target closure: " + repr(targets))
     link_commands = subprocess.check_output(
         ["ninja", "-C", str(build), "-t", "commands", "kicad-oracle"], text=True).splitlines()
@@ -150,6 +155,9 @@ def audit(build, source, overlay):
     if not any("-o kicad-oracle" in command and "libkimath.a" in command
                for command in link_commands):
         raise ValueError("Oracle does not link the actual kimath archive")
+    if not any("-o kicad-oracle" in command and "libiec60664-reference.a" in command
+               for command in link_commands):
+        raise ValueError("Oracle does not link the actual IEC60664 archive")
     check_resistor_reference(commands, link_commands, source, overlay)
     check_reader_reference(commands, link_commands, source, build)
     overlay_files = {p.relative_to(overlay).as_posix(): sha(p) for p in sorted(overlay.rglob("*"))

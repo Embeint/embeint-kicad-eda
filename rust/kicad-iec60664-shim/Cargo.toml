@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[package]
+name = "kicad-iec60664-shim"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[package.metadata.kicad]
+portable = false
+
+[dependencies]
+kicad-iec60664 = { path = "../kicad-iec60664" }
+kicad-difftest = { path = "../kicad-difftest" }
+serde_json.workspace = true

@@ -4,6 +4,7 @@
 namespace oracle
 {
 void RegisterExample( REGISTRY& aRegistry );
+void RegisterIec60664( REGISTRY& aRegistry );
 void RegisterResistors( REGISTRY& aRegistry );
 
 
@@ -21,6 +22,7 @@ REGISTRY MakeRegistry()
 {
     REGISTRY registry;
     RegisterExample( registry );
+    RegisterIec60664( registry );
     RegisterResistors( registry );
     return registry;
 }

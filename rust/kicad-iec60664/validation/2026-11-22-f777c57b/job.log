@@ -1,0 +1,237 @@
+Source f777c57baaf1813f210e3ce022db553b301c5dd6; waiting for the real shared build lock
+mkdir: /home/karlvonrichter/kicad-port.build-lock: File exists
+Build lock busy: /home/karlvonrichter/kicad-port.build-lock; retry after its owner finishes
+-- The C compiler identification is GNU 15.2.0
+-- The CXX compiler identification is GNU 15.2.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/gcc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/g++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found Python3: /usr/bin/python3 (found version "3.14.4") found components: Interpreter
+-- Found wxWidgets: -L/usr/lib/x86_64-linux-gnu;-pthread;;;-lwx_baseu-3.2;-lwx_gtk3u_core-3.2 (found suitable version "3.2.9", minimum required is "3.2")
+-- Looking for malloc.h
+-- Looking for malloc.h - found
+-- Looking for iso646.h
+-- Looking for iso646.h - found
+-- Looking for stdint.h
+-- Looking for stdint.h - found
+-- Looking for strcasecmp
+-- Looking for strcasecmp - found
+-- Looking for strncasecmp
+-- Looking for strncasecmp - found
+-- Looking for strtok_r
+-- Looking for strtok_r - found
+-- Looking for strtok_s
+-- Looking for strtok_s - not found
+-- Looking for malloc
+-- Looking for malloc - found
+-- Looking for math.h
+-- Looking for math.h - found
+-- Looking for C++ include cmath
+-- Looking for C++ include cmath - found
+-- Looking for asinh
+-- Looking for asinh - found
+-- Looking for acosh
+-- Looking for acosh - found
+-- Looking for atanh
+-- Looking for atanh - found
+-- Performing Test HAVE_CMATH_ISINF
+-- Performing Test HAVE_CMATH_ISINF - Success
+-- Looking for clock_gettime in rt
+-- Looking for clock_gettime in rt - found
+-- Looking for gettimeofday
+-- Looking for gettimeofday - found
+-- Looking for getc_unlocked
+-- Looking for getc_unlocked - found
+-- Configuring done (6.4s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/karlvonrichter/kicad-port/iec-request-parser/oracle-build
+[0/2] Re-checking globbed directories...
+[1/68] cd /home/karlvonrichter/kicad-port/iec-request-parser/oracle-build && /usr/bin/python3 /home/karlvonrichter/kicad-port/iec-request-parser/oracle-src/overlay/audit.py --build /home/karlvonrichter/kicad-port/iec-request-parser/oracle-build --source /home/karlvonrichter/kicad-port/iec-request-parser/oracle-src/reference --overlay /home/karlvonrichter/kicad-port/iec-request-parser/oracle-src/overlay
+Oracle audit: 60 compilations, pin 4cf939778df04d2b747bb2c4714fc5014a7565c7, strict FP flags verified
+[2/68] Building CXX object reference/core/CMakeFiles/core.dir/version_compare.cpp.o
+[3/68] Building CXX object reference/core/CMakeFiles/core.dir/base64.cpp.o
+[4/68] Building CXX object reference/core/CMakeFiles/core.dir/observable.cpp.o
+[5/68] Building CXX object reference/core/CMakeFiles/core.dir/utf8.cpp.o
+[6/68] Building CXX object reference/core/CMakeFiles/core.dir/wx_stl_compat.cpp.o
+[7/68] Building CXX object CMakeFiles/iec60664-reference.dir/home/karlvonrichter/kicad-port/iec-request-parser/oracle-src/reference/pcb_calculator/calculator_panels/iec60664.cpp.o
+[8/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/md5_hash.cpp.o
+[9/68] Building CXX object reference/core/CMakeFiles/core.dir/profile.cpp.o
+[10/68] Linking CXX static library reference/core/libcore.a
+[11/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/transform.cpp.o
+[12/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/arc_chord_params.cpp.o
+[13/68] Building CXX object reference/clipper2/CMakeFiles/clipper2.dir/Clipper2Lib/src/clipper.offset.cpp.o
+[14/68] Building CXX object reference/clipper2/CMakeFiles/clipper2.dir/Clipper2Lib/src/clipper.rectclip.cpp.o
+[15/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/trigo.cpp.o
+[16/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/arc_construction.cpp.o
+[17/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/eda_angle.cpp.o
+[18/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/distribute.cpp.o
+[19/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/ellipse.cpp.o
+[20/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/bezier_curves.cpp.o
+[21/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/circle.cpp.o
+[22/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/convert_basic_shapes_to_polygon.cpp.o
+[23/68] Building CXX object reference/clipper2/CMakeFiles/clipper2.dir/Clipper2Lib/src/clipper.engine.cpp.o
+[24/68] Linking CXX static library reference/clipper2/libclipper2.a
+[25/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/corner_operations.cpp.o
+[26/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/grid_geometry.cpp.o
+[27/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/convex_hull.cpp.o
+[28/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/direction_45.cpp.o
+[29/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/line.cpp.o
+[30/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/geometry_utils.cpp.o
+[31/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/half_line.cpp.o
+[32/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/poisson_disk.cpp.o
+[33/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/seg.cpp.o
+[34/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/nearest.cpp.o
+[35/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/intersection.cpp.o
+[36/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape.cpp.o
+[37/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/oval.cpp.o
+[38/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_compound.cpp.o
+[39/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/roundrect.cpp.o
+[40/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_file_io.cpp.o
+[41/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_arc.cpp.o
+[42/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_nearest_points.cpp.o
+[43/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_ellipse.cpp.o
+[44/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/transform_trs.cpp.o
+[45/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_rect.cpp.o
+[46/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_segment.cpp.o
+[47/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/vector_utils.cpp.o
+[48/68] Linking CXX static library libiec60664-reference.a
+[49/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_collisions.cpp.o
+[50/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/math/util.cpp.o
+[51/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/vertex_set.cpp.o
+[52/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_utils.cpp.o
+[53/68] Building CXX object CMakeFiles/kicad-oracle.dir/shims/example_rescale.cpp.o
+[54/68] Building CXX object CMakeFiles/kicad-oracle.dir/registry.cpp.o
+[55/68] Building CXX object CMakeFiles/kicad-oracle.dir/main.cpp.o
+[56/68] Building CXX object CMakeFiles/oracle-dispatch-test.dir/registry.cpp.o
+[57/68] Building CXX object CMakeFiles/kicad-oracle.dir/shims/iec60664.cpp.o
+[58/68] Building CXX object CMakeFiles/oracle-dispatch-test.dir/shims/example_rescale.cpp.o
+[59/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_line_chain.cpp.o
+[60/68] Building CXX object CMakeFiles/oracle-dispatch-test.dir/test_dispatch.cpp.o
+[61/68] Building CXX object CMakeFiles/kicad-oracle.dir/protocol.cpp.o
+[62/68] Building CXX object CMakeFiles/oracle-dispatch-test.dir/shims/iec60664.cpp.o
+[63/68] Building CXX object CMakeFiles/oracle-dispatch-test.dir/protocol.cpp.o
+[64/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_poly_set.cpp.o
+[65/68] Linking CXX static library reference/kimath/libkimath.a
+[66/68] Linking CXX executable oracle-dispatch-test
+[67/68] Linking CXX executable kicad-oracle
+Test project /home/karlvonrichter/kicad-port/iec-request-parser/oracle-build
+    Start 1: oracle-protocol
+1/5 Test #1: oracle-protocol ..................   Passed    0.03 sec
+    Start 2: oracle-build-guards
+2/5 Test #2: oracle-build-guards ..............   Passed    0.08 sec
+    Start 3: oracle-iec60664-build-guards
+3/5 Test #3: oracle-iec60664-build-guards .....   Passed    0.07 sec
+    Start 4: oracle-dispatch
+4/5 Test #4: oracle-dispatch ..................   Passed    0.00 sec
+    Start 5: oracle-iec60664-inputs
+5/5 Test #5: oracle-iec60664-inputs ...........   Passed    0.04 sec
+
+100% tests passed, 0 tests failed out of 5
+
+Total Test time (real) =   0.23 sec
+Oracle: /home/karlvonrichter/kicad-port/iec-request-parser/oracle-build/kicad-oracle
+Provenance: /home/karlvonrichter/kicad-port/iec-request-parser/oracle-build/oracle-provenance.json
+    Checking kicad-difftest v0.1.0 (/home/karlvonrichter/kicad-port/iec-request-parser/repo/rust/kicad-difftest)
+    Checking kicad-iec60664-shim v0.1.0 (/home/karlvonrichter/kicad-port/iec-request-parser/repo/rust/kicad-iec60664-shim)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.23s
+   Compiling kicad-difftest v0.1.0 (/home/karlvonrichter/kicad-port/iec-request-parser/repo/rust/kicad-difftest)
+   Compiling kicad-iec60664-shim v0.1.0 (/home/karlvonrichter/kicad-port/iec-request-parser/repo/rust/kicad-iec60664-shim)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.89s
+     Running unittests src/lib.rs (rust/target/debug/deps/kicad_difftest-1529af7818f99362)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (rust/target/debug/deps/kicad_difftest-d29dda5e552603a6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/cli.rs (rust/target/debug/deps/cli-d851b54cb18efb03)
+
+running 2 tests
+test baseline_blessing_is_live_reviewed_and_evidenced ... ok
+test identical_input_bytes_and_process_faults ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.20s
+
+     Running tests/protocol.rs (rust/target/debug/deps/protocol-4a7dc2b85155c562)
+
+running 3 tests
+test numeric_tokens_never_round_or_normalize ... ok
+test inventory_status_and_values_are_independent_checks ... ok
+test blessing_requires_exact_case_values_reason_and_provenance ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/request.rs (rust/target/debug/deps/request-98db5757fdce1482)
+
+running 5 tests
+test finite_fallback_and_underflow_remain_parseable ... ok
+test comparator_still_accepts_and_distinguishes_arbitrary_precision_tokens ... ok
+test signed_zero_and_full_integer_domain_survive_validation ... ok
+test overflow_is_a_parse_failure_everywhere ... ok
+test syntax_duplicates_and_nesting_are_checked_before_value_conversion ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/request_cpp.rs (rust/target/debug/deps/request_cpp-d01a67147da0613f)
+
+running 1 test
+test request_boundary_matches_pinned_cpp_protocol ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.59s
+
+     Running unittests src/main.rs (rust/target/debug/deps/kicad_iec60664_shim-999ce5781141f3e1)
+
+running 3 tests
+test tests::invalid_identity_and_field_messages_preserve_complete_envelopes ... ok
+test tests::negative_zero_integer_bits_and_full_unsigned_domain_are_preserved ... ok
+test tests::all_refusal_envelopes_match_the_shared_oracle_contract ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+   Doc-tests kicad_difftest
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Compiling kicad-iec60664-shim v0.1.0 (/home/karlvonrichter/kicad-port/iec-request-parser/repo/rust/kicad-iec60664-shim)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.39s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.03s
+kicad-oracle: 106 complete refusal envelopes, raw -0, u64 bits and recovery passed
+kicad-iec60664-shim: 106 complete refusal envelopes, raw -0, u64 bits and recovery passed
+All unit records and source accounting valid
+test_all_new_portable_crates_are_discovered_by_default (test_policy.PolicyTests.test_all_new_portable_crates_are_discovered_by_default) ... ok
+test_baseline_evidence_cannot_omit_cases_values_or_oracle (test_policy.PolicyTests.test_baseline_evidence_cannot_omit_cases_values_or_oracle) ... ok
+test_empty_infrastructure_is_incomplete_but_strict_gate_fails (test_policy.PolicyTests.test_empty_infrastructure_is_incomplete_but_strict_gate_fails) ... ok
+test_evidence_checks_committed_head_and_ignores_dirty_worktree (test_policy.PolicyTests.test_evidence_checks_committed_head_and_ignores_dirty_worktree) ... ok
+test_jsonl_preserves_unicode_line_separators_inside_strings (test_policy.PolicyTests.test_jsonl_preserves_unicode_line_separators_inside_strings) ... ok
+test_policy_retains_numeric_tokens_and_rejects_duplicate_json (test_policy.PolicyTests.test_policy_retains_numeric_tokens_and_rejects_duplicate_json) ... ok
+test_strict_gate_counts_only_live_green_layer_zero_units (test_policy.PolicyTests.test_strict_gate_counts_only_live_green_layer_zero_units) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.180s
+
+OK
+Golden change evidence valid
+Phase 0: INCOMPLETE; 0/3 live green layer-0 units; 3 validated unit records.
+
+Extraction/configuration coverage (reported separately): `{"all_configurations_complete": null, "compile_database_complete": null, "gate_complete": null, "inventory_complete": null, "parse_complete": null, "parse_failures": 0, "uncompiled_application_sources": 0, "unresolved_call_count": null}`
+
+Phase 0: COMPLETE; 3/3 live green layer-0 units; 3 validated unit records.
+
+Extraction/configuration coverage (reported separately): `{"all_configurations_complete": null, "compile_database_complete": null, "gate_complete": null, "inventory_complete": null, "parse_complete": null, "parse_failures": 0, "uncompiled_application_sources": 0, "unresolved_call_count": null}`
+
+{"unit":"pcb_calculator.calculator_panels.application.pure.p001","status":"green","action":"check","cases":14190,"deferred":0,"cases_sha256":"4e624fe320565d6894ece1432b5ff38fcab5aca92688996e97b4cd684f872aff","oracle_output_sha256":"3051d7e1269a8ba05dc50ccba3fa53faedd10ba71e3ec630e6e2c0f2c2fe366f","rust_output_sha256":"819f74f463f537c7e7fa29127e5d6e71ee628c87fec8e541b143a7d6f39c1f4d","oracle_sha256":"ae2194dfa416725c33a4cc9f75a0eb5ab1fe815a61c6bc518e70b8a11d198b24","rust_sha256":"8d86bafe44017af89498c0c59722c2cc04b1249b68c4629bdcb13615ea5608b7"}
+Request parser validation complete
