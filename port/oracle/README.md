@@ -244,7 +244,9 @@ collector exception path. `oracle-resistor-private-keys` replays the literal
 requests in `fixtures/resistor-private-keys.requests.jsonl` and requires the
 recorded complete replies byte for byte; both fixture hashes are pinned in
 `test_resistor_private_keys.py`. They cover object keys spelled like serde's
-private `Number`/`RawValue` markers, which C++ treats as ordinary keys.
+private `Number`/`RawValue` markers, which C++ treats as ordinary keys. The separate
+`resistor-private-keys-escaped.*.jsonl` set adds 199 literal escaped-key and decoded
+duplicate-key probes to the original 889; default C++ and Rust guards run both.
 
 The native registration uses the provisional ID
 `pcb_calculator.application.pure.p001`. It is preparation only: no published claim,

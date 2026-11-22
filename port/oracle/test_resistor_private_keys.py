@@ -18,7 +18,11 @@ REQUESTS = FIXTURES / 'resistor-private-keys.requests.jsonl'
 REPLIES = FIXTURES / 'resistor-private-keys.replies.jsonl'
 REQUESTS_SHA256 = '854ef879f3374c8868ddc9ae3391b90cad34f1b578a08c27eca4ffe5a59bf159'
 REPLIES_SHA256 = '579853934d0bec0491d4aba2517978bf6954da74c16fea8dd5cfaf8eba3603e7'
-CASES = 889
+ESCAPED_REQUESTS = FIXTURES / 'resistor-private-keys-escaped.requests.jsonl'
+ESCAPED_REPLIES = FIXTURES / 'resistor-private-keys-escaped.replies.jsonl'
+ESCAPED_REQUESTS_SHA256 = '044fcf237467dac57fd32a6389a9beabbab6cc61c6dd9a6369f4f5a5565a6959'
+ESCAPED_REPLIES_SHA256 = 'f12a2fb72cf3dbec71e85cd3cf3382218402f5514f1537d4e9b7236cff37cbed'
+CASES = 889 + 199
 
 
 def strict(line):
@@ -59,12 +63,21 @@ def main():
     request_bytes, reply_bytes = REQUESTS.read_bytes(), REPLIES.read_bytes()
     assert hashlib.sha256(request_bytes).hexdigest() == REQUESTS_SHA256, 'request fixture changed'
     assert hashlib.sha256(reply_bytes).hexdigest() == REPLIES_SHA256, 'reply fixture changed'
+    assert len(lines(request_bytes)) == len(lines(reply_bytes)) == 889
+    escaped_requests, escaped_replies = ESCAPED_REQUESTS.read_bytes(), ESCAPED_REPLIES.read_bytes()
+    assert hashlib.sha256(escaped_requests).hexdigest() == ESCAPED_REQUESTS_SHA256, 'escaped request fixture changed'
+    assert hashlib.sha256(escaped_replies).hexdigest() == ESCAPED_REPLIES_SHA256, 'escaped reply fixture changed'
+    assert len(lines(escaped_requests)) == len(lines(escaped_replies)) == 199
+    from generate_resistor_escaped_keys import requests as generate_escaped_requests
+    assert escaped_requests == generate_escaped_requests(), 'literal escaped keys were changed'
+    request_bytes += escaped_requests
+    reply_bytes += escaped_replies
     requests, expected = lines(request_bytes), lines(reply_bytes)
     assert len(requests) == len(expected) == CASES, (len(requests), len(expected))
     parsed = [strict(line.decode()) for line in expected]
     tops = [{key for key, _ in reply[1]} for reply in parsed]
     results = sum('result' in keys for keys in tops)
-    assert results == 64 and sum('error' in keys for keys in tops) == CASES - results
+    assert results == 65 and sum('error' in keys for keys in tops) == CASES - results
     for adapter in args.adapters:
         process = subprocess.run([str(adapter.resolve())], input=request_bytes, capture_output=True,
                                  check=True, timeout=60)

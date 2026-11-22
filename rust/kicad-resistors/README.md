@@ -222,7 +222,7 @@ values directly from the validated exact tree, so objects whose keys spell
 serde's private `Number` or `RawValue` markers stay ordinary objects, as in the
 C++ adapter. `port/oracle/fixtures/resistor-private-keys.*.jsonl` hold 889 literal
 request envelopes and the complete replies recorded from the pinned C++ adapter:
-both marker keys (also escaped, combined and with near-miss spellings) carrying
+both marker keys (combined and with near-miss spellings) carrying
 encoded valid/invalid JSON, numeric and overflow strings and nonstring values, at
 the envelope, identities, input root, operation, every bits field, the series
 setter, custom vectors, collector target and candidates, reader and helper
@@ -231,7 +231,19 @@ plain strings stay strings; 64 successes are interleaved for recovery. The
 canonical CTest `oracle-resistor-private-keys` requires byte-identical C++
 replies, `tests/private_keys.rs` replays them through the built shim process and
 `tests/requests.py` appends them after its original 71 cases. These refusals are
-adapter controls, not registered difftest cases.
+adapter controls, not registered difftest cases. The historical authoring script's
+escaped-key constants were plain keys, so its claimed escape coverage was absent.
+The separate `resistor-private-keys-escaped.*.jsonl` fixtures add the independent
+review's 199 literal escaped-dollar, escaped-colon, fully encoded and mixed-spelling
+duplicate requests. All default guards include both sets: 1,088 private-key
+requests, or 1,159 with the original 71 controls. The escaped request generator
+and raw-spelling assertions prevent silent decoding of the fixtures.
+
+The source manifest and binary provenance in the historical `ff419ad71f` proof
+are exact, but 875/913 reference files contain CRLF conversions of the raw Git
+blobs; the proof's LF claim is withdrawn. See
+`port/findings/resistors-escaped-key-and-export-addendum.md`. The separately
+recorded combined integration uses a raw-LF export and reproduces the same output.
 
 The `nonfinite_parity` example reuses the pure operation conversions from the
 native shim, embeds the complete case/golden files and compares every result,
