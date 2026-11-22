@@ -215,7 +215,8 @@ def main():
     for tool in ('cmake', 'ninja', 'protoc', 'c++'):
         binary = shutil.which(tool)
         if binary:
-            binary = str(Path(binary).resolve())
+            # Tool managers can dispatch by argv[0]; retain the symlink name.
+            binary = str(Path(binary).absolute())
             version = subprocess.run([binary, '--version'], capture_output=True, text=True, encoding='utf-8')
             provenance['tools'][tool] = {'path': binary, 'sha256': digest(Path(binary).read_bytes()),
                 'version_exit': version.returncode, 'version': version.stdout, 'stderr': version.stderr}

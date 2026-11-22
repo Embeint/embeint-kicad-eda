@@ -349,6 +349,54 @@ class ValidationTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'changed'):
                 verify(manifest, build, generated)
 
+    @unittest.skipUnless(os.name == 'posix' and shutil.which('ninja'), 'POSIX Ninja symlinks are needed')
+    def test_freeze_cli_preserves_tool_symlink_invocation_names(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            parent = Path(tmp)
+            source, build, tools = parent / 'source', parent / 'build', parent / 'tool shims'
+            source.mkdir(); build.mkdir(); tools.mkdir()
+            (source / 'schema.md').write_text('# public fixture\n')
+            (build / 'final.h').write_text('// generated public fixture\n')
+            (build / 'build.ninja').write_text('rule gen\n  command = true\n'
+                                              'build final.h: gen ../source/schema.md\n')
+            (build / 'CMakeFiles').mkdir()
+            (build / 'CMakeCache.txt').write_text('# public fixture\n')
+            (build / 'CMakeFiles/rules.ninja').write_text('# public fixture\n')
+            reconciliation = parent / 'reconciliation'; reconciliation.mkdir()
+            write_json(reconciliation / 'reconciliation.json', {'source_root': str(source)})
+            real_ninja = Path(shutil.which('ninja')).resolve()
+            manager = tools / 'tool-manager'
+            manager.write_text('#!/bin/sh\ncase "$0" in\n'
+                               '  */ninja) exec ' + shlex.quote(str(real_ninja)) + ' "$@" ;;\n'
+                               '  */cmake|*/protoc|*/c++) printf "public fixture version\\n" ;;\n'
+                               '  *) echo "tool-manager: invoke through a tool symlink" >&2; exit 23 ;;\n'
+                               'esac\n')
+            manager.chmod(0o755)
+            for name in ('ninja', 'cmake', 'protoc', 'c++'):
+                (tools / name).symlink_to(manager.name)
+            # The CLI's lock check is isolated too. The caller of the full suite
+            # still holds the actual shared host lock when required by that host.
+            home = parent / 'home'; (home / 'kicad-port.build-lock').mkdir(parents=True)
+            script = Path(__file__).with_name('generated_sources.py')
+            for label, search_path in [('absolute', str(tools)), ('relative', tools.name)]:
+                with self.subTest(search_path=label):
+                    output = parent / ('frozen-' + label)
+                    env = dict(os.environ, HOME=str(home), PATH=search_path, PYTHONDONTWRITEBYTECODE='1')
+                    run = subprocess.run([sys.executable, str(script), '--build-root', str(build),
+                                          '--reconciliation', str(reconciliation), '--output', str(output)],
+                                         cwd=parent, env=env, capture_output=True, text=True)
+                    self.assertEqual(run.returncode, 0, run.stderr)
+                    self.assertEqual(json.loads(run.stdout), {'frozen_files': 1, 'recipe_records': 1})
+                    manifest = read_json(output / 'generated-sources.json')
+                    self.assertEqual(manifest['files'][0]['generator_inputs'], ['schema.md'])
+                    for name, info in manifest['provenance']['tools'].items():
+                        path = Path(info['path'])
+                        self.assertEqual(path, tools / name)
+                        self.assertTrue(path.is_absolute() and path.is_symlink())
+                        self.assertNotEqual(path, path.resolve())
+                        self.assertEqual(info['sha256'], digest(manager.read_bytes()))
+                        self.assertEqual(info['version_exit'], 0)
+
     @unittest.skipUnless(shutil.which('ninja'), 'Ninja is needed for real recipe capture')
     def test_post_parse_dependency_refresh_changes_only_generator_metadata(self):
         from extractor import refresh_generator_dependencies as refresh
