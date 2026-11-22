@@ -1,0 +1,76 @@
+{
+  "artifact_hashes_verified": [
+    {
+      "bytes": 40925438,
+      "filename": "graph.json.gz",
+      "path": "port/extractor/generated/raw/graph.json.gz",
+      "sha256": "a4768bc824e8947f3373dbec4afc939c91ac94ee6ac9ff22355eeedf70a2e516"
+    },
+    {
+      "bytes": 2296170,
+      "filename": "inventory.json",
+      "path": "port/extractor/generated/raw/inventory.json",
+      "sha256": "e19e921c1d668d67d9f413aab119fa0a5e8425aa30a2dee84f88599563117158"
+    },
+    {
+      "bytes": 41947024,
+      "filename": "graph.json.gz",
+      "path": "port/extractor/generated/reconciled-extraction/graph.json.gz",
+      "sha256": "133c45e58c4f42fade25280971cf2f9c67433bbe83efb0051cbeddef24e3967f"
+    },
+    {
+      "bytes": 2290402,
+      "filename": "inventory.json",
+      "path": "port/extractor/generated/reconciled-extraction/inventory.json",
+      "sha256": "be68a91671554abd34719c169feaaa9724072a27d60c5dd18d6b69cf48d100d4"
+    },
+    {
+      "bytes": 41946263,
+      "filename": "graph.json.gz",
+      "path": "port/extractor/generated/graph.json.gz",
+      "sha256": "df959d0e3b8db15fe299c6f6dad84797f73ef22cf4948e75132ebc1ffbce4122"
+    },
+    {
+      "bytes": 2290402,
+      "filename": "inventory.json",
+      "path": "port/extractor/generated/inventory.json",
+      "sha256": "be68a91671554abd34719c169feaaa9724072a27d60c5dd18d6b69cf48d100d4"
+    },
+    {
+      "bytes": 14623991,
+      "filename": "units.json",
+      "path": "port/extractor/generated/units.json",
+      "sha256": "03389a47455a92d3d60fc63c1ad02ace5cbd6e77d9fb53f1ebab009a0d925d0e"
+    }
+  ],
+  "blob_sizes_below_github_limit": true,
+  "compressed_evidence_hashes_verified": true,
+  "final_pilot_records_and_pinned_source_bytes_verified": true,
+  "largest_units": [
+    {
+      "id": "common.generated.pure.p001",
+      "lines": 5485
+    },
+    {
+      "id": "pcbnew.exporters.step.application.ui.p002",
+      "lines": 4500
+    },
+    {
+      "id": "common.gal.application.ui.p002",
+      "lines": 4345
+    },
+    {
+      "id": "pcbnew.pcb_io.kicad_sexpr.application.ui.p006",
+      "lines": 2797
+    },
+    {
+      "id": "pcbnew.pcb_io.diptrace.application.ui.p002",
+      "lines": 2712
+    }
+  ],
+  "oversized_count": 170,
+  "solidcore_core_fields_and_extension_roundtrip_count": 1570,
+  "solidcore_loader_sha256": "6f112b23cb89897d2f68ab015b0ced522c88646dc7778204d708bc12ab29a9e0",
+  "solidcore_pin": "7a588fa284765a83823293ae20b84da8356ab479",
+  "validated_code_head": "21839dda17a2fe3a421469b6f4c35dba2951a2ac"
+}
