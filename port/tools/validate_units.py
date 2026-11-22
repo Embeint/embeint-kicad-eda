@@ -8,6 +8,7 @@ No clang installation or upstream build is needed in CI.
 """
 import argparse
 from collections import defaultdict
+import gzip
 import json
 from pathlib import Path, PurePosixPath
 import re
@@ -17,6 +18,7 @@ import tomllib
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from extractor.model import CLASSES, PIN, classify, digest, expand_virtual, layers, read_json
 from split_units import CORE
+from extractor.generated_sources import source_path
 
 STATUSES = {"todo", "claimed", "partial", "green", "blocked"}
 
@@ -98,13 +100,21 @@ def validate(root, require_complete=False, check_sources=True, source_root=None)
     files = {f["path"]: f for f in inventory["files"]}
     if len(files) != len(inventory["files"]):
         errors.append("duplicate inventory path")
+    for tu in translation_units or []:
+        if tu.get('category') == 'generated-build' and (not tu['file'].startswith('@build/')
+                or tu['file'] not in files or files[tu['file']].get('origin') != 'build-generated'):
+            errors.append('active generated translation unit lacks frozen source mapping: ' + tu['file'])
+        for included in tu.get('includes', []):
+            if included.startswith('@build/') and (included not in files or files[included].get('origin') != 'build-generated'):
+                errors.append('generated include lacks frozen source mapping: ' + included)
     for usr, fn in graph["functions"].items():
         if fn["file"] not in files:
             errors.append(f"function source absent from inventory: {usr}")
     manifest_path = generated / "source-manifest.json"
     if manifest_path.exists():
         manifest = read_json(manifest_path)
-        if set(manifest["files"]) != set(files) or len(manifest["files"]) != len(files):
+        tracked = {p for p, f in files.items() if f.get('origin') != 'build-generated'}
+        if set(manifest["files"]) != tracked or len(manifest["files"]) != len(tracked):
             errors.append("tracked source manifest differs from inventory")
         if manifest["source_commit"] != provenance.get("source_commit") or manifest["upstream_pin"] != PIN:
             errors.append("source manifest provenance mismatch")
@@ -115,6 +125,35 @@ def validate(root, require_complete=False, check_sources=True, source_root=None)
             errors.append("source manifest fingerprint mismatch")
     if digest(json.dumps([{k: v for k, v in f.items() if k != "coverage"} for f in inventory["files"]], sort_keys=True).encode()) != provenance.get("source_inventory_sha256"):
         errors.append("inventory fingerprint mismatch")
+    build_files = {p: f for p, f in files.items() if f.get('origin') == 'build-generated'}
+    if build_files:
+        manifest = read_json(generated / 'generated-sources.json')
+        if digest((generated / 'generated-sources.json').read_bytes().replace(b'\r\n', b'\n')) != provenance.get('generated_sources_manifest_sha256'):
+            errors.append('generated source manifest fingerprint mismatch')
+        expected = [{k: v for k, v in f.items() if k != 'coverage'} for f in build_files.values()]
+        if manifest['files'] != expected or manifest['upstream_pin'] != PIN:
+            errors.append('generated source inventory/provenance mismatch')
+        catalog = {record['path']: record['sha256'] for record in manifest.get('build_files', [])}
+        for entry in build_files.values():
+            if catalog.get(entry['path'].removeprefix('@build/')) != entry['bytes_sha256']:
+                errors.append('generated input missing from complete build fingerprint: ' + entry['path'])
+        generation = manifest.get('provenance', {})
+        configuration = generation.get('reconciliation.json', {}).get('record')
+        if configuration is not None and (configuration.get('source_commit') != provenance.get('source_commit')
+                or configuration.get('upstream_pin') != PIN):
+            errors.append('generated configure source pin differs from extraction')
+        recipes = generated / 'generated-recipes.json'
+        if manifest.get('recipes_sha256'):
+            recipe_bytes = (recipes.read_bytes() if recipes.exists() else
+                            gzip.decompress(recipes.with_suffix('.json.gz').read_bytes()))
+            if digest(recipe_bytes.replace(b'\r\n', b'\n')) != manifest['recipes_sha256']:
+                errors.append('generated recipes fingerprint mismatch')
+        for entry in build_files.values():
+            source_path(entry, source_root or root, generated)
+        tracked_inventory = [{k:v for k,v in f.items() if k != 'coverage'} for f in inventory['files']
+                             if f.get('origin') != 'build-generated']
+        if digest(json.dumps(tracked_inventory, sort_keys=True).encode()) != provenance.get('tracked_source_inventory_sha256'):
+            errors.append('tracked source inventory fingerprint mismatch')
     ownership, ranges = {}, defaultdict(list)
     for uid, unit in units.items():
         for path in unit["upstream"]:
@@ -217,9 +256,12 @@ def validate(root, require_complete=False, check_sources=True, source_root=None)
         errors.append(str(exc))
     if check_sources:
         for path, entry in files.items():
-            source = (source_root or root) / path
+            source = source_path(entry, source_root or root, generated)
             if not source.is_file() or digest(source.read_bytes().replace(b"\r\n", b"\n")) != entry["sha256"]:
                 errors.append(f"source changed since extraction: {path}; regenerate graph or use drift_report")
+            elif entry.get('origin') == 'build-generated' and (len(source.read_bytes().splitlines()) != entry['lines']
+                    or digest(source.read_bytes()) != entry['bytes_sha256']):
+                errors.append(f'generated source byte/line fingerprint mismatch: {path}')
     return sorted(set(errors))
 
 

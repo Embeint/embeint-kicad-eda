@@ -1,99 +1,98 @@
-# Extraction evidence
+# Corrected extraction evidence
 
-The completed raw and reconciled runs are independent measurements. Canonical
-`port/units/` records come from the reconciled graph with the recorded physical
-EOF normalization. No unit is ported or oracle-green.
+The raw, reviewed a7 reconciled and corrected runs remain separate. Historical
+results were never relabelled as corrected. The root graph/inventory/report and
+`port/units/` now use the corrected semantics. No unit is ported or oracle-green.
 
-| Measurement | Raw | Reconciled |
-| --- | ---: | ---: |
-| Recorded commands | 2,471 / 2,471 | 2,511 / 2,511 |
-| Successful parses | 2,462 | 2,507 |
-| Proven-deleted/excluded commands | 4 | 0 |
-| Other failed commands | 5 | 4 |
-| Definition entries | 68,939 | 69,416 |
-| Call edges | 573,759 | 559,555 |
-| Observed override relations | 10,530 | 10,580 |
-| Unresolved TU/configuration call records | 5,216,898 | 5,247,105 |
+The independent matching-libclang21 source review at `c8fed1ad89` verified all
+four prior fixes and negative controls, but reported one remaining recipe-capture
+P2. Parent resolved it at `1343c3a303` with a real-Ninja capture-to-drift regression.
+This is not an independent clean disposition for 1343. The storage-only follow-up
+`c586fcccf9` validates deterministic gzip recipe evidence against its unchanged
+decompressed-byte hash. Final independent code/artifact review remains pending.
 
-`measurement.json` reports independent database, graph, source-manifest and inventory
-hashes, coverage flags, diagnostics, source counts, layers and classifications.
-`raw/` preserves historical graph/inventory and deletion-aware coverage.
-`reconciled-extraction/` preserves the original reconciled AST graph/inventory.
-The root graph/inventory and `units.json` are canonical. `evidence/artifacts.json`
-hashes the uncompressed database/log bytes in adjacent gzip files.
+| Run | Recorded commands | Successful parses | Definition entries | Generated-build definitions | Edges |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Raw historical | 2,471/2,471 | 2,462 | 68,939 | 0 | 573,759 |
+| Reviewed a7 reconciled | 2,511/2,511 | 2,507 | 69,416 | 0 | 559,555 |
+| Corrected | 2,511/2,511 | 2,507 | 107,254 | 37,838 | 649,723 |
 
 | Artifact | SHA256 |
 | --- | --- |
-| Raw database | `10519703c213d66a3abf4e00fa091bdaa616d9865c4ec47ecad0acca91c2fa8b` |
-| Reconciled database | `bc402ade70f0304ed5018793a5d8c37749df978dfd7859ee87e655ee3a616196` |
-| Raw graph gzip | `a4768bc824e8947f3373dbec4afc939c91ac94ee6ac9ff22355eeedf70a2e516` |
-| Original reconciled AST graph gzip | `133c45e58c4f42fade25280971cf2f9c67433bbe83efb0051cbeddef24e3967f` |
-| Canonical graph gzip | `df959d0e3b8db15fe299c6f6dad84797f73ef22cf4948e75132ebc1ffbce4122` |
-| Canonical units report | `03389a47455a92d3d60fc63c1ad02ace5cbd6e77d9fb53f1ebab009a0d925d0e` |
+| raw database | `10519703c213d66a3abf4e00fa091bdaa616d9865c4ec47ecad0acca91c2fa8b` |
+| raw original graph gzip | `a4768bc824e8947f3373dbec4afc939c91ac94ee6ac9ff22355eeedf70a2e516` |
+| reconciled database | `bc402ade70f0304ed5018793a5d8c37749df978dfd7859ee87e655ee3a616196` |
+| reconciled original graph gzip | `133c45e58c4f42fade25280971cf2f9c67433bbe83efb0051cbeddef24e3967f` |
+| corrected database | `bc402ade70f0304ed5018793a5d8c37749df978dfd7859ee87e655ee3a616196` |
+| corrected original graph gzip | `40861e9ca678464cedc513561e6e559cbcb5f902bb5b221fe2b6c378fb803e18` |
+| canonical graph.json.gz | `146e2ccac0e8d0ba6d37ceadb26ae5a84d0223609dd55abebb0b5451bfe45735` |
+| canonical inventory.json | `b9e6986b36529fdf4041712dfb258af050c2ff61bb3971875394eb16e2a47682` |
+| canonical units.json | `0aac539054de1437248d5f97c510efee16de779cf546919c136a23938b023753` |
 
-Source snapshot `3cd2c9afc6d2749b7d3a79fd1deaa86ac51cb3a7` and upstream pin
-`4cf939778df04d2b747bb2c4714fc5014a7565c7` cover 9,401 tracked C/C++ files:
-1,946,361 application/generated lines, 340,033 QA lines and 1,059,199 third-party
-lines, measured separately. Units own 1,956,434 physical lines, including 10,073
-Clipper2 lines. There are 1,506 todo and 64 blocked records; 385 layers (0-384,
-393 L0 units); 45,695 hard edges; 8,631 back-edges with dropped weight 73,460.
-Pure / thin-replacement / UI classifications are 333 / 130 / 1,107 units and
-292,894 / 63,635 / 1,599,905 lines. 170 units exceed the 2,000-line target
-(maximum 5,485): function boundaries and conservative enclosing ranges remain
-intact. wx coupling does not prove portability or measure implementation effort.
+`raw/` retains the historical graph/inventory and deletion-aware coverage.
+`reconciled-extraction/` retains the reviewed original AST, while
+`history/reviewed-a7/` preserves its canonical EOF-normalized graph, measurement,
+reports and diagnostics. Original unit records remain in Git at a7/77c144.
+`corrected-extraction/` retains the new original AST separately from the current
+canonical EOF-normalized graph. The interrupted preliminary corrected attempts
+are retained as diagnostics in `evidence/corrected/interrupted-attempts.json`;
+their runtime/cache/logs remain in the private WSL tree. None is a success claim.
 
-`evidence/deleted-source-proof.json` proves four sources existed before deletion
-commit `3ac0ec003d72760106d673493225b7eda9cf54e8` and were absent at both pins.
-One historical cached failure remains a failure; three were excluded without
-invoking clang. Other raw failures are a stale generated protobuf enum header
-and four fmt module commands. Private generated headers resolve protobuf in the
-reconciled run. All four fmt commands retain their unsupported GCC module flags
-and failure diagnostics. No flags were stripped or invented.
+The source pin and original 9,401-file tracked inventory are unchanged: 1,946,361
+application/generated lines, 340,033 QA and 1,059,199 third-party lines, separate.
+The corrected inventory additionally freezes 178 build
+inputs and their exact public bytes. Generated application lines are measured
+separately from CMake compiler-ID tooling probes. `generated-sources.json` maps
+logical `@build/<relative>` locations to `sources/<relative>`; these are explicitly
+not pinned Git paths. `generated-recipes.json.gz` (unchanged raw-byte hash), tool identities and the 1,164-file
+pinned generator/configure-input audit make the generation provenance reviewable.
+CI validates committed source snapshots, with `-text` preserving generated bytes.
+Future source manifests exclude port tooling/artifact copies to avoid double counts.
 
-Raw parser/aggregator identity is
-`aabb3c0be3176689df4f9d383aa145d6613ab48c354f7d3380f781c4fb6ad89a`.
-`evidence/cache-reuse-audit.json` proves 1,136 initial reusable results; the raw
-graph did not store cache-hit flags, so its per-result cache counter does not
-reconstruct that resume. The runtime wrapper added proven-deletion guards and
-later gzip compatibility without rewriting historical AST logic.
-`resume-raw-current.py` is runtime evidence, not a standalone repository entry
-point. Original caches and lossless compaction proofs remain.
+There are **1,801 units / 2,380,947 owned physical lines**,
+**392 layers**, **46,894 hard edges** and
+**9,548 back-edges**, dropped weight **106,538**.
+282 units exceed the 2,000-line target because functions
+and conservative enclosing ranges remain intact. The weighted greedy heuristic
+is deterministic, not a minimum feedback-arc solution. wx coupling is not a
+literal UI effort estimate or proof of portability.
 
-The first reconciled aggregation rejected primary-template USRs differing only
-in expression whitespace. `template-owner-variants.json` preserves the observation;
-the fix retains all observed owners and each TU's resolved calls.
-`aggregation-cache-migration.json` proves unchanged parser/model bytes, inventory
-and compiler arguments for 288 migrated results. Corrected extractor identity is
-`95743d0fe1c1967ae7609b2afecb59ea7e26c8b2ac41361d058ac8f32aff0806`.
-Original logs/cache remain in the private reconciliation tree.
+The corrected parser includes virtual destructors and conversion operators,
+unused transitive overrides, explicit destructor/delete dispatch, and visible
+local/by-value/base/member cleanup dependencies. Implicit derived destructor
+overrides, unexposed deallocation selection and temporary lifetime/elision sites
+are diagnosed rather than invented. Exception-unwind, global and union/variant
+lifetime paths are not exhaustively lowered. Canonical aliases, nested templates,
+pointers/references and recursive record storage now contribute wx coupling;
+named wx classes remain atomic policy inputs. Opaque template layouts conservatively union visible fixed primary/partial storage and bases; dependent T alone is never assumed wx. The complete private build-file fingerprint closes added/macro-only include cache invalidation, and every generated include requires a frozen mapping. Ninja capture retains and traverses generated intermediates, including non-C++ stages, to tracked source leaves for drift.
 
-The full graph owns 244 additional same-USR bodies and ten conservative enclosing
-ranges. Three recovered extents in `gal_modern.cpp` and `step_pcb_model.cpp` end
-at clang's exclusive EOF line after a trailing LF. `split_units.py` verifies exact
-source/body hashes, byte EOF and enclosing-range tag before clamping the inclusive
-physical line. It retains `clang_end_line`, original graph hash, splitter hash
-and three normalization records. Failed initial validation/measurement remain in
-`evidence/failed-initial-generation/`; those counts are historical. No reparsing
-or source edit was used to correct accounting.
+Actual-source proofs in `evidence/corrected/final-artifact-audit.json` verify
+EDA_ITEM's virtual destructor and overrides, NETINFO_LIST::NetsByName's wxString
+coupling, and owned generated lexer constructors/TokenName definitions.
+All 86 active generated-build TUs have frozen logical-source mappings. Validation
+rejects the old zero-definition/unmapped-TU case even if parsing succeeds.
 
-`evidence/repeat-generation.json` confirms identical graph/report bytes and all
-1,570 unit files on repeat generation, plus unchanged hashes of 178 private
-generated inputs. Those inputs were frozen: external/generated headers are not
-covered by the tracked-source cache fingerprint. `aggregation-probe-*` and
-`pilot-audit.log` are earlier diagnostic subsets; [PILOTS.md](../PILOTS.md) and
-the full unit records supersede their scopes.
+All raw diagnostics remain: four proven-deleted/excluded commands (one cached
+failure preserved, three excluded without parsing) and five other failures.
+Private generated headers resolve the raw protobuf failure. Both reconciled runs
+retain the four fmt GCC-module failures, without stripped/invented flags.
+Inventory/database processing are complete; parsing/extractor gate and all-
+configuration completeness remain false. There are 63
+uncovered implementation sources and 64 blocked units.
+8,899,609 unresolved TU/configuration records remain explicit.
 
-`finalization.json` records default validation success and expected strict failure.
-Inventory and compile-database processing are complete; parsing and extractor gate
-remain incomplete because of fmt. All-configuration completeness remains false.
-63 uncovered application/generated implementation sources remain accounted for
-by blocked records. Indirect/dependent calls and inactive platform branches remain
-explicit limitations. The plan's three-live-green-pilot gate is not satisfied.
+Canonical range normalization preserves original clang extents and source/body/
+input/splitter hashes. Historical failed EOF-generation diagnostics remain in
+the evidence tree. Repeat generation matched every unit/report/graph byte, and
+all 178 generated inputs stayed unchanged. All raw/reviewed/corrected/canonical
+artifact identities and decompressed database/log hashes passed audit.
+Full aggregation replay reused all 2,511 exact V5 cache results without new clang
+parses and matched graph/inventory semantics after excluding the explicitly
+recorded cache-trace audit fields and comparing full failure records in sorted order. All failure file/status/severity/message payloads match exactly. Raw failure reporting order follows job completion and is nondeterministic; both original graphs and the initially failed comparison are preserved. Original traces remain intact. Post-adoption
+canonical CLI regeneration also preserved every graph/report/unit byte, including
+maintained port metadata. These checks are distinct from source/branch coverage.
 
-`drift-ported.json` has zero ported units, so proves no parity. `drift-all.json`
-compares the upstream pin to its recorded committed target: 56 changed files,
-188 direct function-range findings, 1,197 affected units and 1,197 conservative
-include/declaration dependency reviews. These include fork changes already present
-at extraction; they are review requests, not newly measured regressions.
-Working-tree edits and uncompiled include branches are outside that comparison.
-See [VALIDATION.md](VALIDATION.md) for final checks.
+See [VALIDATION.md](VALIDATION.md), [PILOTS.md](../PILOTS.md), the migration ledger
+and [measurement.json](measurement.json). The pilot scopes must be re-confirmed
+against these records; no old ID alone certifies unchanged scope. Stored cases
+and the three-live-green-pilot gate are separate from extraction validation.

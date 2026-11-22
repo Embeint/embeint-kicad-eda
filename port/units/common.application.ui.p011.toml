@@ -2,10 +2,10 @@
 id = "common.application.ui.p011"
 upstream = ["common/eda_base_frame.cpp", "common/eda_cursor_broadcaster.cpp", "common/eda_doc.cpp"]
 rust_module = "kicad_port::common::application::ui::p011"
-depends_on = ["common.application.thin.replacement.p001", "common.application.ui.p003", "common.application.ui.p018", "common.application.ui.p021", "common.application.ui.p024", "common.tool.application.ui.p001", "include.application.pure.p002", "include.application.thin.replacement.p005", "include.application.ui.p001", "include.application.ui.p004", "include.application.ui.p008", "include.application.ui.p012"]
-soft_depends_on = ["3d.viewer.3d_viewer.application.ui.p001", "common.application.ui.p004", "common.application.ui.p008", "common.application.ui.p010", "common.application.ui.p012", "cvpcb.application.ui.p002", "eeschema.application.ui.p022", "eeschema.application.ui.p026", "eeschema.application.ui.p040", "eeschema.application.ui.p061", "eeschema.symbol_editor.application.ui.p003", "gerbview.application.ui.p007", "pagelayout_editor.application.ui.p001", "pcbnew.application.ui.p035", "pcbnew.application.ui.p036", "pcbnew.application.ui.p042", "pcbnew.application.ui.p070"]
+depends_on = ["common.application.ui.p003", "common.application.ui.p018", "common.application.ui.p021", "common.application.ui.p024", "common.application.ui.p037", "common.tool.application.ui.p001", "include.application.pure.p002", "include.application.ui.p002", "include.application.ui.p004", "include.application.ui.p008", "include.application.ui.p013"]
+soft_depends_on = ["3d.viewer.3d_viewer.application.ui.p001", "common.application.ui.p004", "common.application.ui.p008", "common.application.ui.p010", "common.application.ui.p012", "cvpcb.application.ui.p002", "eeschema.application.ui.p022", "eeschema.application.ui.p027", "eeschema.application.ui.p041", "eeschema.application.ui.p062", "eeschema.symbol_editor.application.ui.p003", "gerbview.application.ui.p007", "pagelayout_editor.application.ui.p001", "pcbnew.application.ui.p035", "pcbnew.application.ui.p036", "pcbnew.application.ui.p043", "pcbnew.application.ui.p071"]
 est_lines = 482
-layer = 52
+layer = 70
 tests = []
 status = "todo"
 claimed_by = ""

@@ -2,10 +2,10 @@
 id = "common.project.application.ui.p005"
 upstream = ["common/project/tuning_profiles.cpp"]
 rust_module = "kicad_port::common::project::application::ui::p005"
-depends_on = ["common.application.ui.p028", "common.settings.application.ui.p003", "include.project.application.thin.replacement.p001", "include.settings.application.ui.p001"]
+depends_on = ["common.application.ui.p028", "common.settings.application.ui.p003", "include.project.application.ui.p001", "include.settings.application.ui.p001", "include.settings.application.ui.p002"]
 soft_depends_on = []
 est_lines = 270
-layer = 86
+layer = 125
 tests = []
 status = "todo"
 claimed_by = ""

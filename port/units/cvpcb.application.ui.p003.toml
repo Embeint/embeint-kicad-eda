@@ -2,10 +2,10 @@
 id = "cvpcb.application.ui.p003"
 upstream = ["cvpcb/symbols_listbox.cpp", "cvpcb/toolbars_cvpcb.cpp", "cvpcb/toolbars_cvpcb.h", "cvpcb/toolbars_display_footprints.cpp", "cvpcb/toolbars_display_footprints.h"]
 rust_module = "kicad_port::cvpcb::application::ui::p003"
-depends_on = ["common.application.ui.p010", "common.application.ui.p037", "common.tool.application.ui.p002", "common.tool.ui.application.ui.p001", "common.widgets.application.ui.p013", "cvpcb.generated.ui.p001", "include.tool.ui.application.ui.p001", "libs.kiplatform.port.wxgtk.application.ui.p001"]
-soft_depends_on = ["common.application.ui.p012", "cvpcb.application.ui.p001", "eeschema.application.ui.p066", "eeschema.symbol_editor.application.ui.p006", "gerbview.application.ui.p010", "pagelayout_editor.application.ui.p002", "pcbnew.application.ui.p035", "pcbnew.application.ui.p068", "pcbnew.application.ui.p069"]
+depends_on = ["common.application.ui.p010", "common.application.ui.p037", "common.tool.application.ui.p002", "common.tool.ui.application.ui.p001", "common.widgets.application.ui.p013", "cvpcb.generated.ui.p001", "include.tool.ui.application.ui.p001", "libs.kiplatform.port.wxgtk.application.ui.p001", "pagelayout_editor.application.ui.p002"]
+soft_depends_on = ["common.application.ui.p012", "cvpcb.application.ui.p001", "eeschema.application.ui.p068", "eeschema.symbol_editor.application.ui.p006", "gerbview.application.ui.p010", "pcbnew.application.ui.p035", "pcbnew.application.ui.p069", "pcbnew.application.ui.p070"]
 est_lines = 499
-layer = 103
+layer = 123
 tests = []
 status = "todo"
 claimed_by = ""

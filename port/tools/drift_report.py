@@ -10,6 +10,7 @@ import argparse
 from collections import defaultdict
 import json
 from pathlib import Path
+import posixpath
 import re
 import subprocess
 import sys
@@ -109,9 +110,22 @@ def report(root, graph, units, target="HEAD", include_todo=False):
             affected.append({"unit": unit["id"], "file": path, "function": None,
                              "reason": "owned declarations/source changed; unit review required"})
     input_changes = defaultdict(set)
+    generated_dependencies = graph['provenance'].get('generated_input_dependencies', {})
+    changed_cmake = {p for p in changed_paths if p.endswith(('CMakeLists.txt', '.cmake'))}
+    def recipe_inputs(paths):
+        pending, seen = list(paths), set()
+        while pending:
+            path = posixpath.normpath(pending.pop())
+            if path in seen:
+                continue
+            seen.add(path)
+            pending.extend(generated_dependencies.get(path, []))
+        return seen
     for tu in graph.get("translation_units", []):
         included = set(tu.get("includes", [])) | {tu["file"]}
-        changed = changed_paths & included
+        changed = changed_paths & recipe_inputs(included)
+        if any(path.startswith('@build/') for path in included):
+            changed.update(changed_cmake)
         if changed:
             for path in included:
                 input_changes[path].update(changed)
@@ -119,13 +133,17 @@ def report(root, graph, units, target="HEAD", include_todo=False):
     for unit in sorted(units, key=lambda u: u["id"]):
         if not include_todo and unit["status"] not in ("partial", "green"):
             continue
-        owned_files = {graph["functions"][usr]["file"] for usr in unit["functions"]}
+        owned_files = {graph["functions"][usr]["file"] for usr in unit["functions"]} | set(unit['upstream'])
         reasons = set()
         for path in owned_files:
             reasons.update(input_changes[path])
+        for path in unit['upstream']:
+            if path.startswith('@build/'):
+                reasons.update(changed_paths & recipe_inputs([path]))
+                reasons.update(changed_cmake)
         if reasons:
             dependency_reviews.append({"unit": unit["id"], "changed_inputs": sorted(reasons),
-                                       "reason": "an extraction translation unit containing ported functions has changed inputs; conservative dependency review"})
+                                       "reason": "an extraction translation unit or generated-source recipe has changed inputs; conservative dependency review"})
     return {"schema_version": 1, "upstream_pin": pin, "extraction_commit": base,
             "target": target_sha, "ported_statuses": ["partial", "green"],
             "include_todo": include_todo, "affected": affected,

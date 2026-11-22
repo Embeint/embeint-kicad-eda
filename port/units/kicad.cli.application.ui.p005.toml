@@ -2,10 +2,10 @@
 id = "kicad.cli.application.ui.p005"
 upstream = ["kicad/cli/command_sch_export.h", "kicad/cli/command_sch_export_netlist.cpp", "kicad/cli/command_sch_export_plot.cpp", "kicad/cli/command_sch_export_pythonbom.cpp", "kicad/cli/command_sch_import.cpp", "kicad/cli/command_sch_upgrade.cpp", "kicad/cli/command_sym.h", "kicad/cli/command_sym_diff.cpp", "kicad/cli/command_sym_downgrade.cpp", "kicad/cli/command_sym_export.h", "kicad/cli/command_sym_export_svg.cpp", "kicad/cli/command_sym_upgrade.cpp", "kicad/cli/command_version.cpp", "kicad/cli/diff_format_helpers.h"]
 rust_module = "kicad_port::kicad::cli::application::ui::p005"
-depends_on = ["common.application.ui.p002", "common.application.ui.p024", "common.application.ui.p035", "common.jobs.application.ui.p001", "common.jobs.application.ui.p002", "include.application.ui.p002", "kicad.cli.application.ui.p001", "kicad.cli.generated.ui.p001"]
+depends_on = ["common.application.ui.p002", "common.application.ui.p024", "common.application.ui.p035", "common.jobs.application.ui.p001", "common.jobs.application.ui.p002", "include.application.ui.p003", "kicad.cli.application.ui.p001", "kicad.cli.generated.ui.p001"]
 soft_depends_on = []
 est_lines = 1154
-layer = 93
+layer = 128
 tests = []
 status = "todo"
 claimed_by = ""

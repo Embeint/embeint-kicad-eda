@@ -2,10 +2,10 @@
 id = "eeschema.dialogs.generated.ui.p006"
 upstream = ["eeschema/dialogs/dialog_sch_import_settings_base.h", "eeschema/dialogs/dialog_shape_properties_base.cpp", "eeschema/dialogs/dialog_shape_properties_base.h", "eeschema/dialogs/dialog_sheet_pin_properties_base.cpp", "eeschema/dialogs/dialog_sheet_pin_properties_base.h", "eeschema/dialogs/dialog_sheet_properties_base.cpp", "eeschema/dialogs/dialog_sheet_properties_base.h"]
 rust_module = "kicad_port::eeschema::dialogs::generated::ui::p006"
-depends_on = ["common.application.ui.p006", "common.widgets.application.ui.p001", "common.widgets.application.ui.p003", "common.widgets.application.ui.p010", "common.widgets.application.ui.p013", "common.widgets.application.ui.p016", "common.widgets.application.ui.p017", "common.widgets.application.ui.p018", "pcbnew.application.ui.p045"]
+depends_on = ["common.application.ui.p006", "common.widgets.application.ui.p001", "common.widgets.application.ui.p003", "common.widgets.application.ui.p010", "common.widgets.application.ui.p013", "common.widgets.application.ui.p016", "common.widgets.application.ui.p017", "common.widgets.application.ui.p018", "pcbnew.application.ui.p047"]
 soft_depends_on = ["eeschema.dialogs.application.ui.p014"]
 est_lines = 1181
-layer = 148
+layer = 201
 tests = []
 status = "todo"
 claimed_by = ""

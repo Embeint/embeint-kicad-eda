@@ -2,10 +2,10 @@
 id = "eeschema.dialogs.generated.ui.p008"
 upstream = ["eeschema/dialogs/dialog_sim_model_base.cpp", "eeschema/dialogs/dialog_sim_model_base.h", "eeschema/dialogs/dialog_symbol_properties_base.cpp", "eeschema/dialogs/dialog_symbol_properties_base.h", "eeschema/dialogs/dialog_symbol_remap_base.cpp", "eeschema/dialogs/dialog_symbol_remap_base.h", "eeschema/dialogs/dialog_table_properties_base.cpp", "eeschema/dialogs/dialog_table_properties_base.h"]
 rust_module = "kicad_port::eeschema::dialogs::generated::ui::p008"
-depends_on = ["common.application.ui.p006", "common.widgets.application.ui.p001", "common.widgets.application.ui.p005", "common.widgets.application.ui.p013", "common.widgets.application.ui.p016", "common.widgets.application.ui.p017", "common.widgets.application.ui.p018", "pcbnew.application.ui.p045"]
+depends_on = ["common.application.ui.p006", "common.widgets.application.ui.p001", "common.widgets.application.ui.p005", "common.widgets.application.ui.p013", "common.widgets.application.ui.p016", "common.widgets.application.ui.p017", "common.widgets.application.ui.p018", "pcbnew.application.ui.p047"]
 soft_depends_on = []
 est_lines = 1602
-layer = 148
+layer = 201
 tests = []
 status = "todo"
 claimed_by = ""

@@ -2,10 +2,10 @@
 id = "include.generated.ui.p001"
 upstream = ["include/bitmap_base.h", "include/kiface_base.h", "include/marker_base.h", "include/pgm_base.h"]
 rust_module = "kicad_port::include::generated::ui::p001"
-depends_on = ["include.application.thin.replacement.p001", "include.tool.application.pure.p001"]
-soft_depends_on = ["common.application.ui.p002", "common.generated.ui.p001", "eeschema.application.ui.p035", "pcbnew.application.ui.p046"]
+depends_on = ["include.application.ui.p001"]
+soft_depends_on = ["common.application.ui.p002", "common.generated.ui.p001", "eeschema.application.ui.p036", "include.tool.application.ui.p001", "pcbnew.application.ui.p047"]
 est_lines = 1150
-layer = 1
+layer = 33
 tests = []
 status = "todo"
 claimed_by = ""

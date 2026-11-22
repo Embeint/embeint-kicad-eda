@@ -88,45 +88,53 @@ that runs headless or bridged to the app, and a web build.
 ## Size
 
 Measured at fork source `3cd2c9afc6d2749b7d3a79fd1deaa86ac51cb3a7` and upstream pin
-`4cf939778df04d2b747bb2c4714fc5014a7565c7`. The tracked inventory covers 9,401 C/C++
-source/header files; counts are physical lines with CRLF normalized to LF.
+`4cf939778df04d2b747bb2c4714fc5014a7565c7`. The tracked inventory is unchanged at
+9,401 C/C++ files. Corrected extraction additionally
+freezes 178 generated build inputs under explicit
+logical `@build/` locations, backed by committed source bytes and generation
+provenance. Counts are physical lines, with tracked CRLF normalized to LF.
 
 | Area | Lines |
 | --- | ---: |
 | Tracked application and generated C/C++ | 1,946,361 |
-| Application / generated | 1,836,426 / 109,935 |
-| pcbnew / common / eeschema | 656,560 / 448,496 / 440,108 |
-| QA (separate) | 340,033 |
-| Third-party (separate) | 1,059,199 |
+| Tracked application / generated | 1,836,426 / 109,935 |
+| Tracked pcbnew / common / eeschema | 656,560 / 448,496 / 440,108 |
+| Additional generated application build inputs | 424,513 |
+| Generator tooling probes (separate) | 1,883 |
+| Tracked QA (separate) | 340,033 |
+| Tracked third-party (separate) | 1,059,199 |
 
-The reconciled graph yields **1,570 units**, owning **1,956,434
-physical lines** (application/generated plus Clipper2; other third-party code and QA
-remain separately inventoried). There are **385 topological layers** and
-**8,631 weighted cycle back-edges** (dropped weight 73,460).
+The corrected graph yields **1,801 units**, owning **2,380,947
+physical lines**: tracked application/generated sources, additional generated
+application inputs, and Clipper2; QA and other third-party/tooling sources remain
+separately inventoried. There are **392 topological layers**,
+**9,548 back-edges** (dropped weight 106,538)
+and 46,894 hard dependency edges.
 
 | Propagated wx classification | Units | Owned physical lines |
 | --- | ---: | ---: |
-| pure | 333 | 292,894 |
-| thin-replacement | 130 | 63,635 |
-| UI | 1,107 | 1,599,905 |
+| pure | 553 | 666,688 |
+| thin-replacement | 101 | 53,714 |
+| UI | 1,147 | 1,660,545 |
 
-Raw coverage is **2,462/2,471 successful parses**, with
-4 proven-deleted sources classified stale/excluded and
-5 other failed commands. Reconciled coverage is independently
-**2,507/2,511 successful parses**, with
-4 failed commands. Every command, diagnostic and both database
-hashes remain in [the measurement](../port/extractor/generated/measurement.json);
-[the inventory](../port/extractor/generated/inventory.json) records source fingerprints,
-and [the extraction guide](../port/extractor/README.md) states the method and limits.
+Coverage remains three separate measurements: raw **2,462/2,471**
+successful parses (four stale/deleted exclusions and five other failures), reviewed
+reconciled **2,507/2,511**, and corrected
+**2,507/2,511**. Both reconciled runs retain
+four fmt GCC-module failures. No historical AST result was relabelled as corrected.
+The corrected graph owns 37,838 generated-build
+definition entries that the reviewed graph omitted. Exact counts, diagnostics and
+independent hashes are in [the measurement](../port/extractor/generated/measurement.json).
 
-These span/dependency counts replace the earlier source-size estimates, not the
-effort forecast with a measured porting rate. wx-pure does not establish portability:
-I/O, globals and platform code require audit, and declaration-only header spans
-are accounting rather than implemented functions. Uncovered sources remain blocked
-(64 units). The Linux configuration does not cover other
-platforms or inactive branches, and no unit is claimed ported or oracle-green here.
-The three [pilot recommendations](../port/extractor/PILOTS.md) still need the exact
-C++/Rust difftest gate before throughput can be measured.
+These are scope/coupling measurements, not a measured implementation rate or
+literal UI effort. 282 units exceed the 2,000-line target,
+retaining function boundaries and conservative enclosing ranges. wx-pure does not
+establish portability; I/O, globals and supporting types still require audit.
+64 units remain blocked. Implicit lifetime paths,
+indirect/dependent calls and inactive platforms/configurations remain explicit
+limits. No unit is ported or oracle-green here; the three-live-green-pilot gate
+remains incomplete. [Pilot scopes](../port/extractor/PILOTS.md) must be re-confirmed
+against the corrected records before implementation publication.
 
 ## Architecture of the Rust application
 

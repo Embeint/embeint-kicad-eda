@@ -2,10 +2,10 @@
 id = "common.io.pcad.application.ui.p001"
 upstream = ["common/io/pcad/s_expr_loader.cpp"]
 rust_module = "kicad_port::common::io::pcad::application::ui::p001"
-depends_on = ["common.application.ui.p009", "common.application.ui.p038", "include.application.ui.p003", "include.application.ui.p008", "include.application.ui.p012"]
+depends_on = ["common.application.ui.p009", "common.application.ui.p038", "include.application.ui.p004", "include.application.ui.p008", "include.application.ui.p013"]
 soft_depends_on = []
 est_lines = 272
-layer = 33
+layer = 52
 tests = []
 status = "todo"
 claimed_by = ""

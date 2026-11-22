@@ -2,10 +2,10 @@
 id = "common.widgets.application.ui.p001"
 upstream = ["common/widgets/app_progress_dialog.cpp", "common/widgets/area_selector.cpp", "common/widgets/aui_json_serializer.cpp", "common/widgets/bitmap_button.cpp", "common/widgets/bitmap_toggle.cpp", "common/widgets/button_row_panel.cpp", "common/widgets/color_swatch.cpp"]
 rust_module = "kicad_port::common::widgets::application::ui::p001"
-depends_on = ["common.application.ui.p006", "common.application.ui.p008", "common.application.ui.p024", "common.gal.application.ui.p001", "common.widgets.application.ui.p003", "common.widgets.application.ui.p004", "common.widgets.application.ui.p013", "common.widgets.application.ui.p016", "common.widgets.application.ui.p018", "include.dialogs.application.ui.p001", "include.gal.application.ui.p001", "include.widgets.application.ui.p001", "include.widgets.application.ui.p005", "libs.kiplatform.port.wxgtk.application.ui.p001", "pcbnew.application.ui.p004", "pcbnew.application.ui.p072"]
-soft_depends_on = ["common.application.ui.p010", "common.dialogs.application.ui.p001", "common.widgets.application.ui.p010", "eeschema.application.ui.p040"]
+depends_on = ["common.application.ui.p006", "common.application.ui.p008", "common.application.ui.p024", "common.gal.application.ui.p001", "common.widgets.application.ui.p003", "common.widgets.application.ui.p004", "common.widgets.application.ui.p013", "common.widgets.application.ui.p016", "common.widgets.application.ui.p018", "include.dialogs.application.ui.p001", "include.gal.application.ui.p001", "include.widgets.application.ui.p001", "include.widgets.application.ui.p005", "libs.kiplatform.port.wxgtk.application.ui.p001", "pcbnew.application.ui.p004"]
+soft_depends_on = ["common.application.ui.p010", "common.dialogs.application.ui.p001", "common.widgets.application.ui.p010", "eeschema.application.ui.p041", "pcbnew.application.ui.p073"]
 est_lines = 1658
-layer = 67
+layer = 79
 tests = []
 status = "todo"
 claimed_by = ""

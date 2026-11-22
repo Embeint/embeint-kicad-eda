@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "upstream_pin": "4cf939778df04d2b747bb2c4714fc5014a7565c7",
+  "extraction_commit": "3cd2c9afc6d2749b7d3a79fd1deaa86ac51cb3a7",
+  "target": "d1667ca05c170ce8aacd2060fa41d7764a6c4885",
+  "ported_statuses": [
+    "partial",
+    "green"
+  ],
+  "include_todo": false,
+  "affected": [],
+  "ported_unit_count": 0,
+  "ported_function_count": 0,
+  "dependency_reviews": [],
+  "affected_units": [],
+  "changed_files": [],
+  "limitations": [
+    "Conservative text-hunk and extraction-TU include analysis; dependencies in uncompiled configurations are unknown",
+    "Reports committed target changes, not working-tree edits"
+  ]
+}

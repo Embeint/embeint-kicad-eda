@@ -2,10 +2,10 @@
 id = "libs.core.application.ui.p001"
 upstream = ["libs/core/utf8.cpp"]
 rust_module = "kicad_port::libs::core::application::ui::p001"
-depends_on = []
-soft_depends_on = ["libs.core.include.core.application.ui.p001"]
+depends_on = ["libs.core.include.core.application.ui.p001"]
+soft_depends_on = []
 est_lines = 244
-layer = 0
+layer = 3
 tests = []
 status = "todo"
 claimed_by = ""
