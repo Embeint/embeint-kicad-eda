@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Check complete IEC adapter refusals, integer bits, EOF and stream recovery."""
+"""Check complete IEC adapter refusals, nesting bound, integer bits, EOF and stream recovery."""
 import argparse
 import json
 from pathlib import Path
@@ -8,6 +8,7 @@ import subprocess
 
 UNIT = "pcb_calculator.calculator_panels.application.pure.p001"
 FIXTURES = Path(__file__).with_name("iec60664-input-guards.jsonl")
+NESTING_FIXTURES = Path(__file__).with_name("iec60664-nesting-guards.jsonl")
 
 
 def request(steps, case="guard"):
@@ -109,6 +110,106 @@ def refusals():
     return items
 
 
+# Both transports accept at most this many simultaneously open objects/arrays,
+# counting the root and empty containers; scalar leaves do not count.
+OPEN_CONTAINER_BOUND = 127
+
+
+def nesting_refusals():
+    """Complete IEC envelopes on both sides of the shared request nesting bound.
+
+    Depth is known by construction, so expectations do not depend on any parser.
+    Accepted requests must still reach the unchanged envelope/adapter validation
+    with their identities; refused ones must be atomic null-identity parse errors.
+    """
+    items = []
+    # (wire text, containers in leaf, outermost kind when unwrapped)
+    leaves = [("0", 0, "scalar"), ("null", 0, "scalar"), ('"[{}]"', 0, "string"),
+              ("[]", 1, "array"), ("{}", 1, "object")]
+
+    def nest(leaf, count, shape):
+        text = leaf
+        kind = None
+        for level in range(count):
+            # shape 0: arrays, 1: objects, 2/3: alternating with either parity.
+            array = shape == 0 or (shape >= 2 and level % 2 == shape - 2)
+            text = "[" + text + "]" if array else '{"x":' + text + "}"
+            kind = "array" if array else "object"
+        return text, kind
+
+    def envelope(unit, case, kind, message):
+        return {"unit": unit, "case": case, "error": {"kind": kind, "message": message}}
+
+    shape_error = "expected unit, case, input object"
+    parse_error = envelope(None, None, "invalid_request", "invalid JSON or duplicate key")
+
+    # Each position: containers opened before the nested value, wire builder and the
+    # reply when the request parses. `kind` is the nested value's outermost type.
+    def positions(case):
+        quoted = json.dumps(case)
+        return [
+            ("root", 0, lambda n: n,
+             lambda kind, leaf: envelope(None, None, "invalid_request", shape_error)),
+            ("input", 1, lambda n: '{"unit":"' + UNIT + '","case":' + quoted + ',"input":' + n + "}",
+             lambda kind, leaf: envelope(UNIT, case, "invalid_input", "missing field")
+             if kind == "object" else envelope(UNIT, case, "invalid_request", shape_error)),
+            ("step-extra", 4, lambda n: '{"unit":"' + UNIT + '","case":' + quoted
+             + ',"input":{"steps":[{"op":"state","extra":' + n + "}]}}",
+             lambda kind, leaf: envelope(UNIT, case, "invalid_input", "unexpected field")),
+            ("top-extra", 1, lambda n: '{"unit":"' + UNIT + '","case":' + quoted
+             + ',"input":{"steps":[{"op":"state"}]},"extra":' + n + "}",
+             lambda kind, leaf: envelope(UNIT, case, "invalid_request", shape_error)),
+            ("unknown-unit", 2, lambda n: '{"unit":"unregistered-iec-unit","case":' + quoted
+             + ',"input":{"n":' + n + "}}",
+             lambda kind, leaf: envelope("unregistered-iec-unit", case, "unknown_unit",
+                                         "unit has no registered shim")),
+            ("unit-identity", 1, lambda n: '{"unit":' + n + ',"case":' + quoted + ',"input":{}}',
+             lambda kind, leaf: envelope(json.loads(leaf), case, "unknown_unit",
+                                         "unit has no registered shim")
+             if kind == "string" else envelope(None, case, "invalid_request", shape_error)),
+            ("case-identity", 1, lambda n: '{"unit":"' + UNIT + '","case":' + n + ',"input":{}}',
+             lambda kind, leaf: envelope(UNIT, json.loads(leaf), "invalid_input", "missing field")
+             if kind == "string" else envelope(UNIT, None, "invalid_request", shape_error)),
+            # Identities follow the deep value; a refusal must not retain them.
+            ("identities-after", 4, lambda n: '{"input":{"steps":[{"op":"state","extra":' + n
+             + '}]},"case":' + quoted + ',"unit":"' + UNIT + '"}',
+             lambda kind, leaf: envelope(UNIT, case, "invalid_input", "unexpected field")),
+        ]
+
+    for shape in range(4):
+        for index, (leaf, leaf_containers, leaf_kind) in enumerate(leaves):
+            # The last accepted and first refused totals for every shape; the array
+            # shape also checks one level further on each side and the unwrapped leaf.
+            totals = (126, 127, 128, 129) if shape == 0 else (127, 128)
+            for position in range(8):
+                for total in (None,) + totals:
+                    case = f"nest-s{shape}-l{index}-p{position}-" + ("leaf" if total is None else f"t{total}")
+                    name, opened, build, accepted_reply = positions(case)[position]
+                    if total is None:
+                        if shape:
+                            continue
+                        count = 0
+                    else:
+                        count = total - opened - leaf_containers
+                    nested, kind = nest(leaf, count, shape)
+                    kind = kind or leaf_kind
+                    containers = opened + count + leaf_containers
+                    expected = (accepted_reply(kind, leaf) if containers <= OPEN_CONTAINER_BOUND
+                                else parse_error)
+                    items.append({"wire": build(nested), "expected": expected})
+
+    # Escaped duplicate keys are still refused at the last accepted level, while the
+    # same depth with distinct keys reaches the adapter's unexpected-field check.
+    for leaf, expected_kind in (('{"x":1,"\\u0078":2}', "duplicate"), ('{"x":1,"y":2}', "distinct")):
+        case = "nest-" + expected_kind
+        count = OPEN_CONTAINER_BOUND - 4 - 1
+        nested = "[" * count + leaf + "]" * count
+        items.append({"wire": positions(case)[2][2](nested),
+                      "expected": parse_error if expected_kind == "duplicate" else
+                      envelope(UNIT, case, "invalid_input", "unexpected field")})
+    return items
+
+
 def check(binary, fixtures):
     zero = json.dumps(request([{"op": "set", "field": "altitude", "value": 0}], "integer-zero"),
                       separators=(",", ":")).replace('"value":0', '"value":-0')
@@ -139,12 +240,15 @@ def main():
     parser.add_argument("rust", type=Path, nargs="?")
     parser.add_argument("--write-fixtures", action="store_true")
     args = parser.parse_args()
-    generated = refusals()
-    if args.write_fixtures:
-        FIXTURES.write_text("".join(json.dumps(item, separators=(",", ":")) + "\n" for item in generated),
+    fixtures = []
+    # The original 106-envelope contract stays byte-identical; nesting is separate.
+    for path, generated in ((FIXTURES, refusals()), (NESTING_FIXTURES, nesting_refusals())):
+        if args.write_fixtures:
+            path.write_text("".join(json.dumps(item, separators=(",", ":")) + "\n" for item in generated),
                             encoding="utf-8", newline="\n")
-    fixtures = [json.loads(line) for line in FIXTURES.read_text(encoding="utf-8").split("\n") if line]
-    assert fixtures == generated, "regenerate the shared input contract with --write-fixtures"
+        stored = [json.loads(line) for line in path.read_text(encoding="utf-8").split("\n") if line]
+        assert stored == generated, "regenerate the shared input contract with --write-fixtures"
+        fixtures += stored
     if args.oracle is not None:
         actual = check(args.oracle.resolve(), fixtures)
         if args.rust is not None:

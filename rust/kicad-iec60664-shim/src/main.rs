@@ -330,4 +330,26 @@ mod tests {
         }
         Ok(())
     }
+
+    #[test]
+    fn nesting_bound_envelopes_match_the_shared_oracle_contract(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let (mut total, mut refused) = (0, 0);
+        for line in include_str!("../../../port/oracle/iec60664-nesting-guards.jsonl").lines() {
+            let fixture: serde_json::Value = serde_json::from_str(line)?;
+            let wire = fixture["wire"].as_str().ok_or("missing fixture wire")?;
+            let reply = dispatch(wire);
+            assert_eq!(reply, fixture["expected"], "request: {wire}");
+            total += 1;
+            if reply["error"]["message"] == "invalid JSON or duplicate key" {
+                refused += 1;
+            }
+        }
+        // Both sides of the 127-container bound must be present, not only refusals.
+        assert!(
+            refused > 0 && refused < total,
+            "{refused} of {total} refused"
+        );
+        Ok(())
+    }
 }
