@@ -1,0 +1,28 @@
+{
+  "committed_unit_files": 1801,
+  "input_v5_graph_sha256": "40861e9ca678464cedc513561e6e559cbcb5f902bb5b221fe2b6c378fb803e18",
+  "interpretation": "The V5 runtime splitter reproduces the committed pre-refresh canonical graph, report and every unit byte from the V5 parse; current split code then leaves them byte-identical.",
+  "runs": {
+    "current": {
+      "graph_sha256": "146e2ccac0e8d0ba6d37ceadb26ae5a84d0223609dd55abebb0b5451bfe45735",
+      "inventory_sha256": "b9e6986b36529fdf4041712dfb258af050c2ff61bb3971875394eb16e2a47682",
+      "stdout": "1801 units, 2380947 physical upstream lines; 9548 back-edges\n",
+      "unit_files_equal_committed": true,
+      "units_report_sha256": "0aac539054de1437248d5f97c510efee16de779cf546919c136a23938b023753"
+    },
+    "current-repeat": {
+      "graph_sha256": "146e2ccac0e8d0ba6d37ceadb26ae5a84d0223609dd55abebb0b5451bfe45735",
+      "inventory_sha256": "b9e6986b36529fdf4041712dfb258af050c2ff61bb3971875394eb16e2a47682",
+      "stdout": "1801 units, 2380947 physical upstream lines; 9548 back-edges\n",
+      "unit_files_equal_committed": true,
+      "units_report_sha256": "0aac539054de1437248d5f97c510efee16de779cf546919c136a23938b023753"
+    },
+    "v5-runtime": {
+      "graph_sha256": "146e2ccac0e8d0ba6d37ceadb26ae5a84d0223609dd55abebb0b5451bfe45735",
+      "inventory_sha256": "b9e6986b36529fdf4041712dfb258af050c2ff61bb3971875394eb16e2a47682",
+      "stdout": "1801 units, 2380947 physical upstream lines; 9548 back-edges\n",
+      "unit_files_equal_committed": true,
+      "units_report_sha256": "0aac539054de1437248d5f97c510efee16de779cf546919c136a23938b023753"
+    }
+  }
+}
