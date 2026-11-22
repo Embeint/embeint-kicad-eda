@@ -5,7 +5,9 @@ The mode is a comma-separated list of faults. Whole-run faults: failure, timeout
 deferred, error, changed, missing, duplicate, reorder, noisy. Per-case faults name
 the case after a hyphen: defer-<case> (well-formed unported reply), error-<case>,
 changed-<case>, and malformed deferrals nounit-<case>, extra-<case>, badowner-<case>
-and emptyupstream-<case>.
+and emptyupstream-<case>. Output faults after flushing the replies: exitafter (exit 7),
+sleepafter (outlive the timeout), truncate (cut the last reply mid-line, no newline),
+garbage (append a non-reply line) and skip-<case> (omit that reply).
 """
 import json
 import sys
@@ -52,5 +54,18 @@ if "reorder" in modes:
     replies.reverse()
 if "noisy" in modes:
     print("unexpected diagnostic on stdout")
-for reply in replies:
-    print(json.dumps(reply))
+replies = [reply for reply in replies if f"skip-{reply['case']}" not in modes]
+lines = [json.dumps(reply) for reply in replies]
+if "truncate" in modes:
+    lines[-1] = lines[-1][: len(lines[-1]) // 2]
+if "garbage" in modes:
+    lines.append("EXTRA_REFERENCE_EVIDENCE")
+for index, line in enumerate(lines):
+    last = index == len(lines) - 1
+    sys.stdout.write(line + ("" if last and "truncate" in modes else "\n"))
+    sys.stdout.flush()
+if "exitafter" in modes:
+    print("exiting after replies", file=sys.stderr)
+    sys.exit(7)
+if "sleepafter" in modes:
+    time.sleep(5)

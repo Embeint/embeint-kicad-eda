@@ -129,46 +129,49 @@ fn run(opts: &Options) -> Result<Value, String> {
         executable: opts.path("rust")?,
         args: opts.rust_args.clone(),
     };
-    // Both programs always run, so one side's fault never hides the other's evidence.
-    let oracle_out = process::run(&oracle, input.as_bytes(), Duration::from_secs(timeout));
-    let rust_out = process::run(&rust, input.as_bytes(), Duration::from_secs(timeout));
-    let eval = evaluate(&cases, unit, &oracle_out, &rust_out);
+    // Both programs always run, and each run's output is kept however it ended,
+    // so one side's fault never hides the other's evidence or its own replies.
+    let oracle_out = process::capture(&oracle, input.as_bytes(), Duration::from_secs(timeout));
+    let rust_out = process::capture(&rust, input.as_bytes(), Duration::from_secs(timeout));
+    let mut eval = evaluate(&cases, unit, &oracle_out, &rust_out);
     // Every available oracle reply, including those of Rust-deferred cases, is
     // compared with the golden.
     let golden_check =
         (opts.action == "check").then(|| check_golden(golden::read(&golden_path), unit, &eval));
+    if status(&eval, golden_check.as_ref(), opts.partial) == "green"
+        && matches!(opts.action.as_str(), "propose" | "bless")
+    {
+        // A green evaluation has a successful oracle record for every case.
+        let oracle_records: Vec<Record> = eval
+            .outcomes
+            .iter()
+            .filter_map(|c| c.oracle.clone())
+            .collect();
+        if let Err(error) = bless(
+            opts,
+            unit,
+            &input,
+            &golden_path,
+            &oracle,
+            &rust,
+            timeout,
+            &oracle_records,
+        ) {
+            eval.faults.push(format!("{}: {error}", opts.action));
+        }
+    }
+    // The report is built only from the final outcome, so a failed blessing step
+    // keeps the full reference evidence of a failed run.
     let mut report = report(
         opts,
         unit,
         &input,
         &eval,
         golden_check.as_ref(),
-        [oracle_out.as_ref().ok(), rust_out.as_ref().ok()],
+        [&oracle_out, &rust_out],
     );
     report["oracle_sha256"] = json!(file_hash(&oracle.executable).ok());
     report["rust_sha256"] = json!(file_hash(&rust.executable).ok());
-    if report["status"] != "green" || !matches!(opts.action.as_str(), "propose" | "bless") {
-        return Ok(report);
-    }
-    // A green evaluation has a successful oracle record for every case.
-    let oracle_records: Vec<Record> = eval
-        .outcomes
-        .iter()
-        .filter_map(|c| c.oracle.clone())
-        .collect();
-    if let Err(error) = bless(
-        opts,
-        unit,
-        &input,
-        &golden_path,
-        &oracle,
-        &rust,
-        timeout,
-        &oracle_records,
-    ) {
-        report["status"] = json!("failed");
-        report["error"] = json!(error);
-    }
     Ok(report)
 }
 
@@ -253,28 +256,13 @@ fn report(
     input: &str,
     eval: &Evaluation,
     golden_check: Option<&GoldenCheck>,
-    outputs: [Option<&String>; 2],
+    outputs: [&process::Captured; 2],
 ) -> Value {
     let compared = eval.count("compared");
     let deferred = eval.count("deferred");
     let failures = eval.count("failed");
     let unprocessed = eval.count("unprocessed");
-    let golden_ok = golden_check.is_none_or(|g| g.status() == "matched");
-    // Failures take precedence; all-deferred proves no successful operation; a
-    // deferral is acceptable only in explicit partial mode.
-    let status = if failures > 0 || unprocessed > 0 || !eval.faults.is_empty() || !golden_ok {
-        "failed"
-    } else if compared == 0 {
-        "deferred"
-    } else if deferred > 0 {
-        if opts.partial {
-            "partial"
-        } else {
-            "deferred"
-        }
-    } else {
-        "green"
-    };
+    let status = status(eval, golden_check, opts.partial);
     let accepted_run = status == "green" || (status == "partial" && opts.partial);
     let outcomes: Vec<Value> = eval
         .outcomes
@@ -305,6 +293,11 @@ fn report(
             entry
         })
         .collect();
+    let extra: Vec<Value> = eval
+        .extra
+        .iter()
+        .map(|e| json!({"side": e.side, "line": e.line, "raw": e.raw, "truncated": e.truncated}))
+        .collect();
     let golden = match golden_check {
         None => json!({"status": "not_requested"}),
         Some(g) => json!({"status": g.status(), "error": g.error,
@@ -318,14 +311,42 @@ fn report(
         "cases": eval.outcomes.len(), "compared": compared, "deferred": deferred,
         "failures": failures, "unprocessed": unprocessed,
         "golden_checked": golden_check.is_some(), "golden": golden,
-        "run_faults": eval.faults, "outcomes": outcomes,
+        "run_faults": eval.faults, "extra_replies": extra, "outcomes": outcomes,
         "cases_sha256": golden::hash(input.as_bytes()),
-        "oracle_output_sha256": outputs[0].map(|t| golden::hash(t.as_bytes())),
-        "rust_output_sha256": outputs[1].map(|t| golden::hash(t.as_bytes()))});
+        "oracle_output_sha256": output_hash(outputs[0]),
+        "rust_output_sha256": output_hash(outputs[1])});
     if !accepted_run {
         report["error"] = json!(first_error(status, eval, golden_check));
     }
     report
+}
+
+/// The SHA-256 of every captured stdout byte, or null if the program never ran.
+fn output_hash(output: &process::Captured) -> Value {
+    json!(output.started.then(|| golden::hash(&output.stdout)))
+}
+
+/// Failures take precedence; all-deferred proves no successful operation; a
+/// deferral is acceptable only in explicit partial mode.
+fn status(eval: &Evaluation, golden_check: Option<&GoldenCheck>, partial: bool) -> &'static str {
+    let golden_ok = golden_check.is_none_or(|g| g.status() == "matched");
+    if eval.count("failed") > 0
+        || eval.count("unprocessed") > 0
+        || !eval.faults.is_empty()
+        || !golden_ok
+    {
+        "failed"
+    } else if eval.count("compared") == 0 {
+        "deferred"
+    } else if eval.count("deferred") > 0 {
+        if partial {
+            "partial"
+        } else {
+            "deferred"
+        }
+    } else {
+        "green"
+    }
 }
 
 /// A one-line diagnostic for stderr; the report holds every outcome.
