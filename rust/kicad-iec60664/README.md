@@ -244,11 +244,13 @@ unchanged.
 complete envelopes on each actual process, all 1,801 unit records and all 14,190
 unchanged live cases. No reblessing occurred.
 
-Pending shared parser fix: the common request helper still decodes serde_json's
+Reserved marker keys: before #48 the common request helper decoded serde_json's
 private `Number`/`RawValue` marker keys in ordinary objects, which the C++
 adapter treats as plain objects. `port/oracle/iec60664-reserved-key-guards.jsonl`
-(88 complete envelopes) holds the C++ expectations. The oracle passes them now.
-The Rust process is checked against them only with `--include-pending-reserved`
-and an ignored shim test, until the separate reviewed fix is adopted; it
-currently diverges on 50, with 25 false successes.
-[Validation of `f1556f90`](validation/2026-11-22-f1556f90/README.md).
+(88 complete envelopes) holds the C++ expectations; at `f1556f90` the oracle
+passed them and the Rust shim diverged on 50
+([validation](validation/2026-11-22-f1556f90/README.md)). With #48's reviewed
+object-preserving helper integrated (`1ec85a44`, not yet merged into rust), both
+processes pass all 636 envelopes by default at `32b88a6c`, and a shim test checks
+marker objects and their strings survive at every request position
+([validation](validation/2026-11-22-32b88a6c/README.md)).
