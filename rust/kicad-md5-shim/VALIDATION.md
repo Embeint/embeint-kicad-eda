@@ -22,6 +22,7 @@ The fork's MD5 source and supporting header are identical to pin
 | Own-tree pinned library build and audit | 59 translation units audited; 822 reference files verified; actual kimath linked |
 | Oracle CTest | 3/3 passed: protocol, build guards, dispatch |
 | Workspace fmt | passed, `--all --check` |
+| Full workspace build | passed, locked, all workspace packages, `-j8` |
 | Workspace clippy | passed, locked, all targets, warnings denied, `-j8` |
 | Workspace tests | 95 passed, zero failed/ignored; includes 3 wrapper and 3 shim tests |
 | Portable wasm builds | embeint-layout, embeint-web and kicad-md5 passed |
@@ -29,7 +30,7 @@ The fork's MD5 source and supporting header are identical to pin
 | Deterministic corpus regeneration | byte-identical, 5,972 requests |
 | Live `compare`, `propose`, `bless`, `check` | each 5,972/5,972; zero mismatches, errors or deferrals |
 | Stored baseline versus actual oracle output | byte-identical complete JSONL |
-| Committed golden policy against intended PR base | run after the evidence commit; retain its log separately |
+| Committed golden policy against intended PR base | passed at baseline commit `79a9bd58c798ef87912d7caa31b8d58b03c6b0d0`, against `0ab6a0e8635421998a6471d1001fbf7b44c81e71` |
 
 The raw policy-test log contains synthetic fixture messages including “Phase 0:
 COMPLETE”; those test fixtures do not establish completion of this real port.
@@ -90,6 +91,12 @@ reports `overlay_dirty_at_export=false`, tested overlay revision `a295db8b…`,
 Output byte hashes differ because object key ordering differs; the existing exact
 comparator permits JSON object-key order and compares every value, numeric token,
 array order and case identity. It reported exact agreement on every request.
+
+The additional full workspace binary build also passed. Cargo's workspace
+feature unification produced a different shim executable identity; rebuilding the
+selected `kicad-md5-shim` and `kicad-difftest` packages restored the exact blessed
+shim hash above. Copies of the blessed oracle, shim and harness are retained under
+the private WSL `runners/` directory. No baseline/evidence file was changed.
 
 The new per-unit baseline is in `port/goldens/`. Its new immutable
 `port/goldens/evidence/libs.kimath.src.md5_hash.application.pure.p001-baseline.json`

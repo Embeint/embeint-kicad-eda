@@ -1,0 +1,14 @@
+{
+  "head": "79a9bd58c798ef87912d7caa31b8d58b03c6b0d0",
+  "base": "0ab6a0e8635421998a6471d1001fbf7b44c81e71",
+  "command": [
+    "C:\\Users\\KarlVonRichter\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+    "port/tools/check_goldens_policy.py",
+    "--base",
+    "0ab6a0e8635421998a6471d1001fbf7b44c81e71"
+  ],
+  "exit_code": 0,
+  "stdout": "Golden change evidence valid\n",
+  "stderr": "",
+  "scope": "Reads committed HEAD and base; baseline and immutable evidence are committed."
+}
