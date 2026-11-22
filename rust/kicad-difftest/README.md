@@ -59,6 +59,40 @@ units need successful non-finite values, agree on explicit tagged JSON on both
 sides (for example `{"$float":"nan"}` and signed infinity tags). The comparator
 preserves those strings exactly and does not silently turn non-finites into null.
 
+## Native shim request parsing
+
+Native adapters should use `kicad_difftest::request::parse(line)` before reading
+`unit` or `case`, replacing their separate `exact::parse` and
+`serde_json::from_str::<Value>` calls. It returns `Result<serde_json::Value,
+String>` with the existing arbitrary-precision representation, including integer
+`-0` and the full `u64` domain. Envelope and unit-specific validation follow it.
+On any parse error, reply with null identities and the returned message:
+
+```json
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+```
+
+This helper uses the exact parser for syntax, duplicate keys and bounded nesting,
+then checks number tokens against the pinned nlohmann parser's finite `double`
+fallback. For example, `1e1000` or a 400-digit integer anywhere in the request
+fails before identity extraction, even in an unknown field. Finite integers
+outside `i64`/`u64` remain parseable for subsequent domain validation. Subnormals,
+underflow to zero and finite exponents also remain parseable. Conversion to `f64`
+is validation only; it does not replace the returned numbers with rounded values.
+Strings and object keys that look like numbers are unaffected.
+
+`exact::parse`, `records` and comparison still retain arbitrary-precision tokens,
+including overflow tokens; they do not use the request helper. This native I/O
+crate is not a portable engine dependency. Pilot adapter adoption is separate
+from adding this shared API.
+
+`cargo test --locked --manifest-path rust/Cargo.toml -p kicad-difftest -j4` includes
+a small C++ fixture compiled against the repository's nlohmann header and actual
+`port/oracle/protocol.cpp`. It requires a GCC/Clang-compatible C++17 compiler
+(`CXX`, default `c++`), without any KiCad library build. It checks parse acceptance,
+null-identity error envelopes, integer/float zero classification, integer fallback,
+underflow and both sides of the exact binary64 overflow rounding midpoint.
+
 ## Reviewed golden updates
 
 First build the live oracle using `port/oracle/README.md`. Capture its provenance:
