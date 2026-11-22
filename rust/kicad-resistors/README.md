@@ -217,6 +217,22 @@ at `8f5f45729c733d8f1695dda9ee6d953f9bb4d400`, now merged into `rust` as
 numeric tokens. Finite numbers outside integer storage ranges are parsed and
 then checked against each operation's actual domain.
 
+Merged #48 (`rust` at `1a2fb924d539d63a68f5696191907dc2aa6d6370`) builds request
+values directly from the validated exact tree, so objects whose keys spell
+serde's private `Number` or `RawValue` markers stay ordinary objects, as in the
+C++ adapter. `port/oracle/fixtures/resistor-private-keys.*.jsonl` hold 889 literal
+request envelopes and the complete replies recorded from the pinned C++ adapter:
+both marker keys (also escaped, combined and with near-miss spellings) carrying
+encoded valid/invalid JSON, numeric and overflow strings and nonstring values, at
+the envelope, identities, input root, operation, every bits field, the series
+setter, custom vectors, collector target and candidates, reader and helper
+fields. Duplicate keys and literal overflow remain null-identity refusals;
+plain strings stay strings; 64 successes are interleaved for recovery. The
+canonical CTest `oracle-resistor-private-keys` requires byte-identical C++
+replies, `tests/private_keys.rs` replays them through the built shim process and
+`tests/requests.py` appends them after its original 71 cases. These refusals are
+adapter controls, not registered difftest cases.
+
 The `nonfinite_parity` example reuses the pure operation conversions from the
 native shim, embeds the complete case/golden files and compares every result,
 including state, expression and part order, in a wasm runtime. After a matching
