@@ -114,4 +114,9 @@ target_link_libraries( oracle-dispatch-test PRIVATE kimath nlohmann_json resisto
 target_link_options( oracle-dispatch-test PRIVATE -Wl,--gc-sections )
 add_dependencies( oracle-dispatch-test oracle-audit )
 add_test( NAME oracle-dispatch COMMAND oracle-dispatch-test )
-set_tests_properties( oracle-protocol oracle-build-guards oracle-dispatch PROPERTIES TIMEOUT 60 )
+add_test( NAME oracle-resistor-inputs
+    COMMAND "${Python3_EXECUTABLE}"
+            "${ORACLE_OVERLAY}/test_resistor_collector_inputs.py"
+            "$<TARGET_FILE:kicad-oracle>" )
+set_tests_properties( oracle-protocol oracle-build-guards oracle-dispatch oracle-resistor-inputs
+                     PROPERTIES TIMEOUT 60 )

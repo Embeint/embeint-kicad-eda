@@ -17,12 +17,14 @@ UNIT = "pcb_calculator.application.pure.p001"
 def corpus():
     cases = []
 
-    def add(name, value, message=None, kind="invalid_input", null_identity=False, raw=False):
+    def add(name, value, message=None, kind="invalid_input", null_identity=False, raw=False, result=None):
         body = value if raw else json.dumps(value, separators=(",", ":"))
         wire = '{"unit":"' + UNIT + '","case":"' + name + '","input":' + body + '}'
         expected = None if message is None else {
             "unit": None if null_identity else UNIT, "case": None if null_identity else name,
             "error": {"kind": kind, "message": message}}
+        if result is not None:
+            expected = {"unit": UNIT, "case": name, "result": result}
         cases.append((wire, expected))
 
     add("missing-op", {}, "missing field")
@@ -44,6 +46,10 @@ def corpus():
         add("wrong-array-"+operation,value,"array bound exceeded or wrong type")
     for value in [None, False, [], {}, "0", -1, 1.0]:
         add("wrong-bits-"+str(len(cases)),{"op":"format","values_bits":[value]},"expected u64 IEEE754 bits")
+        add("collector-target-"+str(len(cases)),
+            {"op":"collector","target_bits":value,"candidates":[]},"expected u64 IEEE754 bits")
+    add("collector-empty-result", {"op":"collector","target_bits":0,"candidates":[]},
+        result={"exception":"Empty solution collector"})
     add("literal-minus-zero-bits", '{"op":"format","values_bits":[-0]}', raw=True)
     add("literal-minus-zero-series", '{"op":"calculator","actions":[{"op":"set_series","series":-0}]}', raw=True)
     add("full-u64", '{"op":"resistance","values":[{"value_bits":18446744073709551615,"name":"u64"}]}', raw=True)

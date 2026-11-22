@@ -349,9 +349,10 @@ JSON Run( const JSON& input )
             candidates.push_back( ParseRes( item ) );
             SortableParts( candidates.back() );
         }
+        const double target = Float( Field( input, "target_bits" ) );
         try
         {
-            auto result = resistor_test::Collect( Float( Field( input, "target_bits" ) ), candidates );
+            auto result = resistor_test::Collect( target, candidates );
             return { { "best", Res( result.best ) },
                      { "again", Res( result.again ) },
                      { "callbacks", result.callbacks } };
