@@ -59,6 +59,61 @@ units need successful non-finite values, agree on explicit tagged JSON on both
 sides (for example `{"$float":"nan"}` and signed infinity tags). The comparator
 preserves those strings exactly and does not silently turn non-finites into null.
 
+## Native shim request parsing
+
+Native adapters should use `kicad_difftest::request::parse(line)` before reading
+`unit` or `case`, replacing their separate `exact::parse` and
+`serde_json::from_str::<Value>` calls. It returns `Result<serde_json::Value,
+String>` with the existing arbitrary-precision representation, including integer
+`-0` and the full `u64` domain. Envelope and unit-specific validation follow it.
+On any parse error, reply with null identities and the returned message:
+
+```json
+{"unit":null,"case":null,"error":{"kind":"invalid_request","message":"invalid JSON or duplicate key"}}
+```
+
+This helper uses the exact parser for syntax, duplicate keys and bounded nesting,
+then checks number tokens against the pinned nlohmann parser's finite `double`
+fallback. For example, `1e1000` or a 400-digit integer anywhere in the request
+fails before identity extraction, even in an unknown field. Finite integers
+outside `i64`/`u64` remain parseable for subsequent domain validation. Subnormals,
+underflow to zero and finite exponents also remain parseable. Conversion to `f64`
+is validation only; it does not replace the returned numbers with rounded values.
+Strings and object keys that look like numbers are unaffected.
+
+The final `serde_json::Value` conversion retains its default recursion budget of
+128: entering a container decrements the budget and zero is refused. Thus at most
+**127 simultaneously open objects/arrays** are accepted, counting the root and
+empty containers. Scalars do not consume that budget. The C++ transport checks
+both container-start events at nlohmann's zero-based depth 127, before extracting
+identities. Excessive nesting anywhere (including identities and unknown fields)
+therefore returns the same complete parse-error envelope above. This is native
+transport validation, independent of a pilot's operation domain; the exact result
+comparator retains its existing separate bound and numeric-token semantics.
+
+For the MD5 wire shape with `input.extra` containing `n` arrays around `0`, the
+root and `input` objects consume two levels: `n=125` parses and `n=126` is refused.
+The sibling `steps` array does not add to that path's depth. Below the bound,
+normal envelope and adapter validation still run and retain parsed identities.
+
+`exact::parse`, `records` and comparison still retain arbitrary-precision tokens,
+including overflow tokens; they do not use the request helper. This native I/O
+crate is not a portable engine dependency. Pilot adapter adoption is separate
+from adding this shared API.
+
+`cargo test --locked --manifest-path rust/Cargo.toml -p kicad-difftest -j4` includes
+a small C++ fixture compiled against the repository's nlohmann header and actual
+`port/oracle/protocol.cpp`. It requires a GCC/Clang-compatible C++17 compiler
+(`CXX`, default `c++`), without any KiCad library build. It checks parse acceptance,
+null-identity error envelopes, integer/float zero classification, integer fallback,
+underflow and both sides of the exact binary64 overflow rounding midpoint.
+Nesting regressions compare complete identities, error kinds and messages across
+object, array and alternating roots; scalar and empty-container leaves; input,
+identity and unknown fields; identity order; siblings and escaped duplicate keys.
+The MD5 reproducer's wire shape is tested against the real transport with an empty
+registry, so accepted requests produce `unknown_unit` here. This fixture does not
+execute MD5 or establish pilot-operation coverage.
+
 ## Reviewed golden updates
 
 First build the live oracle using `port/oracle/README.md`. Capture its provenance:

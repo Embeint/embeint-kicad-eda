@@ -5,6 +5,7 @@
 pub mod exact;
 pub mod golden;
 pub mod process;
+pub mod request;
 
 use exact::Exact;
 use std::collections::BTreeSet;

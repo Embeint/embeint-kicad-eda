@@ -109,6 +109,7 @@ solidcraft_revision = "93d5492ef295a1124664d36e967f58a81a76d7d2"
         self.assertIn("Upstream pin not available", self.html())
         self.assertIn("Zero records cannot satisfy it", self.html())
         self.assertNotIn("100%", self.html())
+        self.assertIn("<h2>Phase 0 verification requires live CI evidence</h2>", self.html())
 
     def test_mixed_statuses_stored_counts_and_source_links(self):
         self.pin()
@@ -133,11 +134,89 @@ solidcraft_revision = "93d5492ef295a1124664d36e967f58a81a76d7d2"
         for uid in ("math.seg", "math.box", "math.vector"):
             self.unit(uid, "green")
             self.records(uid)
+        self.extraction(**dict.fromkeys(progress.COMPLETENESS, True))
+        self.write("port/goldens/evidence/math.seg-ci.json", '{"phase0_gate":"passed"}')
         data = self.build()
         self.assertEqual(data["summary"]["count"]["green"], 3)
         self.assertEqual(data["phase0_gate"], "not_verified")
         self.assertIn("3 / 3 units declared green", self.html())
-        self.assertIn("Phase 0 incomplete: pending pilot verification", self.html())
+        self.assertIn("<h2>Phase 0 verification requires live CI evidence</h2>", self.html())
+        self.assertNotIn("Phase 0 incomplete: pending pilot verification", self.html())
+        self.assertIn("This site does not execute the oracle or certify current CI", self.html())
+        self.assertIn('href="https://github.com/Embeint/embeint-kicad-eda/actions?query=branch%3Arust"', self.html())
+
+    def test_jsonl_literal_unicode_separators_with_lf_framing(self):
+        self.unit("math.seg", "green")
+        separators = "\u0085\u2028\u2029"
+        for ending, final in (("\n", True), ("\r\n", True), ("\n", False), ("\r\n", False)):
+            with self.subTest(ending=repr(ending), final=final):
+                for directory, payload in (("cases", "input"), ("goldens", "result")):
+                    records = [{"unit": "math.seg", "case": "case" + separator + "id",
+                                payload: {"text": "before" + separators + "after"}}
+                               for separator in separators]
+                    # Write exact bytes so the host cannot translate the requested framing.
+                    text = ending + (ending + " \t" + ending).join(
+                        json.dumps(record, ensure_ascii=False) for record in records)
+                    if final:
+                        text += ending
+                    path = self.root / f"port/{directory}/math.seg.jsonl"
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes(text.encode("utf-8"))
+                data = self.build()
+                for directory in ("cases", "goldens"):
+                    self.assertEqual(data["units"][0][directory]["records"], 3)
+                    self.assertEqual(data["units"][0][directory]["deferred"], 0)
+                    self.assertEqual(data["units"][0][directory]["failures"], 0)
+
+    def test_jsonl_unicode_case_id_duplicates_remain_invalid(self):
+        self.unit("math.seg")
+        for directory, payload in (("cases", "input"), ("goldens", "result")):
+            for separator in "\u0085\u2028\u2029":
+                with self.subTest(directory=directory, separator=repr(separator)):
+                    record = {"unit": "math.seg", "case": "case" + separator + "id", payload: {}}
+                    self.write(f"port/{directory}/math.seg.jsonl",
+                               json.dumps(record, ensure_ascii=False) + "\n" + json.dumps(record))
+                    with self.assertRaisesRegex(ValueError, "invalid or duplicate case identity"):
+                        self.build()
+            (self.root / f"port/{directory}/math.seg.jsonl").unlink()
+
+    def test_jsonl_unicode_values_do_not_bypass_identity_validation(self):
+        self.unit("math.seg")
+        for directory, payload in (("cases", "input"), ("goldens", "result")):
+            for identity in ({}, {"unit": "math.seg"}, {"unit": "other", "case": "a"},
+                             {"unit": ["math.seg"], "case": "a"},
+                             *({"unit": "math.seg", "case": case} for case in ("", None, 1, ["a"]))):
+                with self.subTest(directory=directory, identity=identity):
+                    record = dict(identity, **{payload: {"text": "\u0085\u2028\u2029"}})
+                    self.write(f"port/{directory}/math.seg.jsonl", json.dumps(record, ensure_ascii=False))
+                    with self.assertRaisesRegex(ValueError, "invalid or duplicate case identity"):
+                        self.build()
+            (self.root / f"port/{directory}/math.seg.jsonl").unlink()
+
+    def test_jsonl_non_lf_record_separators_remain_invalid(self):
+        self.unit("math.seg")
+        for directory, payload in (("cases", "input"), ("goldens", "result")):
+            for separator in "\r\u0085\u2028\u2029":
+                with self.subTest(directory=directory, separator=repr(separator)):
+                    records = [{"unit": "math.seg", "case": case, payload: {}} for case in ("a", "b")]
+                    path = self.root / f"port/{directory}/math.seg.jsonl"
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes(separator.join(json.dumps(record) for record in records).encode("utf-8"))
+                    with self.assertRaises(ValueError):
+                        self.build()
+            (self.root / f"port/{directory}/math.seg.jsonl").unlink()
+
+    def test_jsonl_bare_cr_inside_string_remains_invalid(self):
+        self.unit("math.seg")
+        for directory, payload in (("cases", "input"), ("goldens", "result")):
+            with self.subTest(directory=directory):
+                record = {"unit": "math.seg", "case": "a", payload: {"text": "raw\rCR"}}
+                path = self.root / f"port/{directory}/math.seg.jsonl"
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(json.dumps(record).replace("\\r", "\r").encode("utf-8"))
+                with self.assertRaises(ValueError):
+                    self.build()
+            path.unlink()
 
     def test_green_with_deferred_evidence_is_flagged(self):
         self.unit("math.seg", "green")

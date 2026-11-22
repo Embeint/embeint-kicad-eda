@@ -40,15 +40,16 @@ def public_path(value):
     return path.as_posix()
 
 
-def read_text(root, relative):
+def read_text(root, relative, *, newline=None):
     path = root / public_path(relative)
     resolved = path.resolve()
     if not resolved.is_relative_to(root.resolve()):
         raise ValueError(f"{relative}: source escapes the repository")
     if path.suffix == ".gz":
-        with gzip.open(path, "rt", encoding="utf-8") as stream:
+        with gzip.open(path, "rt", encoding="utf-8", newline=newline) as stream:
             return stream.read()
-    return path.read_text(encoding="utf-8")
+    with path.open(encoding="utf-8", newline=newline) as stream:
+        return stream.read()
 
 
 def files(root, directory, pattern):
@@ -172,7 +173,8 @@ def record_counts(root, uid, directory):
     if not (root / path).exists():
         return None
     count, deferred, errors, ids = 0, 0, 0, set()
-    for number, line in enumerate(read_text(root, path).splitlines(), 1):
+    # JSONL frames end only at LF; preserve Unicode separators and bare CR for JSON validation.
+    for number, line in enumerate(read_text(root, path, newline="").split("\n"), 1):
         if not line.strip():
             continue
         record = json_load(line)
@@ -452,7 +454,7 @@ stored failed replies are reported as blocked.
 the original declaration remains visible on its unit page.</p>
 <p>{stats['green_lines']:,} / {stats['total_lines']:,} estimated upstream lines in green units;
 {stats['partial_lines']:,} lines in partial units, shown separately.</p></section>
-<section class="gate"><h2>Phase 0 incomplete: pending pilot verification</h2>
+<section class="gate"><h2>Phase 0 verification requires live CI evidence</h2>
 <p>The plan gate requires at least three units green against the live oracle in CI and every generated unit file valid, with coverage gaps disclosed.
 Zero records cannot satisfy it. Unit status, case counts, golden records and blessing evidence alone do not certify this gate.</p>
 <p>This site does not execute the oracle or certify current CI. Extractor completeness and all-platform coverage are separate diagnostics.</p>
