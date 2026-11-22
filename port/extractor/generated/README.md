@@ -16,9 +16,50 @@ indexed bytes and cache replay, but required two recipe-capture fixes: absolute-
 Ninja outputs were queried by a relative name, and Ninja-generated source-tree
 files were treated as leaves. Parent fix `57e085ad04` corrects both. The relations
 are now republished by a separately identified post-parse refresh (below), not a
-new parse. A new independent review of this refresh remains required.
+new parse.
 
-## Generator dependency refresh
+The independent review of `d2bdddb904` verified those relations but found that
+`capture` did not bind its source root or source bytes (P2). Parent fix
+`ce9681f06f` adds that guard. The current root artifacts come from a guarded
+recapture with the same relations. A new independent review of this head is
+required.
+
+## Guarded source recapture (current)
+
+The guarded `capture` and `apply` ran from the same V5 base: manifest `a2466270`,
+original inventory `b9e6986b`, and pre-refresh canonical graph `146e2cca`. Both
+steps used the byte-exact D2 pinned input audit
+(`evidence/source-guard/base-generation-input-audit.json`, `bf7a1689`, 1,202 inputs)
+in place of a rewritten audit. Evidence is in `evidence/source-guard/`.
+
+- **Source attestation:** root `/home/karlvonrichter/kicad-port/extract-source`,
+  commit `3cd2c9af`, tracked inventory `da0820c0`, inventory `b9e6986b` and audit
+  `bf7a1689`. 9,655 files (tracked C/C++ plus audited generator inputs) have
+  snapshot hash `3c0d9651`. All of them, the 1,612 build files, the 178 frozen
+  inputs and the tools were verified before and after the real Ninja queries,
+  under the shared lock.
+- **Unchanged relations:** recaptured recipes `f44049e2` are byte-identical to D2,
+  and so are the gzip `f5a91a1c` and the 5,709-record Ninja catalog. Both relation
+  maps equal D2. The graph equals the D2 graph apart from the refresh record and
+  manifest fingerprint, and the inventory files, report fields and every unit file
+  are unchanged.
+- **Changed identities:** capture/refresh code `01ad5e63`, capture record,
+  manifest `b6fd50ad`, graph `a04dffc7`, inventory `33268efa`. The parse identities
+  (`e1548c1f`, `a2466270`, `dff5b79a`, `3d52afc6`) are unchanged.
+- **Controls:** 14 controls on the real snapshot and build are rejected. They
+  include refreshed inventory, foreign root, stale or missing Markdown identity,
+  audit/tracked conflict, foreign pin, unrecorded Ninja source input and target,
+  and forged or absent capture identities at apply. The d2 review's reproducer is
+  now accepted only when intact (Markdown drift reaches both consumers). It is
+  rejected for a foreign root, deleted or stale leaf/output/C++ files, an
+  unrecorded source node, a source, tool or frozen-copy change after the query,
+  and an added build file. No AST replay was repeated: the D2 replay and canonical
+  reproduction proofs are reused after checking every input hash they bind.
+
+The D2 section below and `evidence/generator-refresh/` are retained byte-identical
+as historical evidence of the first refresh (`1a7ea4bc` code, graph `8c39a7f4`).
+
+## Generator dependency refresh (D2, historical)
 
 `refresh_generator_dependencies.py` recaptured the dependency map from the
 unchanged private build and applied it to the existing parse. The AST,
@@ -38,8 +79,11 @@ fingerprints derived from it changed. Evidence is in
   read-only with zero parses, and its semantics match the V5 graph/inventory.
   Its splitter reproduces the pre-refresh canonical graph `146e2cca`, report and
   all 1,801 unit files byte for byte. The refresh was applied to that graph.
-- **Capture checks:** before and after the capture, all 1,612 private build files,
-  178 frozen inputs, tool binaries and CMake/Ninja files matched the parse manifest.
+- **Capture checks:** all 1,612 private build files (including the CMake/Ninja
+  files) matched the parse manifest before and after the capture. The 178 frozen
+  inputs and the tool binaries were checked only before it. The d2 review found
+  that the earlier "before and after" wording overstated this; the guarded
+  recapture above checks both sides.
   The Ninja catalog has 5,709 target records, 237 alias groups and 359
   absolute-only outputs. 1,435 recipe records were captured. 1,272 of the 1,273 V5
   queries are identical. The other is the build directory node `@build/.`,
@@ -64,10 +108,15 @@ fingerprints derived from it changed. Evidence is in
 
 | Refresh artifact | SHA256 |
 | --- | --- |
-| canonical graph.json.gz (refreshed) | `8c39a7f481663b011fb37404004874b781aa77a0e35397b8f563d08417f498c8` |
-| canonical inventory.json (refreshed) | `9b6f09351a5f7b59ca790c1d80301c69373e3f6a04fc5a28082733171fb4b742` |
-| generated-sources.json (refreshed, LF) | `071a18f4c9ad6d0a6ed39ed84e4cbbc33f984f8bc4896b45f4e9de8b4a132792` |
-| generated-recipes.json.gz | `f5a91a1c6f5e2357aeb1db4f6499be3ba7bca7cc3b46fea793c74de42257064e` |
+| canonical graph.json.gz (guarded, current) | `a04dffc7da914fa204ca0018a42fe53bfb9dbbeac65c2e279883cf8a6d691ba3` |
+| canonical inventory.json (guarded, current) | `33268efa748421dd0bf74e4d89399a19f95c350cfad43b31ad1c5f0f2f75b452` |
+| generated-sources.json (guarded, current, LF) | `b6fd50ad295ac1c78077e392fb7ffd26e9e64e2f6ef0ec05c0d95f74baf6a7b7` |
+| guarded source snapshot (9,655 files) | `3c0d96516f2c20ca5e7883aa7a549ed0e412a190b27af60012a4edfb0621122e` |
+| pinned input audit (D2 bytes, both steps) | `bf7a1689587de011b7f2b8879e7d6284827a451ee43155ad72b8963fe30a6de6` |
+| D2 canonical graph.json.gz (historical) | `8c39a7f481663b011fb37404004874b781aa77a0e35397b8f563d08417f498c8` |
+| D2 canonical inventory.json (historical) | `9b6f09351a5f7b59ca790c1d80301c69373e3f6a04fc5a28082733171fb4b742` |
+| D2 generated-sources.json (historical, LF) | `071a18f4c9ad6d0a6ed39ed84e4cbbc33f984f8bc4896b45f4e9de8b4a132792` |
+| generated-recipes.json.gz (D2 and guarded) | `f5a91a1c6f5e2357aeb1db4f6499be3ba7bca7cc3b46fea793c74de42257064e` |
 | pre-refresh canonical graph.json.gz | `146e2ccac0e8d0ba6d37ceadb26ae5a84d0223609dd55abebb0b5451bfe45735` |
 | units.json (unchanged) | `0aac539054de1437248d5f97c510efee16de779cf546919c136a23938b023753` |
 
