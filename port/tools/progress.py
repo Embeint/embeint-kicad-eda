@@ -57,6 +57,8 @@ def files(root, directory, pattern):
 
 
 def source_url(relative, tree=False):
+    if relative.startswith('@build/'):
+        relative = 'port/extractor/generated/sources/' + relative.removeprefix('@build/')
     return f"{REPO}/{'tree' if tree else 'blob'}/rust/{quote(public_path(relative), safe='/')}"
 
 

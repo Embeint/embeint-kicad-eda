@@ -19,6 +19,10 @@ SPEC.loader.exec_module(progress)
 
 
 class ProgressTests(unittest.TestCase):
+    def test_generated_logical_source_link_uses_committed_snapshot(self):
+        self.assertEqual(progress.source_url('@build/common/netlist_lexer.h'),
+            progress.REPO + '/blob/rust/port/extractor/generated/sources/common/netlist_lexer.h')
+
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
