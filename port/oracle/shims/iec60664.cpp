@@ -62,6 +62,15 @@ uint64_t Bits( double aValue )
 }
 
 
+std::string Text( const JSON& aInput, const char* aKey )
+{
+    if( !aInput.is_object() || !aInput.contains( aKey ) || !aInput.at( aKey ).is_string() )
+        throw std::invalid_argument( std::string( "expected string: " ) + aKey );
+
+    return aInput.at( aKey ).get<std::string>();
+}
+
+
 double Number( const JSON& aInput, const char* aKey )
 {
     const JSON& value = aInput.at( aKey );
@@ -139,7 +148,7 @@ JSON State( IEC60664& aCalc )
 void Set( IEC60664& aCalc, const JSON& aStep )
 {
     Keys( aStep, { "op", "field", "value" } );
-    const std::string field = aStep.at( "field" ).get<std::string>();
+    const std::string field = Text( aStep, "field" );
 
     if( field == "altitude" )
         aCalc.SetAltitude( Number( aStep, "value" ) );
@@ -164,7 +173,12 @@ void Set( IEC60664& aCalc, const JSON& aStep )
     else if( field == "overvoltage_category" )
         aCalc.SetOvervoltageCategory( static_cast<OV>( Enum( aStep, "value" ) ) );
     else if( field == "pcb_material" )
+    {
+        if( !aStep.at( "value" ).is_boolean() )
+            throw std::invalid_argument( "expected boolean: value" );
+
         aCalc.SetPCBMaterial( aStep.at( "value" ).get<bool>() );
+    }
     else
         throw std::invalid_argument( "unknown setter" );
 }
@@ -172,7 +186,7 @@ void Set( IEC60664& aCalc, const JSON& aStep )
 
 JSON Step( IEC60664& aCalc, const JSON& aStep )
 {
-    const std::string op = aStep.at( "op" ).get<std::string>();
+    const std::string op = Text( aStep, "op" );
     JSON result = nullptr;
 
     if( op == "categories" )
@@ -205,9 +219,10 @@ JSON Step( IEC60664& aCalc, const JSON& aStep )
     else if( op == "groove" )
     {
         Keys( aStep, { "op", "pd" }, { "distance" } );
+        const double distance = aStep.contains( "distance" ) ? Number( aStep, "distance" ) : 100.0;
+        const PD pd = static_cast<PD>( Enum( aStep, "pd" ) );
         result = Bits( ( aCalc.*MemberPointer( Groove{} ) )(
-                static_cast<PD>( Enum( aStep, "pd" ) ),
-                aStep.contains( "distance" ) ? Number( aStep, "distance" ) : 100.0 ) );
+                pd, distance ) );
     }
     else if( op == "altitude" || op == "cti" )
     {
@@ -221,40 +236,49 @@ JSON Step( IEC60664& aCalc, const JSON& aStep )
     else if( op == "rms" )
     {
         Keys( aStep, { "op", "voltage" }, { "field" } );
+        const FIELD field = aStep.contains( "field" )
+                ? static_cast<FIELD>( Enum( aStep, "field" ) ) : FIELD::INHOMOGENEOUS;
+        const double voltage = Number( aStep, "voltage" );
         result = Bits( ( aCalc.*MemberPointer( Rms{} ) )(
-                Number( aStep, "voltage" ), aStep.contains( "field" )
-                        ? static_cast<FIELD>( Enum( aStep, "field" ) ) : FIELD::INHOMOGENEOUS ) );
+                voltage, field ) );
     }
     else if( op == "transient" )
     {
         Keys( aStep, { "op", "voltage", "pd", "field" } );
-        result = Bits( ( aCalc.*MemberPointer( Transient{} ) )( Number( aStep, "voltage" ),
-                static_cast<PD>( Enum( aStep, "pd" ) ), static_cast<FIELD>( Enum( aStep, "field" ) ) ) );
+        const double voltage = Number( aStep, "voltage" );
+        const PD pd = static_cast<PD>( Enum( aStep, "pd" ) );
+        const FIELD field = static_cast<FIELD>( Enum( aStep, "field" ) );
+        result = Bits( ( aCalc.*MemberPointer( Transient{} ) )( voltage, pd, field ) );
     }
     else if( op == "peaks" )
     {
         Keys( aStep, { "op", "voltage", "field" } );
-        result = Bits( ( aCalc.*MemberPointer( Peaks{} ) )( Number( aStep, "voltage" ),
-                static_cast<FIELD>( Enum( aStep, "field" ) ) ) );
+        const double voltage = Number( aStep, "voltage" );
+        const FIELD field = static_cast<FIELD>( Enum( aStep, "field" ) );
+        result = Bits( ( aCalc.*MemberPointer( Peaks{} ) )( voltage, field ) );
     }
     else if( op == "basic_creepage" )
     {
         Keys( aStep, { "op", "voltage", "pd", "mg" } );
-        result = Bits( ( aCalc.*MemberPointer( Basic{} ) )( Number( aStep, "voltage" ),
-                static_cast<PD>( Enum( aStep, "pd" ) ), static_cast<MG>( Enum( aStep, "mg" ) ) ) );
+        const double voltage = Number( aStep, "voltage" );
+        const PD pd = static_cast<PD>( Enum( aStep, "pd" ) );
+        const MG mg = static_cast<MG>( Enum( aStep, "mg" ) );
+        result = Bits( ( aCalc.*MemberPointer( Basic{} ) )( voltage, pd, mg ) );
     }
     else if( op == "clearance" )
     {
         Keys( aStep, { "op", "pd", "field", "altitude" } );
-        result = Bits( ( aCalc.*MemberPointer( Clearance{} ) )(
-                static_cast<PD>( Enum( aStep, "pd" ) ), static_cast<FIELD>( Enum( aStep, "field" ) ),
-                Number( aStep, "altitude" ) ) );
+        const PD pd = static_cast<PD>( Enum( aStep, "pd" ) );
+        const FIELD field = static_cast<FIELD>( Enum( aStep, "field" ) );
+        const double altitude = Number( aStep, "altitude" );
+        result = Bits( ( aCalc.*MemberPointer( Clearance{} ) )( pd, field, altitude ) );
     }
     else if( op == "creepage" )
     {
         Keys( aStep, { "op", "pd", "mg" } );
-        result = Bits( ( aCalc.*MemberPointer( Creepage{} ) )(
-                static_cast<PD>( Enum( aStep, "pd" ) ), static_cast<MG>( Enum( aStep, "mg" ) ) ) );
+        const PD pd = static_cast<PD>( Enum( aStep, "pd" ) );
+        const MG mg = static_cast<MG>( Enum( aStep, "mg" ) );
+        result = Bits( ( aCalc.*MemberPointer( Creepage{} ) )( pd, mg ) );
     }
     else
         throw std::invalid_argument( "unknown operation" );

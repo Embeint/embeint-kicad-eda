@@ -80,5 +80,9 @@ target_include_directories( oracle-dispatch-test PRIVATE "${ORACLE_OVERLAY}" )
 target_link_libraries( oracle-dispatch-test PRIVATE kimath nlohmann_json iec60664-reference )
 add_dependencies( oracle-dispatch-test oracle-audit )
 add_test( NAME oracle-dispatch COMMAND oracle-dispatch-test )
+add_test( NAME oracle-iec60664-inputs
+    COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_iec60664_inputs.py"
+            "$<TARGET_FILE:kicad-oracle>" )
+set_tests_properties( oracle-iec60664-inputs PROPERTIES TIMEOUT 60 )
 set_tests_properties( oracle-protocol oracle-build-guards oracle-iec60664-build-guards
                       oracle-dispatch PROPERTIES TIMEOUT 60 )

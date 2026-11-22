@@ -145,8 +145,20 @@ def generate(source):
             field = rng.choice(("rms_voltage", "peak_voltage", "transient_voltage", "altitude", "frequency"))
             steps += [setter(field, rng.uniform(-1.0, 100000.0)), {"op": "compute"}]
         case(f"fixed-seed-state-{i}", *steps)
+    case("integer-negative-zero-bits", {"op": "set", "field": "altitude", "value": 0})
     assert len({c["case"] for c in cases}) == len(cases)
     return cases
+
+
+def serialize(cases):
+    lines = []
+    for case in cases:
+        text = json.dumps(case, separators=(",", ":"))
+        if case["case"] == "integer-negative-zero-bits":
+            # Preserve the raw integer token that Python otherwise normalizes to zero.
+            text = text.replace('"value":0', '"value":-0', 1)
+        lines.append(text + "\n")
+    return "".join(lines).encode()
 
 
 def main():
@@ -154,7 +166,7 @@ def main():
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
     source = subprocess.check_output(["git", "show", f"{PIN}:{SOURCE}"], cwd=ROOT)
-    data = "".join(json.dumps(case, separators=(",", ":")) + "\n" for case in generate(source.decode("utf-8"))).encode()
+    data = serialize(generate(source.decode("utf-8")))
     path = ROOT / "port/cases" / (UNIT + ".jsonl")
     if args.check:
         assert path.read_bytes() == data, "case corpus differs; regenerate and repeat live comparison"

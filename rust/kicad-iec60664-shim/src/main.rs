@@ -12,12 +12,14 @@ const UNIT: &str = "pcb_calculator.calculator_panels.application.pure.p001";
 
 fn keys(value: &Value, required: &[&str], optional: &[&str]) -> Result<(), String> {
     let object = value.as_object().ok_or("expected object")?;
-    if required.iter().any(|key| !object.contains_key(*key))
-        || object
-            .keys()
-            .any(|key| !required.contains(&key.as_str()) && !optional.contains(&key.as_str()))
+    if required.iter().any(|key| !object.contains_key(*key)) {
+        return Err("missing field".into());
+    }
+    if object
+        .keys()
+        .any(|key| !required.contains(&key.as_str()) && !optional.contains(&key.as_str()))
     {
-        return Err("unexpected or missing fields".into());
+        return Err("unexpected field".into());
     }
     Ok(())
 }
@@ -33,7 +35,7 @@ fn integer(value: &Value, key: &str) -> Result<i32, String> {
     let n = value
         .get(key)
         .and_then(Value::as_i64)
-        .ok_or_else(|| format!("expected integer: {key}"))?;
+        .ok_or_else(|| format!("integer out of range: {key}"))?;
     i32::try_from(n).map_err(|_| format!("integer out of range: {key}"))
 }
 
@@ -47,11 +49,15 @@ fn boolean(value: &Value, key: &str) -> Result<bool, String> {
 fn number(value: &Value, key: &str) -> Result<f64, String> {
     let bits = value
         .get(key)
-        .and_then(Value::as_u64)
-        .ok_or_else(|| format!("expected u64 bits: {key}"))?;
+        .and_then(|value| {
+            value
+                .as_u64()
+                .or_else(|| value.as_i64().and_then(|number| u64::try_from(number).ok()))
+        })
+        .ok_or("expected u64 bits")?;
     let n = f64::from_bits(bits);
     if !n.is_finite() {
-        return Err(format!("expected finite bits: {key}"));
+        return Err("expected finite bits".into());
     }
     Ok(n)
 }
@@ -203,7 +209,7 @@ fn calculate(input: &Value) -> Result<Value, String> {
     let steps = input
         .get("steps")
         .and_then(Value::as_array)
-        .ok_or("expected steps array")?;
+        .ok_or("expected 1..256 steps")?;
     if steps.is_empty() || steps.len() > 256 {
         return Err("expected 1..256 steps".into());
     }
@@ -221,29 +227,26 @@ fn dispatch(line: &str) -> Value {
     let parsed = kicad_difftest::exact::parse(line)
         .and_then(|_| serde_json::from_str::<Value>(line).map_err(|e| e.to_string()));
     let reply = parsed
-        .map_err(|e| ("invalid_request", e))
+        .map_err(|_| ("invalid_request", "invalid JSON or duplicate key".into()))
         .and_then(|request| {
-            if let Some(v) = request
-                .get("unit")
-                .filter(|v| v.as_str().is_some_and(|s| !s.is_empty()))
-            {
+            if let Some(v) = request.get("unit").filter(|v| v.is_string()) {
                 unit = v.clone();
             }
-            if let Some(v) = request
-                .get("case")
-                .filter(|v| v.as_str().is_some_and(|s| !s.is_empty()))
-            {
+            if let Some(v) = request.get("case").filter(|v| v.is_string()) {
                 case = v.clone();
             }
-            keys(&request, &["unit", "case", "input"], &[]).map_err(|e| ("invalid_request", e))?;
-            if unit.is_null()
-                || case.is_null()
+            if keys(&request, &["unit", "case", "input"], &[]).is_err()
+                || unit.as_str().is_none_or(str::is_empty)
+                || case.as_str().is_none_or(str::is_empty)
                 || !request.get("input").is_some_and(Value::is_object)
             {
-                return Err(("invalid_request", "invalid identity/input".into()));
+                return Err((
+                    "invalid_request",
+                    "expected unit, case, input object".into(),
+                ));
             }
             if unit.as_str() != Some(UNIT) {
-                return Err(("unknown_unit", "unknown unit".into()));
+                return Err(("unknown_unit", "unit has no registered shim".into()));
             }
             calculate(&request["input"]).map_err(|e| ("invalid_input", e))
         });
@@ -270,5 +273,62 @@ fn main() {
     if let Err(error) = run() {
         eprintln!("{error}");
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{dispatch, UNIT};
+    use serde_json::json;
+
+    #[test]
+    fn negative_zero_integer_bits_and_full_unsigned_domain_are_preserved() {
+        let wire = format!(
+            r#"{{"unit":"{UNIT}","case":"zero","input":{{"steps":[{{"op":"set","field":"altitude","value":-0}}]}}}}"#
+        );
+        let reply = dispatch(&wire);
+        assert_eq!(reply, dispatch(&wire.replace(":-0", ":0")));
+        assert_eq!(reply["result"][0]["state"]["altitude"], 0);
+        let signed_zero = dispatch(&wire.replace(":-0", ":9223372036854775808"));
+        assert_eq!(
+            signed_zero["result"][0]["state"]["altitude"],
+            json!(1_u64 << 63)
+        );
+    }
+
+    #[test]
+    fn invalid_identity_and_field_messages_preserve_complete_envelopes() {
+        let reply = dispatch(
+            &json!({"unit":UNIT,"case":"","input":{"steps":[{"op":"state"}]}}).to_string(),
+        );
+        assert_eq!(
+            reply,
+            json!({"unit":UNIT,"case":"","error":{
+            "kind":"invalid_request","message":"expected unit, case, input object"}})
+        );
+        let reply = dispatch(
+            &json!({"unit":UNIT,"case":"extra","input":{"steps":[{"op":"state","extra":0}]}})
+                .to_string(),
+        );
+        assert_eq!(
+            reply,
+            json!({"unit":UNIT,"case":"extra","error":{
+            "kind":"invalid_input","message":"unexpected field"}})
+        );
+        assert_eq!(
+            dispatch("{")["error"]["message"],
+            "invalid JSON or duplicate key"
+        );
+    }
+
+    #[test]
+    fn all_refusal_envelopes_match_the_shared_oracle_contract(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        for line in include_str!("../../../port/oracle/iec60664-input-guards.jsonl").lines() {
+            let fixture: serde_json::Value = serde_json::from_str(line)?;
+            let wire = fixture["wire"].as_str().ok_or("missing fixture wire")?;
+            assert_eq!(dispatch(wire), fixture["expected"], "request: {wire}");
+        }
+        Ok(())
     }
 }
