@@ -1,7 +1,16 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 # MD5 local validation, 2026-11-22
 
-Latest native parser adoption: source `8259981dde8c9632c3b1194e8cc9362fe87a45b9`
+Latest corrected graph/nesting integration: runtime source
+`a5ed3948399da32b64f7fad93e0394c64615f8ff` passes the registered 5,973-case
+live check, 1,801-record source validation, four CTests, 24 affected Rust tests
+and 153 complete refusal envelopes plus signed-zero success per real adapter.
+See [the additive integration proof](validation/2026-11-22-a5ed3948/README.md).
+Protected MD5 scope and historical corpus/goldens/evidence are unchanged.
+Parent acceptance of final independent #39 artifact review remains pending;
+local green metadata is provisional and does not establish any phase gate.
+
+Prior native parser adoption: source `8259981dde8c9632c3b1194e8cc9362fe87a45b9`
 passes all 5,973 existing live cases and 78 complete refusal envelopes plus
 integer signed-zero success per real adapter. The reviewed shared parser is now
 merged through PR #45; no portable body, corpus, golden or prior evidence changed.

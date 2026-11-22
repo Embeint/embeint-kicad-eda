@@ -4,10 +4,12 @@
 The candidate scope is `libs.kimath.src.md5_hash.application.pure.p001`,
 `libs/kimath/src/md5_hash.cpp:1-289` at
 `4cf939778df04d2b747bb2c4714fc5014a7565c7`, with the supporting class declaration
-in `libs/kimath/include/md5_hash.h`. The provisional committed record in PR #39
-at `a7ec77beffd3b2e5d60409423fa28b6c116c6e00` is preserved pending parent
-confirmation of the corrected graph's ownership/scope/layer. This pilot depends
-on that PR and remains draft. The implementation module is `kicad_md5::md5_hash`; its types
+in `libs/kimath/include/md5_hash.h`. The corrected PR #39 dependency is
+`19035296e129cf8640e89331bc9e8ad84f0fe38c`, based on
+`4c6c1e38ce2dead8db8a3193e7525d19532523e9`. All protected MD5 fields match the
+historical a7 record; existing port metadata is retained. Local green metadata
+remains provisional pending parent confirmation of the final independent
+artifact review. This pilot remains draft. The implementation module is `kicad_md5::md5_hash`; its types
 remain re-exported from the crate root for callers.
 
 `kicad-md5` is the portable implementation. It forbids unsafe code, uses the
@@ -22,6 +24,10 @@ merged PR #45. Numeric overflow is rejected before identities; finite out-of-ran
 numbers retain their parse-versus-domain distinction. The exact result comparator
 and portable engine are unchanged. Complete-envelope wire regressions and current
 provenance are in [the parser adoption evidence](validation/2026-11-22-8259981d/README.md).
+The merged PR #47 C++ container bound is integrated as well; complete MD5
+envelopes are checked on both sides of that bound, including empty containers,
+identity/extra fields and unknown units. Historical corpus/goldens and proof
+artifacts remain unchanged.
 
 ## Input and observation contract
 
