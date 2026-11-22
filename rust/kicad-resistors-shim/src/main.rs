@@ -177,6 +177,76 @@ mod tests {
     }
 
     #[test]
+    fn serde_private_marker_keys_stay_ordinary_objects() {
+        let number = r#"{"$serde_json::private::Number":"0"}"#;
+        let raw =
+            r#"{"$serde_json::private::RawValue":"\"pcb_calculator.application.pure.p001\""}"#;
+        let request =
+            |input: &str| format!(r#"{{"unit":"{UNIT}","case":"marker","input":{input}}}"#);
+        let refused = |message| failure(&json!(UNIT), &json!("marker"), "invalid_input", message);
+        for (line, expected) in [
+            (
+                request(&format!(
+                    r#"{{"op":"collector","target_bits":{number},"candidates":[]}}"#
+                )),
+                refused("expected u64 IEEE754 bits"),
+            ),
+            (
+                request(&format!(r#"{{"op":"format","values_bits":[{number}]}}"#)),
+                refused("expected u64 IEEE754 bits"),
+            ),
+            (
+                request(&format!(
+                    r#"{{"op":"calculator","actions":[{{"op":"set_series","series":{number}}}]}}"#
+                )),
+                refused("integer out of range: series"),
+            ),
+            (
+                request(r#"{"$serde_json::private::RawValue":"{\"op\":\"unit_scales\"}"}"#),
+                refused("missing field"),
+            ),
+            (
+                request(
+                    r#"{"op":"format","values_bits":{"$serde_json::private::RawValue":"[0]"}}"#,
+                ),
+                refused("array bound exceeded or wrong type"),
+            ),
+            (
+                request(r#"{"op":{"$serde_json::private::RawValue":"\"x\""}}"#),
+                refused("expected string"),
+            ),
+            (
+                format!(r#"{{"unit":{raw},"case":"marker","input":{{"op":"unit_scales"}}}}"#),
+                failure(
+                    &Value::Null,
+                    &json!("marker"),
+                    "invalid_request",
+                    "expected unit, case, input object",
+                ),
+            ),
+            (
+                request(
+                    r#"{"op":"format","values_bits":[{"$serde_json::private::Number":"bad"}]}"#,
+                ),
+                refused("expected u64 IEEE754 bits"),
+            ),
+            (
+                request(
+                    r#"{"op":"format","values_bits":[{"$serde_json::private::Number":"0","$serde_json::private::Number":"0"}]}"#,
+                ),
+                failure(
+                    &Value::Null,
+                    &Value::Null,
+                    "invalid_request",
+                    "invalid JSON or duplicate key",
+                ),
+            ),
+        ] {
+            assert_eq!(dispatch(&line), expected, "{line}");
+        }
+    }
+
+    #[test]
     fn real_cpp_exception_has_a_result_envelope() {
         let request = json!({"unit":UNIT,"case":"nan","input":{"op":"calculator","actions":[
             {"op":"new","target_bits":f64::NAN.to_bits()},{"op":"calculate"}]}});

@@ -239,6 +239,13 @@ inputs and generated outputs are hashed; no stand-in reader or parser is used.
 The generated-source command, CMake identity and system glibc version are recorded
 with the existing compiler and link provenance.
 
+`oracle-resistor-inputs` keeps malformed collector targets outside the real
+collector exception path. `oracle-resistor-private-keys` replays the literal
+requests in `fixtures/resistor-private-keys.requests.jsonl` and requires the
+recorded complete replies byte for byte; both fixture hashes are pinned in
+`test_resistor_private_keys.py`. They cover object keys spelled like serde's
+private `Number`/`RawValue` markers, which C++ treats as ordinary keys.
+
 The native registration uses the provisional ID
 `pcb_calculator.application.pure.p001`. It is preparation only: no published claim,
 unit record or completion status follows before the final extractor scope record.

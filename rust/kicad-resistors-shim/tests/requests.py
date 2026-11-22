@@ -74,6 +74,13 @@ def corpus():
     add("finite-unused-number",'{"op":"unknown","number":18446744073709551616}',"unknown operation",raw=True)
     add("finite-long-token",'{"op":"unknown","number":'+'1'+'0'*399+'e-100}',"unknown operation",raw=True)
     add("valid-after-refusals",{"op":"unit_scales"})
+    # Literal serde private-marker-key envelopes with replies recorded from the
+    # pinned C++ adapter; port/oracle/test_resistor_private_keys.py pins their bytes.
+    fixtures=ROOT/"port/oracle/fixtures"
+    requests=(fixtures/"resistor-private-keys.requests.jsonl").read_text(encoding="utf-8").split("\n")[:-1]
+    replies=(fixtures/"resistor-private-keys.replies.jsonl").read_text(encoding="utf-8").split("\n")[:-1]
+    assert len(requests)==len(replies)==889
+    cases.extend(zip(requests,replies))
     return cases
 
 
@@ -91,12 +98,15 @@ def main():
         lines=run.stdout.decode().splitlines()
         assert len(lines)==len(cases), (binary,len(lines),len(cases))
         for line,(_,expected) in zip(lines,cases):
-            if expected is not None: assert exact(line)==exact(json.dumps(expected)), (binary,line,expected)
+            if expected is not None:
+                expected_text=expected if isinstance(expected,str) else json.dumps(expected)
+                assert exact(line)==exact(expected_text), (binary,line,expected)
         outputs.append([exact(line) for line in lines])
     for binary,output in zip(args.rust,outputs[1:]):
         for (wire,_),oracle,rust in zip(cases,outputs[0],output):
             assert oracle==rust,(binary,wire,oracle,rust)
-    print(f"{len(cases)} complete replies match: raw -0/full-u64, typed diagnostics, numeric overflow/fallback and recovery")
+    print(f"{len(cases)} complete replies match: raw -0/full-u64, typed diagnostics, numeric overflow/fallback, "
+          "private marker keys and recovery")
 
 
 if __name__=="__main__":

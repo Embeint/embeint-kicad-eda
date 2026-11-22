@@ -1,0 +1,41 @@
+{
+  "runtime_source": "ff419ad71f51044b81b8b7b9b0b63970e6de3942",
+  "rust_dependency": "1a2fb924d539d63a68f5696191907dc2aa6d6370",
+  "pr48_runtime_fix": "50e3f24874ea430770d59e10aa3db095dec4f757",
+  "prior_pr44_head": "084115f06cb1cb73fe6bc04f90f715d3384cfb3e",
+  "corrected_dependency": "19035296e129cf8640e89331bc9e8ad84f0fe38c",
+  "collector_fix": "1dd31a7493189ca694bc09020a3a84bf9fb6082e",
+  "case_count": 1050,
+  "cases_sha256": "58dd1186c9f10c8efb54bc90102c71508c8e852c0b8c08d437380b112fe3c597",
+  "golden_sha256": "8d1cc9e8c280b349294f9d512e450586c892a3170881afbba1c1b78de1a107a2",
+  "private_key_requests_sha256": "854ef879f3374c8868ddc9ae3391b90cad34f1b578a08c27eca4ffe5a59bf159",
+  "private_key_replies_sha256": "579853934d0bec0491d4aba2517978bf6954da74c16fea8dd5cfaf8eba3603e7",
+  "private_key_rust_reply_sha256": "8038f9331bdb4804ba5052717d10f46def2352d5dc1137723215b7545cd94991",
+  "oracle_sha256": "b0b167cb40bfcb3b2f8fa6791f36742bdab8a560d791acccb875b105ce9b632f",
+  "rust_debug_sha256": "a14a2fa7d54e81a547298d4f5d4a414a8b9c7b720138c32a5dd2e75d72c0d9b9",
+  "rust_release_sha256": "e5c6ba211c2c72001396da3026636e60a175dbf3b05c13cb3cbdf6e6c21a7046",
+  "difftest_debug_sha256": "adeeb5c2317181ad6583b05ae0200fd5c6ea21abf93dc9d2ae59ad3af1c62097",
+  "difftest_release_sha256": "fea480c23ba7398038d43e3aa01feb903ee2855a907c8aba894ee20e4ff713ea",
+  "release_compare": {
+    "status": "green",
+    "cases": 1050,
+    "deferred": 0,
+    "oracle_output_sha256": "8d1cc9e8c280b349294f9d512e450586c892a3170881afbba1c1b78de1a107a2",
+    "rust_output_sha256": "5fb5dfb6938e6a7b55c99416e46334b7e5f05ceb9821d053c442fa4dabc36441",
+    "rust_sha256": "e5c6ba211c2c72001396da3026636e60a175dbf3b05c13cb3cbdf6e6c21a7046"
+  },
+  "registered_outputs": {
+    "oracle_output_sha256": "8d1cc9e8c280b349294f9d512e450586c892a3170881afbba1c1b78de1a107a2",
+    "rust_output_sha256": "5fb5dfb6938e6a7b55c99416e46334b7e5f05ceb9821d053c442fa4dabc36441"
+  },
+  "oracle_provenance_sha256": "87e1c222c8884911690a6088c428804b8cebfc88ee671d333ed4d01c64c7f86d",
+  "source_manifest_sha256": "00726fa79a76410def76c1da63bf52dad4e5e605c91089f95fa7006fc7da2f44",
+  "compilers": {
+    "/usr/bin/g++": "g++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0\nCopyright (C) 2025 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+  },
+  "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "status": "claimed; draft; final #39 graph acceptance and independent review pending",
+  "compiler_qualification": "GCC 13/15 Release x86-64; GCC O0 and Clang 18 NaN payload equivalence not claimed",
+  "phase0_required": false,
+  "goldens_reblessed": false
+}

@@ -137,5 +137,10 @@ add_test( NAME oracle-resistor-inputs
     COMMAND "${Python3_EXECUTABLE}"
             "${ORACLE_OVERLAY}/test_resistor_collector_inputs.py"
             "$<TARGET_FILE:kicad-oracle>" )
+add_test( NAME oracle-resistor-private-keys
+    COMMAND "${Python3_EXECUTABLE}"
+            "${ORACLE_OVERLAY}/test_resistor_private_keys.py" --byte-identical
+            "$<TARGET_FILE:kicad-oracle>" )
 set_tests_properties( oracle-protocol oracle-build-guards oracle-iec60664-build-guards
-                      oracle-dispatch oracle-resistor-inputs PROPERTIES TIMEOUT 60 )
+                      oracle-dispatch oracle-resistor-inputs oracle-resistor-private-keys
+                      PROPERTIES TIMEOUT 60 )

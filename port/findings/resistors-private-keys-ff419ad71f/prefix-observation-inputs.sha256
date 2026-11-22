@@ -1,0 +1,4 @@
+582917dab13b99729a2ef15d47c72e396630a2045ad50b23c6fb109226ca801e  /home/karlvonrichter/kicad-port/pilot-resistors/oracle-build/kicad-oracle
+cc9b410fcb8a0463f8acc5fb5825459b7e882b51737c79cae3b73946ff3e0862  /home/karlvonrichter/kicad-port/pilot-resistors/src/rust/target/debug/kicad-resistors-shim
+61fa3cd93085f9f85aa5becabdc41d7a6a1a14c1bb6235acbca96b96a59d0c11  /home/karlvonrichter/kicad-port/pilot-resistors/src/rust/target/release/kicad-resistors-shim
+854ef879f3374c8868ddc9ae3391b90cad34f1b578a08c27eca4ffe5a59bf159  /home/karlvonrichter/kicad-port/pilot-resistors-private-keys/observe/requests.jsonl
