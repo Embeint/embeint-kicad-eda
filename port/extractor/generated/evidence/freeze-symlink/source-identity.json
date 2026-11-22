@@ -1,0 +1,30 @@
+{
+  "changed_freezer_functions": [
+    "main"
+  ],
+  "guarded_refresh_script_unchanged": true,
+  "old_control": {
+    "fails_absolute_and_relative_path": true,
+    "log": "old-control.log"
+  },
+  "policy": "No new capture, apply, split, AST replay, oracle build or numerical qualification. Retained capture runtime remains c1e8a467da.",
+  "recipe_traversal_ast_unchanged": true,
+  "reviewed_baseline": "6f02c95d98c1728e99238e92d54383d04c398216",
+  "source_commit": "b9f5a76b5820945e8e06101718f380ff648b1422",
+  "tested_code_sha256_lf": {
+    "port/extractor/generated_sources.py": "dd5273b7048a4560f71b1dd72c1ea10d60cc8b7a7eb3c08a6ecc296e8d9a7ee2",
+    "port/extractor/refresh_generator_dependencies.py": "ae68b105de1a34788256de191ce5ceb62e0f4ed365dc84853c6384028c7873af",
+    "port/extractor/test_extractor.py": "b9d4309e343be8de05e41f4268b7e7069804df9a04ce5c36208af71e72b7f823"
+  },
+  "windows_observed": {
+    "evidence": "interactive session stdout; no separate retained Windows log",
+    "expected_skips": 12,
+    "passed": 25,
+    "tests": 37
+  },
+  "wsl": {
+    "log": "tests-wsl.log",
+    "skipped": 0,
+    "tests": 37
+  }
+}

@@ -1,6 +1,24 @@
 # Corrected extraction validation
 
-## Verified Ninja recapture (current)
+## Freeze CLI compatibility correction (latest code)
+
+Code `b9f5a76b5820945e8e06101718f380ff648b1422` preserves the discovered
+tool symlink's invocation name while making its path absolute. The actual
+freezer succeeds with name-dispatching symlinks under absolute and relative PATH
+entries, including a directory with spaces. The same regression fails against
+`6f02c95d98` with the expected dispatcher refusal. WSL passes all 37 tests; Windows
+passes 25 with 12 expected tool-dependent skips. See `evidence/freeze-symlink/`.
+
+The previous capture/artifact review independently reproduced and qualified the
+records below and closed the PATH-substitution P2. The freezing-CLI change does
+not alter guarded capture, traversal or those artifact bytes. No full capture,
+apply/split, AST replay or pilot qualification was repeated. Their recorded source
+runtime stays `c1e8a467da`; replaying that evidence requires the recorded runtime,
+not substituting the later CLI source and changing its code-identity fields.
+Every indexed artifact and unit record remains unchanged. Fresh independent
+review of the bounded compatibility correction and all parent/gate holds remain.
+
+## Verified Ninja recapture (retained current artifacts)
 
 Validated clean code `c1e8a467da149eac67341d31de0228e498916ba3`. Evidence:
 `evidence/verified-ninja/`. The AST parser and original V5 identities are unchanged.

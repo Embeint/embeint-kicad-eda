@@ -23,7 +23,28 @@ The independent review of `d2bdddb904` verified those relations but found that
 `ce9681f06f` adds that guard. The guarded recapture at `2888cd057f`
 republished the same relations; its evidence remains below as history.
 
-## Verified Ninja recapture (current)
+## Freeze CLI compatibility correction (latest code)
+
+Independent review of `6f02c95d98` closed the guarded-capture PATH substitution
+finding and reproduced the complete retained capture and artifacts. It found a
+separate freezing-CLI compatibility defect: resolving discovered executable
+symlinks changed their invocation names. Code `b9f5a76b58` makes those paths
+absolute while retaining the symlink spelling. The actual CLI regression uses
+name-dispatching symlinks, absolute/relative PATH entries and a directory with
+spaces. It fails against the reviewed freezer and passes with the correction;
+the complete WSL suite passes 37 tests. Windows passes 25 with 12 expected skips.
+Evidence is in `evidence/freeze-symlink/`.
+
+The retained artifact runtime is still `c1e8a467da` (published by `6f02c95d98`).
+Its Ninja is `/usr/bin/ninja` directly, so the symlink defect did not affect that
+capture. Guarded capture and recipe traversal are unchanged. No new full capture,
+apply, split, AST extraction or numerical run was performed for this CLI-only
+correction; the independently reproduced artifacts keep their original identities.
+To reproduce their recorded capture/apply hashes, use that exact runtime commit,
+not the later freezer source. Future captures correctly identify their new code.
+A new independent review of this bounded correction remains required.
+
+## Verified Ninja recapture (retained current artifacts)
 
 The independent review of `2888cd057f` verified the guarded artifacts but found
 that capture checked the recorded Ninja binary while invoking `ninja` through
@@ -44,7 +65,7 @@ both dependency maps are unchanged. The only graph changes remain the refresh
 record and manifest fingerprint. Every unit file and the original AST parse
 identities are unchanged. No new AST parse or full cache replay was performed.
 
-Current code `2b4eca5d`, manifest `58bccc83`, graph `014f0514` and
+Retained capture runtime code `2b4eca5d`, manifest `58bccc83`, graph `014f0514` and
 inventory `41600e43` have their full identities in
 `evidence/verified-ninja/checks.json`. That directory retains the capture,
 repeated application, canonical regeneration, guard controls, validation and
