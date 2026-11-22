@@ -416,7 +416,7 @@ class DriftTests(unittest.TestCase):
                 self.assertEqual(result["affected_units"], ["u"])
                 self.assertEqual({a["file"] for a in result["affected"]}, {"a.cpp", "b.h"})
                 graph['functions']['generated'] = {'file': '@build/lexer.cpp', 'start': 1, 'end': 1, 'name': 'generated'}
-                graph['provenance']['generated_input_dependencies'] = {'@build/lexer.cpp': ['b.h']}
+                graph['provenance']['generated_input_dependencies'] = {'@build/lexer.cpp': ['sub/../b.h']}
                 generated_unit = {'id': 'generated', 'status': 'partial', 'functions': ['generated'], 'upstream': ['@build/lexer.cpp']}
                 generated_report = drift_report.report(root, graph, units + [generated_unit])
                 self.assertTrue(any(r['unit'] == 'generated' and r['changed_inputs'] == ['b.h']
