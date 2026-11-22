@@ -1,0 +1,78 @@
+{
+  "applied": {
+    "d2_graph_sha256": "8c39a7f481663b011fb37404004874b781aa77a0e35397b8f563d08417f498c8",
+    "d2_inventory_sha256": "9b6f09351a5f7b59ca790c1d80301c69373e3f6a04fc5a28082733171fb4b742",
+    "d2_refreshed_manifest_sha256": "071a18f4c9ad6d0a6ed39ed84e4cbbc33f984f8bc4896b45f4e9de8b4a132792",
+    "graph_equal_d2_except": [
+      "provenance.generator_dependency_refresh",
+      "provenance.generated_sources_manifest_sha256"
+    ],
+    "graph_sha256": "014f05141168b634cd4ef39a9cea434b696ae2d6d6230048e41af3f31738f342",
+    "inventory_files_equal_d2": true,
+    "inventory_sha256": "41600e43a380594f88e7e9747398e01458c1e71e436d59c31ca23f92dfb603ed",
+    "manifest_equal_d2_except": [
+      "generator_dependency_refresh"
+    ],
+    "manifest_refresh_record": {
+      "base_manifest_sha256": "a2466270bdf4aec52b7b8267140ac4b18c8295520c5b94e1ecb3dc8498dacb34",
+      "base_recipes_sha256": "dff5b79afdbe58e2e4c7a4f0e4d8b093fd34a94a0302d38cddd6483660496951",
+      "capture_code_sha256": "2b4eca5d431fd57fe824e54eaa384bea5215abe29cefa0cff9d9238269f4e929",
+      "capture_sha256": "7705a33563f736295944934e98f3fd629f869408a2d22e6a34a11501b0aac685",
+      "policy": "Post-parse generator dependency refresh. AST, definitions, calls, overrides, unresolved records, translation units, coverage and source bytes are those of the original parse (parse_* identities); only generator dependency metadata and the fingerprints derived from it were recaptured from the unchanged private build.",
+      "source_identity": {
+        "generation_inputs_sha256": "bf7a1689587de011b7f2b8879e7d6284827a451ee43155ad72b8963fe30a6de6",
+        "hash_policy": "SHA-256 after CRLF-to-LF normalization, as in the original parse",
+        "inventory_sha256": "b9e6986b36529fdf4041712dfb258af050c2ff61bb3971875394eb16e2a47682",
+        "source_commit": "3cd2c9afc6d2749b7d3a79fd1deaa86ac51cb3a7",
+        "source_files_sha256": "3c0d96516f2c20ca5e7883aa7a549ed0e412a190b27af60012a4edfb0621122e",
+        "source_root": "/home/karlvonrichter/kicad-port/extract-source",
+        "tracked_source_inventory_sha256": "da0820c028bc23f338b6a6256e38dc984bd79f323f02737b93e7e5e499d57a2f",
+        "upstream_pin": "4cf939778df04d2b747bb2c4714fc5014a7565c7",
+        "verified_source_files": 9655
+      }
+    },
+    "parse_identities_unchanged": {
+      "input_graph_sha256": "146e2ccac0e8d0ba6d37ceadb26ae5a84d0223609dd55abebb0b5451bfe45735",
+      "input_inventory_sha256": "b9e6986b36529fdf4041712dfb258af050c2ff61bb3971875394eb16e2a47682",
+      "parse_extractor_sha256": "e1548c1fe920a05d882e3f2de1c14843ca0e7b3b04ca9441d4132e16de77b88d",
+      "parse_generated_sources_manifest_sha256": "a2466270bdf4aec52b7b8267140ac4b18c8295520c5b94e1ecb3dc8498dacb34",
+      "parse_recipes_sha256": "dff5b79afdbe58e2e4c7a4f0e4d8b093fd34a94a0302d38cddd6483660496951",
+      "parse_source_inventory_sha256": "3d52afc68446cc7e00344409c2fc1ac6908ed5aa554f55d2501126885e5ee175"
+    },
+    "refresh_record_changed_fields": [
+      "capture_code_sha256",
+      "capture_sha256",
+      "refresh_code_sha256",
+      "source_identity"
+    ],
+    "refresh_report_equal_d2_except": [
+      "refresh",
+      "refreshed_manifest_sha256"
+    ],
+    "refreshed_manifest_sha256": "58bccc83c8a9d18c538d1e0df8d062c307cd0ac8816d96a0b126a74914277760",
+    "source_inventory_sha256": "62ea246ff04ae3f4392529446b9dc393850b26bf604119e60705da5dfe2743a8"
+  },
+  "capture": {
+    "capture_code_sha256": "2b4eca5d431fd57fe824e54eaa384bea5215abe29cefa0cff9d9238269f4e929",
+    "changed_capture_fields": [
+      "capture_code_sha256",
+      "source_identity"
+    ],
+    "d2_capture_code_sha256": "1a7ea4bc86028ebccd5cb527b37c7f3fd053d259ca735c2195593d8b1f569f93",
+    "ninja_catalog_byte_identical_to_d2": true,
+    "recipes_byte_identical_to_d2": true,
+    "recipes_sha256": "f44049e2ea0a2ad8b1a16133e5c6bc25df084366d07995b7369d0d44fd9d1900",
+    "relation_maps_equal_d2": true,
+    "source_identity": {
+      "generation_inputs_sha256": "bf7a1689587de011b7f2b8879e7d6284827a451ee43155ad72b8963fe30a6de6",
+      "hash_policy": "SHA-256 after CRLF-to-LF normalization, as in the original parse",
+      "inventory_sha256": "b9e6986b36529fdf4041712dfb258af050c2ff61bb3971875394eb16e2a47682",
+      "source_commit": "3cd2c9afc6d2749b7d3a79fd1deaa86ac51cb3a7",
+      "source_files_sha256": "3c0d96516f2c20ca5e7883aa7a549ed0e412a190b27af60012a4edfb0621122e",
+      "source_root": "/home/karlvonrichter/kicad-port/extract-source",
+      "tracked_source_inventory_sha256": "da0820c028bc23f338b6a6256e38dc984bd79f323f02737b93e7e5e499d57a2f",
+      "upstream_pin": "4cf939778df04d2b747bb2c4714fc5014a7565c7",
+      "verified_source_files": 9655
+    }
+  }
+}

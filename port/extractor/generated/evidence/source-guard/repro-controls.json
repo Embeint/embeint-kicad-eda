@@ -1,0 +1,80 @@
+{
+  "accepted": [
+    "correct"
+  ],
+  "controls": {
+    "added_build_file": {
+      "accepted": false,
+      "error": "Private build files differ from the parse manifest; a refresh cannot reuse that parse"
+    },
+    "correct": {
+      "accepted": true,
+      "dependencies": {
+        "@build/final.h": [
+          "derived.h",
+          "schema.md"
+        ],
+        "derived.h": [
+          "schema.md"
+        ]
+      }
+    },
+    "deleted_leaf": {
+      "accepted": false,
+      "error": "Pinned refresh source is missing or changed: schema.md"
+    },
+    "deleted_output": {
+      "accepted": false,
+      "error": "Pinned refresh source is missing or changed: derived.h"
+    },
+    "foreign_root": {
+      "accepted": false,
+      "error": "Refresh source root differs from the original parse source root"
+    },
+    "frozen_copy_changed_after_query": {
+      "accepted": false,
+      "error": "Frozen generated input changed: @build/final.h"
+    },
+    "source_changed_after_query": {
+      "accepted": false,
+      "error": "Pinned refresh source is missing or changed: schema.md"
+    },
+    "stale_cpp": {
+      "accepted": false,
+      "error": "Pinned refresh source is missing or changed: a.cpp"
+    },
+    "stale_markdown": {
+      "accepted": false,
+      "error": "Pinned refresh source is missing or changed: schema.md"
+    },
+    "tool_changed_after_query": {
+      "accepted": false,
+      "error": "Generator tool identity changed: sentinel"
+    },
+    "unrecorded_source_node": {
+      "accepted": false,
+      "error": "Ninja source lacks a pinned snapshot: schema.md"
+    }
+  },
+  "correct_markdown_drift": {
+    "direct": [
+      "u"
+    ],
+    "through_build": [
+      "u"
+    ]
+  },
+  "d2_behaviour": "foreign/deleted/stale states were accepted and lost relations at d2bdddb904 (review39-d2 source-controls.json)",
+  "rejected": [
+    "foreign_root",
+    "deleted_leaf",
+    "deleted_output",
+    "stale_markdown",
+    "stale_cpp",
+    "unrecorded_source_node",
+    "source_changed_after_query",
+    "tool_changed_after_query",
+    "frozen_copy_changed_after_query",
+    "added_build_file"
+  ]
+}

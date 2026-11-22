@@ -1,0 +1,42 @@
+{
+  "ast_files_equal_v5": {
+    "clang_graph.py": true,
+    "model.py": true
+  },
+  "current_capture_refresh_code_sha256": "2b4eca5d431fd57fe824e54eaa384bea5215abe29cefa0cff9d9238269f4e929",
+  "current_four_file_hash_policy_sha256": "8bb73cf7f80895e4c3f16c3e59a481f811f6abe391972df72f37105d8f7fad7b",
+  "inputs_sha256": {
+    "base_audit": "bf7a1689587de011b7f2b8879e7d6284827a451ee43155ad72b8963fe30a6de6",
+    "canonical_graph": "146e2ccac0e8d0ba6d37ceadb26ae5a84d0223609dd55abebb0b5451bfe45735",
+    "libclang": "2c262ccd53ce702daa87c95aa84b2936e13c14f974504dc58f3ed93b12def23b",
+    "units_report": "0aac539054de1437248d5f97c510efee16de779cf546919c136a23938b023753",
+    "v5_graph": "40861e9ca678464cedc513561e6e559cbcb5f902bb5b221fe2b6c378fb803e18",
+    "v5_inventory": "b9e6986b36529fdf4041712dfb258af050c2ff61bb3971875394eb16e2a47682",
+    "v5_manifest": "a2466270bdf4aec52b7b8267140ac4b18c8295520c5b94e1ecb3dc8498dacb34",
+    "v5_parser": "e1548c1fe920a05d882e3f2de1c14843ca0e7b3b04ca9441d4132e16de77b88d"
+  },
+  "libclang_sha256": "2c262ccd53ce702daa87c95aa84b2936e13c14f974504dc58f3ed93b12def23b",
+  "policy": "No new AST parse or V5 replay: the immutable D2 replay/reproduction proofs are reused after checking the hashes of every input they bind",
+  "reused_d2_proofs": {
+    "canonical-from-v5.json": "all runs reproduce 146e2cca and every unit file",
+    "v5-replay.json": {
+      "cache_artifacts_unchanged": 2512,
+      "cache_reused_commands": 2511,
+      "edges": 649723,
+      "excluded_fields": [
+        "provenance.cache_reused_commands",
+        "translation_units[].cache_reused_from"
+      ],
+      "failure_comparison": "complete records sorted by complete JSON content; no payload omitted",
+      "failure_reporting_order_equal": false,
+      "functions": 107254,
+      "graph_semantics_equal": true,
+      "inventory_semantics_equal": true,
+      "new_clang_parses": 0,
+      "parse_extractor_sha256": "e1548c1fe920a05d882e3f2de1c14843ca0e7b3b04ca9441d4132e16de77b88d",
+      "parse_failures": 4,
+      "runtime": "frozen V5 runner (parser e1548c1f...), exact V5 manifest, compile database and cache"
+    }
+  },
+  "v5_runtime_parser_sha256": "e1548c1fe920a05d882e3f2de1c14843ca0e7b3b04ca9441d4132e16de77b88d"
+}

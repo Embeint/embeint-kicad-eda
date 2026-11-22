@@ -4,6 +4,7 @@ import importlib.util
 import gzip
 import json
 import os
+import shlex
 import shutil
 from pathlib import Path
 import subprocess
@@ -11,6 +12,7 @@ import sys
 import tempfile
 import tomllib
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
@@ -21,7 +23,7 @@ import drift_report
 from extractor.reconcile_database import compare, cmake_options
 from extractor.compact_cache import compact
 from extraction_report import summarize, measure_units
-from extractor.generated_sources import capture_recipes, freeze, verify, source_path
+from extractor.generated_sources import capture_recipes, freeze, generator_dependencies, verify, source_path
 
 
 def fixture(root):
@@ -313,6 +315,17 @@ class ValidationTests(unittest.TestCase):
             self.assertEqual(report['accounted_lines'], 3)
             self.assertTrue(any('@build/lexer.cpp' in u['upstream'] for u in units.values()))
             self.assertEqual(validate(root), [])
+            manifest['source_generator_dependencies'] = {'a.cpp': ['schema.md']}
+            write_json(generated/'generated-sources.json', manifest)
+            provenance['generated_sources_manifest_sha256'] = digest((generated/'generated-sources.json').read_bytes())
+            provenance['generated_input_dependencies'] = generator_dependencies(manifest)
+            save_fixture(root, graph, inventory)
+            self.assertEqual(validate(root), [])
+            provenance['generated_input_dependencies'] = {}
+            save_fixture(root, graph, inventory)
+            self.assertTrue(any('recipe dependencies differ' in e for e in validate(root)))
+            provenance['generated_input_dependencies'] = generator_dependencies(manifest)
+            save_fixture(root, graph, inventory)
             compressed_recipe = generated/'generated-recipes.json.gz'
             compressed_recipe.write_bytes(gzip.compress(recipe_bytes, mtime=0))
             (generated/'generated-recipes.json').unlink()
@@ -335,6 +348,242 @@ class ValidationTests(unittest.TestCase):
             self.assertTrue(any('source changed' in e for e in validate(root)))
             with self.assertRaisesRegex(ValueError, 'changed'):
                 verify(manifest, build, generated)
+
+    @unittest.skipUnless(os.name == 'posix' and shutil.which('ninja'), 'POSIX Ninja symlinks are needed')
+    def test_freeze_cli_preserves_tool_symlink_invocation_names(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            parent = Path(tmp)
+            source, build, tools = parent / 'source', parent / 'build', parent / 'tool shims'
+            source.mkdir(); build.mkdir(); tools.mkdir()
+            (source / 'schema.md').write_text('# public fixture\n')
+            (build / 'final.h').write_text('// generated public fixture\n')
+            (build / 'build.ninja').write_text('rule gen\n  command = true\n'
+                                              'build final.h: gen ../source/schema.md\n')
+            (build / 'CMakeFiles').mkdir()
+            (build / 'CMakeCache.txt').write_text('# public fixture\n')
+            (build / 'CMakeFiles/rules.ninja').write_text('# public fixture\n')
+            reconciliation = parent / 'reconciliation'; reconciliation.mkdir()
+            write_json(reconciliation / 'reconciliation.json', {'source_root': str(source)})
+            real_ninja = Path(shutil.which('ninja')).resolve()
+            manager = tools / 'tool-manager'
+            manager.write_text('#!/bin/sh\ncase "$0" in\n'
+                               '  */ninja) exec ' + shlex.quote(str(real_ninja)) + ' "$@" ;;\n'
+                               '  */cmake|*/protoc|*/c++) printf "public fixture version\\n" ;;\n'
+                               '  *) echo "tool-manager: invoke through a tool symlink" >&2; exit 23 ;;\n'
+                               'esac\n')
+            manager.chmod(0o755)
+            for name in ('ninja', 'cmake', 'protoc', 'c++'):
+                (tools / name).symlink_to(manager.name)
+            # The CLI's lock check is isolated too. The caller of the full suite
+            # still holds the actual shared host lock when required by that host.
+            home = parent / 'home'; (home / 'kicad-port.build-lock').mkdir(parents=True)
+            script = Path(__file__).with_name('generated_sources.py')
+            for label, search_path in [('absolute', str(tools)), ('relative', tools.name)]:
+                with self.subTest(search_path=label):
+                    output = parent / ('frozen-' + label)
+                    env = dict(os.environ, HOME=str(home), PATH=search_path, PYTHONDONTWRITEBYTECODE='1')
+                    run = subprocess.run([sys.executable, str(script), '--build-root', str(build),
+                                          '--reconciliation', str(reconciliation), '--output', str(output)],
+                                         cwd=parent, env=env, capture_output=True, text=True)
+                    self.assertEqual(run.returncode, 0, run.stderr)
+                    self.assertEqual(json.loads(run.stdout), {'frozen_files': 1, 'recipe_records': 1})
+                    manifest = read_json(output / 'generated-sources.json')
+                    self.assertEqual(manifest['files'][0]['generator_inputs'], ['schema.md'])
+                    for name, info in manifest['provenance']['tools'].items():
+                        path = Path(info['path'])
+                        self.assertEqual(path, tools / name)
+                        self.assertTrue(path.is_absolute() and path.is_symlink())
+                        self.assertNotEqual(path, path.resolve())
+                        self.assertEqual(info['sha256'], digest(manager.read_bytes()))
+                        self.assertEqual(info['version_exit'], 0)
+
+    @unittest.skipUnless(shutil.which('ninja'), 'Ninja is needed for real recipe capture')
+    def test_post_parse_dependency_refresh_changes_only_generator_metadata(self):
+        from extractor import refresh_generator_dependencies as refresh
+        with tempfile.TemporaryDirectory() as tmp:
+            parent = Path(tmp)
+            root, build = parent / 'source', parent / 'build'
+            root.mkdir(); build.mkdir()
+            graph, inventory = fixture(root)
+            (root / 'schema.md').write_text('# public fixture\n')
+            (root / 'derived.h').write_text('// generated from schema.md\n')
+            (build / 'final.h').write_text('// generated fixture\n')
+            derived = (root / 'derived.h').as_posix().replace('$', '$$').replace(' ', '$ ').replace(':', '$:')
+            # The source-tree output is declared only by its absolute name.
+            (build / 'build.ninja').write_text('rule gen\n  command = true\n'
+                                               f'build {derived}: gen ../source/schema.md\n'
+                                               'build final.h: gen ../source/derived.h\n')
+            generated = root / 'port/extractor/generated'
+            tool = parent / 'private-tool'
+            tool.write_text('#!/bin/sh\necho fixture-version\n')
+            tool.chmod(0o755)
+            version = subprocess.run([str(tool), '--version'], capture_output=True, text=True)
+            tool_proof = {'path': str(tool), 'sha256': digest(tool.read_bytes()),
+                          'version_exit': version.returncode, 'version': version.stdout, 'stderr': version.stderr}
+            real_ninja = Path(shutil.which('ninja')).resolve()
+            pinned_ninja = parent / 'recorded-ninja'
+            pinned_ninja.write_text('#!/bin/sh\nexec ' + shlex.quote(str(real_ninja)) + ' "$@"\n')
+            pinned_ninja.chmod(0o755)
+            ninja_version = subprocess.run([str(pinned_ninja), '--version'], capture_output=True, text=True)
+            ninja_proof = {'path': str(pinned_ninja), 'sha256': digest(pinned_ninja.read_bytes()),
+                           'version_exit': ninja_version.returncode, 'version': ninja_version.stdout,
+                           'stderr': ninja_version.stderr}
+            graph['provenance']['source_root'] = str(root.resolve())
+            generation_inputs = parent / 'generation-inputs.json'
+            write_json(generation_inputs, {'source_commit': graph['provenance']['source_commit'],
+                'upstream_pin': PIN, 'inputs': [{'path': name, 'normalized_sha256': digest((root / name).read_bytes())}
+                                              for name in ('derived.h', 'schema.md')]})
+            manifest = freeze(build, generated, {'reconciliation.json': {'record': {
+                'source_root': str(root.resolve()), 'source_commit': graph['provenance']['source_commit'],
+                'upstream_pin': PIN}}, 'tools': {'fixture-tool': tool_proof, 'ninja': ninja_proof}})
+            # Simulate a parse whose older capture treated derived.h as a leaf.
+            manifest['files'][0]['generator_inputs'] = ['derived.h']
+            recipes = b'{"@build/final.h":{"query":"older capture"}}\n'
+            (generated / 'generated-recipes.json').write_bytes(recipes)
+            manifest['recipes_sha256'] = digest(recipes)
+            write_json(generated / 'generated-sources.json', manifest)
+            entries = verify(manifest, build, generated)
+            inventory['files'].extend(dict(e, coverage='parsed') for e in entries)
+            provenance = graph['provenance']
+            provenance.update(extractor_sha256='e' * 64,
+                tracked_source_inventory_sha256=digest(json.dumps([{k: v for k, v in f.items() if k != 'coverage'}
+                    for f in inventory['files'] if f.get('origin') != 'build-generated'], sort_keys=True).encode()),
+                source_inventory_sha256=digest(json.dumps([{k: v for k, v in f.items() if k != 'coverage'}
+                    for f in inventory['files']], sort_keys=True).encode()),
+                generated_sources_manifest_sha256=digest((generated / 'generated-sources.json').read_bytes()),
+                generated_input_dependencies=generator_dependencies(manifest))
+            units, report = save_fixture(root, graph, inventory)
+            self.assertEqual(validate(root), [])
+            unit_bytes = {p.name: p.read_bytes().replace(b'\r\n', b'\n') for p in (root / 'port/units').glob('*.toml')}
+            base = parent / 'base'
+            shutil.copytree(generated, base)
+            options = {'inventory_path': base / 'inventory.json', 'generation_inputs_path': generation_inputs}
+            apply_options = {'generation_inputs_path': generation_inputs}
+            captured = refresh.capture(base / 'generated-sources.json', root, parent / 'capture', **options)
+            self.assertEqual(captured['generator_inputs']['@build/final.h'], ['derived.h', 'schema.md'])
+            self.assertEqual(captured['source_generator_dependencies']['derived.h'], ['schema.md'])
+            # A PATH wrapper queries a different real Ninja graph, omitting the
+            # Markdown edge. It must never run: all invocations use pinned_ninja.
+            shadow = parent / 'shadow'; shadow.mkdir()
+            alternate = parent / 'alternate'; alternate.mkdir()
+            (alternate / 'build.ninja').write_text('rule gen\n  command = true\n'
+                                                  f'build {derived}: gen\n'
+                                                  'build final.h: gen ../source/derived.h\n')
+            called = parent / 'shadow-called'
+            wrapper = shadow / 'ninja'
+            wrapper.write_text('#!/bin/sh\nprintf used >> ' + shlex.quote(str(called))
+                               + '\nshift 2\nexec ' + shlex.quote(str(real_ninja)) + ' -C '
+                               + shlex.quote(str(alternate)) + ' "$@"\n')
+            wrapper.chmod(0o755)
+            with mock.patch.dict(os.environ, {'PATH': str(shadow) + os.pathsep + os.environ.get('PATH', '')}):
+                alternate_entries = [dict(entry) for entry in manifest['files']]
+                capture_recipes(build, root, alternate_entries, ninja=str(wrapper))
+                self.assertEqual(alternate_entries[0]['generator_inputs'], ['derived.h'])
+                self.assertTrue(called.exists(), 'The substitution control did not invoke its wrapper')
+                called.unlink()
+                shadow_capture = refresh.capture(base / 'generated-sources.json', root,
+                                                  parent / 'capture-shadowed', **options)
+            self.assertFalse(called.exists(), 'Capture invoked an unrecorded PATH executable')
+            self.assertEqual(shadow_capture['generator_inputs'], captured['generator_inputs'])
+            self.assertEqual(shadow_capture['source_generator_dependencies'], captured['source_generator_dependencies'])
+            self.assertEqual((parent / 'capture-shadowed/generated-recipes.json').read_bytes(),
+                             (parent / 'capture/generated-recipes.json').read_bytes())
+            for missing_or_relative in (None, 'ninja'):
+                bad_manifest = read_json(base / 'generated-sources.json')
+                if missing_or_relative is None:
+                    del bad_manifest['provenance']['tools']['ninja']
+                else:
+                    bad_manifest['provenance']['tools']['ninja']['path'] = missing_or_relative
+                write_json(parent / 'bad-tool-manifest.json', bad_manifest)
+                with self.assertRaisesRegex(ValueError, 'recorded absolute Ninja'):
+                    refresh.capture(parent / 'bad-tool-manifest.json', root, parent / 'bad-tool', **options)
+            capture_args = (base / 'generated-sources.json', parent / 'capture/generator-dependency-capture.json',
+                            parent / 'capture/generated-recipes.json')
+            result = refresh.apply(base / 'graph.json', base / 'inventory.json', *capture_args, parent / 'out', **apply_options)
+            self.assertEqual(result['build_generated_inputs_added'], 1)
+            self.assertEqual(result['build_generated_inputs_removed'], 0)
+            repeat = refresh.apply(base / 'graph.json', base / 'inventory.json', *capture_args, parent / 'repeat', **apply_options)
+            for name in ('graph.json.gz', 'inventory.json', 'generated-sources.json', 'refresh-report.json'):
+                self.assertEqual((parent / 'out' / name).read_bytes(), (parent / 'repeat' / name).read_bytes())
+            self.assertEqual(repeat, result)
+            for name in ('graph.json.gz', 'inventory.json', 'generated-sources.json'):
+                shutil.copyfile(parent / 'out' / name, generated / name)
+            (generated / 'graph.json').unlink()
+            shutil.copyfile(parent / 'capture/generated-recipes.json', generated / 'generated-recipes.json')
+            self.assertEqual(validate(root), [])
+            refreshed = read_json(generated / 'graph.json')
+            record = refreshed['provenance']['generator_dependency_refresh']
+            self.assertEqual(record['parse_extractor_sha256'], 'e' * 64)
+            self.assertEqual(record['parse_source_inventory_sha256'], provenance['source_inventory_sha256'])
+            self.assertEqual(refreshed['provenance']['extractor_sha256'], 'e' * 64)
+            self.assertEqual(refreshed['provenance']['generated_input_dependencies']['derived.h'], ['schema.md'])
+            self.assertEqual(refreshed['functions'], graph['functions'])
+            # CLI regeneration of the units is unaffected by the provenance refresh.
+            subprocess.run([sys.executable, str(Path(__file__).resolve().parents[1] / 'tools/split_units.py'),
+                            '--graph', str(generated / 'graph.json'), '--inventory', str(generated / 'inventory.json'),
+                            '--units-dir', str(root / 'port/units'), '--report', str(generated / 'units.json'),
+                            '--source-root', str(root), '--target-lines', '1'], check=True, capture_output=True)
+            self.assertEqual({p.name: p.read_bytes() for p in (root / 'port/units').glob('*.toml')}, unit_bytes)
+            self.assertEqual(read_json(generated / 'units.json')['function_units'], report['function_units'])
+            # Negative controls: refreshed input, a foreign capture, tampered recipes and a changed build.
+            with self.assertRaisesRegex(ValueError, 'original parse'):
+                refresh.apply(generated / 'graph.json', generated / 'inventory.json', *capture_args, parent / 'bad', **apply_options)
+            foreign = read_json(capture_args[1]); foreign['base_manifest_sha256'] = '0' * 64
+            write_json(parent / 'foreign.json', foreign)
+            with self.assertRaisesRegex(ValueError, 'different generated-source manifest'):
+                refresh.apply(base / 'graph.json', base / 'inventory.json', capture_args[0], parent / 'foreign.json',
+                              capture_args[2], parent / 'bad', **apply_options)
+            write_json(parent / 'recipes.json', {})
+            with self.assertRaisesRegex(ValueError, 'Recaptured recipes'):
+                refresh.apply(base / 'graph.json', base / 'inventory.json', *capture_args[:2], parent / 'recipes.json',
+                              parent / 'bad', **apply_options)
+            # Bind source root, all tracked bodies and non-C++ generator leaves.
+            foreign_root = parent / 'foreign-root'; foreign_root.mkdir()
+            with self.assertRaisesRegex(ValueError, 'original parse source root'):
+                refresh.capture(base / 'generated-sources.json', foreign_root, parent / 'bad-root', **options)
+            for name in ('schema.md', 'derived.h', 'a.cpp'):
+                original_bytes = (root / name).read_bytes()
+                try:
+                    (root / name).unlink()
+                    with self.assertRaisesRegex(ValueError, 'missing or changed'):
+                        refresh.capture(base / 'generated-sources.json', root, parent / 'bad-source', **options)
+                    (root / name).write_bytes(original_bytes + b'// stale source\n')
+                    with self.assertRaisesRegex(ValueError, 'missing or changed'):
+                        refresh.capture(base / 'generated-sources.json', root, parent / 'bad-source', **options)
+                finally:
+                    (root / name).write_bytes(original_bytes)
+            for key, value in [('source_root', str(foreign_root)), ('source_commit', 'b' * 40),
+                               ('source_files_sha256', '0' * 64)]:
+                altered = read_json(capture_args[1])
+                altered['source_identity'][key] = value
+                write_json(parent / 'foreign-source.json', altered)
+                with self.assertRaisesRegex(ValueError, 'Capture source identity'):
+                    refresh.apply(base / 'graph.json', base / 'inventory.json', capture_args[0], parent / 'foreign-source.json',
+                                  capture_args[2], parent / 'bad-source-apply', **apply_options)
+            with self.assertRaisesRegex(ValueError, 'Ninja source lacks a pinned snapshot'):
+                capture_recipes(build, root, [], {}, {})
+            capture_impl = refresh.capture_recipes
+            def mutate_after_query(path, content):
+                def changed(*args, **kwargs):
+                    result = capture_impl(*args, **kwargs)
+                    path.write_bytes(content)
+                    return result
+                return changed
+            for path, message in [(root / 'a.cpp', 'Pinned refresh source'),
+                                  (base / 'sources/final.h', 'Frozen generated input changed'),
+                                  (pinned_ninja, 'Generator tool identity changed'),
+                                  (tool, 'Generator tool identity changed')]:
+                original_bytes = path.read_bytes()
+                try:
+                    with mock.patch.object(refresh, 'capture_recipes',
+                                           side_effect=mutate_after_query(path, original_bytes + b'\n# changed\n')):
+                        with self.assertRaisesRegex(ValueError, message):
+                            refresh.capture(base / 'generated-sources.json', root, parent / 'bad-after', **options)
+                finally:
+                    path.write_bytes(original_bytes)
+            (build / 'late.h').write_text('// added after the parse\n')
+            with self.assertRaisesRegex(ValueError, 'differ from the parse manifest'):
+                refresh.capture(base / 'generated-sources.json', root, parent / 'capture-late', **options)
 
     def test_inventory_coverage_and_categories_cannot_be_hidden_by_unit_edits(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -421,10 +670,11 @@ class DriftTests(unittest.TestCase):
             (root / 'api').mkdir(parents=True)
             (build / 'api').mkdir(parents=True)
             (root / 'api/schema.proto').write_text('first\n')
-            for name in ('direct', 'relative', 'absolute'):
+            names = ('direct', 'relative', 'absolute', 'absolute_only')
+            for name in names:
                 (root / (name + '.cpp')).write_text('int value() { return 1; }\n')
             for name in ('api/direct.pb.h', 'api/relative.pb.h', 'api/absolute.pb.h',
-                         'stage.h', 'stage.tokens', 'consumer.o'):
+                         'api/absolute_only.pb.h', 'stage.h', 'stage.tokens', 'only.tokens', 'consumer.o'):
                 (build / name).write_text('// generated fixture\n')
 
             def ninja_path(path):
@@ -432,13 +682,16 @@ class DriftTests(unittest.TestCase):
 
             proto = ninja_path(root / 'api/schema.proto')
             tokens = ninja_path(build / 'stage.tokens')
+            only_tokens = ninja_path(build / 'only.tokens')
             (build / 'build.ninja').write_text(
                 'rule gen\n  command = true\n'
                 f'build api/direct.pb.h: gen {proto}\n'
                 f'build stage.h: gen {proto}\n'
                 f'build stage.tokens: gen {proto}\n'
+                f'build {only_tokens}: gen {proto}\n'
                 'build api/relative.pb.h: gen stage.h\n'
                 f'build api/absolute.pb.h: gen {tokens}\n'
+                f'build api/absolute_only.pb.h: gen {only_tokens}\n'
                 'build consumer.o: gen api/relative.pb.h\n')
             manifest = freeze(build, parent / 'frozen', {})
             recipes = capture_recipes(build, root, manifest['files'])
@@ -448,6 +701,9 @@ class DriftTests(unittest.TestCase):
                              ['@build/stage.h', 'api/schema.proto'])
             self.assertEqual(dependencies['@build/api/absolute.pb.h'],
                              ['@build/stage.tokens', 'api/schema.proto'])
+            self.assertEqual(dependencies['@build/api/absolute_only.pb.h'],
+                             ['@build/only.tokens', 'api/schema.proto'])
+            self.assertEqual(recipes['@build/only.tokens']['target'], (build / 'only.tokens').as_posix())
             self.assertNotIn('@build/stage.tokens', dependencies)
             self.assertEqual(recipes['@build/stage.tokens']['query_exit'], 0)
             self.assertNotIn('@build/consumer.o', dependencies['@build/api/relative.pb.h'])
@@ -464,7 +720,7 @@ class DriftTests(unittest.TestCase):
                                    'generated_input_dependencies': dependencies},
                      'functions': {}, 'translation_units': []}
             units = []
-            for name in ('direct', 'relative', 'absolute'):
+            for name in names:
                 path = name + '.cpp'
                 graph['functions'][name] = {'name': 'value', 'file': path, 'start': 1, 'end': 1}
                 graph['translation_units'].append({'file': path,
@@ -479,9 +735,69 @@ class DriftTests(unittest.TestCase):
                 drift_report.PIN = base
                 result = drift_report.report(root, graph, units)
                 self.assertEqual(result['affected'], [])
-                self.assertEqual(result['affected_units'], ['absolute', 'direct', 'relative'])
+                self.assertEqual(result['affected_units'], ['absolute', 'absolute_only', 'direct', 'relative'])
                 self.assertEqual([review['changed_inputs'] for review in result['dependency_reviews']],
-                                 [['api/schema.proto']] * 3)
+                                 [['api/schema.proto']] * 4)
+            finally:
+                drift_report.PIN = original
+
+    @unittest.skipUnless(shutil.which('ninja'), 'Ninja is needed for real recipe capture')
+    def test_source_tree_generator_nodes_reach_direct_and_build_consumers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            parent = Path(tmp)
+            root, build = parent / 'source', parent / 'build'
+            root.mkdir(); build.mkdir()
+            for name in ('schema.md', 'direct.md', 'derived.h', 'direct.h', 'direct.cpp', 'indirect.cpp'):
+                (root / name).write_text('// public fixture\n')
+            (build / 'final.h').write_text('// generated fixture\n')
+            def escaped(path):
+                return path.as_posix().replace('$', '$$').replace(' ', '$ ').replace(':', '$:')
+            # A source-tree output reached only by a tracked consumer must be
+            # captured too. Both relative and absolute-only target names occur.
+            (build / 'build.ninja').write_text(
+                'rule gen\n  command = true\n'
+                f'build ../source/derived.h: phony {escaped(root / "derived.h")}\n'
+                f'build {escaped(root / "derived.h")}: gen ../source/schema.md\n'
+                f'build {escaped(root / "direct.h")}: gen ../source/direct.md\n'
+                'build final.h: gen ../source/derived.h\n'
+                'build unrelated.o: gen final.h\n')
+            manifest = freeze(build, parent / 'frozen', {})
+            manifest['source_generator_dependencies'] = {}
+            recipes = capture_recipes(build, root, manifest['files'], manifest['source_generator_dependencies'])
+            dependencies = generator_dependencies(manifest)
+            self.assertEqual(dependencies['derived.h'], ['schema.md'])
+            self.assertEqual(dependencies['direct.h'], ['direct.md'])
+            self.assertEqual(dependencies['@build/final.h'], ['derived.h', 'schema.md'])
+            self.assertEqual(recipes['direct.h']['target'], (root / 'direct.h').as_posix())
+            self.assertEqual(len(recipes['derived.h']['query_attempts']), 2)
+            self.assertTrue(all(attempt['exit'] == 0 for attempt in recipes['derived.h']['query_attempts']))
+            self.assertNotIn('@build/unrelated.o', dependencies['@build/final.h'])
+            def git(*args):
+                return subprocess.check_output(['git', '-C', str(root), *args], text=True).strip()
+            git('init', '--quiet'); git('add', '.')
+            git('-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '-qm', 'test source outputs')
+            base = git('rev-parse', 'HEAD')
+            graph = {'provenance': {'upstream_pin': base, 'source_commit': base,
+                                   'generated_input_dependencies': dependencies},
+                     'functions': {}, 'translation_units': []}
+            units = []
+            for name, header in [('direct', 'direct.h'), ('indirect', '@build/final.h')]:
+                path = name + '.cpp'
+                graph['functions'][name] = {'name': 'value', 'file': path, 'start': 1, 'end': 1}
+                graph['translation_units'].append({'file': path, 'includes': [header]})
+                units.append({'id': name, 'status': 'partial', 'functions': [name], 'upstream': [path]})
+            for name in ('schema.md', 'direct.md'):
+                (root / name).write_text('// changed public fixture\n')
+            git('add', '.')
+            git('-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '-qm', 'test changed source inputs')
+            original = drift_report.PIN
+            try:
+                drift_report.PIN = base
+                result = drift_report.report(root, graph, units)
+                self.assertEqual(result['affected'], [])
+                self.assertEqual(result['affected_units'], ['direct', 'indirect'])
+                self.assertEqual([review['changed_inputs'] for review in result['dependency_reviews']],
+                                 [['direct.md'], ['schema.md']])
             finally:
                 drift_report.PIN = original
 

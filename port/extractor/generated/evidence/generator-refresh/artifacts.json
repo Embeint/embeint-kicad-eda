@@ -1,0 +1,50 @@
+{
+  "apply-refreshed-repeat.log": {
+    "bytes": 146,
+    "sha256": "75f6bd2220cc1968b95dea1e0ac7d45b8b08824f41df40a2881ac208739f5e23"
+  },
+  "apply-refreshed.log": {
+    "bytes": 146,
+    "sha256": "75f6bd2220cc1968b95dea1e0ac7d45b8b08824f41df40a2881ac208739f5e23"
+  },
+  "assemble.log": {
+    "bytes": 1262,
+    "sha256": "1ccf62f11f63330ecc1d0ffc3e6844e8a82a888458819c8219d896b8aecc081d"
+  },
+  "candidates.log": {
+    "bytes": 44,
+    "sha256": "378978fb18fdd3cd9ffd45e1d66d0370a31e0abe3192da87b5c85441c052308b"
+  },
+  "capture.log": {
+    "bytes": 141,
+    "sha256": "9524cf6d621cd92e698b3f34b53e02dd1687dd5d308cb2dcf58c09f8cbbdd1ef"
+  },
+  "evidence.log": {
+    "bytes": 6561,
+    "sha256": "87f9a01ddf43307ef53e2d45613d4666b90a368f92a9e3b407a89afb017c41fc"
+  },
+  "extractor-tests-wsl.log": {
+    "bytes": 5756,
+    "sha256": "c562ada4be541019896f5eb1c9f83ae5c2b2c2ff7eaa6d997d7e56e318f24c28"
+  },
+  "fixtures.log": {
+    "bytes": 1499,
+    "sha256": "89cf8815074e1bcb416314d87b5ed00032a4d0ba2dd56d093f4a1dff666fbe93"
+  },
+  "ninja-targets.txt": {
+    "bytes": 476852,
+    "sha256": "daf6bcfaf11fd87b8b968bb3594bfac25052cffd90a7f57fae270ab4432016f4"
+  },
+  "reproduce-canonical.log": {
+    "bytes": 1255,
+    "sha256": "95c2c7af0ff6122b606ba20c5afae468b4a88a2df89d9ae6532cf2a4beeee513"
+  },
+  "run.log": {
+    "bytes": 271,
+    "sha256": "f786da144398f9dcbec13530562c9c6d21ce300da0a26ae8a38e0bcc50bbcc1b"
+  },
+  "v5-replay.log": {
+    "bytes": 732,
+    "sha256": "2f9834e333ff264b946ec489bd47e13a3f33db60a944b987b2af47e6f7e04232"
+  }
+}
