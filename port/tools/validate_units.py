@@ -125,6 +125,11 @@ def validate(root, require_complete=False, check_sources=True, source_root=None)
         expected = [{k: v for k, v in f.items() if k != 'coverage'} for f in build_files.values()]
         if manifest['files'] != expected or manifest['upstream_pin'] != PIN:
             errors.append('generated source inventory/provenance mismatch')
+        generation = manifest.get('provenance', {})
+        configuration = generation.get('reconciliation.json', {}).get('record')
+        if configuration is not None and (configuration.get('source_commit') != provenance.get('source_commit')
+                or configuration.get('upstream_pin') != PIN):
+            errors.append('generated configure source pin differs from extraction')
         recipes = generated / 'generated-recipes.json'
         if manifest.get('recipes_sha256') and digest(recipes.read_bytes().replace(b'\r\n', b'\n')) != manifest['recipes_sha256']:
             errors.append('generated recipes fingerprint mismatch')
