@@ -3,7 +3,7 @@ use kicad_iec60664::{Field, Iec60664, InsulationType, MaterialGroup, PollutionDe
 
 #[test]
 fn setters_do_not_recompute_and_instances_do_not_share_state() {
-    let mut calc = Iec60664::new();
+    let mut calc: Iec60664 = kicad_iec60664::iec60664::Iec60664::new();
     calc.set_altitude(2000.0);
     calc.set_peak_voltage(0.4);
     calc.set_transient_voltage(0.33);

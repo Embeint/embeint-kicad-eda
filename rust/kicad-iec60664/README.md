@@ -7,11 +7,13 @@ IEC60664-1:2020-05 tables and computation order. It makes no safety certificatio
 claim. It uses the reference's scalar units directly, including the different
 voltage scales used by different helpers; it performs no unit conversion.
 
-Unit: `pcb_calculator.calculator_panels.application.pure.p001`. The finalizer's
-local record accounts for **1,943 physical lines across nine files, with the same
+Unit: `pcb_calculator.calculator_panels.application.pure.p001`. The canonical #39
+record at `a7ec77beffd3b2e5d60409423fa28b6c116c6e00` (blob
+`d4983c3c8cd1bbfe65a6889048dbaf833228b96b`) accounts for **1,943 physical lines
+across nine files, with the same
 28 IEC60664 definitions**, layer 0, pure, no hard/soft dependencies and no coverage
-gaps. Its committed evidence head is still required before publishing a claim or
-green status. All paths below are in `pcb_calculator/calculator_panels/`:
+gaps. The actual Rust module is `kicad_iec60664::iec60664`; root reexports preserve
+existing callers. All paths below are in `pcb_calculator/calculator_panels/`:
 
 | File | Inclusive lines | Ownership |
 | --- | --- | --- |
@@ -184,6 +186,8 @@ nine return NOT_INSULATING. Every one of the 4,069 Compute calls returns true;
 counts describe reference behavior, not design approval. The corpus also checks
 29,417 setters, 13 state reads and the named-category inventory.
 
-The final committed generated record and hosted pilot CI remain publication
-gates. Local exact agreement and stored goldens do not establish the full
-three-pilot phase-zero gate or all-configuration extraction completeness.
+The pilot PR depends on #39 and targets `rust`; the parent must merge #39 first.
+The unit's local green metadata records exact implementation evidence. Hosted
+pilot CI and independent review remain pending merge gates. Local exact agreement
+and stored goldens do not establish the full three-pilot phase-zero gate or
+all-configuration extraction completeness. `PHASE0_REQUIRED` remains false.
