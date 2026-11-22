@@ -714,6 +714,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "kicad-rtree-node"
+version = "0.1.0"
+
+[[package]]
+name = "kicad-rtree-node-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-rtree-node",
+ "serde_json",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
