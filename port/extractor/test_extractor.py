@@ -258,6 +258,22 @@ class GraphTests(unittest.TestCase):
 
 
 class ValidationTests(unittest.TestCase):
+    def test_source_manifest_does_not_reinventory_frozen_artifacts_or_port_tooling(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            for path in ['application.cpp','port/extractor/generated/sources/lexer.cpp','port/oracle/shim.cpp','rust/host/shim.cpp']:
+                target=root/path;target.parent.mkdir(parents=True,exist_ok=True);target.write_text('int value;\n')
+            def git(*args):
+                subprocess.run(['git','-C',str(root),*args],check=True,capture_output=True)
+            git('init','--quiet');git('add','.')
+            git('-c','user.name=Test','-c','user.email=test@example.invalid','commit','-qm','test source inventory fixture')
+            manifest=root/'manifest.json'
+            subprocess.run([sys.executable,str(Path(__file__).with_name('source_manifest.py')),
+                '--root',str(root),'--output',str(manifest)],check=True,capture_output=True)
+            data=read_json(manifest)
+            self.assertEqual(data['files'],['application.cpp'])
+            self.assertEqual(len(data['excluded_port_tooling']),3)
+
     def test_active_generated_tu_cannot_be_silently_uninventoried(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);graph,inventory=fixture(root)
