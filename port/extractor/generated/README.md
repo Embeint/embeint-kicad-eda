@@ -20,11 +20,40 @@ new parse.
 
 The independent review of `d2bdddb904` verified those relations but found that
 `capture` did not bind its source root or source bytes (P2). Parent fix
-`ce9681f06f` adds that guard. The current root artifacts come from a guarded
-recapture with the same relations. A new independent review of this head is
-required.
+`ce9681f06f` adds that guard. The guarded recapture at `2888cd057f`
+republished the same relations; its evidence remains below as history.
 
-## Guarded source recapture (current)
+## Verified Ninja recapture (current)
+
+The independent review of `2888cd057f` verified the guarded artifacts but found
+that capture checked the recorded Ninja binary while invoking `ninja` through
+PATH. Code `c1e8a467da` binds every catalog, query and command listing to the
+manifest's verified absolute executable. Missing or relative recorded paths are
+rejected. The real-Ninja regression uses a PATH wrapper that selects a second
+graph without the Markdown dependency; the fixed capture never invokes it.
+Changing the executable actually invoked after querying is also rejected. The
+same focused test fails against the published 2888 implementation, as retained
+in `evidence/verified-ninja/logs/old-implementation-control.log.gz`.
+
+A fresh recapture from the original V5 manifest `a2466270`, inventory `b9e6986b`
+and canonical graph `146e2cca` used the unchanged `bf7a1689` audit. It invoked
+the recorded `/usr/bin/ninja` under the shared lock. All 9,655 source files,
+1,612 build files, 178 frozen inputs and recorded tool identities were checked
+before and after. Recipes and the 5,709-record catalog are byte-identical to D2;
+both dependency maps are unchanged. The only graph changes remain the refresh
+record and manifest fingerprint. Every unit file and the original AST parse
+identities are unchanged. No new AST parse or full cache replay was performed.
+
+Current code `2b4eca5d`, manifest `58bccc83`, graph `014f0514` and
+inventory `41600e43` have their full identities in
+`evidence/verified-ninja/checks.json`. That directory retains the capture,
+repeated application, canonical regeneration, guard controls, validation and
+commands/logs. The D2 and 2888 evidence directories remain byte-identical.
+The prior full replay and ownership proofs remain separately identified and are
+reused only after input-hash checks. A new independent review of this head is
+required; no numerical parity, green unit or phase-zero acceptance is claimed.
+
+## Guarded source recapture (historical 2888)
 
 The guarded `capture` and `apply` ran from the same V5 base: manifest `a2466270`,
 original inventory `b9e6986b`, and pre-refresh canonical graph `146e2cca`. Both
@@ -108,9 +137,12 @@ fingerprints derived from it changed. Evidence is in
 
 | Refresh artifact | SHA256 |
 | --- | --- |
-| canonical graph.json.gz (guarded, current) | `a04dffc7da914fa204ca0018a42fe53bfb9dbbeac65c2e279883cf8a6d691ba3` |
-| canonical inventory.json (guarded, current) | `33268efa748421dd0bf74e4d89399a19f95c350cfad43b31ad1c5f0f2f75b452` |
-| generated-sources.json (guarded, current, LF) | `b6fd50ad295ac1c78077e392fb7ffd26e9e64e2f6ef0ec05c0d95f74baf6a7b7` |
+| canonical graph.json.gz (verified Ninja, current) | `014f05141168b634cd4ef39a9cea434b696ae2d6d6230048e41af3f31738f342` |
+| canonical inventory.json (verified Ninja, current) | `41600e43a380594f88e7e9747398e01458c1e71e436d59c31ca23f92dfb603ed` |
+| generated-sources.json (verified Ninja, current) | `58bccc83c8a9d18c538d1e0df8d062c307cd0ac8816d96a0b126a74914277760` |
+| canonical graph.json.gz (source-guarded 2888, historical) | `a04dffc7da914fa204ca0018a42fe53bfb9dbbeac65c2e279883cf8a6d691ba3` |
+| canonical inventory.json (source-guarded 2888, historical) | `33268efa748421dd0bf74e4d89399a19f95c350cfad43b31ad1c5f0f2f75b452` |
+| generated-sources.json (source-guarded 2888, historical, LF) | `b6fd50ad295ac1c78077e392fb7ffd26e9e64e2f6ef0ec05c0d95f74baf6a7b7` |
 | guarded source snapshot (9,655 files) | `3c0d96516f2c20ca5e7883aa7a549ed0e412a190b27af60012a4edfb0621122e` |
 | pinned input audit (D2 bytes, both steps) | `bf7a1689587de011b7f2b8879e7d6284827a451ee43155ad72b8963fe30a6de6` |
 | D2 canonical graph.json.gz (historical) | `8c39a7f481663b011fb37404004874b781aa77a0e35397b8f563d08417f498c8` |

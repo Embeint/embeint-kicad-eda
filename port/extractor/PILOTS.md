@@ -158,3 +158,9 @@ The per-unit function/span migration ledger is `generated/evidence/corrected/uni
 The later generator-dependency refresh (`generated/evidence/generator-refresh/`) changed only recipe provenance. All three pilot records, the GetReader owner and every other unit record are byte-identical to the V5 publication; `checks.json` records their blob hashes.
 
 The guarded source recapture (`generated/evidence/source-guard/`) republished identical relations with source attestation; all unit and pilot records remain byte-identical.
+
+The verified-Ninja recapture (`generated/evidence/verified-ninja/`) invokes only
+the manifest's absolute verified executable. Its fresh relations are identical
+to D2 and 2888; all 1,801 unit files, these pilot scopes and the GetReader owner
+remain unchanged. Independent acceptance and numerical pilot reviews remain
+separate requirements.
