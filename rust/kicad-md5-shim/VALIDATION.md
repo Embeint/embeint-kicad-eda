@@ -131,6 +131,16 @@ and immutable evidence remain intact. Integration checks rerun the relevant Rust
 gates, full unit/source validator and registered live oracle/Rust/golden path;
 their separate report records the new tested source revision.
 
+Integration source revision `352773eb4b7f00d554140c5ccdb90543a1d547bb` passed
+fmt, warnings-denied clippy, all six relevant Rust tests and portable wasm.
+Both Windows and the private WSL copy passed full unit/source validation. The
+registered live path checked all 5,972 cases with zero failures/deferrals and
+reported **1,570 validated records, 1/3 live matched L0 pilots, phase zero
+INCOMPLETE**. Its actual reports are retained in
+[validation/2026-11-22-352773eb](validation/2026-11-22-352773eb).
+The later evidence/claim-timestamp update changes no implementation, cases,
+goldens or accounting fields.
+
 The unit's local `green` metadata describes complete owned implementation and
 zero local comparison failures/deferrals. The PR remains draft, dependent on
 #39 and pending independent review and hosted CI. `PHASE0_REQUIRED=false` remains
