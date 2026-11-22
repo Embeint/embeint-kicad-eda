@@ -17,22 +17,41 @@ const INVALID_JSON: &str = "invalid JSON or duplicate key";
 /// Envelope shape and unit-specific input validation remain the adapter's responsibility.
 pub fn parse(text: &str) -> Result<Value, String> {
     let exact = exact::parse(text).map_err(|_| INVALID_JSON.to_owned())?;
-    if !finite_numbers(&exact) {
-        return Err(INVALID_JSON.to_owned());
-    }
-    serde_json::from_str(text).map_err(|_| INVALID_JSON.to_owned())
+    into_value(exact, 127).map_err(|_| INVALID_JSON.to_owned())
 }
 
-fn finite_numbers(value: &Exact) -> bool {
+fn into_value(value: Exact, containers_left: usize) -> Result<Value, ()> {
     match value {
-        Exact::Object(values) => values.values().all(finite_numbers),
-        Exact::Array(values) => values.iter().all(finite_numbers),
-        Exact::String(_) => true,
+        // Build user objects directly. Value's generic deserializer interprets
+        // serde's private Number/RawValue keys as typed internal markers.
+        Exact::Object(values) => {
+            let remaining = containers_left.checked_sub(1).ok_or(())?;
+            values
+                .into_iter()
+                .map(|(key, value)| Ok((key, into_value(value, remaining)?)))
+                .collect::<Result<_, ()>>()
+                .map(Value::Object)
+        }
+        Exact::Array(values) => {
+            let remaining = containers_left.checked_sub(1).ok_or(())?;
+            values
+                .into_iter()
+                .map(|value| into_value(value, remaining))
+                .collect::<Result<_, ()>>()
+                .map(Value::Array)
+        }
+        Exact::String(value) => Ok(Value::String(value)),
         Exact::Scalar(token) => match token.as_str() {
-            "null" | "true" | "false" => true,
+            "null" => Ok(Value::Null),
+            "true" => Ok(Value::Bool(true)),
+            "false" => Ok(Value::Bool(false)),
             // exact::parse already validated syntax and bounded recursion. nlohmann falls
             // back to strtod for integers outside i64/u64 and rejects only non-finites.
-            _ => token.parse::<f64>().is_ok_and(f64::is_finite),
+            _ if token.parse::<f64>().is_ok_and(f64::is_finite) => token
+                .parse::<serde_json::Number>()
+                .map(Value::Number)
+                .map_err(|_| ()),
+            _ => Err(()),
         },
     }
 }
