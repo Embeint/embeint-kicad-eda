@@ -1,0 +1,731 @@
+== 2026-11-22T16:46:58+10:00 prep
+export identity: head d0cf06863cf64eb07b11787d1a6dd2826c04d47e files 24073 blob-differing 1 pinned 915
+== 2026-11-22T16:47:48+10:00 oracle build, audit and ctest
+mkdir: /home/karlvonrichter/kicad-port.build-lock: File exists
+Build lock busy: /home/karlvonrichter/kicad-port.build-lock; retry after its owner finishes
+mkdir: /home/karlvonrichter/kicad-port.build-lock: File exists
+Build lock busy: /home/karlvonrichter/kicad-port.build-lock; retry after its owner finishes
+mkdir: /home/karlvonrichter/kicad-port.build-lock: File exists
+Build lock busy: /home/karlvonrichter/kicad-port.build-lock; retry after its owner finishes
+mkdir: /home/karlvonrichter/kicad-port.build-lock: File exists
+Build lock busy: /home/karlvonrichter/kicad-port.build-lock; retry after its owner finishes
+mkdir: /home/karlvonrichter/kicad-port.build-lock: File exists
+Build lock busy: /home/karlvonrichter/kicad-port.build-lock; retry after its owner finishes
+-- The C compiler identification is GNU 15.2.0
+-- The CXX compiler identification is GNU 15.2.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/gcc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/g++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found Python3: /usr/bin/python3 (found version "3.14.4") found components: Interpreter
+-- Found wxWidgets: -L/usr/lib/x86_64-linux-gnu;-pthread;;;-lwx_baseu-3.2;-lwx_gtk3u_core-3.2 (found suitable version "3.2.9", minimum required is "3.2")
+-- Looking for malloc.h
+-- Looking for malloc.h - found
+-- Looking for iso646.h
+-- Looking for iso646.h - found
+-- Looking for stdint.h
+-- Looking for stdint.h - found
+-- Looking for strcasecmp
+-- Looking for strcasecmp - found
+-- Looking for strncasecmp
+-- Looking for strncasecmp - found
+-- Looking for strtok_r
+-- Looking for strtok_r - found
+-- Looking for strtok_s
+-- Looking for strtok_s - not found
+-- Looking for malloc
+-- Looking for malloc - found
+-- Looking for math.h
+-- Looking for math.h - found
+-- Looking for C++ include cmath
+-- Looking for C++ include cmath - found
+-- Looking for asinh
+-- Looking for asinh - found
+-- Looking for acosh
+-- Looking for acosh - found
+-- Looking for atanh
+-- Looking for atanh - found
+-- Performing Test HAVE_CMATH_ISINF
+-- Performing Test HAVE_CMATH_ISINF - Success
+-- Looking for clock_gettime in rt
+-- Looking for clock_gettime in rt - found
+-- Looking for gettimeofday
+-- Looking for gettimeofday - found
+-- Looking for getc_unlocked
+-- Looking for getc_unlocked - found
+-- {fmt} version: 12.2.0
+-- Build type: Release
+-- Configuring done (6.0s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/oracle-build
+[0/2] Re-checking globbed directories...
+[1/84] cd /home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/oracle-build && /usr/bin/python3 /home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/oracle-src/overlay/audit.py --build /home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/oracle-build --source /home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/oracle-src/reference --overlay /home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/oracle-src/overlay
+Oracle audit: 75 compilations, pin 4cf939778df04d2b747bb2c4714fc5014a7565c7, strict FP flags verified
+[2/84] Building CXX object reference/core/CMakeFiles/core.dir/base64.cpp.o
+[3/84] Building CXX object reference/core/CMakeFiles/core.dir/version_compare.cpp.o
+[4/84] Building CXX object reference/core/CMakeFiles/core.dir/observable.cpp.o
+[5/84] Building CXX object reference/core/CMakeFiles/core.dir/utf8.cpp.o
+[6/84] Building CXX object reference/core/CMakeFiles/core.dir/wx_stl_compat.cpp.o
+[7/84] Building CXX object reference/core/CMakeFiles/core.dir/profile.cpp.o
+[8/84] Linking CXX static library reference/core/libcore.a
+[9/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/md5_hash.cpp.o
+[10/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/transform.cpp.o
+[11/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/arc_chord_params.cpp.o
+[12/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/trigo.cpp.o
+[13/84] Building CXX object reference/clipper2/CMakeFiles/clipper2.dir/Clipper2Lib/src/clipper.offset.cpp.o
+[14/84] Building CXX object reference/clipper2/CMakeFiles/clipper2.dir/Clipper2Lib/src/clipper.rectclip.cpp.o
+[15/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/arc_construction.cpp.o
+[16/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/distribute.cpp.o
+[17/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/eda_angle.cpp.o
+[18/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/bezier_curves.cpp.o
+[19/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/ellipse.cpp.o
+[20/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/circle.cpp.o
+[21/84] Building CXX object reference/clipper2/CMakeFiles/clipper2.dir/Clipper2Lib/src/clipper.engine.cpp.o
+[22/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/convert_basic_shapes_to_polygon.cpp.o
+[23/84] Linking CXX static library reference/clipper2/libclipper2.a
+[24/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/grid_geometry.cpp.o
+[25/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/corner_operations.cpp.o
+[26/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/line.cpp.o
+[27/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/convex_hull.cpp.o
+[28/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/direction_45.cpp.o
+[29/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/geometry_utils.cpp.o
+[30/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/half_line.cpp.o
+[31/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/poisson_disk.cpp.o
+[32/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/nearest.cpp.o
+[33/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/seg.cpp.o
+[34/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/oval.cpp.o
+[35/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/intersection.cpp.o
+[36/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_compound.cpp.o
+[37/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/roundrect.cpp.o
+[38/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_file_io.cpp.o
+[39/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape.cpp.o
+[40/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_arc.cpp.o
+[41/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_ellipse.cpp.o
+[42/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_nearest_points.cpp.o
+[43/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_rect.cpp.o
+[44/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/vector_utils.cpp.o
+[45/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/transform_trs.cpp.o
+[46/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_segment.cpp.o
+[47/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_collisions.cpp.o
+[48/84] Building CXX object reference/fmt/CMakeFiles/fmt.dir/src/os.cc.o
+[49/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/math/util.cpp.o
+[50/84] Building CXX object CMakeFiles/resistor-reference.dir/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/oracle-src/reference/pcb_calculator/eseries.cpp.o
+[51/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/vertex_set.cpp.o
+[52/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_utils.cpp.o
+[53/84] Building CXX object CMakeFiles/calculator-reader-reference.dir/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/oracle-src/reference/common/exceptions.cpp.o
+[54/84] Building CXX object CMakeFiles/calculator-reader-reference.dir/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/oracle-src/reference/common/richio.cpp.o
+[55/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_line_chain.cpp.o
+[56/84] Building CXX object CMakeFiles/calculator-reader-reference.dir/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/oracle-src/reference/common/dsnlexer.cpp.o
+[57/84] Building CXX object reference/fmt/CMakeFiles/fmt.dir/src/format.cc.o
+[58/84] Linking CXX static library reference/fmt/libfmt.a
+[59/84] Building CXX object CMakeFiles/iec60664-reference.dir/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/oracle-src/reference/pcb_calculator/calculator_panels/iec60664.cpp.o
+[60/84] Building CXX object CMakeFiles/resistor-reference.dir/reference/resistors_access.cpp.o
+[61/84] Linking CXX static library libiec60664-reference.a
+[62/84] Linking CXX static library libresistor-reference.a
+[63/84] Building CXX object CMakeFiles/calculator-reader-reference.dir/reader-generated/pcb_calculator_datafile_keywords.cpp.o
+[64/84] Building CXX object CMakeFiles/calculator-reader-reference.dir/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/oracle-src/reference/pcb_calculator/datafile_read_write.cpp.o
+[65/84] Building CXX object CMakeFiles/kicad-oracle.dir/shims/example_rescale.cpp.o
+[66/84] Building CXX object CMakeFiles/kicad-oracle.dir/registry.cpp.o
+[67/84] Building CXX object CMakeFiles/kicad-oracle.dir/main.cpp.o
+[68/84] Building CXX object CMakeFiles/kicad-oracle.dir/shims/md5.cpp.o
+[69/84] Building CXX object CMakeFiles/kicad-oracle.dir/shims/iec60664.cpp.o
+[70/84] Building CXX object CMakeFiles/oracle-dispatch-test.dir/registry.cpp.o
+[71/84] Building CXX object CMakeFiles/kicad-oracle.dir/protocol.cpp.o
+[72/84] Building CXX object CMakeFiles/oracle-dispatch-test.dir/shims/example_rescale.cpp.o
+[73/84] Building CXX object CMakeFiles/oracle-dispatch-test.dir/test_dispatch.cpp.o
+[74/84] Building CXX object CMakeFiles/oracle-dispatch-test.dir/shims/iec60664.cpp.o
+[75/84] Building CXX object CMakeFiles/oracle-dispatch-test.dir/protocol.cpp.o
+[76/84] Building CXX object CMakeFiles/kicad-oracle.dir/shims/resistors.cpp.o
+[77/84] Building CXX object CMakeFiles/oracle-dispatch-test.dir/shims/md5.cpp.o
+[78/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_poly_set.cpp.o
+[79/84] Linking CXX static library reference/kimath/libkimath.a
+[80/84] Linking CXX static library libcalculator-reader-reference.a
+[81/84] Linking CXX executable kicad-oracle
+[82/84] Building CXX object CMakeFiles/oracle-dispatch-test.dir/shims/resistors.cpp.o
+[83/84] Linking CXX executable oracle-dispatch-test
+Test project /home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/oracle-build
+    Start 1: oracle-protocol
+1/7 Test #1: oracle-protocol ..................   Passed    0.09 sec
+    Start 2: oracle-build-guards
+2/7 Test #2: oracle-build-guards ..............   Passed    0.11 sec
+    Start 3: oracle-iec60664-build-guards
+3/7 Test #3: oracle-iec60664-build-guards .....   Passed    0.09 sec
+    Start 4: oracle-dispatch
+4/7 Test #4: oracle-dispatch ..................   Passed    0.02 sec
+    Start 5: oracle-md5-inputs
+5/7 Test #5: oracle-md5-inputs ................   Passed    0.05 sec
+    Start 6: oracle-iec60664-inputs
+6/7 Test #6: oracle-iec60664-inputs ...........   Passed    0.09 sec
+    Start 7: oracle-resistor-inputs
+7/7 Test #7: oracle-resistor-inputs ...........   Passed    0.04 sec
+
+100% tests passed, 0 tests failed out of 7
+
+Total Test time (real) =   0.48 sec
+Oracle: /home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/oracle-build/kicad-oracle
+Provenance: /home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/oracle-build/oracle-provenance.json
+== 2026-11-22T16:50:44+10:00 waiting for the shared lock
+== 2026-11-22T16:50:44+10:00 lock acquired
+== 2026-11-22T16:50:44+10:00 rust workspace as CI
+rustc 1.99.1 (58cf8f9c3 2026-10-13)
+cargo 1.99.1 (5f94df478 2026-08-27)
+gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+v22.22.1
+    Checking kicad-difftest v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/kicad-difftest)
+    Checking kicad-resistors v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/kicad-resistors)
+    Checking embeint-layout v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/embeint-layout)
+   Compiling embeint-ipc v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/embeint-ipc)
+    Checking kicad-md5 v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/kicad-md5)
+   Compiling embeint-mcp v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/embeint-mcp)
+    Checking kicad-iec60664 v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/kicad-iec60664)
+    Checking kicad-resistors-shim v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/kicad-resistors-shim)
+    Checking embeint-layout-cli v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/embeint-layout-cli)
+    Checking embeint-web v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/embeint-web)
+    Checking kicad-md5-shim v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/kicad-md5-shim)
+    Checking kicad-iec60664-shim v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/kicad-iec60664-shim)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.55s
+   Compiling kicad-difftest v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/kicad-difftest)
+   Compiling kicad-resistors v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/kicad-resistors)
+   Compiling embeint-layout v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/embeint-layout)
+   Compiling embeint-ipc v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/embeint-ipc)
+   Compiling kicad-md5 v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/kicad-md5)
+   Compiling kicad-iec60664 v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/kicad-iec60664)
+   Compiling embeint-mcp v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/embeint-mcp)
+   Compiling embeint-web v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/embeint-web)
+   Compiling embeint-layout-cli v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/embeint-layout-cli)
+   Compiling kicad-md5-shim v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/kicad-md5-shim)
+   Compiling kicad-resistors-shim v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/kicad-resistors-shim)
+   Compiling kicad-iec60664-shim v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/kicad-iec60664-shim)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 10.67s
+     Running unittests src/lib.rs (rust/target/debug/deps/embeint_ipc-2aea0c558d64ff29)
+
+running 23 tests
+test client::tests::mutation_options_number_later_operations ... ok
+test discovery::tests::endpoint_names ... ok
+test discovery::tests::unix_urls_are_absolute ... ok
+test discovery::tests::windows_candidates_keep_only_this_directory ... ok
+test discovery::tests::windows_temp_dir_prefers_tmpdir_then_tmp ... ok
+test discovery::tests::windows_urls_are_drive_paths_of_plain_components ... ok
+test nng::tests::headers_and_ids ... ok
+test nng::tests::a_duplex_exchange_round_trips ... ok
+test pbjson::tests::repr_escapes_like_python ... ok
+test pbjson::tests::repr_escapes_windows_paths_like_python ... ok
+test pbjson::tests::single_precision_prints_the_shortest_round_trip_decimal ... ok
+test proto::tests::aliased_enum_values_are_named_as_python_names_them ... ok
+test pbjson::tests::accepts_json_names_and_clears_with_null ... ok
+test pbjson::tests::rejects_unknown_fields_like_python ... ok
+test pbjson::tests::doubles_accept_numbers_strings_and_booleans ... ok
+test pbjson::tests::maps_and_oneofs ... ok
+test pbjson::tests::integers_follow_python_conversion ... ok
+test proto::tests::the_protocol_compiles_and_packs ... ok
+test pbjson::tests::packs_and_prints_any ... ok
+test client::tests::documents_are_checked_like_python ... ok
+test client::tests::only_schematic_items_are_accepted ... ok
+test pbjson::tests::round_trips_a_document_specifier ... ok
+test pbjson::tests::any_printing_refuses_unknown_types_and_excessive_nesting ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running unittests src/lib.rs (rust/target/debug/deps/embeint_layout-bf3c4aa39ba3ca35)
+
+running 6 tests
+test pyvalue::tests::floats_print_as_python_repr ... ok
+test pyvalue::tests::truth_and_strip_follow_python ... ok
+test pyvalue::tests::values_print_as_python_str_and_repr ... ok
+test tests::millimetres_are_exact_decimals ... ok
+test tests::request_shape_is_checked_before_layout ... ok
+test tests::integers_beyond_python_limit_are_not_json ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (rust/target/debug/deps/embeint_layout-930409d93aa025f5)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (rust/target/debug/deps/embeint_mcp-f150440b8b7b1765)
+
+running 53 tests
+test board_client::tests::dog_legs_follow_python ... ok
+test board_client::tests::stackup_colours_follow_python ... ok
+test board_client::tests::units_follow_python ... ok
+test board_design::tests::line_points_follow_shapely ... ok
+test board_design::tests::python_formatting ... ok
+test board_rf::tests::follows_python ... ok
+test board_router::tests::distances_are_pythons ... ok
+test board_router::tests::buffers_follow_geos ... ok
+test board_router::tests::sets_iterate_like_cpython ... ok
+test board_router::tests::simplify_and_spanning_order ... ok
+test capabilities::tests::canonical_json_matches_python_dumps ... ok
+test board_router::tests::arcs_and_outlines ... ok
+test fab::tests::a_manifest_names_only_package_files ... ok
+test fab::tests::helpers_follow_python ... ok
+test footprint_gen::tests::python_number_formatting ... ok
+test tools::core::tests::validation_follows_fastmcp ... ok
+test resources::skills::tests::splits_lines_as_python ... ok
+test resources::tests::template_matches_as_fastmcp ... ok
+test kicad_cli::tests::output_tails ... ok
+test model_handoff::tests::zstd_output_is_bounded_and_every_frame_decoded ... ok
+test tools::shared::tests::rounds_as_python ... ok
+test tools::symbol::tests::python_reprs ... ok
+test tools::args::tests::defaults_fill_missing_arguments ... ok
+test tools::schematic::ops::tests::rounding_follows_python ... ok
+test tools::args::tests::follows_pydantic_lax_mode ... ok
+test kicad_cli::tests::windows_paths_are_translated_for_wsl ... ok
+test resources::skills::tests::front_matter_checks ... ok
+test resources::tests::uris_are_normalised_as_anyurl ... ok
+test resources::skills::tests::bundled_front_matter_reads_alike ... ok
+test model_handoff::tests::paths ... ok
+test kicad_cli::tests::the_allow_list_and_refusals_are_pythons ... ok
+test resources::skills::tests::bundled_skills_are_served ... ok
+test resources::skills::tests::embedded_skills_equal_the_files ... ok
+test kicad_cli::tests::windows_name_rewrites_are_refused ... ok
+test tools::tests::every_python_parameter_has_a_kind ... ok
+test tools::tests::implemented_tools_match_python_signatures ... ok
+test footprint_gen::tests::shapes_match_python ... ok
+test model_handoff::tests::plans_and_boards_match_python ... ok
+test board_client::tests::layers_follow_python ... ok
+test tools::shared::tests::grid_names ... ok
+test tools::schematic::ops::tests::requests_use_protocol_names ... ok
+test tools::symbol::tests::helpers_follow_python ... ok
+test board_design::tests::custom_rules_follow_python ... ok
+test board_client::tests::only_board_items_are_accepted ... ok
+test fab::tests::defaults_build_and_options_merge ... ok
+test board_client::tests::items_are_built_like_python ... ok
+test tools::footprint::tests::signatures_and_items ... ok
+test board_client::tests::rules_and_stackup_are_read_and_merged ... ok
+test board_client::tests::find_pad_and_widths_follow_python ... ok
+test board_client::tests::plain_route_draws_a_dog_leg_through_a_via ... ok
+test board_client::tests::tracks_and_keepouts_are_one_commit_each ... ok
+test capabilities::tests::commands_are_described ... ok
+test capabilities::tests::limitations_are_plain_sentences ... ok
+
+test result: ok. 53 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running unittests src/lib.rs (rust/target/debug/deps/embeint_web-a3f2811a06ae7fb9)
+
+running 2 tests
+test tests::packing_keeps_pointer_and_length_apart ... ok
+test tests::response_is_the_layout_json ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (rust/target/debug/deps/kicad_difftest-1b565d340138aa7b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (rust/target/debug/deps/kicad_difftest-abd49bf72b88f0f2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/cli.rs (rust/target/debug/deps/cli-39c27570c6374691)
+
+running 2 tests
+test baseline_blessing_is_live_reviewed_and_evidenced ... ok
+test identical_input_bytes_and_process_faults ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.23s
+
+     Running tests/protocol.rs (rust/target/debug/deps/protocol-fb625bdee3211e95)
+
+running 3 tests
+test numeric_tokens_never_round_or_normalize ... ok
+test inventory_status_and_values_are_independent_checks ... ok
+test blessing_requires_exact_case_values_reason_and_provenance ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/request.rs (rust/target/debug/deps/request-2eb031698227b4bc)
+
+running 7 tests
+test finite_fallback_and_underflow_remain_parseable ... ok
+test comparator_still_accepts_and_distinguishes_arbitrary_precision_tokens ... ok
+test signed_zero_and_full_integer_domain_survive_validation ... ok
+test ordinary_marker_named_objects_keep_their_keys_and_types ... ok
+test overflow_is_a_parse_failure_everywhere ... ok
+test syntax_duplicates_and_nesting_are_checked_before_value_conversion ... ok
+test request_container_bound_is_stricter_than_exact_comparison ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.87s
+
+     Running tests/request_cpp.rs (rust/target/debug/deps/request_cpp-8ec114ffd88d3b96)
+
+running 3 tests
+test marker_named_objects_match_actual_cpp_transport_without_coercion ... ok
+test request_boundary_matches_pinned_cpp_protocol ... ok
+test nesting_boundary_matches_pinned_cpp_protocol ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.11s
+
+     Running unittests src/lib.rs (rust/target/debug/deps/kicad_iec60664-c2941fdd4acd22fa)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/state.rs (rust/target/debug/deps/state-398730659faf8445)
+
+running 2 tests
+test finite_extremes_and_unnamed_categories_are_total ... ok
+test setters_do_not_recompute_and_instances_do_not_share_state ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (rust/target/debug/deps/kicad_iec60664_shim-c0a420d5517f1548)
+
+running 6 tests
+test tests::invalid_identity_and_field_messages_preserve_complete_envelopes ... ok
+test tests::negative_zero_integer_bits_and_full_unsigned_domain_are_preserved ... ok
+test tests::reserved_marker_keys_match_the_shared_oracle_contract ... ok
+test tests::all_refusal_envelopes_match_the_shared_oracle_contract ... ok
+test tests::reserved_marker_keys_stay_ordinary_objects_with_their_strings ... ok
+test tests::nesting_bound_envelopes_match_the_shared_oracle_contract ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.53s
+
+     Running unittests src/lib.rs (rust/target/debug/deps/kicad_md5-c87a89e724579cb0)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/wrapper.rs (rust/target/debug/deps/wrapper-2201fa9238f27f05)
+
+running 3 tests
+test copied_partial_contexts_continue_independently ... ok
+test rfc_digest_and_reference_format ... ok
+test validity_is_independent_of_digest_and_pending_context ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (rust/target/debug/deps/kicad_md5_shim-c71f8ad190c7b6bc)
+
+running 10 tests
+test tests::malformed_assignment_validation_matches_reference_order ... ok
+test tests::malformed_protocol_and_unknown_unit_fail ... ok
+test tests::integer_negative_zero_byte_matches_zero_without_accepting_floats ... ok
+test tests::resource_bounds_and_unconstructed_states_are_refused ... ok
+test tests::numeric_overflow_rejects_the_complete_request_before_identities ... ok
+test tests::legitimate_noops_remain_successful_results ... ok
+test tests::finite_numbers_reach_domain_and_envelope_validation ... ok
+test tests::reserved_serde_keys_stay_ordinary_objects_in_retained_requests ... ok
+test tests::reserved_serde_keys_are_refused_at_every_placement_with_state_guards ... ok
+test tests::complete_nesting_envelopes_match_the_shared_container_bound ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/lib.rs (rust/target/debug/deps/kicad_resistors-4d8315790efd7444)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/contracts.rs (rust/target/debug/deps/contracts-e374500aece12037)
+
+running 5 tests
+test literal_series_and_resistance_default_contracts ... ok
+test private_builder_rejects_only_undefined_or_nonterminating_tables ... ok
+test undefined_cpp_preconditions_are_typed_refusals ... ok
+test actual_collector_exception_is_distinct_from_precondition_refusal ... ok
+test contexts_own_their_state_and_new_calc_resets_only_reference_fields ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/nonfinite.rs (rust/target/debug/deps/nonfinite-06dcb61860a42a4c)
+
+running 2 tests
+test distinct_nan_operands_keep_reference_second_sign_and_payload ... ok
+test invalid_operations_without_nan_inputs_generate_reference_indefinite ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/reader.rs (rust/target/debug/deps/reader-917d667c237fb2b9)
+
+running 2 tests
+test constructors_outside_owned_scope_remain_explicitly_unported ... ok
+test getter_preserves_nullable_borrowed_identity ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (rust/target/debug/deps/kicad_resistors_shim-8c2f90e362d8479c)
+
+running 5 tests
+test tests::unsigned_integer_minus_zero_is_distinct_from_float_minus_zero ... ok
+test tests::numeric_overflow_is_refused_before_any_identity ... ok
+test tests::typed_refusals_compare_complete_envelopes ... ok
+test tests::real_cpp_exception_has_a_result_envelope ... ok
+test tests::protocol_and_count_refusals_never_become_results ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/generation.rs (rust/target/debug/deps/generation-ccbd6897b2c13db0)
+
+running 1 test
+test corpus_regeneration_preserves_every_committed_byte ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+   Doc-tests embeint_ipc
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests embeint_layout
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests embeint_web
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests kicad_difftest
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests kicad_iec60664
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests kicad_md5
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests kicad_resistors
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Compiling kicad-difftest v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/kicad-difftest)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.81s
+== 2026-11-22T16:51:13+10:00 portable wasm builds
+WebAssembly build for every portable workspace crate: embeint-layout, embeint-web, kicad-iec60664, kicad-md5, kicad-resistors
+   Compiling libm v0.2.16
+   Compiling kicad-iec60664 v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/kicad-iec60664)
+   Compiling embeint-layout v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/embeint-layout)
+   Compiling kicad-md5 v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/kicad-md5)
+   Compiling embeint-web v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/embeint-web)
+   Compiling kicad-resistors v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/kicad-resistors)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.03s
+   Compiling serde_core v1.0.229
+   Compiling libm v0.2.16
+   Compiling zmij v1.0.23
+   Compiling hashbrown v0.17.1
+   Compiling equivalent v1.0.3
+   Compiling serde_json v1.0.154
+   Compiling foldhash v0.2.0
+   Compiling itoa v1.0.19
+   Compiling memchr v2.8.3
+   Compiling indexmap v2.14.2
+   Compiling kicad-resistors v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/kicad-resistors)
+    Finished `release` profile [optimized] target(s) in 4.18s
+All 1050 complete operation results agree with C++ golden in wasm; Node v22.22.1, V8 12.4.254.21-node.35
+== 2026-11-22T16:51:19+10:00 policy tests and full source validator
+test_all_new_portable_crates_are_discovered_by_default (test_policy.PolicyTests.test_all_new_portable_crates_are_discovered_by_default) ... ok
+test_baseline_evidence_cannot_omit_cases_values_or_oracle (test_policy.PolicyTests.test_baseline_evidence_cannot_omit_cases_values_or_oracle) ... ok
+test_empty_infrastructure_is_incomplete_but_strict_gate_fails (test_policy.PolicyTests.test_empty_infrastructure_is_incomplete_but_strict_gate_fails) ... ok
+test_evidence_checks_committed_head_and_ignores_dirty_worktree (test_policy.PolicyTests.test_evidence_checks_committed_head_and_ignores_dirty_worktree) ... ok
+test_jsonl_preserves_unicode_line_separators_inside_strings (test_policy.PolicyTests.test_jsonl_preserves_unicode_line_separators_inside_strings) ... ok
+test_policy_retains_numeric_tokens_and_rejects_duplicate_json (test_policy.PolicyTests.test_policy_retains_numeric_tokens_and_rejects_duplicate_json) ... ok
+test_strict_gate_counts_only_live_green_layer_zero_units (test_policy.PolicyTests.test_strict_gate_counts_only_live_green_layer_zero_units) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.187s
+
+OK
+Golden change evidence valid
+Phase 0: INCOMPLETE; 0/3 live green layer-0 units; 3 validated unit records.
+
+Extraction/configuration coverage (reported separately): `{"all_configurations_complete": null, "compile_database_complete": null, "gate_complete": null, "inventory_complete": null, "parse_complete": null, "parse_failures": 0, "uncompiled_application_sources": 0, "unresolved_call_count": null}`
+
+Phase 0: COMPLETE; 3/3 live green layer-0 units; 3 validated unit records.
+
+Extraction/configuration coverage (reported separately): `{"all_configurations_complete": null, "compile_database_complete": null, "gate_complete": null, "inventory_complete": null, "parse_complete": null, "parse_failures": 0, "uncompiled_application_sources": 0, "unresolved_call_count": null}`
+
+{"valid": true, "errors": []}
+All unit records and source accounting valid
+== 2026-11-22T16:52:03+10:00 corpus regeneration
+Wrote 5973 public generated cases to /home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/md5-regenerated.jsonl
+fatal: not a git repository (or any of the parent directories): .git
+Traceback (most recent call last):
+  File "/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/kicad-iec60664/cases.py", line 180, in <module>
+    main()
+    ~~~~^^
+  File "/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/kicad-iec60664/cases.py", line 168, in main
+    source = subprocess.check_output(["git", "show", f"{PIN}:{SOURCE}"], cwd=ROOT)
+  File "/usr/lib/python3.14/subprocess.py", line 473, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+               **kwargs).stdout
+               ^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['git', 'show', '4cf939778df04d2b747bb2c4714fc5014a7565c7:pcb_calculator/calculator_panels/iec60664.cpp']' returned non-zero exit status 128.
+== 2026-11-22T16:52:44+10:00 waiting for the shared lock
+== 2026-11-22T16:52:44+10:00 lock acquired
+== 2026-11-22T16:52:44+10:00 corpus regeneration
+Wrote 5973 public generated cases to /home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/md5-regenerated.jsonl
+1050 cases, SHA-256 58dd1186c9f10c8efb54bc90102c71508c8e852c0b8c08d437380b112fe3c597: /home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/port/cases/pcb_calculator.application.pure.p001.jsonl
+test_historical_power_bits_are_explicit (test_cases.Regeneration.test_historical_power_bits_are_explicit) ... ok
+test_original_request_bytes_and_raw_tokens_are_retained (test_cases.Regeneration.test_original_request_bytes_and_raw_tokens_are_retained) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.014s
+
+OK
+== 2026-11-22T16:52:44+10:00 complete envelopes on both actual adapters, selected package builds
+   Compiling kicad-difftest v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/kicad-difftest)
+   Compiling kicad-md5-shim v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/kicad-md5-shim)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.88s
+MD5 adapter: 194 complete refusal envelopes and 5 complete successes passed per adapter
+   Compiling kicad-iec60664-shim v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/kicad-iec60664-shim)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.38s
+kicad-oracle: 636 complete refusal envelopes, raw -0, u64 bits and recovery passed
+kicad-iec60664-shim: 636 complete refusal envelopes, raw -0, u64 bits and recovery passed
+kicad-oracle: 636 complete refusal envelopes, raw -0, u64 bits and recovery passed
+kicad-iec60664-shim: 636 complete refusal envelopes, raw -0, u64 bits and recovery passed
+   Compiling kicad-resistors-shim v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/kicad-resistors-shim)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.47s
+   Compiling version_check v0.9.5
+   Compiling proc-macro2 v1.0.107
+   Compiling typenum v1.20.1
+   Compiling unicode-ident v1.0.27
+   Compiling quote v1.0.47
+   Compiling serde_core v1.0.229
+   Compiling libc v0.2.191
+   Compiling getrandom v0.3.4
+   Compiling rustix v1.1.6
+   Compiling generic-array v0.14.7
+   Compiling cfg-if v1.0.5
+   Compiling zmij v1.0.23
+   Compiling hashbrown v0.17.1
+   Compiling equivalent v1.0.3
+   Compiling serde_json v1.0.154
+   Compiling serde v1.0.229
+   Compiling bitflags v2.13.2
+   Compiling linux-raw-sys v0.12.1
+   Compiling libm v0.2.16
+   Compiling indexmap v2.14.2
+   Compiling fastrand v2.5.0
+   Compiling cpufeatures v0.2.17
+   Compiling foldhash v0.2.0
+   Compiling syn v3.0.10
+   Compiling memchr v2.8.3
+   Compiling once_cell v1.21.4
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling itoa v1.0.19
+   Compiling digest v0.10.7
+   Compiling sha2 v0.10.9
+   Compiling kicad-resistors v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/kicad-resistors)
+   Compiling serde_derive v1.0.229
+   Compiling tempfile v3.27.0
+   Compiling kicad-difftest v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/kicad-difftest)
+   Compiling kicad-resistors-shim v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/kicad-resistors-shim)
+    Finished `release` profile [optimized] target(s) in 8.28s
+Seven complete collector refusals and the legitimate empty result passed
+71 complete replies match: raw -0/full-u64, typed diagnostics, numeric overflow/fallback and recovery
+e5b0138047742e683a14a842d53fc8942ad6f6ad19e28612225eb884deb70c90  /home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/oracle-build/kicad-oracle
+0934183b44ceaeec25222ba3c54514e657713a3d88b0d4fc4355b0994ecdd683  /home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/adapters/kicad-iec60664-shim
+8de1ae3e9d3ad4d60b1ad72398d7b24a43137e098a8cb67d44427c2a676bc4b7  /home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/adapters/kicad-md5-shim
+58ef0afc09463c808365e7f3a80068b8c178a1813199b30dea80586cce8475dd  /home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/adapters/kicad-resistors-shim
+e5c6ba211c2c72001396da3026636e60a175dbf3b05c13cb3cbdf6e6c21a7046  /home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/adapters/kicad-resistors-shim-release
+== 2026-11-22T16:52:56+10:00 registered live check, infrastructure mode
+All unit records and source accounting valid
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.04s
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","status":"green","action":"check","cases":5973,"deferred":0,"cases_sha256":"0d2232c3b758cb67acdc486cbe420350394502fdf2df591e356280468df00795","oracle_output_sha256":"9b8b9a761911d19c39e45136b28d17eb47ef50dc582102b4b4e538ba909034cb","rust_output_sha256":"709084cd7bce4bd431415418ae7456b198d0d30d80613d2c9be373e8f67c6cf4","oracle_sha256":"e5b0138047742e683a14a842d53fc8942ad6f6ad19e28612225eb884deb70c90","rust_sha256":"8de1ae3e9d3ad4d60b1ad72398d7b24a43137e098a8cb67d44427c2a676bc4b7"}
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.03s
+{"unit":"pcb_calculator.application.pure.p001","status":"green","action":"check","cases":1050,"deferred":0,"cases_sha256":"58dd1186c9f10c8efb54bc90102c71508c8e852c0b8c08d437380b112fe3c597","oracle_output_sha256":"8d1cc9e8c280b349294f9d512e450586c892a3170881afbba1c1b78de1a107a2","rust_output_sha256":"5fb5dfb6938e6a7b55c99416e46334b7e5f05ceb9821d053c442fa4dabc36441","oracle_sha256":"e5b0138047742e683a14a842d53fc8942ad6f6ad19e28612225eb884deb70c90","rust_sha256":"58ef0afc09463c808365e7f3a80068b8c178a1813199b30dea80586cce8475dd"}
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.03s
+{"unit":"pcb_calculator.calculator_panels.application.pure.p001","status":"green","action":"check","cases":14190,"deferred":0,"cases_sha256":"4e624fe320565d6894ece1432b5ff38fcab5aca92688996e97b4cd684f872aff","oracle_output_sha256":"3051d7e1269a8ba05dc50ccba3fa53faedd10ba71e3ec630e6e2c0f2c2fe366f","rust_output_sha256":"819f74f463f537c7e7fa29127e5d6e71ee628c87fec8e541b143a7d6f39c1f4d","oracle_sha256":"e5b0138047742e683a14a842d53fc8942ad6f6ad19e28612225eb884deb70c90","rust_sha256":"0934183b44ceaeec25222ba3c54514e657713a3d88b0d4fc4355b0994ecdd683"}
+Phase 0: INCOMPLETE; 2/3 live green layer-0 units; 1801 validated unit records.
+
+Extraction/configuration coverage (reported separately): `{"all_configurations_complete": false, "compile_database_complete": true, "gate_complete": false, "inventory_complete": true, "parse_complete": false, "parse_failures": 4, "uncompiled_application_sources": 63, "unresolved_call_count": 8899609}`
+
+registered check seconds: 85
+e5b0138047742e683a14a842d53fc8942ad6f6ad19e28612225eb884deb70c90  /home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/oracle-build/kicad-oracle
+83824b943589ef7a0064dec0dfe619d0c70affc3a6dd133b7a7a34db2582fbba  /home/karlvonrichter/kicad-port/phase0-final-d0cf06863c/repo/rust/target/debug/kicad-difftest
+8de1ae3e9d3ad4d60b1ad72398d7b24a43137e098a8cb67d44427c2a676bc4b7  rust/target/debug/kicad-md5-shim
+0934183b44ceaeec25222ba3c54514e657713a3d88b0d4fc4355b0994ecdd683  rust/target/debug/kicad-iec60664-shim
+58ef0afc09463c808365e7f3a80068b8c178a1813199b30dea80586cce8475dd  rust/target/debug/kicad-resistors-shim
+== 2026-11-22T16:54:21+10:00 summary
+{
+  "tested_revision": "d0cf06863cf64eb07b11787d1a6dd2826c04d47e",
+  "reference_file_count": 915,
+  "compile_commands": 75,
+  "oracle_provenance_sha256": "883d79ee0295cedb9394722ea6fcf47c202da0ba55feec5176cf3c80ef0e4995",
+  "source_manifest_sha256": "e5c8c1715ce8d9cd2081f50342e941bd31887e1b36871378ed8f7bcee52ab841",
+  "units": {
+    "libs.kimath.src.md5_hash.application.pure.p001": {
+      "status": "green",
+      "cases": 5973,
+      "deferred": 0,
+      "failures": null,
+      "oracle_sha256": "e5b0138047742e683a14a842d53fc8942ad6f6ad19e28612225eb884deb70c90",
+      "rust_sha256": "8de1ae3e9d3ad4d60b1ad72398d7b24a43137e098a8cb67d44427c2a676bc4b7",
+      "oracle_output_sha256": "9b8b9a761911d19c39e45136b28d17eb47ef50dc582102b4b4e538ba909034cb",
+      "rust_output_sha256": "709084cd7bce4bd431415418ae7456b198d0d30d80613d2c9be373e8f67c6cf4",
+      "golden_sha256": "9b8b9a761911d19c39e45136b28d17eb47ef50dc582102b4b4e538ba909034cb",
+      "cases_sha256": "0d2232c3b758cb67acdc486cbe420350394502fdf2df591e356280468df00795"
+    },
+    "pcb_calculator.application.pure.p001": {
+      "status": "green",
+      "cases": 1050,
+      "deferred": 0,
+      "failures": null,
+      "oracle_sha256": "e5b0138047742e683a14a842d53fc8942ad6f6ad19e28612225eb884deb70c90",
+      "rust_sha256": "58ef0afc09463c808365e7f3a80068b8c178a1813199b30dea80586cce8475dd",
+      "oracle_output_sha256": "8d1cc9e8c280b349294f9d512e450586c892a3170881afbba1c1b78de1a107a2",
+      "rust_output_sha256": "5fb5dfb6938e6a7b55c99416e46334b7e5f05ceb9821d053c442fa4dabc36441",
+      "golden_sha256": "8d1cc9e8c280b349294f9d512e450586c892a3170881afbba1c1b78de1a107a2",
+      "cases_sha256": "58dd1186c9f10c8efb54bc90102c71508c8e852c0b8c08d437380b112fe3c597"
+    },
+    "pcb_calculator.calculator_panels.application.pure.p001": {
+      "status": "green",
+      "cases": 14190,
+      "deferred": 0,
+      "failures": null,
+      "oracle_sha256": "e5b0138047742e683a14a842d53fc8942ad6f6ad19e28612225eb884deb70c90",
+      "rust_sha256": "0934183b44ceaeec25222ba3c54514e657713a3d88b0d4fc4355b0994ecdd683",
+      "oracle_output_sha256": "3051d7e1269a8ba05dc50ccba3fa53faedd10ba71e3ec630e6e2c0f2c2fe366f",
+      "rust_output_sha256": "819f74f463f537c7e7fa29127e5d6e71ee628c87fec8e541b143a7d6f39c1f4d",
+      "golden_sha256": "3051d7e1269a8ba05dc50ccba3fa53faedd10ba71e3ec630e6e2c0f2c2fe366f",
+      "cases_sha256": "4e624fe320565d6894ece1432b5ff38fcab5aca92688996e97b4cd684f872aff"
+    }
+  },
+  "total_cases": 21213,
+  "phase0": {
+    "phase0": "INCOMPLETE",
+    "strict_gate_enabled": false,
+    "live_green_units": 2,
+    "required_green_units": 3,
+    "required_layer": 0,
+    "total_live_green_units": 2,
+    "validated_unit_records": 1801
+  },
+  "source_validation": true
+}
+== 2026-11-22T16:54:21+10:00 PHASE0_INTEGRATION_PROOF_COMPLETE
