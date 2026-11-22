@@ -72,4 +72,8 @@ target_include_directories( oracle-dispatch-test PRIVATE "${ORACLE_OVERLAY}" )
 target_link_libraries( oracle-dispatch-test PRIVATE kimath nlohmann_json )
 add_dependencies( oracle-dispatch-test oracle-audit )
 add_test( NAME oracle-dispatch COMMAND oracle-dispatch-test )
+add_test( NAME oracle-md5-inputs
+    COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_md5_inputs.py"
+            "$<TARGET_FILE:kicad-oracle>" )
+set_tests_properties( oracle-md5-inputs PROPERTIES TIMEOUT 60 )
 set_tests_properties( oracle-protocol oracle-build-guards oracle-dispatch PROPERTIES TIMEOUT 60 )

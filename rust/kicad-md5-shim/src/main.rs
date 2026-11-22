@@ -69,9 +69,6 @@ fn run(input: &Value) -> Result<Value, String> {
             }
             "clone" | "assign" => {
                 keys(step, &["op", "id", "source"], &[])?;
-                if op == "assign" {
-                    state(&states, id)?;
-                }
                 let source = integer(step, "source", 0, 15)?;
                 if op == "assign" && id == source {
                     return Err("self-assignment overlaps reference memcpy".into());
@@ -120,7 +117,7 @@ fn run(input: &Value) -> Result<Value, String> {
                             .iter()
                             .map(|value| {
                                 value
-                                    .as_u64()
+                                    .as_i64()
                                     .and_then(|value| u8::try_from(value).ok())
                                     .ok_or("byte out of range")
                             })
@@ -253,5 +250,44 @@ mod tests {
             reply["result"]["events"][3]["compact"],
             "E41E8DE98G00C204F9800998FDG8427F"
         );
+    }
+
+    #[test]
+    fn integer_negative_zero_byte_matches_zero_without_accepting_floats() {
+        let text = format!(
+            r#"{{"unit":"{UNIT}","case":"negative-zero","input":{{"steps":[{{"op":"new","id":0}},{{"op":"bytes","id":0,"data":[-0]}},{{"op":"finalize","id":0}}]}}}}"#
+        );
+        let reply = dispatch(&text);
+        assert_eq!(reply, dispatch(&text.replace("[-0]", "[0]")));
+        assert_eq!(
+            reply["result"]["events"][2]["compact"],
+            "93C885BEGF0EB089DEG634904GE59G71"
+        );
+        for token in ["-1", "256", "0.0", "-0.0", "1e0"] {
+            let refused = dispatch(&text.replace("[-0]", &format!("[{token}]")));
+            assert_eq!(refused["error"]["kind"], "invalid_input");
+            assert_eq!(refused["error"]["message"], "byte out of range");
+        }
+    }
+
+    #[test]
+    fn malformed_assignment_validation_matches_reference_order() {
+        for (steps, message) in [
+            (json!([{"op":"new"}]), "integer out of range: id"),
+            (
+                json!([{"op":"assign","id":0,"source":0}]),
+                "self-assignment overlaps reference memcpy",
+            ),
+            (
+                json!([{"op":"assign","id":0,"source":"zero"}]),
+                "integer out of range: source",
+            ),
+        ] {
+            let reply = dispatch(
+                &json!({"unit":UNIT,"case":"malformed","input":{"steps":steps}}).to_string(),
+            );
+            assert_eq!(reply["error"]["kind"], "invalid_input");
+            assert_eq!(reply["error"]["message"], message);
+        }
     }
 }

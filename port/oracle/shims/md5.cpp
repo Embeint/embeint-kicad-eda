@@ -78,6 +78,10 @@ static JSON Md5( const JSON& aInput )
             throw std::invalid_argument( "expected op string" );
 
         const std::string op = step.at( "op" ).get<std::string>();
+
+        if( !step.contains( "id" ) )
+            throw std::invalid_argument( "integer out of range: id" );
+
         const int id = Integer( step, "id", 0, 15 );
 
         if( op == "compare" )

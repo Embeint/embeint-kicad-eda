@@ -113,6 +113,8 @@ def cases():
         op("finalize", 1), op("finalize", 1), op("clone", 2, source=1),
         op("finalize", 1), op("finalize", 2), op("compare", 1, other=2)])
 
+    yield case("integer-negative-zero-byte", [op("new"), op("bytes", data=[0]), op("finalize")])
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -123,7 +125,11 @@ def main():
     count = 0
     with args.output.open("w", encoding="utf-8", newline="\n") as stream:
         for value in cases():
-            stream.write(json.dumps(value, separators=(",", ":")) + "\n")
+            text = json.dumps(value, separators=(",", ":"))
+            if value["case"] == "integer-negative-zero-byte":
+                # Python integers normalize -0; keep the actual JSON token under test.
+                text = text.replace('"data":[0]', '"data":[-0]', 1)
+            stream.write(text + "\n")
             count += 1
     print(f"Wrote {count} public generated cases to {args.output}")
 
