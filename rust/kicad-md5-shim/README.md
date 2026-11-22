@@ -119,6 +119,15 @@ review remain separate gates; the draft pilot does not establish phase zero.
 
 ## Checks
 
+The default input guard now includes 203 complete replies. The original 199
+remain unchanged; three appended nonduplicate marker objects contain literal
+Unicode escapes in their keys, followed by successful recovery. Raw-spelling
+and decoded-key assertions protect that coverage. The older fixtures named
+`reserved-escaped-id`, `reserved-escaped-byte` and `reserved-escaped-unit`
+actually contain plain keys; their historical nonduplicate escaped-key coverage
+claim is withdrawn by the addendum in
+`port/findings/md5-literal-escaped-key-addendum.md`. Prior evidence is preserved.
+
 From a Linux rsync copy under `~/kicad-port/pilot-md5`, with the shared heavy-build
 lock acquired only when available and all Cargo/Ninja jobs capped at 8:
 

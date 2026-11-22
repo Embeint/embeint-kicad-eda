@@ -187,3 +187,25 @@ record the clean overlay, four CTests and affected Rust checks.
 That checkpoint left the numeric-overflow finding open; the latest adoption
 entry above resolves it. Corrected graph scope/layer confirmation, updated
 hosted CI and parent review remain merge gates.
+
+## Literal escaped marker-key coverage addendum
+
+The independent c5ec29e review closed the runtime reserved-object P2, but found
+that three nonduplicate fixtures named `reserved-escaped-*` use plain keys.
+Escaped quotes in their values do not exercise escaped marker keys. The earlier
+coverage claim is withdrawn without changing that historical evidence.
+
+Source `da17dc54dc2b2be2b15cb4a2c6c171c62950a5cc` appends three true literal
+escaped-key refusals and successful recovery after the unchanged 199 fixtures.
+Both actual adapters match all 203 complete replies. All 11 shim tests, fmt,
+warnings-denied Clippy, selected native build and portable MD5 wasm build pass.
+The exact registered runner checks all 5,973 cases at the default 60-second
+per-process budget, including carry, with zero failures/deferrals and unchanged
+output hashes. The old helper fails the three new refusals.
+
+The C++ oracle and comparator are identity-verified reuses; their original
+provenance is preserved. No new C++ build or four-CTest run is claimed.
+Production code, registered cases/goldens, unit records and prior evidence are
+unchanged. [Full correction evidence](validation/2026-11-22-da17dc54/README.md)
+records the source and executable identities, raw complete streams and limits.
+Independent re-review and final hosted CI remain required.

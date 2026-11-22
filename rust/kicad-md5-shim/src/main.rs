@@ -482,6 +482,45 @@ mod tests {
     }
 
     #[test]
+    fn literal_escaped_marker_keys_preserve_complete_refusals() {
+        let cases: [Retained; 3] = [
+            (
+                r#"{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"reserved-literal-escaped-id","input":{"steps":[{"op":"new","id":{"\u0024serde_json::private::Number":"0"}}]}}"#,
+                Some(UNIT),
+                Some("reserved-literal-escaped-id"),
+                "invalid_input",
+                "integer out of range: id",
+            ),
+            (
+                r#"{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"reserved-literal-escaped-byte","input":{"steps":[{"op":"new","id":0},{"op":"bytes","id":0,"data":[{"$serde_json::private::Raw\u0056alue":"0"}]}]}}"#,
+                Some(UNIT),
+                Some("reserved-literal-escaped-byte"),
+                "invalid_input",
+                "byte out of range",
+            ),
+            (
+                r#"{"unit":{"\u0024serde_json::private::RawValue":"\"libs.kimath.src.md5_hash.application.pure.p001\""},"case":"reserved-literal-escaped-unit","input":{"steps":[{"op":"new","id":0}]}}"#,
+                None,
+                Some("reserved-literal-escaped-unit"),
+                "invalid_request",
+                "expected unit, case, input object",
+            ),
+        ];
+        for (text, unit, case, kind, message) in cases {
+            assert!(
+                text.contains(r#""\u0024serde_json::private::Number":"#)
+                    || text.contains(r#""$serde_json::private::Raw\u0056alue":"#)
+                    || text.contains(r#""\u0024serde_json::private::RawValue":"#)
+            );
+            assert_eq!(
+                dispatch(text),
+                json!({"unit":unit,"case":case,"error":{"kind":kind,"message":message}}),
+                "{text}"
+            );
+        }
+    }
+
+    #[test]
     fn reserved_serde_keys_are_refused_at_every_placement_with_state_guards() {
         let abc = |case: &str| {
             let zero = json!({"id":0,"valid":false,"compact":"00000000000000000000000000000000",
