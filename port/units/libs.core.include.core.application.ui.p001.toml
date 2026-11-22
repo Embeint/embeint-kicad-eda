@@ -2,8 +2,8 @@
 id = "libs.core.include.core.application.ui.p001"
 upstream = ["libs/core/include/core/json_serializers.h", "libs/core/include/core/kicad_algo.h", "libs/core/include/core/multivector.h", "libs/core/include/core/raii.h", "libs/core/include/core/utf8.h"]
 rust_module = "kicad_port::libs::core::include::core::application::ui::p001"
-depends_on = ["libs.core.application.ui.p001", "libs.kiplatform.port.wxgtk.application.ui.p001"]
-soft_depends_on = ["common.application.ui.p006", "common.widgets.application.ui.p001", "common.widgets.application.ui.p004", "common.widgets.application.ui.p013"]
+depends_on = ["libs.kiplatform.port.wxgtk.application.ui.p001"]
+soft_depends_on = ["common.application.ui.p006", "common.widgets.application.ui.p001", "common.widgets.application.ui.p004", "common.widgets.application.ui.p013", "libs.core.application.ui.p001"]
 est_lines = 1123
 layer = 2
 tests = []

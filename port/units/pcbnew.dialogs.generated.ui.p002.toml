@@ -2,10 +2,10 @@
 id = "pcbnew.dialogs.generated.ui.p002"
 upstream = ["pcbnew/dialogs/dialog_cleanup_tracks_and_vias_base.cpp", "pcbnew/dialogs/dialog_cleanup_tracks_and_vias_base.h", "pcbnew/dialogs/dialog_constraint_list_base.cpp", "pcbnew/dialogs/dialog_constraint_list_base.h", "pcbnew/dialogs/dialog_constraint_value_base.cpp", "pcbnew/dialogs/dialog_copper_zones_base.cpp", "pcbnew/dialogs/dialog_copper_zones_base.h", "pcbnew/dialogs/dialog_create_array_base.cpp", "pcbnew/dialogs/dialog_create_array_base.h", "pcbnew/dialogs/dialog_diff_phase_skew_properties_base.cpp"]
 rust_module = "kicad_port::pcbnew::dialogs::generated::ui::p002"
-depends_on = ["common.application.ui.p006", "common.widgets.application.ui.p001", "common.widgets.application.ui.p004", "common.widgets.application.ui.p010", "common.widgets.application.ui.p013", "common.widgets.application.ui.p016", "common.widgets.application.ui.p018", "pcbnew.application.ui.p045"]
+depends_on = ["common.application.ui.p006", "common.widgets.application.ui.p001", "common.widgets.application.ui.p004", "common.widgets.application.ui.p010", "common.widgets.application.ui.p013", "common.widgets.application.ui.p016", "common.widgets.application.ui.p018", "pcbnew.application.ui.p047"]
 soft_depends_on = []
 est_lines = 1493
-layer = 148
+layer = 201
 tests = []
 status = "todo"
 claimed_by = ""

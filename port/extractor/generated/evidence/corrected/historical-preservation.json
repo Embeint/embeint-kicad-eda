@@ -1,0 +1,28 @@
+{
+  "cache_policy": "No historical AST cache reused; corrected cache keys include new parser/model/generated-source implementation, inventory, generated-manifest and libclang byte identities",
+  "original_frozen_inputs_verified": 178,
+  "raw-output/compile_commands.json": {
+    "bytes": 10656952,
+    "sha256": "10519703c213d66a3abf4e00fa091bdaa616d9865c4ec47ecad0acca91c2fa8b"
+  },
+  "raw-output/graph.json.gz": {
+    "bytes": 40925438,
+    "sha256": "a4768bc824e8947f3373dbec4afc939c91ac94ee6ac9ff22355eeedf70a2e516"
+  },
+  "raw-output/inventory.json": {
+    "bytes": 2296170,
+    "sha256": "e19e921c1d668d67d9f413aab119fa0a5e8425aa30a2dee84f88599563117158"
+  },
+  "reconciled-output/compile_commands.json": {
+    "bytes": 11976262,
+    "sha256": "bc402ade70f0304ed5018793a5d8c37749df978dfd7859ee87e655ee3a616196"
+  },
+  "reconciled-output/graph.json.gz": {
+    "bytes": 41947024,
+    "sha256": "133c45e58c4f42fade25280971cf2f9c67433bbe83efb0051cbeddef24e3967f"
+  },
+  "reconciled-output/inventory.json": {
+    "bytes": 2290402,
+    "sha256": "be68a91671554abd34719c169feaaa9724072a27d60c5dd18d6b69cf48d100d4"
+  }
+}

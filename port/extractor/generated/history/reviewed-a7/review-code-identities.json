@@ -1,0 +1,110 @@
+{
+  "head": "a7ec77beffd3b2e5d60409423fa28b6c116c6e00",
+  "files": [
+    {
+      "file": "port/extractor/PILOTS.md",
+      "git_blob": "0f90b99ca3e7fbfbb84569d87dd7d419fc716cf5",
+      "sha256": "7fe459dd25cdcd7ab5e4f105e78172bc85c562835e905cc61724d16d7263dede"
+    },
+    {
+      "file": "port/extractor/README.md",
+      "git_blob": "4920d61bdd1aaf35149e2a9b4603894230a6c9b1",
+      "sha256": "c4c7c0191bbdab275cbe45bc52128c3a68d99deada7b3505ae25b7ad9cbb5139"
+    },
+    {
+      "file": "port/extractor/__init__.py",
+      "git_blob": "31d49ed8251bd4b6d157dc10c95a800ac4cc601e",
+      "sha256": "39c5cd3f08c3c9b5ad73100bd08845b4a88c12b1cfe31ba0520a4c28f6e96063"
+    },
+    {
+      "file": "port/extractor/clang_graph.py",
+      "git_blob": "9de274d9d52048ec7a8c6a3ae3c03f05888b6943",
+      "sha256": "803c6d6b4efdae696570bfce8f5a1ced43aeb96a9e4715de2415e0c6c42c394e"
+    },
+    {
+      "file": "port/extractor/compact_cache.py",
+      "git_blob": "a7904a22eb2c5aa43a535cb00bdc6a6210317998",
+      "sha256": "ff873ab61a0eebbea6bbf7537ba31e0c282d0bec8da0092065c2b6b157e98085"
+    },
+    {
+      "file": "port/extractor/model.py",
+      "git_blob": "d632d8d4f2fdbda6f00a29e03c3aa9de14902aa3",
+      "sha256": "435d03e5af3801acce8a4270e2dd9a2b453c0aad3b00a4778696b99dd763704c"
+    },
+    {
+      "file": "port/extractor/prepare_generated_inputs.py",
+      "git_blob": "4e070a9a103ee5c4242942f933f33f0dd0cfa7c4",
+      "sha256": "68c7764bc3f2c0d7cb2369942c9809309ad38d93e99a78454e095c031ddcd070"
+    },
+    {
+      "file": "port/extractor/reconcile_database.py",
+      "git_blob": "e9863b35e0603f738b880d7b14419e695df05aa2",
+      "sha256": "d81c160a1bba8e8c261dfc82dcd65afe4aebd28ae85995390c7edc5f63dfa7ea"
+    },
+    {
+      "file": "port/extractor/source_manifest.py",
+      "git_blob": "f249defbc92b1da3a4400f6bcfa03ac920498905",
+      "sha256": "37f3e145c5d587c09d8f3810ae458def427bb575b08942c7f91f0e6c7914148a"
+    },
+    {
+      "file": "port/extractor/test_extractor.py",
+      "git_blob": "829c9301923fa0bc1cb81e6f8cbcc639a8a206d1",
+      "sha256": "c5a9dbcc7d70ce3e76344edfa5445d3b8fa3e8fd176c2c8378ffbf3329433934"
+    },
+    {
+      "file": "port/tools/bootstrap_west.py",
+      "git_blob": "0965f817549779acc41d88eeb3dc37c8b29eff13",
+      "sha256": "b9a0bf1e12a41461eab2f7a0735ed0aac680e2951514658dd20830428b971f91"
+    },
+    {
+      "file": "port/tools/check_goldens_policy.py",
+      "git_blob": "1a3f3595464bd7236945d52092f61887c4fb9723",
+      "sha256": "cbcf568ed132fa49950f24994c4ba49365c6c966279d58994e73f08fe18420ca"
+    },
+    {
+      "file": "port/tools/drift_report.py",
+      "git_blob": "d6d09f5f1c2022f0cca94b05777b77be1bcd41f3",
+      "sha256": "18e79ad975df52ba2659119b878dd208facccd1b2775fc2f9522846a81989b67"
+    },
+    {
+      "file": "port/tools/extract_graph.py",
+      "git_blob": "64fdd09808ad0608485f508594360754b81ab40e",
+      "sha256": "9aed69da7ed75e4f5501959862f428ad44bd8d7462123f38dae86e9ab97d2f51"
+    },
+    {
+      "file": "port/tools/extraction_report.py",
+      "git_blob": "264535daeab2f2ab75b66a4bb18cd4ed5028ff96",
+      "sha256": "e69237c735f48536c859be5e26753c07ae25bd476aa4a764a00ee44a4389d721"
+    },
+    {
+      "file": "port/tools/progress.py",
+      "git_blob": "751aab09152bc84fde5ffd9b93bb261d9dda31e9",
+      "sha256": "6f9fbc532f59b651493bd85d01d364b3986fadd861459ff615fe092041e60d86"
+    },
+    {
+      "file": "port/tools/requirements-west.txt",
+      "git_blob": "e1a7851eca839d60fc0e5be3b761bee50ea30e9c",
+      "sha256": "f0316b833edd54b77b78f4a2b0b75e681daf59a4e6cb83d4c7ff8a82f3962b0f"
+    },
+    {
+      "file": "port/tools/split_units.py",
+      "git_blob": "4cf06fc7950b3d485f340f732c43f3c75a0f7612",
+      "sha256": "577dce71625705cc2b997e47aba81a577221dabf1594c3c47dd3b7ea8950a401"
+    },
+    {
+      "file": "port/tools/test_bootstrap_west.py",
+      "git_blob": "134f402ee0723379e7f3b17bf848d1293af120ba",
+      "sha256": "cffd083f8346151bb1788b4584624e5f9e94d16b5ac97fa2f5a6657095751a46"
+    },
+    {
+      "file": "port/tools/validate_units.py",
+      "git_blob": "2c7aecb3ff5e1c7d55f83b962fa26c49b4eb6896",
+      "sha256": "2e0d88a7ec245ee5d8e5aba51dd46400d61fed9457b73e0bfb79b2519f472455"
+    },
+    {
+      "file": "rust/PORT_PLAN.md",
+      "git_blob": "a5b9f857d6b8a01b85e34782c02c1469d9614a6a",
+      "sha256": "735ae2dcfd326031ac99cdf03d33fa77da377515bb33cc1c701ce80e0cd9a4d0"
+    }
+  ]
+}

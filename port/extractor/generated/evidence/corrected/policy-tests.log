@@ -1,0 +1,21 @@
+test_all_new_portable_crates_are_discovered_by_default (test_policy.PolicyTests.test_all_new_portable_crates_are_discovered_by_default) ... ok
+test_baseline_evidence_cannot_omit_cases_values_or_oracle (test_policy.PolicyTests.test_baseline_evidence_cannot_omit_cases_values_or_oracle) ... ok
+test_empty_infrastructure_is_incomplete_but_strict_gate_fails (test_policy.PolicyTests.test_empty_infrastructure_is_incomplete_but_strict_gate_fails) ... ok
+test_evidence_checks_committed_head_and_ignores_dirty_worktree (test_policy.PolicyTests.test_evidence_checks_committed_head_and_ignores_dirty_worktree) ... ok
+test_jsonl_preserves_unicode_line_separators_inside_strings (test_policy.PolicyTests.test_jsonl_preserves_unicode_line_separators_inside_strings) ... ok
+test_policy_retains_numeric_tokens_and_rejects_duplicate_json (test_policy.PolicyTests.test_policy_retains_numeric_tokens_and_rejects_duplicate_json) ... ok
+test_strict_gate_counts_only_live_green_layer_zero_units (test_policy.PolicyTests.test_strict_gate_counts_only_live_green_layer_zero_units) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 1.221s
+
+OK
+Golden change evidence valid
+Phase 0: INCOMPLETE; 0/3 live green layer-0 units; 3 validated unit records.
+
+Extraction/configuration coverage (reported separately): `{"all_configurations_complete": null, "compile_database_complete": null, "gate_complete": null, "inventory_complete": null, "parse_complete": null, "parse_failures": 0, "uncompiled_application_sources": 0, "unresolved_call_count": null}`
+
+Phase 0: COMPLETE; 3/3 live green layer-0 units; 3 validated unit records.
+
+Extraction/configuration coverage (reported separately): `{"all_configurations_complete": null, "compile_database_complete": null, "gate_complete": null, "inventory_complete": null, "parse_complete": null, "parse_failures": 0, "uncompiled_application_sources": 0, "unresolved_call_count": null}`
+

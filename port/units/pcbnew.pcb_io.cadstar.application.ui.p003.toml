@@ -2,10 +2,10 @@
 id = "pcbnew.pcb_io.cadstar.application.ui.p003"
 upstream = ["pcbnew/pcb_io/cadstar/cadstar_pcb_archive_loader.cpp", "pcbnew/pcb_io/cadstar/cadstar_pcb_archive_loader.h"]
 rust_module = "kicad_port::pcbnew::pcb_io::cadstar::application::ui::p003"
-depends_on = ["common.application.ui.p012", "common.application.ui.p028", "common.application.ui.p033", "common.jobs.application.ui.p002", "common.jobs.application.ui.p003", "common.widgets.application.ui.p017", "common.widgets.application.ui.p018", "include.application.pure.p001", "include.application.pure.p005", "include.application.ui.p005", "include.application.ui.p011", "kicad.application.ui.p004", "libs.kimath.include.geometry.application.ui.p001", "pcbnew.application.ui.p001", "pcbnew.application.ui.p045", "pcbnew.pcb_io.cadstar.application.thin.replacement.p001"]
+depends_on = ["common.application.ui.p012", "common.application.ui.p028", "common.application.ui.p033", "common.jobs.application.ui.p002", "common.jobs.application.ui.p003", "common.widgets.application.ui.p017", "common.widgets.application.ui.p018", "include.application.pure.p001", "include.application.pure.p004", "include.application.ui.p005", "include.application.ui.p012", "kicad.application.ui.p004", "libs.kimath.include.geometry.application.ui.p001", "pcbnew.application.ui.p001", "pcbnew.application.ui.p013", "pcbnew.application.ui.p046", "pcbnew.pcb_io.cadstar.application.ui.p005"]
 soft_depends_on = ["eeschema.sim.generated.ui.p001", "pcbnew.pcb_io.cadstar.application.ui.p002", "pcbnew.tools.application.ui.p004"]
 est_lines = 708
-layer = 148
+layer = 186
 tests = []
 status = "todo"
 claimed_by = ""

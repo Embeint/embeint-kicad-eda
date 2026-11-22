@@ -2,10 +2,10 @@
 id = "common.dialogs.application.ui.p012"
 upstream = ["common/dialogs/panel_toolbar_customization.cpp"]
 rust_module = "kicad_port::common::dialogs::application::ui::p012"
-depends_on = ["3d.viewer.3d_viewer.application.thin.replacement.p001", "common.application.ui.p002", "common.dialogs.generated.ui.p006", "common.tool.application.ui.p001", "common.tool.application.ui.p007", "common.tool.ui.application.ui.p001", "common.widgets.application.ui.p013", "common.widgets.application.ui.p014", "include.tool.application.ui.p001", "include.tool.application.ui.p003", "include.tool.ui.application.ui.p001", "kicad.application.thin.replacement.p001"]
-soft_depends_on = ["common.application.ui.p006", "common.widgets.application.ui.p001", "common.widgets.application.ui.p004", "cvpcb.application.ui.p003", "eeschema.application.ui.p066", "eeschema.sim.application.ui.p016", "eeschema.symbol_editor.application.ui.p006", "gerbview.application.ui.p010", "pagelayout_editor.application.ui.p002", "pcbnew.application.thin.replacement.p002", "pcbnew.application.ui.p068", "pcbnew.application.ui.p069"]
+depends_on = ["3d.viewer.3d_viewer.application.thin.replacement.p001", "common.application.ui.p002", "common.application.ui.p006", "common.dialogs.generated.ui.p006", "common.tool.application.ui.p001", "common.tool.application.ui.p007", "common.tool.ui.application.ui.p001", "common.widgets.application.ui.p001", "common.widgets.application.ui.p004", "common.widgets.application.ui.p013", "common.widgets.application.ui.p014", "include.tool.application.ui.p001", "include.tool.application.ui.p004", "include.tool.ui.application.ui.p001", "kicad.application.thin.replacement.p001", "pcbnew.application.thin.replacement.p001"]
+soft_depends_on = ["cvpcb.application.ui.p003", "eeschema.application.ui.p068", "eeschema.sim.application.ui.p016", "eeschema.symbol_editor.application.ui.p006", "gerbview.application.ui.p010", "pagelayout_editor.application.ui.p002", "pcbnew.application.ui.p069", "pcbnew.application.ui.p070"]
 est_lines = 1125
-layer = 59
+layer = 101
 tests = []
 status = "todo"
 claimed_by = ""

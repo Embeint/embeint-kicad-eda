@@ -2,7 +2,7 @@
 id = "common.widgets.generated.ui.p001"
 upstream = ["common/widgets/panel_notebook_base.h", "common/widgets/progress_reporter_base.cpp", "common/widgets/search_pane_base.cpp", "common/widgets/search_pane_base.h", "common/widgets/wx_html_report_panel_base.cpp", "common/widgets/wx_html_report_panel_base.h"]
 rust_module = "kicad_port::common::widgets::generated::ui::p001"
-depends_on = ["include.application.pure.p006"]
+depends_on = ["include.application.pure.p005"]
 soft_depends_on = ["common.api.application.ui.p004", "common.application.ui.p001", "common.dialogs.git.application.ui.p006", "common.widgets.application.ui.p001", "common.widgets.application.ui.p005", "common.widgets.application.ui.p010", "common.widgets.application.ui.p013", "common.widgets.application.ui.p016", "common.widgets.application.ui.p018", "eeschema.dialogs.application.ui.p005", "kicad.application.ui.p001", "kicad.pcm.dialogs.application.ui.p001", "pcbnew.dialogs.application.ui.p005"]
 est_lines = 515
 layer = 1

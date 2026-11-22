@@ -2,10 +2,10 @@
 id = "eeschema.sch_io.orcad.application.ui.p001"
 upstream = ["eeschema/sch_io/orcad/orcad_cache.cpp", "eeschema/sch_io/orcad/orcad_cis.cpp"]
 rust_module = "kicad_port::eeschema::sch_io::orcad::application::ui::p001"
-depends_on = ["common.application.ui.p019", "eeschema.sch_io.orcad.application.pure.p001", "eeschema.sch_io.orcad.application.ui.p008", "include.application.ui.p008"]
+depends_on = ["common.application.ui.p019", "eeschema.sch_io.orcad.application.pure.p001", "eeschema.sch_io.orcad.application.thin.replacement.p001", "eeschema.sch_io.orcad.application.ui.p008", "include.application.ui.p008"]
 soft_depends_on = []
 est_lines = 1417
-layer = 73
+layer = 85
 tests = []
 status = "todo"
 claimed_by = ""

@@ -2,10 +2,10 @@
 id = "common.application.ui.p038"
 upstream = ["common/wildcards_and_files_ext.cpp", "common/wx_filename.cpp", "common/xnode.cpp"]
 rust_module = "kicad_port::common::application::ui::p038"
-depends_on = ["common.application.ui.p033", "common.io.kicad.application.ui.p001", "include.application.thin.replacement.p004", "include.application.ui.p012"]
+depends_on = ["common.application.ui.p033", "common.io.kicad.application.ui.p001", "include.application.thin.replacement.p004", "include.application.ui.p013"]
 soft_depends_on = []
 est_lines = 1050
-layer = 32
+layer = 51
 tests = []
 status = "todo"
 claimed_by = ""

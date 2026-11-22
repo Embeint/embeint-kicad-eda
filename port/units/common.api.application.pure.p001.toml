@@ -2,10 +2,10 @@
 id = "common.api.application.pure.p001"
 upstream = ["common/api/api_handler.cpp", "common/api/api_operation_log.cpp"]
 rust_module = "kicad_port::common::api::application::pure::p001"
-depends_on = ["include.api.application.pure.p001"]
+depends_on = ["build.api.cpp.api.common.commands.generated.pure.p016", "build.api.cpp.api.common.commands.generated.pure.p017", "build.api.cpp.api.common.commands.generated.pure.p024", "build.api.cpp.api.common.commands.generated.pure.p028", "build.api.cpp.api.common.generated.pure.p001", "build.api.cpp.api.common.generated.pure.p002", "include.api.application.pure.p001"]
 soft_depends_on = []
 est_lines = 189
-layer = 1
+layer = 11
 tests = []
 status = "todo"
 claimed_by = ""

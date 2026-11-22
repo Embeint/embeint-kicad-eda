@@ -2,10 +2,10 @@
 id = "common.application.ui.p016"
 upstream = ["common/eda_shape.cpp"]
 rust_module = "kicad_port::common::application::ui::p016"
-depends_on = ["common.application.ui.p014", "common.application.ui.p026", "common.properties.application.ui.p002", "include.application.ui.p005", "include.properties.application.ui.p001", "include.properties.application.ui.p002", "libs.kimath.include.application.pure.p001", "libs.kimath.include.application.ui.p001", "libs.kimath.include.geometry.application.ui.p001", "libs.kimath.include.geometry.application.ui.p004", "libs.kimath.include.geometry.application.ui.p005", "libs.kimath.include.math.application.ui.p001", "libs.kimath.include.math.application.ui.p002", "libs.kimath.src.bezier_curves.application.ui.p001"]
-soft_depends_on = ["common.application.ui.p015", "eeschema.application.ui.p046", "pcbnew.application.ui.p051"]
+depends_on = ["common.application.ui.p014", "common.application.ui.p026", "common.properties.application.ui.p002", "include.application.ui.p005", "include.application.ui.p006", "include.properties.application.ui.p001", "include.properties.application.ui.p002", "libs.kimath.include.application.pure.p001", "libs.kimath.include.application.ui.p001", "libs.kimath.include.geometry.application.ui.p001", "libs.kimath.include.geometry.application.ui.p004", "libs.kimath.include.geometry.application.ui.p005", "libs.kimath.include.math.application.ui.p001", "libs.kimath.include.math.application.ui.p002", "libs.kimath.src.bezier_curves.application.ui.p001"]
+soft_depends_on = ["common.application.ui.p015", "eeschema.application.ui.p047", "pcbnew.application.ui.p052"]
 est_lines = 691
-layer = 78
+layer = 90
 tests = []
 status = "todo"
 claimed_by = ""

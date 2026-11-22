@@ -2,7 +2,7 @@
 id = "common.gal.opengl.application.ui.p002"
 upstream = ["common/gal/opengl/gpu_manager.cpp", "common/gal/opengl/opengl_compositor.cpp"]
 rust_module = "kicad_port::common::gal::opengl::application::ui::p002"
-depends_on = ["include.gal.opengl.application.pure.p001", "libs.core.include.core.application.pure.p001", "libs.kimath.include.math.application.ui.p002"]
+depends_on = ["include.gal.application.pure.p001", "include.gal.opengl.application.pure.p001", "libs.core.include.core.application.pure.p001", "libs.kimath.include.math.application.ui.p002"]
 soft_depends_on = ["common.application.ui.p004", "common.gal.opengl.application.pure.p010", "common.gal.opengl.application.ui.p001", "common.gal.opengl.application.ui.p004"]
 est_lines = 1051
 layer = 2

@@ -2,10 +2,10 @@
 id = "pcbnew.pcb_io.common.application.ui.p001"
 upstream = ["pcbnew/pcb_io/common/plugin_common_layer_mapping.h"]
 rust_module = "kicad_port::pcbnew::pcb_io::common::application::ui::p001"
-depends_on = ["include.application.pure.p005"]
+depends_on = ["include.application.pure.p004"]
 soft_depends_on = []
 est_lines = 84
-layer = 5
+layer = 40
 tests = []
 status = "todo"
 claimed_by = ""

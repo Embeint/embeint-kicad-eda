@@ -1,0 +1,3 @@
+Waiting for the adopted raw/reconciled driver to finish; no extraction is started here.
+1570 units, 1956436 physical upstream lines; 8631 back-edges
+{"output": "/mnt/c/Users/KarlVonRichter/.t3/worktrees/embeint-kicad-eda/t3-230f667d-d7c5b42cde1e6a30/port/extractor/generated/measurement.json", "unit_count": 1570, "raw_parsed_ok": 2462, "reconciled_parsed_ok": 2507}

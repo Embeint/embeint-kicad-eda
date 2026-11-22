@@ -2,10 +2,10 @@
 id = "pcbnew.router.application.ui.p003"
 upstream = ["pcbnew/router/pns_diff_pair.h"]
 rust_module = "kicad_port::pcbnew::router::application::ui::p003"
-depends_on = ["libs.kimath.include.geometry.application.pure.p001", "libs.kimath.include.geometry.application.ui.p003", "libs.kimath.include.geometry.application.ui.p004", "libs.kimath.include.math.application.ui.p002", "libs.kimath.src.geometry.shape_line_chain.application.ui.p001", "pcbnew.router.application.pure.p001", "pcbnew.router.application.pure.p002", "pcbnew.router.application.ui.p006", "pcbnew.router.application.ui.p009", "pcbnew.router.application.ui.p010", "pcbnew.router.application.ui.p012", "pcbnew.router.application.ui.p022"]
+depends_on = ["libs.kimath.include.geometry.application.pure.p001", "libs.kimath.include.geometry.application.ui.p003", "libs.kimath.include.geometry.application.ui.p004", "libs.kimath.include.math.application.ui.p002", "libs.kimath.src.geometry.shape_line_chain.application.ui.p001", "pcbnew.router.application.pure.p001", "pcbnew.router.application.ui.p006", "pcbnew.router.application.ui.p007", "pcbnew.router.application.ui.p010", "pcbnew.router.application.ui.p011", "pcbnew.router.application.ui.p013", "pcbnew.router.application.ui.p026"]
 soft_depends_on = ["pcbnew.router.application.ui.p002"]
 est_lines = 700
-layer = 156
+layer = 163
 tests = []
 status = "todo"
 claimed_by = ""

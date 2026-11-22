@@ -2,10 +2,10 @@
 id = "kicad.application.ui.p006"
 upstream = ["kicad/project_tree_pane.cpp"]
 rust_module = "kicad_port::kicad::application::ui::p006"
-depends_on = ["common.application.ui.p001", "common.application.ui.p002", "common.application.ui.p004", "common.application.ui.p006", "common.application.ui.p021", "common.application.ui.p025", "common.application.ui.p030", "common.dialogs.git.application.ui.p001", "common.dialogs.git.application.ui.p004", "common.dialogs.git.application.ui.p006", "common.generated.ui.p002", "common.git.application.pure.p001", "common.git.application.ui.p001", "common.git.application.ui.p002", "common.git.application.ui.p003", "common.git.application.ui.p004", "common.git.application.ui.p007", "common.git.application.ui.p009", "common.widgets.application.ui.p013", "include.application.ui.p011", "include.application.ui.p012", "include.widgets.application.ui.p005", "kicad.application.ui.p002", "kicad.application.ui.p003", "kicad.application.ui.p005", "libs.core.include.core.application.ui.p001", "libs.kiplatform.os.unix.application.ui.p001"]
+depends_on = ["common.application.ui.p001", "common.application.ui.p002", "common.application.ui.p004", "common.application.ui.p006", "common.application.ui.p021", "common.application.ui.p025", "common.application.ui.p030", "common.application.ui.p031", "common.dialogs.git.application.ui.p001", "common.dialogs.git.application.ui.p004", "common.dialogs.git.application.ui.p006", "common.generated.ui.p002", "common.git.application.pure.p001", "common.git.application.ui.p001", "common.git.application.ui.p002", "common.git.application.ui.p003", "common.git.application.ui.p004", "common.git.application.ui.p007", "common.git.application.ui.p009", "common.widgets.application.ui.p013", "include.application.ui.p011", "include.application.ui.p013", "include.widgets.application.ui.p005", "kicad.application.ui.p002", "kicad.application.ui.p003", "kicad.application.ui.p005", "libs.core.include.core.application.ui.p001", "libs.kiplatform.os.unix.application.ui.p001"]
 soft_depends_on = ["kicad.application.ui.p007"]
 est_lines = 2083
-layer = 111
+layer = 137
 tests = []
 status = "todo"
 claimed_by = ""

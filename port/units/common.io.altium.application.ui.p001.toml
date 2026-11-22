@@ -2,10 +2,10 @@
 id = "common.io.altium.application.ui.p001"
 upstream = ["common/io/altium/altium_ascii_parser.cpp", "common/io/altium/altium_binary_parser.cpp", "common/io/altium/altium_binary_parser.h", "common/io/altium/altium_parser_utils.cpp", "common/io/altium/altium_project_variants.cpp", "common/io/altium/altium_props_utils.cpp"]
 rust_module = "kicad_port::common::io::altium::application::ui::p001"
-depends_on = ["common.application.ui.p024", "common.application.ui.p025", "common.application.ui.p030", "common.application.ui.p035", "include.application.ui.p008", "include.application.ui.p009", "include.application.ui.p011", "libs.core.application.ui.p001", "libs.kimath.include.math.application.ui.p001", "libs.kimath.include.math.application.ui.p002"]
+depends_on = ["common.application.ui.p024", "common.application.ui.p025", "common.application.ui.p031", "common.application.ui.p035", "include.application.ui.p008", "include.application.ui.p009", "include.application.ui.p011", "libs.core.application.ui.p001", "libs.kimath.include.math.application.ui.p001", "libs.kimath.include.math.application.ui.p002"]
 soft_depends_on = []
 est_lines = 1820
-layer = 76
+layer = 88
 tests = []
 status = "todo"
 claimed_by = ""

@@ -1,0 +1,897 @@
+{
+  "build_root": "/home/karlvonrichter/kicad-port/extract-build",
+  "files": [
+    {
+      "bytes": 934,
+      "path": "3d-viewer/CMakeFiles/3d-viewer.dir/Unity/unity_wxfb_0_cxx.cxx",
+      "sha256": "baa8d5852e0afdcdc2507bd5045a1b1a4281238376074e39ac3ed623dfe99e1b"
+    },
+    {
+      "bytes": 238,
+      "path": "3d-viewer/CMakeFiles/3d-viewer.dir/cmake_pch.hxx",
+      "sha256": "7eebcc1200ac39aefedf99b520e8adb465a31efdeb454ce697d7af5634190e89"
+    },
+    {
+      "bytes": 25,
+      "path": "3d-viewer/CMakeFiles/3d-viewer.dir/cmake_pch.hxx.cxx",
+      "sha256": "cab2492c7cc77e71528d3e8de61f82a0d07300a8c063e359ae56505863a2a708"
+    },
+    {
+      "bytes": 28668,
+      "path": "CMakeFiles/4.2.3/CompilerIdC/CMakeCCompilerId.c",
+      "sha256": "fdf6ba6324e3b29e4268e3ab04f9eb181809b98fe6a52f48fbd526b331e66e02"
+    },
+    {
+      "bytes": 29480,
+      "path": "CMakeFiles/4.2.3/CompilerIdCXX/CMakeCXXCompilerId.cpp",
+      "sha256": "15597e769f9705997844403bbbf0c2fa65eb5b46a8ad4e6db684547644239fae"
+    },
+    {
+      "bytes": 176168,
+      "path": "api/cpp/api/board/board.pb.cc",
+      "sha256": "8ef8894701345e5fa4e7ec093f38571c6a630cfffb113d7e9154e7f5aae683c9"
+    },
+    {
+      "bytes": 204986,
+      "path": "api/cpp/api/board/board.pb.h",
+      "sha256": "c793adaac21406938de7169ec27d8c2a063097986d7edd812bc4347bf4c62387"
+    },
+    {
+      "bytes": 766337,
+      "path": "api/cpp/api/board/board_commands.pb.cc",
+      "sha256": "e5151233f6966a5b73750000ec4e4f728e675a58db37a911b11624bcd23f420c"
+    },
+    {
+      "bytes": 896703,
+      "path": "api/cpp/api/board/board_commands.pb.h",
+      "sha256": "d1bbbb787aadf57960028f0e176277ab2958c308f34f55da903a83e680fff00e"
+    },
+    {
+      "bytes": 477092,
+      "path": "api/cpp/api/board/board_jobs.pb.cc",
+      "sha256": "ba93ea8a1fac81457fdcf4eec310e648fe34afb64a0553111202290d5a6a951f"
+    },
+    {
+      "bytes": 573001,
+      "path": "api/cpp/api/board/board_jobs.pb.h",
+      "sha256": "6443ec6df8451e2af0a0c733079c3e8da4f9ce875b620203b77daf6dac35666c"
+    },
+    {
+      "bytes": 304813,
+      "path": "api/cpp/api/board/board_rules.pb.cc",
+      "sha256": "123cb4b812bf7eb8ffa7200c66a1d52e39f2e37561d585ca326fbed55830acb0"
+    },
+    {
+      "bytes": 388911,
+      "path": "api/cpp/api/board/board_rules.pb.h",
+      "sha256": "53ed7609b99aac814609f505f03304a120e9a0505ad15f08f606791c03204a3c"
+    },
+    {
+      "bytes": 45242,
+      "path": "api/cpp/api/board/board_tasks.pb.cc",
+      "sha256": "a643015c8bd14bbb27616a50d70bf04bc80d80d1d595a15b987ae4f50c7e43e3"
+    },
+    {
+      "bytes": 47556,
+      "path": "api/cpp/api/board/board_tasks.pb.h",
+      "sha256": "0da294d74b5b9472aab4fccee75b1e9ee77b9d380dc458ae66a3b8f74bd35aca"
+    },
+    {
+      "bytes": 1488264,
+      "path": "api/cpp/api/board/board_types.pb.cc",
+      "sha256": "affeb660e9fc8d7db97f750403971b79a0e71925cc82ceaad05f7563c4b4ebee"
+    },
+    {
+      "bytes": 2032022,
+      "path": "api/cpp/api/board/board_types.pb.h",
+      "sha256": "b2c2a8651325ea71d635ab9a73b0d595931c9f2717b6c4612e1a30c1d91344a3"
+    },
+    {
+      "bytes": 136201,
+      "path": "api/cpp/api/common/commands/base_commands.pb.cc",
+      "sha256": "10be2236f9105ce255da110a24ced532470585fb3f27c4e4d6d6f9c8132a89a7"
+    },
+    {
+      "bytes": 143034,
+      "path": "api/cpp/api/common/commands/base_commands.pb.h",
+      "sha256": "5797e8ca21edac5a67f89deb757cac74b0e093662878187cc86ddba33ffe8df3"
+    },
+    {
+      "bytes": 124590,
+      "path": "api/cpp/api/common/commands/cross_probe_commands.pb.cc",
+      "sha256": "33a479de2e0059c3b223a76a53aa2f5461712efb907b6e166282ae251ec60b54"
+    },
+    {
+      "bytes": 129142,
+      "path": "api/cpp/api/common/commands/cross_probe_commands.pb.h",
+      "sha256": "4b95e0d59a40e5830be0e5a582969eff9039ea325233af488f0c86c91d665809"
+    },
+    {
+      "bytes": 748871,
+      "path": "api/cpp/api/common/commands/editor_commands.pb.cc",
+      "sha256": "460a227497534ba759d4b28dbabafa0cec11182d272a80df714a03aee266c1d2"
+    },
+    {
+      "bytes": 868122,
+      "path": "api/cpp/api/common/commands/editor_commands.pb.h",
+      "sha256": "7156134a22baa9210833e1a3334d2490f8b88a62e070bd3f2bc63ceee66cb64b"
+    },
+    {
+      "bytes": 158471,
+      "path": "api/cpp/api/common/commands/library_commands.pb.cc",
+      "sha256": "56e809774745ce105a7364448ce6946bf53be4d4e1282d057f1d58c67feb21f8"
+    },
+    {
+      "bytes": 163636,
+      "path": "api/cpp/api/common/commands/library_commands.pb.h",
+      "sha256": "26576c7b125101d32635f8a867887292e28bc717fba2e999f358abc15601d125"
+    },
+    {
+      "bytes": 161467,
+      "path": "api/cpp/api/common/commands/project_commands.pb.cc",
+      "sha256": "a42dc01d60a66c17b2c43e88132d2f7f640c3e907f177fdc33192178e45d7926"
+    },
+    {
+      "bytes": 181455,
+      "path": "api/cpp/api/common/commands/project_commands.pb.h",
+      "sha256": "a2c91995f9cb0d4612d4c7b1f6518de5f542cef98e3dcd46102044012d2d67d3"
+    },
+    {
+      "bytes": 118989,
+      "path": "api/cpp/api/common/commands/variant_commands.pb.cc",
+      "sha256": "2a0d2c5d0125b6c278075ce7b7465faacd385ae6b853e2583ed05c02db3ada17"
+    },
+    {
+      "bytes": 134436,
+      "path": "api/cpp/api/common/commands/variant_commands.pb.h",
+      "sha256": "78674d38ae1578cd3cfd237e0b0aa064a49501caa78df0608421c132b1010929"
+    },
+    {
+      "bytes": 62742,
+      "path": "api/cpp/api/common/envelope.pb.cc",
+      "sha256": "7536c1be60a6885f16399ff61a970ac69fc6d8fb1c46141e9e089d040ac15d9c"
+    },
+    {
+      "bytes": 71788,
+      "path": "api/cpp/api/common/envelope.pb.h",
+      "sha256": "cbccc0d7c88b1ee848bf0028039b0cc0807440e22ea447c63f7ebaead2d943c1"
+    },
+    {
+      "bytes": 38094,
+      "path": "api/cpp/api/common/tasks.pb.cc",
+      "sha256": "e1ab3a2ac943a5fa010f154667294af37718b992f32a3d91dd36b75789bd2d7e"
+    },
+    {
+      "bytes": 40059,
+      "path": "api/cpp/api/common/tasks.pb.h",
+      "sha256": "4771b0b896b8f4db0ac10c4087f91af544b9fa36f0c10fd881ffeab42f707753"
+    },
+    {
+      "bytes": 569589,
+      "path": "api/cpp/api/common/types/base_types.pb.cc",
+      "sha256": "2f14190c906dd46e70e3a327119038c246e0d89813e04c7f5689cb286600068e"
+    },
+    {
+      "bytes": 704591,
+      "path": "api/cpp/api/common/types/base_types.pb.h",
+      "sha256": "db8efbb0bbe578a8a060233cbdac3110cb01a989097f80798ed1f26f1f91f5db"
+    },
+    {
+      "bytes": 25286,
+      "path": "api/cpp/api/common/types/embedded_files.pb.cc",
+      "sha256": "7beec78fec114bb76a5e720c39438049bcaed0be8579b8bec935d235ce982254"
+    },
+    {
+      "bytes": 25688,
+      "path": "api/cpp/api/common/types/embedded_files.pb.h",
+      "sha256": "e827a701ff47f5729f3d68a589d775dfc7f9b348e8b76020836f43ad975cef42"
+    },
+    {
+      "bytes": 9449,
+      "path": "api/cpp/api/common/types/enums.pb.cc",
+      "sha256": "b2a26263c494b8828d8bb372dcde8400405ce4a3cfaf811dff0b27fd6a57d8d4"
+    },
+    {
+      "bytes": 12887,
+      "path": "api/cpp/api/common/types/enums.pb.h",
+      "sha256": "eb82ccf2df6bb3f844ed47ffff63458c4e8d635d0e9f76735d95081b35cfe0da"
+    },
+    {
+      "bytes": 26790,
+      "path": "api/cpp/api/common/types/jobs.pb.cc",
+      "sha256": "fe62a395f0608e63bbcc9c0de1b2bbe853e23f4b96aa8e08af3b06884b39c4fa"
+    },
+    {
+      "bytes": 31662,
+      "path": "api/cpp/api/common/types/jobs.pb.h",
+      "sha256": "8fde7da446a2a92e6286c038f3d3275886b260a3743085aac6fdcfffd3bceac1"
+    },
+    {
+      "bytes": 79441,
+      "path": "api/cpp/api/common/types/library_types.pb.cc",
+      "sha256": "1d9dc0bc31d00c1fff9ed8c0a9e55b79d8564d7af9c7d396105c73084a54a846"
+    },
+    {
+      "bytes": 83137,
+      "path": "api/cpp/api/common/types/library_types.pb.h",
+      "sha256": "1e1c380dd2509138f3242b299400db3f064455c4af73849e1c4bb2113f412b35"
+    },
+    {
+      "bytes": 101099,
+      "path": "api/cpp/api/common/types/project_settings.pb.cc",
+      "sha256": "67f875a2003eb941780eb8a7951f8ba9c5b51ba1c34e1019df9e603b6d236026"
+    },
+    {
+      "bytes": 134114,
+      "path": "api/cpp/api/common/types/project_settings.pb.h",
+      "sha256": "a814b4b4e0f8f7782237dec769d53f7d60ddc3c212772384e556e0da0488c58e"
+    },
+    {
+      "bytes": 13716,
+      "path": "api/cpp/api/common/types/variants.pb.cc",
+      "sha256": "a7fcd93ce8c7fd0668399b07a7017a0b2447bb69f42e8813b7675776e636bca7"
+    },
+    {
+      "bytes": 12796,
+      "path": "api/cpp/api/common/types/variants.pb.h",
+      "sha256": "d0291efc7efd99b67b0cb19cab0aad7dc82ff65cd7433c01e541e67832d9f7f7"
+    },
+    {
+      "bytes": 153122,
+      "path": "api/cpp/api/common/types/wizards.pb.cc",
+      "sha256": "555d26d6f0cf2dff0f40d3c8f615406531fbe7e002a5cc40c84605aa64307492"
+    },
+    {
+      "bytes": 158543,
+      "path": "api/cpp/api/common/types/wizards.pb.h",
+      "sha256": "95a3e010b00d498ba6e7cb23cd8cbfce706ec54dd7eaa31d1aa761238ece61e6"
+    },
+    {
+      "bytes": 365796,
+      "path": "api/cpp/api/schematic/schematic_commands.pb.cc",
+      "sha256": "c730c6a0eee35dbd94b187a083689bf337bc08f6f4168bbeb2a7756fe03cfbb9"
+    },
+    {
+      "bytes": 436939,
+      "path": "api/cpp/api/schematic/schematic_commands.pb.h",
+      "sha256": "d97e4fc21e65fcc219d14ce4167d0ea97ae7b9abc5b3c254b8153f0b142e795d"
+    },
+    {
+      "bytes": 184148,
+      "path": "api/cpp/api/schematic/schematic_jobs.pb.cc",
+      "sha256": "35344f417cbd9db8f32eccf2d2684aadcdfcc37dffc0779cca9dc47d096d48d4"
+    },
+    {
+      "bytes": 220312,
+      "path": "api/cpp/api/schematic/schematic_jobs.pb.h",
+      "sha256": "4571425e52328a3d45328769af5cc0cb711cafd28d4b79d32247baf3e24936ad"
+    },
+    {
+      "bytes": 62644,
+      "path": "api/cpp/api/schematic/schematic_rules.pb.cc",
+      "sha256": "0b06fcb3d38789647355365d745ddd9e2218d5b956707aae23a6985cf1e227a9"
+    },
+    {
+      "bytes": 73972,
+      "path": "api/cpp/api/schematic/schematic_rules.pb.h",
+      "sha256": "fab8392f8ddbe4dd33d169563c40129dd10f64a25b872589861bdfaa1a3754e9"
+    },
+    {
+      "bytes": 31389,
+      "path": "api/cpp/api/schematic/schematic_tasks.pb.cc",
+      "sha256": "6d6a4087efaa72552128c0d8ad6655171fce941abfca5671db6dfbf93c83e70f"
+    },
+    {
+      "bytes": 32143,
+      "path": "api/cpp/api/schematic/schematic_tasks.pb.h",
+      "sha256": "b424371698e66eeffd5f65cfaa7e433e767d264502f1246dd042cb0c012656ac"
+    },
+    {
+      "bytes": 794559,
+      "path": "api/cpp/api/schematic/schematic_types.pb.cc",
+      "sha256": "1717b790b044486e04731777a0d2d58e99db7133dbc9230ef2489dc6b4136821"
+    },
+    {
+      "bytes": 1078565,
+      "path": "api/cpp/api/schematic/schematic_types.pb.h",
+      "sha256": "1b520229dce9a0dfec5766af6e9bca348b43c34b00dcfe432f6ebc76734d5fcb"
+    },
+    {
+      "bytes": 2859,
+      "path": "common/CMakeFiles/common.dir/Unity/unity_wxfb_0_cxx.cxx",
+      "sha256": "7653168bfff2e958c1948ad50f1717ff50725462f9a923633822353d03b8d1f3"
+    },
+    {
+      "bytes": 2848,
+      "path": "common/CMakeFiles/common.dir/Unity/unity_wxfb_1_cxx.cxx",
+      "sha256": "607500ad640970d8576b97218d24626ce04683d1ddc8a192748b20188354ffc1"
+    },
+    {
+      "bytes": 2831,
+      "path": "common/CMakeFiles/common.dir/Unity/unity_wxfb_2_cxx.cxx",
+      "sha256": "40f87e7aaf5e84b3786f7eb54b7405eb92ee7dec073dc0be4e3c0ea6db7c5878"
+    },
+    {
+      "bytes": 1771,
+      "path": "common/CMakeFiles/common.dir/Unity/unity_wxfb_3_cxx.cxx",
+      "sha256": "9c1712a3e7bad90bcf44f30e42f7fd0bdda2bcb4567510b4e287d88255489872"
+    },
+    {
+      "bytes": 357,
+      "path": "common/CMakeFiles/common.dir/cmake_pch.hxx",
+      "sha256": "f97bed8468d6464c0b814c724a20b0e4239ccb72cbe03b3b9f0c85f7cf85507a"
+    },
+    {
+      "bytes": 25,
+      "path": "common/CMakeFiles/common.dir/cmake_pch.hxx.cxx",
+      "sha256": "cab2492c7cc77e71528d3e8de61f82a0d07300a8c063e359ae56505863a2a708"
+    },
+    {
+      "bytes": 1431,
+      "path": "common/CMakeFiles/kicommon.dir/Unity/unity_wxfb_0_cxx.cxx",
+      "sha256": "637f71e6a0547d3325aa3b3d7bce3d03c89bde63160f79e72ccb039cb0392b21"
+    },
+    {
+      "bytes": 299,
+      "path": "common/CMakeFiles/kicommon.dir/cmake_pch.hxx",
+      "sha256": "f023b40068efcc35dcb5530b24d4f0fcf19a2c525254097620a0f76ce0b6c4f2"
+    },
+    {
+      "bytes": 25,
+      "path": "common/CMakeFiles/kicommon.dir/cmake_pch.hxx.cxx",
+      "sha256": "cab2492c7cc77e71528d3e8de61f82a0d07300a8c063e359ae56505863a2a708"
+    },
+    {
+      "bytes": 301,
+      "path": "common/CMakeFiles/pcbcommon.dir/cmake_pch.hxx",
+      "sha256": "647cfca4d351d2c662770d0b46c9675b18ce3b82eaa0bf210cd53a06878875b0"
+    },
+    {
+      "bytes": 25,
+      "path": "common/CMakeFiles/pcbcommon.dir/cmake_pch.hxx.cxx",
+      "sha256": "cab2492c7cc77e71528d3e8de61f82a0d07300a8c063e359ae56505863a2a708"
+    },
+    {
+      "bytes": 3413,
+      "path": "common/drawing_sheet/drawing_sheet_keywords.cpp",
+      "sha256": "7e57c462bb7f7b36becdca219b8e60e28243d4f068629f2721eb17736767a945"
+    },
+    {
+      "bytes": 7311,
+      "path": "common/drawing_sheet/drawing_sheet_lexer.h",
+      "sha256": "61d9e5ad42fd0864c3591a88a8c71b5764e5e26053ef6fa66c9a4d282ca824fc"
+    },
+    {
+      "bytes": 5130,
+      "path": "common/drc_rules_keywords.cpp",
+      "sha256": "5efeb1a810c60b35813b0b18b5b10ea0d46843dde417cf98c3e7a4db3667171c"
+    },
+    {
+      "bytes": 7958,
+      "path": "common/drc_rules_lexer.h",
+      "sha256": "25182e78166e6f8e8eee74c95da3b721b538d47d48d12e13e953b858cdb770e2"
+    },
+    {
+      "bytes": 1494,
+      "path": "common/embedded_files_keywords.cpp",
+      "sha256": "d7806671c94ac49fd1937b493625ed4503fb6412e967127b7d35ebc19a54691a"
+    },
+    {
+      "bytes": 6552,
+      "path": "common/embedded_files_lexer.h",
+      "sha256": "1630de87bd4aee72586db6bfe9aeaf2766a0d69cbefdd52db5705c3a2dae0c2a"
+    },
+    {
+      "bytes": 218,
+      "path": "common/gal/CMakeFiles/gal.dir/cmake_pch.hxx",
+      "sha256": "6600ba52b4d8850b763604e3a61f08dfcaa204ae67fb1138bc6436502a03714d"
+    },
+    {
+      "bytes": 25,
+      "path": "common/gal/CMakeFiles/gal.dir/cmake_pch.hxx.cxx",
+      "sha256": "cab2492c7cc77e71528d3e8de61f82a0d07300a8c063e359ae56505863a2a708"
+    },
+    {
+      "bytes": 25349,
+      "path": "common/gal/glsl_kicad_frag.cpp",
+      "sha256": "2f8f4c72826c971bd3656a5727d1491f60e3114ccabdd9a437ccf1ab37fa428d"
+    },
+    {
+      "bytes": 52285,
+      "path": "common/gal/glsl_kicad_vert.cpp",
+      "sha256": "dc1433574ecde6096a1d7fe4874e02eab496b54e34c0349aa9c0aa01337b71c6"
+    },
+    {
+      "bytes": 342245,
+      "path": "common/gal/glsl_smaa_base.cpp",
+      "sha256": "37b48aa8288327fe541be840e976f0bba4846a2507b4ed5243aa70f0af241c37"
+    },
+    {
+      "bytes": 1371,
+      "path": "common/gal/glsl_smaa_pass_1_frag_color.cpp",
+      "sha256": "8a5bed9790b7d51df2cc13385caa48087a4779d5b7709815ce3061c44f39fe03"
+    },
+    {
+      "bytes": 1360,
+      "path": "common/gal/glsl_smaa_pass_1_frag_luma.cpp",
+      "sha256": "9412e162f8041cfb83613d9c1779a8a368decb51ce340376a5844b02b816da6e"
+    },
+    {
+      "bytes": 1413,
+      "path": "common/gal/glsl_smaa_pass_1_vert.cpp",
+      "sha256": "7b6a30670bc86a475c0f84e2cc7a5272ca0eee0692709c311d31e7782234e4c3"
+    },
+    {
+      "bytes": 2147,
+      "path": "common/gal/glsl_smaa_pass_2_frag.cpp",
+      "sha256": "3b05ed952358b6648bab1d0378733e3f48b2afee41c631a0685fa28a4a4db20c"
+    },
+    {
+      "bytes": 1674,
+      "path": "common/gal/glsl_smaa_pass_2_vert.cpp",
+      "sha256": "7a694493a4f98b751d21e4bd90317755a57d4f02790c4aaf965f3959bbe2a4f7"
+    },
+    {
+      "bytes": 1541,
+      "path": "common/gal/glsl_smaa_pass_3_frag.cpp",
+      "sha256": "0076336a72b6d5df5cae1c984e7d761c032c5f8cb6a338b361506549c9998840"
+    },
+    {
+      "bytes": 1419,
+      "path": "common/gal/glsl_smaa_pass_3_vert.cpp",
+      "sha256": "0ae158ce2bd474618bd4b840304c023d1e2b77713b9279bc5d36467b8d7d377a"
+    },
+    {
+      "bytes": 9296,
+      "path": "common/gal/glsl_xor_diff_frag.cpp",
+      "sha256": "de8a2420cb8ca04362798768cdd592a3310328de23c4404e2c870725119581c0"
+    },
+    {
+      "bytes": 6361,
+      "path": "common/gal/glsl_xor_diff_vert.cpp",
+      "sha256": "0569548afa392d33cb8df3000bf61ca5495f96478ca75a06fb19876ed044d2c4"
+    },
+    {
+      "bytes": 1424,
+      "path": "common/lib_table_keywords.cpp",
+      "sha256": "4d9169eb97a683944d3f03a5f2aa3688a0eabb029ec01c2e7b373ab7e94479e5"
+    },
+    {
+      "bytes": 6406,
+      "path": "common/lib_table_lexer.h",
+      "sha256": "5ff9bfc23044252393dfc544df7982712c92f793ec55bc479e1501887b70423a"
+    },
+    {
+      "bytes": 49135,
+      "path": "common/libeval/grammar.c",
+      "sha256": "31cc76ae4ca2c3474be7c8bea90d4988edc9d8333691ebecf5743c5a9937c244"
+    },
+    {
+      "bytes": 516,
+      "path": "common/libeval/grammar.h",
+      "sha256": "135e359874e6bf0db4cf97dad85c1ef977f83dbdb8e7005ac4e518753f3823ec"
+    },
+    {
+      "bytes": 60276,
+      "path": "common/libeval_compiler/grammar.c",
+      "sha256": "91c75afded3e8305f82d4ec9048a63259dbe5233072ed3bb667af0950b859dd0"
+    },
+    {
+      "bytes": 1075,
+      "path": "common/libeval_compiler/grammar.h",
+      "sha256": "934c219171418543c4c528b34478a177773f72e5fa75034b187c3a7f9493de23"
+    },
+    {
+      "bytes": 3795,
+      "path": "common/netlist_keywords.cpp",
+      "sha256": "ee3c813ba57b87fd92cfcf0ce45e71bf1b3c247027be9bc139a44d1ffb37cf83"
+    },
+    {
+      "bytes": 7255,
+      "path": "common/netlist_lexer.h",
+      "sha256": "a141b07529a71c7d93f44d6cf7ce8a52dd36a53044c567fe207882b66a133e9b"
+    },
+    {
+      "bytes": 26322,
+      "path": "common/pcb_keywords.cpp",
+      "sha256": "62ece8130e760e79a83dabe8720586b1ec6c364ca0fd2904e05a1d6753e7b162"
+    },
+    {
+      "bytes": 16679,
+      "path": "common/pcb_lexer.h",
+      "sha256": "d25ca70331f77bd361e05b8838b5471ae5bf547bd15e74aa14f17e4f1dbf4012"
+    },
+    {
+      "bytes": 4182,
+      "path": "common/pcb_plot_params_keywords.cpp",
+      "sha256": "b59d5e5d7d6f55068a750b16b306846042d119d8e346560e5c1c07d10c412811"
+    },
+    {
+      "bytes": 7682,
+      "path": "common/pcb_plot_params_lexer.h",
+      "sha256": "faf45da21900c1e824741e63f6260e20983c8f536ebe370dd22163581c84e82a"
+    },
+    {
+      "bytes": 4985,
+      "path": "common/rhi/rhi_shaders/bitmap_frag.h",
+      "sha256": "aa81fdf7ef5615505bd276072894a244247161f483e475e098a4df8f1a24d10a"
+    },
+    {
+      "bytes": 12954,
+      "path": "common/rhi/rhi_shaders/bitmap_vert.h",
+      "sha256": "588abd1c1fb22032d64890c62f38c9a61dbf0c1a4e5348f518ff6bf372aaa26b"
+    },
+    {
+      "bytes": 8502,
+      "path": "common/rhi/rhi_shaders/compositor_difference_frag.h",
+      "sha256": "3a599bd6b8bb77c126c1eaea9156efeaf57f1280abdfc69d1a0e191ddd2b9603"
+    },
+    {
+      "bytes": 6129,
+      "path": "common/rhi/rhi_shaders/compositor_frag.h",
+      "sha256": "58b564415c18aaf4f4e42dc4177948fa3f510f38835f2d6c4445dfeb35b7d334"
+    },
+    {
+      "bytes": 9706,
+      "path": "common/rhi/rhi_shaders/compositor_vert.h",
+      "sha256": "6ec3d4138b2569634ede633131efbe9548ef4c3deb7fdac332cdebd0b5934a0c"
+    },
+    {
+      "bytes": 21114,
+      "path": "common/rhi/rhi_shaders/cursor_frag.h",
+      "sha256": "c887119f3e446dabe348fa4cdb1c16cc423d8beb33cd2980461cbfc5c3261a15"
+    },
+    {
+      "bytes": 6930,
+      "path": "common/rhi/rhi_shaders/cursor_vert.h",
+      "sha256": "6f998c0d86b9b984859a743a5cef6f7361b0cbadd29e7f47181573600ef5f42b"
+    },
+    {
+      "bytes": 117107,
+      "path": "common/rhi/rhi_shaders/grid_frag.h",
+      "sha256": "a25ced91968a2cdd26eacd132cb4baca57a4b1f28dcdefad8fa2632ec1ce1e91"
+    },
+    {
+      "bytes": 23638,
+      "path": "common/rhi/rhi_shaders/pcb_arc_frag.h",
+      "sha256": "1287d763d2b86bed5e26852ef45212498ba9f49d851b9a37848359bd5b50ccf2"
+    },
+    {
+      "bytes": 60815,
+      "path": "common/rhi/rhi_shaders/pcb_arc_vert.h",
+      "sha256": "5e57dc90f8633f763324991c733286323763c100fb21a0321da0f5ea1fce25ba"
+    },
+    {
+      "bytes": 27670,
+      "path": "common/rhi/rhi_shaders/pcb_pad_frag.h",
+      "sha256": "7667ca6b6710284599af176c40288af92ee80f1ee3cbe30b40e6461d396cce0b"
+    },
+    {
+      "bytes": 43294,
+      "path": "common/rhi/rhi_shaders/pcb_pad_vert.h",
+      "sha256": "e2c38c4a35bb743c5ce771f4999f0a83fbb71437c0475b53628f0f67c46c1822"
+    },
+    {
+      "bytes": 22038,
+      "path": "common/rhi/rhi_shaders/pcb_track_frag.h",
+      "sha256": "6e65e55f773d2bf5d59ff04e8f300485df1c6767e1de144ca7087e2c9d347c8d"
+    },
+    {
+      "bytes": 80551,
+      "path": "common/rhi/rhi_shaders/pcb_track_vert.h",
+      "sha256": "cb20e57400e56fd1394a063ee1b9f171a97a619e2e4f07f177bfec61fc2628ca"
+    },
+    {
+      "bytes": 2593,
+      "path": "common/rhi/rhi_shaders/pcb_zone_frag.h",
+      "sha256": "629e934b563d38ee5a54e1611b07fd71d5074a92bf7fd94777fc428f43e2fc3a"
+    },
+    {
+      "bytes": 14114,
+      "path": "common/rhi/rhi_shaders/pcb_zone_vert.h",
+      "sha256": "7904cd14dc9d8eccdf597e8b29c268f138a0b75979a0f4ab5a8cf75bf8587e11"
+    },
+    {
+      "bytes": 3689,
+      "path": "common/rhi/rhi_shaders/present_blit_frag.h",
+      "sha256": "455e95044b27d8d20a9b2be0dd7c5e2068d5b23e6d7b1ea82ff1eed23181787e"
+    },
+    {
+      "bytes": 7194,
+      "path": "common/rhi/rhi_shaders/present_blit_vert.h",
+      "sha256": "340166e0a862e380a005398f3497f44a08b758cfcf565354485a11617fe9af7a"
+    },
+    {
+      "bytes": 619,
+      "path": "common/rhi/rhi_shaders/rhi_shaders.h",
+      "sha256": "b0aca38e718dd279dc84c85a316e9d6dbe847c5038bbe7648e1d78e62856e21a"
+    },
+    {
+      "bytes": 10658,
+      "path": "common/rhi/rhi_shaders/sch_wire_frag.h",
+      "sha256": "cd710b565c8b06bf3ea04e218617c01c1f7b5596ba87394d82ec167559450a4c"
+    },
+    {
+      "bytes": 67155,
+      "path": "common/rhi/rhi_shaders/sch_wire_vert.h",
+      "sha256": "2ac11b7b6d29b90eb25ab8dcb20480ee7fae7467cf0efe504d05915e11733581"
+    },
+    {
+      "bytes": 1321,
+      "path": "common/stroke_params_keywords.cpp",
+      "sha256": "7bb3913060e8be1cf015c0233255b2bbf02a6d0a67fde1515d1d01aa0d46fe99"
+    },
+    {
+      "bytes": 6438,
+      "path": "common/stroke_params_lexer.h",
+      "sha256": "ab84c253be9c11462984966585480db5fba005c62d15f9293b331e6939ad86f2"
+    },
+    {
+      "bytes": 1191,
+      "path": "common/template_fieldnames_keywords.cpp",
+      "sha256": "a708742af9e6a5148265637862474c87e963a61782eebc9de302c9090898ee3f"
+    },
+    {
+      "bytes": 6327,
+      "path": "common/template_fieldnames_lexer.h",
+      "sha256": "8d6d75df6dec571a2f84865ecb96598894613a2b3eff0ffb4661e4dc95a127e8"
+    },
+    {
+      "bytes": 62472,
+      "path": "common/text_eval/text_eval.c",
+      "sha256": "3db39865be103d717920e466020b5645d960370ed2aa97dcba2933eb00f0d306"
+    },
+    {
+      "bytes": 1173,
+      "path": "common/text_eval/text_eval.h",
+      "sha256": "6dd75ab9588cd01b28f56ff9e5ce3a6d2beb1f97d97fd140fbb171dfbb845453"
+    },
+    {
+      "bytes": 3659,
+      "path": "config.h",
+      "sha256": "b27bca0cfb7d06fe909d176e9993f8b9e9f8ae812f9d9a323f458cdb25aa8c37"
+    },
+    {
+      "bytes": 387,
+      "path": "cvpcb/CMakeFiles/cvpcb_kiface.dir/Unity/unity_wxfb_0_cxx.cxx",
+      "sha256": "c28889f0062e79ba3f8b52fe9bdad31326e0d02e1bb91a9c57b8bae5f1b835ca"
+    },
+    {
+      "bytes": 2899,
+      "path": "eeschema/CMakeFiles/eeschema_kiface_objects.dir/Unity/unity_wxfb_0_cxx.cxx",
+      "sha256": "1a3cdf7ac842b490eb30f4a9a97a68120cbba52eceff183ebbc82dc720e99040"
+    },
+    {
+      "bytes": 2904,
+      "path": "eeschema/CMakeFiles/eeschema_kiface_objects.dir/Unity/unity_wxfb_1_cxx.cxx",
+      "sha256": "3c5a67146bc752b6e4a875d9c58b597d1ad8fd4a3e8a6c23975645c71019816a"
+    },
+    {
+      "bytes": 2909,
+      "path": "eeschema/CMakeFiles/eeschema_kiface_objects.dir/Unity/unity_wxfb_2_cxx.cxx",
+      "sha256": "6e81807b87a1ef04ce172b2fd7376f83aaf75e3b8c6f9ba3b88f3391d600c163"
+    },
+    {
+      "bytes": 2711,
+      "path": "eeschema/CMakeFiles/eeschema_kiface_objects.dir/Unity/unity_wxfb_3_cxx.cxx",
+      "sha256": "aa8c8981229ee30607a8b139de974decfc5452884b8fcf8fba9b93de31cb80ed"
+    },
+    {
+      "bytes": 349,
+      "path": "eeschema/CMakeFiles/eeschema_kiface_objects.dir/cmake_pch.hxx",
+      "sha256": "950694688c9e16c9da19f516de14976aa60ef50db43cab95dde3b35f30100624"
+    },
+    {
+      "bytes": 25,
+      "path": "eeschema/CMakeFiles/eeschema_kiface_objects.dir/cmake_pch.hxx.cxx",
+      "sha256": "cab2492c7cc77e71528d3e8de61f82a0d07300a8c063e359ae56505863a2a708"
+    },
+    {
+      "bytes": 1070,
+      "path": "eeschema/dialogs/dialog_bom_cfg_keywords.cpp",
+      "sha256": "96ea7cab22f7616c8b05045314031879ba677c0d446ad0e682ec0464643b24e3"
+    },
+    {
+      "bytes": 6243,
+      "path": "eeschema/dialogs/dialog_bom_cfg_lexer.h",
+      "sha256": "842eb38267a5df7b1e2b747ae12bf32ea609166365a2b1bfa4fcd6afae6c22e6"
+    },
+    {
+      "bytes": 11365,
+      "path": "eeschema/schematic_keywords.cpp",
+      "sha256": "6c02368480f4ef6add7330723d3bdcae9a2e300afa0ae39efb7d051ba82cda9c"
+    },
+    {
+      "bytes": 10475,
+      "path": "eeschema/schematic_lexer.h",
+      "sha256": "c3f5cfaa04e3c0b468708a5f6f9411bad13811062f4434b4e6cedc3d3464cb98"
+    },
+    {
+      "bytes": 774,
+      "path": "gerbview/CMakeFiles/gerbview_kiface_objects.dir/Unity/unity_wxfb_0_cxx.cxx",
+      "sha256": "502a0b141741435236d5c0e0e8bcf6f04324925fea4a70fa0c0c168a295a15e0"
+    },
+    {
+      "bytes": 101,
+      "path": "include/gal/shaders/glsl_kicad_frag.h",
+      "sha256": "49819f0d62a771861909126ef94cb607aefbe2942e708ac40fe8db1457b26e9c"
+    },
+    {
+      "bytes": 101,
+      "path": "include/gal/shaders/glsl_kicad_vert.h",
+      "sha256": "78b753594243733e754c39e58a24356afe123ff569c80819ca20640376dceeb9"
+    },
+    {
+      "bytes": 100,
+      "path": "include/gal/shaders/glsl_smaa_base.h",
+      "sha256": "ab08f2310301d5ec96144ca03fe50fc4b40a94172ce108229e26c4d7db5f0a9f"
+    },
+    {
+      "bytes": 113,
+      "path": "include/gal/shaders/glsl_smaa_pass_1_frag_color.h",
+      "sha256": "0c6490838f98cfb01456832d01677e58962863092f0e7735f3bb63c1a7d6c33c"
+    },
+    {
+      "bytes": 112,
+      "path": "include/gal/shaders/glsl_smaa_pass_1_frag_luma.h",
+      "sha256": "b52e8c509bbc7e377075f7fef6c086a86d5c22c7691750b480f09fc3a05f210a"
+    },
+    {
+      "bytes": 107,
+      "path": "include/gal/shaders/glsl_smaa_pass_1_vert.h",
+      "sha256": "10a0e34cfebf35563f24c011e92184d03d055ae0e17187737a1159b6e78adced"
+    },
+    {
+      "bytes": 107,
+      "path": "include/gal/shaders/glsl_smaa_pass_2_frag.h",
+      "sha256": "e14c857fbff311060905d6a1d1dbd81e3b3777121187f733d4aff819f136b0c6"
+    },
+    {
+      "bytes": 107,
+      "path": "include/gal/shaders/glsl_smaa_pass_2_vert.h",
+      "sha256": "a3f873c96d96fcbec847669804f8b7d4ea1ffe39409be5120bbf11b1371fe20b"
+    },
+    {
+      "bytes": 107,
+      "path": "include/gal/shaders/glsl_smaa_pass_3_frag.h",
+      "sha256": "c2d2594cbaeab7c8c0251ac6b30241a76fc7e88f04b3c01437eeb1d6a7ec1cc1"
+    },
+    {
+      "bytes": 107,
+      "path": "include/gal/shaders/glsl_smaa_pass_3_vert.h",
+      "sha256": "1c55d7f04a3f8b1e2ead44eb614d6652266a8d6386ad3df7e1de610a4103aa85"
+    },
+    {
+      "bytes": 104,
+      "path": "include/gal/shaders/glsl_xor_diff_frag.h",
+      "sha256": "0e0c5a6912b3630f2a25dcac4ae19c6bc27b78d480ab8068584638fbebbbec9a"
+    },
+    {
+      "bytes": 104,
+      "path": "include/gal/shaders/glsl_xor_diff_vert.h",
+      "sha256": "029ee70caf50e3100afc9bc0e6a6c2d08bc1684f2952a7647bab5cf8efa9c0d4"
+    },
+    {
+      "bytes": 1442,
+      "path": "kicad/CMakeFiles/kicad.dir/Unity/unity_wxfb_0_cxx.cxx",
+      "sha256": "eccbfe38dbe79a04405e373b3b4eca16b76bfe699e5f80707613207accd26eed"
+    },
+    {
+      "bytes": 903,
+      "path": "kicad/pcm/CMakeFiles/pcm.dir/Unity/unity_wxfb_0_cxx.cxx",
+      "sha256": "b109dda6e3b8daad695de7cf7a8d056dedcc219694c4cb331fbc5fd7b38d327c"
+    },
+    {
+      "bytes": 1138,
+      "path": "kicad_build_version.h",
+      "sha256": "2767d8652436436062e29d3e08182627a5e486f278c44bb9e58928c754c46cbe"
+    },
+    {
+      "bytes": 596,
+      "path": "pagelayout_editor/CMakeFiles/pl_editor_kiface.dir/Unity/unity_wxfb_0_cxx.cxx",
+      "sha256": "ac3deb18955a58194450313b30657ec15d36566e84de1a404c1622bb7233b557"
+    },
+    {
+      "bytes": 3111,
+      "path": "pcb_calculator/CMakeFiles/pcb_calculator_kiface.dir/Unity/unity_wxfb_0_cxx.cxx",
+      "sha256": "62fe346e337607c106de6ae4a48fc2cd420d6a9658307e701de23c4e28b03e17"
+    },
+    {
+      "bytes": 586,
+      "path": "pcb_calculator/CMakeFiles/pcb_calculator_kiface.dir/Unity/unity_wxfb_1_cxx.cxx",
+      "sha256": "192596116927f5bcdc2bbbdc0c2408c6ef4b3d66dc6af0e908126f7ae1521bb8"
+    },
+    {
+      "bytes": 1487,
+      "path": "pcb_calculator/pcb_calculator_datafile_keywords.cpp",
+      "sha256": "84788eec04959d26ada7ee65261bc13d49413ddeb035744a05a58aa328bd8a68"
+    },
+    {
+      "bytes": 6554,
+      "path": "pcb_calculator/pcb_calculator_datafile_lexer.h",
+      "sha256": "e4bb42fe7bd9467c4294253f4acb7d8c683e4366237e3418c9f58b1e2187fbc3"
+    },
+    {
+      "bytes": 2922,
+      "path": "pcbnew/CMakeFiles/pcbnew_kiface_objects.dir/Unity/unity_wxfb_0_cxx.cxx",
+      "sha256": "a70c70af4bab7f6fb57c4e72f70e35d0b16cf3b3ab3266c5926a422310e5a66b"
+    },
+    {
+      "bytes": 2830,
+      "path": "pcbnew/CMakeFiles/pcbnew_kiface_objects.dir/Unity/unity_wxfb_1_cxx.cxx",
+      "sha256": "d34486892ed629b2e5bab32af9693374454b4a08935f85ef101723ae1c956670"
+    },
+    {
+      "bytes": 2942,
+      "path": "pcbnew/CMakeFiles/pcbnew_kiface_objects.dir/Unity/unity_wxfb_2_cxx.cxx",
+      "sha256": "99a1d755d33d128ea281f018d9e6c900ecbe845d69e37b890a3650d557f1e6d9"
+    },
+    {
+      "bytes": 2880,
+      "path": "pcbnew/CMakeFiles/pcbnew_kiface_objects.dir/Unity/unity_wxfb_3_cxx.cxx",
+      "sha256": "c3f9b47f427baf436fd3a53cb73314a49d8b4c242adf727322f36194307277e9"
+    },
+    {
+      "bytes": 2903,
+      "path": "pcbnew/CMakeFiles/pcbnew_kiface_objects.dir/Unity/unity_wxfb_4_cxx.cxx",
+      "sha256": "a29ffe4cf262a64d7de0e1b425e7031de7d7a467ba3d9136ebfdac8e5826f7b5"
+    },
+    {
+      "bytes": 2903,
+      "path": "pcbnew/CMakeFiles/pcbnew_kiface_objects.dir/Unity/unity_wxfb_5_cxx.cxx",
+      "sha256": "99f6aec4d7dc8901a0fcc93c528937d49372506652cbd153f956843efaee961b"
+    },
+    {
+      "bytes": 2909,
+      "path": "pcbnew/CMakeFiles/pcbnew_kiface_objects.dir/Unity/unity_wxfb_6_cxx.cxx",
+      "sha256": "e5be24b5a2e74b7190069849dcc0acce0134ddc83a2c7583d1e1f813667a19d3"
+    },
+    {
+      "bytes": 1978,
+      "path": "pcbnew/CMakeFiles/pcbnew_kiface_objects.dir/Unity/unity_wxfb_7_cxx.cxx",
+      "sha256": "0a95d22977b27cbad1793b7e123ae839980d86fa7aad916bb0f3d405f3e58cdc"
+    },
+    {
+      "bytes": 300,
+      "path": "pcbnew/CMakeFiles/pcbnew_kiface_objects.dir/cmake_pch.hxx",
+      "sha256": "6db3ecaf071ed76ac8b74350678a4ef27dae55927a4fffae3b0177952b663fcd"
+    },
+    {
+      "bytes": 25,
+      "path": "pcbnew/CMakeFiles/pcbnew_kiface_objects.dir/cmake_pch.hxx.cxx",
+      "sha256": "cab2492c7cc77e71528d3e8de61f82a0d07300a8c063e359ae56505863a2a708"
+    },
+    {
+      "bytes": 201,
+      "path": "pcbnew/router/CMakeFiles/pnsrouter.dir/cmake_pch.hxx",
+      "sha256": "148cfe12d764f7ca292e5e1cccad1a211522a85cecd9bdbe632766c3ceb0bc4c"
+    },
+    {
+      "bytes": 25,
+      "path": "pcbnew/router/CMakeFiles/pnsrouter.dir/cmake_pch.hxx.cxx",
+      "sha256": "cab2492c7cc77e71528d3e8de61f82a0d07300a8c063e359ae56505863a2a708"
+    },
+    {
+      "bytes": 201,
+      "path": "pcbnew/router/CMakeFiles/pnsrouter_qa.dir/cmake_pch.hxx",
+      "sha256": "148cfe12d764f7ca292e5e1cccad1a211522a85cecd9bdbe632766c3ceb0bc4c"
+    },
+    {
+      "bytes": 25,
+      "path": "pcbnew/router/CMakeFiles/pnsrouter_qa.dir/cmake_pch.hxx.cxx",
+      "sha256": "cab2492c7cc77e71528d3e8de61f82a0d07300a8c063e359ae56505863a2a708"
+    },
+    {
+      "bytes": 20784,
+      "path": "pcbnew/specctra_import_export/specctra_keywords.cpp",
+      "sha256": "44c7922d8ff1942e839b6d582ca70bfdd93912cc3d5c5d10e5afb91a86ef99df"
+    },
+    {
+      "bytes": 14275,
+      "path": "pcbnew/specctra_import_export/specctra_lexer.h",
+      "sha256": "74389841e977c604f892a93dae17896102d46210a31f1b51b32bd382aceabca9"
+    }
+  ],
+  "files_sha256": "df6296b5b28e033a417accac75968dc439af831c4aebb1209cb7254737acdaec",
+  "scope": "Observed private build-tree C/C++ inputs, including configuration probes; generated/external headers must stay frozen while reusing the TU cache"
+}

@@ -2,10 +2,10 @@
 id = "eeschema.widgets.application.ui.p006"
 upstream = ["eeschema/widgets/tuner_slider.cpp", "eeschema/widgets/tuner_slider.h"]
 rust_module = "kicad_port::eeschema::widgets::application::ui::p006"
-depends_on = ["common.application.ui.p002", "common.application.ui.p006", "common.widgets.application.ui.p001", "common.widgets.application.ui.p004", "common.widgets.application.ui.p013", "common.widgets.application.ui.p016", "common.widgets.application.ui.p018", "eeschema.application.ui.p049", "eeschema.sim.application.pure.p001", "eeschema.sim.application.pure.p007", "eeschema.sim.application.ui.p004", "eeschema.sim.application.ui.p006", "eeschema.sim.application.ui.p011", "eeschema.sim.application.ui.p016", "eeschema.widgets.generated.ui.p001", "include.application.ui.p008", "libs.core.include.core.application.ui.p001", "libs.kimath.include.math.application.ui.p001"]
-soft_depends_on = ["eeschema.application.ui.p051", "eeschema.netlist_exporters.application.ui.p002", "eeschema.sim.application.ui.p013"]
+depends_on = ["common.application.ui.p002", "common.application.ui.p006", "common.widgets.application.ui.p001", "common.widgets.application.ui.p004", "common.widgets.application.ui.p013", "common.widgets.application.ui.p016", "common.widgets.application.ui.p018", "eeschema.application.ui.p050", "eeschema.application.ui.p052", "eeschema.netlist_exporters.application.ui.p002", "eeschema.sim.application.thin.replacement.p001", "eeschema.sim.application.thin.replacement.p006", "eeschema.sim.application.ui.p004", "eeschema.sim.application.ui.p006", "eeschema.sim.application.ui.p011", "eeschema.sim.application.ui.p016", "eeschema.widgets.generated.ui.p001", "include.application.ui.p008", "libs.core.include.core.application.ui.p001", "libs.kimath.include.math.application.ui.p001"]
+soft_depends_on = ["eeschema.sim.application.ui.p013"]
 est_lines = 626
-layer = 240
+layer = 278
 tests = []
 status = "todo"
 claimed_by = ""

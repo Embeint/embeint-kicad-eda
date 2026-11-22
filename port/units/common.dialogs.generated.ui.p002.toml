@@ -2,10 +2,10 @@
 id = "common.dialogs.generated.ui.p002"
 upstream = ["common/dialogs/dialog_fields_table_base.cpp", "common/dialogs/dialog_fields_table_base.h", "common/dialogs/dialog_git_mr_review_base.cpp", "common/dialogs/dialog_git_mr_review_base.h", "common/dialogs/dialog_grid_settings_base.cpp", "common/dialogs/dialog_grid_settings_base.h", "common/dialogs/dialog_group_properties_base.cpp", "common/dialogs/dialog_group_properties_base.h", "common/dialogs/dialog_import_choose_project_base.cpp", "common/dialogs/dialog_import_choose_project_base.h", "common/dialogs/dialog_import_gfx_base.cpp", "common/dialogs/dialog_import_gfx_base.h", "common/dialogs/dialog_kicad_diff_base.cpp", "common/dialogs/dialog_kicad_diff_base.h", "common/dialogs/dialog_kicad_merge_3way_base.cpp"]
 rust_module = "kicad_port::common::dialogs::generated::ui::p002"
-depends_on = ["common.application.ui.p006", "common.widgets.application.ui.p001", "common.widgets.application.ui.p004", "common.widgets.application.ui.p013", "common.widgets.application.ui.p016", "common.widgets.application.ui.p017", "common.widgets.application.ui.p018"]
-soft_depends_on = []
+depends_on = ["common.application.ui.p006", "common.widgets.application.ui.p013", "common.widgets.application.ui.p016", "common.widgets.application.ui.p017", "common.widgets.application.ui.p018"]
+soft_depends_on = ["common.widgets.application.ui.p001", "common.widgets.application.ui.p004"]
 est_lines = 1987
-layer = 68
+layer = 75
 tests = []
 status = "todo"
 claimed_by = ""

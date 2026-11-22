@@ -2,7 +2,7 @@
 id = "common.gal.cairo.application.ui.p001"
 upstream = ["common/gal/cairo/cairo_compositor.cpp"]
 rust_module = "kicad_port::common::gal::cairo::application::ui::p001"
-depends_on = ["include.gal.cairo.application.pure.p001"]
+depends_on = ["include.gal.application.pure.p001", "include.gal.cairo.application.pure.p001"]
 soft_depends_on = []
 est_lines = 199
 layer = 1

@@ -2,10 +2,10 @@
 id = "eeschema.sim.application.ui.p003"
 upstream = ["eeschema/sim/sim_model.cpp"]
 rust_module = "kicad_port::eeschema::sim::application::ui::p003"
-depends_on = ["common.application.ui.p017", "common.application.ui.p019", "common.application.ui.p033", "common.application.ui.p035", "common.jobs.application.thin.replacement.p001", "common.jobs.application.ui.p002", "common.jobs.application.ui.p003", "common.widgets.application.ui.p017", "common.widgets.application.ui.p018", "eeschema.application.ui.p016", "eeschema.application.ui.p028", "eeschema.application.ui.p029", "eeschema.application.ui.p030", "eeschema.application.ui.p039", "eeschema.sim.application.thin.replacement.p001", "eeschema.sim.application.ui.p011", "include.application.pure.p002", "include.application.ui.p006", "include.application.ui.p008", "include.application.ui.p011", "kicad.application.ui.p004", "libs.kimath.include.math.application.ui.p001"]
-soft_depends_on = ["eeschema.application.ui.p054", "eeschema.application.ui.p059", "eeschema.connectivity.application.ui.p005", "eeschema.sim.application.pure.p001", "eeschema.sim.application.pure.p007", "eeschema.sim.application.pure.p008", "eeschema.sim.application.ui.p001", "eeschema.sim.application.ui.p004", "eeschema.sim.application.ui.p005", "eeschema.sim.application.ui.p006", "eeschema.sim.generated.ui.p001", "pcbnew.tools.application.ui.p004"]
+depends_on = ["common.application.ui.p017", "common.application.ui.p019", "common.application.ui.p033", "common.application.ui.p035", "common.jobs.application.thin.replacement.p001", "common.jobs.application.ui.p002", "common.jobs.application.ui.p003", "common.widgets.application.ui.p017", "common.widgets.application.ui.p018", "eeschema.application.ui.p016", "eeschema.application.ui.p029", "eeschema.application.ui.p030", "eeschema.application.ui.p031", "eeschema.application.ui.p040", "eeschema.sim.application.ui.p011", "include.application.pure.p002", "include.application.ui.p006", "include.application.ui.p008", "include.application.ui.p012", "kicad.application.ui.p004", "libs.kimath.include.math.application.ui.p001"]
+soft_depends_on = ["eeschema.application.ui.p055", "eeschema.application.ui.p060", "eeschema.connectivity.application.ui.p005", "eeschema.sim.application.thin.replacement.p001", "eeschema.sim.application.thin.replacement.p006", "eeschema.sim.application.ui.p002", "eeschema.sim.application.ui.p004", "eeschema.sim.application.ui.p005", "eeschema.sim.application.ui.p006", "eeschema.sim.generated.ui.p001", "pcbnew.tools.application.ui.p004"]
 est_lines = 1919
-layer = 234
+layer = 244
 tests = []
 status = "todo"
 claimed_by = ""

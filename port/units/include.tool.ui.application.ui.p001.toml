@@ -2,10 +2,10 @@
 id = "include.tool.ui.application.ui.p001"
 upstream = ["include/tool/ui/toolbar_configuration.h"]
 rust_module = "kicad_port::include::tool::ui::application::ui::p001"
-depends_on = ["common.tool.ui.application.pure.p001", "include.tool.application.ui.p001", "include.tool.application.ui.p003"]
+depends_on = ["common.settings.application.ui.p003", "common.tool.ui.application.pure.p001", "include.tool.application.ui.p001", "include.tool.application.ui.p004"]
 soft_depends_on = []
 est_lines = 314
-layer = 51
+layer = 69
 tests = []
 status = "todo"
 claimed_by = ""

@@ -2,10 +2,10 @@
 id = "pcbnew.dialogs.generated.ui.p012"
 upstream = ["pcbnew/dialogs/dialog_render_job_base.cpp", "pcbnew/dialogs/dialog_render_job_base.h", "pcbnew/dialogs/dialog_router_save_test_case_base.cpp", "pcbnew/dialogs/dialog_rule_area_properties_base.cpp", "pcbnew/dialogs/dialog_rule_area_properties_base.h", "pcbnew/dialogs/dialog_shape_properties_base.cpp", "pcbnew/dialogs/dialog_shape_properties_base.h", "pcbnew/dialogs/dialog_swap_layers_base.cpp", "pcbnew/dialogs/dialog_swap_layers_base.h", "pcbnew/dialogs/dialog_table_properties_base.cpp", "pcbnew/dialogs/dialog_table_properties_base.h"]
 rust_module = "kicad_port::pcbnew::dialogs::generated::ui::p012"
-depends_on = ["common.application.ui.p006", "common.widgets.application.ui.p001", "common.widgets.application.ui.p010", "common.widgets.application.ui.p013", "common.widgets.application.ui.p016", "common.widgets.application.ui.p017", "common.widgets.application.ui.p018", "pcbnew.application.ui.p045"]
+depends_on = ["common.application.ui.p006", "common.widgets.application.ui.p001", "common.widgets.application.ui.p010", "common.widgets.application.ui.p013", "common.widgets.application.ui.p016", "common.widgets.application.ui.p017", "common.widgets.application.ui.p018", "pcbnew.application.ui.p047"]
 soft_depends_on = []
 est_lines = 1672
-layer = 148
+layer = 201
 tests = []
 status = "todo"
 claimed_by = ""

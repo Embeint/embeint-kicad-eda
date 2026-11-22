@@ -2,10 +2,10 @@
 id = "common.application.ui.p018"
 upstream = ["common/eda_units.cpp", "common/embedded_files.cpp", "common/env_paths.cpp"]
 rust_module = "kicad_port::common::application::ui::p018"
-depends_on = ["common.application.ui.p009", "common.application.ui.p030", "common.application.ui.p033", "include.application.ui.p003", "include.application.ui.p006", "include.application.ui.p008", "include.settings.application.ui.p001", "libs.core.include.core.application.pure.p001", "libs.kimath.include.application.pure.p001", "libs.kimath.include.geometry.application.ui.p001", "libs.kimath.include.math.application.ui.p001"]
+depends_on = ["build.common.generated.ui.p001", "common.application.ui.p009", "common.application.ui.p030", "common.application.ui.p031", "common.application.ui.p033", "include.application.ui.p004", "include.application.ui.p006", "include.application.ui.p008", "include.settings.application.ui.p001", "libs.core.include.core.application.pure.p001", "libs.kimath.include.application.pure.p001", "libs.kimath.include.geometry.application.ui.p001", "libs.kimath.include.math.application.ui.p001"]
 soft_depends_on = []
 est_lines = 1844
-layer = 30
+layer = 49
 tests = []
 status = "todo"
 claimed_by = ""
