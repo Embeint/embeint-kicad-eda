@@ -13,9 +13,10 @@ permissions:
 env:
   RUST_TOOLCHAIN: "1.99.1"
   CARGO_BUILD_JOBS: "8"
-  # The third-pilot/integration PR changes this to true. Infrastructure passes
-  # its implemented checks while its summary explicitly says INCOMPLETE.
-  PHASE0_REQUIRED: "false"
+  # Enabled by the phase zero integration of the three layer-0 pilots: the live
+  # check runs with --require-phase0 and fails unless three live green layer-0
+  # units and all generated unit records are valid.
+  PHASE0_REQUIRED: "true"
 
 jobs:
   rust-port:
