@@ -154,3 +154,13 @@ Cover default state and every setter/getter, table thresholds just below/at/abov
 `PCB_CALCULATOR_DATAFILE_PARSER::GetReader()` is owned by `pcb_calculator.application.thin.replacement.p001` (layer 0, wx `thin-replacement`), at `pcb_calculator/datafile_read_write.h:55:55`. Canonical wx analysis moved it outside the pure resistor record; it remains in the graph and source-scope audit. Its reader-reference type and a genuine oracle identity case remain required for that owned operation; coordinate a type co-port and never silently omit it.
 
 The per-unit function/span migration ledger is `generated/evidence/corrected/unit-migration.json`. It explicitly records split/moved scopes; old pilot implementations cannot certify new records by retaining an old ID alone. The distribution helper remains excluded as an independent pure leaf because its KiROUND/logging dependency is real.
+
+The later generator-dependency refresh (`generated/evidence/generator-refresh/`) changed only recipe provenance. All three pilot records, the GetReader owner and every other unit record are byte-identical to the V5 publication; `checks.json` records their blob hashes.
+
+The guarded source recapture (`generated/evidence/source-guard/`) republished identical relations with source attestation; all unit and pilot records remain byte-identical.
+
+The verified-Ninja recapture (`generated/evidence/verified-ninja/`) invokes only
+the manifest's absolute verified executable. Its fresh relations are identical
+to D2 and 2888; all 1,801 unit files, these pilot scopes and the GetReader owner
+remain unchanged. Independent acceptance and numerical pilot reviews remain
+separate requirements.

@@ -1,0 +1,193 @@
+{
+  "bootstrap-tests": {
+    "command": [
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "port/tools",
+      "-p",
+      "test_*.py",
+      "-v"
+    ],
+    "exit_code": 0,
+    "skipped": 0,
+    "tests": 9
+  },
+  "extractor-windows": {
+    "command": [
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "port/extractor",
+      "-p",
+      "test_*.py",
+      "-v"
+    ],
+    "exit_code": 0,
+    "skipped": 11,
+    "tests": 36
+  },
+  "extractor-wsl": {
+    "log": "logs/extractor-tests-wsl.log.gz",
+    "skipped": 0,
+    "tests": 36
+  },
+  "golden-changes": {
+    "command": [
+      "port/tools/check_goldens_policy.py",
+      "--base",
+      "origin/rust"
+    ],
+    "exit_code": 0
+  },
+  "head": "57e085ad043d5aee55de7bccd51b411d6c8526fc",
+  "identities": {
+    "canonical_graph_sha256": "8c39a7f481663b011fb37404004874b781aa77a0e35397b8f563d08417f498c8",
+    "canonical_inventory_sha256": "9b6f09351a5f7b59ca790c1d80301c69373e3f6a04fc5a28082733171fb4b742",
+    "parse_extractor_sha256": "e1548c1fe920a05d882e3f2de1c14843ca0e7b3b04ca9441d4132e16de77b88d",
+    "recipes_gzip_sha256": "f5a91a1c6f5e2357aeb1db4f6499be3ba7bca7cc3b46fea793c74de42257064e",
+    "refresh": {
+      "capture_code_sha256": "1a7ea4bc86028ebccd5cb527b37c7f3fd053d259ca735c2195593d8b1f569f93",
+      "capture_sha256": "f4126f134144f18f35b849e22dc44984d23a52e66aec4a372b262d8eb57220d1",
+      "changed_fields": [
+        "provenance.generated_sources_manifest_sha256",
+        "provenance.generated_input_dependencies",
+        "provenance.source_inventory_sha256",
+        "provenance.generator_dependency_refresh",
+        "inventory build-generated generator_inputs"
+      ],
+      "input_graph_sha256": "146e2ccac0e8d0ba6d37ceadb26ae5a84d0223609dd55abebb0b5451bfe45735",
+      "input_inventory_sha256": "b9e6986b36529fdf4041712dfb258af050c2ff61bb3971875394eb16e2a47682",
+      "parse_extractor_sha256": "e1548c1fe920a05d882e3f2de1c14843ca0e7b3b04ca9441d4132e16de77b88d",
+      "parse_generated_sources_manifest_sha256": "a2466270bdf4aec52b7b8267140ac4b18c8295520c5b94e1ecb3dc8498dacb34",
+      "parse_recipes_sha256": "dff5b79afdbe58e2e4c7a4f0e4d8b093fd34a94a0302d38cddd6483660496951",
+      "parse_source_inventory_sha256": "3d52afc68446cc7e00344409c2fc1ac6908ed5aa554f55d2501126885e5ee175",
+      "policy": "Post-parse generator dependency refresh. AST, definitions, calls, overrides, unresolved records, translation units, coverage and source bytes are those of the original parse (parse_* identities); only generator dependency metadata and the fingerprints derived from it were recaptured from the unchanged private build.",
+      "recipes_sha256": "f44049e2ea0a2ad8b1a16133e5c6bc25df084366d07995b7369d0d44fd9d1900",
+      "refresh_code_hash_policy": "refresh_generator_dependencies.py and generated_sources.py concatenated after CRLF-to-LF normalization",
+      "refresh_code_sha256": "1a7ea4bc86028ebccd5cb527b37c7f3fd053d259ca735c2195593d8b1f569f93"
+    },
+    "refreshed_manifest_sha256": "071a18f4c9ad6d0a6ed39ed84e4cbbc33f984f8bc4896b45f4e9de8b4a132792",
+    "v5_manifest_and_recipes_preserved_in_corrected_extraction": true
+  },
+  "metrics": {
+    "blocked_units": 64,
+    "corrected": "2507/2511",
+    "definitions": 107254,
+    "generated_definitions": 37838,
+    "largest_generated_blob_bytes": 69906624,
+    "protected_unit_metrics_unchanged": {
+      "accounted_lines": 2380947,
+      "back_edge_count": 9548,
+      "back_edge_weight": 106538,
+      "hard_edge_count": 46894,
+      "layers": 392,
+      "unit_count": 1801,
+      "wx": {
+        "UI": [
+          1147,
+          1660545
+        ],
+        "pure": [
+          553,
+          666688
+        ],
+        "thin-replacement": [
+          101,
+          53714
+        ]
+      }
+    },
+    "raw": "2462/2471",
+    "uncompiled_sources": 63
+  },
+  "policy-tests": {
+    "command": [
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "rust/kicad-difftest/tests",
+      "-p",
+      "test_policy.py",
+      "-v"
+    ],
+    "exit_code": 0,
+    "skipped": 0,
+    "tests": 7
+  },
+  "progress-build": {
+    "command": [
+      "port/tools/progress.py",
+      "--out",
+      "C:\\Users\\KarlVonRichter\\.t3\\phase0-gen-refresh-site"
+    ],
+    "exit_code": 0
+  },
+  "progress-tests": {
+    "command": [
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "port/site",
+      "-p",
+      "test_*.py",
+      "-v"
+    ],
+    "exit_code": 0,
+    "skipped": 0,
+    "tests": 28
+  },
+  "units": {
+    "changed_from_base": 0,
+    "count": 1801,
+    "pilots": {
+      "GetReader": {
+        "layer": 0,
+        "location": "pcb_calculator/datafile_read_write.h:55:55",
+        "owner": "pcb_calculator.application.thin.replacement.p001",
+        "wx_class": "thin-replacement"
+      },
+      "libs.kimath.src.md5_hash.application.pure.p001": {
+        "definitions": 15,
+        "est_lines": 289,
+        "files": 1,
+        "toml_blob_sha256": "71c89c90c9df44c2ba2abb81a367c650c951fd058b1f3e7dd4e788b04c3120ee",
+        "unchanged_from_base": true
+      },
+      "pcb_calculator.application.pure.p001": {
+        "definitions": 40,
+        "est_lines": 1126,
+        "files": 7,
+        "toml_blob_sha256": "2c99ea7f49657e6ae51efdeec3c25643161a3610b91ede737ccd6780688ce4d1",
+        "unchanged_from_base": true
+      },
+      "pcb_calculator.calculator_panels.application.pure.p001": {
+        "definitions": 28,
+        "est_lines": 1943,
+        "files": 9,
+        "toml_blob_sha256": "25ac9dac1b01b3ccba1443ab47bb58c1f774669e0631a49463b9cb1d994be198",
+        "unchanged_from_base": true
+      }
+    },
+    "ported_or_claimed": 0,
+    "solidcore_roundtrip_units": 1801,
+    "statuses": {
+      "blocked": 64,
+      "todo": 1737
+    }
+  },
+  "windows_canonical_regeneration": {
+    "byte_identical_artifacts": 1804,
+    "iterations": 2
+  },
+  "windows_refresh_cli_replay": {
+    "generated-sources.json": true,
+    "graph.json.gz": true,
+    "inventory.json": true,
+    "refresh-report.json": true
+  }
+}

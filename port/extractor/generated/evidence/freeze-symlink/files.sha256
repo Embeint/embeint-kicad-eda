@@ -1,0 +1,7 @@
+247bc75f33e47fffb2b4c22e816e55f4ca6751fcd5b6c5f8b4ddebee3289436d  ./old-control.log
+826889dfc927232d0b8a86bfefafdd4f609bd2838f55948ccaea1796f81d3322  ./preservation.json
+651c6b61aaa86e56e85cf56f9fe81a4b77086a3282a2bd2162da09488a3fe39a  ./scripts/old-generated_sources.py
+cc788a7f24c198d2d9227ae32ade44fe6b8f8a3b5caaf9ef4fd10cd03e6c3ea1  ./scripts/package.py
+6488b67dbfe4d2de13e733e5efc313c280cf38e877313dd5a65d08740b4242a0  ./scripts/validate.sh
+d03ab60b256d79a7c85f3654949e2f2948a29ff91e208aadcf65fae0a0603f5b  ./source-identity.json
+dc978dbd709ecaff0570ae141e50fb9fe2b0b895e3a198d207018015bd139663  ./tests-wsl.log

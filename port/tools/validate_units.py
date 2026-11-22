@@ -18,7 +18,7 @@ import tomllib
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from extractor.model import CLASSES, PIN, classify, digest, expand_virtual, layers, read_json
 from split_units import CORE
-from extractor.generated_sources import source_path
+from extractor.generated_sources import generator_dependencies, source_path
 
 STATUSES = {"todo", "claimed", "partial", "green", "blocked"}
 
@@ -150,6 +150,9 @@ def validate(root, require_complete=False, check_sources=True, source_root=None)
                 errors.append('generated recipes fingerprint mismatch')
         for entry in build_files.values():
             source_path(entry, source_root or root, generated)
+        if ('source_generator_dependencies' in manifest or 'generated_input_dependencies' in provenance):
+            if provenance.get('generated_input_dependencies') != generator_dependencies(manifest):
+                errors.append('generated recipe dependencies differ from frozen manifest')
         tracked_inventory = [{k:v for k,v in f.items() if k != 'coverage'} for f in inventory['files']
                              if f.get('origin') != 'build-generated']
         if digest(json.dumps(tracked_inventory, sort_keys=True).encode()) != provenance.get('tracked_source_inventory_sha256'):

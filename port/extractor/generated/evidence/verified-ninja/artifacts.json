@@ -1,0 +1,42 @@
+{
+  "actual-controls.log": {
+    "bytes": 1966,
+    "sha256": "35fcdce1556bfc81b265c6a2fe065510f215b9fa1a491953c8bc37aec6b7f322"
+  },
+  "apply-refreshed-repeat.log": {
+    "bytes": 146,
+    "sha256": "75f6bd2220cc1968b95dea1e0ac7d45b8b08824f41df40a2881ac208739f5e23"
+  },
+  "apply-refreshed.log": {
+    "bytes": 146,
+    "sha256": "75f6bd2220cc1968b95dea1e0ac7d45b8b08824f41df40a2881ac208739f5e23"
+  },
+  "assemble.log": {
+    "bytes": 1269,
+    "sha256": "1a6cf9a0e15a0eadb6d53c253f5fccc887a81c5949b5fcb7f63688d767b590c6"
+  },
+  "capture.log": {
+    "bytes": 141,
+    "sha256": "9524cf6d621cd92e698b3f34b53e02dd1687dd5d308cb2dcf58c09f8cbbdd1ef"
+  },
+  "compare.log": {
+    "bytes": 4001,
+    "sha256": "6b1351d8ac2f9bcf177d5cdf3e6072b4817d6cb3708d2c1df8dfd1cb3b320fd4"
+  },
+  "extractor-tests-wsl.log": {
+    "bytes": 5756,
+    "sha256": "3762874f8f58ae650a27f489a2c6994eb086f402f36077e3875d29fe3d359428"
+  },
+  "old-implementation-control.log": {
+    "bytes": 1102,
+    "sha256": "747b260deda4f4fd6f6c9d764fd7410e614c6a2c00fea8b5103ac04c075b88f4"
+  },
+  "prepare.log": {
+    "bytes": 1359,
+    "sha256": "d8a45a34fa473bb35ac9f9c19a8e77472f948ffb9eff49ed7c3717a2bf82f881"
+  },
+  "repro-controls.log": {
+    "bytes": 954,
+    "sha256": "f32804644d671ac05f78593ac66ba9bbc877ade1e8b5ede5d8faf7c773ea92ab"
+  }
+}
