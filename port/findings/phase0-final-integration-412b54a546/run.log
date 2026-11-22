@@ -1,0 +1,270 @@
+== 2026-11-22T19:34:48+10:00 prep
+export identity: head 412b54a54637b44966cb8babc4a7bd4fc6a4c4c1 files 24318 pinned 915
+== 2026-11-22T19:35:37+10:00 oracle build, audit and default ctest
+-- The C compiler identification is GNU 15.2.0
+-- The CXX compiler identification is GNU 15.2.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/gcc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/g++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found Python3: /usr/bin/python3 (found version "3.14.4") found components: Interpreter
+-- Found wxWidgets: -L/usr/lib/x86_64-linux-gnu;-pthread;;;-lwx_baseu-3.2;-lwx_gtk3u_core-3.2 (found suitable version "3.2.9", minimum required is "3.2")
+-- Looking for malloc.h
+-- Looking for malloc.h - found
+-- Looking for iso646.h
+-- Looking for iso646.h - found
+-- Looking for stdint.h
+-- Looking for stdint.h - found
+-- Looking for strcasecmp
+-- Looking for strcasecmp - found
+-- Looking for strncasecmp
+-- Looking for strncasecmp - found
+-- Looking for strtok_r
+-- Looking for strtok_r - found
+-- Looking for strtok_s
+-- Looking for strtok_s - not found
+-- Looking for malloc
+-- Looking for malloc - found
+-- Looking for math.h
+-- Looking for math.h - found
+-- Looking for C++ include cmath
+-- Looking for C++ include cmath - found
+-- Looking for asinh
+-- Looking for asinh - found
+-- Looking for acosh
+-- Looking for acosh - found
+-- Looking for atanh
+-- Looking for atanh - found
+-- Performing Test HAVE_CMATH_ISINF
+-- Performing Test HAVE_CMATH_ISINF - Success
+-- Looking for clock_gettime in rt
+-- Looking for clock_gettime in rt - found
+-- Looking for gettimeofday
+-- Looking for gettimeofday - found
+-- Looking for getc_unlocked
+-- Looking for getc_unlocked - found
+-- {fmt} version: 12.2.0
+-- Build type: Release
+-- Configuring done (6.4s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/karlvonrichter/kicad-port/phase0-final-cont-412b54a546/oracle-build
+[0/2] Re-checking globbed directories...
+[1/84] cd /home/karlvonrichter/kicad-port/phase0-final-cont-412b54a546/oracle-build && /usr/bin/python3 /home/karlvonrichter/kicad-port/phase0-final-cont-412b54a546/oracle-src/overlay/audit.py --build /home/karlvonrichter/kicad-port/phase0-final-cont-412b54a546/oracle-build --source /home/karlvonrichter/kicad-port/phase0-final-cont-412b54a546/oracle-src/reference --overlay /home/karlvonrichter/kicad-port/phase0-final-cont-412b54a546/oracle-src/overlay
+Oracle audit: 75 compilations, pin 4cf939778df04d2b747bb2c4714fc5014a7565c7, strict FP flags verified
+[2/84] Building CXX object reference/core/CMakeFiles/core.dir/base64.cpp.o
+[3/84] Building CXX object reference/core/CMakeFiles/core.dir/version_compare.cpp.o
+[4/84] Building CXX object reference/core/CMakeFiles/core.dir/observable.cpp.o
+[5/84] Building CXX object reference/core/CMakeFiles/core.dir/utf8.cpp.o
+[6/84] Building CXX object reference/core/CMakeFiles/core.dir/wx_stl_compat.cpp.o
+[7/84] Building CXX object reference/core/CMakeFiles/core.dir/profile.cpp.o
+[8/84] Linking CXX static library reference/core/libcore.a
+[9/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/md5_hash.cpp.o
+[10/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/transform.cpp.o
+[11/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/arc_chord_params.cpp.o
+[12/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/trigo.cpp.o
+[13/84] Building CXX object reference/clipper2/CMakeFiles/clipper2.dir/Clipper2Lib/src/clipper.rectclip.cpp.o
+[14/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/arc_construction.cpp.o
+[15/84] Building CXX object reference/clipper2/CMakeFiles/clipper2.dir/Clipper2Lib/src/clipper.offset.cpp.o
+[16/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/eda_angle.cpp.o
+[17/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/distribute.cpp.o
+[18/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/ellipse.cpp.o
+[19/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/bezier_curves.cpp.o
+[20/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/circle.cpp.o
+[21/84] Building CXX object reference/clipper2/CMakeFiles/clipper2.dir/Clipper2Lib/src/clipper.engine.cpp.o
+[22/84] Linking CXX static library reference/clipper2/libclipper2.a
+[23/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/grid_geometry.cpp.o
+[24/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/convert_basic_shapes_to_polygon.cpp.o
+[25/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/corner_operations.cpp.o
+[26/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/convex_hull.cpp.o
+[27/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/line.cpp.o
+[28/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/direction_45.cpp.o
+[29/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/geometry_utils.cpp.o
+[30/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/half_line.cpp.o
+[31/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/poisson_disk.cpp.o
+[32/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/seg.cpp.o
+[33/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/nearest.cpp.o
+[34/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/oval.cpp.o
+[35/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/intersection.cpp.o
+[36/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_compound.cpp.o
+[37/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape.cpp.o
+[38/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_file_io.cpp.o
+[39/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/roundrect.cpp.o
+[40/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_arc.cpp.o
+[41/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/transform_trs.cpp.o
+[42/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_ellipse.cpp.o
+[43/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_segment.cpp.o
+[44/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_nearest_points.cpp.o
+[45/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_rect.cpp.o
+[46/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/vector_utils.cpp.o
+[47/84] Building CXX object reference/fmt/CMakeFiles/fmt.dir/src/os.cc.o
+[48/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/math/util.cpp.o
+[49/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_collisions.cpp.o
+[50/84] Building CXX object CMakeFiles/resistor-reference.dir/home/karlvonrichter/kicad-port/phase0-final-cont-412b54a546/oracle-src/reference/pcb_calculator/eseries.cpp.o
+[51/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/vertex_set.cpp.o
+[52/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_utils.cpp.o
+[53/84] Building CXX object CMakeFiles/calculator-reader-reference.dir/home/karlvonrichter/kicad-port/phase0-final-cont-412b54a546/oracle-src/reference/common/exceptions.cpp.o
+[54/84] Building CXX object CMakeFiles/calculator-reader-reference.dir/home/karlvonrichter/kicad-port/phase0-final-cont-412b54a546/oracle-src/reference/common/richio.cpp.o
+[55/84] Building CXX object CMakeFiles/calculator-reader-reference.dir/home/karlvonrichter/kicad-port/phase0-final-cont-412b54a546/oracle-src/reference/common/dsnlexer.cpp.o
+[56/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_line_chain.cpp.o
+[57/84] Building CXX object CMakeFiles/calculator-reader-reference.dir/reader-generated/pcb_calculator_datafile_keywords.cpp.o
+[58/84] Building CXX object reference/fmt/CMakeFiles/fmt.dir/src/format.cc.o
+[59/84] Building CXX object CMakeFiles/iec60664-reference.dir/home/karlvonrichter/kicad-port/phase0-final-cont-412b54a546/oracle-src/reference/pcb_calculator/calculator_panels/iec60664.cpp.o
+[60/84] Building CXX object CMakeFiles/resistor-reference.dir/reference/resistors_access.cpp.o
+[61/84] Linking CXX static library libiec60664-reference.a
+[62/84] Linking CXX static library reference/fmt/libfmt.a
+[63/84] Linking CXX static library libresistor-reference.a
+[64/84] Building CXX object CMakeFiles/calculator-reader-reference.dir/home/karlvonrichter/kicad-port/phase0-final-cont-412b54a546/oracle-src/reference/pcb_calculator/datafile_read_write.cpp.o
+[65/84] Building CXX object CMakeFiles/kicad-oracle.dir/shims/example_rescale.cpp.o
+[66/84] Building CXX object CMakeFiles/kicad-oracle.dir/registry.cpp.o
+[67/84] Building CXX object CMakeFiles/kicad-oracle.dir/main.cpp.o
+[68/84] Building CXX object CMakeFiles/kicad-oracle.dir/shims/md5.cpp.o
+[69/84] Building CXX object CMakeFiles/kicad-oracle.dir/shims/iec60664.cpp.o
+[70/84] Building CXX object CMakeFiles/oracle-dispatch-test.dir/registry.cpp.o
+[71/84] Building CXX object CMakeFiles/oracle-dispatch-test.dir/shims/example_rescale.cpp.o
+[72/84] Building CXX object CMakeFiles/kicad-oracle.dir/protocol.cpp.o
+[73/84] Building CXX object CMakeFiles/oracle-dispatch-test.dir/test_dispatch.cpp.o
+[74/84] Building CXX object CMakeFiles/oracle-dispatch-test.dir/protocol.cpp.o
+[75/84] Building CXX object CMakeFiles/kicad-oracle.dir/shims/resistors.cpp.o
+[76/84] Building CXX object CMakeFiles/oracle-dispatch-test.dir/shims/iec60664.cpp.o
+[77/84] Building CXX object CMakeFiles/oracle-dispatch-test.dir/shims/md5.cpp.o
+[78/84] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_poly_set.cpp.o
+[79/84] Linking CXX static library reference/kimath/libkimath.a
+[80/84] Linking CXX static library libcalculator-reader-reference.a
+[81/84] Linking CXX executable kicad-oracle
+[82/84] Building CXX object CMakeFiles/oracle-dispatch-test.dir/shims/resistors.cpp.o
+[83/84] Linking CXX executable oracle-dispatch-test
+Test project /home/karlvonrichter/kicad-port/phase0-final-cont-412b54a546/oracle-build
+    Start 1: oracle-protocol
+1/8 Test #1: oracle-protocol ..................   Passed    0.12 sec
+    Start 2: oracle-build-guards
+2/8 Test #2: oracle-build-guards ..............   Passed    0.12 sec
+    Start 3: oracle-iec60664-build-guards
+3/8 Test #3: oracle-iec60664-build-guards .....   Passed    0.08 sec
+    Start 4: oracle-dispatch
+4/8 Test #4: oracle-dispatch ..................   Passed    0.02 sec
+    Start 5: oracle-md5-inputs
+5/8 Test #5: oracle-md5-inputs ................   Passed    0.05 sec
+    Start 6: oracle-iec60664-inputs
+6/8 Test #6: oracle-iec60664-inputs ...........   Passed    0.09 sec
+    Start 7: oracle-resistor-inputs
+7/8 Test #7: oracle-resistor-inputs ...........   Passed    0.04 sec
+    Start 8: oracle-resistor-private-keys
+8/8 Test #8: oracle-resistor-private-keys .....   Passed    0.10 sec
+
+100% tests passed, 0 tests failed out of 8
+
+Total Test time (real) =   0.63 sec
+Oracle: /home/karlvonrichter/kicad-port/phase0-final-cont-412b54a546/oracle-build/kicad-oracle
+Provenance: /home/karlvonrichter/kicad-port/phase0-final-cont-412b54a546/oracle-build/oracle-provenance.json
+== 2026-11-22T19:36:05+10:00 lock acquired
+== 2026-11-22T19:36:05+10:00 md5 shim fmt, clippy, tests, native and wasm builds
+rustc 1.99.1 (58cf8f9c3 2026-10-13)
+gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+    Checking kicad-difftest v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-cont-412b54a546/repo/rust/kicad-difftest)
+    Checking kicad-md5 v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-cont-412b54a546/repo/rust/kicad-md5)
+    Checking kicad-md5-shim v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-cont-412b54a546/repo/rust/kicad-md5-shim)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.76s
+   Compiling kicad-difftest v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-cont-412b54a546/repo/rust/kicad-difftest)
+   Compiling kicad-md5 v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-cont-412b54a546/repo/rust/kicad-md5)
+   Compiling kicad-md5-shim v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-cont-412b54a546/repo/rust/kicad-md5-shim)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.31s
+     Running unittests src/main.rs (rust/target/debug/deps/kicad_md5_shim-eb6ffb475fae19fa)
+
+running 11 tests
+test tests::malformed_assignment_validation_matches_reference_order ... ok
+test tests::malformed_protocol_and_unknown_unit_fail ... ok
+test tests::literal_escaped_marker_keys_preserve_complete_refusals ... ok
+test tests::legitimate_noops_remain_successful_results ... ok
+test tests::integer_negative_zero_byte_matches_zero_without_accepting_floats ... ok
+test tests::resource_bounds_and_unconstructed_states_are_refused ... ok
+test tests::numeric_overflow_rejects_the_complete_request_before_identities ... ok
+test tests::finite_numbers_reach_domain_and_envelope_validation ... ok
+test tests::reserved_serde_keys_stay_ordinary_objects_in_retained_requests ... ok
+test tests::reserved_serde_keys_are_refused_at_every_placement_with_state_guards ... ok
+test tests::complete_nesting_envelopes_match_the_shared_container_bound ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+   Compiling kicad-difftest v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-cont-412b54a546/repo/rust/kicad-difftest)
+   Compiling kicad-md5-shim v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-cont-412b54a546/repo/rust/kicad-md5-shim)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.36s
+   Compiling kicad-md5 v0.1.0 (/home/karlvonrichter/kicad-port/phase0-final-cont-412b54a546/repo/rust/kicad-md5)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.30s
+== 2026-11-22T19:36:09+10:00 default md5 guard on both actual adapters, transcripts and checksums
+MD5 adapter: 197 complete refusal envelopes and 6 complete successes passed per adapter
+{
+  "adapters": {
+    "oracle": {
+      "complete_replies": 203,
+      "first_199_stdout_lines_equal_committed": true,
+      "sha256": "945b7b606a09ca36ff516a4e6d25955d42f7dc5c5fdb714cd6f2e035e931cf0e",
+      "stdout_equals_committed_transcript": true,
+      "stdout_sha256": "66b7d66e7cd68fd26db4e8059b26607e0f0037b861b2115eb051a4037cee4a38"
+    },
+    "rust": {
+      "complete_replies": 203,
+      "first_199_stdout_lines_equal_committed": true,
+      "sha256": "16e82698e261a6c242aa14835c36d4421a3b3e7cc797ff6ba3e4b8f178704853",
+      "stdout_equals_committed_transcript": true,
+      "stdout_sha256": "e147eb7a74e8c7b9a5cf4f4fad35220d8e032fd2bac0f79ee353d7c36ddfba85"
+    }
+  },
+  "checks": 203,
+  "refusals": 197,
+  "successes": 6
+}
+rust/kicad-md5-shim/validation/2026-11-22-da17dc54/files.sha256: 23 entries verify
+All unit records and source accounting valid
+== 2026-11-22T19:36:31+10:00 registered md5 unit at the default per-entry budget
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","status":"green","action":"check","cases":5973,"deferred":0,"cases_sha256":"0d2232c3b758cb67acdc486cbe420350394502fdf2df591e356280468df00795","oracle_output_sha256":"9b8b9a761911d19c39e45136b28d17eb47ef50dc582102b4b4e538ba909034cb","rust_output_sha256":"709084cd7bce4bd431415418ae7456b198d0d30d80613d2c9be373e8f67c6cf4","oracle_sha256":"945b7b606a09ca36ff516a4e6d25955d42f7dc5c5fdb714cd6f2e035e931cf0e","rust_sha256":"16e82698e261a6c242aa14835c36d4421a3b3e7cc797ff6ba3e4b8f178704853"}
+registered md5 seconds: 25
+945b7b606a09ca36ff516a4e6d25955d42f7dc5c5fdb714cd6f2e035e931cf0e  /home/karlvonrichter/kicad-port/phase0-final-cont-412b54a546/oracle-build/kicad-oracle
+16e82698e261a6c242aa14835c36d4421a3b3e7cc797ff6ba3e4b8f178704853  /home/karlvonrichter/kicad-port/phase0-final-cont-412b54a546/adapters/kicad-md5-shim
+357b7d6c919e26727c8a32c55a83fa53ace4830487d5fa33dbc270bbf3776fad  rust/target/debug/kicad-difftest
+== 2026-11-22T19:36:56+10:00 summary
+{
+  "tested_revision": "412b54a54637b44966cb8babc4a7bd4fc6a4c4c1",
+  "reference_file_count": 915,
+  "compile_commands": 75,
+  "oracle_provenance_sha256": "631d60222c17da09c18605c1f7eed59fb7a2ad7d6cc09c6be33cccf84f7bd28a",
+  "source_manifest_sha256": "dab50320381993c77b0a381e035c96180cfd5b110368c174dc1be155d717ce7c",
+  "guard": {
+    "adapters": {
+      "oracle": {
+        "complete_replies": 203,
+        "first_199_stdout_lines_equal_committed": true,
+        "sha256": "945b7b606a09ca36ff516a4e6d25955d42f7dc5c5fdb714cd6f2e035e931cf0e",
+        "stdout_equals_committed_transcript": true,
+        "stdout_sha256": "66b7d66e7cd68fd26db4e8059b26607e0f0037b861b2115eb051a4037cee4a38"
+      },
+      "rust": {
+        "complete_replies": 203,
+        "first_199_stdout_lines_equal_committed": true,
+        "sha256": "16e82698e261a6c242aa14835c36d4421a3b3e7cc797ff6ba3e4b8f178704853",
+        "stdout_equals_committed_transcript": true,
+        "stdout_sha256": "e147eb7a74e8c7b9a5cf4f4fad35220d8e032fd2bac0f79ee353d7c36ddfba85"
+      }
+    },
+    "checks": 203,
+    "refusals": 197,
+    "successes": 6
+  },
+  "registered_md5": {
+    "status": "green",
+    "cases": 5973,
+    "deferred": 0,
+    "failures": null,
+    "oracle_sha256": "945b7b606a09ca36ff516a4e6d25955d42f7dc5c5fdb714cd6f2e035e931cf0e",
+    "rust_sha256": "16e82698e261a6c242aa14835c36d4421a3b3e7cc797ff6ba3e4b8f178704853",
+    "oracle_output_sha256": "9b8b9a761911d19c39e45136b28d17eb47ef50dc582102b4b4e538ba909034cb",
+    "rust_output_sha256": "709084cd7bce4bd431415418ae7456b198d0d30d80613d2c9be373e8f67c6cf4"
+  },
+  "golden_sha256": "9b8b9a761911d19c39e45136b28d17eb47ef50dc582102b4b4e538ba909034cb"
+}
+== 2026-11-22T19:36:56+10:00 MD5_FOLLOWUP_PROOF_COMPLETE

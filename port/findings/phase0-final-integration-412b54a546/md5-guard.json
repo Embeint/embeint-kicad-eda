@@ -1,0 +1,21 @@
+{
+  "adapters": {
+    "oracle": {
+      "complete_replies": 203,
+      "first_199_stdout_lines_equal_committed": true,
+      "sha256": "945b7b606a09ca36ff516a4e6d25955d42f7dc5c5fdb714cd6f2e035e931cf0e",
+      "stdout_equals_committed_transcript": true,
+      "stdout_sha256": "66b7d66e7cd68fd26db4e8059b26607e0f0037b861b2115eb051a4037cee4a38"
+    },
+    "rust": {
+      "complete_replies": 203,
+      "first_199_stdout_lines_equal_committed": true,
+      "sha256": "16e82698e261a6c242aa14835c36d4421a3b3e7cc797ff6ba3e4b8f178704853",
+      "stdout_equals_committed_transcript": true,
+      "stdout_sha256": "e147eb7a74e8c7b9a5cf4f4fad35220d8e032fd2bac0f79ee353d7c36ddfba85"
+    }
+  },
+  "checks": 203,
+  "refusals": 197,
+  "successes": 6
+}

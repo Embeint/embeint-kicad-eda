@@ -1,0 +1,5 @@
+945b7b606a09ca36ff516a4e6d25955d42f7dc5c5fdb714cd6f2e035e931cf0e  /home/karlvonrichter/kicad-port/phase0-strict-candidate-57d9b5a449/oracle/kicad-oracle
+8b0a0636344e0b0109d255d42ec5043db7dd05e4fe8757df16fd261eb79dc289  /home/karlvonrichter/kicad-port/phase0-strict-candidate-57d9b5a449/repo/rust/target/debug/kicad-difftest
+996360fcadb2fb0486f0db310480352cbdecb1e04827acac04ebb24e30d4b5b7  rust/target/debug/kicad-md5-shim
+d8b9bb7faee38808ea9e22afde180788a8b9f060c5a55317a8fc8c4a8b4668fa  rust/target/debug/kicad-iec60664-shim
+6da5c83c98d558e9c781d440a7f7783fd86d281a519eff26ac8d3af71a49ede9  rust/target/debug/kicad-resistors-shim

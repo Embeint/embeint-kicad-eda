@@ -1,6 +1,8 @@
 # Porting Embeint KiCad to Rust: plan
 
-Status: reviewed 2026-11-21; phase 0 is next. The review's answers and the recommendations it
+Status: reviewed 2026-11-21. The phase 0 harness and extractor and its three layer-0 pilots
+are implemented and merged into `rust`; phase 0 is accepted only when the strict gate passes in
+hosted CI (see [Next step](#next-step)). The review's answers and the recommendations it
 left standing are recorded under [Decisions](#decisions). This plan extends the
 [fork roadmap](../tools/live_schematic_mcp/EMBEINT_FORK_ROADMAP.md), which calls broad engine
 replacement "a multi-year program", and the [native MCP parity plan](MCP_PARITY_PLAN.md), which
@@ -132,9 +134,11 @@ retaining function boundaries and conservative enclosing ranges. wx-pure does no
 establish portability; I/O, globals and supporting types still require audit.
 64 units remain blocked. Implicit lifetime paths,
 indirect/dependent calls and inactive platforms/configurations remain explicit
-limits. No unit is ported or oracle-green here; the three-live-green-pilot gate
-remains incomplete. [Pilot scopes](../port/extractor/PILOTS.md) must be re-confirmed
-against the corrected records before implementation publication.
+limits. The measurement itself ports no unit. The three layer-0 pilots (MD5, IEC60664 and
+the resistor calculator) were then implemented against the corrected records, re-confirming
+the [pilot scopes](../port/extractor/PILOTS.md), and are merged into `rust`. Extraction parsing
+and all-configuration coverage remain incomplete: four parse failures and 63 uncompiled
+application sources.
 
 ## Architecture of the Rust application
 
@@ -449,6 +453,11 @@ they are changed.
 
 ## Next step
 
-Phase 0 on the `rust` branch, starting with the call-graph extractor on the WSL build. Its
-first output, the unit list with sizes, layers, cycle back-edges and wx classification,
-replaces the estimates above with counts.
+Historical: the plan review set phase 0 on the `rust` branch to start with the call-graph
+extractor on the WSL build. Its unit list with sizes, layers, cycle back-edges and wx
+classification has since replaced the estimates above with counts, and the three layer-0
+pilots are merged.
+
+Now: the phase 0 integration switches `PHASE0_REQUIRED` on, and its strict run in hosted CI is
+the acceptance authority for the phase 0 gate. Once that passes, phase 1 opens as described in
+[Phases](#phases). The known extraction coverage gaps stay reported separately.

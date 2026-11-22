@@ -4,12 +4,13 @@
 The candidate scope is `libs.kimath.src.md5_hash.application.pure.p001`,
 `libs/kimath/src/md5_hash.cpp:1-289` at
 `4cf939778df04d2b747bb2c4714fc5014a7565c7`, with the supporting class declaration
-in `libs/kimath/include/md5_hash.h`. The corrected PR #39 dependency is
-`19035296e129cf8640e89331bc9e8ad84f0fe38c`, based on
-`4c6c1e38ce2dead8db8a3193e7525d19532523e9`. All protected MD5 fields match the
-historical a7 record; existing port metadata is retained. Local green metadata
-remains provisional pending parent confirmation of the final independent
-artifact review. This pilot remains draft. The implementation module is `kicad_md5::md5_hash`; its types
+in `libs/kimath/include/md5_hash.h`. The accepted graph is PR #39, merged into
+`rust` as `9a48bb6636`; it carries the corrected records of
+`19035296e129cf8640e89331bc9e8ad84f0fe38c`. All protected MD5 fields match the
+historical a7 record; existing port metadata is retained. The unit is green: PR
+#42 is merged into `rust` as `8d3642a47f` after its independent reviews and
+passing head CI. Phase zero acceptance rests on the strict hosted CI gate of the
+combined integration (#49), which is pending. The implementation module is `kicad_md5::md5_hash`; its types
 remain re-exported from the crate root for callers.
 
 `kicad-md5` is the portable implementation. It forbids unsafe code, uses the
@@ -115,7 +116,8 @@ claim follows from preparing or storing cases. [AUDIT.md](AUDIT.md) maps every
 definition and branch to actual observable cases; [VALIDATION.md](VALIDATION.md)
 records local execution and the exact initial baseline. The unit's `[difftest]`
 registration selects this native shim for live CI. Hosted CI and independent
-review remain separate gates; the draft pilot does not establish phase zero.
+review were this pilot's merge gates. One pilot does not establish phase zero;
+the strict hosted gate of the combined integration decides it.
 
 ## Checks
 

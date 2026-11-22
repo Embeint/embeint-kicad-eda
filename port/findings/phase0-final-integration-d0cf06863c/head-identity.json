@@ -1,0 +1,11 @@
+{
+  "head": "d0cf06863cf64eb07b11787d1a6dd2826c04d47e",
+  "archive_sha256": "711d95671a1abbd3fe976c821ca9364a56fe355653931f4adebd2253de2fca6a",
+  "blob_files": 24074,
+  "exported_files": 24073,
+  "symlinks": 1,
+  "missing": [],
+  "bytes_differ_from_blob": [
+    "thirdparty/argparse/tools/build.bat"
+  ]
+}

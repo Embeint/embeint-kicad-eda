@@ -209,3 +209,38 @@ is to the Embeint fork only. Leave draft PRs against `rust` for parent review;
 never merge or watch them unless separately instructed. Stop and report changes
 to plan decisions, money or repository settings (except explicitly authorized
 Pages enablement). Do not delegate unless explicitly assigned to coordinate.
+
+## PR scope and merges
+
+Keep each PR scoped to its own unit or tool. Bring in other work only by merging
+`origin/rust`, never by merging an open topic branch. The phase zero combined
+integration (#49) predates this rule and is grandfathered; do not rewrite its
+history.
+
+Only the parent merges port PRs. These rules do not authorize a worker to merge
+or watch a PR.
+
+- Use a rebase merge by default, for PRs with linear history.
+- A PR that targets `rust` may use a normal merge commit only when GitHub refuses
+  the rebase merge because the branch contains merge commits. Merge it with the
+  exact reviewed head and a commit message in the house format:
+
+  ```sh
+  gh pr merge <NN> --merge --match-head-commit <SHA> \
+      --subject 'port(merge): <what the PR delivers> (#<NN>)' \
+      --body "$(cat <message-file>)"
+  ```
+
+  The message file holds a meaningful body explaining what the PR delivers and
+  why, followed by the trailers:
+
+  ```text
+  Assisted-by: Codex
+  Signed-off-by: Karl Von Richter <karl@embeint.com>
+  ```
+
+- Before any merge, every CI check on the head must pass, and the computed merge
+  result's tree must equal the reviewed tree exactly.
+- Never squash. Never rebase or force-push the `rust` or `main` branches
+  themselves; a rebase merge only replays a PR's commits on top of them. `main`
+  keeps rebase merges.

@@ -1,0 +1,165 @@
+{
+  "head": "d0cf06863cf64eb07b11787d1a6dd2826c04d47e",
+  "rust": "1a2fb924d539d63a68f5696191907dc2aa6d6370",
+  "layers": {
+    "39": "d2bdddb904116348e474389dd577cb99ac0c8790",
+    "42": "c5ec29e70d07506ac3fb8b8b5c1b6f5102c7ef3e",
+    "43": "fc4718302716baf33e9b764e3bce30c2727f2706",
+    "44": "084115f06cb1cb73fe6bc04f90f715d3384cfb3e"
+  },
+  "owned_counts": {
+    "39": 2295,
+    "42": 90,
+    "43": 76,
+    "44": 69
+  },
+  "exact": 2505,
+  "resolved": [
+    {
+      "path": "port/oracle/CMakeLists.txt",
+      "owners": [
+        "42",
+        "43",
+        "44"
+      ],
+      "head_blob": "7976a781858d603d68d3cb3459d06bbfbf34e3c9"
+    },
+    {
+      "path": "port/oracle/audit.py",
+      "owners": [
+        "43",
+        "44"
+      ],
+      "head_blob": "0a203317193d52b2703e330145d0e7293ff9afb9"
+    },
+    {
+      "path": "port/oracle/pin.py",
+      "owners": [
+        "43",
+        "44"
+      ],
+      "head_blob": "910404ee6fad8dd7f393af5fd70200a26c0ac4d4"
+    },
+    {
+      "path": "port/oracle/registry.cpp",
+      "owners": [
+        "42",
+        "43",
+        "44"
+      ],
+      "head_blob": "e0ffce4d5acb64d833166f3c2fa4370549011834"
+    },
+    {
+      "path": "port/units/libs.kimath.src.md5_hash.application.pure.p001.toml",
+      "owners": [
+        "39",
+        "42"
+      ],
+      "head_blob": "f7f502ef919a4b14144c149722b90916166ceee2"
+    },
+    {
+      "path": "port/units/pcb_calculator.application.pure.p001.toml",
+      "owners": [
+        "39",
+        "44"
+      ],
+      "head_blob": "0a3421f27fa2c87530efdbb0ad4d51ba6f89a07b"
+    },
+    {
+      "path": "port/units/pcb_calculator.application.thin.replacement.p001.toml",
+      "owners": [
+        "39",
+        "44"
+      ],
+      "head_blob": "9dfe10b2f763070e61f0531e2103347309da96f1"
+    },
+    {
+      "path": "port/units/pcb_calculator.calculator_panels.application.pure.p001.toml",
+      "owners": [
+        "39",
+        "43"
+      ],
+      "head_blob": "4b0e10fd7d1d89267c2659e9b93903e8cee94c64"
+    },
+    {
+      "path": "rust/Cargo.lock",
+      "owners": [
+        "42",
+        "43",
+        "44"
+      ],
+      "head_blob": "a17e5bc63defd41b09759051d2a7d48a6877668b"
+    },
+    {
+      "path": "rust/Cargo.toml",
+      "owners": [
+        "42",
+        "43",
+        "44"
+      ],
+      "head_blob": "0ec2338b5a31d4b14e733da90f9fa46676959287"
+    }
+  ],
+  "head_differs_from_sole_owner": [
+    {
+      "path": "port/oracle/test_iec60664_guards.py",
+      "owners": [
+        "43"
+      ],
+      "owner_blob": "2ff39621ac2d7594fcfa38b774a5015b6d75920b",
+      "head_blob": "be73714eca380d7af54ffbb56d6fd60f771626cd"
+    }
+  ],
+  "unowned_changes": [],
+  "unit_records": 1801,
+  "unit_records_identical_to_39": 1797,
+  "changed_unit_records": [
+    {
+      "path": "port/units/libs.kimath.src.md5_hash.application.pure.p001.toml",
+      "status": "green",
+      "fields": [
+        "claimed_at",
+        "claimed_by",
+        "difftest",
+        "notes",
+        "rust_module",
+        "status",
+        "tests"
+      ]
+    },
+    {
+      "path": "port/units/pcb_calculator.application.pure.p001.toml",
+      "status": "claimed",
+      "fields": [
+        "claimed_at",
+        "claimed_by",
+        "difftest",
+        "notes",
+        "rust_module",
+        "status",
+        "tests"
+      ]
+    },
+    {
+      "path": "port/units/pcb_calculator.application.thin.replacement.p001.toml",
+      "status": "todo",
+      "fields": [
+        "notes"
+      ]
+    },
+    {
+      "path": "port/units/pcb_calculator.calculator_panels.application.pure.p001.toml",
+      "status": "green",
+      "fields": [
+        "claimed_at",
+        "claimed_by",
+        "difftest",
+        "notes",
+        "rust_module",
+        "status",
+        "tests"
+      ]
+    }
+  ],
+  "protected_field_differences": []
+}

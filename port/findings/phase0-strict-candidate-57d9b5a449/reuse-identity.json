@@ -1,0 +1,10 @@
+{
+  "oracle_sha256": "945b7b606a09ca36ff516a4e6d25955d42f7dc5c5fdb714cd6f2e035e931cf0e",
+  "oracle_overlay_revision": "412b54a54637b44966cb8babc4a7bd4fc6a4c4c1",
+  "overlay_files_checked": 37,
+  "overlay_files_equal_candidate": true,
+  "reference_files_equal_candidate": 915,
+  "source_manifest_sha256": "dab50320381993c77b0a381e035c96180cfd5b110368c174dc1be155d717ce7c",
+  "candidate_revision": "57d9b5a449a3cb6f11f303abccdd34e09f8c353e",
+  "candidate_archive_sha256": "2247558ccb67e6d3534f04254b89a23e13d49764cf084ffd36a1314445e47a56"
+}

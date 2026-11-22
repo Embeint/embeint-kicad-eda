@@ -60,4 +60,5 @@ gates and baseline evidence. The 5,972-case live run checked 67,617 actual diges
 validity snapshots and 9,631 equality/inequality events, with zero failures or
 deferrals. This is a source-to-case branch audit, not an instrumented coverage
 percentage or proof of exhaustive inputs. The owned unit is registered for the
-existing live CI path; hosted CI and independent review remain pending.
+existing live CI path. Its independent reviews and hosted head CI passed before
+PR #42 merged into `rust`.

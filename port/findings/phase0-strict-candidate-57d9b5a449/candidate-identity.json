@@ -1,0 +1,123 @@
+{
+  "candidate": "57d9b5a449a3cb6f11f303abccdd34e09f8c353e",
+  "published_head": "3efaeb15d33edc6ac265fe75e6c0e420c5970024",
+  "published_is_ancestor": true,
+  "changed_vs_published": [
+    ".github/workflows/rust-port.yml",
+    "port/units/pcb_calculator.application.pure.p001.toml",
+    "rust/kicad-resistors/README.md"
+  ],
+  "changed_vs_412b54a546_excluding_records": [
+    ".github/workflows/rust-port.yml",
+    "port/units/pcb_calculator.application.pure.p001.toml",
+    "rust/kicad-resistors/README.md"
+  ],
+  "runtime_paths_changed_vs_412b54a546": [
+    "rust/kicad-resistors/README.md"
+  ],
+  "runtime_paths_changed_vs_7207de24ed": [
+    "port/oracle/test_md5_inputs.py",
+    "rust/kicad-md5-shim/README.md",
+    "rust/kicad-md5-shim/VALIDATION.md",
+    "rust/kicad-md5-shim/src/main.rs",
+    "rust/kicad-md5-shim/validation/2026-11-22-da17dc54/.gitattributes",
+    "rust/kicad-md5-shim/validation/2026-11-22-da17dc54/README.md",
+    "rust/kicad-md5-shim/validation/2026-11-22-da17dc54/build.log",
+    "rust/kicad-md5-shim/validation/2026-11-22-da17dc54/clippy.log",
+    "rust/kicad-md5-shim/validation/2026-11-22-da17dc54/envelopes.log",
+    "rust/kicad-md5-shim/validation/2026-11-22-da17dc54/expected.jsonl",
+    "rust/kicad-md5-shim/validation/2026-11-22-da17dc54/files.sha256",
+    "rust/kicad-md5-shim/validation/2026-11-22-da17dc54/fmt.log",
+    "rust/kicad-md5-shim/validation/2026-11-22-da17dc54/old-helper.stdout.jsonl",
+    "rust/kicad-md5-shim/validation/2026-11-22-da17dc54/oracle-provenance.json",
+    "rust/kicad-md5-shim/validation/2026-11-22-da17dc54/oracle.stdout.jsonl",
+    "rust/kicad-md5-shim/validation/2026-11-22-da17dc54/proof.json",
+    "rust/kicad-md5-shim/validation/2026-11-22-da17dc54/proof.log",
+    "rust/kicad-md5-shim/validation/2026-11-22-da17dc54/registered.json",
+    "rust/kicad-md5-shim/validation/2026-11-22-da17dc54/registered.log",
+    "rust/kicad-md5-shim/validation/2026-11-22-da17dc54/requests.jsonl",
+    "rust/kicad-md5-shim/validation/2026-11-22-da17dc54/rust-toolchain.txt",
+    "rust/kicad-md5-shim/validation/2026-11-22-da17dc54/rust.stdout.jsonl",
+    "rust/kicad-md5-shim/validation/2026-11-22-da17dc54/scripts/md5-literal-escaped-check.sh",
+    "rust/kicad-md5-shim/validation/2026-11-22-da17dc54/scripts/package.py",
+    "rust/kicad-md5-shim/validation/2026-11-22-da17dc54/scripts/proof.py",
+    "rust/kicad-md5-shim/validation/2026-11-22-da17dc54/source-audit.json",
+    "rust/kicad-md5-shim/validation/2026-11-22-da17dc54/tests.log",
+    "rust/kicad-md5-shim/validation/2026-11-22-da17dc54/wasm.log",
+    "rust/kicad-resistors/README.md"
+  ],
+  "tree_rust": {
+    "candidate": "1f0fa9133840a73bfe9b8d669f71155e4e380359",
+    "412b54a546": "b0e5ce23327ab41e42b27b1678fbfa19ff9863c6",
+    "7207de24ed": "c073d51e2a40dd9ae2ee13bc3b15c44ddefa0b0d"
+  },
+  "tree_port/oracle": {
+    "candidate": "736227ec6aa213713c0ebbac0e17031bfa2e1148",
+    "412b54a546": "736227ec6aa213713c0ebbac0e17031bfa2e1148",
+    "7207de24ed": "a1baa3640e6af958542e5cd9d5b17b57cb2e7e7b"
+  },
+  "tree_port/cases": {
+    "candidate": "d2f5d08ad6f19e21d0f58167fd65c4975ee07ea1",
+    "412b54a546": "d2f5d08ad6f19e21d0f58167fd65c4975ee07ea1",
+    "7207de24ed": "d2f5d08ad6f19e21d0f58167fd65c4975ee07ea1"
+  },
+  "tree_port/goldens": {
+    "candidate": "d32636e9c5cb070531a71502269cf7b531363855",
+    "412b54a546": "d32636e9c5cb070531a71502269cf7b531363855",
+    "7207de24ed": "d32636e9c5cb070531a71502269cf7b531363855"
+  },
+  "tree_port/tools": {
+    "candidate": "f51488d0b34d38c3bf0d5776cd1b1031d639225e",
+    "412b54a546": "f51488d0b34d38c3bf0d5776cd1b1031d639225e",
+    "7207de24ed": "f51488d0b34d38c3bf0d5776cd1b1031d639225e"
+  },
+  "unit_records": 1801,
+  "records_differing_from_39": [
+    "port/units/libs.kimath.src.md5_hash.application.pure.p001.toml",
+    "port/units/pcb_calculator.application.pure.p001.toml",
+    "port/units/pcb_calculator.application.thin.replacement.p001.toml",
+    "port/units/pcb_calculator.calculator_panels.application.pure.p001.toml"
+  ],
+  "statuses": {
+    "libs.kimath.src.md5_hash.application.pure.p001.toml": "green",
+    "pcb_calculator.application.pure.p001.toml": "green",
+    "pcb_calculator.application.thin.replacement.p001.toml": "todo",
+    "pcb_calculator.calculator_panels.application.pure.p001.toml": "green"
+  },
+  "protected_field_differences": [],
+  "phase0_required": [
+    "HEAD:.github/workflows/rust-port.yml:19:  PHASE0_REQUIRED: \"true\""
+  ],
+  "golden_policy": {
+    "rust9a48": {
+      "base": "9a48bb6636209411fdcf49e125d1edfea929c3f2",
+      "exit": 0,
+      "output": "Golden change evidence valid"
+    },
+    "42": {
+      "base": "f0c16c4eb8512c91190c986e4e9644f81df140c2",
+      "exit": 0,
+      "output": "Golden change evidence valid"
+    },
+    "43": {
+      "base": "0cbaf1d873c3dc0f4b3b82b55cf4bfc984f81e96",
+      "exit": 0,
+      "output": "Golden change evidence valid"
+    },
+    "44": {
+      "base": "9f40815c03ce443c40582fcbb4251335cc18a194",
+      "exit": 0,
+      "output": "Golden change evidence valid"
+    },
+    "published49": {
+      "base": "3efaeb15d33edc6ac265fe75e6c0e420c5970024",
+      "exit": 0,
+      "output": "Golden change evidence valid"
+    },
+    "old_rust": {
+      "base": "1a2fb924d539d63a68f5696191907dc2aa6d6370",
+      "exit": 0,
+      "output": "Golden change evidence valid"
+    }
+  }
+}

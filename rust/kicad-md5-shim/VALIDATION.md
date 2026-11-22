@@ -1,7 +1,12 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 # MD5 local validation, 2026-11-22
 
-Latest reserved-key envelope integration: runtime source
+Current status: PR #39 (`9a48bb6636`) and PR #42 (`8d3642a47f`) are merged
+into `rust`; the unit is green. Phase zero acceptance rests on the strict hosted
+CI gate of the combined integration (#49), which is pending. The entries below
+record the state when each run was made; their holds are historical.
+
+Historical reserved-key envelope integration: runtime source
 `65d5b0a9732551db35a9348d69d7b2ccfa86a1fb` stacks reviewed PR #48 (exact head
 `1ec85a446741c9903963a7282eedddeea06e34e2`, since merged into `rust` by rebase
 as `1a2fb924d539d63a68f5696191907dc2aa6d6370` with an identical tree) and closes
@@ -9,8 +14,9 @@ the final MD5 review finding. Each real adapter passes 194 complete refusal enve
 complete successes; the previous 154 checks are an unchanged byte prefix. The
 registered 5,973-case live check, 1,801-record source validation, oracle CTests
 and affected Rust tests pass. See
-[the reserved-key proof](validation/2026-11-22-65d5b0a9/README.md). The #39
-graph acceptance hold and provisional local green status are unchanged.
+[the reserved-key proof](validation/2026-11-22-65d5b0a9/README.md). At that
+time the #39 graph acceptance hold and provisional local green status were
+unchanged.
 
 Prior corrected graph/nesting integration: runtime source
 `a5ed3948399da32b64f7fad93e0394c64615f8ff` passes the registered 5,973-case
@@ -18,8 +24,9 @@ live check, 1,801-record source validation, four CTests, 24 affected Rust tests
 and 153 complete refusal envelopes plus signed-zero success per real adapter.
 See [the additive integration proof](validation/2026-11-22-a5ed3948/README.md).
 Protected MD5 scope and historical corpus/goldens/evidence are unchanged.
-Parent acceptance of final independent #39 artifact review remains pending;
-local green metadata is provisional and does not establish any phase gate.
+At that time parent acceptance of the final independent #39 artifact review was
+pending, and the local green metadata was provisional and established no phase
+gate.
 
 Prior native parser adoption: source `8259981dde8c9632c3b1194e8cc9362fe87a45b9`
 passes all 5,973 existing live cases and 78 complete refusal envelopes plus
@@ -169,9 +176,15 @@ The later evidence/claim-timestamp update changes no implementation, cases,
 goldens or accounting fields.
 
 The unit's local `green` metadata describes complete owned implementation and
-zero local comparison failures/deferrals. The PR remains draft, dependent on
-#39 and pending independent review and hosted CI. `PHASE0_REQUIRED=false` remains
-unchanged; one pilot does not satisfy the three-pilot phase-zero gate.
+zero local comparison failures/deferrals. Historical single-pilot status: when
+these results were recorded, the PR was a draft, dependent on #39 and pending
+independent review and hosted CI. `PHASE0_REQUIRED=false` was unchanged, because
+one pilot does not satisfy the three-pilot phase-zero gate.
+
+Current integration status: #39 and all three pilots (#42, #43 and #44) are
+merged into `rust`. The phase zero integration (#49) checks this unit with the
+IEC60664 and resistor pilots and sets `PHASE0_REQUIRED=true`. Its strict hosted
+CI run is the phase zero acceptance authority and is pending.
 
 ## Adapter review corrections
 

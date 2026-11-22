@@ -1,0 +1,56 @@
+{
+  "tested_revision": "d0cf06863cf64eb07b11787d1a6dd2826c04d47e",
+  "reference_file_count": 915,
+  "compile_commands": 75,
+  "oracle_provenance_sha256": "883d79ee0295cedb9394722ea6fcf47c202da0ba55feec5176cf3c80ef0e4995",
+  "source_manifest_sha256": "e5c8c1715ce8d9cd2081f50342e941bd31887e1b36871378ed8f7bcee52ab841",
+  "units": {
+    "libs.kimath.src.md5_hash.application.pure.p001": {
+      "status": "green",
+      "cases": 5973,
+      "deferred": 0,
+      "failures": null,
+      "oracle_sha256": "e5b0138047742e683a14a842d53fc8942ad6f6ad19e28612225eb884deb70c90",
+      "rust_sha256": "8de1ae3e9d3ad4d60b1ad72398d7b24a43137e098a8cb67d44427c2a676bc4b7",
+      "oracle_output_sha256": "9b8b9a761911d19c39e45136b28d17eb47ef50dc582102b4b4e538ba909034cb",
+      "rust_output_sha256": "709084cd7bce4bd431415418ae7456b198d0d30d80613d2c9be373e8f67c6cf4",
+      "golden_sha256": "9b8b9a761911d19c39e45136b28d17eb47ef50dc582102b4b4e538ba909034cb",
+      "cases_sha256": "0d2232c3b758cb67acdc486cbe420350394502fdf2df591e356280468df00795"
+    },
+    "pcb_calculator.application.pure.p001": {
+      "status": "green",
+      "cases": 1050,
+      "deferred": 0,
+      "failures": null,
+      "oracle_sha256": "e5b0138047742e683a14a842d53fc8942ad6f6ad19e28612225eb884deb70c90",
+      "rust_sha256": "58ef0afc09463c808365e7f3a80068b8c178a1813199b30dea80586cce8475dd",
+      "oracle_output_sha256": "8d1cc9e8c280b349294f9d512e450586c892a3170881afbba1c1b78de1a107a2",
+      "rust_output_sha256": "5fb5dfb6938e6a7b55c99416e46334b7e5f05ceb9821d053c442fa4dabc36441",
+      "golden_sha256": "8d1cc9e8c280b349294f9d512e450586c892a3170881afbba1c1b78de1a107a2",
+      "cases_sha256": "58dd1186c9f10c8efb54bc90102c71508c8e852c0b8c08d437380b112fe3c597"
+    },
+    "pcb_calculator.calculator_panels.application.pure.p001": {
+      "status": "green",
+      "cases": 14190,
+      "deferred": 0,
+      "failures": null,
+      "oracle_sha256": "e5b0138047742e683a14a842d53fc8942ad6f6ad19e28612225eb884deb70c90",
+      "rust_sha256": "0934183b44ceaeec25222ba3c54514e657713a3d88b0d4fc4355b0994ecdd683",
+      "oracle_output_sha256": "3051d7e1269a8ba05dc50ccba3fa53faedd10ba71e3ec630e6e2c0f2c2fe366f",
+      "rust_output_sha256": "819f74f463f537c7e7fa29127e5d6e71ee628c87fec8e541b143a7d6f39c1f4d",
+      "golden_sha256": "3051d7e1269a8ba05dc50ccba3fa53faedd10ba71e3ec630e6e2c0f2c2fe366f",
+      "cases_sha256": "4e624fe320565d6894ece1432b5ff38fcab5aca92688996e97b4cd684f872aff"
+    }
+  },
+  "total_cases": 21213,
+  "phase0": {
+    "phase0": "INCOMPLETE",
+    "strict_gate_enabled": false,
+    "live_green_units": 2,
+    "required_green_units": 3,
+    "required_layer": 0,
+    "total_live_green_units": 2,
+    "validated_unit_records": 1801
+  },
+  "source_validation": true
+}
