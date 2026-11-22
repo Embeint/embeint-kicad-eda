@@ -1,0 +1,27 @@
+{
+  "baseline": "6f02c95d98c1728e99238e92d54383d04c398216",
+  "historical_index_sha256": "0bcc453dadb237222731f09a86cbd640e4b55ff182494ccdc4530534fd2c6443",
+  "indexed_records_unchanged": 2355,
+  "policy": "Checks apply to the retained publication; its provenance has not been rebound to the newer CLI source.",
+  "protected_paths_unchanged": [
+    "port/units",
+    "port/cases",
+    "port/goldens",
+    "rust",
+    "port/tools",
+    "port/extractor/refresh_generator_dependencies.py",
+    "port/extractor/generated/graph.json.gz",
+    "port/extractor/generated/inventory.json",
+    "port/extractor/generated/generated-sources.json",
+    "port/extractor/generated/measurement.json",
+    "port/extractor/generated/finalization.json",
+    "port/extractor/generated/evidence/verified-ninja",
+    "port/extractor/generated/evidence/source-guard",
+    "port/extractor/generated/evidence/generator-refresh",
+    "port/extractor/generated/corrected-extraction",
+    "port/extractor/generated/history"
+  ],
+  "retained_capture_refresh_code_sha256": "2b4eca5d431fd57fe824e54eaa384bea5215abe29cefa0cff9d9238269f4e929",
+  "retained_capture_source": "c1e8a467da149eac67341d31de0228e498916ba3",
+  "unit_files_unchanged": 1801
+}

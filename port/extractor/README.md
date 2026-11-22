@@ -349,6 +349,10 @@ python3 port/extractor/generated_sources.py \
   --output ~/kicad-port/corrected-review/inputs
 ```
 
+The freezing CLI makes each discovered tool path absolute without dereferencing
+its symlink. This preserves invocation names used by tool-manager dispatchers;
+the recorded path is also the path invoked, and hashing it reads the target's bytes.
+
 ### Post-parse generator dependency refresh
 
 A fix that changes only recipe capture does not change the AST, source bytes or
