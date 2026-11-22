@@ -1,0 +1,14 @@
+{
+  "oracle": {
+    "seconds": 1.6674611479975283,
+    "exit_code": 0,
+    "binary_sha256": "52d3fd4859fcc05a979eb3a115c435524f938758d8c19e79da84acd85b5d8608",
+    "output_sha256": "c897427df65bb0c0ac199fc1bb8d89519382da0476119e01cc49094e1aa15132"
+  },
+  "rust": {
+    "seconds": 13.795774920959957,
+    "exit_code": 0,
+    "binary_sha256": "c0257fb2a59666810b3ebda64ce7665f97156a512ee7477b512cce0b2eea0c78",
+    "output_sha256": "da0d39f85f9a8a8e20a4eb13cf6756448fb6c0b878275a5b642ad15442e7f30f"
+  }
+}

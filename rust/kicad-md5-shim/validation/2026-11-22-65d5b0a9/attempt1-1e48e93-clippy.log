@@ -1,0 +1,152 @@
+Waiting for actual shared lock before private preparation
+667ae17791d223892f6471b64d8539e08348ff0a27631cdea30c6b1fbf879ded  /mnt/c/Users/KarlVonRichter/.t3/md5-envelope-export/repo.tar
+941b5a743e033a0d2743d3d0df58c7ef48fbb47f2b10f1050ba55aa9f941ed96  /home/karlvonrichter/kicad-port/md5-envelope-regressions/stage/reference.tar
+1a62cd74e043b116ec408e92c6da81a356dcdbea95805bdd1d11b0dc0d1e0ad7  /home/karlvonrichter/kicad-port/md5-envelope-regressions/stage/source-manifest.json
+Clean LF export of runtime 1e48e93e213c8e97e744f9778208046ba7960651 with unchanged MD5 corpus and golden bytes
+-- The C compiler identification is GNU 15.2.0
+-- The CXX compiler identification is GNU 15.2.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/gcc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/g++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found Python3: /usr/bin/python3 (found version "3.14.4") found components: Interpreter
+-- Found wxWidgets: -L/usr/lib/x86_64-linux-gnu;-pthread;;;-lwx_baseu-3.2;-lwx_gtk3u_core-3.2 (found suitable version "3.2.9", minimum required is "3.2")
+-- Looking for malloc.h
+-- Looking for malloc.h - found
+-- Looking for iso646.h
+-- Looking for iso646.h - found
+-- Looking for stdint.h
+-- Looking for stdint.h - found
+-- Looking for strcasecmp
+-- Looking for strcasecmp - found
+-- Looking for strncasecmp
+-- Looking for strncasecmp - found
+-- Looking for strtok_r
+-- Looking for strtok_r - found
+-- Looking for strtok_s
+-- Looking for strtok_s - not found
+-- Looking for malloc
+-- Looking for malloc - found
+-- Looking for math.h
+-- Looking for math.h - found
+-- Looking for C++ include cmath
+-- Looking for C++ include cmath - found
+-- Looking for asinh
+-- Looking for asinh - found
+-- Looking for acosh
+-- Looking for acosh - found
+-- Looking for atanh
+-- Looking for atanh - found
+-- Performing Test HAVE_CMATH_ISINF
+-- Performing Test HAVE_CMATH_ISINF - Success
+-- Looking for clock_gettime in rt
+-- Looking for clock_gettime in rt - found
+-- Looking for gettimeofday
+-- Looking for gettimeofday - found
+-- Looking for getc_unlocked
+-- Looking for getc_unlocked - found
+-- Configuring done (6.9s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/karlvonrichter/kicad-port/md5-envelope-regressions/oracle-build
+[0/2] Re-checking globbed directories...
+[1/66] cd /home/karlvonrichter/kicad-port/md5-envelope-regressions/oracle-build && /usr/bin/python3 /home/karlvonrichter/kicad-port/md5-envelope-regressions/oracle-src/overlay/audit.py --build /home/karlvonrichter/kicad-port/md5-envelope-regressions/oracle-build --source /home/karlvonrichter/kicad-port/md5-envelope-regressions/oracle-src/reference --overlay /home/karlvonrichter/kicad-port/md5-envelope-regressions/oracle-src/overlay
+Oracle audit: 59 compilations, pin 4cf939778df04d2b747bb2c4714fc5014a7565c7, strict FP flags verified
+[2/66] Building CXX object reference/core/CMakeFiles/core.dir/base64.cpp.o
+[3/66] Building CXX object reference/core/CMakeFiles/core.dir/version_compare.cpp.o
+[4/66] Building CXX object reference/core/CMakeFiles/core.dir/observable.cpp.o
+[5/66] Building CXX object reference/core/CMakeFiles/core.dir/utf8.cpp.o
+[6/66] Building CXX object reference/core/CMakeFiles/core.dir/wx_stl_compat.cpp.o
+[7/66] Building CXX object reference/core/CMakeFiles/core.dir/profile.cpp.o
+[8/66] Linking CXX static library reference/core/libcore.a
+[9/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/md5_hash.cpp.o
+[10/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/transform.cpp.o
+[11/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/arc_chord_params.cpp.o
+[12/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/trigo.cpp.o
+[13/66] Building CXX object reference/clipper2/CMakeFiles/clipper2.dir/Clipper2Lib/src/clipper.offset.cpp.o
+[14/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/arc_construction.cpp.o
+[15/66] Building CXX object reference/clipper2/CMakeFiles/clipper2.dir/Clipper2Lib/src/clipper.rectclip.cpp.o
+[16/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/eda_angle.cpp.o
+[17/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/distribute.cpp.o
+[18/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/bezier_curves.cpp.o
+[19/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/ellipse.cpp.o
+[20/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/circle.cpp.o
+[21/66] Building CXX object reference/clipper2/CMakeFiles/clipper2.dir/Clipper2Lib/src/clipper.engine.cpp.o
+[22/66] Linking CXX static library reference/clipper2/libclipper2.a
+[23/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/convert_basic_shapes_to_polygon.cpp.o
+[24/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/grid_geometry.cpp.o
+[25/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/convex_hull.cpp.o
+[26/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/corner_operations.cpp.o
+[27/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/direction_45.cpp.o
+[28/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/line.cpp.o
+[29/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/geometry_utils.cpp.o
+[30/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/half_line.cpp.o
+[31/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/poisson_disk.cpp.o
+[32/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/seg.cpp.o
+[33/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/nearest.cpp.o
+[34/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/oval.cpp.o
+[35/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/intersection.cpp.o
+[36/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/roundrect.cpp.o
+[37/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape.cpp.o
+[38/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_compound.cpp.o
+[39/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_file_io.cpp.o
+[40/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_arc.cpp.o
+[41/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_ellipse.cpp.o
+[42/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_rect.cpp.o
+[43/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_nearest_points.cpp.o
+[44/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/transform_trs.cpp.o
+[45/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_segment.cpp.o
+[46/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/vector_utils.cpp.o
+[47/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_collisions.cpp.o
+[48/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/math/util.cpp.o
+[49/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/vertex_set.cpp.o
+[50/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_utils.cpp.o
+[51/66] Building CXX object CMakeFiles/kicad-oracle.dir/shims/example_rescale.cpp.o
+[52/66] Building CXX object CMakeFiles/kicad-oracle.dir/registry.cpp.o
+[53/66] Building CXX object CMakeFiles/kicad-oracle.dir/main.cpp.o
+[54/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_line_chain.cpp.o
+[55/66] Building CXX object CMakeFiles/kicad-oracle.dir/shims/md5.cpp.o
+[56/66] Building CXX object CMakeFiles/oracle-dispatch-test.dir/shims/example_rescale.cpp.o
+[57/66] Building CXX object CMakeFiles/oracle-dispatch-test.dir/registry.cpp.o
+[58/66] Building CXX object CMakeFiles/kicad-oracle.dir/protocol.cpp.o
+[59/66] Building CXX object CMakeFiles/oracle-dispatch-test.dir/test_dispatch.cpp.o
+[60/66] Building CXX object CMakeFiles/oracle-dispatch-test.dir/protocol.cpp.o
+[61/66] Building CXX object CMakeFiles/oracle-dispatch-test.dir/shims/md5.cpp.o
+[62/66] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_poly_set.cpp.o
+[63/66] Linking CXX static library reference/kimath/libkimath.a
+[64/66] Linking CXX executable kicad-oracle
+[65/66] Linking CXX executable oracle-dispatch-test
+Test project /home/karlvonrichter/kicad-port/md5-envelope-regressions/oracle-build
+    Start 1: oracle-protocol
+1/4 Test #1: oracle-protocol ..................   Passed    0.04 sec
+    Start 2: oracle-build-guards
+2/4 Test #2: oracle-build-guards ..............   Passed    0.08 sec
+    Start 3: oracle-dispatch
+3/4 Test #3: oracle-dispatch ..................   Passed    0.00 sec
+    Start 4: oracle-md5-inputs
+4/4 Test #4: oracle-md5-inputs ................   Passed    0.03 sec
+
+100% tests passed, 0 tests failed out of 4
+
+Total Test time (real) =   0.16 sec
+Oracle: /home/karlvonrichter/kicad-port/md5-envelope-regressions/oracle-build/kicad-oracle
+Provenance: /home/karlvonrichter/kicad-port/md5-envelope-regressions/oracle-build/oracle-provenance.json
+    Checking kicad-difftest v0.1.0 (/home/karlvonrichter/kicad-port/md5-envelope-regressions/repo/rust/kicad-difftest)
+    Checking kicad-md5 v0.1.0 (/home/karlvonrichter/kicad-port/md5-envelope-regressions/repo/rust/kicad-md5)
+    Checking kicad-md5-shim v0.1.0 (/home/karlvonrichter/kicad-port/md5-envelope-regressions/repo/rust/kicad-md5-shim)
+error: very complex type used. Consider factoring parts into `type` definitions
+   --> kicad-md5-shim/src/main.rs:363:34
+    |
+363 |     const RESERVED_KEY_RETAINED: [(&str, Option<&str>, Option<&str>, &str, &str); 14] = [
+    |                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#type_complexity
+    = note: `-D clippy::type-complexity` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::type_complexity)]`
+
+error: could not compile `kicad-md5-shim` (bin "kicad-md5-shim" test) due to 1 previous error

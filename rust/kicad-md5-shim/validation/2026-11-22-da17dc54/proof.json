@@ -1,0 +1,30 @@
+{
+  "adapters": {
+    "oracle": {
+      "complete_replies": 203,
+      "sha256": "ef081cadadaadc81a14b966e492d312872ef3429e20d02ee44ef51af98ead6d1",
+      "stdout_sha256": "66b7d66e7cd68fd26db4e8059b26607e0f0037b861b2115eb051a4037cee4a38"
+    },
+    "rust": {
+      "complete_replies": 203,
+      "sha256": "acc68983e644d0470925f703bd03281103d190f57f56bf9e9eb10d2f9e06c359",
+      "stdout_sha256": "e147eb7a74e8c7b9a5cf4f4fad35220d8e032fd2bac0f79ee353d7c36ddfba85"
+    }
+  },
+  "baseline": "c5ec29e70d07506ac3fb8b8b5c1b6f5102c7ef3e",
+  "cases": 203,
+  "old_helper_control": {
+    "new_case_mismatches": [
+      0,
+      1,
+      2
+    ],
+    "recovery_success_matches": true,
+    "sha256": "c05b0be1d811d52d6fb42b0df1794eb30f993df0d8eacba9d40fccc6bf5b1ae7"
+  },
+  "oracle_provenance_sha256": "a1814b2726e80179130ce4d17cf6f0fc85fe0ab6ae1e7972f6e3bf614af72c8d",
+  "original_199_byte_prefix_preserved": true,
+  "refusals": 197,
+  "source_commit": "da17dc54dc2b2be2b15cb4a2c6c171c62950a5cc",
+  "successes": 6
+}

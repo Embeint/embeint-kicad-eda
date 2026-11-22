@@ -1,0 +1,12 @@
+{
+  "unit": "libs.kimath.src.md5_hash.application.pure.p001",
+  "status": "green",
+  "action": "compare",
+  "cases": 5973,
+  "deferred": 0,
+  "cases_sha256": "0d2232c3b758cb67acdc486cbe420350394502fdf2df591e356280468df00795",
+  "oracle_output_sha256": "9b8b9a761911d19c39e45136b28d17eb47ef50dc582102b4b4e538ba909034cb",
+  "rust_output_sha256": "709084cd7bce4bd431415418ae7456b198d0d30d80613d2c9be373e8f67c6cf4",
+  "oracle_sha256": "2b907fba102d813d6d2cf9670c21884240bb78a2b9c3a1cab19d337a1a2f0cdb",
+  "rust_sha256": "670250110b8b5e43dc46ff37ba247ca2dd4fee18ee120dc3133b20ab76bcbc27"
+}

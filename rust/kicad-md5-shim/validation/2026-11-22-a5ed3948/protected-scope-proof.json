@@ -1,0 +1,44 @@
+{
+  "corrected_dependency": "19035296e129cf8640e89331bc9e8ad84f0fe38c",
+  "canonical_record_sha256": "71c89c90c9df44c2ba2abb81a367c650c951fd058b1f3e7dd4e788b04c3120ee",
+  "protected_fields": {
+    "id": "libs.kimath.src.md5_hash.application.pure.p001",
+    "upstream": [
+      "libs/kimath/src/md5_hash.cpp"
+    ],
+    "depends_on": [],
+    "soft_depends_on": [],
+    "est_lines": 289,
+    "layer": 0,
+    "coverage_gaps": [],
+    "functions": [
+      "c:@S@MD5_HASH@F@Finalize#",
+      "c:@S@MD5_HASH@F@Format#b#",
+      "c:@S@MD5_HASH@F@Hash#*c#i#",
+      "c:@S@MD5_HASH@F@Hash#I#",
+      "c:@S@MD5_HASH@F@Init#",
+      "c:@S@MD5_HASH@F@MD5_HASH#",
+      "c:@S@MD5_HASH@F@MD5_HASH#&1$@S@MD5_HASH#",
+      "c:@S@MD5_HASH@F@md5_final#*$@S@MD5_HASH@S@MD5_CTX#*c#",
+      "c:@S@MD5_HASH@F@md5_init#*$@S@MD5_HASH@S@MD5_CTX#",
+      "c:@S@MD5_HASH@F@md5_transform#*$@S@MD5_HASH@S@MD5_CTX#*c#",
+      "c:@S@MD5_HASH@F@md5_update#*$@S@MD5_HASH@S@MD5_CTX#*c#i#",
+      "c:@S@MD5_HASH@F@operator!=#&1$@S@MD5_HASH#1",
+      "c:@S@MD5_HASH@F@operator=#&1$@S@MD5_HASH#",
+      "c:@S@MD5_HASH@F@operator==#&1$@S@MD5_HASH#1",
+      "c:@S@MD5_HASH@F@~MD5_HASH#"
+    ],
+    "schema_version": 1,
+    "source_category": "application",
+    "source_ranges": [
+      "libs/kimath/src/md5_hash.cpp:1:289"
+    ],
+    "wx_class": "pure"
+  },
+  "all_protected_fields_identical": true,
+  "existing_port_metadata_preserved_except_maintained_notes": true,
+  "corpus_goldens_historical_evidence_portable_bodies_unchanged": true,
+  "only_owned_unit_differs": true,
+  "local_green_provisional": true,
+  "parent_final_independent_artifact_acceptance": "pending"
+}

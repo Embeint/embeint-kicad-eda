@@ -4,6 +4,37 @@ This port is GPL-3.0-or-later. The dependencies below use GPL-compatible licence
 This record covers the foundation addition; existing MCP dependencies remain
 recorded in [rust/MCP.md](../rust/MCP.md#dependencies).
 
+## MD5 pilot
+
+`rust/kicad-md5` uses RustCrypto `md-5` **0.11.0**, with default features disabled,
+from crates.io (`https://github.com/RustCrypto/hashes`). Its public
+`md5::block_api::compress` implements the MD5 rounds; the KiCad port preserves
+the reference wrapper's buffer, length, digest and validity transitions. Using
+the ordinary consuming hash API would lose the reference's repeated-finalize
+and post-finalize-update behaviour. No cryptographic algorithm is vendored or
+reimplemented by this port.
+
+The resolved portable dependency closure in `rust/Cargo.lock` is:
+
+| Package | Version | Licence |
+| --- | --- | --- |
+| md-5 | 0.11.0 | MIT OR Apache-2.0 |
+| digest | 0.11.3 | MIT OR Apache-2.0 |
+| block-buffer | 0.12.1 | MIT OR Apache-2.0 |
+| crypto-common | 0.2.2 | MIT OR Apache-2.0 |
+| hybrid-array | 0.4.15 | MIT OR Apache-2.0 |
+| cfg-if | 1.0.5 | MIT OR Apache-2.0 |
+| typenum | 1.20.1 | MIT OR Apache-2.0 |
+
+All are GPL-compatible. Licence identifiers and bundled MIT/Apache texts were
+checked in the resolved registry packages. `cfg-if` and `typenum` were already
+locked by the workspace; the other five packages are new. There is no native
+build script or assembly dependency in the selected closure. The separate native
+`kicad-md5-shim` reuses `kicad-difftest` for strict duplicate-key parsing and
+the workspace's existing `serde_json`; their dependency licences remain recorded
+in the harness README and `rust/MCP.md`. Distribution must retain the applicable
+dependency licence texts and notices, as for existing packaged Rust binaries.
+
 ## solidcore
 
 Source: `https://github.com/tangency-labs/solidcore.git`, commit
