@@ -668,6 +668,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "kicad-iec60664"
+version = "0.1.0"
+
+[[package]]
+name = "kicad-iec60664-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-iec60664",
+ "serde_json",
+]
+
+[[package]]
 name = "kicad-md5"
 version = "0.1.0"
 dependencies = [

@@ -43,10 +43,16 @@ add_subdirectory( "${KICAD_REFERENCE_SOURCE}/thirdparty/rtree" reference/rtree )
 add_subdirectory( "${KICAD_REFERENCE_SOURCE}/thirdparty/nlohmann_json" reference/json )
 add_subdirectory( "${KICAD_REFERENCE_SOURCE}/libs/kimath" reference/kimath )
 
+# Compile the unchanged pinned calculator without any GUI panel implementation.
+add_library( iec60664-reference STATIC
+    "${KICAD_REFERENCE_SOURCE}/pcb_calculator/calculator_panels/iec60664.cpp" )
+target_include_directories( iec60664-reference PUBLIC
+    "${KICAD_REFERENCE_SOURCE}/pcb_calculator/calculator_panels" )
+
 file( GLOB ORACLE_SHIMS CONFIGURE_DEPENDS "${ORACLE_OVERLAY}/shims/*.cpp" )
 add_executable( kicad-oracle main.cpp protocol.cpp registry.cpp ${ORACLE_SHIMS} )
 target_include_directories( kicad-oracle PRIVATE "${ORACLE_OVERLAY}" "${CMAKE_BINARY_DIR}" )
-target_link_libraries( kicad-oracle PRIVATE kimath nlohmann_json )
+target_link_libraries( kicad-oracle PRIVATE kimath nlohmann_json iec60664-reference )
 
 # Audit every build, including direct cmake --build calls and warm cache builds.
 add_custom_target( oracle-audit
@@ -56,7 +62,7 @@ add_custom_target( oracle-audit
             --build "${CMAKE_BINARY_DIR}" --source "${KICAD_REFERENCE_SOURCE}"
             --overlay "${ORACLE_OVERLAY}"
     VERBATIM )
-foreach( target core clipper2 kimath kicad-oracle )
+foreach( target core clipper2 kimath iec60664-reference kicad-oracle )
     add_dependencies( ${target} oracle-audit )
 endforeach()
 
@@ -66,14 +72,21 @@ add_test( NAME oracle-protocol
             "$<TARGET_FILE:kicad-oracle>" )
 add_test( NAME oracle-build-guards
     COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_guards.py" )
+add_test( NAME oracle-iec60664-build-guards
+    COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_iec60664_guards.py" )
 add_executable( oracle-dispatch-test EXCLUDE_FROM_ALL test_dispatch.cpp protocol.cpp registry.cpp
                 ${ORACLE_SHIMS} )
 target_include_directories( oracle-dispatch-test PRIVATE "${ORACLE_OVERLAY}" )
-target_link_libraries( oracle-dispatch-test PRIVATE kimath nlohmann_json )
+target_link_libraries( oracle-dispatch-test PRIVATE kimath nlohmann_json iec60664-reference )
 add_dependencies( oracle-dispatch-test oracle-audit )
 add_test( NAME oracle-dispatch COMMAND oracle-dispatch-test )
 add_test( NAME oracle-md5-inputs
     COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_md5_inputs.py"
             "$<TARGET_FILE:kicad-oracle>" )
 set_tests_properties( oracle-md5-inputs PROPERTIES TIMEOUT 60 )
-set_tests_properties( oracle-protocol oracle-build-guards oracle-dispatch PROPERTIES TIMEOUT 60 )
+add_test( NAME oracle-iec60664-inputs
+    COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_iec60664_inputs.py"
+            "$<TARGET_FILE:kicad-oracle>" )
+set_tests_properties( oracle-iec60664-inputs PROPERTIES TIMEOUT 60 )
+set_tests_properties( oracle-protocol oracle-build-guards oracle-iec60664-build-guards
+                      oracle-dispatch PROPERTIES TIMEOUT 60 )

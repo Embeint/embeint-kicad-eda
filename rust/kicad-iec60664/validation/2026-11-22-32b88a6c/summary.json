@@ -1,0 +1,12 @@
+{
+  "tested_source": "32b88a6cc47f53f18f5152e955eaf83b5b93a782",
+  "cases": 14190,
+  "deferred": 0,
+  "status": "green",
+  "oracle_sha256": "2ca9833f69d5e7a8594584174631c69dda92e61e2b39647c174ffec143f7e6a2",
+  "rust_sha256": "68e0453876814ec1a65cf5a777ec0efb2ee04bd5ebfe4ba6223907aaee5eafed",
+  "phase0": "INCOMPLETE",
+  "validated_unit_records": 1801,
+  "pinned_files": 824,
+  "compile_commands": 60
+}

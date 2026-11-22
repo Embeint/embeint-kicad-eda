@@ -79,12 +79,15 @@ def audit(build, source, overlay):
                 raise ValueError("Unpinned reference compilation: " + str(path))
         elif not path.is_relative_to(overlay):
             raise ValueError("Unexpected compilation outside pinned source/overlay: " + str(path))
-        for target in ("core", "clipper2", "kimath", "kicad-oracle"):
+        for target in ("core", "clipper2", "kimath", "iec60664-reference", "kicad-oracle"):
             if any("CMakeFiles/" + target + ".dir/" in token for token in tokens):
+                if (target == "iec60664-reference" and path != source /
+                        "pcb_calculator/calculator_panels/iec60664.cpp"):
+                    raise ValueError("IEC60664 reference target must compile the actual pinned source")
                 targets.add(target)
         compilers.add(tokens[0])
         commands.append({"file": str(path), "arguments": tokens})
-    if targets != {"core", "clipper2", "kimath", "kicad-oracle"}:
+    if targets != {"core", "clipper2", "kimath", "iec60664-reference", "kicad-oracle"}:
         raise ValueError("Unexpected reference target closure: " + repr(targets))
     link_commands = subprocess.check_output(
         ["ninja", "-C", str(build), "-t", "commands", "kicad-oracle"], text=True).splitlines()
@@ -93,6 +96,9 @@ def audit(build, source, overlay):
     if not any("-o kicad-oracle" in command and "libkimath.a" in command
                for command in link_commands):
         raise ValueError("Oracle does not link the actual kimath archive")
+    if not any("-o kicad-oracle" in command and "libiec60664-reference.a" in command
+               for command in link_commands):
+        raise ValueError("Oracle does not link the actual IEC60664 archive")
     overlay_files = {p.relative_to(overlay).as_posix(): sha(p) for p in sorted(overlay.rglob("*"))
                      if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc"}
     result = {
