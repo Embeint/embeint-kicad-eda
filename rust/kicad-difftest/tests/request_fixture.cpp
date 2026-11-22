@@ -16,6 +16,7 @@ int main()
         if( reply["error"]["kind"] == "unknown_unit" )
         {
             const auto request = oracle::JSON::parse( line );
+            observation["input_json"] = request["input"].dump();
 
             if( request["input"].contains( "n" ) && request["input"]["n"].is_number() )
             {
