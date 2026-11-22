@@ -1,0 +1,365 @@
+mkdir: /home/karlvonrichter/kicad-port.build-lock: File exists
+Build lock busy: /home/karlvonrichter/kicad-port.build-lock; retry after its owner finishes
+mkdir: /home/karlvonrichter/kicad-port.build-lock: File exists
+Build lock busy: /home/karlvonrichter/kicad-port.build-lock; retry after its owner finishes
+mkdir: /home/karlvonrichter/kicad-port.build-lock: File exists
+Build lock busy: /home/karlvonrichter/kicad-port.build-lock; retry after its owner finishes
+mkdir: /home/karlvonrichter/kicad-port.build-lock: File exists
+Build lock busy: /home/karlvonrichter/kicad-port.build-lock; retry after its owner finishes
+mkdir: /home/karlvonrichter/kicad-port.build-lock: File exists
+Build lock busy: /home/karlvonrichter/kicad-port.build-lock; retry after its owner finishes
+mkdir: /home/karlvonrichter/kicad-port.build-lock: File exists
+Build lock busy: /home/karlvonrichter/kicad-port.build-lock; retry after its owner finishes
+mkdir: /home/karlvonrichter/kicad-port.build-lock: File exists
+Build lock busy: /home/karlvonrichter/kicad-port.build-lock; retry after its owner finishes
+mkdir: /home/karlvonrichter/kicad-port.build-lock: File exists
+Build lock busy: /home/karlvonrichter/kicad-port.build-lock; retry after its owner finishes
+mkdir: /home/karlvonrichter/kicad-port.build-lock: File exists
+Build lock busy: /home/karlvonrichter/kicad-port.build-lock; retry after its owner finishes
+mkdir: /home/karlvonrichter/kicad-port.build-lock: File exists
+Build lock busy: /home/karlvonrichter/kicad-port.build-lock; retry after its owner finishes
+mkdir: /home/karlvonrichter/kicad-port.build-lock: File exists
+Build lock busy: /home/karlvonrichter/kicad-port.build-lock; retry after its owner finishes
+mkdir: /home/karlvonrichter/kicad-port.build-lock: File exists
+Build lock busy: /home/karlvonrichter/kicad-port.build-lock; retry after its owner finishes
+mkdir: /home/karlvonrichter/kicad-port.build-lock: File exists
+Build lock busy: /home/karlvonrichter/kicad-port.build-lock; retry after its owner finishes
+-- {fmt} version: 12.2.0
+-- Build type: Release
+-- Configuring done (0.4s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/karlvonrichter/kicad-port/pilot-resistors/oracle-build
+[0/2] Re-checking globbed directories...
+[1/19] cd /home/karlvonrichter/kicad-port/pilot-resistors/oracle-build && /usr/bin/python3 /home/karlvonrichter/kicad-port/pilot-resistors/oracle-src/overlay/audit.py --build /home/karlvonrichter/kicad-port/pilot-resistors/oracle-build --source /home/karlvonrichter/kicad-port/pilot-resistors/oracle-src/reference --overlay /home/karlvonrichter/kicad-port/pilot-resistors/oracle-src/overlay
+Oracle audit: 70 compilations, pin 4cf939778df04d2b747bb2c4714fc5014a7565c7, strict FP flags verified
+[2/19] Building CXX object CMakeFiles/calculator-reader-reference.dir/reader-generated/pcb_calculator_datafile_keywords.cpp.o
+[3/19] Building CXX object CMakeFiles/kicad-oracle.dir/shims/example_rescale.cpp.o
+[4/19] Building CXX object CMakeFiles/kicad-oracle.dir/registry.cpp.o
+[5/19] Building CXX object CMakeFiles/kicad-oracle.dir/main.cpp.o
+[6/19] Building CXX object CMakeFiles/resistor-reference.dir/reference/resistors_access.cpp.o
+[7/19] Linking CXX static library libresistor-reference.a
+[8/19] Building CXX object CMakeFiles/oracle-dispatch-test.dir/registry.cpp.o
+[9/19] Building CXX object CMakeFiles/calculator-reader-reference.dir/home/karlvonrichter/kicad-port/pilot-resistors/oracle-src/reference/pcb_calculator/datafile_read_write.cpp.o
+[10/19] Linking CXX static library libcalculator-reader-reference.a
+[11/19] Building CXX object CMakeFiles/oracle-dispatch-test.dir/test_dispatch.cpp.o
+[12/19] Building CXX object CMakeFiles/oracle-dispatch-test.dir/shims/example_rescale.cpp.o
+[13/19] Building CXX object CMakeFiles/kicad-oracle.dir/protocol.cpp.o
+[14/19] Building CXX object CMakeFiles/kicad-oracle.dir/shims/resistors.cpp.o
+[15/19] Building CXX object CMakeFiles/oracle-dispatch-test.dir/protocol.cpp.o
+[16/19] Linking CXX executable kicad-oracle
+[17/19] Building CXX object CMakeFiles/oracle-dispatch-test.dir/shims/resistors.cpp.o
+[18/19] Linking CXX executable oracle-dispatch-test
+Test project /home/karlvonrichter/kicad-port/pilot-resistors/oracle-build
+    Start 1: oracle-protocol
+1/4 Test #1: oracle-protocol ..................   Passed    0.11 sec
+    Start 2: oracle-build-guards
+2/4 Test #2: oracle-build-guards ..............   Passed    0.12 sec
+    Start 3: oracle-dispatch
+3/4 Test #3: oracle-dispatch ..................   Passed    0.02 sec
+    Start 4: oracle-resistor-inputs
+4/4 Test #4: oracle-resistor-inputs ...........   Passed    0.04 sec
+
+100% tests passed, 0 tests failed out of 4
+
+Total Test time (real) =   0.28 sec
+Oracle: /home/karlvonrichter/kicad-port/pilot-resistors/oracle-build/kicad-oracle
+Provenance: /home/karlvonrichter/kicad-port/pilot-resistors/oracle-build/oracle-provenance.json
+    Checking kicad-difftest v0.1.0 (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/kicad-difftest)
+    Checking kicad-resistors v0.1.0 (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/kicad-resistors)
+    Checking embeint-layout v0.1.0 (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/embeint-layout)
+   Compiling embeint-ipc v0.1.0 (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/embeint-ipc)
+   Compiling embeint-mcp v0.1.0 (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/embeint-mcp)
+    Checking embeint-layout-cli v0.1.0 (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/embeint-layout-cli)
+    Checking embeint-web v0.1.0 (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/embeint-web)
+    Checking kicad-resistors-shim v0.1.0 (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/kicad-resistors-shim)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.06s
+   Compiling kicad-difftest v0.1.0 (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/kicad-difftest)
+   Compiling kicad-resistors v0.1.0 (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/kicad-resistors)
+   Compiling embeint-layout v0.1.0 (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/embeint-layout)
+   Compiling embeint-ipc v0.1.0 (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/embeint-ipc)
+   Compiling embeint-mcp v0.1.0 (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/embeint-mcp)
+   Compiling embeint-web v0.1.0 (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/embeint-web)
+   Compiling kicad-resistors-shim v0.1.0 (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/kicad-resistors-shim)
+   Compiling embeint-layout-cli v0.1.0 (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/embeint-layout-cli)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.76s
+     Running unittests src/lib.rs (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/target/debug/deps/embeint_ipc-2aea0c558d64ff29)
+
+running 23 tests
+test client::tests::mutation_options_number_later_operations ... ok
+test discovery::tests::unix_urls_are_absolute ... ok
+test discovery::tests::windows_candidates_keep_only_this_directory ... ok
+test discovery::tests::endpoint_names ... ok
+test nng::tests::headers_and_ids ... ok
+test nng::tests::a_duplex_exchange_round_trips ... ok
+test discovery::tests::windows_temp_dir_prefers_tmpdir_then_tmp ... ok
+test discovery::tests::windows_urls_are_drive_paths_of_plain_components ... ok
+test pbjson::tests::accepts_json_names_and_clears_with_null ... ok
+test pbjson::tests::doubles_accept_numbers_strings_and_booleans ... ok
+test client::tests::documents_are_checked_like_python ... ok
+test pbjson::tests::integers_follow_python_conversion ... ok
+test client::tests::only_schematic_items_are_accepted ... ok
+test pbjson::tests::packs_and_prints_any ... ok
+test pbjson::tests::maps_and_oneofs ... ok
+test pbjson::tests::rejects_unknown_fields_like_python ... ok
+test pbjson::tests::repr_escapes_like_python ... ok
+test pbjson::tests::repr_escapes_windows_paths_like_python ... ok
+test pbjson::tests::single_precision_prints_the_shortest_round_trip_decimal ... ok
+test pbjson::tests::round_trips_a_document_specifier ... ok
+test proto::tests::aliased_enum_values_are_named_as_python_names_them ... ok
+test proto::tests::the_protocol_compiles_and_packs ... ok
+test pbjson::tests::any_printing_refuses_unknown_types_and_excessive_nesting ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running unittests src/lib.rs (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/target/debug/deps/embeint_layout-bf3c4aa39ba3ca35)
+
+running 6 tests
+test pyvalue::tests::floats_print_as_python_repr ... ok
+test pyvalue::tests::truth_and_strip_follow_python ... ok
+test pyvalue::tests::values_print_as_python_str_and_repr ... ok
+test tests::millimetres_are_exact_decimals ... ok
+test tests::request_shape_is_checked_before_layout ... ok
+test tests::integers_beyond_python_limit_are_not_json ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/target/debug/deps/embeint_layout-930409d93aa025f5)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/target/debug/deps/embeint_mcp-3f2f795d679adf2e)
+
+running 53 tests
+test board_client::tests::dog_legs_follow_python ... ok
+test board_client::tests::stackup_colours_follow_python ... ok
+test board_client::tests::units_follow_python ... ok
+test board_client::tests::layers_follow_python ... ok
+test board_client::tests::only_board_items_are_accepted ... ok
+test board_design::tests::line_points_follow_shapely ... ok
+test board_design::tests::python_formatting ... ok
+test board_design::tests::custom_rules_follow_python ... ok
+test board_rf::tests::follows_python ... ok
+test board_router::tests::distances_are_pythons ... ok
+test board_router::tests::sets_iterate_like_cpython ... ok
+test board_router::tests::simplify_and_spanning_order ... ok
+test capabilities::tests::canonical_json_matches_python_dumps ... ok
+test board_router::tests::buffers_follow_geos ... ok
+test board_router::tests::arcs_and_outlines ... ok
+test board_client::tests::items_are_built_like_python ... ok
+test fab::tests::a_manifest_names_only_package_files ... ok
+test fab::tests::helpers_follow_python ... ok
+test board_client::tests::rules_and_stackup_are_read_and_merged ... ok
+test board_client::tests::find_pad_and_widths_follow_python ... ok
+test footprint_gen::tests::python_number_formatting ... ok
+test fab::tests::defaults_build_and_options_merge ... ok
+test kicad_cli::tests::output_tails ... ok
+test kicad_cli::tests::windows_paths_are_translated_for_wsl ... ok
+test kicad_cli::tests::the_allow_list_and_refusals_are_pythons ... ok
+test model_handoff::tests::paths ... ok
+test model_handoff::tests::zstd_output_is_bounded_and_every_frame_decoded ... ok
+test board_client::tests::tracks_and_keepouts_are_one_commit_each ... ok
+test board_client::tests::plain_route_draws_a_dog_leg_through_a_via ... ok
+test resources::skills::tests::bundled_front_matter_reads_alike ... ok
+test resources::skills::tests::front_matter_checks ... ok
+test resources::skills::tests::splits_lines_as_python ... ok
+test resources::tests::template_matches_as_fastmcp ... ok
+test resources::tests::uris_are_normalised_as_anyurl ... ok
+test tools::args::tests::defaults_fill_missing_arguments ... ok
+test tools::args::tests::follows_pydantic_lax_mode ... ok
+test tools::core::tests::validation_follows_fastmcp ... ok
+test kicad_cli::tests::windows_name_rewrites_are_refused ... ok
+test tools::schematic::ops::tests::requests_use_protocol_names ... ok
+test resources::skills::tests::bundled_skills_are_served ... ok
+test tools::schematic::ops::tests::rounding_follows_python ... ok
+test tools::shared::tests::grid_names ... ok
+test tools::shared::tests::rounds_as_python ... ok
+test tools::symbol::tests::python_reprs ... ok
+test resources::skills::tests::embedded_skills_equal_the_files ... ok
+test tools::footprint::tests::signatures_and_items ... ok
+test tools::symbol::tests::helpers_follow_python ... ok
+test tools::tests::every_python_parameter_has_a_kind ... ok
+test tools::tests::implemented_tools_match_python_signatures ... ok
+test footprint_gen::tests::shapes_match_python ... ok
+test model_handoff::tests::plans_and_boards_match_python ... ok
+test capabilities::tests::commands_are_described ... ok
+test capabilities::tests::limitations_are_plain_sentences ... ok
+
+test result: ok. 53 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running unittests src/lib.rs (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/target/debug/deps/embeint_web-a3f2811a06ae7fb9)
+
+running 2 tests
+test tests::packing_keeps_pointer_and_length_apart ... ok
+test tests::response_is_the_layout_json ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/target/debug/deps/kicad_difftest-a999e96af93345fa)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/target/debug/deps/kicad_difftest-64ece6187014a98d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/cli.rs (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/target/debug/deps/cli-b793ff2d3da0accf)
+
+running 2 tests
+test baseline_blessing_is_live_reviewed_and_evidenced ... ok
+test identical_input_bytes_and_process_faults ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.25s
+
+     Running tests/protocol.rs (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/target/debug/deps/protocol-1a5591791bc75b6c)
+
+running 3 tests
+test numeric_tokens_never_round_or_normalize ... ok
+test inventory_status_and_values_are_independent_checks ... ok
+test blessing_requires_exact_case_values_reason_and_provenance ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/request.rs (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/target/debug/deps/request-4e917986be7d0d93)
+
+running 6 tests
+test comparator_still_accepts_and_distinguishes_arbitrary_precision_tokens ... ok
+test finite_fallback_and_underflow_remain_parseable ... ok
+test signed_zero_and_full_integer_domain_survive_validation ... ok
+test overflow_is_a_parse_failure_everywhere ... ok
+test syntax_duplicates_and_nesting_are_checked_before_value_conversion ... ok
+test request_container_bound_is_stricter_than_exact_comparison ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.85s
+
+     Running tests/request_cpp.rs (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/target/debug/deps/request_cpp-441cb1cc4146887e)
+
+running 2 tests
+test request_boundary_matches_pinned_cpp_protocol ... ok
+test nesting_boundary_matches_pinned_cpp_protocol ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.65s
+
+     Running unittests src/lib.rs (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/target/debug/deps/kicad_resistors-4d8315790efd7444)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/contracts.rs (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/target/debug/deps/contracts-e374500aece12037)
+
+running 5 tests
+test literal_series_and_resistance_default_contracts ... ok
+test private_builder_rejects_only_undefined_or_nonterminating_tables ... ok
+test undefined_cpp_preconditions_are_typed_refusals ... ok
+test actual_collector_exception_is_distinct_from_precondition_refusal ... ok
+test contexts_own_their_state_and_new_calc_resets_only_reference_fields ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/nonfinite.rs (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/target/debug/deps/nonfinite-06dcb61860a42a4c)
+
+running 2 tests
+test distinct_nan_operands_keep_reference_second_sign_and_payload ... ok
+test invalid_operations_without_nan_inputs_generate_reference_indefinite ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/reader.rs (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/target/debug/deps/reader-917d667c237fb2b9)
+
+running 2 tests
+test constructors_outside_owned_scope_remain_explicitly_unported ... ok
+test getter_preserves_nullable_borrowed_identity ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/target/debug/deps/kicad_resistors_shim-344f124c42bdabc3)
+
+running 5 tests
+test tests::unsigned_integer_minus_zero_is_distinct_from_float_minus_zero ... ok
+test tests::numeric_overflow_is_refused_before_any_identity ... ok
+test tests::typed_refusals_compare_complete_envelopes ... ok
+test tests::real_cpp_exception_has_a_result_envelope ... ok
+test tests::protocol_and_count_refusals_never_become_results ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/generation.rs (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/target/debug/deps/generation-6952d8488acb17dc)
+
+running 1 test
+test corpus_regeneration_preserves_every_committed_byte ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+   Doc-tests embeint_ipc
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests embeint_layout
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests embeint_web
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests kicad_difftest
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests kicad_resistors
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+WebAssembly build for every portable workspace crate: embeint-layout, embeint-web, kicad-resistors
+   Compiling embeint-layout v0.1.0 (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/embeint-layout)
+   Compiling kicad-resistors v0.1.0 (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/kicad-resistors)
+   Compiling embeint-web v0.1.0 (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/embeint-web)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.29s
+   Compiling kicad-difftest v0.1.0 (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/kicad-difftest)
+   Compiling kicad-resistors-shim v0.1.0 (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/kicad-resistors-shim)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.61s
+   Compiling kicad-difftest v0.1.0 (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/kicad-difftest)
+   Compiling kicad-resistors v0.1.0 (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/kicad-resistors)
+   Compiling kicad-resistors-shim v0.1.0 (/home/karlvonrichter/kicad-port/pilot-resistors/src/rust/kicad-resistors-shim)
+    Finished `release` profile [optimized] target(s) in 4.98s
+71 complete replies match: raw -0/full-u64, typed diagnostics, numeric overflow/fallback and recovery
+All unit records and source accounting valid
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.03s
+{"unit":"pcb_calculator.application.pure.p001","status":"green","action":"check","cases":1050,"deferred":0,"cases_sha256":"58dd1186c9f10c8efb54bc90102c71508c8e852c0b8c08d437380b112fe3c597","oracle_output_sha256":"8d1cc9e8c280b349294f9d512e450586c892a3170881afbba1c1b78de1a107a2","rust_output_sha256":"5fb5dfb6938e6a7b55c99416e46334b7e5f05ceb9821d053c442fa4dabc36441","oracle_sha256":"582917dab13b99729a2ef15d47c72e396630a2045ad50b23c6fb109226ca801e","rust_sha256":"cc9b410fcb8a0463f8acc5fb5825459b7e882b51737c79cae3b73946ff3e0862"}
+Phase 0: INCOMPLETE; 0/3 live green layer-0 units; 1801 validated unit records.
+
+Extraction/configuration coverage (reported separately): `{"all_configurations_complete": false, "compile_database_complete": true, "gate_complete": false, "inventory_complete": true, "parse_complete": false, "parse_failures": 4, "uncompiled_application_sources": 63, "unresolved_call_count": 8899609}`
+
+{
+  "tested_source": "1b42b8368eaf369102b8fc2f58a8af3428eb6a66",
+  "corrected_dependency": "19035296e129cf8640e89331bc9e8ad84f0fe38c",
+  "rust_dependency": "4c6c1e38ce2dead8db8a3193e7525d19532523e9",
+  "collector_fix": "1dd31a7493189ca694bc09020a3a84bf9fb6082e",
+  "case_count": 1050,
+  "cases_sha256": "58dd1186c9f10c8efb54bc90102c71508c8e852c0b8c08d437380b112fe3c597",
+  "golden_sha256": "8d1cc9e8c280b349294f9d512e450586c892a3170881afbba1c1b78de1a107a2",
+  "oracle_sha256": "582917dab13b99729a2ef15d47c72e396630a2045ad50b23c6fb109226ca801e",
+  "rust_debug_sha256": "cc9b410fcb8a0463f8acc5fb5825459b7e882b51737c79cae3b73946ff3e0862",
+  "rust_release_sha256": "61fa3cd93085f9f85aa5becabdc41d7a6a1a14c1bb6235acbca96b96a59d0c11",
+  "oracle_provenance_sha256": "806dfb23aef6071f7a8c96a21706406a96c618c839c745d237d49dc28da4ae13",
+  "status": "claimed; draft; final graph review and parent acceptance pending",
+  "compiler_qualification": "GCC 13/15 Release x86-64; GCC O0 and Clang18 NaN payload equivalence not claimed",
+  "goldens_reblessed": false
+}
+corrected-resistor-integration-complete
