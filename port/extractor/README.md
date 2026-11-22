@@ -317,6 +317,9 @@ even if it contains no function definitions; use `--extra-input <relative>` for
 an existing include with an unusual suffix. Unmapped inputs fail extraction and
 validation rather than becoming successful coverage. Refreeze actual generated
 bytes before rerunning; no compiler flags or source files are fabricated.
+Large raw recipe evidence can be published as `generated-recipes.json.gz` using
+deterministic gzip. Its manifest hash still binds the decompressed original JSON
+bytes, and validation checks the same hash for either storage form.
 
 Frozen compiler-ID probes originate in CMake (BSD-3-Clause). Protobuf tooling is
 BSD-3-Clause and Ninja is Apache-2.0; notices are retained in
