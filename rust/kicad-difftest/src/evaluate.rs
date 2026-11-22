@@ -39,6 +39,47 @@ impl Outcome {
     }
 }
 
+/// A raw stdout line kept as evidence: text when it is valid UTF-8, otherwise its
+/// exact bytes. Bytes are never decoded lossily into something that could parse.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RawLine {
+    Text(String),
+    Bytes(Vec<u8>),
+}
+
+impl RawLine {
+    fn new(bytes: &[u8]) -> Self {
+        match std::str::from_utf8(bytes) {
+            Ok(text) => Self::Text(text.to_owned()),
+            Err(_) => Self::Bytes(bytes.to_vec()),
+        }
+    }
+}
+
+/// Splits raw stdout into lines at LF bytes, exactly as `str::lines` would for
+/// valid UTF-8: `\n` or `\r\n` ends a line, a final line without a terminator is
+/// kept (a bare final `\r` stays part of it), and a trailing terminator adds no
+/// empty line. Splitting on bytes first means one invalid line never hides or
+/// shifts the lines after it.
+pub fn split_lines(bytes: &[u8]) -> Vec<&[u8]> {
+    let mut lines = Vec::new();
+    let mut rest = bytes;
+    while !rest.is_empty() {
+        match rest.iter().position(|&b| b == b'\n') {
+            Some(end) => {
+                let (line, tail) = rest.split_at(end);
+                lines.push(line.strip_suffix(b"\r").unwrap_or(line));
+                rest = tail.get(1..).unwrap_or_default();
+            }
+            None => {
+                lines.push(rest);
+                break;
+            }
+        }
+    }
+    lines
+}
+
 /// One case's outcome with whatever evidence each side produced for it.
 #[derive(Debug, Clone)]
 pub struct CaseOutcome {
@@ -47,9 +88,9 @@ pub struct CaseOutcome {
     /// The oracle's successful reply for this case, when it produced one.
     pub oracle: Option<Record>,
     /// The oracle's raw reply line when it was not a usable result.
-    pub oracle_raw: Option<String>,
+    pub oracle_raw: Option<RawLine>,
     /// The Rust raw reply line for this case, when one was present at its position.
-    pub rust: Option<String>,
+    pub rust: Option<RawLine>,
 }
 
 /// A reply line beyond the corpus, kept as failure evidence.
@@ -58,7 +99,8 @@ pub struct ExtraLine {
     pub side: &'static str,
     /// One-based stdout line number.
     pub line: usize,
-    pub raw: String,
+    /// At most `EXTRA_LINE_LIMIT` bytes of the line (whole characters for text).
+    pub raw: RawLine,
     pub truncated: bool,
 }
 
@@ -83,7 +125,10 @@ impl Evaluation {
 
 enum Slot {
     Reply(Reply),
-    Fault { reason: String, raw: Option<String> },
+    Fault {
+        reason: String,
+        raw: Option<RawLine>,
+    },
     Unavailable(String),
 }
 
@@ -115,7 +160,7 @@ fn slots(
             .map(|_| Slot::Unavailable(reason.clone()))
             .collect();
     }
-    let mut lines = output.text().lines();
+    let mut lines = split_lines(&output.stdout).into_iter();
     let mut result = Vec::with_capacity(cases.len());
     for (index, case) in cases.iter().enumerate() {
         let Some(line) = lines.next() else {
@@ -135,7 +180,22 @@ fn slots(
             });
             continue;
         };
-        let raw = Some(line.to_owned());
+        let Ok(line) = std::str::from_utf8(line) else {
+            // A malformed line fails its own case; the following lines keep their
+            // positions and are evaluated normally.
+            let offset = std::str::from_utf8(line)
+                .err()
+                .map_or(0, |e| e.valid_up_to());
+            result.push(Slot::Fault {
+                reason: format!(
+                    "{label}: line {} is not valid UTF-8 (invalid byte at offset {offset})",
+                    index + 1
+                ),
+                raw: Some(RawLine::Bytes(line.to_vec())),
+            });
+            continue;
+        };
+        let raw = Some(RawLine::Text(line.to_owned()));
         result.push(match parse_envelope(line, unit, Envelope::Partial, index) {
             Err(reason) => Slot::Fault {
                 reason: format!("{label}: {reason}"),
@@ -155,15 +215,25 @@ fn slots(
     for (offset, line) in lines.enumerate() {
         count += 1;
         if offset < EXTRA_LINES_KEPT {
-            let mut end = line.len().min(EXTRA_LINE_LIMIT);
-            while !line.is_char_boundary(end) {
-                end -= 1;
-            }
+            let kept = match std::str::from_utf8(line) {
+                Ok(text) => {
+                    let mut end = text.len().min(EXTRA_LINE_LIMIT);
+                    while !text.is_char_boundary(end) {
+                        end -= 1;
+                    }
+                    RawLine::Text(text.get(..end).unwrap_or_default().to_owned())
+                }
+                Err(_) => RawLine::new(line.get(..EXTRA_LINE_LIMIT).unwrap_or(line)),
+            };
+            let kept_len = match &kept {
+                RawLine::Text(text) => text.len(),
+                RawLine::Bytes(bytes) => bytes.len(),
+            };
             extra.push(ExtraLine {
                 side: label,
                 line: cases.len() + offset + 1,
-                raw: line.get(..end).unwrap_or_default().to_owned(),
-                truncated: end < line.len(),
+                raw: kept,
+                truncated: kept_len < line.len(),
             });
         }
     }
@@ -189,7 +259,7 @@ pub fn evaluate(cases: &[Record], unit: &str, oracle: &Captured, rust: &Captured
     let mut outcomes = Vec::with_capacity(cases.len());
     for ((case, o), r) in cases.iter().zip(oracle_slots).zip(rust_slots) {
         let rust_raw = match &r {
-            Slot::Reply(reply) => Some(reply.record.raw.clone()),
+            Slot::Reply(reply) => Some(RawLine::Text(reply.record.raw.clone())),
             Slot::Fault { raw, .. } => raw.clone(),
             Slot::Unavailable(_) => None,
         };
@@ -198,7 +268,7 @@ pub fn evaluate(cases: &[Record], unit: &str, oracle: &Captured, rust: &Captured
         let (oracle_record, oracle_raw, oracle_problem) = match o {
             Slot::Reply(reply) if reply.deferral.is_some() => (
                 None,
-                Some(reply.record.raw),
+                Some(RawLine::Text(reply.record.raw)),
                 Some(Outcome::Failed(
                     "oracle: a reference deferral is a failure; the oracle must return a result"
                         .into(),
