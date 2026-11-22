@@ -275,3 +275,51 @@ fn nesting_boundary_matches_pinned_cpp_protocol() -> TestResult {
     }
     Ok(())
 }
+
+#[test]
+fn marker_named_objects_match_actual_cpp_transport_without_coercion() -> TestResult {
+    let mut cases = Vec::new();
+    for key in [
+        "$serde_json::private::Number",
+        "$serde_json::private::RawValue",
+    ] {
+        for literal in [
+            r#""0""#,
+            r#""bad""#,
+            r#""1e1000""#,
+            r#""\"u\"""#,
+            r#""[]""#,
+            r#""{}""#,
+            "true",
+            "null",
+            "[]",
+            "{}",
+        ] {
+            let object = format!(r#"{{"{key}":{literal}}}"#);
+            cases.extend([
+                format!(r#"{{"unit":"u","case":"c","input":{object}}}"#),
+                format!(r#"{{"unit":"u","case":"c","input":{{"n":{object}}}}}"#),
+                format!(r#"{{"unit":{object},"case":"c","input":{{}}}}"#),
+                format!(r#"{{"unit":"u","case":{object},"input":{{}}}}"#),
+                format!(r#"{{"unit":"u","case":"c","input":{{}},"extra":{object}}}"#),
+                object,
+            ]);
+        }
+    }
+    let observations = cpp_observations(&cases)?;
+    for (text, observation) in cases.iter().zip(&observations) {
+        let parsed = request::parse(text)?;
+        assert_eq!(observation["reply"], shape_reply(&parsed), "{text}");
+        if observation["reply"]["error"]["kind"] == "unknown_unit" {
+            // Compare exact trees from an escaped JSON string; decoding the
+            // observed input as Value would recreate the bug under review.
+            let actual = observation["input_json"].as_str().ok_or("C++ input")?;
+            assert_eq!(
+                kicad_difftest::exact::parse(actual)?,
+                kicad_difftest::exact::parse(&parsed["input"].to_string())?,
+                "{text}"
+            );
+        }
+    }
+    Ok(())
+}
