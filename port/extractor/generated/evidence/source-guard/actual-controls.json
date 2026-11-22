@@ -1,0 +1,66 @@
+{
+  "all_rejected": true,
+  "build_unchanged": true,
+  "control_count": 14,
+  "controls": {
+    "apply_d2_capture_without_identity": {
+      "error": "Capture source identity differs from the original parse",
+      "rejected": true
+    },
+    "apply_different_audit": {
+      "error": "Capture source identity differs from the original parse",
+      "rejected": true
+    },
+    "apply_forged_capture_files": {
+      "error": "Capture source identity differs from the original parse",
+      "rejected": true
+    },
+    "apply_forged_capture_root": {
+      "error": "Capture source identity differs from the original parse",
+      "rejected": true
+    },
+    "apply_forged_capture_summary": {
+      "error": "Capture source identity differs from the original parse",
+      "rejected": true
+    },
+    "apply_refreshed_graph": {
+      "error": "Apply a refresh to the original parse artifacts, not to a refreshed graph",
+      "rejected": true
+    },
+    "capture_audit_conflicts_with_tracked_snapshot": {
+      "error": "Generator input differs from the tracked parse snapshot: eeschema/dialogs/dialog_bom_help_md.h",
+      "rejected": true
+    },
+    "capture_foreign_pin_audit": {
+      "error": "Refresh source pins differ from the original parse",
+      "rejected": true
+    },
+    "capture_foreign_root": {
+      "error": "Refresh source root differs from the original parse source root",
+      "rejected": true
+    },
+    "capture_missing_source_identity": {
+      "error": "Pinned refresh source is missing or changed: pcbnew/source_guard_control_missing.md",
+      "rejected": true
+    },
+    "capture_refreshed_inventory": {
+      "error": "Capture inventory differs from the original generated-source manifest",
+      "rejected": true
+    },
+    "capture_stale_markdown_identity": {
+      "error": "Pinned refresh source is missing or changed: pcbnew/pcb_text_help.md",
+      "rejected": true
+    },
+    "ninja_unrecorded_source_input": {
+      "error": "Ninja source lacks a pinned snapshot: pcbnew/pcb_text_help.md",
+      "rejected": true
+    },
+    "ninja_unrecorded_source_target": {
+      "error": "Ninja source lacks a pinned snapshot: pcbnew/pcb_text_help_md.h",
+      "rejected": true
+    }
+  },
+  "scope": "Real pinned source snapshot, real build and real Ninja; stale/missing/foreign states are introduced through forged identity inputs, never by editing the shared source or build trees. Physical file and after-query mutations are exercised in the disposable real-Ninja fixture (repro-controls.json).",
+  "source_files_sha256": "3c0d96516f2c20ca5e7883aa7a549ed0e412a190b27af60012a4edfb0621122e",
+  "source_snapshot_verified_after": 9655
+}

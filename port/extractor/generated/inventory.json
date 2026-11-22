@@ -209709,10 +209709,10 @@
       "tools/newstroke/CMakeLists.txt": [],
       "utils/CMakeLists.txt": []
     },
-    "generated_sources_manifest_sha256": "071a18f4c9ad6d0a6ed39ed84e4cbbc33f984f8bc4896b45f4e9de8b4a132792",
+    "generated_sources_manifest_sha256": "58bccc83c8a9d18c538d1e0df8d062c307cd0ac8816d96a0b126a74914277760",
     "generator_dependency_refresh": {
-      "capture_code_sha256": "1a7ea4bc86028ebccd5cb527b37c7f3fd053d259ca735c2195593d8b1f569f93",
-      "capture_sha256": "f4126f134144f18f35b849e22dc44984d23a52e66aec4a372b262d8eb57220d1",
+      "capture_code_sha256": "2b4eca5d431fd57fe824e54eaa384bea5215abe29cefa0cff9d9238269f4e929",
+      "capture_sha256": "7705a33563f736295944934e98f3fd629f869408a2d22e6a34a11501b0aac685",
       "changed_fields": [
         "provenance.generated_sources_manifest_sha256",
         "provenance.generated_input_dependencies",
@@ -209729,7 +209729,18 @@
       "policy": "Post-parse generator dependency refresh. AST, definitions, calls, overrides, unresolved records, translation units, coverage and source bytes are those of the original parse (parse_* identities); only generator dependency metadata and the fingerprints derived from it were recaptured from the unchanged private build.",
       "recipes_sha256": "f44049e2ea0a2ad8b1a16133e5c6bc25df084366d07995b7369d0d44fd9d1900",
       "refresh_code_hash_policy": "refresh_generator_dependencies.py and generated_sources.py concatenated after CRLF-to-LF normalization",
-      "refresh_code_sha256": "1a7ea4bc86028ebccd5cb527b37c7f3fd053d259ca735c2195593d8b1f569f93"
+      "refresh_code_sha256": "2b4eca5d431fd57fe824e54eaa384bea5215abe29cefa0cff9d9238269f4e929",
+      "source_identity": {
+        "generation_inputs_sha256": "bf7a1689587de011b7f2b8879e7d6284827a451ee43155ad72b8963fe30a6de6",
+        "hash_policy": "SHA-256 after CRLF-to-LF normalization, as in the original parse",
+        "inventory_sha256": "b9e6986b36529fdf4041712dfb258af050c2ff61bb3971875394eb16e2a47682",
+        "source_commit": "3cd2c9afc6d2749b7d3a79fd1deaa86ac51cb3a7",
+        "source_files_sha256": "3c0d96516f2c20ca5e7883aa7a549ed0e412a190b27af60012a4edfb0621122e",
+        "source_root": "/home/karlvonrichter/kicad-port/extract-source",
+        "tracked_source_inventory_sha256": "da0820c028bc23f338b6a6256e38dc984bd79f323f02737b93e7e5e499d57a2f",
+        "upstream_pin": "4cf939778df04d2b747bb2c4714fc5014a7565c7",
+        "verified_source_files": 9655
+      }
     },
     "inventory_complete": true,
     "jobs": 8,

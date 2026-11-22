@@ -14,7 +14,7 @@ import argparse
 import copy
 import gzip
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import shutil
 import subprocess
 import sys
@@ -66,30 +66,90 @@ def check_tools(manifest, build):
     return checked
 
 
-def capture(base_manifest_path, source, output):
+def source_identity(base, inventory_path, generation_inputs_path, source=None):
+    """Bind tracked C/C++ and every pinned generator input to the parse snapshot."""
+    inventory, inputs = read_json(inventory_path), read_json(generation_inputs_path)
+    provenance = inventory['provenance']
+    configured = base['provenance'].get('reconciliation.json', {}).get('record', {})
+    root = configured.get('source_root')
+    if (not root or root != provenance.get('source_root')
+            or (source is not None and Path(source).resolve() != Path(root).resolve())):
+        raise ValueError('Refresh source root differs from the original parse source root')
+    if (configured.get('source_commit') != provenance['source_commit']
+            or inputs.get('source_commit') != provenance['source_commit']
+            or inputs.get('upstream_pin') != provenance['upstream_pin']):
+        raise ValueError('Refresh source pins differ from the original parse')
+    tracked = [{k: v for k, v in f.items() if k != 'coverage'} for f in inventory['files']
+               if f.get('origin') != 'build-generated']
+    if digest(json.dumps(tracked, sort_keys=True).encode()) != provenance['tracked_source_inventory_sha256']:
+        raise ValueError('Tracked inventory differs from the original parse fingerprint')
+    files = {entry['path']: entry['sha256'] for entry in tracked}
+    for entry in inputs['inputs']:
+        path, expected = entry['path'], entry['normalized_sha256']
+        if path in files and files[path] != expected:
+            raise ValueError('Generator input differs from the tracked parse snapshot: ' + path)
+        files[path] = expected
+    identity = {'source_root': root, 'source_commit': provenance['source_commit'],
+                'upstream_pin': provenance['upstream_pin'],
+                'tracked_source_inventory_sha256': provenance['tracked_source_inventory_sha256'],
+                'inventory_sha256': lf_digest(inventory_path.read_bytes()),
+                'generation_inputs_sha256': lf_digest(generation_inputs_path.read_bytes()),
+                'source_files_sha256': digest(json.dumps(files, sort_keys=True).encode()),
+                'verified_source_files': len(files),
+                'hash_policy': 'SHA-256 after CRLF-to-LF normalization, as in the original parse',
+                'files': files}
+    if source is not None:
+        verify_source(identity)
+    return identity
+
+
+def verify_source(identity):
+    root = Path(identity['source_root']).resolve()
+    for path, expected in identity['files'].items():
+        relative = PurePosixPath(path)
+        actual = (root / path).resolve()
+        if (not path or relative.is_absolute() or '..' in relative.parts or ':' in path or '\\' in path
+                or path.startswith('@build/')
+                or not actual.is_relative_to(root) or not actual.is_file()
+                or lf_digest(actual.read_bytes()) != expected):
+            raise ValueError('Pinned refresh source is missing or changed: ' + path)
+
+
+def capture(base_manifest_path, source, output, *, inventory_path, generation_inputs_path):
     base = read_json(base_manifest_path)
+    ninja = base['provenance'].get('tools', {}).get('ninja', {}).get('path')
+    if not ninja or not Path(ninja).is_absolute():
+        raise ValueError('Capture requires a recorded absolute Ninja executable')
     build = Path(base['build_root']).resolve()
     if output.resolve().is_relative_to(build):
         raise ValueError('Keep capture output outside the private build tree')
+    if read_json(inventory_path)['provenance'].get('generated_sources_manifest_sha256') != lf_digest(base_manifest_path.read_bytes()):
+        raise ValueError('Capture inventory differs from the original generated-source manifest')
+    source_proof = source_identity(base, inventory_path, generation_inputs_path, source)
     if build_state(build) != base['build_files']:
         raise ValueError('Private build files differ from the parse manifest; a refresh cannot reuse that parse')
     verify(base, build, base_manifest_path.parent)
     tools = check_tools(base, build)
-    catalog = subprocess.run(['ninja', '-C', str(build), '-t', 'targets', 'all'],
+    catalog = subprocess.run([ninja, '-C', str(build), '-t', 'targets', 'all'],
                              capture_output=True, encoding='utf-8')
     if catalog.returncode:
         raise ValueError('Cannot inventory Ninja targets: ' + catalog.stderr)
     entries = copy.deepcopy(base['files'])
     source_dependencies = {}
-    recipes = capture_recipes(build, Path(source), entries, source_dependencies)
+    recipes = capture_recipes(build, Path(source), entries, source_dependencies, source_proof['files'], ninja=ninja)
     if build_state(build) != base['build_files']:
         raise ValueError('Private build files changed during capture')
+    verify(base, build, base_manifest_path.parent)
+    verify_source(source_proof)
+    if check_tools(base, build) != tools:
+        raise ValueError('Generator tool or configuration identity changed during capture')
     output.mkdir(parents=True, exist_ok=True)
     write_json(output / 'generated-recipes.json', recipes)
     (output / 'ninja-targets.txt').write_bytes(catalog.stdout.encode())
     record = {'schema_version': 1, 'policy': POLICY,
               'base_manifest_sha256': lf_digest(base_manifest_path.read_bytes()),
-              'build_root': str(build), 'source_root': str(Path(source).resolve()),
+              'build_root': str(build), 'source_root': source_proof['source_root'],
+              'source_identity': source_proof,
               'build_files_unchanged': len(base['build_files']),
               'frozen_generated_inputs_verified': len(base['files']),
               'tool_and_configuration_sha256': tools,
@@ -113,7 +173,7 @@ def strip_graph(graph):
     return {**graph, 'provenance': {k: v for k, v in graph['provenance'].items() if k not in REFRESH_FIELDS}}
 
 
-def apply(graph_path, inventory_path, base_manifest_path, capture_path, recipes_path, output):
+def apply(graph_path, inventory_path, base_manifest_path, capture_path, recipes_path, output, *, generation_inputs_path):
     graph, inventory = read_json(graph_path), read_json(inventory_path)
     base, captured = read_json(base_manifest_path), read_json(capture_path)
     base_sha = lf_digest(base_manifest_path.read_bytes())
@@ -124,6 +184,18 @@ def apply(graph_path, inventory_path, base_manifest_path, capture_path, recipes_
         raise ValueError('Capture was taken against a different generated-source manifest')
     if inventory['provenance'] != provenance or provenance.get('generated_sources_manifest_sha256') != base_sha:
         raise ValueError('Graph/inventory were not produced from this generated-source manifest')
+    identity = captured.get('source_identity', {})
+    expected = source_identity(base, inventory_path, generation_inputs_path)
+    if not identity or identity != expected or captured.get('source_root') != expected['source_root']:
+        raise ValueError('Capture source identity differs from the original parse')
+    for entry in inventory['files']:
+        if entry.get('origin') != 'build-generated' and identity['files'].get(entry['path']) != entry['sha256']:
+            raise ValueError('Capture source bytes differ from the tracked parse snapshot: ' + entry['path'])
+    relations = {**captured['source_generator_dependencies'], **captured['generator_inputs']}
+    for path, dependencies in relations.items():
+        for source_path in [path, *dependencies]:
+            if not source_path.startswith('@build/') and source_path not in identity['files']:
+                raise ValueError('Capture relation lacks a pinned source identity: ' + source_path)
     if provenance.get('generated_input_dependencies') != generator_dependencies(base):
         raise ValueError('Graph generator dependencies differ from the parse manifest')
     built = [f for f in inventory['files'] if f.get('origin') == 'build-generated']
@@ -146,7 +218,8 @@ def apply(graph_path, inventory_path, base_manifest_path, capture_path, recipes_
     manifest['recipes_sha256'] = captured['recipes_sha256']
     manifest['generator_dependency_refresh'] = {
         'policy': POLICY, 'base_manifest_sha256': base_sha, 'base_recipes_sha256': base.get('recipes_sha256'),
-        'capture_sha256': capture_sha, 'capture_code_sha256': captured['capture_code_sha256']}
+        'capture_sha256': capture_sha, 'capture_code_sha256': captured['capture_code_sha256'],
+        'source_identity': {key: value for key, value in identity.items() if key != 'files'}}
     write_json(output / 'generated-sources.json', manifest)
     manifest_sha = lf_digest((output / 'generated-sources.json').read_bytes())
 
@@ -163,6 +236,7 @@ def apply(graph_path, inventory_path, base_manifest_path, capture_path, recipes_
               'input_graph_sha256': digest(graph_path.read_bytes()),
               'input_inventory_sha256': digest(inventory_path.read_bytes()),
               'capture_sha256': capture_sha, 'capture_code_sha256': captured['capture_code_sha256'],
+              'source_identity': {key: value for key, value in identity.items() if key != 'files'},
               'refresh_code_sha256': code_sha256(), 'recipes_sha256': captured['recipes_sha256'],
               'refresh_code_hash_policy': 'refresh_generator_dependencies.py and generated_sources.py concatenated after CRLF-to-LF normalization',
               'changed_fields': ['provenance.' + f for f in REFRESH_FIELDS]
@@ -218,6 +292,8 @@ def main():
     c = sub.add_parser('capture', help='recapture dependencies from the unchanged private build (WSL, shared lock)')
     c.add_argument('--base-manifest', type=Path, required=True, help='generated-sources.json used by the parse, beside its sources/')
     c.add_argument('--source-root', type=Path, required=True)
+    c.add_argument('--inventory', type=Path, required=True, help='inventory.json used by the original parse')
+    c.add_argument('--generation-inputs', type=Path, required=True, help='pinned generator/configure input audit')
     c.add_argument('--output', type=Path, required=True)
     a_ = sub.add_parser('apply', help='apply a capture to the original graph/inventory (pure)')
     a_.add_argument('--graph', type=Path, required=True)
@@ -225,6 +301,7 @@ def main():
     a_.add_argument('--base-manifest', type=Path, required=True)
     a_.add_argument('--capture', type=Path, required=True)
     a_.add_argument('--recipes', type=Path, required=True, help='recaptured generated-recipes.json or its .gz')
+    a_.add_argument('--generation-inputs', type=Path, required=True, help='same pinned input audit used by capture')
     a_.add_argument('--output', type=Path, required=True)
     a = p.parse_args()
     if a.command == 'capture':
@@ -233,10 +310,12 @@ def main():
             p.error('Use only the private pinned build tree')
         if not (Path.home() / 'kicad-port.build-lock').is_dir():
             p.error('Acquire the shared build lock first')
-        record = capture(a.base_manifest, a.source_root, a.output)
+        record = capture(a.base_manifest, a.source_root, a.output,
+                         inventory_path=a.inventory, generation_inputs_path=a.generation_inputs)
         print(json.dumps({k: record[k] for k in ('recipe_records', 'ninja_target_records', 'recipes_sha256')}))
     else:
-        report = apply(a.graph, a.inventory, a.base_manifest, a.capture, a.recipes, a.output)
+        report = apply(a.graph, a.inventory, a.base_manifest, a.capture, a.recipes, a.output,
+                       generation_inputs_path=a.generation_inputs)
         print(json.dumps({k: report[k] for k in ('build_generated_entries_changed', 'build_generated_inputs_added',
                                                  'build_generated_inputs_removed', 'source_generator_outputs')}))
     return 0

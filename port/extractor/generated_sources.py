@@ -81,10 +81,22 @@ def freeze(build, output, provenance, extra_inputs=()):
     return manifest
 
 
-def capture_recipes(build, source, entries, source_dependencies=None):
+def capture_recipes(build, source, entries, source_dependencies=None, source_files=None, *, ninja=None):
     """Retain generated links and flatten tracked inputs through all Ninja stages."""
     build, source = build.resolve(), source.resolve()
+    # Guarded refreshes pass the absolute executable checked against their parse
+    # manifest. Other callers resolve once, so queries cannot select another tool.
+    ninja = ninja if ninja is not None else shutil.which('ninja')
+    if not ninja or not Path(ninja).is_absolute():
+        raise ValueError('Recipe capture requires an absolute Ninja executable')
+    ninja = str(ninja)
     recipes, dependencies = {}, {}
+
+    def check_source(path, logical):
+        if (source_files is not None and logical is not None
+                and not logical.startswith('@build/') and not path.is_dir()
+                and logical not in source_files):
+            raise ValueError('Ninja source lacks a pinned snapshot: ' + logical)
 
     def logical_path(path):
         if path.is_relative_to(source):
@@ -93,7 +105,7 @@ def capture_recipes(build, source, entries, source_dependencies=None):
             return '@build/' + path.relative_to(build).as_posix()
         return None
 
-    catalog = subprocess.run(['ninja', '-C', str(build), '-t', 'targets', 'all'],
+    catalog = subprocess.run([ninja, '-C', str(build), '-t', 'targets', 'all'],
                              capture_output=True, text=True, encoding='utf-8')
     if catalog.returncode:
         raise ValueError('Cannot inventory Ninja generator targets: ' + catalog.stderr)
@@ -105,6 +117,7 @@ def capture_recipes(build, source, entries, source_dependencies=None):
         path = Path(target)
         path = (path if path.is_absolute() else build / path).resolve()
         logical = logical_path(path)
+        check_source(path, logical)
         if logical is not None:
             targets.setdefault(logical, []).append(target)
 
@@ -118,11 +131,11 @@ def capture_recipes(build, source, entries, source_dependencies=None):
         spellings = targets.get(logical, [logical.removeprefix('@build/'), path.as_posix()])
         attempts, command_attempts = [], []
         for target in dict.fromkeys(spellings):
-            result = subprocess.run(['ninja', '-C', str(build), '-t', 'query', target],
+            result = subprocess.run([ninja, '-C', str(build), '-t', 'query', target],
                                     capture_output=True, text=True, encoding='utf-8')
             attempts.append({'target': target, 'exit': result.returncode,
                              'stdout': result.stdout, 'stderr': result.stderr})
-            commands = subprocess.run(['ninja', '-C', str(build), '-t', 'commands', target],
+            commands = subprocess.run([ninja, '-C', str(build), '-t', 'commands', target],
                                       capture_output=True, text=True, encoding='utf-8')
             command_attempts.append({'target': target, 'exit': commands.returncode,
                                      'stdout': commands.stdout, 'stderr': commands.stderr})
@@ -148,6 +161,7 @@ def capture_recipes(build, source, entries, source_dependencies=None):
                 candidate = Path(line.strip().lstrip('| '))
                 candidate = (candidate if candidate.is_absolute() else build / candidate).resolve()
                 dependency = logical_path(candidate)
+                check_source(candidate, dependency)
                 if dependency is not None and (candidate.is_file() or dependency in targets):
                     inputs.add(dependency)
         dependencies[logical] = inputs
@@ -201,6 +215,8 @@ def main():
     for tool in ('cmake', 'ninja', 'protoc', 'c++'):
         binary = shutil.which(tool)
         if binary:
+            # Tool managers can dispatch by argv[0]; retain the symlink name.
+            binary = str(Path(binary).absolute())
             version = subprocess.run([binary, '--version'], capture_output=True, text=True, encoding='utf-8')
             provenance['tools'][tool] = {'path': binary, 'sha256': digest(Path(binary).read_bytes()),
                 'version_exit': version.returncode, 'version': version.stdout, 'stderr': version.stderr}
@@ -214,7 +230,8 @@ def main():
     manifest = freeze(build, a.output, provenance, a.extra_input)
     source = Path(read_json(a.reconciliation / 'reconciliation.json')['source_root'])
     manifest['source_generator_dependencies'] = {}
-    recipes = capture_recipes(build, source, manifest['files'], manifest['source_generator_dependencies'])
+    recipes = capture_recipes(build, source, manifest['files'], manifest['source_generator_dependencies'],
+                              ninja=provenance['tools'].get('ninja', {}).get('path'))
     write_json(a.output / 'generated-recipes.json', recipes)
     manifest['recipes_sha256'] = digest((a.output / 'generated-recipes.json').read_bytes())
     write_json(a.output / 'generated-sources.json', manifest)

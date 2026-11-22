@@ -65179,9 +65179,20 @@
   "generator_dependency_refresh": {
     "base_manifest_sha256": "a2466270bdf4aec52b7b8267140ac4b18c8295520c5b94e1ecb3dc8498dacb34",
     "base_recipes_sha256": "dff5b79afdbe58e2e4c7a4f0e4d8b093fd34a94a0302d38cddd6483660496951",
-    "capture_code_sha256": "1a7ea4bc86028ebccd5cb527b37c7f3fd053d259ca735c2195593d8b1f569f93",
-    "capture_sha256": "f4126f134144f18f35b849e22dc44984d23a52e66aec4a372b262d8eb57220d1",
-    "policy": "Post-parse generator dependency refresh. AST, definitions, calls, overrides, unresolved records, translation units, coverage and source bytes are those of the original parse (parse_* identities); only generator dependency metadata and the fingerprints derived from it were recaptured from the unchanged private build."
+    "capture_code_sha256": "2b4eca5d431fd57fe824e54eaa384bea5215abe29cefa0cff9d9238269f4e929",
+    "capture_sha256": "7705a33563f736295944934e98f3fd629f869408a2d22e6a34a11501b0aac685",
+    "policy": "Post-parse generator dependency refresh. AST, definitions, calls, overrides, unresolved records, translation units, coverage and source bytes are those of the original parse (parse_* identities); only generator dependency metadata and the fingerprints derived from it were recaptured from the unchanged private build.",
+    "source_identity": {
+      "generation_inputs_sha256": "bf7a1689587de011b7f2b8879e7d6284827a451ee43155ad72b8963fe30a6de6",
+      "hash_policy": "SHA-256 after CRLF-to-LF normalization, as in the original parse",
+      "inventory_sha256": "b9e6986b36529fdf4041712dfb258af050c2ff61bb3971875394eb16e2a47682",
+      "source_commit": "3cd2c9afc6d2749b7d3a79fd1deaa86ac51cb3a7",
+      "source_files_sha256": "3c0d96516f2c20ca5e7883aa7a549ed0e412a190b27af60012a4edfb0621122e",
+      "source_root": "/home/karlvonrichter/kicad-port/extract-source",
+      "tracked_source_inventory_sha256": "da0820c028bc23f338b6a6256e38dc984bd79f323f02737b93e7e5e499d57a2f",
+      "upstream_pin": "4cf939778df04d2b747bb2c4714fc5014a7565c7",
+      "verified_source_files": 9655
+    }
   },
   "provenance": {
     "CMakeCache.txt": {

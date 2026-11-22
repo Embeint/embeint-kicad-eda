@@ -349,6 +349,10 @@ python3 port/extractor/generated_sources.py \
   --output ~/kicad-port/corrected-review/inputs
 ```
 
+The freezing CLI makes each discovered tool path absolute without dereferencing
+its symlink. This preserves invocation names used by tool-manager dispatchers;
+the recorded path is also the path invoked, and hashing it reads the target's bytes.
+
 ### Post-parse generator dependency refresh
 
 A fix that changes only recipe capture does not change the AST, source bytes or
@@ -360,17 +364,32 @@ the map and applies it to the existing parse:
 ```sh
 python3 port/extractor/refresh_generator_dependencies.py capture \
   --base-manifest <parse>/generated-sources.json \
+  --inventory <original-parse>/inventory.json \
+  --generation-inputs <pinned-generation-input-audit.json> \
   --source-root ~/kicad-port/extract-source --output <capture>
 python3 port/extractor/refresh_generator_dependencies.py apply \
   --graph <canonical>/graph.json.gz --inventory <canonical>/inventory.json \
   --base-manifest <parse>/generated-sources.json \
   --capture <capture>/generator-dependency-capture.json \
+  --generation-inputs <pinned-generation-input-audit.json> \
   --recipes <capture>/generated-recipes.json --output <refreshed>
 ```
 
 `capture` needs the shared lock. It refuses to run unless every private build
 file, frozen generated input, tool binary and CMake/Ninja file matches the parse
-manifest, and it checks the build again afterwards. `apply` needs neither clang
+manifest. The physical source root must equal the original reconciliation and
+parse root. All tracked C/C++ files and the pinned generator/configure input
+audit (including Markdown, schemas and scripts) must match their recorded
+CRLF-to-LF-normalized hashes. Unrecorded Ninja source inputs fail rather than
+disappearing from the map. Source, build, frozen inputs and external tools are
+checked again after capture. Capture invokes the manifest's verified absolute
+Ninja executable for every target catalog, query and command listing, regardless
+of PATH. A missing or
+relative recorded Ninja path is refused; the executable actually invoked is
+covered by the checks before and after capture.
+`apply` binds the same complete source identity and input-audit hash to the
+original inventory and pins, without reading the physical
+source tree; it therefore still runs on Windows. It needs neither clang
 nor Ninja. It replaces only the generator dependency map, the build-generated
 `generator_inputs`, the manifest and inventory fingerprints derived from them, and
 adds `generator_dependency_refresh`. That record keeps the parse identities
