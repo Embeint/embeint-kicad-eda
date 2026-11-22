@@ -1,0 +1,4 @@
+drop-iec-target-from-closure -> FAILS (control effective) FAILED (failures=1)
+drop-iec-source-check -> FAILS (control effective) FAILED (failures=1)
+drop-iec-archive-check -> FAILS (control effective) FAILED (failures=1)
+drop-resistor-from-closure -> FAILS (control effective) FAILED (failures=1)

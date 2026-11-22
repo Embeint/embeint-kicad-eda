@@ -1,0 +1,75 @@
+{
+  "head": "7207de24edea9f509e5e4e243418f1488a71cc77",
+  "published_49": "8928097f950c0113e63bc46910c6221cefe1a89d",
+  "published_49_is_ancestor": true,
+  "delta39_paths": 112,
+  "delta44_paths": 17,
+  "delta_overlap": [],
+  "delta39_not_owner_blob": [],
+  "delta44_not_owner_blob": [],
+  "published_49_paths_changed_outside_deltas": [],
+  "prior_integration_evidence_paths": 58,
+  "prior_integration_evidence_changed": [],
+  "shared_unions_equal_published_49": {
+    "port/oracle/CMakeLists.txt": true,
+    "port/oracle/audit.py": true,
+    "port/oracle/pin.py": true,
+    "port/oracle/registry.cpp": true,
+    "rust/Cargo.toml": true,
+    "rust/Cargo.lock": true,
+    "port/oracle/test_iec60664_guards.py": true
+  },
+  "pilot_records_equal_owner": {
+    "port/units/libs.kimath.src.md5_hash.application.pure.p001.toml": true,
+    "port/units/pcb_calculator.calculator_panels.application.pure.p001.toml": true,
+    "port/units/pcb_calculator.application.pure.p001.toml": true,
+    "port/units/pcb_calculator.application.thin.replacement.p001.toml": true
+  },
+  "resistor_status": "claimed",
+  "unit_records": 1801,
+  "unit_records_differing_from_39": [
+    "port/units/libs.kimath.src.md5_hash.application.pure.p001.toml",
+    "port/units/pcb_calculator.application.pure.p001.toml",
+    "port/units/pcb_calculator.application.thin.replacement.p001.toml",
+    "port/units/pcb_calculator.calculator_panels.application.pure.p001.toml"
+  ],
+  "unit_ids_equal_39": true,
+  "golden_policy": {
+    "rust": {
+      "base": "1a2fb924d539d63a68f5696191907dc2aa6d6370",
+      "exit": 0,
+      "output": "Golden change evidence valid"
+    },
+    "39": {
+      "base": "328572624e382ad8c55bd1d45b207b740c2c5258",
+      "exit": 0,
+      "output": "Golden change evidence valid"
+    },
+    "42": {
+      "base": "c5ec29e70d07506ac3fb8b8b5c1b6f5102c7ef3e",
+      "exit": 0,
+      "output": "Golden change evidence valid"
+    },
+    "43": {
+      "base": "fc4718302716baf33e9b764e3bce30c2727f2706",
+      "exit": 0,
+      "output": "Golden change evidence valid"
+    },
+    "44": {
+      "base": "2c0817d575b26c0660a6ce0ad497fc3ee6cc3a6e",
+      "exit": 0,
+      "output": "Golden change evidence valid"
+    },
+    "published49": {
+      "base": "8928097f950c0113e63bc46910c6221cefe1a89d",
+      "exit": 0,
+      "output": "Golden change evidence valid"
+    }
+  },
+  "phase0_required_lines": [
+    "HEAD:.github/workflows/rust-port.yml:18:  PHASE0_REQUIRED: \"false\"",
+    "HEAD:.github/workflows/rust-port.yml:38:          elif test -f west.yml || test \"$PHASE0_REQUIRED\" = true; then",
+    "HEAD:.github/workflows/rust-port.yml:80:            if test \"$PHASE0_REQUIRED\" = true; then exit 1; fi",
+    "HEAD:.github/workflows/rust-port.yml:99:          if test \"$PHASE0_REQUIRED\" = true; then strict=(--require-phase0); fi"
+  ]
+}
