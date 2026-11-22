@@ -4,8 +4,10 @@
 The candidate scope is `libs.kimath.src.md5_hash.application.pure.p001`,
 `libs/kimath/src/md5_hash.cpp:1-289` at
 `4cf939778df04d2b747bb2c4714fc5014a7565c7`, with the supporting class declaration
-in `libs/kimath/include/md5_hash.h`. Final generated extraction records must
-confirm ownership before a unit record or claim is published.
+in `libs/kimath/include/md5_hash.h`. The canonical committed record in PR #39 at
+`a7ec77beffd3b2e5d60409423fa28b6c116c6e00` confirms the full scope. This pilot
+depends on that PR. The implementation module is `kicad_md5::md5_hash`; its types
+remain re-exported from the crate root for callers.
 
 `kicad-md5` is the portable implementation. It forbids unsafe code, uses the
 RustCrypto `md-5` block compressor, and keeps KiCad's wrapper transitions.
@@ -87,8 +89,9 @@ the 512 MiB carry and a full 64-bit bit-count wrap are not practically enumerate
 wrapping arithmetic preserves the unsigned reference transitions. No CI or parity
 claim follows from preparing or storing cases. [AUDIT.md](AUDIT.md) maps every
 definition and branch to actual observable cases; [VALIDATION.md](VALIDATION.md)
-records local execution and the exact initial baseline. CI and final unit
-registration remain pending parent confirmation of the committed extractor head.
+records local execution and the exact initial baseline. The unit's `[difftest]`
+registration selects this native shim for live CI. Hosted CI and independent
+review remain separate gates; the draft pilot does not establish phase zero.
 
 ## Checks
 

@@ -6,8 +6,11 @@ Candidate: `libs.kimath.src.md5_hash.application.pure.p001`.
 The local finalizer record confirms all 15 definitions, physical span 1..289,
 layer 0, pure classification and empty dependency/gap lists. Its raw SHA-256 is
 `71c89c90c9df44c2ba2abb81a367c650c951fd058b1f3e7dd4e788b04c3120ee`.
-Final committed extractor confirmation remains pending. The full local comparison
-passes; this audit does not claim ownership, unit status or CI completion.
+Parent confirmed the identical committed record at PR #39 head
+`a7ec77beffd3b2e5d60409423fa28b6c116c6e00`. That exact dependency is merged into
+this topic, and only the owned record's port metadata/registration is changed.
+`kicad_md5::md5_hash` is the real implementation module, with root re-exports.
+Local matching metadata does not establish hosted CI or independent review.
 
 All locations below are in `libs/kimath/src/md5_hash.cpp`. The supporting class
 in `libs/kimath/include/md5_hash.h` supplies `IsValid`, `SetValid` and the actual
@@ -56,5 +59,5 @@ recursion, global state, filesystem, socket, process, thread or unsafe code.
 gates and baseline evidence. The 5,972-case live run checked 67,617 actual digest/
 validity snapshots and 9,631 equality/inequality events, with zero failures or
 deferrals. This is a source-to-case branch audit, not an instrumented coverage
-percentage or proof of exhaustive inputs. CI and final unit registration remain
-pending; no CI URL or unit status is invented.
+percentage or proof of exhaustive inputs. The owned unit is registered for the
+existing live CI path; hosted CI and independent review remain pending.

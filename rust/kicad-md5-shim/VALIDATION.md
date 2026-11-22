@@ -3,9 +3,9 @@
 
 All local gates below ran on **code revision
 `a295db8bcadb8de7ae084178c2e1705fcf99d762`**. The subsequent baseline/evidence/docs
-commit does not change the tested implementation. No unit TOML, claim, unit
-status, CI result or publication is asserted here. Parent confirmation of the
-committed final extractor head and later unit registration remain outstanding.
+commit does not change the tested implementation. These are the original
+baseline/checkpoint results; the later registration integration is described
+below. They do not assert hosted CI or independent review completion.
 
 The local canonical finalizer record confirms
 `libs.kimath.src.md5_hash.application.pure.p001`: all 15 definitions in
@@ -112,3 +112,26 @@ Raw logs, commands, measurements, summaries, actual provenance and all four
 comparison reports are retained in [validation/2026-11-22-a295db8b](validation/2026-11-22-a295db8b).
 The original full stdout files and resumable build caches remain in the dedicated
 WSL tree. CI URLs: none yet; CI awaits final committed scope and registration.
+
+## Canonical dependency and unit registration
+
+Parent explicitly confirmed PR #39's published head
+`a7ec77beffd3b2e5d60409423fa28b6c116c6e00` and the identical canonical MD5 record.
+Merge commit `6737e3edf20c25ed7f9cfb524fb5ec9b73f243b0` integrates that exact
+dependency. Only the owned unit's permitted port metadata and native difftest
+registration change; all 15 USRs, source paths/ranges, physical lines, layer,
+classification, gaps and graph dependencies remain byte-for-byte equivalent as
+parsed TOML. No other unit or workflow is changed by the pilot.
+
+The validator requires a qualified lowercase module path. The implementation now
+lives in the actual `kicad_md5::md5_hash` module, with unchanged crate-root public
+re-exports. This is a namespace-only source move; the original compression,
+buffering, finalization and wrapper bodies are unchanged. The original baseline
+and immutable evidence remain intact. Integration checks rerun the relevant Rust
+gates, full unit/source validator and registered live oracle/Rust/golden path;
+their separate report records the new tested source revision.
+
+The unit's local `green` metadata describes complete owned implementation and
+zero local comparison failures/deferrals. The PR remains draft, dependent on
+#39 and pending independent review and hosted CI. `PHASE0_REQUIRED=false` remains
+unchanged; one pilot does not satisfy the three-pilot phase-zero gate.
