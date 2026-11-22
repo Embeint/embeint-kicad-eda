@@ -1,0 +1,140 @@
+== 2026-11-22T21:40:09+10:00 lock acquired
+               total        used        free      shared  buff/cache   available
+Mem:              31           1          29           0           0          29
+== 2026-11-22T21:40:09+10:00 prep: candidate raw LF tree and retained oracle identity
+/home/karlvonrichter/kicad-port/phase0-strict-candidate-1e03934a39/oracle/kicad-oracle: OK
+{
+  "oracle_sha256": "945b7b606a09ca36ff516a4e6d25955d42f7dc5c5fdb714cd6f2e035e931cf0e",
+  "oracle_overlay_revision": "412b54a54637b44966cb8babc4a7bd4fc6a4c4c1",
+  "overlay_files_checked": 37,
+  "overlay_files_equal_candidate": true,
+  "reference_files_equal_candidate": 915,
+  "source_manifest_sha256": "dab50320381993c77b0a381e035c96180cfd5b110368c174dc1be155d717ce7c",
+  "candidate_revision": "1e03934a39ec900988760fc73c9f66d02caa9a36",
+  "candidate_archive_sha256": "796ee4ef1dc29fc87d87edf1d15a3c22fb2699c9155f05f9d55e51f9841f8249"
+}
+== 2026-11-22T21:40:57+10:00 policy tests, source validator and candidate statuses
+rustc 1.99.1 (58cf8f9c3 2026-10-13)
+gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+test_all_new_portable_crates_are_discovered_by_default (test_policy.PolicyTests.test_all_new_portable_crates_are_discovered_by_default) ... ok
+test_baseline_evidence_cannot_omit_cases_values_or_oracle (test_policy.PolicyTests.test_baseline_evidence_cannot_omit_cases_values_or_oracle) ... ok
+test_empty_infrastructure_is_incomplete_but_strict_gate_fails (test_policy.PolicyTests.test_empty_infrastructure_is_incomplete_but_strict_gate_fails) ... ok
+test_evidence_checks_committed_head_and_ignores_dirty_worktree (test_policy.PolicyTests.test_evidence_checks_committed_head_and_ignores_dirty_worktree) ... ok
+test_jsonl_preserves_unicode_line_separators_inside_strings (test_policy.PolicyTests.test_jsonl_preserves_unicode_line_separators_inside_strings) ... ok
+test_policy_retains_numeric_tokens_and_rejects_duplicate_json (test_policy.PolicyTests.test_policy_retains_numeric_tokens_and_rejects_duplicate_json) ... ok
+test_strict_gate_counts_only_live_green_layer_zero_units (test_policy.PolicyTests.test_strict_gate_counts_only_live_green_layer_zero_units) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.178s
+
+OK
+Golden change evidence valid
+Phase 0: INCOMPLETE; 0/3 live green layer-0 units; 3 validated unit records.
+
+Extraction/configuration coverage (reported separately): `{"all_configurations_complete": null, "compile_database_complete": null, "gate_complete": null, "inventory_complete": null, "parse_complete": null, "parse_failures": 0, "uncompiled_application_sources": 0, "unresolved_call_count": null}`
+
+Phase 0: COMPLETE; 3/3 live green layer-0 units; 3 validated unit records.
+
+Extraction/configuration coverage (reported separately): `{"all_configurations_complete": null, "compile_database_complete": null, "gate_complete": null, "inventory_complete": null, "parse_complete": null, "parse_failures": 0, "uncompiled_application_sources": 0, "unresolved_call_count": null}`
+
+{"valid": true, "errors": []}
+records 1801 green ['libs.kimath.src.md5_hash.application.pure.p001', 'pcb_calculator.application.pure.p001', 'pcb_calculator.calculator_panels.application.pure.p001'] layers [0, 0, 0]
+workflow ['  PHASE0_REQUIRED: "true"']
+== 2026-11-22T21:41:21+10:00 prospective strict live check with --require-phase0, default per-entry budget
+   Compiling kicad-difftest v0.1.0 (/home/karlvonrichter/kicad-port/phase0-strict-candidate-1e03934a39/repo/rust/kicad-difftest)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.89s
+All unit records and source accounting valid
+   Compiling kicad-md5 v0.1.0 (/home/karlvonrichter/kicad-port/phase0-strict-candidate-1e03934a39/repo/rust/kicad-md5)
+   Compiling kicad-difftest v0.1.0 (/home/karlvonrichter/kicad-port/phase0-strict-candidate-1e03934a39/repo/rust/kicad-difftest)
+   Compiling kicad-md5-shim v0.1.0 (/home/karlvonrichter/kicad-port/phase0-strict-candidate-1e03934a39/repo/rust/kicad-md5-shim)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.76s
+{"unit":"libs.kimath.src.md5_hash.application.pure.p001","status":"green","action":"check","cases":5973,"deferred":0,"cases_sha256":"0d2232c3b758cb67acdc486cbe420350394502fdf2df591e356280468df00795","oracle_output_sha256":"9b8b9a761911d19c39e45136b28d17eb47ef50dc582102b4b4e538ba909034cb","rust_output_sha256":"709084cd7bce4bd431415418ae7456b198d0d30d80613d2c9be373e8f67c6cf4","oracle_sha256":"945b7b606a09ca36ff516a4e6d25955d42f7dc5c5fdb714cd6f2e035e931cf0e","rust_sha256":"8a1aae24de5d093bd1c224588c57846e16ce2c6b5e424ff4eda28a7033faba6d"}
+   Compiling kicad-resistors v0.1.0 (/home/karlvonrichter/kicad-port/phase0-strict-candidate-1e03934a39/repo/rust/kicad-resistors)
+   Compiling kicad-resistors-shim v0.1.0 (/home/karlvonrichter/kicad-port/phase0-strict-candidate-1e03934a39/repo/rust/kicad-resistors-shim)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.67s
+{"unit":"pcb_calculator.application.pure.p001","status":"green","action":"check","cases":1050,"deferred":0,"cases_sha256":"58dd1186c9f10c8efb54bc90102c71508c8e852c0b8c08d437380b112fe3c597","oracle_output_sha256":"8d1cc9e8c280b349294f9d512e450586c892a3170881afbba1c1b78de1a107a2","rust_output_sha256":"5fb5dfb6938e6a7b55c99416e46334b7e5f05ceb9821d053c442fa4dabc36441","oracle_sha256":"945b7b606a09ca36ff516a4e6d25955d42f7dc5c5fdb714cd6f2e035e931cf0e","rust_sha256":"4541250c387e273509d36679f242fb61888b75195c220af4ea00e460bf9adcce"}
+   Compiling kicad-iec60664 v0.1.0 (/home/karlvonrichter/kicad-port/phase0-strict-candidate-1e03934a39/repo/rust/kicad-iec60664)
+   Compiling kicad-iec60664-shim v0.1.0 (/home/karlvonrichter/kicad-port/phase0-strict-candidate-1e03934a39/repo/rust/kicad-iec60664-shim)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.41s
+{"unit":"pcb_calculator.calculator_panels.application.pure.p001","status":"green","action":"check","cases":14190,"deferred":0,"cases_sha256":"4e624fe320565d6894ece1432b5ff38fcab5aca92688996e97b4cd684f872aff","oracle_output_sha256":"3051d7e1269a8ba05dc50ccba3fa53faedd10ba71e3ec630e6e2c0f2c2fe366f","rust_output_sha256":"819f74f463f537c7e7fa29127e5d6e71ee628c87fec8e541b143a7d6f39c1f4d","oracle_sha256":"945b7b606a09ca36ff516a4e6d25955d42f7dc5c5fdb714cd6f2e035e931cf0e","rust_sha256":"61514d52dc52e343348cca35a5a2cc3f1fbe67b447e092568a0d6620a5503429"}
+Phase 0: COMPLETE; 3/3 live green layer-0 units; 1801 validated unit records.
+
+Extraction/configuration coverage (reported separately): `{"all_configurations_complete": false, "compile_database_complete": true, "gate_complete": false, "inventory_complete": true, "parse_complete": false, "parse_failures": 4, "uncompiled_application_sources": 63, "unresolved_call_count": 8899609}`
+
+strict check seconds: 89
+945b7b606a09ca36ff516a4e6d25955d42f7dc5c5fdb714cd6f2e035e931cf0e  /home/karlvonrichter/kicad-port/phase0-strict-candidate-1e03934a39/oracle/kicad-oracle
+cda4f96c548b23c4589fb993651ddf1165253d413d536c159240d1539f2313ff  /home/karlvonrichter/kicad-port/phase0-strict-candidate-1e03934a39/repo/rust/target/debug/kicad-difftest
+8a1aae24de5d093bd1c224588c57846e16ce2c6b5e424ff4eda28a7033faba6d  rust/target/debug/kicad-md5-shim
+61514d52dc52e343348cca35a5a2cc3f1fbe67b447e092568a0d6620a5503429  rust/target/debug/kicad-iec60664-shim
+4541250c387e273509d36679f242fb61888b75195c220af4ea00e460bf9adcce  rust/target/debug/kicad-resistors-shim
+== 2026-11-22T21:42:52+10:00 summary
+{
+  "kind": "PROSPECTIVE private strict-gate validation; not hosted CI, not public activation",
+  "reuse": {
+    "oracle_sha256": "945b7b606a09ca36ff516a4e6d25955d42f7dc5c5fdb714cd6f2e035e931cf0e",
+    "oracle_overlay_revision": "412b54a54637b44966cb8babc4a7bd4fc6a4c4c1",
+    "overlay_files_checked": 37,
+    "overlay_files_equal_candidate": true,
+    "reference_files_equal_candidate": 915,
+    "source_manifest_sha256": "dab50320381993c77b0a381e035c96180cfd5b110368c174dc1be155d717ce7c",
+    "candidate_revision": "1e03934a39ec900988760fc73c9f66d02caa9a36",
+    "candidate_archive_sha256": "796ee4ef1dc29fc87d87edf1d15a3c22fb2699c9155f05f9d55e51f9841f8249"
+  },
+  "units": {
+    "libs.kimath.src.md5_hash.application.pure.p001": {
+      "status": "green",
+      "cases": 5973,
+      "deferred": 0,
+      "failures": null,
+      "oracle_sha256": "945b7b606a09ca36ff516a4e6d25955d42f7dc5c5fdb714cd6f2e035e931cf0e",
+      "rust_sha256": "8a1aae24de5d093bd1c224588c57846e16ce2c6b5e424ff4eda28a7033faba6d",
+      "oracle_output_sha256": "9b8b9a761911d19c39e45136b28d17eb47ef50dc582102b4b4e538ba909034cb",
+      "rust_output_sha256": "709084cd7bce4bd431415418ae7456b198d0d30d80613d2c9be373e8f67c6cf4"
+    },
+    "pcb_calculator.calculator_panels.application.pure.p001": {
+      "status": "green",
+      "cases": 14190,
+      "deferred": 0,
+      "failures": null,
+      "oracle_sha256": "945b7b606a09ca36ff516a4e6d25955d42f7dc5c5fdb714cd6f2e035e931cf0e",
+      "rust_sha256": "61514d52dc52e343348cca35a5a2cc3f1fbe67b447e092568a0d6620a5503429",
+      "oracle_output_sha256": "3051d7e1269a8ba05dc50ccba3fa53faedd10ba71e3ec630e6e2c0f2c2fe366f",
+      "rust_output_sha256": "819f74f463f537c7e7fa29127e5d6e71ee628c87fec8e541b143a7d6f39c1f4d"
+    },
+    "pcb_calculator.application.pure.p001": {
+      "status": "green",
+      "cases": 1050,
+      "deferred": 0,
+      "failures": null,
+      "oracle_sha256": "945b7b606a09ca36ff516a4e6d25955d42f7dc5c5fdb714cd6f2e035e931cf0e",
+      "rust_sha256": "4541250c387e273509d36679f242fb61888b75195c220af4ea00e460bf9adcce",
+      "oracle_output_sha256": "8d1cc9e8c280b349294f9d512e450586c892a3170881afbba1c1b78de1a107a2",
+      "rust_output_sha256": "5fb5dfb6938e6a7b55c99416e46334b7e5f05ceb9821d053c442fa4dabc36441"
+    }
+  },
+  "total_cases": 21213,
+  "phase0": {
+    "phase0": "COMPLETE",
+    "strict_gate_enabled": true,
+    "live_green_units": 3,
+    "required_green_units": 3,
+    "required_layer": 0,
+    "total_live_green_units": 3,
+    "validated_unit_records": 1801
+  },
+  "extraction_coverage": {
+    "all_configurations_complete": false,
+    "compile_database_complete": true,
+    "gate_complete": false,
+    "inventory_complete": true,
+    "parse_complete": false,
+    "parse_failures": 4,
+    "uncompiled_application_sources": 63,
+    "unresolved_call_count": 8899609
+  },
+  "source_validation": {
+    "valid": true,
+    "errors": []
+  }
+}
+== 2026-11-22T21:42:53+10:00 PROSPECTIVE_STRICT_CANDIDATE_PROOF_COMPLETE
