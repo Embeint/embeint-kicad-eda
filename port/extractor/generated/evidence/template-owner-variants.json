@@ -1,0 +1,6 @@
+{
+  "c:@N@nlohmann@N@json_abi_v3_11_3@N@detail@F@conditional_static_cast<#l#i#VI0>#i#": [
+    "c:@N@nlohmann@N@json_abi_v3_11_3@N@detail@FT@>3#T#T#N^enable_if<! std::is_same<type-parameter-0-0, type-parameter-0-1>::value, int>:::typeconditional_static_cast#t0.1#t0.0#",
+    "c:@N@nlohmann@N@json_abi_v3_11_3@N@detail@FT@>3#T#T#N^enable_if<!std::is_same<type-parameter-0-0, type-parameter-0-1>::value, int>:::typeconditional_static_cast#t0.1#t0.0#"
+  ]
+}

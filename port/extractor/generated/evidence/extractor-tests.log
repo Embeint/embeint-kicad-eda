@@ -1,0 +1,28 @@
+test_include_aliases_and_constrained_auto_extents_have_real_owned_ranges (test_extractor.ClangIntegrationTests.test_include_aliases_and_constrained_auto_extents_have_real_owned_ranges) ... ok
+test_real_virtual_inheritance_wx_and_indirect_calls (test_extractor.ClangIntegrationTests.test_real_virtual_inheritance_wx_and_indirect_calls) ... ok
+test_template_instances_reach_primary_bodies_and_keep_explicit_specializations (test_extractor.ClangIntegrationTests.test_template_instances_reach_primary_bodies_and_keep_explicit_specializations) ... ok
+test_committed_body_deletion_header_and_todo_filter (test_extractor.DriftTests.test_committed_body_deletion_header_and_todo_filter) ... ok
+test_insert_delete_mapping (test_extractor.DriftTests.test_insert_delete_mapping) ... ok
+test_absent_source_is_never_passed_to_clang (test_extractor.GraphTests.test_absent_source_is_never_passed_to_clang) ... ok
+test_all_virtual_overrides_transitive_and_uninstantiated (test_extractor.GraphTests.test_all_virtual_overrides_transitive_and_uninstantiated) ... ok
+test_cache_compaction_preserves_exact_bytes_and_ignores_incomplete_entries (test_extractor.GraphTests.test_cache_compaction_preserves_exact_bytes_and_ignores_incomplete_entries) ... ok
+test_compressed_cache_roundtrip_and_atomic_publication (test_extractor.GraphTests.test_compressed_cache_roundtrip_and_atomic_publication) ... ok
+test_exclusive_eof_recovery_counts_only_verified_physical_lines (test_extractor.GraphTests.test_exclusive_eof_recovery_counts_only_verified_physical_lines) ... ok
+test_portable_deterministic_graph_storage (test_extractor.GraphTests.test_portable_deterministic_graph_storage) ... ok
+test_reconciliation_uses_actual_commands_and_preserves_stale_accounting (test_extractor.GraphTests.test_reconciliation_uses_actual_commands_and_preserves_stale_accounting) ... ok
+test_reports_do_not_count_stale_exclusions_as_successful_parses (test_extractor.GraphTests.test_reports_do_not_count_stale_exclusions_as_successful_parses) ... ok
+test_same_usr_in_separate_executables_keeps_each_body_owned (test_extractor.GraphTests.test_same_usr_in_separate_executables_keeps_each_body_owned) ... ok
+test_source_category_and_path_aliases_cannot_drop_units (test_extractor.GraphTests.test_source_category_and_path_aliases_cannot_drop_units) ... ok
+test_stable_splitting_preserves_function_boundaries_and_soft_calls (test_extractor.GraphTests.test_stable_splitting_preserves_function_boundaries_and_soft_calls) ... ok
+test_weighted_cycle_break_and_layers (test_extractor.GraphTests.test_weighted_cycle_break_and_layers) ... ok
+test_wx_propagates_through_cycles_and_overrides (test_extractor.GraphTests.test_wx_propagates_through_cycles_and_overrides) ... ok
+test_empty_malformed_hash_and_green_coverage (test_extractor.ValidationTests.test_empty_malformed_hash_and_green_coverage) ... ok
+test_inventory_coverage_and_categories_cannot_be_hidden_by_unit_edits (test_extractor.ValidationTests.test_inventory_coverage_and_categories_cannot_be_hidden_by_unit_edits) ... ok
+test_manifest_fingerprint_survives_checkout_line_endings (test_extractor.ValidationTests.test_manifest_fingerprint_survives_checkout_line_endings) ... ok
+test_missing_calls_wx_and_parse_provenance_rejected (test_extractor.ValidationTests.test_missing_calls_wx_and_parse_provenance_rejected) ... ok
+test_valid_incomplete_configuration_and_errors (test_extractor.ValidationTests.test_valid_incomplete_configuration_and_errors) ... ok
+
+----------------------------------------------------------------------
+Ran 23 tests in 0.281s
+
+OK
