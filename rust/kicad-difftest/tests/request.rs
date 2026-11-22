@@ -172,3 +172,51 @@ fn request_container_bound_is_stricter_than_exact_comparison() -> Result<(), Str
     }
     Ok(())
 }
+
+#[test]
+fn ordinary_marker_named_objects_keep_their_keys_and_types() -> Result<(), String> {
+    for key in [
+        "$serde_json::private::Number",
+        "$serde_json::private::RawValue",
+    ] {
+        for literal in [
+            r#""0""#,
+            r#""-0""#,
+            r#""1e1000""#,
+            r#""bad""#,
+            r#""\"unit\"""#,
+            r#""[]""#,
+            r#""{}""#,
+            "0",
+            "null",
+            "true",
+            "[]",
+            "{}",
+        ] {
+            let object = format!(r#"{{"{key}":{literal}}}"#);
+            let expected = request::parse(literal)?;
+            for text in [
+                object.clone(),
+                format!(r#"{{"before":true,"value":{object}}}"#),
+            ] {
+                let parsed = request::parse(&text)?;
+                let value = if text == object {
+                    &parsed
+                } else {
+                    &parsed["value"]
+                };
+                let fields = value.as_object().ok_or("marker object was coerced")?;
+                assert_eq!(fields.len(), 1, "{text}");
+                assert_eq!(fields.get(key), Some(&expected), "{text}");
+            }
+        }
+    }
+    let text =
+        r#"{"$serde_json::private::RawValue":"[]","$serde_json::private::Number":"0","other":1}"#;
+    let fields = request::parse(text)?;
+    assert_eq!(fields.as_object().ok_or("object")?.len(), 3);
+    assert_eq!(fields["$serde_json::private::RawValue"], "[]");
+    assert_eq!(fields["$serde_json::private::Number"], "0");
+    assert_eq!(fields["other"], 1);
+    Ok(())
+}
