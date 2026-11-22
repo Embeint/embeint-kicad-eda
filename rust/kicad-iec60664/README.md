@@ -221,3 +221,9 @@ golden replies are unchanged.
 
 PR #45 and corrected graph scope/layer review remain dependencies, alongside
 hosted CI and independent review; this does not establish the phase-zero gate.
+
+[Parser integration validation](validation/2026-11-22-f777c57b/README.md) records
+clean source `f777c57baaf1813f210e3ce022db553b301c5dd6`, five CTests, 106 complete
+refusal envelopes on each actual process and all 14,190 unchanged live cases.
+No reblessing occurred. The parent has merged reviewed #45; corrected #39 scope
+confirmation, hosted pilot CI and independent review remain required.
