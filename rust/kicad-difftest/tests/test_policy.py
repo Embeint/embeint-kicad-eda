@@ -15,6 +15,67 @@ SPEC = importlib.util.spec_from_file_location("golden_policy", ROOT / "port/tool
 POLICY = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = POLICY
 SPEC.loader.exec_module(POLICY)
+RUNNER = ROOT / "rust/target/debug" / ("kicad-difftest.exe" if sys.platform == "win32" else "kicad-difftest")
+
+
+class FakeRunner:
+    """Stands in for cargo and kicad-difftest in ci(), writing the runner's report format.
+
+    behaviour maps a unit to {"defer": {case: owner}, "returncode": n, "mutate": f}.
+    A unit's deferrals are honoured only with --partial, as in the real runner, where
+    a strict run with any deferral, or an all-deferred run, exits nonzero with status
+    "deferred". An explicit returncode and mutate simulate a faulty or dishonest runner.
+    """
+
+    def __init__(self, root, behaviour=None):
+        self.root, self.behaviour, self.calls = root, behaviour or {}, []
+
+    def __call__(self, args, **kwargs):
+        if args[0] != "runner":
+            return subprocess.CompletedProcess(args, 0)
+        action, partial = args[1], "--partial" in args
+        uid = args[args.index("--unit") + 1]
+        report_path = Path(args[args.index("--report") + 1])
+        self.calls.append((uid, action, partial))
+        behaviour = self.behaviour.get(uid, {})
+        lines = (self.root / "port/cases" / f"{uid}.jsonl").read_text(encoding="utf-8").splitlines()
+        cases = [json.loads(line)["case"] for line in lines]
+        defer = behaviour.get("defer", {})
+        compared = [case for case in cases if case not in defer]
+        deferred = [{"case": case, "upstream": "Callee::Fn", "unit": defer[case]}
+                    for case in cases if case in defer]
+        status, returncode = "partial" if deferred else "green", 0
+        if deferred and not partial or not compared:
+            status, returncode = "deferred", 1
+        returncode = behaviour.get("returncode", returncode)
+        report = {"unit": uid, "status": status, "action": action,
+                  "mode": "partial" if partial else "strict", "cases": len(cases),
+                  "compared": len(compared), "deferred": len(deferred), "failures": 0,
+                  "golden_checked": action == "check", "compared_cases": compared,
+                  "deferred_cases": deferred}
+        if "mutate" in behaviour:
+            behaviour["mutate"](report)
+        report_path.write_text(json.dumps(report), encoding="utf-8")
+        return subprocess.CompletedProcess(args, returncode)
+
+
+def write_unit(root, uid, status, layer=0, cases=("a",)):
+    units, corpus = root / "port/units", root / "port/cases"
+    units.mkdir(parents=True, exist_ok=True)
+    corpus.mkdir(parents=True, exist_ok=True)
+    (units / f"{uid}.toml").write_text(
+        f'id = "{uid}"\nstatus = "{status}"\nlayer = {layer}\n'
+        '[difftest]\nrust_package = "shim"\nrust_binary = "shim"\n', encoding="utf-8")
+    (corpus / f"{uid}.jsonl").write_text("".join(
+        json.dumps({"unit": uid, "case": case, "input": {}}) + "\n" for case in cases), encoding="utf-8")
+
+
+def policy_root(directory):
+    root = Path(directory)
+    validator = root / "port/tools/validate_units.py"
+    validator.parent.mkdir(parents=True)
+    validator.write_text("", encoding="utf-8")
+    return root
 
 
 class PolicyTests(unittest.TestCase):
@@ -46,7 +107,8 @@ class PolicyTests(unittest.TestCase):
                         '[difftest]\nrust_package = "shim"\nrust_binary = "shim"\n', encoding="utf-8")
                     (cases / f"{uid}.jsonl").write_text(
                         json.dumps({"unit": uid, "case": "a", "input": {}}) + "\n", encoding="utf-8")
-                with mock.patch.object(POLICY.subprocess, "run"):
+                runner = FakeRunner(root)
+                with mock.patch.object(POLICY.subprocess, "run", side_effect=runner):
                     if layer:
                         with self.assertRaisesRegex(ValueError, "layer-0"):
                             POLICY.ci(root, Path("runner"), Path("oracle"), root / "reports", True)
@@ -56,6 +118,174 @@ class PolicyTests(unittest.TestCase):
                 self.assertEqual(report["phase0"], expected)
                 self.assertEqual(report["total_live_green_units"], 3)
                 self.assertEqual(report["live_green_units"], 0 if layer else 3)
+                self.assertEqual(runner.calls, [(uid, "check", False) for uid in ("a", "b", "c")])
+
+    def run_ci(self, root, behaviour=None, required=False):
+        runner = FakeRunner(root, behaviour)
+        with mock.patch.object(POLICY.subprocess, "run", side_effect=runner):
+            POLICY.ci(root, Path("runner"), Path("oracle"), root / "reports", required)
+        return runner, json.loads((root / "reports/phase0.json").read_text(encoding="utf-8"))
+
+    def test_partial_mode_follows_only_the_declared_partial_record(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = policy_root(directory)
+            for uid in ("a", "b", "c"):
+                write_unit(root, uid, "green")
+            write_unit(root, "p", "partial", layer=1, cases=("x", "y", "z"))
+            write_unit(root, "q", "claimed", cases=("x",))
+            runner, summary = self.run_ci(root, {"p": {"defer": {"y": "a"}}}, required=True)
+            # Green and other statuses run strict check; only p runs --partial,
+            # live-only because goldens follow a green difftest.
+            self.assertEqual(sorted(runner.calls), [("a", "check", False), ("b", "check", False),
+                                                    ("c", "check", False), ("p", "compare", True),
+                                                    ("q", "check", False)])
+            self.assertEqual(summary["phase0"], "COMPLETE")
+            self.assertEqual(summary["live_green_units"], 3)
+            self.assertEqual(summary["live_partial_units"], 1)
+            self.assertEqual(summary["partial_deferred_cases"], 1)
+            self.assertEqual(summary["partial_units_without_deferrals"], [])
+            self.assertEqual(summary["units"]["p"], {
+                "declared_status": "partial", "mode": "partial", "action": "compare",
+                "result": "partial", "cases": 3, "compared": 2, "deferred": 1})
+            self.assertEqual(summary["units"]["a"]["result"], "green")
+            report = json.loads((root / "reports/p.json").read_text(encoding="utf-8"))
+            self.assertEqual(report["compared_cases"], ["x", "z"])
+            self.assertEqual(report["deferred_cases"],
+                             [{"case": "y", "upstream": "Callee::Fn", "unit": "a"}])
+            # A partial unit with a golden is checked against all its reference replies.
+            golden = root / "port/goldens/p.jsonl"
+            golden.parent.mkdir(parents=True, exist_ok=True)
+            golden.write_text("", encoding="utf-8")
+            runner, _ = self.run_ci(root, {"p": {"defer": {"y": "a"}}})
+            self.assertIn(("p", "check", True), runner.calls)
+
+    def test_partial_units_never_count_towards_the_strict_phase0_gate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = policy_root(directory)
+            for uid in ("a", "b"):
+                write_unit(root, uid, "green")
+            write_unit(root, "p", "partial", cases=("x", "y"))
+            runner = FakeRunner(root, {"p": {"defer": {"y": "a"}}})
+            with mock.patch.object(POLICY.subprocess, "run", side_effect=runner):
+                with self.assertRaisesRegex(ValueError, "three live green layer-0"):
+                    POLICY.ci(root, Path("runner"), Path("oracle"), root / "reports", True)
+            summary = json.loads((root / "reports/phase0.json").read_text(encoding="utf-8"))
+            self.assertEqual(summary["phase0"], "INCOMPLETE")
+            self.assertEqual(summary["live_green_units"], 2)
+            self.assertEqual(summary["live_partial_units"], 1)
+            # A partial unit that defers nothing is still partial and still not counted.
+            _, summary = self.run_ci(root)
+            self.assertEqual(summary["partial_units_without_deferrals"], ["p"])
+            self.assertEqual(summary["live_green_units"], 2)
+            self.assertEqual(summary["units"]["p"]["result"], "green")
+            self.assertEqual(summary["units"]["p"]["declared_status"], "partial")
+
+    def test_green_and_undeclared_units_stay_zero_deferral(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = policy_root(directory)
+            write_unit(root, "g", "green", cases=("x", "y"))
+            write_unit(root, "o", "partial", cases=("x",))
+            for status in ("green", "claimed", "todo", "blocked"):
+                write_unit(root, "g", status, cases=("x", "y"))
+                with self.subTest(status=status):
+                    with self.assertRaisesRegex(ValueError, "strict live difftest check failed"):
+                        self.run_ci(root, {"g": {"defer": {"y": "o"}}})
+                    # A runner report claiming partial or deferrals for a strict run is refused.
+                    for mutate in (lambda r: r.update(status="partial"),
+                                   lambda r: r.update(mode="partial"),
+                                   lambda r: r.update(deferred_cases=[{"case": "y", "upstream": "f",
+                                                                       "unit": "o"}],
+                                                      compared_cases=["x"], compared=1, deferred=1)):
+                        with self.assertRaises(ValueError):
+                            self.run_ci(root, {"g": {"mutate": mutate}})
+
+    def test_partial_runs_still_reject_failures_and_dishonest_reports(self):
+        bad = {
+            "exit": {"defer": {"y": "a"}, "returncode": 1},
+            "all deferred": {"defer": {"x": "a", "y": "a"}},
+            "all deferred despite exit zero": {"defer": {"x": "a", "y": "a"}, "returncode": 0,
+                                               "mutate": lambda r: r.update(status="partial")},
+            "unknown owner": {"defer": {"y": "missing.unit"}},
+            "failures": {"defer": {"y": "a"}, "mutate": lambda r: r.update(failures=1)},
+            "failed status": {"defer": {"y": "a"}, "mutate": lambda r: r.update(status="failed")},
+            "strict mode": {"defer": {"y": "a"}, "mutate": lambda r: r.update(mode="strict")},
+            "wrong unit": {"mutate": lambda r: r.update(unit="a")},
+            "wrong action": {"mutate": lambda r: r.update(action="check")},
+            "dropped case": {"defer": {"y": "a"}, "mutate": lambda r: r.update(
+                deferred_cases=[], deferred=0, status="green")},
+            "duplicate case": {"mutate": lambda r: r.update(compared_cases=["x", "x", "y"], compared=3)},
+            "case in both": {"defer": {"y": "a"}, "mutate": lambda r: r.update(
+                compared_cases=["x", "y"], compared=2)},
+            "reordered": {"mutate": lambda r: r.update(compared_cases=["y", "x"])},
+            "unknown case": {"mutate": lambda r: r.update(compared_cases=["x", "w"])},
+            "count": {"defer": {"y": "a"}, "mutate": lambda r: r.update(deferred=0)},
+            "green with deferrals": {"defer": {"y": "a"}, "mutate": lambda r: r.update(status="green")},
+            "partial without deferrals": {"mutate": lambda r: r.update(status="partial")},
+            "empty upstream": {"defer": {"y": "a"}, "mutate": lambda r: r["deferred_cases"][0].update(
+                upstream="")},
+            "extra deferral key": {"defer": {"y": "a"}, "mutate": lambda r: r["deferred_cases"][0].update(
+                note="x")},
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = policy_root(directory)
+            write_unit(root, "a", "green")
+            write_unit(root, "p", "partial", cases=("x", "y"))
+            for name, behaviour in bad.items():
+                with self.subTest(name=name), self.assertRaises(ValueError):
+                    self.run_ci(root, {"p": behaviour})
+            # A stale report from an earlier run is never reused: the first unit's
+            # report is removed before its rerun, which here writes nothing.
+            report = root / "reports/a.json"
+            _, summary = self.run_ci(root, {"p": {"defer": {"y": "a"}}})
+            self.assertEqual(summary["units"]["p"]["result"], "partial")
+            self.assertTrue(report.exists())
+            def no_report(args, **kwargs):
+                return subprocess.CompletedProcess(args, 0)
+            with mock.patch.object(POLICY.subprocess, "run", side_effect=no_report):
+                with self.assertRaises(OSError):
+                    POLICY.ci(root, Path("runner"), Path("oracle"), root / "reports", False)
+            self.assertFalse(report.exists())
+
+    @unittest.skipUnless(RUNNER.exists(), "build kicad-difftest first (CI builds it before this suite)")
+    def test_real_runner_reports_satisfy_the_policy_contract(self):
+        peer = ROOT / "rust/kicad-difftest/tests/peer.py"
+        units = {"p": {"status": "partial"}, "dependency": {"status": "todo"}}
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_unit(root, "p", "partial", cases=("a", "b", "c"))
+            report = root / "report.json"
+
+            def run(oracle, rust, *extra):
+                report.unlink(missing_ok=True)
+                return subprocess.run(
+                    [str(RUNNER), "compare", "--root", str(root), "--unit", "p",
+                     "--oracle", sys.executable, "--oracle-arg", str(peer), "--oracle-arg", oracle,
+                     "--rust", sys.executable, "--rust-arg", str(peer), "--rust-arg", rust,
+                     "--report", str(report), *extra], capture_output=True, text=True)
+
+            cases = ["a", "b", "c"]
+            result = run("ok", "defer-b", "--partial")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            summary = POLICY.verify_report(report, "p", "partial", "compare", cases, units)
+            self.assertEqual((summary["result"], summary["compared"], summary["deferred"]),
+                             ("partial", 2, 1))
+            result = run("ok", "ok")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(POLICY.verify_report(report, "p", "strict", "compare", cases, units)["result"],
+                             "green")
+            with self.assertRaises(ValueError):
+                POLICY.verify_report(report, "p", "partial", "compare", cases, units)
+            for oracle, rust, extra in (("ok", "defer-b", ()), ("ok", "deferred", ("--partial",)),
+                                        ("ok", "changed-a,defer-b", ("--partial",))):
+                result = run(oracle, rust, *extra)
+                self.assertNotEqual(result.returncode, 0, rust)
+                mode = "partial" if extra else "strict"
+                with self.assertRaises(ValueError):
+                    POLICY.verify_report(report, "p", mode, "compare", cases, units)
+            # The owner must be a unit record.
+            run("ok", "defer-b", "--partial")
+            with self.assertRaisesRegex(ValueError, "names no unit record"):
+                POLICY.verify_report(report, "p", "partial", "compare", cases, {"p": units["p"]})
 
     def test_evidence_checks_committed_head_and_ignores_dirty_worktree(self):
         with tempfile.TemporaryDirectory() as directory:

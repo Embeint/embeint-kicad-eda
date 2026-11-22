@@ -3,7 +3,9 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use kicad_difftest::process::Program;
-use kicad_difftest::{compare, golden, identities, process, records, valid_unit};
+use kicad_difftest::{
+    compare, compare_partial, golden, identities, partial_replies, process, records, valid_unit,
+};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -12,16 +14,22 @@ use std::time::Duration;
 const HELP: &str =
     "kicad-difftest <compare|check|propose|bless> --unit ID --oracle PATH --rust PATH
   [--root PATH] [--oracle-arg ARG ...] [--rust-arg ARG ...] [--timeout-secs N]
-  [--report PATH] [--approval PATH --provenance PATH] [--evidence PATH]
+  [--report PATH] [--partial] [--approval PATH --provenance PATH] [--evidence PATH]
 compare: live oracle/Rust agreement; check: also require committed golden.
 propose: write approval skeleton after live agreement; bless: verify filled approval,
-rerun live comparison, write new evidence then golden. See kicad-difftest/README.md.";
+rerun live comparison, write new evidence then golden.
+--partial (compare/check only, for units declared partial): report well-formed Rust
+unported/deferred replies instead of failing on them; every other case is still
+compared exactly, every oracle reply must succeed (and match the golden for check),
+and at least one real exact comparison is required. See kicad-difftest/README.md.";
 
 struct Options {
     action: String,
     values: BTreeMap<String, String>,
     oracle_args: Vec<String>,
     rust_args: Vec<String>,
+    /// Explicit partial-unit mode; never a default and never valid for blessing.
+    partial: bool,
 }
 
 impl Options {
@@ -47,8 +55,16 @@ fn options() -> Result<Options, String> {
         values: BTreeMap::new(),
         oracle_args: Vec::new(),
         rust_args: Vec::new(),
+        partial: false,
     };
     while let Some(key) = args.next() {
+        if key == "--partial" {
+            if opts.partial {
+                return Err("unknown or repeated option --partial".into());
+            }
+            opts.partial = true;
+            continue;
+        }
         let value = args
             .next()
             .ok_or_else(|| format!("missing value for {key}"))?;
@@ -75,6 +91,12 @@ fn options() -> Result<Options, String> {
                 }
             }
         }
+    }
+    if opts.partial && !matches!(opts.action.as_str(), "compare" | "check") {
+        return Err(
+            "--partial applies only to compare and check; golden blessing requires a zero-deferral comparison"
+                .into(),
+        );
     }
     Ok(opts)
 }
@@ -112,10 +134,21 @@ fn run(opts: &Options) -> Result<Value, String> {
     let oracle_records = records(&oracle_text, unit, false)?;
     identities(&cases, &oracle_records, "oracle")?;
     let rust_text = process::run(&rust, input.as_bytes(), Duration::from_secs(timeout))?;
-    let rust_records = records(&rust_text, unit, false)?;
-    identities(&cases, &rust_records, "Rust")?;
-    compare(&oracle_records, &rust_records, "oracle vs Rust")?;
+    // The oracle replies above are strict in both modes: every C++ reply must be a
+    // result, so a case the Rust side defers still retains its reference outcome.
+    let (compared, deferred) = if opts.partial {
+        let replies = partial_replies(&rust_text, unit)?;
+        let outcome = compare_partial(&oracle_records, &replies, "oracle vs Rust")?;
+        (outcome.compared, outcome.deferred)
+    } else {
+        let rust_records = records(&rust_text, unit, false)?;
+        identities(&cases, &rust_records, "Rust")?;
+        compare(&oracle_records, &rust_records, "oracle vs Rust")?;
+        let compared = cases.iter().map(|c| c.case.clone()).collect();
+        (compared, Vec::new())
+    };
     match opts.action.as_str() {
+        // Every oracle reply, including those of Rust-deferred cases, must equal the golden.
         "check" => golden::check(&golden_path, unit, &oracle_records)?,
         "propose" | "bless" => {
             let provenance_text = golden::read(&opts.path("provenance")?)?;
@@ -169,13 +202,42 @@ fn run(opts: &Options) -> Result<Value, String> {
         }
         _ => {}
     }
-    Ok(
-        json!({"unit": unit, "status": "green", "action": opts.action,
-        "cases": cases.len(), "deferred": 0, "cases_sha256": golden::hash(input.as_bytes()),
+    // All-deferred proves no successful operation and is never accepted.
+    let status = match (compared.is_empty(), deferred.is_empty()) {
+        (true, _) => "deferred",
+        (false, true) => "green",
+        (false, false) => "partial",
+    };
+    let deferred_cases: Vec<Value> = deferred
+        .iter()
+        .map(|(case, d)| json!({"case": case, "upstream": d.upstream, "unit": d.unit}))
+        .collect();
+    let mut report = json!({"unit": unit, "status": status, "action": opts.action,
+        "mode": if opts.partial { "partial" } else { "strict" },
+        "cases": cases.len(), "compared": compared.len(), "deferred": deferred.len(),
+        "failures": 0, "golden_checked": opts.action == "check",
+        "compared_cases": compared, "deferred_cases": deferred_cases,
+        "cases_sha256": golden::hash(input.as_bytes()),
         "oracle_output_sha256": golden::hash(oracle_text.as_bytes()),
         "rust_output_sha256": golden::hash(rust_text.as_bytes()),
-        "oracle_sha256": file_hash(&oracle.executable)?, "rust_sha256": file_hash(&rust.executable)?}),
-    )
+        "oracle_sha256": file_hash(&oracle.executable)?, "rust_sha256": file_hash(&rust.executable)?});
+    if status == "deferred" {
+        report["error"] = json!(format!(
+            "DEFERRED all {} cases deferred; a partial unit needs at least one successful exact comparison",
+            cases.len()
+        ));
+    }
+    Ok(report)
+}
+
+/// Only a strict green run, or a partial run with at least one exact comparison
+/// requested explicitly with --partial, is accepted.
+fn accepted(report: &Value, partial: bool) -> bool {
+    match report.get("status").and_then(Value::as_str) {
+        Some("green") => true,
+        Some("partial") => partial,
+        _ => false,
+    }
 }
 
 fn main() -> std::process::ExitCode {
@@ -195,7 +257,8 @@ fn main() -> std::process::ExitCode {
         Ok(report) => report.clone(),
         Err(error) => {
             json!({"status": if error.starts_with("DEFERRED") { "deferred" } else { "failed" },
-            "unit": opts.values.get("unit"), "action": opts.action, "error": error})
+            "unit": opts.values.get("unit"), "action": opts.action,
+            "mode": if opts.partial { "partial" } else { "strict" }, "error": error})
         }
     };
     if let Some(path) = opts.values.get("report") {
@@ -206,14 +269,19 @@ fn main() -> std::process::ExitCode {
             return std::process::ExitCode::from(1);
         }
     }
-    match result {
-        Ok(_) => {
-            println!("{report}");
-            std::process::ExitCode::SUCCESS
+    if accepted(&report, opts.partial) {
+        // The --report file keeps every case ID; stdout carries the counts only.
+        let mut summary = report;
+        if let Some(fields) = summary.as_object_mut() {
+            fields.remove("compared_cases");
+            fields.remove("deferred_cases");
         }
-        Err(error) => {
-            eprintln!("{error}");
-            std::process::ExitCode::from(1)
-        }
+        println!("{summary}");
+        return std::process::ExitCode::SUCCESS;
     }
+    match result {
+        Ok(report) => eprintln!("{}", report.get("error").unwrap_or(&report)),
+        Err(error) => eprintln!("{error}"),
+    }
+    std::process::ExitCode::from(1)
 }

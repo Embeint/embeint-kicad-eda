@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-use kicad_difftest::{compare, exact::parse, golden, identities, records};
+use kicad_difftest::{
+    compare, compare_partial, exact::parse, golden, identities, partial_replies, records,
+};
 use serde_json::json;
 
 #[test]
@@ -118,5 +120,89 @@ fn blessing_requires_exact_case_values_reason_and_provenance() -> Result<(), Str
     assert_eq!(baseline["oracle"]["source_revision"], "pin");
     let (removed, _) = golden::proposal("u", b"new cases", old_text, &old, &[], json!({}));
     assert_eq!(removed["changes"][0]["new"], json!(null));
+    Ok(())
+}
+
+#[test]
+fn partial_replies_classify_only_well_formed_deferrals() -> Result<(), String> {
+    let ok = |case: &str, value: &str| {
+        format!("{{\"unit\":\"u\",\"case\":\"{case}\",\"result\":{value}}}\n")
+    };
+    let defer = |case: &str, error: &str| {
+        format!("{{\"unit\":\"u\",\"case\":\"{case}\",\"error\":{error}}}\n")
+    };
+    let well_formed = r#"{"kind":"unported","upstream":"MD5_HASH::Hash","unit":"owner.unit"}"#;
+    let oracle = records(
+        &format!("{}{}{}", ok("a", "1"), ok("b", "2"), ok("c", "3")),
+        "u",
+        false,
+    )?;
+    let mixed = format!(
+        "{}{}{}",
+        ok("a", "1"),
+        defer("b", well_formed),
+        ok("c", "3")
+    );
+    // Strict parsing is unchanged: any deferral rejects the reply set.
+    assert!(matches!(records(&mixed, "u", false), Err(e) if e.starts_with("DEFERRED")));
+    let replies = partial_replies(&mixed, "u")?;
+    let outcome = compare_partial(&oracle, &replies, "partial")?;
+    assert_eq!(outcome.compared, ["a", "c"]);
+    assert_eq!(outcome.deferred.len(), 1);
+    assert_eq!(outcome.deferred[0].0, "b");
+    assert_eq!(outcome.deferred[0].1.upstream, "MD5_HASH::Hash");
+    assert_eq!(outcome.deferred[0].1.unit, "owner.unit");
+    let alias = well_formed.replace("unported", "deferred");
+    assert!(partial_replies(&defer("a", &alias), "u")?[0]
+        .deferral
+        .is_some());
+    // A mismatch among the successful replies fails; so do identity faults.
+    let changed = format!(
+        "{}{}{}",
+        ok("a", "1.0"),
+        defer("b", well_formed),
+        ok("c", "3")
+    );
+    assert!(compare_partial(&oracle, &partial_replies(&changed, "u")?, "p").is_err());
+    let missing = format!("{}{}", ok("a", "1"), defer("b", well_formed));
+    assert!(compare_partial(&oracle, &partial_replies(&missing, "u")?, "p").is_err());
+    let reordered = format!(
+        "{}{}{}",
+        defer("b", well_formed),
+        ok("a", "1"),
+        ok("c", "3")
+    );
+    assert!(compare_partial(&oracle, &partial_replies(&reordered, "u")?, "p").is_err());
+    assert!(partial_replies(&format!("{mixed}{}", defer("b", well_formed)), "u").is_err());
+    // All-deferred compares nothing; the caller must refuse it.
+    let all = format!(
+        "{}{}{}",
+        defer("a", well_formed),
+        defer("b", well_formed),
+        defer("c", well_formed)
+    );
+    let outcome = compare_partial(&oracle, &partial_replies(&all, "u")?, "p")?;
+    assert!(outcome.compared.is_empty());
+    assert_eq!(outcome.deferred.len(), 3);
+    // Other error kinds and malformed deferrals are failures, never deferrals.
+    for error in [
+        r#"{"kind":"execution_error","message":"x"}"#,
+        r#"{"kind":"invalid_input","message":"x"}"#,
+        r#"{"kind":"unported","upstream":"f"}"#,
+        r#"{"kind":"unported","unit":"owner"}"#,
+        r#"{"kind":"unported","upstream":"f","unit":"owner","message":"x"}"#,
+        r#"{"kind":"unported","upstream":"","unit":"owner"}"#,
+        r#"{"kind":"unported","upstream":"f","unit":"../owner"}"#,
+        r#"{"kind":"unported","upstream":"f","unit":1}"#,
+        r#"{"kind":"unported","upstream":"f","unit":"owner","unit":"owner"}"#,
+        r#""unported""#,
+    ] {
+        let result = partial_replies(&defer("a", error), "u");
+        assert!(result.is_err(), "{error}");
+    }
+    let wrong_unit =
+        r#"{"unit":"v","case":"a","error":{"kind":"unported","upstream":"f","unit":"o"}}"#;
+    assert!(partial_replies(wrong_unit, "u").is_err());
+    assert!(partial_replies("", "u").is_err());
     Ok(())
 }

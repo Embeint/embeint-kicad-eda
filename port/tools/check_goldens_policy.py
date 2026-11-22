@@ -5,6 +5,11 @@
 The infrastructure stage is explicitly INCOMPLETE, never phase-0 qualification.
 Final integration enables --require-phase0; it requires three live green layer-0 units
 and valid exhaustive extraction accounting. Platform coverage stays reported.
+
+Only a unit record declared `partial` runs the difftest with --partial: its live run
+is accepted with at least one exact comparison, zero failures and enumerated Rust
+deferrals. Every other unit, green included, runs strict and must be zero-deferral.
+Partial units never count towards the phase-0 gate.
 """
 import argparse
 from dataclasses import dataclass
@@ -178,6 +183,55 @@ def wasm(root):
     subprocess.run(args, cwd=root, check=True)
 
 
+def case_ids(path, uid):
+    # JSONL frames end only at LF, as in replies(); Unicode separators stay in strings.
+    lines = path.read_bytes().decode("utf-8").split("\n")
+    if lines[-1] == "":
+        lines.pop()
+    ids = [exact(line.removesuffix("\r")).get("case") for line in lines]
+    if not ids or len(set(ids)) != len(ids) or not all(isinstance(i, str) and i for i in ids):
+        raise ValueError(f"{uid}: invalid case identities")
+    return ids
+
+
+def verify_report(path, uid, mode, action, cases, units):
+    """Check the runner's own report against the declared mode and corpus.
+
+    A strict run must be green with every case compared. A partial run is accepted as
+    green or partial: at least one exact comparison, no failures, and every remaining
+    case listed as a deferral owned by an existing unit record. Returns the summary.
+    """
+    report = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique)
+    accepted = {"strict": {"green"}, "partial": {"green", "partial"}}[mode]
+    if (report.get("unit") != uid or report.get("mode") != mode or report.get("action") != action
+            or report.get("status") not in accepted or report.get("failures") != 0):
+        raise ValueError(f"{uid}: {mode} {action} report is not an accepted run: {report.get('status')}")
+    compared, deferred = report.get("compared_cases"), report.get("deferred_cases")
+    if not isinstance(compared, list) or not isinstance(deferred, list):
+        raise ValueError(f"{uid}: report must list compared and deferred case IDs")
+    deferred_ids = [d.get("case") if isinstance(d, dict) else None for d in deferred]
+    order = {case: index for index, case in enumerate(cases)}
+    for name, ids in (("compared", compared), ("deferred", deferred_ids)):
+        if ids != sorted(ids, key=lambda case: order.get(case, -1)) or any(i not in order for i in ids):
+            raise ValueError(f"{uid}: {name} case IDs do not follow the corpus")
+    if (sorted(compared + deferred_ids, key=order.get) != cases or report.get("cases") != len(cases)
+            or report.get("compared") != len(compared) or report.get("deferred") != len(deferred)):
+        raise ValueError(f"{uid}: report counts do not account for every case exactly once")
+    if not compared:
+        raise ValueError(f"{uid}: all-deferred run proves no successful operation")
+    if (report["status"] == "partial") != bool(deferred) or (mode == "strict" and deferred):
+        raise ValueError(f"{uid}: report status contradicts its deferrals")
+    for item in deferred:
+        if (set(item) != {"case", "upstream", "unit"} or not isinstance(item["upstream"], str)
+                or not item["upstream"]):
+            raise ValueError(f"{uid}: invalid deferral record {item}")
+        if item["unit"] not in units:
+            raise ValueError(f"{uid}/{item['case']}: deferral owner {item['unit']!r} names no unit record")
+    return {"declared_status": units[uid]["status"], "mode": mode, "action": action,
+            "result": report["status"], "cases": len(cases), "compared": len(compared),
+            "deferred": len(deferred)}
+
+
 def ci(root, runner, oracle, reports, required):
     reports.mkdir(parents=True, exist_ok=True)
     validator = root / "port/tools/validate_units.py"
@@ -199,6 +253,7 @@ def ci(root, runner, oracle, reports, required):
     green = {uid for uid, unit in units.items() if unit["status"] == "green"}
     cases = sorted((root / "port/cases").glob("*.jsonl"))
     tested = set()
+    results = {}
     for path in cases:
         uid = path.stem
         if uid not in units:
@@ -210,14 +265,27 @@ def ci(root, runner, oracle, reports, required):
         subprocess.run(["cargo", "build", "--locked", "--manifest-path", str(root / "rust/Cargo.toml"),
                         "-j8", "-p", package, "--bin", binary], cwd=root, check=True)
         shim = root / "rust/target/debug" / (binary + (".exe" if os.name == "nt" else ""))
-        args = [str(runner), "check", "--root", str(root), "--unit", uid,
-                "--oracle", str(oracle), "--rust", str(shim), "--report", str(reports / f"{uid}.json")]
+        # Partial mode follows the declared record only. Goldens follow a green
+        # difftest, so a partial unit without one is compared live; one that has a
+        # golden is checked against all of its reference replies.
+        mode = "partial" if units[uid]["status"] == "partial" else "strict"
+        golden = root / "port/goldens" / f"{uid}.jsonl"
+        action = "compare" if mode == "partial" and not golden.exists() else "check"
+        report = reports / f"{uid}.json"
+        report.unlink(missing_ok=True)
+        args = [str(runner), action, "--root", str(root), "--unit", uid,
+                "--oracle", str(oracle), "--rust", str(shim), "--report", str(report)]
+        if mode == "partial":
+            args.append("--partial")
         rust_args = config.get("rust_args", [])
         if not isinstance(rust_args, list) or not all(isinstance(arg, str) for arg in rust_args):
             raise ValueError(f"{uid}: rust_args must be a string array")
         for arg in rust_args:
             args += ["--rust-arg", arg]
-        subprocess.run(args, cwd=root, check=True)
+        returncode = subprocess.run(args, cwd=root).returncode
+        if returncode != 0:
+            raise ValueError(f"{uid}: {mode} live difftest {action} failed (exit {returncode}); see {report}")
+        results[uid] = verify_report(report, uid, mode, action, case_ids(path, uid), units)
         tested.add(uid)
     if green - tested:
         raise ValueError(f"green units missing live cases: {sorted(green - tested)}")
@@ -227,10 +295,15 @@ def ci(root, runner, oracle, reports, required):
     live_green = green & tested
     passed = sum(units[uid]["layer"] == 0 for uid in live_green)
     complete = required and passed >= 3 and bool(units)
+    partial = sorted(uid for uid, result in results.items() if result["mode"] == "partial")
+    deferred_cases = sum(results[uid]["deferred"] for uid in partial)
     summary = {"phase0": "COMPLETE" if complete else "INCOMPLETE", "strict_gate_enabled": required,
                "live_green_units": passed, "required_green_units": 3, "required_layer": 0,
                "total_live_green_units": len(live_green),
-               "validated_unit_records": len(units), "extraction": provenance}
+               "validated_unit_records": len(units), "extraction": provenance,
+               "live_partial_units": len(partial), "partial_deferred_cases": deferred_cases,
+               "partial_units_without_deferrals": [uid for uid in partial if not results[uid]["deferred"]],
+               "units": results}
     (reports / "phase0.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     coverage = {key: provenance.get(key) for key in
                 ("inventory_complete", "parse_complete", "compile_database_complete",
@@ -239,6 +312,9 @@ def ci(root, runner, oracle, reports, required):
         coverage[key] = len(provenance.get(key, []))
     message = (f"Phase 0: {summary['phase0']}; {passed}/3 live green layer-0 units; "
                f"{len(units)} validated unit records.\n\n"
+               f"Partial units (never counted green): {len(partial)} live, "
+               f"{deferred_cases} deferred cases; declared partial without corpus deferrals: "
+               f"{summary['partial_units_without_deferrals']}.\n\n"
                f"Extraction/configuration coverage (reported separately): `{json.dumps(coverage, sort_keys=True)}`\n")
     print(message)
     if os.environ.get("GITHUB_STEP_SUMMARY"):
