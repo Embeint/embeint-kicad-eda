@@ -7,8 +7,7 @@ use std::time::Duration;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
-#[test]
-fn request_boundary_matches_pinned_cpp_protocol() -> TestResult {
+fn cpp_observations(cases: &[String]) -> Result<Vec<Value>, Box<dyn std::error::Error>> {
     let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
     let root = manifest
         .parent()
@@ -36,6 +35,24 @@ fn request_boundary_matches_pinned_cpp_protocol() -> TestResult {
         String::from_utf8_lossy(&build.stderr)
     );
 
+    let output = process::run(
+        &process::Program {
+            executable,
+            args: vec![],
+        },
+        format!("{}\n", cases.join("\n")).as_bytes(),
+        Duration::from_secs(30),
+    )?;
+    let observations: Vec<Value> = output
+        .lines()
+        .map(serde_json::from_str)
+        .collect::<Result<_, _>>()?;
+    assert_eq!(observations.len(), cases.len());
+    Ok(observations)
+}
+
+#[test]
+fn request_boundary_matches_pinned_cpp_protocol() -> TestResult {
     let envelope = |token: &str| format!(r#"{{"unit":"u","case":"c","input":{{"n":{token}}}}}"#);
     let mut cases = Vec::new();
     for token in [
@@ -133,23 +150,18 @@ fn request_boundary_matches_pinned_cpp_protocol() -> TestResult {
     ] {
         cases.push(text.to_owned());
     }
-    let output = process::run(
-        &process::Program {
-            executable,
-            args: vec![],
-        },
-        format!("{}\n", cases.join("\n")).as_bytes(),
-        Duration::from_secs(30),
-    )?;
-    let observations: Vec<Value> = output
-        .lines()
-        .map(serde_json::from_str)
-        .collect::<Result<_, _>>()?;
-    assert_eq!(observations.len(), cases.len());
+    let observations = cpp_observations(&cases)?;
     for (text, observation) in cases.iter().zip(&observations) {
         let cpp = &observation["reply"];
         match request::parse(text) {
-            Ok(_) => assert_eq!(cpp["error"]["kind"], "unknown_unit", "{text}: {cpp}"),
+            Ok(_) => assert_eq!(
+                cpp,
+                &json!({
+                    "unit": "u", "case": "c",
+                    "error": {"kind": "unknown_unit", "message": "unit has no registered shim"}
+                }),
+                "{text}"
+            ),
             Err(message) => assert_eq!(
                 cpp,
                 &json!({
@@ -179,6 +191,87 @@ fn request_boundary_matches_pinned_cpp_protocol() -> TestResult {
         assert_eq!(observation["integer"], integer, "{token}");
         assert_eq!(observation["unsigned"], unsigned, "{token}");
         assert_eq!(observation["negative_zero"], negative_zero, "{token}");
+    }
+    Ok(())
+}
+
+fn shape_reply(value: &Value) -> Value {
+    let unit = value.get("unit").and_then(Value::as_str);
+    let case = value.get("case").and_then(Value::as_str);
+    let valid = value.as_object().is_some_and(|object| object.len() == 3)
+        && unit.is_some_and(|s| !s.is_empty())
+        && case.is_some_and(|s| !s.is_empty())
+        && value.get("input").is_some_and(Value::is_object);
+    let (kind, message) = if valid {
+        ("unknown_unit", "unit has no registered shim")
+    } else {
+        ("invalid_request", "expected unit, case, input object")
+    };
+    json!({"unit": unit, "case": case, "error": {"kind": kind, "message": message}})
+}
+
+#[test]
+fn nesting_boundary_matches_pinned_cpp_protocol() -> TestResult {
+    let mut cases = Vec::new();
+    // Cover both root types and both parities of alternating object/array paths.
+    for shape in 0..4 {
+        for leaf in ["0", "null", "true", r#""[{}]""#, "[]", "{}"] {
+            for count in [0, 1, 120, 124, 125, 126, 127, 128, 129] {
+                let mut nested = leaf.to_owned();
+                for level in 0..count {
+                    nested = if shape == 0 || (shape >= 2 && level % 2 == shape - 2) {
+                        format!("[{nested}]")
+                    } else {
+                        format!(r#"{{"x":{nested}}}"#)
+                    };
+                }
+                cases.extend([
+                    nested.clone(),
+                    format!(r#"{{"unit":"u","case":"c","input":{nested}}}"#),
+                    format!(r#"{{"unit":"u","case":"c","input":{{"extra":{nested}}}}}"#),
+                    format!(r#"{{"unit":"u","case":"c","input":{{}},"extra":{nested}}}"#),
+                    format!(r#"{{"unit":{nested},"case":"c","input":{{}}}}"#),
+                    format!(r#"{{"unit":"u","case":{nested},"input":{{}}}}"#),
+                    // Identities appear after the deep value; refusal must still be atomic.
+                    format!(r#"{{"input":{{"extra":{nested}}},"case":"c","unit":"u"}}"#),
+                ]);
+            }
+        }
+    }
+    // Parent MD5 wire shape; the fixture dispatches with an empty registry.
+    for count in [120, 124, 125, 126, 127, 128, 129] {
+        let nested = format!("{}0{}", "[".repeat(count), "]".repeat(count));
+        let text = format!(
+            r#"{{"unit":"libs.kimath.src.md5_hash.application.pure.p001","case":"depth-{count}","input":{{"steps":[{{"op":"new","id":0}}],"extra":{nested}}}}}"#
+        );
+        assert_eq!(request::parse(&text).is_ok(), count <= 125, "{text}");
+        cases.push(text);
+    }
+    // Breadth does not consume recursion budget, nor do brackets in strings or keys.
+    cases.push(format!(
+        r#"{{"unit":"u","case":"c","input":{{"[{{}}]": [{}]}}}}"#,
+        vec![r#"{"x":[]}"#; 256].join(",")
+    ));
+    // Preserve escaped duplicate-key rejection even at the last accepted container level.
+    for count in [124, 125] {
+        let wrap = |leaf| format!("{}{leaf}{}", "[".repeat(count), "]".repeat(count));
+        for leaf in [r#"{"x":1,"\u0078":2}"#, r#"{"x":1,"y":2}"#] {
+            let nested = wrap(leaf);
+            cases.push(format!(
+                r#"{{"unit":"u","case":"c","input":{{"a":{nested}}}}}"#
+            ));
+        }
+    }
+    let observations = cpp_observations(&cases)?;
+    for (text, observation) in cases.iter().zip(&observations) {
+        let expected = match request::parse(text) {
+            Ok(value) => shape_reply(&value),
+            Err(message) => json!({
+                "unit": null, "case": null,
+                "error": {"kind": "invalid_request", "message": message}
+            }),
+        };
+        assert_eq!(observation["reply"], expected, "{text}");
     }
     Ok(())
 }

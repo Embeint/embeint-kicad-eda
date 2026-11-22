@@ -122,8 +122,16 @@ A registered adapter can explicitly throw `oracle::UNPORTED(upstream, unit)`:
 Only that kind means deferred. Ordinary errors have
 `{"unit":...,"case":...,"error":{"kind":"...","message":"..."}}` with kinds
 `invalid_request`, `invalid_input`, `unknown_unit`, or `execution_error`.
-Malformed requests preserve valid parsed identity strings when possible, otherwise
-the identity is `null`. These are failures, never successful or deferred cases.
+After a successful parse, malformed envelopes preserve parsed string identities
+when possible, otherwise the identity is `null`. Parse failures (including duplicate
+keys, numeric overflow and excessive nesting) return both identities as `null` and
+message `invalid JSON or duplicate key`. The transport permits at most 127 open
+object/array containers, including the root and empty containers, matching the
+existing Rust request `serde_json::Value` bound. Scalars do not add a container
+level. Both container-start events are checked before extracting identities,
+including values in identity and unknown fields. See the native request boundary
+regressions in [the difftest guide](../../rust/kicad-difftest/README.md).
+These are failures, never successful or deferred cases.
 The process continues after a per-line refusal; the harness must inspect **every**
 reply, not just exit status. Process startup/I/O failure exits 1 and writes to
 stderr; unsupported CLI arguments exit 2. A crash or missing reply is a failure.

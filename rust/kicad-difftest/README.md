@@ -81,6 +81,21 @@ underflow to zero and finite exponents also remain parseable. Conversion to `f64
 is validation only; it does not replace the returned numbers with rounded values.
 Strings and object keys that look like numbers are unaffected.
 
+The final `serde_json::Value` conversion retains its default recursion budget of
+128: entering a container decrements the budget and zero is refused. Thus at most
+**127 simultaneously open objects/arrays** are accepted, counting the root and
+empty containers. Scalars do not consume that budget. The C++ transport checks
+both container-start events at nlohmann's zero-based depth 127, before extracting
+identities. Excessive nesting anywhere (including identities and unknown fields)
+therefore returns the same complete parse-error envelope above. This is native
+transport validation, independent of a pilot's operation domain; the exact result
+comparator retains its existing separate bound and numeric-token semantics.
+
+For the MD5 wire shape with `input.extra` containing `n` arrays around `0`, the
+root and `input` objects consume two levels: `n=125` parses and `n=126` is refused.
+The sibling `steps` array does not add to that path's depth. Below the bound,
+normal envelope and adapter validation still run and retain parsed identities.
+
 `exact::parse`, `records` and comparison still retain arbitrary-precision tokens,
 including overflow tokens; they do not use the request helper. This native I/O
 crate is not a portable engine dependency. Pilot adapter adoption is separate
@@ -92,6 +107,12 @@ a small C++ fixture compiled against the repository's nlohmann header and actual
 (`CXX`, default `c++`), without any KiCad library build. It checks parse acceptance,
 null-identity error envelopes, integer/float zero classification, integer fallback,
 underflow and both sides of the exact binary64 overflow rounding midpoint.
+Nesting regressions compare complete identities, error kinds and messages across
+object, array and alternating roots; scalar and empty-container leaves; input,
+identity and unknown fields; identity order; siblings and escaped duplicate keys.
+The MD5 reproducer's wire shape is tested against the real transport with an empty
+registry, so accepted requests produce `unknown_unit` here. This fixture does not
+execute MD5 or establish pilot-operation coverage.
 
 ## Reviewed golden updates
 

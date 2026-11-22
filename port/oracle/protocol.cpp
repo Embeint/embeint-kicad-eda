@@ -42,8 +42,17 @@ JSON Dispatch( const std::string& aLine, const oracle::REGISTRY& aRegistry )
     {
         // Reject duplicate object keys instead of silently accepting the last value.
         std::vector<std::set<std::string>> keys;
-        request = JSON::parse( aLine, [&keys]( int, JSON::parse_event_t event, JSON& value )
+        request = JSON::parse( aLine, [&keys]( int depth, JSON::parse_event_t event, JSON& value )
         {
+            // Match the native Rust request's serde_json::Value recursion bound:
+            // 127 open containers, including the root and empty containers.
+            // nlohmann reports zero-based container-start depth; scalars do not count.
+            if( ( event == JSON::parse_event_t::object_start
+                  || event == JSON::parse_event_t::array_start ) && depth >= 127 )
+            {
+                throw std::invalid_argument( "JSON nesting exceeds request bound" );
+            }
+
             if( event == JSON::parse_event_t::object_start )
                 keys.emplace_back();
             else if( event == JSON::parse_event_t::object_end )
