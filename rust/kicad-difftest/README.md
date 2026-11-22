@@ -79,10 +79,13 @@ fails before identity extraction, even in an unknown field. Finite integers
 outside `i64`/`u64` remain parseable for subsequent domain validation. Subnormals,
 underflow to zero and finite exponents also remain parseable. Conversion to `f64`
 is validation only; it does not replace the returned numbers with rounded values.
-Strings and object keys that look like numbers are unaffected.
+Strings and object keys that look like numbers are unaffected. User objects are
+constructed directly from the validated exact tree: keys such as
+`$serde_json::private::Number` and `$serde_json::private::RawValue` remain ordinary
+keys, including when their string values look like encoded JSON. They cannot
+coerce an object into a number, string, array or envelope identity.
 
-The final `serde_json::Value` conversion retains its default recursion budget of
-128: entering a container decrements the budget and zero is refused. Thus at most
+The explicit tree conversion retains the previous request recursion bound. At most
 **127 simultaneously open objects/arrays** are accepted, counting the root and
 empty containers. Scalars do not consume that budget. The C++ transport checks
 both container-start events at nlohmann's zero-based depth 127, before extracting
