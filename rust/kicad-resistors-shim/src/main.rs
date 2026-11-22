@@ -2,6 +2,7 @@
 #![forbid(unsafe_code)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
+use kicad_resistors::reader::DatafileParserReader;
 use kicad_resistors::{eseries, str_value, testing, Calculator, Error, Resistance};
 use serde_json::{json, Value};
 use std::io::{self, BufRead, Write};
@@ -214,6 +215,72 @@ fn action(calc: &mut Calculator, action: &Value) -> Result<Value> {
 
 fn run(input: &Value) -> Result<Value> {
     match text(input, "op")? {
+        "unit_scales" => {
+            keys(input, &["op"], &[])?;
+            Ok(Value::Object(
+                kicad_resistors::scales::VALUES
+                    .iter()
+                    .map(|(name, value)| ((*name).to_owned(), json!(value.to_bits())))
+                    .collect(),
+            ))
+        }
+        "reader" => {
+            keys(input, &["op", "readers", "parsers", "actions"], &[])?;
+            let mut readers = Vec::new();
+            for item in array(field(input, "readers")?, 16)? {
+                keys(item, &["text", "source"], &[])?;
+                let contents = text(item, "text")?;
+                let source = text(item, "source")?;
+                if contents.len() > 4096 || source.len() > 4096 {
+                    return Err("reader string bound exceeded".into());
+                }
+                readers.push((contents.to_owned(), source.to_owned()));
+            }
+            let reader = |value: &Value| -> Result<Option<&(String, String)>> {
+                if value.is_null() {
+                    return Ok(None);
+                }
+                let index = integer(&json!({"index":value}), "index", 0, 15)? as usize;
+                Ok(Some(readers.get(index).ok_or("reader index out of range")?))
+            };
+            let mut parsers = Vec::new();
+            let mut initial = Vec::new();
+            for item in array(field(input, "parsers")?, 16)? {
+                let handle = reader(item)?;
+                initial.push(handle);
+                parsers.push(DatafileParserReader::from_lexer_state(handle));
+            }
+            let same = |a: Option<&(String, String)>, b: Option<&(String, String)>| match (a, b) {
+                (None, None) => true,
+                (Some(a), Some(b)) => std::ptr::eq(a, b),
+                _ => false,
+            };
+            let mut result = Vec::new();
+            for action in array(field(input, "actions")?, 64)? {
+                keys(action, &["op", "parser"], &["reader"])?;
+                let index = integer(action, "parser", 0, 15)? as usize;
+                let parser = parsers.get_mut(index).ok_or("parser index out of range")?;
+                let command = text(action, "op")?;
+                if command == "bind" {
+                    parser.bind_lexer_state(reader(field(action, "reader")?)?);
+                } else if command != "get" || action.get("reader").is_some() {
+                    return Err("unknown reader action".into());
+                }
+                let found = parser.get_reader();
+                let identity = if let Some(found) = found {
+                    Some(
+                        readers
+                            .iter()
+                            .position(|item| std::ptr::eq(item, found))
+                            .ok_or("unregistered real reader")?,
+                    )
+                } else {
+                    None
+                };
+                result.push(json!({"reader":identity,"same_as_initial":same(found,initial.get(index).copied().flatten()),"repeated":same(found,parser.get_reader())}));
+            }
+            Ok(Value::Array(result))
+        }
         "collector" => {
             keys(input, &["op", "target_bits", "candidates"], &[])?;
             let candidates = array(field(input, "candidates")?, 256)?

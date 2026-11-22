@@ -8,13 +8,56 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import shutil
 import unittest
 
-from audit import audit, check_flags, verify_source, check_resistor_reference
+from audit import (audit, check_flags, verify_source, check_resistor_reference,
+                   check_reader_reference, verify_reader_generated)
 from pin import KICAD_PIN, SOURCE_PATHS
 
 
 class Guards(unittest.TestCase):
+    def test_reader_requires_real_parser_reader_and_archive(self):
+        source = Path("/reference")
+        build = Path("/build")
+        paths = [source / path for path in ("pcb_calculator/datafile_read_write.cpp",
+                 "common/dsnlexer.cpp", "common/richio.cpp", "common/exceptions.cpp")]
+        paths.append(build / "reader-generated/pcb_calculator_datafile_keywords.cpp")
+        commands = [{"file": str(path), "arguments": ["g++", "-o",
+                    "CMakeFiles/calculator-reader-reference.dir/object.o"]} for path in paths]
+        link = ["g++ -o kicad-oracle libcalculator-reader-reference.a"]
+        check_reader_reference(commands, link, source, build)
+        for index in range(len(commands)):
+            with self.subTest(missing=index), self.assertRaisesRegex(ValueError, "compilation"):
+                check_reader_reference(commands[:index] + commands[index + 1:], link, source, build)
+        with self.assertRaisesRegex(ValueError, "archive"):
+            check_reader_reference(commands, ["g++ -o kicad-oracle"], source, build)
+
+    @unittest.skipUnless(shutil.which("cmake"), "CMake regenerates the fixture lexer")
+    def test_generated_reader_source_is_regenerated_and_byte_checked(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            build = root / "build"
+            generator = source / "cmake/BuildSteps/TokenList2DsnLexer.cmake"
+            generator.parent.mkdir(parents=True)
+            generator.write_text('file(WRITE "${outHeaderFile}" "header\\n")\n'
+                                 'file(WRITE "${outCppFile}" "source\\n")\n', encoding="utf-8")
+            generated = build / "reader-generated"
+            generated.mkdir(parents=True)
+            header = generated / "pcb_calculator_datafile_lexer.h"
+            cpp = generated / "pcb_calculator_datafile_keywords.cpp"
+            header.write_bytes(b"header\n")
+            cpp.write_bytes(b"source\n")
+            verify_reader_generated(build, source)
+            for path in (header, cpp):
+                original = path.read_bytes()
+                path.write_bytes(b"changed")
+                with self.subTest(path=path), self.assertRaisesRegex(ValueError, "differs"):
+                    verify_reader_generated(build, source)
+                self.assertEqual(path.read_bytes(), b"changed", "audit must not repair a corrupted output")
+                path.write_bytes(original)
+
     def test_resistor_requires_both_reference_tus_and_archive_link(self):
         with tempfile.TemporaryDirectory() as directory:
             overlay = Path(directory)

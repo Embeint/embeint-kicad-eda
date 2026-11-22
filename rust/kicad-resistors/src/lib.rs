@@ -5,6 +5,8 @@
 
 pub mod eseries;
 mod format;
+pub mod reader;
+pub mod scales;
 mod sort;
 pub use format::str_value;
 

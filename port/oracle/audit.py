@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 import shlex
 import subprocess
+import tempfile
 
 from pin import KICAD_PIN, SOURCE_PATHS
 
@@ -80,11 +81,44 @@ def check_resistor_reference(commands, link_commands, source, overlay):
         raise ValueError("Oracle does not link the actual resistor-reference and fmt archives")
 
 
+def verify_reader_generated(build, source):
+    """Regenerate with the pinned upstream generator, comparing every output byte."""
+    arguments = ["cmake", "-Denum=PCBCALC_DATA_T",
+                 "-DinputFile=" + str(source / "pcb_calculator/pcb_calculator_datafile.keywords"),
+                 "-DoutHeaderFile=pcb_calculator_datafile_lexer.h",
+                 "-DoutCppFile=pcb_calculator_datafile_keywords.cpp",
+                 "-P", str(source / "cmake/BuildSteps/TokenList2DsnLexer.cmake")]
+    files = {}
+    with tempfile.TemporaryDirectory() as directory:
+        subprocess.run(arguments, cwd=directory, check=True, capture_output=True)
+        for name in ("pcb_calculator_datafile_lexer.h", "pcb_calculator_datafile_keywords.cpp"):
+            actual = build / "reader-generated" / name
+            if actual.read_bytes() != (Path(directory) / name).read_bytes():
+                raise ValueError("Generated reader source differs from pinned generator: " + name)
+            files[str(actual)] = sha(actual)
+    return {"arguments": arguments, "files_sha256": files}
+
+
+def check_reader_reference(commands, link_commands, source, build):
+    required = {source / path for path in (
+        "pcb_calculator/datafile_read_write.cpp", "common/dsnlexer.cpp",
+        "common/richio.cpp", "common/exceptions.cpp")}
+    required.add(build / "reader-generated/pcb_calculator_datafile_keywords.cpp")
+    compiled = {Path(entry["file"]) for entry in commands if any(
+        "CMakeFiles/calculator-reader-reference.dir/" in token for token in entry["arguments"])}
+    if compiled != required:
+        raise ValueError("Missing actual calculator-reader-reference compilation: " + repr(required - compiled))
+    if not any("-o kicad-oracle" in command and "libcalculator-reader-reference.a" in command
+               for command in link_commands):
+        raise ValueError("Oracle does not link the actual calculator-reader-reference archive")
+
+
 def audit(build, source, overlay):
     manifest, manifest_sha = verify_source(source)
     database = json.loads((build / "compile_commands.json").read_text(encoding="utf-8"))
     if not database:
         raise ValueError("Empty compile database")
+    generated = None
     commands = []
     compilers = set()
     targets = set()
@@ -99,13 +133,15 @@ def audit(build, source, overlay):
             if path.relative_to(source).as_posix() not in manifest["files"]:
                 raise ValueError("Unpinned reference compilation: " + str(path))
         elif not path.is_relative_to(overlay):
-            raise ValueError("Unexpected compilation outside pinned source/overlay: " + str(path))
-        for target in ("core", "clipper2", "kimath", "fmt", "resistor-reference", "kicad-oracle"):
+            if path != build / "reader-generated/pcb_calculator_datafile_keywords.cpp":
+                raise ValueError("Unexpected compilation outside pinned source/overlay: " + str(path))
+            generated = verify_reader_generated(build, source)
+        for target in ("core", "clipper2", "kimath", "fmt", "resistor-reference", "calculator-reader-reference", "kicad-oracle"):
             if any("CMakeFiles/" + target + ".dir/" in token for token in tokens):
                 targets.add(target)
         compilers.add(tokens[0])
         commands.append({"file": str(path), "arguments": tokens})
-    if targets != {"core", "clipper2", "kimath", "fmt", "resistor-reference", "kicad-oracle"}:
+    if targets != {"core", "clipper2", "kimath", "fmt", "resistor-reference", "calculator-reader-reference", "kicad-oracle"}:
         raise ValueError("Unexpected reference target closure: " + repr(targets))
     link_commands = subprocess.check_output(
         ["ninja", "-C", str(build), "-t", "commands", "kicad-oracle"], text=True).splitlines()
@@ -115,6 +151,7 @@ def audit(build, source, overlay):
                for command in link_commands):
         raise ValueError("Oracle does not link the actual kimath archive")
     check_resistor_reference(commands, link_commands, source, overlay)
+    check_reader_reference(commands, link_commands, source, build)
     overlay_files = {p.relative_to(overlay).as_posix(): sha(p) for p in sorted(overlay.rglob("*"))
                      if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc"}
     result = {
@@ -129,6 +166,7 @@ def audit(build, source, overlay):
                              for c in sorted(compilers)},
         "wx_version": subprocess.check_output(["wx-config", "--version"], text=True).strip(),
         "compile_commands": commands, "build_commands": link_commands,
+        "reader_generated": generated,
         "config_h_sha256": sha(build / "config.h"),
         "floating_point": {"contract": "off", "fast_math": False},
         "system_libraries": "wxWidgets, C/C++ runtimes and libm are distribution binaries; not rebuilt",

@@ -1,13 +1,27 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 # Resistor pilot preparation
 
-Provisional unit `pcb_calculator.application.pure.p001`, at KiCad
-`4cf939778df04d2b747bb2c4714fc5014a7565c7`. The final #39 generated record is an
-integration dependency. This preparation neither claims a unit nor supplies a
-unit TOML, golden, green status or phase-zero completion claim. The final record
-must confirm the entire measured 1,312-line/40-definition scope, L0, dependencies
-and gaps before those steps. Accounted UI headers are interface references;
-their GUI implementations are outside this portable engine.
+Unit `pcb_calculator.application.pure.p001`, at KiCad
+`4cf939778df04d2b747bb2c4714fc5014a7565c7`. The local finalizer record contains
+**1,186 physical lines and 41 owned definitions**, L0/pure, with no hard/soft
+dependencies or gaps. The committed #39 head remains an integration dependency.
+This preparation neither claims a unit nor supplies a unit TOML, golden, green
+status or phase-zero completion claim. The committed record must confirm the
+complete local scope before those steps:
+
+| Accounted path | Inclusive lines |
+| --- | --- |
+| `pcb_calculator/common_data.h` | 1–62 |
+| `pcb_calculator/datafile_read_write.h` | 1–60 |
+| `pcb_calculator/eseries.cpp` | 1–102 |
+| `pcb_calculator/eseries.h` | 1–177 |
+| `pcb_calculator/pcb_calculator_utils.h` | 1–33 |
+| `pcb_calculator/resistor_substitution_utils.cpp` | 1–508 |
+| `pcb_calculator/resistor_substitution_utils.h` | 1–168 |
+| `pcb_calculator/units_scales.h` | 1–76 |
+
+Interface declarations do not claim their out-of-unit bodies. The frame and
+transline headers from the early audit are not owned by this final local unit.
 
 `kicad-resistors` owns its calculator state and performs no I/O. The separate
 `kicad-resistors-shim` is a native JSONL process (`portable = false`). No reference
@@ -32,6 +46,29 @@ provenance. `thirdparty/fmt` is exported from the same pin and actually compiled
 and linked. Strict FP flags and all existing kimath/source/provenance guards stay
 enabled. Audit regressions refuse absent reference compilation, missing archive
 links and an accessor that omits the pinned source include.
+
+`calculator-reader-reference` additionally compiles the actual unchanged
+`datafile_read_write.cpp`, `dsnlexer.cpp`, `richio.cpp` and `exceptions.cpp`.
+The upstream `TokenList2DsnLexer.cmake` generates the actual lexer from pinned
+keywords. The audit independently regenerates both outputs in a temporary
+directory and compares every byte without repairing a corrupted output; both
+generated hashes and the generation command enter provenance. Every original
+source/header and generator input is exported and hashed. Function/data sections
+and linker garbage collection discard unused GUI/parser bodies; no GUI code is
+ported into Rust and no application is launched. Missing real compilation or the
+reader archive link is a refusal regression.
+
+Getter cases construct real `PCB_CALCULATOR_DATAFILE_PARSER` objects using the
+original constructor and real `STRING_LINE_READER` instances. Null, aliased and
+distinct equal-content readers, repeated calls and protected-reader rebinding
+are compared through the actual owned inline `GetReader` method. Stable caller
+indices encode pointer identity, not pointer addresses or guessed values.
+`reader::DatafileParserReader` is the minimal borrowed reader-state co-port; its
+getter returns the actual current nullable reference, without copying a reader
+or taking ownership. `from_lexer_state`/`bind_lexer_state` are explicit host
+state boundaries, not implementations of parser constructors or PushReader.
+Both actual parser constructors remain explicit `Err(Unported { ... })` APIs
+owned by `pcb_calculator.application.ui.p001`; the getter never calls them.
 
 Private member pointers use standard C++ explicit instantiation: the access
 checks do not apply to explicit-instantiation arguments ([temp.explicit]). No
@@ -71,6 +108,8 @@ missing keys are refused. Arrays and names are checked before allocation/iterati
 | `helpers` | `first`, `second` resistance inputs; `text` (up to 4,096 UTF-8 bytes), `symbol` (one ASCII byte); returns real unique counts, both better-candidate decisions, both comparison overloads, parentheses and all four simple/full series/parallel combinations. |
 | `collector` | `target_bits`, `candidates` (up to 256 resistance inputs); returns best resistance and real continuation count, or the reference exception. |
 | `calculator` | `actions` (up to 64); returns each action's return value and state immediately afterward. |
+| `reader` | `readers` (up to 16 `{text,source}` objects, each string at most 4,096 bytes), `parsers` (up to 16 nullable reader indices), `actions` (up to 64 `{op,parser,reader?}`). `get` observes and `bind` supplies surrounding reader state. Every result returns actual reader identity, identity with the initial reader, and repeated-get identity. |
+| `unit_scales` | Returns the exact bits of all 36 literal unit conversion macros in the accounted `units_scales.h`, retaining each C++ expression order. |
 
 A resistance input is `{value_bits,name,parts_bits?}`. Names have at most 4,096
 UTF-8 bytes; parts have at most 256 entries. Absent or empty parts exercise the
@@ -112,7 +151,7 @@ from a deferred or failed harness operation.
 
 ## Definition and branch audit
 
-| Owned definitions (40 provisional) | Portable bodies and differential observations |
+| Owned definitions (41 local final) | Portable bodies and differential observations |
 | --- | --- |
 | `ESERIES_VALUES`, eight named constructors, `ESERIES_IN_DECADE` (10) | Literal tables, stride/fallback branches, full i32 exponents, multiplication before division; every literal and scaled bit is returned. |
 | `RESISTANCE` (1) | Explicit parts, omitted/default and empty parts; exact part order and value/name. |
@@ -121,6 +160,7 @@ from a deferred or failed harness operation.
 | `maybeEmbrace`, serial/parallel value and four resistance helpers (7) | Nested/top-level parentheses, arbitrary parts, all combinations and expression order. |
 | `strValue` (1) | Three-significant-digit rounding, six-significant-digit `g` conversion, every unit boundary, finite extremes, non-finite/zero inputs. |
 | Calculator constructor, `SetSeries`, `NewCalc`, `Exclude`, `Calculate`, `GetResults`, build, prepare1/2, find, calculate2/3/4 (13) | Default and repeated state, every series/decade, exclusions/reset, exact/near/tie/mixed targets, full buffers, all four 4R topologies and actual private helper calls. |
+| `PCB_CALCULATOR_DATAFILE_PARSER::GetReader` (1) | Direct nullable borrowed-reader return; real constructed C++ parser/reader objects, exact identity, aliasing, rebinding and repeated calls. |
 
 `findIn2RBuffer` retains both post-lower_bound edge branches. For a nonempty,
 sorted, finite positive generated buffer the earlier min/max checks make those
@@ -151,4 +191,9 @@ Pinned KiCad resistor sources are GPL-3.0-or-later. Pinned fmt is MIT
 (`thirdparty/fmt/LICENSE`), built
 from the exported pin rather than a system package. The libstdc++ sort adaptation
 is GPL-3.0-or-later with the GCC Runtime Library Exception, compatible with this
-GPL-3.0-or-later derived work. No additional source is vendored.
+GPL-3.0-or-later derived work. Its original FSF, Hewlett-Packard and Silicon
+Graphics notices are retained in `src/sort.rs`; the GPL text is at the repository
+root (`LICENSE.GPLv3`) and the exception is in `COPYING.RUNTIME`. Native reader
+support uses KiCad's GPL-2.0-or-later sources under GPL-3.0-or-later and pinned
+fast_float headers (MIT OR Apache-2.0 OR BSL-1.0; all three notices exported).
+No additional dependency source is vendored into the portable crate.

@@ -135,6 +135,21 @@ def main():
         target = rng.uniform(1., 2e6)
         calc(f"search-fixed-seed-{i}", [{"op": "set_series", "series": i % 5}, new(target),
              exclude([10., 1000.]) if i % 2 else exclude([]), {"op": "calculate"}])
+    case("reader-null-live-parser", {"op":"reader", "readers":[], "parsers":[None],
+         "actions":[{"op":"get","parser":0},{"op":"bind","parser":0,"reader":None},{"op":"get","parser":0}]})
+    case("reader-real-memory-alias-and-rebinding", {"op":"reader", "readers":[
+        {"text":"", "source":"generated-empty"}, {"text":"(regulators)\n", "source":"public-generated"},
+        {"text":"line1\nline2\x00tail", "source":"generated-utf8-\u03bc"}], "parsers":[0,0,1,None,2],
+        "actions":[*[{"op":"get","parser":i} for i in range(5)],
+             {"op":"bind","parser":0,"reader":1},{"op":"get","parser":1},
+             {"op":"bind","parser":3,"reader":2},{"op":"bind","parser":4,"reader":None},
+             {"op":"get","parser":3},{"op":"bind","parser":0,"reader":0},{"op":"get","parser":0}]})
+    case("reader-equal-content-distinct-identity", {"op":"reader", "readers":[
+        {"text":"same", "source":"same"}, {"text":"same", "source":"same"}], "parsers":[0,1],
+        "actions":[{"op":"get","parser":0},{"op":"get","parser":1},
+             {"op":"bind","parser":0,"reader":1},{"op":"get","parser":0},
+             {"op":"get","parser":1}]})
+    case("accounted-unit-scale-constants", {"op":"unit_scales"})
     destination = ROOT / "port/cases" / (UNIT + ".jsonl")
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text("".join(json.dumps(case, separators=(",", ":"), allow_nan=False) + "\n" for case in cases), encoding="utf-8", newline="\n")
