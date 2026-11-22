@@ -208,6 +208,16 @@ evidence is retained beside a new complete initial-baseline artifact.
 [Commands, reports and actual provenance](validation/2026-11-22-0659b51c/README.md)
 record the clean tested overlay, five CTests and affected Rust checks.
 
-The additional numeric-overflow envelope finding remains open pending the
-shared native request parser. Corrected graph scope/layer review and hosted CI
-remain merge requirements; this local pass does not establish the phase-zero gate.
+The native adapter adopts `kicad_difftest::request::parse` from reviewed PR #45
+commit `8f5f45729c733d8f1695dda9ee6d953f9bb4d400`. It rejects overflowing numeric
+tokens before extracting identities, returning the complete invalid-request
+envelope with null identities and `invalid JSON or duplicate key`. The shared
+106-fixture contract retains raw literals for overflowing floats and 400-digit
+integers in nested, unknown and identity fields, plus finite out-of-range,
+underflow and float inputs that must reach envelope/domain validation. Process
+checks also retain accepted integer `-0`, signed-zero bits and unsigned finite
+bit patterns. The exact comparator, portable engine, corpus and all successful
+golden replies are unchanged.
+
+PR #45 and corrected graph scope/layer review remain dependencies, alongside
+hosted CI and independent review; this does not establish the phase-zero gate.

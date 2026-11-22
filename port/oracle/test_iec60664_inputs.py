@@ -67,6 +67,45 @@ def refusals():
     unknown["unit"] = "unregistered-iec-unit"
     add(json.dumps(unknown), "unit has no registered shim", "unknown_unit",
         unit=unknown["unit"], case="unknown")
+
+    # Construct numeric requests as raw text. Python float conversion/serialization
+    # would turn overflowing JSON numbers into Infinity or lose the integer form.
+    def raw_steps(token, field="altitude"):
+        return ('{"unit":"' + UNIT + '","case":"numeric-domain","input":{"steps":'
+                '[{"op":"set","field":"' + field + '","value":' + token + '}]}}')
+
+    for token in ("1e1000", "-1e1000", "9" * 400, "-" + "9" * 400,
+                  "1.7976931348623159e308"):
+        for wire in (
+            token,
+            raw_steps(token),
+            '{"unit":"' + UNIT + '","case":"nested","input":{"steps":[{"op":"state","extra":[{"n":' + token + '}]}]}}',
+            '{"unit":"' + UNIT + '","case":"unknown-input","input":{"extra":' + token + '}}',
+            '{"unit":"' + UNIT + '","case":"unknown-top","input":{},"extra":' + token + '}',
+            '{"unit":' + token + ',"case":"numeric-identity","input":{}}',
+            '{"unit":"' + UNIT + '","case":' + token + ',"input":{}}',
+            '{"unit":"unregistered-iec-unit","case":"overflow","input":{"n":' + token + '}}',
+        ):
+            add(wire, "invalid JSON or duplicate key", "invalid_request", unit=None)
+
+    for token in ("18446744073709551616", "-9223372036854775809", "9" * 100,
+                  "9" * 308, "1e100", "1.7976931348623158e308", "1e-1000",
+                  "-1e-1000", "0e1000", "-0.0", "1.0"):
+        add(raw_steps(token), "expected u64 bits", case="numeric-domain")
+        add(raw_steps(token, "pollution_degree"), "integer out of range: value", case="numeric-domain")
+
+    finite = "9" * 100
+    add('{"unit":"' + UNIT + '","case":"finite-extra","input":{"steps":[{"op":"state","extra":' + finite + '}]}}',
+        "unexpected field", case="finite-extra")
+    add('{"unit":"' + UNIT + '","case":"finite-top","input":{},"extra":' + finite + '}',
+        "expected unit, case, input object", "invalid_request", case="finite-top")
+    add('{"unit":' + finite + ',"case":"numeric-identity","input":{}}',
+        "expected unit, case, input object", "invalid_request", unit=None, case="numeric-identity")
+    add('{"unit":"' + UNIT + '","case":' + finite + ',"input":{}}',
+        "expected unit, case, input object", "invalid_request")
+    add('{"unit":"unregistered-iec-unit","case":"finite","input":{"n":' + finite + '}}',
+        "unit has no registered shim", "unknown_unit", unit="unregistered-iec-unit", case="finite")
+    add(raw_steps("18446744073709551615"), "expected finite bits", case="numeric-domain")
     return items
 
 
@@ -75,6 +114,7 @@ def check(binary, fixtures):
                       separators=(",", ":")).replace('"value":0', '"value":-0')
     wires = [item["wire"] for item in fixtures] + [zero,
         json.dumps(request([{"op": "set", "field": "altitude", "value": 2**63}], "signed-zero-bits")),
+        json.dumps(request([{"op": "set", "field": "altitude", "value": 0xFFEFFFFFFFFFFFFF}], "unsigned-finite-bits")),
         json.dumps(request([{"op": "state"}] * 256, "maximum")),
         json.dumps(request([{"op": "compute"}], "recovery"))]
     process = subprocess.run([str(binary)], input="\n".join(wires), capture_output=True,
@@ -84,8 +124,9 @@ def check(binary, fixtures):
     assert len(replies) == len(wires)
     for fixture, reply in zip(fixtures, replies):
         assert reply == fixture["expected"], (fixture["wire"], reply, fixture["expected"])
-    assert replies[-4]["result"][0]["state"]["altitude"] == 0
-    assert replies[-3]["result"][0]["state"]["altitude"] == 2**63
+    assert replies[-5]["result"][0]["state"]["altitude"] == 0
+    assert replies[-4]["result"][0]["state"]["altitude"] == 2**63
+    assert replies[-3]["result"][0]["state"]["altitude"] == 0xFFEFFFFFFFFFFFFF
     assert len(replies[-2]["result"]) == 256
     assert replies[-1]["result"][0]["value"] is True
     print(f"{binary.name}: {len(fixtures)} complete refusal envelopes, raw -0, u64 bits and recovery passed")

@@ -224,8 +224,7 @@ fn calculate(input: &Value) -> Result<Value, String> {
 fn dispatch(line: &str) -> Value {
     let mut unit = Value::Null;
     let mut case = Value::Null;
-    let parsed = kicad_difftest::exact::parse(line)
-        .and_then(|_| serde_json::from_str::<Value>(line).map_err(|e| e.to_string()));
+    let parsed = kicad_difftest::request::parse(line);
     let reply = parsed
         .map_err(|_| ("invalid_request", "invalid JSON or duplicate key".into()))
         .and_then(|request| {
