@@ -219,8 +219,11 @@ The one exception is a record declaring `status = "partial"`: it runs with
 `--partial`, as `check` when its golden exists and otherwise as live `compare`
 (goldens follow a green difftest). Green, claimed, todo and blocked records always
 run strict `check`, so a green unit stays zero-deferral. The policy then checks the
-runner's report rather than trusting the exit code alone: unit, mode and action
-match; zero failures; at least one compared case; compared and deferred case IDs
+runner's report rather than trusting the exit code alone. It parses counts without
+numeric coercion: a fraction, exponent, negative or non-canonical integer, boolean,
+`NaN` or `Infinity` fails, so `1e-400`, `0.0` or `true` cannot pass as a count. Unit,
+mode and action match; `golden_checked` is the boolean `true` for `check` and `false`
+for `compare`; zero failures; at least one compared case; compared and deferred case IDs
 account for every corpus case exactly once and in order; the status agrees with
 the deferrals; and every deferral names an existing unit record as its owner.
 A previous report is deleted before each run.
