@@ -1,0 +1,26 @@
+{
+  "configure.log": {
+    "bytes": 12843,
+    "sha256": "1ef9e19e62727a7f16a46d0375389d108f44ab2cefc461e6cc4df7de00030ec2"
+  },
+  "generated-inputs.log": {
+    "bytes": 116272,
+    "sha256": "99cceeb210b52c0b3a0f46f93e98d957fdb444f7b300e16eab7d73e5d6416f36"
+  },
+  "raw-compile-commands.json": {
+    "bytes": 10656952,
+    "sha256": "10519703c213d66a3abf4e00fa091bdaa616d9865c4ec47ecad0acca91c2fa8b"
+  },
+  "raw-extraction.log": {
+    "bytes": 740899,
+    "sha256": "fd19b2d77d52cf065327c8a1031663401de6d5bf8e2ec3a3c0555a824b26c7cc"
+  },
+  "reconciled-compile-commands.json": {
+    "bytes": 11976262,
+    "sha256": "bc402ade70f0304ed5018793a5d8c37749df978dfd7859ee87e655ee3a616196"
+  },
+  "reconciled-extraction.log": {
+    "bytes": 689648,
+    "sha256": "bce1d2fdbdabbfadcf05f7172121adc7f52a07b5b5b24f477dec59774c3e9273"
+  }
+}
