@@ -148,15 +148,7 @@ fn dispatch(line: &str) -> Value {
     let mut unit = Value::Null;
     let mut case = Value::Null;
     let failure = |unit: Value, case: Value, kind: &str, message: &str| json!({"unit":unit,"case":case,"error":{"kind":kind,"message":message}});
-    if kicad_difftest::exact::parse(line).is_err() {
-        return failure(
-            unit,
-            case,
-            "invalid_request",
-            "invalid JSON or duplicate key",
-        );
-    }
-    let request = match serde_json::from_str::<Value>(line) {
+    let request = match kicad_difftest::request::parse(line) {
         Ok(request) => request,
         Err(_) => {
             return failure(
@@ -288,6 +280,61 @@ mod tests {
             );
             assert_eq!(reply["error"]["kind"], "invalid_input");
             assert_eq!(reply["error"]["message"], message);
+        }
+    }
+
+    #[test]
+    fn numeric_overflow_rejects_the_complete_request_before_identities() {
+        let expected = json!({"unit":null,"case":null,"error":{
+            "kind":"invalid_request","message":"invalid JSON or duplicate key"}});
+        for token in ["1e1000".to_owned(), "-1e1000".to_owned(), "9".repeat(400)] {
+            for text in [
+                format!(r#"{{"unit":"{UNIT}","case":"overflow","input":{{"n":{token}}}}}"#),
+                format!(
+                    r#"{{"unit":"{UNIT}","case":"overflow","input":{{"nested":[{{"n":{token}}}]}}}}"#
+                ),
+                format!(r#"{{"unit":"missing","case":"overflow","input":{{"n":{token}}}}}"#),
+                format!(r#"{{"unit":"{UNIT}","case":"overflow","input":{{}},"extra":{token}}}"#),
+                format!(r#"{{"unit":{token},"case":"overflow","input":{{}}}}"#),
+                format!(r#"{{"unit":"{UNIT}","case":{token},"input":{{}}}}"#),
+            ] {
+                assert_eq!(dispatch(&text), expected, "{text}");
+            }
+        }
+    }
+
+    #[test]
+    fn finite_numbers_reach_domain_and_envelope_validation() {
+        for token in [
+            "18446744073709551615".to_owned(),
+            "18446744073709551616".to_owned(),
+            "-9223372036854775809".to_owned(),
+            "9".repeat(308),
+            "1e-1000".to_owned(),
+            "-1e-1000".to_owned(),
+            "0.0".to_owned(),
+            "-0.0".to_owned(),
+        ] {
+            let text = format!(
+                r#"{{"unit":"{UNIT}","case":"finite","input":{{"steps":[{{"op":"new","id":0}},{{"op":"bytes","id":0,"data":[{token}]}}]}}}}"#
+            );
+            assert_eq!(
+                dispatch(&text),
+                json!({"unit":UNIT,"case":"finite","error":{
+                "kind":"invalid_input","message":"byte out of range"}})
+            );
+            let text = format!(r#"{{"unit":"missing","case":"finite","input":{{"n":{token}}}}}"#);
+            assert_eq!(
+                dispatch(&text),
+                json!({"unit":"missing","case":"finite","error":{
+                "kind":"unknown_unit","message":"unit has no registered shim"}})
+            );
+            let text = format!(r#"{{"unit":"{UNIT}","case":{token},"input":{{}}}}"#);
+            assert_eq!(
+                dispatch(&text),
+                json!({"unit":UNIT,"case":null,"error":{
+                "kind":"invalid_request","message":"expected unit, case, input object"}})
+            );
         }
     }
 }
