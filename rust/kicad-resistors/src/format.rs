@@ -61,12 +61,28 @@ fn general(value: f64) -> String {
 
 /// The rounding epsilon in the calculator is unrelated to this conversion.
 pub fn str_value(mut value: f64) -> String {
+    if super::fp::is_nan(value) {
+        return if value.is_sign_negative() {
+            "-nanL"
+        } else {
+            "nanL"
+        }
+        .into();
+    }
     // glibc log10 of a negative input produces a positive quiet NaN. FDlibm's
     // sign differs; preserve the actual fmt spelling, including -infinity.
     if value < 0.0 {
         return "nanL".into();
     }
+    if value == 0.0 || value == f64::INFINITY {
+        return "-nanL".into();
+    }
     let digit = super::eseries::power10(libm::floor(libm::log10(value)) - 2.0);
+    // For a positive finite value, a zero rounding digit makes the reference's
+    // division/multiplication generate the x86 negative indefinite NaN.
+    if digit == 0.0 {
+        return "-nanL".into();
+    }
     value = libm::round(value / digit) * digit;
     let units = [
         (1e12, 'T'),

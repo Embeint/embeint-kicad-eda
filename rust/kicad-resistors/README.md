@@ -179,7 +179,47 @@ an improvement installs a solution. Neither is removed for coverage convenience.
 
 ## Reproduce and validate
 
-`python rust/kicad-resistors/cases.py` regenerates the 199-case public fixed-seed corpus.
+`python rust/kicad-resistors/cases.py` regenerates the 1,050-case public fixed-seed
+corpus; `--check` verifies its bytes without writing. The original 199 request
+lines retain SHA-256
+`ee77e9687eb15556fa222c0c3b57e86bf2be7523a8c8c465a2eb9548f7103d15`.
+Decimal conversion replaces host-libm exponentiation; explicit historical input
+bits at exponents 23 and 126 preserve the published Windows corpus. Exponent
+210 uses correctly rounded decimal conversion. This input compatibility table
+is separate from the engine's measured C++ `pow` table. The generator's tests
+pin the original prefix, historical powers and literal integer `-0` requests.
+
+The additional cases include the complete 28-by-28 IEEE operand matrix (signed
+zeros, subnormal/normal extremes, infinities and signed quiet/signaling NaNs),
+64 fixed-seed NaN payload pairs, explicit formatting classes and raw `-0` tokens.
+`fp.rs` explicitly implements the observed pinned GCC/x86 operation semantics:
+a NaN operand is quieted with its sign and payload retained, choosing the second
+operand when both are NaNs; an invalid operation without an input NaN produces
+x86's negative indefinite NaN. Ordinary Rust arithmetic does not guarantee
+this payload choice. Constructor values and parts remain verbatim. Formatting
+also spells these measured exceptional cases explicitly for wasm portability;
+neither adapter nor comparator normalizes returned bits.
+
+Both owned adapters use explicit typed guards with matching complete diagnostic
+envelopes. `kicad-resistors-shim/tests/requests.py` exercises malformed fields,
+validation order, raw integer `-0` versus floating `-0.0`, full unsigned domains,
+finite numbers outside integer storage ranges, parser overflow before identity
+extraction, and successful recovery. Run it with `--oracle PATH` and one or more
+`--rust PATH` arguments. The native shim calls the reviewed common
+`kicad_difftest::request::parse` API before extracting identities (stacked #45,
+`8f5f45729c733d8f1695dda9ee6d953f9bb4d400`); the exact comparator retains arbitrary
+numeric tokens. Finite numbers outside integer storage ranges are parsed and
+then checked against each operation's actual domain.
+
+The `nonfinite_parity` example reuses the pure operation conversions from the
+native shim, embeds the complete case/golden files and compares every result,
+including state, expression and part order, in a wasm runtime. After a matching
+live baseline exists, build it with `cargo build -p kicad-resistors --example
+nonfinite_parity --target wasm32-unknown-unknown --release` and run
+`node rust/kicad-resistors/wasm-test.mjs PATH_TO_WASM`. It requires no host imports
+and performs no filesystem/process/thread operations. A wasm build alone does
+not certify bit parity; record actual runtime results separately.
+
 The initial corpus is prepared before final extractor ownership confirmation.
 Run fmt, clippy `-D warnings`, tests and `wasm32-unknown-unknown` checks for both
 new crates (the shim is native), and the normal real-oracle build in an owned
@@ -193,7 +233,9 @@ separately; this source/case preparation is not a result claim.
 ## Dependencies and licences
 
 All new code is GPL-3.0-or-later. `libm 0.2.16` is MIT and already locked in the
-workspace; it is the only portable dependency. Native shim dependencies reuse
+workspace; it is the only portable library dependency. The parity example uses
+the existing MIT/Apache-2.0 `serde_json` closure as a dev-dependency only.
+Native shim dependencies reuse
 the existing `serde_json` and `kicad-difftest` closure documented in their README
 and `rust/MCP.md` (GPL-compatible MIT/Apache-2.0, with existing transitive notices).
 Pinned KiCad resistor sources are GPL-3.0-or-later. Pinned fmt is MIT

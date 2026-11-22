@@ -64,6 +64,36 @@ template struct ReaderAccess<ReaderTag, &DSNLEXER::reader>;
 
 using oracle::JSON;
 
+const JSON& Field( const JSON& object, const char* key )
+{
+    if( !object.is_object() )
+        throw std::invalid_argument( "expected object" );
+    if( !object.contains( key ) )
+        throw std::invalid_argument( "missing field" );
+    return object.at( key );
+}
+
+std::string Text( const JSON& object, const char* key )
+{
+    const auto& value = Field( object, key );
+    if( !value.is_string() )
+        throw std::invalid_argument( "expected string" );
+    return value.get<std::string>();
+}
+
+bool Boolean( const JSON& value )
+{
+    if( !value.is_boolean() )
+        throw std::invalid_argument( "expected boolean" );
+    return value.get<bool>();
+}
+
+int Integer( const JSON& object, const std::string& key, int minimum, int maximum )
+{
+    (void) Field( object, key.c_str() );
+    return oracle::Integer( object, key, minimum, maximum );
+}
+
 void Keys( const JSON& value, std::initializer_list<const char*> required,
            std::initializer_list<const char*> optional = {} )
 {
@@ -102,7 +132,7 @@ double Float( const JSON& value )
 
 uint32_t SeriesSelector( const JSON& action )
 {
-    const auto& value = action.at( "series" );
+    const auto& value = Field( action, "series" );
     if( ( !value.is_number_unsigned() && !( value.is_number_integer() && value.get<int64_t>() >= 0 ) )
         || value.get<uint64_t>() > UINT32_MAX )
         throw std::invalid_argument( "integer out of range: series" );
@@ -133,16 +163,16 @@ JSON TableJSON( const Table& values )
 RESISTANCE ParseRes( const JSON& item )
 {
     Keys( item, { "value_bits", "name" }, { "parts_bits", "clear_parts" } );
-    double value = Float( item.at( "value_bits" ) );
-    auto   name = item.at( "name" ).get<std::string>();
+    double value = Float( Field( item, "value_bits" ) );
+    auto   name = Text( item, "name" );
     if( name.size() > 4096 )
         throw std::invalid_argument( "name bound exceeded" );
     std::vector<double> parts;
     if( item.contains( "parts_bits" ) )
-        for( const auto& part : Array( item.at( "parts_bits" ), 256 ) )
+        for( const auto& part : Array( Field( item, "parts_bits" ), 256 ) )
             parts.push_back( Float( part ) );
     RESISTANCE result = item.contains( "parts_bits" ) ? RESISTANCE( value, name, parts ) : RESISTANCE( value, name );
-    if( item.contains( "clear_parts" ) && item.at( "clear_parts" ).get<bool>() )
+    if( item.contains( "clear_parts" ) && Boolean( Field( item, "clear_parts" ) ) )
         result.parts.clear();
     return result;
 }
@@ -206,7 +236,7 @@ ESERIES::ESERIES_VALUES Named( int series )
 
 JSON Run( const JSON& input )
 {
-    const std::string op = input.at( "op" ).get<std::string>();
+    const std::string op = Text( input, "op" );
     if( op == "unit_scales" )
     {
         Keys( input, { "op" } );
@@ -251,11 +281,11 @@ JSON Run( const JSON& input )
     {
         Keys( input, { "op", "readers", "parsers", "actions" } );
         std::vector<std::unique_ptr<STRING_LINE_READER>> readers;
-        for( const auto& item : Array( input.at( "readers" ), 16 ) )
+        for( const auto& item : Array( Field( input, "readers" ), 16 ) )
         {
             Keys( item, { "text", "source" } );
-            auto text = item.at( "text" ).get<std::string>();
-            auto source = item.at( "source" ).get<std::string>();
+            auto text = Text( item, "text" );
+            auto source = Text( item, "source" );
             if( text.size() > 4096 || source.size() > 4096 )
                 throw std::invalid_argument( "reader string bound exceeded" );
             readers.push_back( std::make_unique<STRING_LINE_READER>( text, wxString::FromUTF8( source ) ) );
@@ -264,33 +294,33 @@ JSON Run( const JSON& input )
         {
             if( value.is_null() )
                 return nullptr;
-            int index = oracle::Integer( JSON{ { "index", value } }, "index", 0, 15 );
+            int index = Integer( JSON{ { "index", value } }, "index", 0, 15 );
             if( static_cast<size_t>( index ) >= readers.size() )
                 throw std::invalid_argument( "reader index out of range" );
             return readers[index].get();
         };
         std::vector<std::unique_ptr<PCB_CALCULATOR_DATAFILE_PARSER>> parsers;
         std::vector<LINE_READER*>                                    initial;
-        for( const auto& item : Array( input.at( "parsers" ), 16 ) )
+        for( const auto& item : Array( Field( input, "parsers" ), 16 ) )
         {
             auto handle = reader( item );
             initial.push_back( handle );
             parsers.push_back( std::make_unique<PCB_CALCULATOR_DATAFILE_PARSER>( handle ) );
         }
         JSON result = JSON::array();
-        for( const auto& action : Array( input.at( "actions" ), 64 ) )
+        for( const auto& action : Array( Field( input, "actions" ), 64 ) )
         {
             Keys( action, { "op", "parser" }, { "reader" } );
-            int index = oracle::Integer( action, "parser", 0, 15 );
+            int index = Integer( action, "parser", 0, 15 );
             if( static_cast<size_t>( index ) >= parsers.size() )
                 throw std::invalid_argument( "parser index out of range" );
             auto& parser = *parsers[index];
-            auto  command = action.at( "op" ).get<std::string>();
+            auto  command = Text( action, "op" );
             if( command == "bind" )
             {
                 if( !action.contains( "reader" ) )
                     throw std::invalid_argument( "missing field" );
-                parser.*Get( ReaderTag{} ) = reader( action.at( "reader" ) );
+                parser.*Get( ReaderTag{} ) = reader( Field( action, "reader" ) );
             }
             else if( command != "get" || action.contains( "reader" ) )
                 throw std::invalid_argument( "unknown reader action" );
@@ -314,14 +344,14 @@ JSON Run( const JSON& input )
     {
         Keys( input, { "op", "target_bits", "candidates" } );
         Table candidates;
-        for( const auto& item : Array( input.at( "candidates" ), 256 ) )
+        for( const auto& item : Array( Field( input, "candidates" ), 256 ) )
         {
             candidates.push_back( ParseRes( item ) );
             SortableParts( candidates.back() );
         }
         try
         {
-            auto result = resistor_test::Collect( Float( input.at( "target_bits" ) ), candidates );
+            auto result = resistor_test::Collect( Float( Field( input, "target_bits" ) ), candidates );
             return { { "best", Res( result.best ) },
                      { "again", Res( result.again ) },
                      { "callbacks", result.callbacks } };
@@ -334,12 +364,12 @@ JSON Run( const JSON& input )
     if( op == "helpers" )
     {
         Keys( input, { "op", "first", "second", "text", "symbol" } );
-        auto first = ParseRes( input.at( "first" ) );
-        auto second = ParseRes( input.at( "second" ) );
+        auto first = ParseRes( Field( input, "first" ) );
+        auto second = ParseRes( Field( input, "second" ) );
         SortableParts( first );
         SortableParts( second );
-        auto text = input.at( "text" ).get<std::string>();
-        auto symbol = input.at( "symbol" ).get<std::string>();
+        auto text = Text( input, "text" );
+        auto symbol = Text( input, "symbol" );
         if( text.size() > 4096 || symbol.size() != 1 )
             throw std::invalid_argument( "invalid expression probe" );
         JSON combinations = JSON::array();
@@ -357,11 +387,11 @@ JSON Run( const JSON& input )
     if( op == "series" )
     {
         Keys( input, { "op", "series", "decades" } );
-        int  series = oracle::Integer( input, "series", INT32_MIN, INT32_MAX );
+        int  series = Integer( input, "series", INT32_MIN, INT32_MAX );
         JSON decades = JSON::array();
-        for( const auto& exponent : Array( input.at( "decades" ), 1024 ) )
+        for( const auto& exponent : Array( Field( input, "decades" ), 1024 ) )
         {
-            int  power = oracle::Integer( JSON{ { "exponent", exponent } }, "exponent", INT32_MIN, INT32_MAX );
+            int  power = Integer( JSON{ { "exponent", exponent } }, "exponent", INT32_MIN, INT32_MAX );
             JSON values = JSON::array();
             for( double value : ESERIES::ESERIES_IN_DECADE( series, power ) )
                 values.push_back( Bits( value ) );
@@ -375,7 +405,7 @@ JSON Run( const JSON& input )
     {
         Keys( input, { "op", "values_bits" } );
         JSON result = JSON::array();
-        for( const auto& value : Array( input.at( "values_bits" ), 4096 ) )
+        for( const auto& value : Array( Field( input, "values_bits" ), 4096 ) )
             result.push_back( strValue( Float( value ) ) );
         return result;
     }
@@ -383,7 +413,7 @@ JSON Run( const JSON& input )
     {
         Keys( input, { "op", "values" } );
         JSON result = JSON::array();
-        for( const auto& item : Array( input.at( "values" ), 256 ) )
+        for( const auto& item : Array( Field( input, "values" ), 256 ) )
         {
             result.push_back( Res( ParseRes( item ) ) );
         }
@@ -394,9 +424,9 @@ JSON Run( const JSON& input )
     Keys( input, { "op", "actions" } );
     RES_EQUIV_CALC calc;
     JSON           result = JSON::array();
-    for( const auto& action : Array( input.at( "actions" ), 64 ) )
+    for( const auto& action : Array( Field( input, "actions" ), 64 ) )
     {
-        const auto command = action.at( "op" ).get<std::string>();
+        const auto command = Text( action, "op" );
         JSON       returned = nullptr;
         try
         {
@@ -410,12 +440,12 @@ JSON Run( const JSON& input )
                 Keys( action, { "op", "target_bits" } );
                 if( calc.*Get( Series{} ) > 4 )
                     throw std::invalid_argument( "calculator series must be 0..4" );
-                calc.NewCalc( Float( action.at( "target_bits" ) ) );
+                calc.NewCalc( Float( Field( action, "target_bits" ) ) );
             }
             else if( command == "exclude" )
             {
                 Keys( action, { "op", "values_bits" } );
-                for( const auto& item : Array( action.at( "values_bits" ), 1024 ) )
+                for( const auto& item : Array( Field( action, "values_bits" ), 1024 ) )
                 {
                     double value = Float( item );
                     // Validate only a potential out-of-bounds write. NaN and
@@ -459,13 +489,13 @@ JSON Run( const JSON& input )
             else if( command == "solution" || command == "find" )
             {
                 bool emptyCollector = command == "solution" && ( calc.*Get( Buffer1{} ) ).empty()
-                                      && oracle::Integer( action, "level", 2, 4 ) != 2;
+                                      && Integer( action, "level", 2, 4 ) != 2;
                 if( ( calc.*Get( Buffer2{} ) ).empty() && !emptyCollector )
                     throw std::invalid_argument( "2R buffer must be nonempty" );
                 if( command == "solution" )
                 {
                     Keys( action, { "op", "level" } );
-                    int level = oracle::Integer( action, "level", 2, 4 );
+                    int level = Integer( action, "level", 2, 4 );
                     returned = Res( level == 2   ? ( calc.*Get( Solution2{} ) )()
                                     : level == 3 ? ( calc.*Get( Solution3{} ) )()
                                                  : ( calc.*Get( Solution4{} ) )() );
@@ -474,7 +504,7 @@ JSON Run( const JSON& input )
                 {
                     Keys( action, { "op", "values_bits" } );
                     returned = JSON::array();
-                    for( const auto& value : Array( action.at( "values_bits" ), 1024 ) )
+                    for( const auto& value : Array( Field( action, "values_bits" ), 1024 ) )
                     {
                         auto pair = ( calc.*Get( Find{} ) )( Float( value ) );
                         returned.push_back( JSON::array( { Res( pair.first ), Res( pair.second ) } ) );
@@ -484,17 +514,17 @@ JSON Run( const JSON& input )
             else if( command == "build" )
             {
                 Keys( action, { "op", "series" } );
-                returned = TableJSON( ( calc.*Get( Build{} ) )(
-                        Named( oracle::Integer( action, "series", INT32_MIN, INT32_MAX ) ) ) );
+                returned = TableJSON(
+                        ( calc.*Get( Build{} ) )( Named( Integer( action, "series", INT32_MIN, INT32_MAX ) ) ) );
             }
             else if( command == "build_values" )
             {
                 Keys( action, { "op", "values" } );
                 ESERIES::ESERIES_VALUES values( ESERIES::E1 );
                 values.clear();
-                for( const auto& item : Array( action.at( "values" ), 256 ) )
+                for( const auto& item : Array( Field( action, "values" ), 256 ) )
                     values.push_back(
-                            static_cast<uint16_t>( oracle::Integer( JSON{ { "value", item } }, "value", 0, 65535 ) ) );
+                            static_cast<uint16_t>( Integer( JSON{ { "value", item } }, "value", 0, 65535 ) ) );
                 if( values.empty() )
                     throw std::invalid_argument( "series table must be nonempty" );
                 if( std::all_of( values.begin(), values.end(),

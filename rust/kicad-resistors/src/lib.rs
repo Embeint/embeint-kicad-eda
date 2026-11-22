@@ -5,6 +5,8 @@
 
 pub mod eseries;
 mod format;
+mod fp;
+use fp::{parallel, serial};
 pub mod reader;
 pub mod scales;
 mod sort;
@@ -114,10 +116,6 @@ fn embrace(text: &str, required: char) -> String {
     }
 }
 
-fn parallel(a: f64, b: f64) -> f64 {
-    a * b / (a + b)
-}
-
 fn combine(a: &Resistance, b: &Resistance, par: bool, simple: bool) -> Resistance {
     let (operator, required) = if par { (" | ", '+') } else { (" + ", '|') };
     let name = if simple {
@@ -135,7 +133,7 @@ fn combine(a: &Resistance, b: &Resistance, par: bool, simple: bool) -> Resistanc
         if par {
             parallel(a.value, b.value)
         } else {
-            a.value + b.value
+            serial(a.value, b.value)
         },
         name,
         parts,
@@ -293,7 +291,7 @@ impl Calculator {
         loop {
             let multiplier = decade / first;
             for list_value in list {
-                let value = multiplier * f64::from(*list_value);
+                let value = fp::scale(multiplier, *list_value);
                 result.push(Resistance::new(value, str_value(value), Vec::new()));
                 if value >= 1e6 {
                     return result;
@@ -405,7 +403,7 @@ impl Calculator {
         for r in &self.buffer_1r {
             solution.add(
                 self.find(self.target - r.value)?,
-                |v| v + r.value,
+                |v| serial(v, r.value),
                 |found| combine(found, r, false, false),
             );
             solution.add(
@@ -422,7 +420,7 @@ impl Calculator {
         for rr in &self.buffer_2r {
             solution.add(
                 self.find(self.target - rr.value)?,
-                |v| v + rr.value,
+                |v| serial(v, rr.value),
                 |found| combine(found, rr, false, false),
             );
             solution.add(
@@ -437,12 +435,12 @@ impl Calculator {
                     self.find(
                         (self.target - r1.value) * r2.value / (r1.value + r2.value - self.target),
                     )?,
-                    |v| r1.value + parallel(r2.value, v),
+                    |v| serial(r1.value, parallel(r2.value, v)),
                     |found| combine(r1, &combine(r2, found, true, false), false, false),
                 );
                 solution.add(
                     self.find(self.target * r1.value / (r1.value - self.target) - r2.value)?,
-                    |v| parallel(r1.value, r2.value + v),
+                    |v| parallel(r1.value, serial(r2.value, v)),
                     |found| combine(r1, &combine(r2, found, false, false), true, false),
                 );
             }

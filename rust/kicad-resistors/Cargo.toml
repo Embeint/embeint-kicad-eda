@@ -9,3 +9,6 @@ publish.workspace = true
 
 [dependencies]
 libm = "=0.2.16"
+
+[dev-dependencies]
+serde_json.workspace = true
