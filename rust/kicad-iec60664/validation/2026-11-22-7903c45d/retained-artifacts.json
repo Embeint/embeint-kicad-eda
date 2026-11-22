@@ -1,0 +1,31 @@
+{
+  "compared_commit": "6fa797e4cdb687d2200bfded77cca404b65d5bce",
+  "tested_source": "7903c45d1cfdad45439608f244f8cfbe2a5a2d70",
+  "files": {
+    "port/cases/pcb_calculator.calculator_panels.application.pure.p001.jsonl": "4e624fe320565d6894ece1432b5ff38fcab5aca92688996e97b4cd684f872aff",
+    "port/goldens/evidence/pcb_calculator.calculator_panels.application.pure.p001-baseline-with-negative-zero.json": "bfaf1b0f3a622758efec94b6e37457340580f69bb4d205f7bfa9d7bce9284010",
+    "port/goldens/evidence/pcb_calculator.calculator_panels.application.pure.p001-baseline.json": "104f514e3d07f8adc9b76bcf285d6265012e5282176c7bdf11ef5ba5b70d8723",
+    "port/goldens/pcb_calculator.calculator_panels.application.pure.p001.jsonl": "3051d7e1269a8ba05dc50ccba3fa53faedd10ba71e3ec630e6e2c0f2c2fe366f",
+    "port/oracle/iec60664-input-guards.jsonl": "d37b2389b7ace28c1e516c16d56dbfc115681585ea46345d7878d3e178c1fbe2",
+    "rust/kicad-iec60664/src/iec60664.rs": "70a2073cedf9afd9381d3c8211884fec22d86b8950dd48c03a34abd66f33b945",
+    "rust/kicad-iec60664/src/lib.rs": "67f93b496e00b69551c7992c2418ad2e636ebf690ac1716ac6f5d59d90bd3e33",
+    "rust/kicad-iec60664/src/tables.rs": "6946e7fb7b4969b73c28693f013808d9e205f7682d70ce5e096ff05ad84658df",
+    "rust/kicad-iec60664/validation/2026-11-22-0659b51c/README.md": "7e445a86b7a17ec7e1c6e608efe0e6faecbca46e8f40d945ba6a775e77997791",
+    "rust/kicad-iec60664/validation/2026-11-22-0659b51c/bless-report.json": "afdb10883fcb973234fc1d078298475deecdea9db9b212998a70d47b15479619",
+    "rust/kicad-iec60664/validation/2026-11-22-0659b51c/check-report.json": "c42a9868d1b244dc244be7ed1865c16e3260d35d0a76c5c1b2b7314f4c96a36b",
+    "rust/kicad-iec60664/validation/2026-11-22-0659b51c/compare.json": "ff3b62c926f40c2ecb7ce65467773b8406115ab1f8cfa81145043b213d30379a",
+    "rust/kicad-iec60664/validation/2026-11-22-0659b51c/job.log": "dd213716d152f69bbd2c5f9b1d96133e13ccabe3573d76af4f9a71974e9dfd26",
+    "rust/kicad-iec60664/validation/2026-11-22-0659b51c/oracle-provenance.json": "6e4f679fb549c597a7c0c171162211d362c7b5e8ce087e94e04dfb08c33b0648",
+    "rust/kicad-iec60664/validation/2026-11-22-0659b51c/propose-report.json": "19a836ae63527d86cbad7201666dc268682f0f9b9bcafdca18b75b290f5d24af",
+    "rust/kicad-iec60664/validation/2026-11-22-0659b51c/summary.json": "5380db121d80824bc371c3c3a5d4c6f0c46d2dda2de1085cbfaf5e93c966b8e3",
+    "rust/kicad-iec60664/validation/2026-11-22-0659b51c/validate.sh": "a3675ba26a6c74bb861e894071579a035fcfa0014fe1aed5937b86beb48197a0",
+    "rust/kicad-iec60664/validation/2026-11-22-f777c57b/README.md": "43d3591c1bf01abe7abaa8a00b40615b33db1be0a5b35ff5f446cddd05ef346f",
+    "rust/kicad-iec60664/validation/2026-11-22-f777c57b/binary.sha256": "d03a545e555a1cfea2b1e9ba32c910e3936cb18f0d07f0c30e1e2d74f7d8cb3f",
+    "rust/kicad-iec60664/validation/2026-11-22-f777c57b/job.log": "0199d05610fff18b3f35df3b3b408781a77da093fbf682e83533bd5a742d0b5b",
+    "rust/kicad-iec60664/validation/2026-11-22-f777c57b/live-check.json": "ce7c4418fe1b035257faded6bc6d6796d340edd55a44dcb8af1dd305a5f73cb0",
+    "rust/kicad-iec60664/validation/2026-11-22-f777c57b/retained-artifacts.json": "29a0af3a9500472543642a9eb825f1206b168dc38c629ac2952a296cb14ffdc9",
+    "rust/kicad-iec60664/validation/2026-11-22-f777c57b/summary.json": "3d45b54fc2ddb2096009425a25906d438a49063958b89d74a631df0f8aa8fe38",
+    "rust/kicad-iec60664/validation/2026-11-22-f777c57b/tested-oracle-provenance.json": "500ff9c64c2e4b7fc795c85e8efe1cce3a5dc4b0cb87e8b3b5f1ef024e12e00a",
+    "rust/kicad-iec60664/validation/2026-11-22-f777c57b/validate.sh": "929a3231ec801913f4e2dfa8929761a62155b18f083005b859c4309f4674b8e6"
+  }
+}

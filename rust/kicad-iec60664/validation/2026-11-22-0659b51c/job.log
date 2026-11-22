@@ -1,0 +1,200 @@
+Waiting for the shared build lock before preparing the private fix tree
+Requirement already satisfied: west==1.5.0 in ./.port-venv/linux/lib/python3.14/site-packages (from -r /home/karlvonrichter/kicad-port/iec-input-fix/repo/port/tools/requirements-west.txt (line 3)) (1.5.0)
+Requirement already satisfied: colorama==0.4.6 in ./.port-venv/linux/lib/python3.14/site-packages (from -r /home/karlvonrichter/kicad-port/iec-input-fix/repo/port/tools/requirements-west.txt (line 4)) (0.4.6)
+Requirement already satisfied: packaging==26.0 in ./.port-venv/linux/lib/python3.14/site-packages (from -r /home/karlvonrichter/kicad-port/iec-input-fix/repo/port/tools/requirements-west.txt (line 5)) (26.0)
+Requirement already satisfied: pykwalify==1.8.0 in ./.port-venv/linux/lib/python3.14/site-packages (from -r /home/karlvonrichter/kicad-port/iec-input-fix/repo/port/tools/requirements-west.txt (line 6)) (1.8.0)
+Requirement already satisfied: PyYAML==6.0.3 in ./.port-venv/linux/lib/python3.14/site-packages (from -r /home/karlvonrichter/kicad-port/iec-input-fix/repo/port/tools/requirements-west.txt (line 7)) (6.0.3)
+Requirement already satisfied: docopt==0.6.2 in ./.port-venv/linux/lib/python3.14/site-packages (from -r /home/karlvonrichter/kicad-port/iec-input-fix/repo/port/tools/requirements-west.txt (line 8)) (0.6.2)
+Requirement already satisfied: python-dateutil==2.9.0.post0 in ./.port-venv/linux/lib/python3.14/site-packages (from -r /home/karlvonrichter/kicad-port/iec-input-fix/repo/port/tools/requirements-west.txt (line 9)) (2.9.0.post0)
+Requirement already satisfied: ruamel.yaml==0.19.1 in ./.port-venv/linux/lib/python3.14/site-packages (from -r /home/karlvonrichter/kicad-port/iec-input-fix/repo/port/tools/requirements-west.txt (line 10)) (0.19.1)
+Requirement already satisfied: six==1.17.0 in ./.port-venv/linux/lib/python3.14/site-packages (from -r /home/karlvonrichter/kicad-port/iec-input-fix/repo/port/tools/requirements-west.txt (line 11)) (1.17.0)
+=== updating solidcore (.port-deps/solidcore):
+HEAD is now at 7a588fa28 solidcore: a round or chamfer of a tangent chain that ends at a sphere's pole builds (#20334) (#20336)
+Verified solidcore 7a588fa284765a83823293ae20b84da8356ab479
+west executable: /home/karlvonrichter/kicad-port/iec-input-fix/repo/.port-venv/linux/bin/west
+=== updating solidcore (.port-deps/solidcore):
+HEAD is now at 7a588fa28 solidcore: a round or chamfer of a tangent chain that ends at a sphere's pole builds (#20334) (#20336)
+Verified solidcore 7a588fa284765a83823293ae20b84da8356ab479
+west executable: /home/karlvonrichter/kicad-port/iec-input-fix/repo/.port-venv/linux/bin/west
+-- The C compiler identification is GNU 15.2.0
+-- The CXX compiler identification is GNU 15.2.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/gcc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/g++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found Python3: /usr/bin/python3 (found version "3.14.4") found components: Interpreter
+-- Found wxWidgets: -L/usr/lib/x86_64-linux-gnu;-pthread;;;-lwx_baseu-3.2;-lwx_gtk3u_core-3.2 (found suitable version "3.2.9", minimum required is "3.2")
+-- Looking for malloc.h
+-- Looking for malloc.h - found
+-- Looking for iso646.h
+-- Looking for iso646.h - found
+-- Looking for stdint.h
+-- Looking for stdint.h - found
+-- Looking for strcasecmp
+-- Looking for strcasecmp - found
+-- Looking for strncasecmp
+-- Looking for strncasecmp - found
+-- Looking for strtok_r
+-- Looking for strtok_r - found
+-- Looking for strtok_s
+-- Looking for strtok_s - not found
+-- Looking for malloc
+-- Looking for malloc - found
+-- Looking for math.h
+-- Looking for math.h - found
+-- Looking for C++ include cmath
+-- Looking for C++ include cmath - found
+-- Looking for asinh
+-- Looking for asinh - found
+-- Looking for acosh
+-- Looking for acosh - found
+-- Looking for atanh
+-- Looking for atanh - found
+-- Performing Test HAVE_CMATH_ISINF
+-- Performing Test HAVE_CMATH_ISINF - Success
+-- Looking for clock_gettime in rt
+-- Looking for clock_gettime in rt - found
+-- Looking for gettimeofday
+-- Looking for gettimeofday - found
+-- Looking for getc_unlocked
+-- Looking for getc_unlocked - found
+-- Configuring done (6.5s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/karlvonrichter/kicad-port/iec-input-fix/oracle-build
+[0/2] Re-checking globbed directories...
+[1/68] cd /home/karlvonrichter/kicad-port/iec-input-fix/oracle-build && /usr/bin/python3 /home/karlvonrichter/kicad-port/iec-input-fix/oracle-src/overlay/audit.py --build /home/karlvonrichter/kicad-port/iec-input-fix/oracle-build --source /home/karlvonrichter/kicad-port/iec-input-fix/oracle-src/reference --overlay /home/karlvonrichter/kicad-port/iec-input-fix/oracle-src/overlay
+Oracle audit: 60 compilations, pin 4cf939778df04d2b747bb2c4714fc5014a7565c7, strict FP flags verified
+[2/68] Building CXX object reference/core/CMakeFiles/core.dir/base64.cpp.o
+[3/68] Building CXX object reference/core/CMakeFiles/core.dir/version_compare.cpp.o
+[4/68] Building CXX object reference/core/CMakeFiles/core.dir/observable.cpp.o
+[5/68] Building CXX object reference/core/CMakeFiles/core.dir/utf8.cpp.o
+[6/68] Building CXX object reference/core/CMakeFiles/core.dir/wx_stl_compat.cpp.o
+[7/68] Building CXX object CMakeFiles/iec60664-reference.dir/home/karlvonrichter/kicad-port/iec-input-fix/oracle-src/reference/pcb_calculator/calculator_panels/iec60664.cpp.o
+[8/68] Building CXX object reference/core/CMakeFiles/core.dir/profile.cpp.o
+[9/68] Linking CXX static library reference/core/libcore.a
+[10/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/md5_hash.cpp.o
+[11/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/transform.cpp.o
+[12/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/arc_chord_params.cpp.o
+[13/68] Building CXX object reference/clipper2/CMakeFiles/clipper2.dir/Clipper2Lib/src/clipper.offset.cpp.o
+[14/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/trigo.cpp.o
+[15/68] Building CXX object reference/clipper2/CMakeFiles/clipper2.dir/Clipper2Lib/src/clipper.rectclip.cpp.o
+[16/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/arc_construction.cpp.o
+[17/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/eda_angle.cpp.o
+[18/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/distribute.cpp.o
+[19/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/ellipse.cpp.o
+[20/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/bezier_curves.cpp.o
+[21/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/circle.cpp.o
+[22/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/convert_basic_shapes_to_polygon.cpp.o
+[23/68] Building CXX object reference/clipper2/CMakeFiles/clipper2.dir/Clipper2Lib/src/clipper.engine.cpp.o
+[24/68] Linking CXX static library reference/clipper2/libclipper2.a
+[25/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/convex_hull.cpp.o
+[26/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/grid_geometry.cpp.o
+[27/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/direction_45.cpp.o
+[28/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/corner_operations.cpp.o
+[29/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/geometry_utils.cpp.o
+[30/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/line.cpp.o
+[31/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/half_line.cpp.o
+[32/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/poisson_disk.cpp.o
+[33/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/seg.cpp.o
+[34/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/nearest.cpp.o
+[35/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/oval.cpp.o
+[36/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/intersection.cpp.o
+[37/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape.cpp.o
+[38/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/roundrect.cpp.o
+[39/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_compound.cpp.o
+[40/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_file_io.cpp.o
+[41/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_arc.cpp.o
+[42/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/transform_trs.cpp.o
+[43/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_nearest_points.cpp.o
+[44/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_rect.cpp.o
+[45/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_ellipse.cpp.o
+[46/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_segment.cpp.o
+[47/68] Linking CXX static library libiec60664-reference.a
+[48/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/vector_utils.cpp.o
+[49/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_collisions.cpp.o
+[50/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/math/util.cpp.o
+[51/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/vertex_set.cpp.o
+[52/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_utils.cpp.o
+[53/68] Building CXX object CMakeFiles/kicad-oracle.dir/shims/example_rescale.cpp.o
+[54/68] Building CXX object CMakeFiles/kicad-oracle.dir/registry.cpp.o
+[55/68] Building CXX object CMakeFiles/kicad-oracle.dir/main.cpp.o
+[56/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_line_chain.cpp.o
+[57/68] Building CXX object CMakeFiles/oracle-dispatch-test.dir/registry.cpp.o
+[58/68] Building CXX object CMakeFiles/oracle-dispatch-test.dir/shims/example_rescale.cpp.o
+[59/68] Building CXX object CMakeFiles/kicad-oracle.dir/shims/iec60664.cpp.o
+[60/68] Building CXX object CMakeFiles/kicad-oracle.dir/protocol.cpp.o
+[61/68] Building CXX object CMakeFiles/oracle-dispatch-test.dir/test_dispatch.cpp.o
+[62/68] Building CXX object CMakeFiles/oracle-dispatch-test.dir/shims/iec60664.cpp.o
+[63/68] Building CXX object CMakeFiles/oracle-dispatch-test.dir/protocol.cpp.o
+[64/68] Building CXX object reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_poly_set.cpp.o
+[65/68] Linking CXX static library reference/kimath/libkimath.a
+[66/68] Linking CXX executable kicad-oracle
+[67/68] Linking CXX executable oracle-dispatch-test
+Test project /home/karlvonrichter/kicad-port/iec-input-fix/oracle-build
+    Start 1: oracle-protocol
+1/5 Test #1: oracle-protocol ..................   Passed    0.04 sec
+    Start 2: oracle-build-guards
+2/5 Test #2: oracle-build-guards ..............   Passed    0.08 sec
+    Start 3: oracle-iec60664-build-guards
+3/5 Test #3: oracle-iec60664-build-guards .....   Passed    0.07 sec
+    Start 4: oracle-dispatch
+4/5 Test #4: oracle-dispatch ..................   Passed    0.00 sec
+    Start 5: oracle-iec60664-inputs
+5/5 Test #5: oracle-iec60664-inputs ...........   Passed    0.04 sec
+
+100% tests passed, 0 tests failed out of 5
+
+Total Test time (real) =   0.23 sec
+Oracle: /home/karlvonrichter/kicad-port/iec-input-fix/oracle-build/kicad-oracle
+Provenance: /home/karlvonrichter/kicad-port/iec-input-fix/oracle-build/oracle-provenance.json
+Waiting for the shared lock before Rust and live comparison checks
+    Checking kicad-iec60664-shim v0.1.0 (/home/karlvonrichter/kicad-port/iec-input-fix/repo/rust/kicad-iec60664-shim)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.40s
+   Compiling kicad-iec60664-shim v0.1.0 (/home/karlvonrichter/kicad-port/iec-input-fix/repo/rust/kicad-iec60664-shim)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.83s
+     Running unittests src/lib.rs (rust/target/debug/deps/kicad_iec60664-c2941fdd4acd22fa)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/state.rs (rust/target/debug/deps/state-398730659faf8445)
+
+running 2 tests
+test finite_extremes_and_unnamed_categories_are_total ... ok
+test setters_do_not_recompute_and_instances_do_not_share_state ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (rust/target/debug/deps/kicad_iec60664_shim-999ce5781141f3e1)
+
+running 3 tests
+test tests::invalid_identity_and_field_messages_preserve_complete_envelopes ... ok
+test tests::negative_zero_integer_bits_and_full_unsigned_domain_are_preserved ... ok
+test tests::all_refusal_envelopes_match_the_shared_oracle_contract ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests kicad_iec60664
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.03s
+   Compiling kicad-iec60664-shim v0.1.0 (/home/karlvonrichter/kicad-port/iec-input-fix/repo/rust/kicad-iec60664-shim)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.40s
+kicad-oracle: 38 complete refusal envelopes, raw -0, u64 bits and recovery passed
+kicad-iec60664-shim: 38 complete refusal envelopes, raw -0, u64 bits and recovery passed
+{"unit":"pcb_calculator.calculator_panels.application.pure.p001","status":"green","action":"compare","cases":14190,"deferred":0,"cases_sha256":"4e624fe320565d6894ece1432b5ff38fcab5aca92688996e97b4cd684f872aff","oracle_output_sha256":"3051d7e1269a8ba05dc50ccba3fa53faedd10ba71e3ec630e6e2c0f2c2fe366f","rust_output_sha256":"819f74f463f537c7e7fa29127e5d6e71ee628c87fec8e541b143a7d6f39c1f4d","oracle_sha256":"f8c0a640b668aa519b78188d56f33c1b5cbb4c85175cf116c07c188fcf47943b","rust_sha256":"ba62b2fbce1c25bbb04daaf33d1b29acafbcea75f5ede2e0171a6d389463b5ce"}
+{"unit":"pcb_calculator.calculator_panels.application.pure.p001","status":"green","action":"propose","cases":14190,"deferred":0,"cases_sha256":"4e624fe320565d6894ece1432b5ff38fcab5aca92688996e97b4cd684f872aff","oracle_output_sha256":"3051d7e1269a8ba05dc50ccba3fa53faedd10ba71e3ec630e6e2c0f2c2fe366f","rust_output_sha256":"819f74f463f537c7e7fa29127e5d6e71ee628c87fec8e541b143a7d6f39c1f4d","oracle_sha256":"f8c0a640b668aa519b78188d56f33c1b5cbb4c85175cf116c07c188fcf47943b","rust_sha256":"ba62b2fbce1c25bbb04daaf33d1b29acafbcea75f5ede2e0171a6d389463b5ce"}
+{"unit":"pcb_calculator.calculator_panels.application.pure.p001","status":"green","action":"bless","cases":14190,"deferred":0,"cases_sha256":"4e624fe320565d6894ece1432b5ff38fcab5aca92688996e97b4cd684f872aff","oracle_output_sha256":"3051d7e1269a8ba05dc50ccba3fa53faedd10ba71e3ec630e6e2c0f2c2fe366f","rust_output_sha256":"819f74f463f537c7e7fa29127e5d6e71ee628c87fec8e541b143a7d6f39c1f4d","oracle_sha256":"f8c0a640b668aa519b78188d56f33c1b5cbb4c85175cf116c07c188fcf47943b","rust_sha256":"ba62b2fbce1c25bbb04daaf33d1b29acafbcea75f5ede2e0171a6d389463b5ce"}
+{"unit":"pcb_calculator.calculator_panels.application.pure.p001","status":"green","action":"check","cases":14190,"deferred":0,"cases_sha256":"4e624fe320565d6894ece1432b5ff38fcab5aca92688996e97b4cd684f872aff","oracle_output_sha256":"3051d7e1269a8ba05dc50ccba3fa53faedd10ba71e3ec630e6e2c0f2c2fe366f","rust_output_sha256":"819f74f463f537c7e7fa29127e5d6e71ee628c87fec8e541b143a7d6f39c1f4d","oracle_sha256":"f8c0a640b668aa519b78188d56f33c1b5cbb4c85175cf116c07c188fcf47943b","rust_sha256":"ba62b2fbce1c25bbb04daaf33d1b29acafbcea75f5ede2e0171a6d389463b5ce"}
+All 14190 cases match; original 14189 golden lines are byte-identical
+IEC60664 input fixes, full live comparison and complete baseline evidence are ready

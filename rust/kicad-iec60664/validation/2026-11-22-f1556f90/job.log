@@ -1,0 +1,159 @@
+Source f1556f9080971a8a34d87a5cc28baf081853a8bc; waiting for the real shared build lock
+-- Configuring done (0.3s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/karlvonrichter/kicad-port/iec-nesting-bound/oracle-build
+[0/2] Re-checking globbed directories...
+[1/4] cd /home/karlvonrichter/kicad-port/iec-nesting-bound/oracle-build && /usr/bin/python3 /home/karlvonrichter/kicad-port/iec-nesting-bound/oracle-src/overlay/audit.py --build /home/karlvonrichter/kicad-port/iec-nesting-bound/oracle-build --source /home/karlvonrichter/kicad-port/iec-nesting-bound/oracle-src/reference --overlay /home/karlvonrichter/kicad-port/iec-nesting-bound/oracle-src/overlay
+Oracle audit: 60 compilations, pin 4cf939778df04d2b747bb2c4714fc5014a7565c7, strict FP flags verified
+Test project /home/karlvonrichter/kicad-port/iec-nesting-bound/oracle-build
+    Start 1: oracle-protocol
+1/5 Test #1: oracle-protocol ..................   Passed    0.04 sec
+    Start 2: oracle-build-guards
+2/5 Test #2: oracle-build-guards ..............   Passed    0.09 sec
+    Start 3: oracle-iec60664-build-guards
+3/5 Test #3: oracle-iec60664-build-guards .....   Passed    0.07 sec
+    Start 4: oracle-dispatch
+4/5 Test #4: oracle-dispatch ..................   Passed    0.00 sec
+    Start 5: oracle-iec60664-inputs
+5/5 Test #5: oracle-iec60664-inputs ...........   Passed    0.08 sec
+
+100% tests passed, 0 tests failed out of 5
+
+Total Test time (real) =   0.28 sec
+Oracle: /home/karlvonrichter/kicad-port/iec-nesting-bound/oracle-build/kicad-oracle
+Provenance: /home/karlvonrichter/kicad-port/iec-nesting-bound/oracle-build/oracle-provenance.json
+== fmt
+== clippy
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.05s
+== tests
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.05s
+     Running unittests src/lib.rs (rust/target/debug/deps/kicad_difftest-1529af7818f99362)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (rust/target/debug/deps/kicad_difftest-d29dda5e552603a6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/cli.rs (rust/target/debug/deps/cli-d851b54cb18efb03)
+
+running 2 tests
+test baseline_blessing_is_live_reviewed_and_evidenced ... ok
+test identical_input_bytes_and_process_faults ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.24s
+
+     Running tests/protocol.rs (rust/target/debug/deps/protocol-4a7dc2b85155c562)
+
+running 3 tests
+test numeric_tokens_never_round_or_normalize ... ok
+test inventory_status_and_values_are_independent_checks ... ok
+test blessing_requires_exact_case_values_reason_and_provenance ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/request.rs (rust/target/debug/deps/request-98db5757fdce1482)
+
+running 6 tests
+test finite_fallback_and_underflow_remain_parseable ... ok
+test comparator_still_accepts_and_distinguishes_arbitrary_precision_tokens ... ok
+test overflow_is_a_parse_failure_everywhere ... ok
+test signed_zero_and_full_integer_domain_survive_validation ... ok
+test syntax_duplicates_and_nesting_are_checked_before_value_conversion ... ok
+test request_container_bound_is_stricter_than_exact_comparison ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.83s
+
+     Running tests/request_cpp.rs (rust/target/debug/deps/request_cpp-d01a67147da0613f)
+
+running 2 tests
+test request_boundary_matches_pinned_cpp_protocol ... ok
+test nesting_boundary_matches_pinned_cpp_protocol ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.61s
+
+     Running unittests src/lib.rs (rust/target/debug/deps/kicad_iec60664-c2941fdd4acd22fa)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/state.rs (rust/target/debug/deps/state-398730659faf8445)
+
+running 2 tests
+test finite_extremes_and_unnamed_categories_are_total ... ok
+test setters_do_not_recompute_and_instances_do_not_share_state ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (rust/target/debug/deps/kicad_iec60664_shim-999ce5781141f3e1)
+
+running 5 tests
+test tests::reserved_marker_keys_match_the_shared_oracle_contract ... ignored, pending the shared request parser reserved-key fix
+test tests::invalid_identity_and_field_messages_preserve_complete_envelopes ... ok
+test tests::negative_zero_integer_bits_and_full_unsigned_domain_are_preserved ... ok
+test tests::all_refusal_envelopes_match_the_shared_oracle_contract ... ok
+test tests::nesting_bound_envelopes_match_the_shared_oracle_contract ... ok
+
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.55s
+
+   Doc-tests kicad_difftest
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests kicad_iec60664
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+== build
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.02s
+== portable wasm
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.03s
+WebAssembly build for every portable workspace crate: embeint-layout, embeint-web, kicad-iec60664
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.02s
+== full-envelope probes
+kicad-oracle: 636 complete refusal envelopes, raw -0, u64 bits and recovery passed
+kicad-iec60664-shim: 548 complete refusal envelopes, raw -0, u64 bits and recovery passed
+== pending reserved-key divergence of the current Rust helper (informational)
+88 reserved-key fixtures; Rust diverges on 50, 25 false successes
+== unit records
+All unit records and source accounting valid
+== policy tests
+test_all_new_portable_crates_are_discovered_by_default (test_policy.PolicyTests.test_all_new_portable_crates_are_discovered_by_default) ... ok
+test_baseline_evidence_cannot_omit_cases_values_or_oracle (test_policy.PolicyTests.test_baseline_evidence_cannot_omit_cases_values_or_oracle) ... ok
+test_empty_infrastructure_is_incomplete_but_strict_gate_fails (test_policy.PolicyTests.test_empty_infrastructure_is_incomplete_but_strict_gate_fails) ... ok
+test_evidence_checks_committed_head_and_ignores_dirty_worktree (test_policy.PolicyTests.test_evidence_checks_committed_head_and_ignores_dirty_worktree) ... ok
+test_jsonl_preserves_unicode_line_separators_inside_strings (test_policy.PolicyTests.test_jsonl_preserves_unicode_line_separators_inside_strings) ... ok
+test_policy_retains_numeric_tokens_and_rejects_duplicate_json (test_policy.PolicyTests.test_policy_retains_numeric_tokens_and_rejects_duplicate_json) ... ok
+test_strict_gate_counts_only_live_green_layer_zero_units (test_policy.PolicyTests.test_strict_gate_counts_only_live_green_layer_zero_units) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.168s
+
+OK
+Golden change evidence valid
+Phase 0: INCOMPLETE; 0/3 live green layer-0 units; 3 validated unit records.
+
+Extraction/configuration coverage (reported separately): `{"all_configurations_complete": null, "compile_database_complete": null, "gate_complete": null, "inventory_complete": null, "parse_complete": null, "parse_failures": 0, "uncompiled_application_sources": 0, "unresolved_call_count": null}`
+
+Phase 0: COMPLETE; 3/3 live green layer-0 units; 3 validated unit records.
+
+Extraction/configuration coverage (reported separately): `{"all_configurations_complete": null, "compile_database_complete": null, "gate_complete": null, "inventory_complete": null, "parse_complete": null, "parse_failures": 0, "uncompiled_application_sources": 0, "unresolved_call_count": null}`
+
+== registered live golden check
+All unit records and source accounting valid
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.02s
+{"unit":"pcb_calculator.calculator_panels.application.pure.p001","status":"green","action":"check","cases":14190,"deferred":0,"cases_sha256":"4e624fe320565d6894ece1432b5ff38fcab5aca92688996e97b4cd684f872aff","oracle_output_sha256":"3051d7e1269a8ba05dc50ccba3fa53faedd10ba71e3ec630e6e2c0f2c2fe366f","rust_output_sha256":"819f74f463f537c7e7fa29127e5d6e71ee628c87fec8e541b143a7d6f39c1f4d","oracle_sha256":"262ace17b07242ecabd4acf4d2a5b5b4ca6c143de478e24bfccdac85b743fae9","rust_sha256":"16fc6163e32f898e93de27ed025d0ee1e245d4da5021ee415a810f82958101cf"}
+Phase 0: INCOMPLETE; 1/3 live green layer-0 units; 1801 validated unit records.
+
+Extraction/configuration coverage (reported separately): `{"all_configurations_complete": false, "compile_database_complete": true, "gate_complete": false, "inventory_complete": true, "parse_complete": false, "parse_failures": 4, "uncompiled_application_sources": 63, "unresolved_call_count": 8899609}`
+
+IEC nesting-bound validation complete
