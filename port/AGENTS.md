@@ -47,7 +47,11 @@ Edit only owned `port/units/<id>.toml` records and implementation/runner files
 agreed in the claim. The solidcore core schema is retained as top-level keys:
 `id`, `upstream`, `rust_module`, `depends_on`, `soft_depends_on`, `est_lines`,
 `layer`, `tests`, `status`, `claimed_by`, `claimed_at`, `notes`. The filename stem
-equals `id`; upstream paths are relative to the pinned KiCad tree. Port statuses
+equals `id`; tracked upstream paths are relative to the pinned KiCad tree.
+Build-generated inputs use logical `@build/<build-relative-path>` locations,
+resolved through `generated-sources.json` to committed `generated/sources/`
+bytes with pinned generation provenance. These are explicitly not Git paths;
+source hash checks, drift and site links must use that mapping. Port statuses
 are `todo`, `claimed`, `partial`, `green`, and `blocked`. Tools read units in sorted
 ID order. The extractor documents its extensions: `schema_version = 1`, `wx_class`
 (`pure`, `thin-replacement`, `UI`), `source_category` (`application`, `generated`,

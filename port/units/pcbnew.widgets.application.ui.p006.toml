@@ -2,10 +2,10 @@
 id = "pcbnew.widgets.application.ui.p006"
 upstream = ["pcbnew/widgets/pcb_net_inspector_panel.cpp", "pcbnew/widgets/pcb_net_inspector_panel_data_model.h"]
 rust_module = "kicad_port::pcbnew::widgets::application::ui::p006"
-depends_on = ["common.application.ui.p013", "common.application.ui.p029", "common.application.ui.p035", "common.generated.ui.p002", "common.settings.application.ui.p004", "include.application.ui.p011", "include.generated.ui.p001", "include.project.application.thin.replacement.p001", "pcbnew.application.ui.p001", "pcbnew.application.ui.p028"]
+depends_on = ["common.application.ui.p013", "common.application.ui.p029", "common.application.ui.p035", "common.generated.ui.p002", "common.settings.application.ui.p004", "include.application.ui.p011", "include.generated.ui.p001", "include.project.application.ui.p001", "pcbnew.application.ui.p001", "pcbnew.application.ui.p028"]
 soft_depends_on = ["pcbnew.widgets.application.ui.p005"]
 est_lines = 1464
-layer = 115
+layer = 154
 tests = []
 status = "todo"
 claimed_by = ""

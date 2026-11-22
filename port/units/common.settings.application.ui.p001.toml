@@ -2,10 +2,10 @@
 id = "common.settings.application.ui.p001"
 upstream = ["common/settings/app_settings.cpp", "common/settings/aui_settings.cpp", "common/settings/color_settings.cpp"]
 rust_module = "kicad_port::common::settings::application::ui::p001"
-depends_on = ["common.application.ui.p001", "common.database.application.ui.p004", "common.gal.application.ui.p001", "common.generated.ui.p002", "common.settings.application.ui.p003", "eeschema.application.thin.replacement.p001", "eeschema.symbol_editor.application.thin.replacement.p001", "gerbview.application.thin.replacement.p001", "include.application.thin.replacement.p002", "include.application.ui.p009", "include.gal.application.ui.p001", "include.settings.application.thin.replacement.p001", "include.settings.application.ui.p001", "pagelayout_editor.application.thin.replacement.p001", "pcb_calculator.application.thin.replacement.p001"]
-soft_depends_on = ["3d.viewer.3d_viewer.application.thin.replacement.p001", "common.application.ui.p025", "common.settings.application.ui.p004", "pcbnew.application.ui.p065"]
+depends_on = ["common.application.ui.p001", "common.database.application.ui.p004", "common.gal.application.ui.p001", "common.generated.ui.p002", "common.settings.application.ui.p003", "include.application.ui.p009", "include.gal.application.ui.p001", "include.settings.application.ui.p001", "include.settings.application.ui.p002"]
+soft_depends_on = ["3d.viewer.3d_viewer.application.ui.p002", "common.application.ui.p025", "common.settings.application.ui.p004", "eeschema.application.ui.p010", "eeschema.symbol_editor.application.ui.p006", "gerbview.application.ui.p008", "include.application.ui.p007", "pagelayout_editor.application.ui.p002", "pcb_calculator.application.ui.p002", "pcbnew.application.ui.p066"]
 est_lines = 1450
-layer = 45
+layer = 56
 tests = []
 status = "todo"
 claimed_by = ""

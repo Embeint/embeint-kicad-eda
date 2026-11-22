@@ -2,10 +2,10 @@
 id = "pcb_calculator.attenuators.application.ui.p001"
 upstream = ["pcb_calculator/attenuators/attenuator_classes.cpp"]
 rust_module = "kicad_port::pcb_calculator::attenuators::application::ui::p001"
-depends_on = ["cvpcb.application.ui.p001", "eeschema.application.ui.p006", "gerbview.application.ui.p006", "include.generated.ui.p001", "kicad.application.ui.p002", "pagelayout_editor.application.ui.p001", "pcb_calculator.application.ui.p001", "pcbnew.application.ui.p061"]
+depends_on = ["cvpcb.application.ui.p001", "eeschema.application.ui.p006", "gerbview.application.ui.p006", "include.generated.ui.p001", "kicad.application.ui.p002", "pagelayout_editor.application.ui.p001", "pcb_calculator.application.ui.p001", "pcbnew.application.ui.p062"]
 soft_depends_on = []
 est_lines = 201
-layer = 284
+layer = 292
 tests = []
 status = "todo"
 claimed_by = ""

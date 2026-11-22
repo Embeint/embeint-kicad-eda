@@ -2,10 +2,10 @@
 id = "pcbnew.pcb_io.cadstar.application.ui.p004"
 upstream = ["pcbnew/pcb_io/cadstar/cadstar_pcb_archive_parser.cpp"]
 rust_module = "kicad_port::pcbnew::pcb_io::cadstar::application::ui::p004"
-depends_on = ["common.io.cadstar.application.thin.replacement.p001", "common.io.cadstar.application.ui.p001", "common.io.cadstar.application.ui.p002", "common.widgets.generated.ui.p001", "include.application.thin.replacement.p002", "include.application.ui.p008", "include.application.ui.p012"]
+depends_on = ["common.io.cadstar.application.thin.replacement.p001", "common.io.cadstar.application.ui.p001", "common.io.cadstar.application.ui.p002", "common.widgets.generated.ui.p001", "include.application.thin.replacement.p001", "include.application.ui.p008", "include.application.ui.p013"]
 soft_depends_on = ["pcbnew.pcb_io.cadstar.application.ui.p005"]
 est_lines = 2000
-layer = 137
+layer = 167
 tests = []
 status = "todo"
 claimed_by = ""

@@ -2,10 +2,10 @@
 id = "pcb_calculator.transline.application.ui.p001"
 upstream = ["pcb_calculator/transline/c_microstrip.cpp", "pcb_calculator/transline/c_stripline.cpp", "pcb_calculator/transline/coax.cpp", "pcb_calculator/transline/coplanar.cpp", "pcb_calculator/transline/microstrip.cpp", "pcb_calculator/transline/rectwaveguide.cpp", "pcb_calculator/transline/stripline.cpp", "pcb_calculator/transline/transline.cpp", "pcb_calculator/transline/twistedpair.cpp"]
 rust_module = "kicad_port::pcb_calculator::transline::application::ui::p001"
-depends_on = ["common.gal.application.ui.p001", "common.transline_calculations.application.pure.p001", "common.transline_calculations.application.pure.p002", "common.transline_calculations.application.pure.p003", "common.transline_calculations.generated.pure.p001", "pcb_calculator.application.ui.p001", "pcb_calculator.transline.application.pure.p001"]
+depends_on = ["common.gal.application.ui.p001", "common.transline_calculations.application.pure.p001", "common.transline_calculations.application.pure.p002", "common.transline_calculations.application.pure.p003", "common.transline_calculations.generated.pure.p001", "pcb_calculator.application.ui.p001", "pcb_calculator.transline.application.thin.replacement.p001"]
 soft_depends_on = []
 est_lines = 1338
-layer = 227
+layer = 137
 tests = []
 status = "todo"
 claimed_by = ""

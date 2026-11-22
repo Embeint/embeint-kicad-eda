@@ -2,10 +2,10 @@
 id = "cvpcb.dialogs.application.ui.p001"
 upstream = ["cvpcb/dialogs/dialog_config_equfiles.cpp", "cvpcb/dialogs/dialog_config_equfiles.h", "cvpcb/dialogs/fp_conflict_assignment_selector.cpp", "cvpcb/dialogs/fp_conflict_assignment_selector.h"]
 rust_module = "kicad_port::cvpcb::dialogs::application::ui::p001"
-depends_on = ["common.application.ui.p002", "common.application.ui.p004", "common.application.ui.p007", "common.application.ui.p021", "common.application.ui.p024", "common.application.ui.p030", "common.application.ui.p038", "common.generated.ui.p002", "common.settings.application.ui.p004", "common.widgets.application.ui.p013", "common.widgets.application.ui.p018", "cvpcb.dialogs.generated.ui.p001", "include.application.ui.p011", "include.generated.ui.p001", "include.widgets.application.ui.p005", "libs.kiplatform.port.wxgtk.application.ui.p001", "pcbnew.application.ui.p023"]
+depends_on = ["common.application.ui.p002", "common.application.ui.p004", "common.application.ui.p007", "common.application.ui.p021", "common.application.ui.p024", "common.application.ui.p031", "common.application.ui.p038", "common.generated.ui.p002", "common.settings.application.ui.p004", "common.widgets.application.ui.p013", "common.widgets.application.ui.p018", "cvpcb.dialogs.generated.ui.p001", "include.application.ui.p011", "include.generated.ui.p001", "include.widgets.application.ui.p005", "libs.kiplatform.port.wxgtk.application.ui.p001", "pcbnew.application.ui.p023"]
 soft_depends_on = []
 est_lines = 559
-layer = 211
+layer = 216
 tests = []
 status = "todo"
 claimed_by = ""

@@ -2,10 +2,10 @@
 id = "pcbnew.pcb_io.allegro.convert.application.ui.p002"
 upstream = ["pcbnew/pcb_io/allegro/convert/allegro_parser.cpp", "pcbnew/pcb_io/allegro/convert/allegro_stream.h"]
 rust_module = "kicad_port::pcbnew::pcb_io::allegro::convert::application::ui::p002"
-depends_on = ["common.application.ui.p002", "common.application.ui.p019", "common.widgets.generated.ui.p001", "include.application.thin.replacement.p002", "include.application.ui.p008", "include.core.application.pure.p001", "libs.core.include.core.application.pure.p001", "pcbnew.pcb_io.allegro.convert.application.pure.p001", "pcbnew.pcb_io.allegro.convert.application.pure.p002", "pcbnew.pcb_io.allegro.convert.application.thin.replacement.p001"]
-soft_depends_on = ["eeschema.dialogs.application.ui.p005", "pcbnew.dialogs.application.ui.p005", "pcbnew.pcb_io.allegro.convert.application.ui.p001"]
+depends_on = ["common.application.ui.p002", "common.application.ui.p019", "common.widgets.generated.ui.p001", "eeschema.dialogs.application.ui.p005", "include.application.thin.replacement.p001", "include.application.ui.p008", "include.core.application.pure.p001", "libs.core.include.core.application.pure.p001", "pcbnew.dialogs.application.ui.p005", "pcbnew.pcb_io.allegro.convert.application.pure.p001", "pcbnew.pcb_io.allegro.convert.application.pure.p002", "pcbnew.pcb_io.allegro.convert.application.thin.replacement.p001"]
+soft_depends_on = ["pcbnew.pcb_io.allegro.convert.application.ui.p001"]
 est_lines = 1161
-layer = 72
+layer = 315
 tests = []
 status = "todo"
 claimed_by = ""

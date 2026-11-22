@@ -2,10 +2,10 @@
 id = "plugins.3d.vrml.application.ui.p003"
 upstream = ["plugins/3d/vrml/x3d.cpp"]
 rust_module = "kicad_port::plugins::unit_3d::vrml::application::ui::p003"
-depends_on = ["plugins.3d.vrml.x3d.application.ui.p001"]
+depends_on = ["plugins.3d.vrml.x3d.application.ui.p001", "plugins.3d.vrml.x3d.generated.ui.p001"]
 soft_depends_on = []
 est_lines = 117
-layer = 274
+layer = 15
 tests = []
 status = "todo"
 claimed_by = ""

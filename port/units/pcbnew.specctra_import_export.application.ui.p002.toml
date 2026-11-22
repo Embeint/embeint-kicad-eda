@@ -2,10 +2,10 @@
 id = "pcbnew.specctra_import_export.application.ui.p002"
 upstream = ["pcbnew/specctra_import_export/specctra.cpp"]
 rust_module = "kicad_port::pcbnew::specctra_import_export::application::ui::p002"
-depends_on = ["common.application.ui.p002", "common.application.ui.p009", "common.application.ui.p033", "common.application.ui.p035", "include.application.ui.p003", "pcbnew.specctra_import_export.application.ui.p001", "pcbnew.specctra_import_export.application.ui.p003"]
-soft_depends_on = ["pcbnew.specctra_import_export.application.ui.p004"]
+depends_on = ["build.pcbnew.specctra_import_export.generated.thin.replacement.p001", "build.pcbnew.specctra_import_export.generated.ui.p001", "common.application.ui.p002", "common.application.ui.p009", "common.application.ui.p033", "common.application.ui.p035", "include.application.ui.p004"]
+soft_depends_on = ["pcbnew.specctra_import_export.application.ui.p001", "pcbnew.specctra_import_export.application.ui.p003", "pcbnew.specctra_import_export.application.ui.p004"]
 est_lines = 2043
-layer = 370
+layer = 60
 tests = []
 status = "todo"
 claimed_by = ""

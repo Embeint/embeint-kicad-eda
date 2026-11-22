@@ -2,10 +2,10 @@
 id = "common.io.easypc.application.ui.p001"
 upstream = ["common/io/easypc/easypc_archive.cpp", "common/io/easypc/easypc_archive.h", "common/io/easypc/easypc_classes_connectivity.cpp", "common/io/easypc/easypc_classes_geometry.cpp"]
 rust_module = "kicad_port::common::io::easypc::application::ui::p001"
-depends_on = ["common.application.ui.p019", "common.io.easypc.application.pure.p001", "common.io.easypc.application.thin.replacement.p001", "include.application.ui.p008"]
+depends_on = ["common.application.ui.p019", "common.io.easypc.application.thin.replacement.p001", "include.application.ui.p008"]
 soft_depends_on = ["common.io.easypc.application.ui.p002"]
 est_lines = 1831
-layer = 72
+layer = 84
 tests = []
 status = "todo"
 claimed_by = ""

@@ -2,10 +2,10 @@
 id = "common.spacenav.application.ui.p001"
 upstream = ["common/spacenav/libspnav_driver.cpp", "common/spacenav/spnav_2d_plugin.cpp", "common/spacenav/spnav_2d_plugin.h"]
 rust_module = "kicad_port::common::spacenav::application::ui::p001"
-depends_on = ["common.application.ui.p008", "common.generated.ui.p002", "common.spacenav.application.pure.p001", "common.view.application.ui.p001", "common.view.application.ui.p003", "eeschema.application.ui.p024", "include.application.ui.p001", "include.view.application.ui.p001", "libs.kimath.include.math.application.ui.p002", "pcbnew.application.ui.p039"]
-soft_depends_on = ["3d.viewer.3d_spacenav.application.ui.p001", "eeschema.application.ui.p057"]
+depends_on = ["common.application.ui.p008", "common.generated.ui.p002", "common.spacenav.application.pure.p001", "common.view.application.ui.p001", "common.view.application.ui.p003", "include.application.ui.p002", "include.view.application.ui.p001", "libs.kimath.include.math.application.ui.p002", "pcbnew.application.ui.p040"]
+soft_depends_on = ["3d.viewer.3d_spacenav.application.ui.p001", "eeschema.application.ui.p025", "eeschema.application.ui.p058"]
 est_lines = 318
-layer = 179
+layer = 182
 tests = []
 status = "todo"
 claimed_by = ""

@@ -1,0 +1,105 @@
+{
+  "bootstrap-tests": {
+    "command": [
+      "C:\\Users\\KarlVonRichter\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "port/tools",
+      "-p",
+      "test_*.py",
+      "-v"
+    ],
+    "exit_code": 0,
+    "skipped": 0,
+    "tests": 9
+  },
+  "extractor-windows": {
+    "command": [
+      "C:\\Users\\KarlVonRichter\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "port/extractor",
+      "-p",
+      "test_*.py",
+      "-v"
+    ],
+    "exit_code": 0,
+    "skipped": 9,
+    "tests": 34
+  },
+  "extractor-wsl": {
+    "exit_code": 0,
+    "libclang_integration_tests": 8,
+    "log": "final-extractor-tests-wsl.log",
+    "tests": 34
+  },
+  "golden-changes": {
+    "command": [
+      "C:\\Users\\KarlVonRichter\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+      "port/tools/check_goldens_policy.py",
+      "--base",
+      "origin/rust"
+    ],
+    "exit_code": 0
+  },
+  "head": "d1667ca05c170ce8aacd2060fa41d7764a6c4885",
+  "policy-current": {
+    "command": [
+      "C:\\Users\\KarlVonRichter\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+      "port/tools/check_goldens_policy.py",
+      "--ci",
+      "--runner",
+      "rust/target/debug/kicad-difftest.exe",
+      "--oracle",
+      "\\\\wsl.localhost\\Ubuntu\\home\\karlvonrichter\\kicad-port\\oracle-build\\kicad-oracle",
+      "--reports",
+      "C:\\Users\\KarlVonRichter\\.t3\\worktrees\\embeint-kicad-eda\\t3-230f667d-d7c5b42cde1e6a30\\port\\extractor\\generated\\evidence\\corrected\\phase0-policy"
+    ],
+    "exit_code": 0
+  },
+  "policy-tests": {
+    "command": [
+      "C:\\Users\\KarlVonRichter\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "rust/kicad-difftest/tests",
+      "-p",
+      "test_policy.py",
+      "-v"
+    ],
+    "exit_code": 0,
+    "skipped": 0,
+    "tests": 7
+  },
+  "progress-build": {
+    "command": [
+      "C:\\Users\\KarlVonRichter\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+      "port/tools/progress.py",
+      "--out",
+      "C:/Users/KarlVonRichter/.t3/phase0-corrected-final-site"
+    ],
+    "exit_code": 0
+  },
+  "progress-tests": {
+    "command": [
+      "C:\\Users\\KarlVonRichter\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "port/site",
+      "-p",
+      "test_*.py",
+      "-v"
+    ],
+    "exit_code": 0,
+    "skipped": 0,
+    "tests": 28
+  }
+}

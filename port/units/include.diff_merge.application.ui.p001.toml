@@ -2,10 +2,10 @@
 id = "include.diff_merge.application.ui.p001"
 upstream = ["include/diff_merge/diff_scene.h", "include/diff_merge/doc_property_helpers.h", "include/diff_merge/kicad_diff_types.h", "include/diff_merge/kicad_differ.h", "include/diff_merge/lib_merge_applier.h", "include/diff_merge/property_diff.h"]
 rust_module = "kicad_port::include::diff_merge::application::ui::p001"
-depends_on = ["common.application.ui.p013", "common.application.ui.p023", "common.application.ui.p024", "common.application.ui.p029", "common.properties.application.ui.p002", "include.application.pure.p003", "include.application.pure.p004", "include.application.ui.p010", "include.application.ui.p012", "include.properties.application.ui.p001", "include.properties.application.ui.p002"]
-soft_depends_on = ["common.diff_merge.application.ui.p001", "common.diff_merge.application.ui.p002", "common.diff_merge.application.ui.p003", "eeschema.application.ui.p047", "eeschema.application.ui.p051", "pcbnew.application.ui.p013"]
+depends_on = ["common.application.ui.p013", "common.application.ui.p023", "common.application.ui.p024", "common.application.ui.p029", "common.properties.application.ui.p002", "include.application.pure.p004", "include.application.ui.p008", "include.application.ui.p010", "include.application.ui.p013", "include.properties.application.ui.p001", "include.properties.application.ui.p002"]
+soft_depends_on = ["common.diff_merge.application.ui.p001", "common.diff_merge.application.ui.p002", "common.diff_merge.application.ui.p003", "eeschema.application.ui.p048", "eeschema.application.ui.p052", "pcbnew.application.ui.p013"]
 est_lines = 1787
-layer = 84
+layer = 102
 tests = []
 status = "todo"
 claimed_by = ""

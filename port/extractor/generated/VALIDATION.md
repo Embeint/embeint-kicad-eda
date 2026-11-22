@@ -1,50 +1,49 @@
-# Final extraction validation
+# Corrected extraction validation
 
-Validated implementation commit `21839dda17a2fe3a421469b6f4c35dba2951a2ac` and the
-generated records published with this report, on 2026-11-22. The following evidence
-does not certify a ported unit or the plan's three-pilot gate.
+Validated code head `d1667ca05c170ce8aacd2060fa41d7764a6c4885` and the generated files committed with
+this report. Parser/cache identity is `e1548c1fe920a05d882e3f2de1c14843ca0e7b3b04ca9441d4132e16de77b88d`; its four
+implementation files match the frozen runtime. Later validator/source-manifest/
+drift checks do not change AST semantics. Parent wiring fix `77c144493f` remains.
 
 | Check | Result |
 | --- | --- |
-| WSL extractor suite: `python -m unittest discover -s port/extractor -p 'test_*.py' -v` | 23 passed, including three real-libclang integration tests; `evidence/extractor-tests-final-wsl.log` |
-| Windows extractor suite, same command | 20 passed, three libclang tests skipped on this host |
-| Progress suite: `python -m unittest discover -s port/site -p 'test_*.py' -v` | 22 passed |
-| Bootstrap suite: `python -m unittest discover -s port/tools -p 'test_*.py' -v` | 9 passed |
-| Evidence-policy suite: `python -m unittest discover -s rust/kicad-difftest/tests -p test_policy.py -v` | 7 passed |
-| `python port/tools/validate_units.py --json` | Passed with source hashes on Windows checkout; `validate.log` |
-| Same validator against the private WSL source snapshot | Passed; `evidence/validate-snapshot.json` |
-| Validator with `--require-complete` | Expected exit 1; retained fmt failures; `validate-strict.log` |
-| Repeat graph/report/unit generation | Identical graph/report bytes and all 1,570 TOML files; frozen 178 generated inputs unchanged; `evidence/repeat-generation.json` |
-| Pinned solidcore loader/schema | All 1,570 records parsed and round-tripped with core fields and extensions intact; `evidence/final-artifact-audit.json` |
-| Artifact identity audit | All raw, original reconciled and canonical artifact sizes/hashes match measurement; decompressed database/log hashes match; every blob below 100 MB |
-| Pilot scope audit | Final L0/pure/todo records have no dependencies/gaps, correct line/definition counts, and source bytes identical to the upstream oracle pin |
-| Both drift CLIs | Exit 0; committed target recorded in each JSON |
-| `python port/tools/progress.py --out <private-output>` | Generated the site with 1,570 records, phase 0 explicitly unverified |
-| `python port/tools/check_goldens_policy.py --base origin/rust` | Passed; no changed goldens |
-| Evidence-policy CI command with final records | Passed structural/infrastructure checks; 0/3 live green L0 units, phase 0 INCOMPLETE; `evidence/phase0-policy/phase0.json` |
+| Final WSL extractor suite | 34/34 passed, including eight real-libclang integration tests and one real-Ninja capture-to-drift test |
+| Windows extractor suite | 25 passed; 9 tool-dependent skips |
+| Progress / bootstrap / policy suites | 28 / 9 / 7 passed |
+| Merged-base native harness | 13 Rust tests passed, including 2 real C++ protocol fixture tests; fmt and clippy passed |
+| Windows and private WSL source-hash/structural validation | Passed with corrected records and frozen generated sources |
+| `--require-complete` | Expected failure: four fmt GCC-module commands remain parse failures |
+| Pinned solidcore loader | All 1,801 records round-trip with core fields/extensions intact |
+| Repeat generation | Graph/report and every unit file byte-identical; 178 generated inputs unchanged |
+| Full cached aggregation replay | 2,511 exact V5 cache results reused; zero new clang parses; graph/inventory semantics identical after cache-trace exclusion and exact failure-payload comparison independent of reporting order |
+| Post-adoption canonical CLI regeneration | All graph/report/unit bytes identical with maintained metadata retained |
+| Source generation provenance | 1,164 generator/configure input files match pinned Git; tool versions/recipes/output bytes retained |
+| Artifact audit | Raw/reviewed/corrected/canonical hashes and decompressed database/log hashes verified; blobs below GitHub limit |
+| Indexed artifact bytes | 2,172 listed artifacts match their verified bytes, including all 178 frozen sources and 1,801 maintained unit files; `evidence/corrected/index-artifact-audit.json` |
+| Actual source regressions | EDA_ITEM virtual destructor/overrides, canonical NETINFO_LIST wx type, generated lexer ownership verified |
+| Progress build and current-record policy | Passed; 1,801 records, 0/3 live green L0 pilots, phase 0 INCOMPLETE |
+| Golden-change policy | Passed; no new goldens |
 
-The policy command's runner/oracle paths are unused because this extraction PR
-has no cases, goldens or green records. It does not claim a live comparison.
-No new C++ application build was needed for extractor validation. The separate
-own-library oracle was merged through the reviewed base; its parent-reported
-build results are not represented as new extraction evidence here.
+Commands and logs are in `evidence/corrected/final-checks.json`; real WSL results
+are in `final-extractor-tests-wsl.log` and `final-validate-snapshot.json`.
+Default and strict validation, drift and scope artifacts are recorded separately.
+Byte-preserved inputs, transcripts and historical snapshots are exempt from
+whitespace normalization; authored code/docs remain checked. Frozen protobuf and
+CMake output whitespace and captured log endings are retained, with indexed byte
+hashes checked after applying the scoped attributes. Build-ignore matches such as
+`config.h` were explicitly included in the snapshot.
+The current-record policy has no cases/green records, so it invoked no oracle or
+Rust runner; this is not live parity evidence. No new C++ application build or
+Rust implementation was needed for these extractor changes.
 
-Source, manifest, database, graph and report SHA256 values and all command
-diagnostics remain in [measurement.json](measurement.json). Both original AST
-graphs and the canonical normalized graph are committed. The original EOF
-validation failure is retained under `evidence/failed-initial-generation/`;
-the byte-proven correction is covered by a regression test.
+Default drift has zero ported units, proving no parity. All-record drift has
+56 changed files, 188 direct findings,
+1,715 affected units and 1,715
+conservative dependency reviews against the pin. Recipe/CMake inputs are included;
+fork changes already present at extraction remain part of this audit queue.
 
-Drift over ported records has zero entries because there are no ported records.
-The all-record report has 56 changed files, 188 direct function-range findings,
-1,197 affected units and 1,197 conservative dependency reviews against the pin.
-Fork changes already in the extraction snapshot are included in that comparison.
-This is an audit queue, not evidence of 1,197 new behavioural regressions.
-
-Remaining limits are four fmt GCC-module parse failures, 63 uncovered
-application/generated implementation sources (64 blocked units), inactive
-platform/configuration branches, and unresolved indirect/dependent calls.
-Inventory/database processing are complete; parsing, extractor gate and
-all-configuration completeness are false. The phase 0 live-pilot gate remains
-incomplete. [PILOTS.md](../PILOTS.md) supplies exact unit scopes, source spans and
-required oracle cases for MD5, E-series/resistor substitution and IEC60664.
+Remaining limits: four vendor module failures; uncompiled/inactive configurations;
+unresolved dependent/indirect calls; and the explicitly diagnosed implicit lifetime
+paths. Unit wx classes describe coupling and source scope, not portable behaviour.
+New exact [pilot scopes](../PILOTS.md) require parent/source-worker confirmation
+and a new independent review before any merge or green/parity claim.

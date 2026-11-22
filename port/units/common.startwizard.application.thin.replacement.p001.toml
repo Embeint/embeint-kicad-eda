@@ -2,10 +2,10 @@
 id = "common.startwizard.application.thin.replacement.p001"
 upstream = ["common/startwizard/startwizard_provider_libraries.h", "common/startwizard/startwizard_provider_privacy.h", "common/startwizard/startwizard_provider_settings.h"]
 rust_module = "kicad_port::common::startwizard::application::thin::replacement::p001"
-depends_on = []
+depends_on = ["include.startwizard.application.ui.p001"]
 soft_depends_on = []
 est_lines = 204
-layer = 0
+layer = 1
 tests = []
 status = "todo"
 claimed_by = ""

@@ -2,10 +2,10 @@
 id = "include.dialogs.application.ui.p001"
 upstream = ["include/dialogs/dialog_assign_netclass.h", "include/dialogs/dialog_book_reporter.h", "include/dialogs/dialog_color_picker.h", "include/dialogs/dialog_edit_library_tables.h", "include/dialogs/dialog_grid_settings.h", "include/dialogs/dialog_image_editor.h", "include/dialogs/dialog_import_gfx.h", "include/dialogs/dialog_page_settings.h", "include/dialogs/dialog_paste_special.h", "include/dialogs/dialog_print_generic.h", "include/dialogs/eda_reorderable_list_dialog.h", "include/dialogs/eda_view_switcher.h", "include/dialogs/html_message_box.h", "include/dialogs/panel_assign_component_classes.h", "include/dialogs/panel_color_settings.h", "include/dialogs/panel_generate_component_classes.h", "include/dialogs/panel_global_lib_table_config.h", "include/dialogs/panel_image_editor.h", "include/dialogs/panel_maintenance.h"]
 rust_module = "kicad_port::include::dialogs::application::ui::p001"
-depends_on = ["common.application.ui.p006", "common.gal.application.ui.p001", "common.import_gfx.application.ui.p002", "common.widgets.application.ui.p013", "common.widgets.application.ui.p018"]
+depends_on = ["common.application.ui.p006", "common.dialogs.generated.ui.p001", "common.dialogs.generated.ui.p002", "common.dialogs.generated.ui.p003", "common.dialogs.generated.ui.p004", "common.gal.application.ui.p001", "common.import_gfx.application.ui.p002", "common.widgets.application.ui.p013", "common.widgets.application.ui.p014", "common.widgets.application.ui.p018"]
 soft_depends_on = ["common.widgets.application.ui.p001", "common.widgets.application.ui.p004"]
 est_lines = 1992
-layer = 63
+layer = 76
 tests = []
 status = "blocked"
 claimed_by = ""

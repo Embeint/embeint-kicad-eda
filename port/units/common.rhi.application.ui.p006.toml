@@ -2,7 +2,7 @@
 id = "common.rhi.application.ui.p006"
 upstream = ["common/rhi/rhi_vulkan_device.cpp"]
 rust_module = "kicad_port::common::rhi::application::ui::p006"
-depends_on = ["include.rhi.application.pure.p002", "libs.core.include.core.application.pure.p001"]
+depends_on = ["include.rhi.application.pure.p002", "include.rhi.application.ui.p001", "libs.core.include.core.application.pure.p001"]
 soft_depends_on = ["common.rhi.application.ui.p007", "common.rhi.application.ui.p008"]
 est_lines = 2008
 layer = 2

@@ -2,10 +2,10 @@
 id = "common.database.application.ui.p001"
 upstream = ["common/database/access_engine_mutex.cpp", "common/database/access_fast_exit.cpp"]
 rust_module = "kicad_port::common::database::application::ui::p001"
-depends_on = ["libs.kiplatform.os.unix.application.ui.p001"]
+depends_on = ["include.api.application.ui.p001", "libs.kiplatform.os.unix.application.ui.p001"]
 soft_depends_on = []
 est_lines = 113
-layer = 1
+layer = 13
 tests = []
 status = "todo"
 claimed_by = ""

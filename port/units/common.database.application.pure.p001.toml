@@ -2,10 +2,10 @@
 id = "common.database.application.pure.p001"
 upstream = ["common/database/access_engine_mutex.h", "common/database/database_value.cpp", "common/database/db_worker_thread.cpp", "common/database/db_worker_thread.h", "common/database/odbc_backend.h", "common/database/sqlite_backend.h"]
 rust_module = "kicad_port::common::database::application::pure::p001"
-depends_on = ["include.database.application.thin.replacement.p001"]
+depends_on = ["include.database.application.ui.p001"]
 soft_depends_on = []
 est_lines = 1527
-layer = 1
+layer = 41
 tests = []
 status = "todo"
 claimed_by = ""
