@@ -1,6 +1,35 @@
 # Corrected extraction validation
 
-## Generator dependency refresh
+## Guarded source recapture (current)
+
+Validated code head `ce9681f06faa189eadb41d8475ef03ea784e4e2b` and the generated files committed with
+this section. AST parser `e1548c1f` and the V5 parse identities are unchanged; the
+capture/refresh code identity is `01ad5e63`. Commands, logs and scripts are in
+`evidence/source-guard/`. The D2 workflow root and `evidence/generator-refresh/`
+are unchanged.
+
+| Check | Result |
+| --- | --- |
+| Base inputs | V5 manifest `a2466270`, original inventory `b9e6986b`, pre-refresh graph `146e2cca`, D2 pinned audit `bf7a1689` (byte-exact copy, used by capture and apply) |
+| Guarded capture (real Ninja, shared lock) | 9,655 source files (snapshot `3c0d9651`), 1,612 build files, 178 frozen inputs and the tools verified before and after; recipes `f44049e2` and catalog byte-identical to D2 |
+| Relation and record equivalence | Both maps equal D2. The graph differs only in the refresh record and manifest fingerprint, the inventory files are equal, and all 1,801 unit files are byte-identical (`d2-equivalence.json`) |
+| Pure apply | Repeated WSL application byte-identical; Windows CLI replay from the `19035296` blobs reproduces graph, inventory, manifest and report without the WSL source path |
+| Canonical regeneration | Two WSL and two Windows split runs keep graph, inventory, report and every unit byte |
+| Validation (WSL and Windows) | Default passes; `--require-complete` fails only on the four fmt module parses |
+| Real-data controls | 14 of 14 rejected: refreshed inventory, foreign root, stale/missing Markdown identity, audit/tracked conflict, foreign pin, unrecorded Ninja source input and target, forged/absent capture identity or different audit at apply, refreshed graph (`actual-controls.json`) |
+| d2 reproducer, guarded API | Intact source accepted; Markdown drift reaches direct and build consumers. 10 of 10 rejected: foreign root, deleted/stale Markdown, header and C++, unrecorded source node, source/tool/frozen-copy change after the query, added build file (`repro-controls.json`) |
+| Extractor suites | WSL 36/36, no skips; Windows 25 passed, 11 tool-dependent skips (8 libclang, 3 Ninja) |
+| Progress / bootstrap / policy, progress build, golden policy | 28 / 9 / 7 passed; build and golden policy pass |
+| Pinned solidcore loader, measurement, pilots | All 1,801 records round-trip; measurement differs from D2 only in the canonical graph/inventory fingerprints; pilot and GetReader records unchanged (`checks.json`) |
+| Drift | Default and all-record reports equal D2 apart from the target commit (`drift-comparison.json`) |
+| Indexed artifact bytes | 2,311 staged blobs: 506 byte-preserved (all 178 frozen sources, history, D2 and guarded evidence, published JSON/gzip) and 1,805 LF-normalized text files; `evidence/source-guard/index-artifact-audit.json` |
+| Blob limit | Largest generated blob 69,906,936 bytes (guarded graph), below 100 MB |
+
+No AST replay was repeated. The D2 V5 replay (`v5-replay.json`) and canonical
+reproduction (`canonical-from-v5.json`) are reused after checking every input hash
+they bind (`code-and-input-identities.json`).
+
+## Generator dependency refresh (D2, historical)
 
 Validated code head `57e085ad043d5aee55de7bccd51b411d6c8526fc` plus the refresh command, tests and
 generated files committed with this section. The AST was produced by parser
@@ -13,7 +42,7 @@ Commands, logs and scripts are in `evidence/generator-refresh/`.
 | --- | --- |
 | V5 read-only replay (frozen runtime, manifest, cache) | 2,511 cache results reused, 0 parses, no cache artifact changed; graph/inventory semantics equal (`v5-replay.json`) |
 | Pre-refresh canonical reproduction | V5 splitter reproduces graph `146e2cca`, report `0aac5390` and all 1,801 unit files byte for byte (`canonical-from-v5.json`) |
-| Capture preconditions | 1,612 build files, 178 frozen inputs, tools and CMake/Ninja files equal the parse manifest before and after |
+| Capture preconditions | 1,612 build files (including CMake/Ninja files) equal the parse manifest before and after; 178 frozen inputs and tools checked before only (earlier wording overstated this, as the d2 review found) |
 | Refresh invariants | Only declared provenance fields and build-generated `generator_inputs` differ; repeated application byte-identical in WSL and in a Windows CLI replay |
 | Canonical regeneration | Two WSL and two Windows split runs keep graph, inventory, report and every unit byte |
 | Validation (WSL and Windows) | Default passes; `--require-complete` fails only on the four fmt module parses |

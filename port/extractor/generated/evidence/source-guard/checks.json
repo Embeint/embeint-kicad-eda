@@ -1,0 +1,205 @@
+{
+  "bootstrap-tests": {
+    "command": [
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "port/tools",
+      "-p",
+      "test_*.py",
+      "-v"
+    ],
+    "exit_code": 0,
+    "skipped": 0,
+    "tests": 9
+  },
+  "d2_generator_refresh_evidence_unchanged": 51,
+  "extractor-windows": {
+    "command": [
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "port/extractor",
+      "-p",
+      "test_*.py",
+      "-v"
+    ],
+    "exit_code": 0,
+    "skipped": 11,
+    "tests": 36
+  },
+  "extractor-wsl": {
+    "log": "logs/extractor-tests-wsl.log.gz",
+    "skipped": 0,
+    "tests": 36
+  },
+  "golden-changes": {
+    "command": [
+      "port/tools/check_goldens_policy.py",
+      "--base",
+      "origin/rust"
+    ],
+    "exit_code": 0
+  },
+  "head": "ce9681f06faa189eadb41d8475ef03ea784e4e2b",
+  "identities": {
+    "canonical_graph_sha256": "a04dffc7da914fa204ca0018a42fe53bfb9dbbeac65c2e279883cf8a6d691ba3",
+    "canonical_inventory_sha256": "33268efa748421dd0bf74e4d89399a19f95c350cfad43b31ad1c5f0f2f75b452",
+    "parse_extractor_sha256": "e1548c1fe920a05d882e3f2de1c14843ca0e7b3b04ca9441d4132e16de77b88d",
+    "recipes_gzip_sha256": "f5a91a1c6f5e2357aeb1db4f6499be3ba7bca7cc3b46fea793c74de42257064e",
+    "refresh": {
+      "capture_code_sha256": "01ad5e63f289ef80906fe2e2731928b04bef9c76b766f0240c83281cfa032c2a",
+      "capture_sha256": "8a3d842c23c2c8f67ac493a5e0e3e5ca747d9d27ad5f70b76ecff4e471b8687d",
+      "changed_fields": [
+        "provenance.generated_sources_manifest_sha256",
+        "provenance.generated_input_dependencies",
+        "provenance.source_inventory_sha256",
+        "provenance.generator_dependency_refresh",
+        "inventory build-generated generator_inputs"
+      ],
+      "input_graph_sha256": "146e2ccac0e8d0ba6d37ceadb26ae5a84d0223609dd55abebb0b5451bfe45735",
+      "input_inventory_sha256": "b9e6986b36529fdf4041712dfb258af050c2ff61bb3971875394eb16e2a47682",
+      "parse_extractor_sha256": "e1548c1fe920a05d882e3f2de1c14843ca0e7b3b04ca9441d4132e16de77b88d",
+      "parse_generated_sources_manifest_sha256": "a2466270bdf4aec52b7b8267140ac4b18c8295520c5b94e1ecb3dc8498dacb34",
+      "parse_recipes_sha256": "dff5b79afdbe58e2e4c7a4f0e4d8b093fd34a94a0302d38cddd6483660496951",
+      "parse_source_inventory_sha256": "3d52afc68446cc7e00344409c2fc1ac6908ed5aa554f55d2501126885e5ee175",
+      "policy": "Post-parse generator dependency refresh. AST, definitions, calls, overrides, unresolved records, translation units, coverage and source bytes are those of the original parse (parse_* identities); only generator dependency metadata and the fingerprints derived from it were recaptured from the unchanged private build.",
+      "recipes_sha256": "f44049e2ea0a2ad8b1a16133e5c6bc25df084366d07995b7369d0d44fd9d1900",
+      "refresh_code_hash_policy": "refresh_generator_dependencies.py and generated_sources.py concatenated after CRLF-to-LF normalization",
+      "refresh_code_sha256": "01ad5e63f289ef80906fe2e2731928b04bef9c76b766f0240c83281cfa032c2a",
+      "source_identity": {
+        "generation_inputs_sha256": "bf7a1689587de011b7f2b8879e7d6284827a451ee43155ad72b8963fe30a6de6",
+        "hash_policy": "SHA-256 after CRLF-to-LF normalization, as in the original parse",
+        "inventory_sha256": "b9e6986b36529fdf4041712dfb258af050c2ff61bb3971875394eb16e2a47682",
+        "source_commit": "3cd2c9afc6d2749b7d3a79fd1deaa86ac51cb3a7",
+        "source_files_sha256": "3c0d96516f2c20ca5e7883aa7a549ed0e412a190b27af60012a4edfb0621122e",
+        "source_root": "/home/karlvonrichter/kicad-port/extract-source",
+        "tracked_source_inventory_sha256": "da0820c028bc23f338b6a6256e38dc984bd79f323f02737b93e7e5e499d57a2f",
+        "upstream_pin": "4cf939778df04d2b747bb2c4714fc5014a7565c7",
+        "verified_source_files": 9655
+      }
+    },
+    "refreshed_manifest_sha256": "b6fd50ad295ac1c78077e392fb7ffd26e9e64e2f6ef0ec05c0d95f74baf6a7b7",
+    "v5_manifest_and_recipes_preserved_in_corrected_extraction": true
+  },
+  "metrics": {
+    "blocked_units": 64,
+    "corrected": "2507/2511",
+    "definitions": 107254,
+    "generated_definitions": 37838,
+    "largest_generated_blob_bytes": 69906936,
+    "protected_unit_metrics_unchanged": {
+      "accounted_lines": 2380947,
+      "back_edge_count": 9548,
+      "back_edge_weight": 106538,
+      "hard_edge_count": 46894,
+      "layers": 392,
+      "unit_count": 1801,
+      "wx": {
+        "UI": [
+          1147,
+          1660545
+        ],
+        "pure": [
+          553,
+          666688
+        ],
+        "thin-replacement": [
+          101,
+          53714
+        ]
+      }
+    },
+    "raw": "2462/2471",
+    "uncompiled_sources": 63
+  },
+  "policy-tests": {
+    "command": [
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "rust/kicad-difftest/tests",
+      "-p",
+      "test_policy.py",
+      "-v"
+    ],
+    "exit_code": 0,
+    "skipped": 0,
+    "tests": 7
+  },
+  "progress-build": {
+    "command": [
+      "port/tools/progress.py",
+      "--out",
+      "C:\\Users\\KarlVonRichter\\.t3\\phase0-gen-refresh-site"
+    ],
+    "exit_code": 0
+  },
+  "progress-tests": {
+    "command": [
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "port/site",
+      "-p",
+      "test_*.py",
+      "-v"
+    ],
+    "exit_code": 0,
+    "skipped": 0,
+    "tests": 28
+  },
+  "units": {
+    "changed_from_base": 0,
+    "count": 1801,
+    "pilots": {
+      "GetReader": {
+        "layer": 0,
+        "location": "pcb_calculator/datafile_read_write.h:55:55",
+        "owner": "pcb_calculator.application.thin.replacement.p001",
+        "wx_class": "thin-replacement"
+      },
+      "libs.kimath.src.md5_hash.application.pure.p001": {
+        "definitions": 15,
+        "est_lines": 289,
+        "files": 1,
+        "toml_blob_sha256": "71c89c90c9df44c2ba2abb81a367c650c951fd058b1f3e7dd4e788b04c3120ee",
+        "unchanged_from_base": true
+      },
+      "pcb_calculator.application.pure.p001": {
+        "definitions": 40,
+        "est_lines": 1126,
+        "files": 7,
+        "toml_blob_sha256": "2c99ea7f49657e6ae51efdeec3c25643161a3610b91ede737ccd6780688ce4d1",
+        "unchanged_from_base": true
+      },
+      "pcb_calculator.calculator_panels.application.pure.p001": {
+        "definitions": 28,
+        "est_lines": 1943,
+        "files": 9,
+        "toml_blob_sha256": "25ac9dac1b01b3ccba1443ab47bb58c1f774669e0631a49463b9cb1d994be198",
+        "unchanged_from_base": true
+      }
+    },
+    "ported_or_claimed": 0,
+    "solidcore_roundtrip_units": 1801,
+    "statuses": {
+      "blocked": 64,
+      "todo": 1737
+    }
+  },
+  "windows_canonical_regeneration": {
+    "byte_identical_artifacts": 1804,
+    "iterations": 2
+  },
+  "windows_refresh_cli_replay": {
+    "generated-sources.json": true,
+    "graph.json.gz": true,
+    "inventory.json": true,
+    "refresh-report.json": true
+  }
+}

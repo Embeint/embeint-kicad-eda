@@ -360,7 +360,7 @@ the map and applies it to the existing parse:
 ```sh
 python3 port/extractor/refresh_generator_dependencies.py capture \
   --base-manifest <parse>/generated-sources.json \
-  --inventory <canonical>/inventory.json \
+  --inventory <original-parse>/inventory.json \
   --generation-inputs <pinned-generation-input-audit.json> \
   --source-root ~/kicad-port/extract-source --output <capture>
 python3 port/extractor/refresh_generator_dependencies.py apply \
