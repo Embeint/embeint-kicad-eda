@@ -192,12 +192,19 @@ nine return NOT_INSULATING. Every one of the 4,069 Compute calls returns true;
 counts describe reference behavior, not design approval. The corpus also checks
 29,417 setters, 13 state reads and the named-category inventory.
 
-The pilot PR provisionally depends on corrected #39 at `19035296` and targets
-`rust`; the parent must accept #39's independent review and merge it first.
-The unit's local green metadata records exact implementation evidence. Hosted
-pilot CI and independent review remain pending merge gates. Local exact agreement
-and stored goldens do not establish the full three-pilot phase-zero gate or
-all-configuration extraction completeness. `PHASE0_REQUIRED` remains false.
+Historical single-pilot status: when these results were recorded, the pilot PR
+provisionally depended on corrected #39 at `19035296` and targeted `rust`; the
+parent had to accept #39's independent review and merge it first. The unit's
+local green metadata records exact implementation evidence. Hosted pilot CI and
+independent review were pending merge gates. Local exact agreement and stored
+goldens do not establish the full three-pilot phase-zero gate or
+all-configuration extraction completeness. `PHASE0_REQUIRED` was false then.
+
+Current integration status: #39 is merged into `rust`. The phase zero integration
+candidate (#49) checks this unit with the MD5 and resistor pilots and sets
+`PHASE0_REQUIRED` to true. The pilot merges, current pilot CI, independent review
+of the candidate and hosted strict-gate acceptance remain pending. Extraction
+completeness is still not part of that gate.
 
 ## Adapter review corrections
 
