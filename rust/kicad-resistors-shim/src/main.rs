@@ -203,6 +203,16 @@ fn action(calc: &mut Calculator, action: &Value) -> Result<Value> {
                 i32::MAX,
             )?)));
         }
+        "build_values" => {
+            keys(action, &["op", "values"], &[])?;
+            let values = array(field(action, "values")?, 256)?
+                .iter()
+                .map(|value| {
+                    integer(&json!({"value":value}), "value", 0, 65535).map(|value| value as u16)
+                })
+                .collect::<Result<Vec<_>>>()?;
+            return Ok(table(&engine(Calculator::build_series_data(&values))?));
+        }
         "buffers" => {
             keys(action, &["op"], &[])?;
             return Ok(json!({"one":table(calc.buffer_1r()),"two":table(calc.buffer_2r())}));
@@ -317,7 +327,7 @@ fn run(input: &Value) -> Result<Value> {
             Ok(
                 json!({"unique":[testing::unique(&first),testing::unique(&second)],
                 "better":testing::better(&first,&second),"reverse_better":testing::better(&second,&first),
-                "less":first.value<second.value,"less_value":first.value<second.value,
+                "less":kicad_resistors::resistance_less(&first,&second),"less_value":kicad_resistors::resistance_less_value(&first,second.value),
                 "embraced":testing::embrace(expression,symbol),"combinations":combinations}),
             )
         }

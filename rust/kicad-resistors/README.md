@@ -2,12 +2,17 @@
 # Resistor pilot
 
 Unit `pcb_calculator.application.pure.p001`, at KiCad
-`4cf939778df04d2b747bb2c4714fc5014a7565c7`. Canonical #39 head
+`4cf939778df04d2b747bb2c4714fc5014a7565c7`. Provisional #39 snapshot
 `a7ec77beffd3b2e5d60409423fa28b6c116c6e00` (unit blob
-`5f7870fc5921a7732db268be292aee3d56851b69`) confirms
+`5f7870fc5921a7732db268be292aee3d56851b69`) records
 **1,186 physical lines and 41 owned definitions**, L0/pure, with no hard/soft
-dependencies or gaps. That exact dependency is merged into this topic and must
-land in `rust` before the pilot. Only this unit's port metadata and live shim
+dependencies or gaps. Independent review subsequently identified extraction
+omissions involving virtual destructors/overrides, active generated definitions
+and wx aliases. Corrected ownership/dependencies and the final scope remain a
+readiness dependency; the current record stays `claimed`, not green. The a7
+snapshot was merged into this topic before that review hold; no further merge
+or completion claim is authorized until the correction is confirmed.
+Only this unit's port metadata and live shim
 registration are changed; canonical source/functions/ranges/accounting stay
 unchanged. A passing pilot does not establish phase-zero completion.
 
@@ -135,6 +140,7 @@ Calculator actions:
 | `solution` | `level: 2/3/4`; force the actual private search. Empty 3R/4R collectors return their real exception. |
 | `find` | `values_bits` (up to 1,024); returns both complete real adjacent entries, including NaN and boundary handling. |
 | `build` | `series: i32`; calls the real private table builder with the actual E-series constructors, including the larger standalone series. |
+| `build_values` | `values: [u16]` (up to 256); mutates an actual C++ `ESERIES_VALUES` vector and calls the real private builder. Nonstandard first values, unsorted/repeated members, zeros and zero-first vectors are retained. Empty vectors would index outside the C++ vector; all-zero vectors never reach its exit condition. Both are transport refusals, not passing reference exception cases. |
 | `buffers` | Returns every 1R/2R entry, in actual sorted order. |
 
 Each state includes series, target bits, every mask flag, both buffer counts and
@@ -173,7 +179,7 @@ an improvement installs a solution. Neither is removed for coverage convenience.
 
 ## Reproduce and validate
 
-`python rust/kicad-resistors/cases.py` regenerates the 198-case public fixed-seed corpus.
+`python rust/kicad-resistors/cases.py` regenerates the 199-case public fixed-seed corpus.
 The initial corpus is prepared before final extractor ownership confirmation.
 Run fmt, clippy `-D warnings`, tests and `wasm32-unknown-unknown` checks for both
 new crates (the shim is native), and the normal real-oracle build in an owned

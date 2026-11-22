@@ -12,7 +12,10 @@ pub use format::str_value;
 
 /// Complete API for the extractor's pure calculator application unit.
 pub mod application {
-    pub use crate::{eseries, reader, scales, str_value, Calculator, Error, Resistance};
+    pub use crate::{
+        eseries, reader, resistance_less, resistance_less_value, scales, str_value, Calculator,
+        Error, Resistance,
+    };
 }
 
 pub const EPSILON: f64 = 1e-12;
@@ -31,6 +34,14 @@ impl Resistance {
         }
         Self { value, name, parts }
     }
+}
+
+pub fn resistance_less(first: &Resistance, second: &Resistance) -> bool {
+    first.value < second.value
+}
+
+pub fn resistance_less_value(first: &Resistance, second: f64) -> bool {
+    first.value < second
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -256,11 +267,27 @@ impl Calculator {
 
     pub fn build_series(series: i32) -> Vec<Resistance> {
         let list = eseries::values(series);
+        // Every immutable named table starts at 100. The general owned helper
+        // below accepts the actual caller-supplied first element instead.
+        Self::build_values(&list, 100.0)
+    }
+
+    pub fn build_series_data(list: &[u16]) -> Result<Vec<Resistance>, Error> {
+        let first = *list
+            .first()
+            .ok_or(Error::Domain("series table must be nonempty"))?;
+        if list.iter().all(|value| *value == 0) {
+            return Err(Error::Domain("all-zero series table does not terminate"));
+        }
+        Ok(Self::build_values(list, f64::from(first)))
+    }
+
+    fn build_values(list: &[u16], first: f64) -> Vec<Resistance> {
         let mut result = Vec::new();
         let mut decade = 10.0;
         loop {
-            let multiplier = decade / 100.0;
-            for list_value in &list {
+            let multiplier = decade / first;
+            for list_value in list {
                 let value = multiplier * f64::from(*list_value);
                 result.push(Resistance::new(value, str_value(value), Vec::new()));
                 if value >= 1e6 {
@@ -296,7 +323,7 @@ impl Calculator {
             return Ok(());
         }
         let series = self.selected()?;
-        let i = series.partition_point(|r| r.value < value - EPSILON);
+        let i = series.partition_point(|r| resistance_less_value(r, value - EPSILON));
         if series
             .get(i)
             .is_some_and(|r| (r.value - value).abs() < EPSILON)
@@ -332,7 +359,7 @@ impl Calculator {
                 self.buffer_2r.push(combine(a, b, true, true));
             }
         }
-        sort::sort(&mut self.buffer_2r, |a, b| a.value < b.value);
+        sort::sort(&mut self.buffer_2r, resistance_less);
     }
 
     pub fn find(&self, target: f64) -> Result<(&Resistance, &Resistance), Error> {
@@ -350,7 +377,9 @@ impl Calculator {
         if target <= first.value || target >= last.value {
             return Ok((first, last));
         }
-        let i = self.buffer_2r.partition_point(|r| r.value < target);
+        let i = self
+            .buffer_2r
+            .partition_point(|r| resistance_less_value(r, target));
         if i == 0 {
             Ok((first, first))
         } else if i == self.buffer_2r.len() {

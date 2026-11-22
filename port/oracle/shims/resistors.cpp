@@ -485,6 +485,24 @@ JSON Run( const JSON& input )
                 returned = TableJSON( ( calc.*Get( Build{} ) )(
                         Named( oracle::Integer( action, "series", INT32_MIN, INT32_MAX ) ) ) );
             }
+            else if( command == "build_values" )
+            {
+                Keys( action, { "op", "values" } );
+                ESERIES::ESERIES_VALUES values( ESERIES::E1 );
+                values.clear();
+                for( const auto& item : Array( action.at( "values" ), 256 ) )
+                    values.push_back(
+                            static_cast<uint16_t>( oracle::Integer( JSON{ { "value", item } }, "value", 0, 65535 ) ) );
+                if( values.empty() )
+                    throw std::invalid_argument( "series table must be nonempty" );
+                if( std::all_of( values.begin(), values.end(),
+                                 []( uint16_t value )
+                                 {
+                                     return value == 0;
+                                 } ) )
+                    throw std::invalid_argument( "all-zero series table does not terminate" );
+                returned = TableJSON( ( calc.*Get( Build{} ) )( values ) );
+            }
             else if( command == "buffers" )
             {
                 Keys( action, { "op" } );

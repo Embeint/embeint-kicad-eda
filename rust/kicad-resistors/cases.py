@@ -150,6 +150,9 @@ def main():
              {"op":"bind","parser":0,"reader":1},{"op":"get","parser":0},
              {"op":"get","parser":1}]})
     case("accounted-unit-scale-constants", {"op":"unit_scales"})
+    calc("private-builder-caller-supplied-real-series-vector", [{"op":"build_values","values":values}
+         for values in [[100], [200,400,600], [3,5,9], [65535,1,0], [1,0,65535],
+                        [100,99,101,100], [0,1], [0,0,65535], [10,1,10]]])
     destination = ROOT / "port/cases" / (UNIT + ".jsonl")
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text("".join(json.dumps(case, separators=(",", ":"), allow_nan=False) + "\n" for case in cases), encoding="utf-8", newline="\n")

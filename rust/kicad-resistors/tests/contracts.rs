@@ -68,3 +68,15 @@ fn literal_series_and_resistance_default_contracts() {
         vec![(-0f64).to_bits()]
     );
 }
+
+#[test]
+fn private_builder_rejects_only_undefined_or_nonterminating_tables() {
+    assert_eq!(
+        Calculator::build_series_data(&[]),
+        Err(Error::Domain("series table must be nonempty"))
+    );
+    assert_eq!(
+        Calculator::build_series_data(&[0, 0]),
+        Err(Error::Domain("all-zero series table does not terminate"))
+    );
+}
