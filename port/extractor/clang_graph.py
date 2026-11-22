@@ -178,7 +178,8 @@ def extract_translation_unit(job):
 
         def class_wx(cursor):
             if not cursor or cursor.kind not in (ci.CursorKind.CLASS_DECL, ci.CursorKind.STRUCT_DECL,
-                                                  ci.CursorKind.CLASS_TEMPLATE, ci.CursorKind.UNION_DECL):
+                                                  ci.CursorKind.CLASS_TEMPLATE, ci.CursorKind.UNION_DECL,
+                                                  ci.CursorKind.CLASS_TEMPLATE_PARTIAL_SPECIALIZATION):
                 return set()
             names = set(type_wx(cursor.type))
             for child in cursor.get_children():
