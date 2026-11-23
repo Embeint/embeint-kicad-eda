@@ -381,6 +381,51 @@ class SourceBindingTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "absolute source link"):
             binding.export(repo, head, root / "invalid-bundle")
 
+    def test_windows_real_qa_alias_target_representations(self):
+        cases = [
+            ("C:\\", r"\\?\C:\work\qa\resources"),
+            ("C:\\", r"C:\work\qa\resources"),
+            ("C:\\", r"\work\qa\resources"),
+            ("C:\\", r"c:\work\qa\resources"),
+            ("D:\\", r"\\?\D:\work\qa\resources"),
+            ("\\\\server\\share\\", r"\\?\UNC\server\share\work\qa\resources"),
+        ]
+        for anchor, actual in cases:
+            with self.subTest(anchor=anchor, actual=actual):
+                args = ("qa/tests/resources", "/work/qa/resources", actual)
+                self.assertTrue(binding.link_target_matches(
+                    *args, checkout=True, windows=True, anchor=anchor))
+                # Native checkout representations never enter Linux snapshots,
+                # other-platform checkouts, or differently owned link records.
+                self.assertFalse(binding.link_target_matches(
+                    *args, checkout=False, windows=True, anchor=anchor))
+                self.assertFalse(binding.link_target_matches(
+                    *args, checkout=True, windows=False, anchor=anchor))
+                self.assertFalse(binding.link_target_matches(
+                    "other/link", args[1], actual, checkout=True, windows=True, anchor=anchor))
+        self.assertTrue(binding.link_target_matches(
+            "qa/tests/resources", "/work/qa/resources", "/work/qa/resources"))
+
+    def test_windows_qa_alias_does_not_accept_changed_or_unanchored_targets(self):
+        cases = [
+            ("C:\\", r"\\?\D:\work\qa\resources"),
+            ("C:\\", r"\\?\C:\work\qa\other"),
+            ("C:\\", r"C:\WORK\qa\resources"),
+            ("C:\\", r"\\?\C:\work\qa\..\qa\resources"),
+            ("C:\\", r"work\qa\resources"),
+            ("C:\\", r"C:work\qa\resources"),
+            ("C:\\", r"\\server\share\work\qa\resources"),
+            ("C:\\", r"\\.\C:\work\qa\resources"),
+            ("C:", r"C:\work\qa\resources"),
+            ("", r"C:\work\qa\resources"),
+            ("C:\\checkout\\", r"C:\work\qa\resources"),
+        ]
+        for anchor, actual in cases:
+            with self.subTest(anchor=anchor, actual=actual):
+                self.assertFalse(binding.link_target_matches(
+                    "qa/tests/resources", "/work/qa/resources", actual,
+                    checkout=True, windows=True, anchor=anchor))
+
     def test_stage_export_does_not_rewrite_supplied_provenance(self):
         root, repo, head, pin = self.fixture()
         bundle, digest = self.export(root, repo, head)

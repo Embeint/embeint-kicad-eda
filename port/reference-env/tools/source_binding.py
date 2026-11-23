@@ -11,7 +11,7 @@ import ast
 import hashlib
 import json
 import os
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 import re
 import shutil
 import subprocess
@@ -205,6 +205,32 @@ def generated_venv_alias(root, path):
     )
 
 
+def link_target_matches(name, expected, actual, *, checkout=False, windows=False, anchor=""):
+    if actual == expected:
+        return True
+    # Git for Windows can create a real symlink for this existing POSIX-root
+    # QA alias. Python reports its drive-root target, often with an NT prefix.
+    # Accept that checkout representation only; the archive/snapshot keeps the
+    # exact Git target and the caller still requires the alias to be unavailable.
+    if not (checkout and windows and name == "qa/tests/resources"
+            and expected == "/work/qa/resources" and type(actual) is str):
+        return False
+    root = PureWindowsPath(anchor)
+    if not root.is_absolute() or root != PureWindowsPath(root.anchor):
+        return False
+    if actual.startswith("\\\\?\\UNC\\"):
+        actual = "\\\\" + actual[8:]
+    elif actual.startswith("\\\\?\\"):
+        actual = actual[4:]
+    target = PureWindowsPath(actual)
+    if not target.root:
+        return False
+    if not target.drive:
+        target = root / target
+    return (target.drive.casefold() == root.drive.casefold()
+            and target.parts[1:] == ("work", "qa", "resources"))
+
+
 def check_tree(root, files, *, checkout=False):
     require(root.is_dir() and not root.is_symlink(), "source root must be a real directory")
     resolved_root = root.resolve(strict=True)
@@ -224,10 +250,12 @@ def check_tree(root, files, *, checkout=False):
             "source ancestor escapes snapshot: " + name,
         )
         if record["kind"] == "symlink":
-            # Git for Windows can check out a tracked link as a text stub
-            # (core.symlinks=false). Compare the exact recorded link bytes;
-            # the Linux build snapshot recreates the actual link identity.
-            link_matches = path.is_symlink() and os.readlink(path) == record["target"]
+            # Git for Windows supports real native links and text stubs. Neither
+            # representation changes the archived target or Linux snapshot.
+            link_matches = path.is_symlink() and link_target_matches(
+                name, record["target"], os.readlink(path), checkout=checkout,
+                windows=sys.platform == "win32", anchor=path.anchor,
+            )
             stub_matches = (
                 checkout
                 and path.is_file()

@@ -339,6 +339,17 @@ The 51-test suite covers CRLF checkouts, tracked `eol=crlf`, `export-subst` and
 `export-ignore` attributes, plus local replacement objects. No Git configuration
 is changed; these tests do not constitute native Windows or image qualification.
 
+The real Windows producer at `ac1f2a54` verified every raw source entry (bytes,
+mode, link and membership), but its subsequent checkout check rejected Git for
+Windows' real symlink representation of the known QA alias. It did not reach
+the reference archive or produce a bundle digest. The checkout matcher now
+accepts that alias's native drive-root/NT-prefix representation as well as an
+exact text stub. This applies only to that known link in a Windows checkout;
+the archive and Linux snapshot retain `/work/qa/resources` exactly, and the
+actual alias must still be unavailable. The 53 tests cover matching host
+representations and changed-target/drive/scope rejection. Native revalidation
+remains pending; no Git settings workaround is needed.
+
 **Not performed:** no amd64 image was built, so `verify_image.py`, the probes on
 x86-64, the oracle build inside the image, `--rebuild-check` and the difftest have
 never run. A recipe is not a passed reproducible build.
