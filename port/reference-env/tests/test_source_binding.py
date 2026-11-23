@@ -2,6 +2,7 @@
 """Isolated Git/export/process fixtures. No Docker/oracle build is performed."""
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -160,6 +161,56 @@ class SourceBindingTest(unittest.TestCase):
                 continue
             with self.assertRaises(ValueError):
                 binding.materialize(bundle, head, digest, root / "snapshot")
+
+    def test_snapshot_directory_links_stop_the_real_check_entrypoint(self):
+        for change in ("tracked-inside", "tracked-outside", "untracked", "source-root"):
+            with self.subTest(change=change):
+                root, repo, head, pin = self.fixture()
+                bundle, digest = self.export(root, repo, head)
+                snapshot = root / "snapshot"
+                binding.materialize(bundle, head, digest, snapshot)
+                source = snapshot / "source"
+                if change == "source-root":
+                    source.rename(snapshot / "real-source")
+                    source.symlink_to("real-source", target_is_directory=True)
+                elif change == "untracked":
+                    target = snapshot / "external-oracle"
+                    target.mkdir()
+                    (target / "extra.cpp").write_text("unrecorded compiler input")
+                    (source / "extra").symlink_to("../external-oracle", target_is_directory=True)
+                else:
+                    target = (snapshot if change == "tracked-inside" else root) / "external-oracle"
+                    overlay = source / "port/oracle"
+                    shutil.move(overlay, target)
+                    (target / "extra.cpp").write_text("unrecorded compiler input")
+                    overlay.symlink_to(os.path.relpath(target, overlay.parent), target_is_directory=True)
+                result = subprocess.run(
+                    [
+                        sys.executable, str(ENV / "tools/source_binding.py"), "check",
+                        "--bundle", str(snapshot), "--revision", head,
+                        "--source-sha256", digest,
+                    ],
+                    capture_output=True, text=True,
+                )
+                self.assertNotEqual(result.returncode, 0)
+                self.assertRegex(result.stderr, "symlink|real directory")
+
+    def test_recorded_relative_directory_link_is_preserved_without_traversal(self):
+        root, repo, head, pin = self.fixture()
+        (repo / "port/alias").symlink_to("oracle", target_is_directory=True)
+        subprocess.run(["git", "-C", str(repo), "add", "port/alias"], check=True)
+        subprocess.run(
+            ["git", "-C", str(repo), "commit", "-m", "recorded directory alias"],
+            check=True, stdout=subprocess.DEVNULL,
+        )
+        head = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"]).decode().strip()
+        bundle, digest = self.export(root, repo, head)
+        binding.materialize(bundle, head, digest, root / "snapshot")
+        binding.check_snapshot(root / "snapshot", head, digest)
+        # The target's actual directory is still enumerated and cannot hide additions.
+        (root / "snapshot/source/port/oracle/extra.cpp").write_text("extra compiler input")
+        with self.assertRaisesRegex(ValueError, "unexpected source snapshot file"):
+            binding.check_snapshot(root / "snapshot", head, digest)
 
     def test_only_known_unavailable_qa_absolute_alias_is_preserved(self):
         root, repo, head, pin = self.fixture()

@@ -6,8 +6,10 @@ floating numbers are forbidden: all floating observations use exact hex bits.
 """
 import hashlib
 import json
+from contextlib import ExitStack
 from pathlib import Path
 import re
+import struct
 import tomllib
 
 HEX = re.compile(r"[0-9a-f]{16}")
@@ -69,6 +71,63 @@ def strings(values):
 
 def integer(value, minimum, maximum):
     require(type(value) is int and minimum <= value <= maximum, "invalid integer/count")
+
+
+def matching_types(value, expected):
+    """Require the complete recomputed schema, including bool versus int."""
+    require(type(value) is type(expected), "invalid comparison field type")
+    if type(expected) is dict:
+        require(set(value) == set(expected), "invalid comparison fields")
+        for key in expected:
+            matching_types(value[key], expected[key])
+    elif type(expected) is list:
+        require(len(value) == len(expected), "invalid comparison list length")
+        for actual, wanted in zip(value, expected):
+            matching_types(actual, wanted)
+
+
+def sweep_inputs(count):
+    """Reconstruct input bits independently of all recorded probe outputs.
+
+    Match the fixed SplitMix64 seed and separately rounded binary64 operations
+    in probe_common.h and rust_probe.rs; no transcendental result is computed.
+    """
+    mask = (1 << 64) - 1
+    state = 0x4b69436164526566
+    for index in range(count):
+        state = (state + 0x9e3779b97f4a7c15) & mask
+        x = ((state ^ (state >> 30)) * 0xbf58476d1ce4e5b9) & mask
+        x = ((x ^ (x >> 27)) * 0x94d049bb133111eb) & mask
+        x ^= x >> 31
+        family = index % 4
+        if family < 2:
+            u = float(x >> 11) * (1.0 / 9007199254740992.0)
+            angle = (u * 2.0 - 1.0) * (6.283185307179586 if family == 0 else 10000.0)
+        elif family == 2:
+            angle = float(x % 3600000) / 10000.0 * (3.141592653589793 / 180.0)
+        else:
+            exponent = 1023 - 30 + ((x >> 52) % 61)
+            yield ((x >> 63) << 63) | (exponent << 52) | (x & 0x000fffffffffffff)
+            continue
+        yield struct.unpack("<Q", struct.pack("<d", angle))[0]
+
+
+def validate_sweeps(paths, count):
+    """Check every input identity/order, even if all three outputs agree."""
+    with ExitStack() as stack:
+        streams = []
+        for path in paths:
+            require(path.stat().st_size == 24 * count, "empty/truncated/wrong-count sweep: " + path.name)
+            streams.append((path.name, stack.enter_context(path.open("rb"))))
+        for index, wanted in enumerate(sweep_inputs(count)):
+            for name, stream in streams:
+                record = stream.read(24)
+                require(
+                    len(record) == 24 and struct.unpack_from("<Q", record)[0] == wanted,
+                    f"sweep input identity/order differs: {name} record {index}",
+                )
+        for name, stream in streams:
+            require(not stream.read(1), "extra sweep record: " + name)
 
 
 def bits(value):
@@ -294,14 +353,13 @@ def validate(directory):
         "lock/candidate identity mismatch",
     )
     results = {}
+    sweep_paths = []
     for label in ("contract", "host-default", "rust"):
         name = "rust-contract" if label == "rust" else "primitive-" + label
         results[label] = load(directory / (name + ".json"))
         primitive(results[label], label == "rust", summary["sweep_count"], candidate)
-        require(
-            (directory / (name + ".sweep.bin")).stat().st_size == 24 * summary["sweep_count"],
-            "empty/truncated/wrong-count sweep: " + name,
-        )
+        sweep_paths.append(directory / (name + ".sweep.bin"))
+    validate_sweeps(sweep_paths, summary["sweep_count"])
     if has_matrix:
         matrix(load(directory / "matrix-contract.json"))
     built = summary["built"]
@@ -514,6 +572,7 @@ def validate(directory):
         keys(check, "check passed detail")
         require(check["passed"] is True and type(check["check"]) is str, "failed contract check")
     comparisons = run_probe.comparison_report(directory, results, lock, candidate)
+    matching_types(summary["comparisons"], comparisons)
     require(
         summary["comparisons"] == comparisons,
         "recorded comparisons differ from recomputed observations",
