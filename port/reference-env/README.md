@@ -31,7 +31,7 @@ these inputs and makes the libm dispatch explicit and checkable.
 
 All values are resolved by `tools/lock_inputs.py` from primary sources and
 recorded in [inputs.lock.json](inputs.lock.json) (SHA-256
-`7b29048e8b46f6fe809f76d6b9f4f5bbcb94e5cb5307b13bdab2e48c02a12105` at this
+`c4d1c9c0aca71985f07bd36ff759301daa88a43e4a17335d31e4446bbd6101d2` at this
 revision); [candidate.toml](candidate.toml) is the human-readable candidate selection, awaiting independent review.
 
 | Input | Pin | Source |
@@ -133,7 +133,13 @@ GCC 13 at the oracle flags combines a `cos` and `sin` of the same argument into 
    identity files from the `.deb` contents and names libm's implementations.
 2. `tools/fetch_inputs.py` downloads every locked object into a build context and
    checks each SHA-256.
-3. `qualify.sh` builds with `docker build --network=none`. Inside the pinned base,
+3. The hashed lock binds `inputs.sha256`, a complete inventory of payloads and
+   controls (including checksum lists, metadata, keyring and installer list). The
+   bare-base verifier rejects extras, omissions, duplicates and symlinks and
+   checks every byte before sourcing any control file. The Dockerfile installs
+   only the components named by that verified list, without archive/installer globs.
+   Signature-stubbed fixtures test inventory coverage only, not cryptography.
+   `qualify.sh` builds with `docker build --network=none`. Inside the pinned base,
    `image/verify_chain.sh` checks the archive keyring hash, verifies each InRelease
    with the base's own `gpgv`, takes index hashes only from the verified text,
    decompresses the checked index, and requires every staged `.deb` to appear with

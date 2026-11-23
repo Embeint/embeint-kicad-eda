@@ -26,6 +26,7 @@ import compare_observations  # noqa: E402
 import debian  # noqa: E402
 import fetch_inputs  # noqa: E402
 import refenv  # noqa: E402
+import input_plan  # noqa: E402
 import run_probe  # noqa: E402
 import verify_image  # noqa: E402
 
@@ -302,6 +303,7 @@ class FetchTest(unittest.TestCase):
         (directory / "src/dists/noble").mkdir(parents=True)
         shutil.copy(directory / "src/InRelease", directory / "src/dists/noble/InRelease")
         dest = directory / "context"
+        lock["verification_plan_sha256"] = input_plan.digest(input_plan.plan(lock)[1])
         self.assertEqual(fetch_inputs.fetch_inputs(lock, directory / "cache", dest), (1, 1))
         self.assertEqual((dest / "debs.list").read_text(), f"pool/a_1_amd64.deb {deb_sha} a 1 amd64\n")
         self.assertEqual((dest / "debs/a_1_amd64.deb").read_bytes(), b"deb")

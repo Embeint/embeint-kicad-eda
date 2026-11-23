@@ -28,6 +28,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import debian  # noqa: E402
 import refenv  # noqa: E402
+import input_plan  # noqa: E402
 
 REGISTRY = "https://registry-1.docker.io/v2/"
 INDEX_TYPES = ("application/vnd.oci.image.index.v1+json, "
@@ -281,7 +282,7 @@ def build_lock(candidate, candidate_bytes):
                                                          "source", "source_version")}
     files, libm = inspect_debs(candidate, final.values(), stanzas,
                                snapshot_record["url"] + "/" + snapshot_record["id"])
-    return {
+    lock = {
         "schema": 1,
         "generated_by": "port/reference-env/tools/lock_inputs.py",
         "status": "candidate-unqualified",
@@ -299,6 +300,9 @@ def build_lock(candidate, candidate_bytes):
         "libm": libm,
     }
 
+    lock["verification_plan_sha256"] = input_plan.digest(input_plan.plan(lock)[1])
+    return lock
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__,
@@ -307,9 +311,15 @@ def main():
     parser.add_argument("--output", type=Path, default=refenv.LOCK)
     parser.add_argument("--check", action="store_true",
                         help="re-resolve from the network and fail if the lock would change")
+    parser.add_argument("--refresh-verification-plan", action="store_true",
+                        help="regenerate only the inventory binding from existing pinned inputs (no network)")
     args = parser.parse_args()
     candidate_bytes = args.candidate.read_bytes()
-    lock = build_lock(refenv.load_candidate(args.candidate), candidate_bytes)
+    if args.refresh_verification_plan:
+        lock = refenv.load_lock(args.output)
+        lock["verification_plan_sha256"] = input_plan.digest(input_plan.plan(lock)[1])
+    else:
+        lock = build_lock(refenv.load_candidate(args.candidate), candidate_bytes)
     text = refenv.dump_json(lock)
     if args.check:
         current = args.output.read_text(encoding="utf-8") if args.output.exists() else ""
