@@ -111,6 +111,13 @@ class ResolverTest(unittest.TestCase):
                                   stanza("old", "1", provides="api")])
         self.assertIn("impl", debian.resolve(archive, {}, ["app"])[0])
 
+    def test_conflicting_virtual_providers_are_rejected(self):
+        archive = debian.Archive([stanza("first", "1", provides="api", Conflicts="api"),
+                                  stanza("second", "1", provides="api")])
+        self.assertEqual(sorted(debian.resolve(archive, {}, ["first"])[0]), ["first"])
+        with self.assertRaisesRegex(ValueError, "Conflicts"):
+            debian.resolve(archive, {}, ["first", "second"])
+
     def test_failures(self):
         with self.assertRaisesRegex(ValueError, "Unsatisfiable"):
             debian.resolve(debian.Archive([stanza("app", "1", "missing")]), {}, ["app"])

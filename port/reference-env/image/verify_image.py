@@ -18,7 +18,13 @@ import sys
 import stat
 import tomllib
 
-LIB_DIRS = ("/usr/lib/x86_64-linux-gnu", "/lib/x86_64-linux-gnu", "/usr/local/lib", "/usr/lib", "/lib")
+LIB_DIRS = (
+    "/usr/lib/x86_64-linux-gnu",
+    "/lib/x86_64-linux-gnu",
+    "/usr/local/lib",
+    "/usr/lib",
+    "/lib",
+)
 
 
 def sha256(path):
@@ -66,7 +72,9 @@ def check_packages(lock, failures, *, verify_files=False):
     expected = {p["name"]: (p["architecture"], p["version"]) for p in lock["packages"]["final"]}
     for name in sorted(set(installed) | set(expected)):
         if installed.get(name) != expected.get(name):
-            failures.append(f"package {name}: installed {installed.get(name)}, locked {expected.get(name)}")
+            failures.append(
+                f"package {name}: installed {installed.get(name)}, locked {expected.get(name)}"
+            )
     if verify_files:
         verify_package_files(failures)
     return hashlib.sha256(output.encode()).hexdigest()
@@ -78,8 +86,9 @@ def verify_package_files(failures):
     # Paths dropped by the base's path-exclude rules were never installed.
     rules = dpkg_excludes()
     verify = subprocess.run(["dpkg", "--verify"], capture_output=True, text=True)
-    problems = [line for line in verify.stdout.splitlines()
-                if not excluded(line.split()[-1], rules)]
+    problems = [
+        line for line in verify.stdout.splitlines() if not excluded(line.split()[-1], rules)
+    ]
     if verify.returncode not in (0, 1) or verify.stderr.strip():
         failures.append("dpkg --verify failed: " + verify.stderr.strip())
     failures.extend("dpkg --verify: " + line for line in problems)
@@ -116,14 +125,20 @@ def check_loader(candidate, failures):
             failures.append(f"{name} is set")
     tunables = os.environ.get("GLIBC_TUNABLES")
     if tunables != candidate["dispatch"]["glibc_tunables"]:
-        failures.append(f"GLIBC_TUNABLES is {tunables!r}, contract {candidate['dispatch']['glibc_tunables']!r}")
+        failures.append(
+            f"GLIBC_TUNABLES is {tunables!r}, contract {candidate['dispatch']['glibc_tunables']!r}"
+        )
 
 
 def check_compiler(candidate, failures):
     toolchain = candidate["toolchain"]
     record = {}
-    for driver, real in (("gcc", "x86_64-linux-gnu-gcc-13"), ("g++", "x86_64-linux-gnu-g++-13"),
-                         ("cc", "x86_64-linux-gnu-gcc-13"), ("c++", "x86_64-linux-gnu-g++-13")):
+    for driver, real in (
+        ("gcc", "x86_64-linux-gnu-gcc-13"),
+        ("g++", "x86_64-linux-gnu-g++-13"),
+        ("cc", "x86_64-linux-gnu-gcc-13"),
+        ("c++", "x86_64-linux-gnu-g++-13"),
+    ):
         path = Path(run("sh", "-c", f"command -v {driver}").strip()).resolve()
         if path.name != real:
             failures.append(f"{driver} resolves to {path}, expected {real}")
@@ -134,7 +149,9 @@ def check_compiler(candidate, failures):
     # Predefined macros as the oracle compiles: CMake Release flags plus the fixed FP flags.
     flags = ["-O3", "-DNDEBUG", "-std=gnu++20", *toolchain["oracle_flags"]]
     macros = {}
-    for line in run("sh", "-c", "g++ " + " ".join(flags) + " -dM -E -x c++ - < /dev/null").splitlines():
+    for line in run(
+        "sh", "-c", "g++ " + " ".join(flags) + " -dM -E -x c++ - < /dev/null"
+    ).splitlines():
         parts = line.split(None, 2)
         if len(parts) >= 2 and parts[0] == "#define":
             macros[parts[1]] = parts[2] if len(parts) == 3 else ""
@@ -147,9 +164,13 @@ def check_compiler(candidate, failures):
     if macros.get("__FLT_EVAL_METHOD__") != toolchain["flt_eval_method"]:
         failures.append("__FLT_EVAL_METHOD__ is " + repr(macros.get("__FLT_EVAL_METHOD__")))
     record["predefined_macros_sha256"] = hashlib.sha256(
-        "".join(f"{k}={v}\n" for k, v in sorted(macros.items())).encode()).hexdigest()
-    record["target_options"] = [line.strip() for line in run("gcc", "-Q", "--help=target").splitlines()
-                                if line.strip().startswith(("-march=", "-mtune=", "-mfpmath="))]
+        "".join(f"{k}={v}\n" for k, v in sorted(macros.items())).encode()
+    ).hexdigest()
+    record["target_options"] = [
+        line.strip()
+        for line in run("gcc", "-Q", "--help=target").splitlines()
+        if line.strip().startswith(("-march=", "-mtune=", "-mfpmath="))
+    ]
     if not any(option.split() == ["-march=", "x86-64"] for option in record["target_options"]):
         failures.append("gcc default -march is not x86-64: " + repr(record["target_options"]))
     libc = run("getconf", "GNU_LIBC_VERSION").strip()
@@ -188,14 +209,22 @@ def rust_inventory(prefix, failures):
             if path.is_symlink():
                 resolved = path.resolve()
                 if not resolved.is_relative_to(prefix.resolve()) or not resolved.is_file():
-                    failures.append("Rust symlink escapes input closure or is not a regular file: " + logical)
+                    failures.append(
+                        "Rust symlink escapes input closure or is not a regular file: " + logical
+                    )
                     continue
-                files[logical] = {"kind": "symlink", "target": os.readlink(path),
-                                  "resolved": "/usr/local/" + resolved.relative_to(prefix.resolve()).as_posix(),
-                                  "sha256": sha256(resolved)}
+                files[logical] = {
+                    "kind": "symlink",
+                    "target": os.readlink(path),
+                    "resolved": "/usr/local/" + resolved.relative_to(prefix.resolve()).as_posix(),
+                    "sha256": sha256(resolved),
+                }
             elif path.is_file():
-                files[logical] = {"kind": "file", "sha256": sha256(path),
-                                  "mode": stat.S_IMODE(path.stat().st_mode)}
+                files[logical] = {
+                    "kind": "file",
+                    "sha256": sha256(path),
+                    "mode": stat.S_IMODE(path.stat().st_mode),
+                }
             elif not path.is_dir():
                 failures.append("Rust special file: " + logical)
     return dict(sorted(files.items()))
@@ -204,11 +233,16 @@ def rust_inventory(prefix, failures):
 def check_rust(lock, failures, *, prefix=Path("/usr/local"), expected=None):
     version = run("rustc", "-vV")
     fields = dict(line.split(": ", 1) for line in version.splitlines() if ": " in line)
-    if fields.get("release") != lock["rust"]["version"] or fields.get("host") != "x86_64-unknown-linux-gnu":
+    if (
+        fields.get("release") != lock["rust"]["version"]
+        or fields.get("host") != "x86_64-unknown-linux-gnu"
+    ):
         failures.append("rustc is " + repr(fields))
     installed = (prefix / "lib/rustlib/components").read_text(encoding="utf-8").split()
-    wanted = sorted(f"{c['name']}-{c['target']}" if c["name"] == "rust-std" else c["name"]
-                    for c in lock["rust"]["components"])
+    wanted = sorted(
+        f"{c['name']}-{c['target']}" if c["name"] == "rust-std" else c["name"]
+        for c in lock["rust"]["components"]
+    )
     if sorted(installed) != wanted:
         failures.append("Rust component membership differs from the lock")
     for name in wanted:
@@ -220,8 +254,14 @@ def check_rust(lock, failures, *, prefix=Path("/usr/local"), expected=None):
         for line in manifest.read_text(encoding="utf-8").splitlines():
             kind, separator, target = line.partition(":")
             path = Path(target)
-            if (not separator or kind not in ("file", "dir") or target in seen or ".." in path.parts
-                    or not path.is_relative_to(prefix) or not path.resolve().is_relative_to(prefix.resolve())):
+            if (
+                not separator
+                or kind not in ("file", "dir")
+                or target in seen
+                or ".." in path.parts
+                or not path.is_relative_to(prefix)
+                or not path.resolve().is_relative_to(prefix.resolve())
+            ):
                 failures.append("Invalid Rust installation manifest entry: " + line)
                 continue
             seen.add(target)
@@ -231,12 +271,20 @@ def check_rust(lock, failures, *, prefix=Path("/usr/local"), expected=None):
     for target in ("x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"):
         if not any((prefix / "lib/rustlib" / target / "lib").glob("libstd-*.rlib")):
             failures.append("Rust target stdlib missing: " + target)
-    for name in ("bin/rustc", "bin/cargo", "lib/rustlib/x86_64-unknown-linux-gnu/bin/rust-lld",
-                 "lib/rustlib/rust-installer-version"):
+    for name in (
+        "bin/rustc",
+        "bin/cargo",
+        "lib/rustlib/x86_64-unknown-linux-gnu/bin/rust-lld",
+        "lib/rustlib/rust-installer-version",
+    ):
         if "/usr/local/" + name not in files:
             failures.append("Rust required input missing: " + name)
-    result = {"rustc": fields, "cargo": run("cargo", "-V").strip(), "components": sorted(installed),
-              "inputs": files}
+    result = {
+        "rustc": fields,
+        "cargo": run("cargo", "-V").strip(),
+        "components": sorted(installed),
+        "inputs": files,
+    }
     if expected is not None and result != expected:
         failures.append("Rust installed input closure differs from the image record")
     return result
@@ -254,7 +302,9 @@ def main():
     failures = []
     if lock["candidate_sha256"] != sha256(args.candidate):
         failures.append("candidate.toml differs from the lock's candidate_sha256")
-    expected = json.loads(args.expect.read_text(encoding="utf-8")) if args.expect is not None else None
+    expected = (
+        json.loads(args.expect.read_text(encoding="utf-8")) if args.expect is not None else None
+    )
     identity = {
         "schema": 1,
         "status": lock["status"],
@@ -277,8 +327,10 @@ def main():
     text = json.dumps(identity, indent=2, sort_keys=True) + "\n"
     if args.record is not None:
         args.record.write_text(text, encoding="utf-8")
-    print(f"Image matches lock {identity['lock_sha256'][:16]}: "
-          f"{len(lock['packages']['final'])} packages, {len(identity['toolchain_files_sha256'])} identity files")
+    print(
+        f"Image matches lock {identity['lock_sha256'][:16]}: "
+        f"{len(lock['packages']['final'])} packages, {len(identity['toolchain_files_sha256'])} identity files"
+    )
     return 0
 
 
