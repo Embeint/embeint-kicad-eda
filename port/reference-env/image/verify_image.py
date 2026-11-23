@@ -15,6 +15,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import stat
 import tomllib
 
 LIB_DIRS = ("/usr/lib/x86_64-linux-gnu", "/lib/x86_64-linux-gnu", "/usr/local/lib", "/usr/lib", "/lib")
@@ -162,23 +163,83 @@ def check_compiler(candidate, failures):
     return record
 
 
-def check_rust(lock, failures):
+def rust_inventory(prefix, failures):
+    """Hash compiler/linker libraries and installation manifests at stable paths.
+
+    Documentation/completions are not compiler inputs. install.log is an append
+    log, not an input, and carries build-specific installation paths. All other
+    files under bin/lib/libexec/etc are covered, including all rustlib targets.
+    Symlinks must name regular files inside this prefix; directory links and
+    special files are rejected instead of hiding an unscanned subtree.
+    """
+    files = {}
+    for top in ("bin", "lib", "libexec", "etc"):
+        directory = prefix / top
+        if directory.is_symlink():
+            failures.append("Rust input root is a symlink: " + top)
+            continue
+        for path in sorted(directory.rglob("*")):
+            relative = path.relative_to(prefix).as_posix()
+            if relative == "lib/rustlib/install.log":
+                if path.is_symlink() or not path.is_file():
+                    failures.append("Rust install.log must be a regular file")
+                continue
+            logical = "/usr/local/" + relative
+            if path.is_symlink():
+                resolved = path.resolve()
+                if not resolved.is_relative_to(prefix.resolve()) or not resolved.is_file():
+                    failures.append("Rust symlink escapes input closure or is not a regular file: " + logical)
+                    continue
+                files[logical] = {"kind": "symlink", "target": os.readlink(path),
+                                  "resolved": "/usr/local/" + resolved.relative_to(prefix.resolve()).as_posix(),
+                                  "sha256": sha256(resolved)}
+            elif path.is_file():
+                files[logical] = {"kind": "file", "sha256": sha256(path),
+                                  "mode": stat.S_IMODE(path.stat().st_mode)}
+            elif not path.is_dir():
+                failures.append("Rust special file: " + logical)
+    return dict(sorted(files.items()))
+
+
+def check_rust(lock, failures, *, prefix=Path("/usr/local"), expected=None):
     version = run("rustc", "-vV")
     fields = dict(line.split(": ", 1) for line in version.splitlines() if ": " in line)
     if fields.get("release") != lock["rust"]["version"] or fields.get("host") != "x86_64-unknown-linux-gnu":
         failures.append("rustc is " + repr(fields))
-    installed = Path("/usr/local/lib/rustlib/components").read_text(encoding="utf-8").split()
+    installed = (prefix / "lib/rustlib/components").read_text(encoding="utf-8").split()
     wanted = sorted(f"{c['name']}-{c['target']}" if c["name"] == "rust-std" else c["name"]
                     for c in lock["rust"]["components"])
+    if sorted(installed) != wanted:
+        failures.append("Rust component membership differs from the lock")
     for name in wanted:
-        if name not in installed:
-            failures.append("Rust component not installed: " + name)
-    files = {}
-    for path in sorted(Path("/usr/local/bin").glob("*")) + sorted(Path("/usr/local/lib").glob("*.so")):
-        if path.is_file():
-            files[str(path)] = sha256(path)
-    return {"rustc": fields, "cargo": run("cargo", "-V").strip(), "components": sorted(installed),
-            "files_sha256": files}
+        manifest = prefix / "lib/rustlib" / ("manifest-" + name)
+        if not manifest.is_file() or manifest.is_symlink():
+            failures.append("Rust installation manifest missing: " + name)
+            continue
+        seen = set()
+        for line in manifest.read_text(encoding="utf-8").splitlines():
+            kind, separator, target = line.partition(":")
+            path = Path(target)
+            if (not separator or kind not in ("file", "dir") or target in seen or ".." in path.parts
+                    or not path.is_relative_to(prefix) or not path.resolve().is_relative_to(prefix.resolve())):
+                failures.append("Invalid Rust installation manifest entry: " + line)
+                continue
+            seen.add(target)
+            if not path.exists() or (kind == "file" and not path.is_file()):
+                failures.append("Missing Rust manifest input: " + target)
+    files = rust_inventory(prefix, failures)
+    for target in ("x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"):
+        if not any((prefix / "lib/rustlib" / target / "lib").glob("libstd-*.rlib")):
+            failures.append("Rust target stdlib missing: " + target)
+    for name in ("bin/rustc", "bin/cargo", "lib/rustlib/x86_64-unknown-linux-gnu/bin/rust-lld",
+                 "lib/rustlib/rust-installer-version"):
+        if "/usr/local/" + name not in files:
+            failures.append("Rust required input missing: " + name)
+    result = {"rustc": fields, "cargo": run("cargo", "-V").strip(), "components": sorted(installed),
+              "inputs": files}
+    if expected is not None and result != expected:
+        failures.append("Rust installed input closure differs from the image record")
+    return result
 
 
 def main():
@@ -193,6 +254,7 @@ def main():
     failures = []
     if lock["candidate_sha256"] != sha256(args.candidate):
         failures.append("candidate.toml differs from the lock's candidate_sha256")
+    expected = json.loads(args.expect.read_text(encoding="utf-8")) if args.expect is not None else None
     identity = {
         "schema": 1,
         "status": lock["status"],
@@ -201,12 +263,11 @@ def main():
         "dpkg_query_sha256": check_packages(lock, failures, verify_files=args.record is not None),
         "toolchain_files_sha256": check_files(lock, failures),
         "compiler": check_compiler(candidate, failures),
-        "rust": check_rust(lock, failures),
+        "rust": check_rust(lock, failures, expected=expected["rust"] if expected else None),
         "glibc_tunables": os.environ.get("GLIBC_TUNABLES"),
     }
     check_loader(candidate, failures)
     if args.expect is not None:
-        expected = json.loads(args.expect.read_text(encoding="utf-8"))
         if expected != identity:
             failures.append("identity differs from the image build record " + str(args.expect))
     if failures:

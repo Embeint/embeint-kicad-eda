@@ -150,7 +150,14 @@ GCC 13 at the oracle flags combines a `cos` and `sin` of the same argument into 
    local files cannot fetch or choose anything else. `image/verify_image.py` then
    checks the package set, `dpkg --verify`, identity files, compiler facts, loader
    state, the dispatch variable and Rust, writing `/opt/refenv/image-identity.json`.
-   Every probe, oracle and difftest run re-checks the image against that record.
+   The Rust identity includes all files and in-prefix file symlinks under
+   `/usr/local/bin`, `lib`, `libexec` and `etc`: compiler drivers, linker helpers,
+   LLVM/driver libraries, native and wasm `.rlib`/`.rmeta` files and installation
+   manifests. Stable paths, modes, link targets and hashes are compared on every
+   run and rebuild. Escaping/directory symlinks and missing/extra inputs fail.
+   Documentation/completions and the non-input append-only `rustlib/install.log`
+   are excluded. Every probe, oracle and difftest run re-checks the image against
+   that record.
 
 ### Remaining non-hermetic and entropy inputs
 

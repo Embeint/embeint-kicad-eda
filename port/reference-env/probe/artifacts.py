@@ -225,6 +225,29 @@ def validate(directory):
     require(image['toolchain_files_sha256'] == {p['path']: p['sha256'] for p in lock['toolchain_files']}, 'toolchain bytes differ')
     require(image['rust']['rustc']['release'] == lock['rust']['version'] and
             image['rust']['rustc']['host'] == 'x86_64-unknown-linux-gnu', 'Rust identity differs')
+    rust_identity = image['rust']
+    keys(rust_identity, 'rustc cargo components inputs')
+    strings(rust_identity['components'])
+    wanted = sorted(f"{c['name']}-{c['target']}" if c['name'] == 'rust-std' else c['name'] for c in lock['rust']['components'])
+    require(rust_identity['components'] == wanted and type(rust_identity['cargo']) is str, 'Rust components differ')
+    closure = rust_identity['inputs']
+    require(type(closure) is dict and bool(closure), 'missing Rust input closure')
+    for path, entry in closure.items():
+        require(path.startswith('/usr/local/') and '..' not in Path(path).parts, 'unsafe Rust input path')
+        if entry['kind'] == 'file':
+            keys(entry, 'kind sha256 mode'); integer(entry['mode'], 0, 4095)
+        else:
+            keys(entry, 'kind sha256 target resolved')
+            require(entry['kind'] == 'symlink' and type(entry['target']) is str and
+                    entry['resolved'] in closure and closure[entry['resolved']]['kind'] == 'file', 'invalid Rust input link')
+        require(type(entry['sha256']) is str and SHA.fullmatch(entry['sha256']), 'invalid Rust input digest')
+    for required in ('bin/rustc', 'bin/cargo', 'lib/rustlib/components', 'lib/rustlib/rust-installer-version',
+                     'lib/rustlib/x86_64-unknown-linux-gnu/bin/rust-lld',
+                     *('lib/rustlib/manifest-' + name for name in wanted)):
+        require('/usr/local/' + required in closure, 'missing Rust compiler/linker/manifest input')
+    for target in ('x86_64-unknown-linux-gnu', 'wasm32-unknown-unknown'):
+        require(any(path.startswith('/usr/local/lib/rustlib/' + target + '/lib/libstd-') and path.endswith('.rlib')
+                    for path in closure), 'missing Rust target stdlib')
     contract = results['contract']; state = contract['floating_point_state']
     require(state == {'mxcsr': '00001f80', 'x87_control': '037f', 'round_to_nearest': True, 'global_locale': 'C'}, 'FP contract failed')
     dispatch = []
