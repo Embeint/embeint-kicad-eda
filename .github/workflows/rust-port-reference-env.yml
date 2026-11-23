@@ -1,0 +1,76 @@
+name: Rust port reference environment (candidate tooling)
+
+# Separate from the phase zero gate (rust-port.yml), which is unchanged. The
+# tooling job checks the candidate recipe offline. The probe job runs only on
+# manual dispatch, builds the CANDIDATE image locally on the runner without
+# pushing it, and uploads unqualified evidence. Neither job qualifies the
+# candidate or changes any golden, pin or unit status.
+
+on:
+  pull_request:
+    branches: [rust]
+    paths:
+      - port/reference-env/**
+      - .github/workflows/rust-port-reference-env.yml
+  push:
+    branches: [rust]
+    paths:
+      - port/reference-env/**
+      - .github/workflows/rust-port-reference-env.yml
+  workflow_dispatch:
+    inputs:
+      probe:
+        description: Build the candidate image on the runner and run the probe (unqualified evidence)
+        type: boolean
+        default: false
+      with_oracle:
+        description: Also build and audit the pinned oracle inside the candidate image
+        type: boolean
+        default: false
+      sweep_count:
+        description: Number of sweep angles (1..2000000)
+        default: "200000"
+
+permissions:
+  contents: read
+
+jobs:
+  tooling:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Check the recipe and run the tooling tests (offline)
+        run: |
+          python port/reference-env/tools/check_candidate.py
+          python -m unittest discover -s port/reference-env/tests -v
+          bash -n port/reference-env/qualify.sh
+          sh -n port/reference-env/image/verify_chain.sh
+
+  candidate-probe:
+    if: github.event_name == 'workflow_dispatch' && inputs.probe
+    needs: tooling
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0 # prepare.py exports the pinned upstream commit for --with-oracle.
+      - name: Build and probe the candidate image (not pushed, not qualification)
+        env:
+          ORACLE_JOBS: "4"
+          WITH_ORACLE: ${{ inputs.with_oracle }}
+          SWEEP_COUNT: ${{ inputs.sweep_count }}
+        run: |
+          args=(--work "$RUNNER_TEMP/refenv" --sweep-count "$SWEEP_COUNT" --rebuild-check)
+          if test "$WITH_ORACLE" = true; then args+=(--with-oracle); fi
+          bash port/reference-env/qualify.sh "${args[@]}"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: reference-env-candidate-unqualified
+          path: ${{ runner.temp }}/refenv/runs/
+          if-no-files-found: warn
