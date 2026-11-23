@@ -17,6 +17,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # --no-download: apt 2.8.4 fails to resolve its local-file acquisition paths with
 # that flag. The verifier checks every local file before apt runs; the final
 # image check requires exactly the locked package set.
+# Cleanup restores apt-owned directories, including lists/partial which the
+# pinned base omits. Keep dpkg verification strict rather than exempting them.
 RUN --mount=type=bind,target=/opt/refenv-context,readonly \
     set -eu; \
     test -n "$LOCK_SHA256"; \
@@ -28,8 +30,9 @@ RUN --mount=type=bind,target=/opt/refenv-context,readonly \
         tar -xJf "/opt/refenv-context/inputs/rust/$archive" -C "$rust"; \
         "$rust/$component/install.sh" --prefix=/usr/local --disable-ldconfig; \
     done < /opt/refenv-context/inputs/rust-components.list; \
-    rm -rf "$rust" /var/lib/apt/lists/* /var/cache/apt/*.bin /var/log/apt /var/log/dpkg.log \
-           /var/log/alternatives.log /var/cache/ldconfig/aux-cache
+    rm -rf "$rust" /var/lib/apt/lists/* /var/cache/apt/*.bin /var/log/apt/* /var/log/dpkg.log \
+           /var/log/alternatives.log /var/cache/ldconfig/aux-cache; \
+    mkdir -p /var/lib/apt/lists/partial /var/log/apt
 
 COPY inputs.lock.json candidate.toml /opt/refenv/
 COPY image/ /opt/refenv/image/

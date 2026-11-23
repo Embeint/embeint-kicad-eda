@@ -368,6 +368,17 @@ and independent review of this follow-up remain pending. Engine version/info is
 now retained in the run directory before the first pull/build; complete
 image-bound host provenance still requires a successful image.
 
+The next native build at `b9592bea` installed all locked Debian and Rust inputs,
+then failed the final verifier because cleanup removed the apt-owned directories
+`/var/lib/apt/lists/partial` and `/var/log/apt`. The base also omits the former.
+Cleanup now recreates both directories after removing disposable contents; the
+package verifier gains no exception. Host provenance records the producer's
+platform from the source proof and says "clean at recorded source export",
+without implying that a Windows-produced bundle came from a Linux checkout.
+Focused tests exercise cleanup in an isolated filesystem and host-record CLI
+behavior with Windows/Linux/macOS producer proofs. They do not run dpkg or prove
+a native image pass. Fresh review and native qualification remain pending.
+
 **Not performed:** no amd64 image was built, so `verify_image.py`, the probes on
 x86-64, the oracle build inside the image, `--rebuild-check` and the difftest have
 never run. A recipe is not a passed reproducible build.

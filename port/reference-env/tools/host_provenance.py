@@ -9,15 +9,9 @@ records them from the host. The image is local and unpushed.
 import argparse
 import json
 import platform
-import subprocess
 
 DOCKER_INFO_FIELDS = ("Architecture", "OSType", "OperatingSystem", "KernelVersion", "ServerVersion", "Driver",
                       "NCPU", "MemTotal", "CgroupVersion", "SecurityOptions", "DefaultRuntime")
-
-
-def git(repo, *args):
-    result = subprocess.run(["git", "-C", repo, *args], capture_output=True, text=True)
-    return result.stdout.strip() if result.returncode == 0 else None
 
 
 def main():
@@ -28,6 +22,11 @@ def main():
     args = parser.parse_args()
     with open(args.source_manifest, encoding="utf-8") as stream:
         source = json.load(stream)
+    if source.get("source_clean") is not True:
+        parser.error("source manifest must record a clean export")
+    export_platform = source.get("export_platform")
+    if not isinstance(export_platform, str) or not export_platform:
+        parser.error("source manifest must record its export platform")
     with open(args.docker_info, encoding="utf-8") as stream:
         info = json.load(stream)
     with open(args.docker_version, encoding="utf-8") as stream:
@@ -40,7 +39,8 @@ def main():
         "pushed": False,
         "lock_sha256": args.lock_sha256,
         "checkout_revision": source["revision"],
-        "checkout_status": "clean at native Git export",
+        "checkout_status": "clean at recorded source export",
+        "source_export_platform": export_platform,
         "source_export": source,
         "host_uname": platform.uname()._asdict(),
         "docker_version": version,
