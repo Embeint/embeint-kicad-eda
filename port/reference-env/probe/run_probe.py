@@ -26,6 +26,8 @@ import shlex
 import subprocess
 import sys
 import tomllib
+import artifacts
+import shutil
 
 HERE = Path(__file__).resolve().parent
 REFENV = HERE.parent
@@ -106,15 +108,15 @@ def run_probes(out, candidate, sweep_count, has_matrix):
         with open(out / f"primitive-{label}.json", "w", encoding="utf-8") as stream:
             run([str(out / "bin/primitive_probe"), "--functions", functions, "--sweep-count", str(sweep_count),
                  "--sweep-out", str(sweep)], env=env, stdout=stream)
-        results[label] = json.loads((out / f"primitive-{label}.json").read_text(encoding="utf-8"))
+        results[label] = artifacts.load(out / f"primitive-{label}.json")
     with open(out / "rust-contract.json", "w", encoding="utf-8") as stream:
         run([str(out / "bin/rust_probe"), "--sweep-count", str(sweep_count),
              "--sweep-out", str(out / "rust-contract.sweep.bin")], env=contract, stdout=stream)
-    results["rust"] = json.loads((out / "rust-contract.json").read_text(encoding="utf-8"))
+    results["rust"] = artifacts.load(out / "rust-contract.json")
     if has_matrix:
         with open(out / "matrix-contract.json", "w", encoding="utf-8") as stream:
             run([str(out / "bin/matrix_probe")], env=contract, stdout=stream)
-        results["matrix"] = json.loads((out / "matrix-contract.json").read_text(encoding="utf-8"))
+        results["matrix"] = artifacts.load(out / "matrix-contract.json")
     return results
 
 
@@ -173,7 +175,9 @@ def field_differences(left, right, fields, key=("x",)):
     right_by_key = {tuple(item[k] for k in key): item for item in right}
     left_keys = {tuple(item[k] for k in key) for item in left}
     if (len(right_by_key) != len(right) or len(left_keys) != len(left)
-            or left_keys != set(right_by_key)):
+            or left_keys != set(right_by_key)
+            or [tuple(item[k] for k in key) for item in left]
+               != [tuple(item[k] for k in key) for item in right]):
         return {"status": "different", "count": None, "reason": "record sets differ", "differences": []}
     for item in left:
         identity = tuple(item[k] for k in key)
@@ -184,6 +188,35 @@ def field_differences(left, right, fields, key=("x",)):
                                     "right": None if other is None else other[right_field]})
     return {"status": "identical" if not differences else "different", "count": len(differences),
             "differences": differences}
+
+
+def comparison_report(out, results, lock, candidate):
+    contract = results["contract"]
+    default_report, _ = dispatch_report(results["host-default"], lock, candidate)
+    return {
+        "contract_vs_host_default_dispatch": {
+            "note": "Host CPU dispatch without GLIBC_TUNABLES; informational, not the reference.",
+            "dispatch": default_report,
+            "libm_values": field_differences(results["host-default"]["libm_values"], contract["libm_values"],
+                                             [(f, f) for f in ("sin", "cos", "sincos_sin", "sincos_cos",
+                                                               "compiled_cos", "compiled_sin")]),
+            "sweep": sweep_differences(out / "primitive-host-default.sweep.bin",
+                                       out / "primitive-contract.sweep.bin"),
+        },
+        "cpp_vs_rust_native": {
+            "note": "Both call glibc libm; arithmetic NaN results reflect each compiler's operand order.",
+            "libm_values": field_differences(contract["libm_values"], results["rust"]["libm_values"],
+                                             [("sin", "sin"), ("cos", "cos"), ("sincos_sin", "sin_cos_sin"),
+                                              ("sincos_cos", "sin_cos_cos")]),
+            "sweep": sweep_differences(out / "primitive-contract.sweep.bin", out / "rust-contract.sweep.bin"),
+            "nan_arithmetic": field_differences(contract["nan_arithmetic"], results["rust"]["nan_arithmetic"],
+                                                [(op, op) for op in ("add", "sub", "mul", "div")],
+                                                key=("a", "b")),
+        },
+        "compiled_pair_vs_separate_calls": field_differences(
+            contract["libm_values"], contract["libm_values"],
+            [("compiled_cos", "cos"), ("compiled_sin", "sin"), ("sincos_cos", "cos"), ("sincos_sin", "sin")]),
+    }
 
 
 def analyse(out, results, lock, candidate, built):
@@ -229,35 +262,11 @@ def analyse(out, results, lock, candidate, built):
     check("installed libm debug symbols name the same implementations as the lock",
           environment["libm"]["matches_lock"], environment["libm"]["debug_file"])
 
-    default_report, _ = dispatch_report(results["host-default"], lock, candidate)
-    comparisons = {
-        "contract_vs_host_default_dispatch": {
-            "note": "Host CPU dispatch without GLIBC_TUNABLES; informational, not the reference.",
-            "dispatch": default_report,
-            "libm_values": field_differences(results["host-default"]["libm_values"], contract["libm_values"],
-                                             [(f, f) for f in ("sin", "cos", "sincos_sin", "sincos_cos",
-                                                               "compiled_cos", "compiled_sin")]),
-            "sweep": sweep_differences(out / "primitive-host-default.sweep.bin",
-                                       out / "primitive-contract.sweep.bin"),
-        },
-        "cpp_vs_rust_native": {
-            "note": "Both call glibc libm; arithmetic NaN results reflect each compiler's operand order.",
-            "libm_values": field_differences(contract["libm_values"], results["rust"]["libm_values"],
-                                             [("sin", "sin"), ("cos", "cos"), ("sincos_sin", "sin_cos_sin"),
-                                              ("sincos_cos", "sin_cos_cos")]),
-            "sweep": sweep_differences(out / "primitive-contract.sweep.bin", out / "rust-contract.sweep.bin"),
-            "nan_arithmetic": field_differences(contract["nan_arithmetic"], results["rust"]["nan_arithmetic"],
-                                                [(op, op) for op in ("add", "sub", "mul", "div")],
-                                                key=("a", "b")),
-        },
-        "compiled_pair_vs_separate_calls": field_differences(
-            contract["libm_values"], contract["libm_values"],
-            [("compiled_cos", "cos"), ("compiled_sin", "sin"), ("sincos_cos", "cos"), ("sincos_sin", "sin")]),
-    }
-    outputs = {path.name: sha256(path) for path in sorted(out.iterdir()) if path.is_file()
-               and path.name != "summary.json"}
+    comparisons = comparison_report(out, results, lock, candidate)
+    outputs = artifacts.inventory(out)
     summary = {
-        "schema": 1,
+        "schema": 2,
+        "sweep_count": contract["sweep"]["count"],
         "status": lock["status"],
         "qualification": "not asserted: this probe records observations for independent review",
         "lock_sha256": sha256(REFENV / "inputs.lock.json"),
@@ -287,7 +296,9 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     if any(out.iterdir()):
         parser.error(f"{out} must be empty")
-    lock = json.loads((REFENV / "inputs.lock.json").read_text(encoding="utf-8"))
+    for name in ("inputs.lock.json", "candidate.toml"):
+        shutil.copyfile(REFENV / name, out / name)
+    lock = artifacts.load(REFENV / "inputs.lock.json")
     candidate = tomllib.loads((REFENV / "candidate.toml").read_text(encoding="utf-8"))
     run([sys.executable, str(REFENV / "image/verify_image.py"), "--lock", str(REFENV / "inputs.lock.json"),
          "--candidate", str(REFENV / "candidate.toml"), "--expect", str(REFENV / "image-identity.json")])
