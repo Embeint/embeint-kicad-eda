@@ -19,8 +19,11 @@ rust/target/debug/kicad-difftest check --unit UNIT \
 another repository root. `--oracle-arg ARG` and `--rust-arg ARG` are repeatable;
 arguments are passed directly without a shell. Programs must be executable file
 paths, including when selected from PATH. `--timeout-secs N` defaults to 60 per
-program. `--report PATH` records green, failed or deferred status as JSON; every
-failure and deferral exits nonzero. `--help` lists the commands.
+program. `--report PATH` records green, partial, failed or deferred status as JSON
+with one outcome per case (see [Reports](#reports)); stdout repeats the counts
+without the outcomes. By default every failure and deferral exits nonzero. `--partial` is the
+explicit exception for units declared partial (see [Partial units](#partial-units)).
+`--help` lists the commands.
 
 ## Protocol and exactness
 
@@ -38,8 +41,8 @@ in request order, with no diagnostics on stdout:
 {"unit":"UNIT","case":"unique-id","error":{"kind":"unported","upstream":"function","unit":"dependency"}}
 ```
 
-These are alternative replies. Every `error` envelope fails the run. `unported`
-and `deferred` are reported as deferred; other kinds are failures, including the
+These are alternative replies. By default every `error` envelope fails the run.
+`unported` and `deferred` are reported as deferred; other kinds are failures, including the
 oracle's `invalid_request`, `invalid_input`, `unknown_unit`, `execution_error`.
 Equal errors do not pass. An upstream operation's legitimate return/status value
 belongs in `result`, where it is compared along with every other value. A nonzero
@@ -58,6 +61,90 @@ results with `execution_error`; those cases cannot pass or be blessed. If future
 units need successful non-finite values, agree on explicit tagged JSON on both
 sides (for example `{"$float":"nan"}` and signed infinity tags). The comparator
 preserves those strings exactly and does not silently turn non-finites into null.
+
+## Partial units
+
+A unit with passing non-deferred cases and deferred cases is `partial`, never
+`green`. `compare --partial` and `check --partial` report such a run without
+weakening any comparison:
+
+- Every case runs on both programs. Every oracle reply must be a `result`; an
+  oracle error of any kind, including `unported`, fails. A case the Rust shim
+  defers therefore always retains a real C++ reference outcome.
+- Every Rust `result` is compared exactly with the oracle. Mismatches, identity
+  faults, invalid JSON, nonzero exits, timeouts and non-deferral error kinds fail
+  exactly as in the default mode.
+- A Rust deferral must be exactly
+  `{"kind":"unported"|"deferred","upstream":"<C++ symbol>","unit":"<owner id>"}`
+  with a nonempty symbol and a valid unit ID. Any other shape is a failure.
+- `check --partial` compares **every** oracle reply with the committed golden,
+  including the replies of Rust-deferred cases, so a stale golden fails.
+- At least one real exact comparison is required. All-deferred runs report
+  `deferred` and exit nonzero: they prove no successful operation.
+
+The report's `status` is `partial` (exit 0); its deferred outcomes carry `upstream`,
+the owning `unit`, the oracle's reference reply and the Rust reply. With no
+deferrals the status is `green`; `mode` stays `partial` so the caller still knows the
+unit was declared partial. `--partial` is refused (exit 2) for `propose` and `bless`:
+goldens follow a green, zero-deferral comparison, and no Rust error envelope or
+omitted case is ever blessed. Without `--partial`, `compare` and `check` are unchanged.
+
+CI passes `--partial` only for a unit whose record declares `status = "partial"`;
+there is no global switch. See [Pilot registration and CI staging](#pilot-registration-and-ci-staging).
+
+## Reports
+
+Both programs always run, and every corpus case receives exactly one entry in
+`outcomes`, in corpus order, whether or not the run succeeds. One fault therefore
+never erases the outcomes of the other cases:
+
+| `outcome` | Meaning | Extra fields |
+| --- | --- | --- |
+| `compared` | Rust's result equals the oracle's result exactly | `oracle` only in a failed run |
+| `deferred` | well-formed Rust deferral; the oracle returned a result | `upstream`, `unit`, `oracle`, `rust` |
+| `failed` | mismatch, error reply on either side (including an oracle deferral), malformed, misplaced or missing reply | `reason`, and `oracle`/`rust` lines when present |
+| `unprocessed` | the program never started, or stopped (nonzero exit, timeout) before replying to this case | `reason`, and the other side's lines when present |
+
+Each program's stdout is captured however the run ends. Replies written before a
+nonzero exit or a timeout kill are still parsed, compared and checked against the
+golden, and keep their reference lines; a truncated final line is a malformed
+reply. The process fault itself (start failure, nonzero exit, timeout, unreadable
+output) is always listed in `run_faults` with up to 64 KiB of stderr and always
+fails the run, so no recovered reply can make a faulted run pass. Only those 64 KiB
+of stderr are read (`Read::take`); the omitted count comes from the file size, so
+a huge diagnostic stream costs no memory. Timeouts still kill and reap the
+program; stdout is never truncated.
+
+Stdout is kept byte for byte (the output hash covers every byte) and split into
+lines at LF bytes before any line's UTF-8 is checked, exactly as `str::lines`
+would split valid text: `\n` or `\r\n` ends a line and an unterminated final line
+is kept. A line that is not valid UTF-8 fails its own case and is kept as exact
+lowercase hex (`oracle_hex`, `rust_hex`, or `raw_hex` in `extra_replies`), never
+decoded lossily; the lines after it keep their positions and are evaluated and
+golden-checked normally.
+
+Replies are aligned by position, as the protocol requires; a reply at the wrong
+position fails the case expected there. Lines beyond the corpus are a run fault
+with their count; the first 16 of each program are kept in `extra_replies` (side,
+line number, `raw` text or `raw_hex` bytes up to 4096 bytes, `truncated`). `cases`, `compared`, `deferred`, `failures` and `unprocessed` count
+the outcomes. An accepted report lists compared cases by ID only, since the agreed
+results equal the golden; a failed report includes every available oracle reply so
+the reference results stay recoverable. Failures take precedence over deferrals in
+`status`: `failed`, then `deferred` (all-deferred, or any deferral without
+`--partial`), then `partial` or `green`. A deferral is never counted as a
+success, and an error is never counted as a deferral.
+
+`golden_checked` is `true` exactly for `check`. `golden.status` is `matched`,
+`failed` (with `error` or `mismatched_cases` listing case, golden and oracle lines),
+`incomplete` (with `unchecked_cases` whose oracle result was unavailable), or
+`not_requested` for `compare`. Output hashes cover every captured stdout byte,
+including output before a fault; they are null only when a program never ran.
+The report is built from the final outcome of the action: if a green comparison is
+followed by a failed `propose` or `bless` step (for example a missing
+`--provenance`), that failure is a run fault and the report keeps the full
+reference evidence of a failed run.
+Only a corpus that cannot be read or validated leaves `outcomes` absent, with the
+reason in `error`.
 
 ## Native shim request parsing
 
@@ -181,6 +268,25 @@ Its corpus and golden paths follow the unit filename. Each case file must have a
 valid generated unit record and this registration. Every registered corpus runs
 live against the freshly built own-library oracle and its committed golden;
 deferrals fail, and a green unit without a corpus fails. Orphan goldens fail.
+
+The one exception is a record declaring `status = "partial"`: it runs with
+`--partial`, as `check` when its golden exists and otherwise as live `compare`
+(goldens follow a green difftest). Green, claimed, todo and blocked records always
+run strict `check`, so a green unit stays zero-deferral. The policy then checks the
+runner's report rather than trusting the exit code alone. It parses counts without
+numeric coercion: a fraction, exponent, negative or non-canonical integer, boolean,
+`NaN` or `Infinity` fails, so `1e-400`, `0.0` or `true` cannot pass as a count. It
+then requires that unit, mode and action match; `golden_checked` is the boolean for
+the action and `golden` is `matched` for `check` or `not_requested` for `compare`;
+zero failed or unprocessed cases, no run faults and no extra replies; outcomes for
+every corpus case exactly once, in order, only `compared` or `deferred`, with
+matching counts; at least one compared case; a status that agrees with the
+deferrals; and every deferral owned by an existing unit record, carrying the
+oracle's result reply for that case and, as `rust`, a string that parses exactly
+(no duplicate keys, `NaN` or trailing data) to the deferral envelope for the same
+unit and case, with only `kind` (`unported` or `deferred`), `upstream` and `unit`,
+whose upstream and owner equal the reported outcome's. An error of another kind,
+a result, another case's or owner's reply, or missing or mistyped evidence fails. A previous report is deleted before each run.
 The shim should be a separate native crate; mark it in its Cargo manifest:
 
 ```toml
@@ -203,6 +309,12 @@ the oracle exists, it builds only pinned KiCad libraries, using the oracle
 worker's Ubuntu 24.04 contract and capped jobs. There is no whole-KiCad build or
 compiled-result cache. Provenance and per-unit reports are uploaded even on failure.
 
+`difftest-reports/phase0.json` adds `live_partial_units`, `partial_deferred_cases`,
+`partial_units_without_deferrals` (declared partial, but its corpus deferred
+nothing: audit before promoting) and per-unit `units` entries with the declared
+status, mode, action, result and counts. Partial units never count towards
+`live_green_units` or the phase-0 gate.
+
 `PHASE0_REQUIRED=false` is the bootstrap state: successful infrastructure checks
 summarize **phase0 INCOMPLETE**, including when no pilots exist. The final
 third-pilot/integration PR must set it to `true`, which enables
@@ -224,7 +336,9 @@ python -m unittest discover -s rust/kicad-difftest/tests -p test_policy.py -v
 ```
 
 The native process-fault tests use Python 3 to inject crashes, timeouts, malformed
-output, mismatches, identity faults, errors and deferrals. Python is not a runtime
+output, mismatches, identity faults, errors and deferrals, whole-run or per case
+(`tests/peer.py`). `tests/partial.rs` covers partial reporting; the policy suite
+also feeds reports of the built runner, when present, to the CI report check. Python is not a runtime
 dependency of the Rust harness. Tests cover numeric tokens beyond `f64`, negative
 zero/non-finite handling, missing/duplicate/changed goldens, reviewed baseline
 evidence, portable-crate discovery and non-vacuous staging.

@@ -697,6 +697,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "kicad-math"
+version = "0.1.0"
+
+[[package]]
 name = "kicad-md5"
 version = "0.1.0"
 dependencies = [
