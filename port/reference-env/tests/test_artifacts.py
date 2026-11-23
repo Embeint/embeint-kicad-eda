@@ -12,7 +12,9 @@ import unittest
 
 ENV = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ENV / "probe"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import artifacts
+import libm_fixtures
 import run_probe
 
 
@@ -93,16 +95,10 @@ def fixture(directory):
         if p["resolved_path"].endswith((".so.6", ".so.6.0.33", ".so.1"))
     }
     primitive["loaded_objects"] = list(loaded)
-    primitive["libm_dispatch"] = []
-    for name in candidate["dispatch"]["checked_functions"]:
-        offset = next(
-            offset
-            for offset, names in lock["libm"]["multiarch_symbols"].items()
-            if {f"__{name}_sse2", f"__ieee754_{name}_sse2"}.intersection(names)
-        )
-        primitive["libm_dispatch"].append(
-            dict(function=name, object=lock["libm"]["path"], offset=offset)
-        )
+    primitive["schema"] = 2
+    facts, primitive["libm_dispatch"] = libm_fixtures.facts_and_records(
+        lock, candidate["dispatch"]["checked_functions"]
+    )
     stream_inputs = [
         "7ff0000000000000",
         "fff0000000000000",
@@ -171,6 +167,7 @@ def fixture(directory):
             multiarch_symbols_from_debug_file=lock["libm"]["multiarch_symbols"],
             excluded_suffix_matches=[],
             matches_lock=True,
+            dispatch_facts=facts,
         ),
         loaded_objects=loaded,
     )
@@ -181,7 +178,11 @@ def fixture(directory):
         binary.write_bytes(b"synthetic binary")
         built[name] = dict(sha256=artifacts.sha256(binary), command=["fixture"])
     comparisons = run_probe.comparison_report(
-        directory, {"contract": primitive, "host-default": primitive, "rust": rust}, lock, candidate
+        directory,
+        {"contract": primitive, "host-default": primitive, "rust": rust},
+        lock,
+        candidate,
+        env,
     )
     image.update(
         dpkg_query_sha256="0" * 64,

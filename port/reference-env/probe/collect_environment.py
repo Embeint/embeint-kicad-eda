@@ -15,6 +15,7 @@ import os
 from pathlib import Path
 import platform
 import subprocess
+import tomllib
 
 import libm_elf
 
@@ -50,26 +51,30 @@ def cpu():
     return {"logical_cpus": text.count("processor\t:"), **{k: fields.get(k) for k in keep}}
 
 
-def libm_record(lock):
-    """libm's multiarch table, read from the installed detached debug file.
+def libm_record(lock, functions):
+    """libm's multiarch table and static dispatch facts, read from the installed files.
 
     The classifier is the lock generator's (libm_elf.py). Suffix matches that are
     not implementations are listed with their reason rather than dropped.
     """
     debug_file = lock["libm"]["debug_file"]
     debug_bytes = Path(debug_file).read_bytes()
+    libm_bytes = Path(lock["libm"]["path"]).read_bytes()
     installed, excluded = libm_elf.multiarch_symbols(libm_elf.Elf64(debug_bytes))
     return {"debug_file": debug_file, "multiarch_symbols_from_debug_file": installed,
             "excluded_suffix_matches": excluded,
-            "matches_lock": installed == lock["libm"]["multiarch_symbols"]}
+            "matches_lock": installed == lock["libm"]["multiarch_symbols"],
+            "dispatch_facts": libm_elf.dispatch_facts(libm_bytes, debug_bytes, functions)}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--probe", type=Path, help="primitive probe output naming loaded objects")
     parser.add_argument("--lock", type=Path, default=Path("/opt/refenv/inputs.lock.json"))
+    parser.add_argument("--candidate", type=Path, default=Path("/opt/refenv/candidate.toml"))
     args = parser.parse_args()
     lock = json.loads(args.lock.read_text(encoding="utf-8"))
+    candidate = tomllib.loads(args.candidate.read_text(encoding="utf-8"))
     contract_env = dict(os.environ)
     default_env = {k: v for k, v in contract_env.items() if k != "GLIBC_TUNABLES"}
     record = {
@@ -106,7 +111,7 @@ def main():
         "os_release": Path("/usr/lib/os-release").read_text(encoding="utf-8"),
     }
     os.umask(int(record["environment"]["umask"], 8))
-    record["libm"] = libm_record(lock)
+    record["libm"] = libm_record(lock, candidate["dispatch"]["checked_functions"])
     if args.probe is not None:
         probe = json.loads(args.probe.read_text(encoding="utf-8"))
         record["loaded_objects"] = {name: {"resolved": str(Path(name).resolve()),

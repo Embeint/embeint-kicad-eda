@@ -328,21 +328,6 @@ class ProbeAnalysisTest(unittest.TestCase):
         self.assertFalse(verify_image.excluded("/usr/share/doc/gcc/copyright", rules))
         self.assertFalse(verify_image.excluded("/usr/bin/gcc", rules))
 
-    def test_dispatch_violations(self):
-        lock = {"libm": {"path": "/libm", "multiarch_symbols": {
-            "0x10": ["__sin_sse2"], "0x20": ["__sin_fma"], "0x30": ["__ieee754_atan2_sse2"]}}}
-        candidate = {"dispatch": {"forbidden_variant_suffixes": ["_fma", "_avx"],
-                                    "checked_functions": ["sin", "atan2"]}}
-        observation = {"libm_dispatch": [{"function": "sin", "object": "/libm", "offset": "0x10"},
-                                         {"function": "atan2", "object": "/libm", "offset": "0x30"}]}
-        report, violations = run_probe.dispatch_report(observation, lock, candidate)
-        self.assertEqual(violations, [])
-        for offset in ("0x20", "0x99", "0x30"):
-            observation["libm_dispatch"][0]["offset"] = offset
-            self.assertTrue(run_probe.dispatch_report(observation, lock, candidate)[1])
-        observation["libm_dispatch"].pop()
-        self.assertTrue(run_probe.dispatch_report(observation, lock, candidate)[1])
-
     def test_runtime_package_check_needs_no_root_only_reads(self):
         lock = {"packages": {"final": [{"name": "a", "architecture": "amd64", "version": "1"}]}}
         with mock.patch.object(verify_image, "run", return_value="a\tamd64\t1\tinstall ok installed\n"), \

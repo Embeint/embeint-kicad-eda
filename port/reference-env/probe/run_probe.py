@@ -12,7 +12,8 @@
    provenance and summary.json.
 
 Exit status 1 means the environment contract does not hold (identity, libm
-dispatch, FP control state, runtime formatting family). Exit status 4 means a
+dispatch, FP control state, runtime formatting family). libm dispatch is proved
+per function from a traced call against the locked libm (dispatch_proof.py). Exit status 4 means a
 C++/Rust comparison differs. Host-default dispatch and separate-versus-paired
 libm calls are diagnostic comparisons. Every difference is reported with its
 count and examples; none is accepted. Nothing here qualifies the candidate.
@@ -27,6 +28,7 @@ import subprocess
 import sys
 import tomllib
 import artifacts
+import dispatch_proof
 import shutil
 
 HERE = Path(__file__).resolve().parent
@@ -120,29 +122,9 @@ def run_probes(out, candidate, sweep_count, has_matrix):
     return results
 
 
-def variant_names(lock):
-    return {int(offset, 16): names for offset, names in lock["libm"]["multiarch_symbols"].items()}
-
-
-def dispatch_report(observation, lock, candidate):
-    table = variant_names(lock)
-    report = []
-    violations = []
-    expected = candidate["dispatch"]["checked_functions"]
-    actual = [item["function"] for item in observation["libm_dispatch"]]
-    if sorted(actual) != sorted(expected):
-        violations.append({"reason": "missing, extra or duplicate dispatch records", "functions": actual})
-    for item in observation["libm_dispatch"]:
-        names = table.get(int(item["offset"], 16), [])
-        report.append({"function": item["function"], "object": item["object"], "offset": item["offset"],
-                       "implementation": names or ["(not a multiarch implementation)"]})
-        function = item["function"]
-        wanted = {f"__{function}_sse2", f"__ieee754_{function}_sse2"}
-        forbidden = tuple(candidate["dispatch"]["forbidden_variant_suffixes"])
-        if (not wanted.intersection(names) or any(name.endswith(forbidden) for name in names)
-                or str(Path(item["object"]).resolve()) != lock["libm"]["path"]):
-            violations.append(report[-1])
-    return report, violations
+def dispatch_report(observation, facts, lock, candidate):
+    """Per-function dispatch chain proof; see dispatch_proof.py."""
+    return dispatch_proof.dispatch_report(observation, facts, lock, candidate)
 
 
 def sweep_differences(left, right, limit=20):
@@ -190,9 +172,11 @@ def field_differences(left, right, fields, key=("x",)):
             "differences": differences}
 
 
-def comparison_report(out, results, lock, candidate):
+def comparison_report(out, results, lock, candidate, environment):
     contract = results["contract"]
-    default_report, _ = dispatch_report(results["host-default"], lock, candidate)
+    default_report, _ = dispatch_report(
+        dispatch_proof.resolve_objects(results["host-default"], environment["loaded_objects"]),
+        environment["libm"]["dispatch_facts"], lock, candidate)
     return {
         "contract_vs_host_default_dispatch": {
             "note": "Host CPU dispatch without GLIBC_TUNABLES; informational, not the reference.",
@@ -226,8 +210,11 @@ def analyse(out, results, lock, candidate, built):
     def check(name, passed, detail):
         checks.append({"check": name, "passed": bool(passed), "detail": detail})
 
-    report, violations = dispatch_report(contract, lock, candidate)
-    check("every checked libm function resolves to its locked SSE2 implementation", not violations,
+    environment = json.loads((out / "environment.json").read_text(encoding="utf-8"))
+    report, violations = dispatch_report(
+        dispatch_proof.resolve_objects(contract, environment["loaded_objects"]),
+        environment["libm"]["dispatch_facts"], lock, candidate)
+    check("every checked libm function executes its locked SSE2 implementation (traced chain)", not violations,
           {"dispatch": report, "violations": violations})
     state = contract["floating_point_state"]
     check("MXCSR is the default (no FTZ/DAZ, round to nearest)", state["mxcsr"] == EXPECTED_MXCSR, state)
@@ -258,13 +245,12 @@ def analyse(out, results, lock, candidate, built):
         check("probe loaded locked " + required, required in runtime_hashes
               and runtime_hashes[required] == locked.get(required), runtime_hashes.get(required))
 
-    environment = json.loads((out / "environment.json").read_text(encoding="utf-8"))
     check("installed libm debug symbols name the same implementations as the lock",
           environment["libm"]["matches_lock"],
           {"debug_file": environment["libm"]["debug_file"],
            "excluded_suffix_matches": environment["libm"]["excluded_suffix_matches"]})
 
-    comparisons = comparison_report(out, results, lock, candidate)
+    comparisons = comparison_report(out, results, lock, candidate, environment)
     outputs = artifacts.inventory(out)
     summary = {
         "schema": 2,
@@ -307,7 +293,8 @@ def main():
     built = build(out, args.oracle_build.resolve() if args.oracle_build else None)
     results = run_probes(out, candidate, args.sweep_count, args.oracle_build is not None)
     with open(out / "environment.json", "w", encoding="utf-8") as stream:
-        run([sys.executable, str(HERE / "collect_environment.py"), "--probe", str(out / "primitive-contract.json")],
+        run([sys.executable, str(HERE / "collect_environment.py"), "--probe", str(out / "primitive-contract.json"),
+             "--lock", str(REFENV / "inputs.lock.json"), "--candidate", str(REFENV / "candidate.toml")],
             stdout=stream)
     summary = analyse(out, results, lock, candidate, built)
     for item in summary["contract_checks"]:
