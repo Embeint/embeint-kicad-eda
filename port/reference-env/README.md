@@ -319,6 +319,15 @@ altered/reordered inputs on either or both sides with refreshed hashes, and
 boolean replacements of every nested comparison count. These are validation
 regressions, not native amd64 qualification.
 
+The re-review of `b580e380` caught the normal Linux venv directory alias created
+by `bootstrap_west.py`. The guard permits only `.port-venv/linux/lib64 -> lib`,
+with a real sibling `lib` directory resolving to that exact location inside the
+snapshot. Other unrecorded directory links, escaped or missing targets, and a
+symlinked `lib` directory still fail. The 48-test suite includes CLI checks
+before and after CPython's actual venv directory-creation method, plus those
+negative cases. On macOS the test changes only that method's platform selector;
+this does not establish native Linux or full west/bootstrap qualification.
+
 **Not performed:** no amd64 image was built, so `verify_image.py`, the probes on
 x86-64, the oracle build inside the image, `--rebuild-check` and the difftest have
 never run. A recipe is not a passed reproducible build.

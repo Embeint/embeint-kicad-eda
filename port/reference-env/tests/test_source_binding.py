@@ -8,8 +8,10 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest import mock
+import venv
 
 ENV = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ENV / "tools"))
@@ -211,6 +213,57 @@ class SourceBindingTest(unittest.TestCase):
         (root / "snapshot/source/port/oracle/extra.cpp").write_text("extra compiler input")
         with self.assertRaisesRegex(ValueError, "unexpected source snapshot file"):
             binding.check_snapshot(root / "snapshot", head, digest)
+
+    def linux_venv_snapshot(self):
+        root, repo, head, pin = self.fixture()
+        bundle, digest = self.export(root, repo, head)
+        snapshot = root / "snapshot"
+        binding.materialize(bundle, head, digest, snapshot)
+        command = [
+            sys.executable, str(ENV / "tools/source_binding.py"), "check",
+            "--bundle", str(snapshot), "--revision", head, "--source-sha256", digest,
+        ]
+        self.assertEqual(subprocess.run(command, capture_output=True).returncode, 0)
+        environment = snapshot / "source/.port-venv/linux"
+        # Exercise CPython's actual Linux directory-creation branch on macOS
+        # too. This does not claim native Linux/package/bootstrap execution.
+        # Change only venv's branch selector, leaving sysconfig's native host
+        # configuration intact (globally replacing sys.platform corrupts it).
+        linux_sys = SimpleNamespace(**{**vars(venv.sys), "platform": "linux"})
+        with mock.patch.object(venv, "sys", linux_sys):
+            venv.EnvBuilder().ensure_directories(environment)
+        self.assertEqual(os.readlink(environment / "lib64"), "lib")
+        return root, snapshot, environment, command
+
+    def test_linux_venv_directory_creation_keeps_source_guard_valid(self):
+        root, snapshot, environment, command = self.linux_venv_snapshot()
+        result = subprocess.run(command, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_linux_venv_alias_exception_cannot_hide_directory_links(self):
+        for change in ("escape", "other-confined", "lib-target-escape", "missing-lib", "extra-link"):
+            with self.subTest(change=change):
+                root, snapshot, environment, command = self.linux_venv_snapshot()
+                alias = environment / "lib64"
+                if change == "lib-target-escape":
+                    outside = root / "external-lib"
+                    shutil.move(environment / "lib", outside)
+                    (environment / "lib").symlink_to(outside, target_is_directory=True)
+                elif change == "missing-lib":
+                    shutil.rmtree(environment / "lib")
+                elif change == "extra-link":
+                    (environment / "extra").symlink_to("lib", target_is_directory=True)
+                else:
+                    alias.unlink()
+                    if change == "escape":
+                        outside = root / "external-lib"
+                        outside.mkdir()
+                        alias.symlink_to(outside, target_is_directory=True)
+                    else:
+                        alias.symlink_to("bin", target_is_directory=True)
+                result = subprocess.run(command, capture_output=True, text=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertRegex(result.stderr, "symlink|alias")
 
     def test_only_known_unavailable_qa_absolute_alias_is_preserved(self):
         root, repo, head, pin = self.fixture()
