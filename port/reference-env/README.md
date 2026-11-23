@@ -6,8 +6,10 @@ Linux x86-64 environment in which the unchanged pinned KiCad C++ oracle and the
 Rust port can be compared bit for bit and byte for byte. It is a recipe, a lock
 and a validation entrypoint for independent review. It is **not** the accepted
 oracle environment: the pins, goldens, unit statuses, evidence records and the
-hosted phase zero gate (`rust-port.yml`) are unchanged. No image has been built
-or pushed from this recipe yet; see [Validation performed](#validation-performed).
+hosted phase zero gate (`rust-port.yml`) are unchanged. Candidate images were
+built natively at `1b4aa6a8` (never pushed). That qualification **failed** (two
+probe-tooling defects, since fixed but not re-qualified, and 13 numeric resistor
+mismatches that remain open); see [Validation performed](#validation-performed).
 
 ## Why
 
@@ -97,17 +99,55 @@ GLIBC_TUNABLES=glibc.cpu.hwcaps=-AVX,-AVX2,-FMA,-FMA4,-AVX512F
 
 (names accepted by `sysdeps/x86/cpu-tunables.c` at glibc 2.39), which selects the
 baseline SSE2 implementations for the checked libm functions on x86-64 hosts. Programs in the container,
-including the oracle and native Rust (which calls the same libm), inherit it. It
-is verified, not assumed: the probe resolves each function with `dlsym`, takes its
-offset in `libm.so.6`, and names it from the symbol table of the matching
-`libc6-dbg` debug file (build ID `f772fc0c42a75e38f138f8b66f1ebc8aad060525`). In the
-locked libm, `__sin_sse2` is at `0x2f8e0`, `__cos_sse2` at `0x301f0` and
-`__sincos_sse2` at `0x31e10`; the `fma`, `fma4` and `avx` variants are elsewhere.
-Each checked function must resolve to its own named SSE2 implementation in the
-locked libm; a resolved `_fma`, `_fma4`, `_avx`, `_avx2`, `_avx512` or `_evex`
-implementation fails the contract. A missing record, unknown offset, wrong function or wrong object also fails. The
-image also refuses `glibc-hwcaps` library directories,
-`/etc/ld.so.preload` and `LD_*` overrides.
+including the oracle and native Rust (which calls the same libm), inherit it.
+Setting the variable is not taken as proof; execution is checked. The primitive
+probe calls each checked function once untraced, then once in a `ptrace`d child,
+single-stepping from the public entry until the call returns (bounded), and records
+every instruction address. It also records the address its own compiled reference
+binds to. `collect_environment.py` reads static facts from the installed libm and
+the matching `libc6-dbg` debug file (build ID
+`f772fc0c42a75e38f138f8b66f1ebc8aad060525`): default-version public definitions,
+each `.plt.sec` stub and its GOT relocation, IFUNC resolvers and function ranges.
+`dispatch_proof.py` then requires, per function:
+
+- the facts come from the locked libm and debug-file bytes (SHA-256 and build ID)
+  and name exactly the lock's multiarch implementations;
+- the compiled reference and `dlsym` agree, inside the locked libm;
+- the entry is the **default-version** public definition. It is either an IFUNC
+  whose resolved target is the entry (direct: `sin`, `cos`, `sincos`, `tan`, `atan`
+  and the float functions), or a FUNC wrapper (`atan2`, `exp`, `log`, `pow`). The
+  wrapper must reach its target through a `.plt.sec` stub of the locked libm's exact
+  form (`endbr64; jmp *rel32(%rip); nopw`) whose GOT slot has exactly one
+  `R_X86_64_IRELATIVE` relocation;
+- the target is the function's locked `__<f>_sse2`/`__ieee754_<f>_sse2` and the SSE2
+  variant of the resolver that relocation names;
+- the trace returned without leaving libm, every address lies in a known function
+  or stub, and the only multiarch implementation executed is that target.
+
+In the locked libm, `__sin_sse2` is at `0x2f8e0`, `__cos_sse2` at `0x301f0` and
+`__sincos_sse2` at `0x31e10`. `exp@@GLIBC_2.29` (`0x3a700`) calls stub `0x10400`,
+which jumps through slot `0xe7fa0` (IRELATIVE, resolver `0x280d0`
+`__ieee754_exp`) to `__ieee754_exp_sse2` at `0x27ea0`.
+
+Failures include:
+
+- an executed `_fma`, `_fma4`, `_avx`, `_avx2`, `_avx512` or `_evex` implementation,
+  or any other variant;
+- a compat-version entry;
+- an unrecognised stub, or a slot whose relocation is a JUMP_SLOT;
+- a wrapper that returns without a hop, an incomplete trace, a wrong object, or a
+  missing or reordered record.
+
+The trace needs `ptrace` of the probe's own child: Docker's default seccomp profile
+permits it, and a refusal fails the check as `PTRACE_TRACEME refused`. The image
+also refuses `glibc-hwcaps` library directories, `/etc/ld.so.preload` and `LD_*`
+overrides.
+
+Both the lock generator and the runtime collector name libm's implementations
+with one classifier (`probe/libm_elf.py`). An implementation is a defined FUNC
+named `__<stem>_<isa>`, with a non-empty stem. IFUNC dispatchers such as the bare
+`__fma` (public `fma`'s resolver), bare names, undefined symbols and non-function
+symbols are not implementations; they are recorded with their reason, not dropped.
 
 The checked list is a **subset**, not an audited closure of all calls made by
 pinned kimath. In particular, pinned geometry can reach `asin`/`acos`; their
@@ -140,7 +180,8 @@ GCC 13 at the oracle flags combines a `cos` and `sin` of the same argument into 
    packages kept when they satisfy a dependency, exact-version dependencies
    upgrading base packages (cascading), conflicts rejected, and an error for any
    virtual package with several providers and no recorded choice. It hashes the
-   identity files from the `.deb` contents and names libm's implementations.
+   identity files from the `.deb` contents and names libm's implementations
+   (shared classifier, see [CPU dispatch contract](#cpu-dispatch-contract)).
 2. `tools/fetch_inputs.py` downloads every locked object into a build context and
    checks each SHA-256.
 3. The hashed lock binds `inputs.sha256`, a complete inventory of payloads and
@@ -226,8 +267,8 @@ GCC 13 at the oracle flags combines a `cos` and `sin` of the same argument into 
 difference:
 
 - `primitive-contract.json`: compiler and runtime facts, loaded objects, MXCSR,
-  x87 control word, rounding mode, locale, the resolved libm implementation of each
-  checked function, `sin`/`cos`/`sincos` and the compiled cos+sin pair for 37
+  x87 control word, rounding mode, locale, the traced call of each checked libm
+  function (entry, compiled binding, every executed address), `sin`/`cos`/`sincos` and the compiled cos+sin pair for 37
   representative inputs (zeros, subnormals, boundaries, common and
   reduction-heavy angles, huge values, infinities, quiet and signalling NaNs with
   payloads), primitive mixed-NaN `+ - * /` for 49 operand pairs, and `ostream` and
@@ -245,8 +286,9 @@ difference:
   vector and scalar products) and its `operator<<`, compiled with the exact flags of
   an oracle shim from the audited compile database;
 - `environment.json` (host, loader diagnostics with and without the contract, tool
-  versions, package list, loaded object hashes, image identity) and `summary.json`
-  (contract checks, comparisons, output hashes).
+  versions, package list, loaded object hashes, image identity, libm's multiarch
+  table with excluded names and the static dispatch facts) and `summary.json`
+  (contract checks with the per-function dispatch chain, comparisons, output hashes).
 
 The exit status is 1 when the environment contract fails, or 4 when the native
 C++/Rust bit comparisons differ. Contract-versus-host-default and paired-versus-
@@ -260,7 +302,10 @@ Every sweep input word must also match the fixed-seed sequence in its recorded
 position, even when all runs contain the same altered inputs and fresh hashes.
 It recomputes comparisons and key environment checks, including the exact types
 of nested counts (a boolean is not an integer count); summary flags alone are
-insufficient. Historical schema-1 observations are not upgraded or accepted.
+insufficient. It re-runs the dispatch proof from the recorded traces and facts.
+Historical schema-1 observations are not upgraded or accepted; the native `1b4`
+probe output (primitive and environment schema 1) is retained as historical
+evidence and is not valid input for the current reader.
 `compare_observations.py A B` compares two runs, for example two hosts: a missing
 or failed contract/comparison summary, any difference in a reference observation,
 or a different image identity exits 1.
@@ -380,10 +425,101 @@ behavior with Windows/Linux/macOS producer proofs. They do not run dpkg or prove
 a native image pass. Independent review at `1b4aa6a8` found no functional blocker;
 native qualification remains pending.
 
-**Not completed:** `verify_image.py` ran and failed during the native `b9592bea`
-build described above; no successful candidate image or identity record exists.
-The x86-64 probes, oracle build inside the image, `--rebuild-check` and difftest
-have not run. A recipe is not a passed reproducible build.
+At the time of `0cd423cf` (README only), the native `b9592bea` build had run
+`verify_image.py`, which failed; no successful image existed yet.
+
+### Native amd64 qualification at `1b4aa6a8` (historical, failed)
+
+Run `20261123T071520Z` used Rancher Desktop Moby 29.5.3 on a Ryzen 9 5950X under
+WSL2. It ran `qualify.sh --revision 1b4aa6a8… --source-bundle … --with-oracle
+--rebuild-check --sweep-count 2000000`, with the Windows-produced bundle
+`source.json` SHA-256 `3c552fe0…97cf`, pin `4cf93977` and lock `c4d1c9c0…01d2`.
+These results belong to `1b4aa6a8`. `0cd423cf` changed only this README and is not
+relabelled.
+
+- Image `sha256:8b70857a…3597` (tagged locally, never pushed) passed the strict
+  final `verify_image.py`: 339 packages, 14 identity files. The no-cache rebuild
+  `sha256:7281a5eb…309f` produced a byte-identical identity record. The image IDs
+  differ.
+- Oracle in the image passed: 76 strict compilations (`-O3 -fno-fast-math
+  -ffp-contract=off`), 8/8 CTests, binary `19a3cd84…f5ef`.
+- Probe at 2,000,000 angles: the C++ and Rust libm values, sweep and NaN arithmetic
+  are identical. Contract checks: **10 passed, 2 failed**. Both failures are
+  probe-tooling defects:
+  1. The dispatch check took the `dlsym` wrappers of `atan2`/`exp`/`log`/`pow` for
+     implementations.
+  2. The collector counted the bare IFUNC dispatcher `__fma` as an 80th
+     implementation.
+- Manual run of the `qualify.sh` difftest payload. The official `--with-difftest`
+  preflight did **not run** (no native Linux Git clone).
+  - Rtree p003: 1525/1525 compared.
+  - MD5: 5973/5973 compared.
+  - **Resistors** (`pcb_calculator` p001): **13 failed** of 1050 (1037 compared,
+    0 deferred, 0 unprocessed). In every failure Rust equals the golden and the
+    native SSE2 oracle differs. Cases: series-0..8, series--1,
+    series--2147483648, series-2147483647 and format-boundaries-3. In the series
+    cases, decade exponent 126 gives `1e126` as `0x5a17a2ecc414a040` rather than
+    `…a03f`. In format-boundaries-3 the outputs differ near `e116`.
+  - IEC 60664 was not reached (fail-fast). A supplementary per-unit run compared
+    14190/14190 with the golden matched; it is not part of `qualify.sh`.
+- Secondary measurements, same image and 1b4 runner, in both debug and release:
+  - PR51 `a5ceb989` hash unit: 41 failures (38 NaN, 3 locale) in each build.
+  - PR50 `8ef0c0e8` math unit: of 7460 cases, 2273 failures in debug and 2687 in
+    release, all mixed-NaN.
+  - Both revisions repeat the 13 resistor failures.
+  - No case was deferred or left unprocessed.
+
+An independent read-only diagnosis read the live GOT slots and found the
+contract process selecting the locked `__ieee754_*_sse2` behind each wrapper, and
+host default selecting `_fma`. It found that bare `__fma` is a resolver and that
+the generator predicate reproduces the 79-entry lock exactly. Changing only
+`GLIBC_TUNABLES` on the same oracle binary turns all 13 resistor replies into
+golden matches: runtime `pow(10, 126)` is `…a040` under SSE2 and `…a03f` under FMA.
+This is causal evidence, not a decision. The CPU contract, the portable algorithm,
+the cases, the goldens and the tolerances are unchanged. The historical golden
+(GCC 15.2/glibc 2.43) has no recorded dispatch proof. The resistor, PR51 and PR50
+failures remain open, and reference adoption remains unresolved.
+
+### Probe-tooling fixes after `1b4aa6a8`
+
+The two tooling defects are fixed as described in
+[CPU dispatch contract](#cpu-dispatch-contract):
+
+- a traced, fail-closed proof of each function's wrapper, stub, IRELATIVE slot and
+  locked SSE2 target;
+- one shared multiarch classifier, so lock generation and the runtime collector
+  cannot disagree.
+
+The lock is unchanged: the shared classifier yields exactly its 79 entries from
+the locked debug file, so it was not regenerated. On Linux (Python 3.14.4, canonical
+LF export), the 75 tooling tests pass, with 3 runtime tests skipped outside the
+image, and `check_candidate.py` passes. The 56-test baseline at `0cd423cf` also
+passes.
+
+The fixes were then run as a **development diagnostic**: new probe source (tree
+`1e3510db`) in the retained `1b4` image `sha256:8b70857a…3597`. It is neither a
+qualification of the new head nor of that image.
+
+- All 75 tests passed in the image, including the 3 runtime dispatch tests.
+- `run_probe.py` passed **12/12** contract checks at 200,000 angles, with the matrix
+  probe built from the retained audited oracle compile database.
+- `artifacts.validate` passed.
+- The recorded wrapper chains matched the independent diagnosis:
+  - `atan2` `0x12ae3` -> `0x10260` -> slot `0xe7ed0` -> `0x26fe0`;
+  - `exp` `0x3a712` -> `0x10400` -> `0xe7fa0` -> `0x27ea0`;
+  - `log` `0x3a5fe` -> `0x10340` -> `0xe7f40` -> `0x2b3d0`;
+  - `pow` `0x3a647` -> `0x10370` -> `0xe7f58` -> `0x2b810`.
+- The host-default run is correctly reported as executing `_fma` variants.
+- The new primitive probe compiles in the image with `-Wall -Wextra -Wpedantic`
+  without warnings.
+
+The final tree differs from `1e3510db` only in test layout and an equivalent
+build-ID comparison. The engine was stopped by another party before that tree
+could be re-run in the image.
+
+**Not completed:** an image built from the fixed head, its probe and the
+official `--with-difftest` route. Fresh independent review is also pending. A
+passing probe would not resolve the resistor, PR51 or PR50 failures.
 
 ## Native WSL qualification handoff
 
