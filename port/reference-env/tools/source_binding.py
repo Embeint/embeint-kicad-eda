@@ -102,6 +102,19 @@ def archive_files(path):
     return dict(sorted(files.items()))
 
 
+def generated_venv_alias(root, path):
+    """CPython's Linux venv lib64 alias, confined to its real sibling lib."""
+    target = root / ".port-venv/linux/lib"
+    return (
+        path.relative_to(root).as_posix() == ".port-venv/linux/lib64"
+        and path.is_symlink()
+        and os.readlink(path) == "lib"
+        and target.is_dir()
+        and not target.is_symlink()
+        and target.resolve(strict=True) == root.resolve(strict=True) / ".port-venv/linux/lib"
+    )
+
+
 def check_tree(root, files, *, checkout=False):
     require(root.is_dir() and not root.is_symlink(), "source root must be a real directory")
     resolved_root = root.resolve(strict=True)
@@ -153,13 +166,19 @@ def check_tree(root, files, *, checkout=False):
                 if path.is_symlink():
                     name = path.relative_to(root).as_posix()
                     require(
-                        name in files and files[name]["kind"] == "symlink",
+                        (name in files and files[name]["kind"] == "symlink")
+                        or generated_venv_alias(root, path),
                         "unexpected source directory symlink: " + name,
                     )
                     dirs.remove(child)
             for child in names:
                 path = Path(directory) / child
                 name = path.relative_to(root).as_posix()
+                # A missing/replaced lib target moves lib64 from os.walk's
+                # directory list to its file list. Do not accept a broken or
+                # escaping alias through the general generated-file allowance.
+                if name == ".port-venv/linux/lib64" and path.is_symlink():
+                    require(generated_venv_alias(root, path), "invalid generated venv lib64 alias")
                 require(
                     name in files or name.startswith(allowed),
                     "unexpected source snapshot file: " + name,
