@@ -377,11 +377,13 @@ platform from the source proof and says "clean at recorded source export",
 without implying that a Windows-produced bundle came from a Linux checkout.
 Focused tests exercise cleanup in an isolated filesystem and host-record CLI
 behavior with Windows/Linux/macOS producer proofs. They do not run dpkg or prove
-a native image pass. Fresh review and native qualification remain pending.
+a native image pass. Independent review at `1b4aa6a8` found no functional blocker;
+native qualification remains pending.
 
-**Not performed:** no amd64 image was built, so `verify_image.py`, the probes on
-x86-64, the oracle build inside the image, `--rebuild-check` and the difftest have
-never run. A recipe is not a passed reproducible build.
+**Not completed:** `verify_image.py` ran and failed during the native `b9592bea`
+build described above; no successful candidate image or identity record exists.
+The x86-64 probes, oracle build inside the image, `--rebuild-check` and difftest
+have not run. A recipe is not a passed reproducible build.
 
 ## Native WSL qualification handoff
 
