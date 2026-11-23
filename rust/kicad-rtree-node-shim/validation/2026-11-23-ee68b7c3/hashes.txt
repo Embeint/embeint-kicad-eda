@@ -1,0 +1,7 @@
+d65b828acca54067e445f7c0305ea1bd7643daf759474208298600e8366ea0d0  /home/karlvonrichter/kicad-port/rtree-p003/final-ee68b7c3f9/oracle-build/kicad-oracle
+2715335221b13e30d7d22bab6e2db6bb9f921744f4a974fb1d680b06b1e5b02c  /home/karlvonrichter/kicad-port/rtree-p003/final-ee68b7c3f9/repo/rust/target/debug/kicad-rtree-node-shim
+680e23d6cddbf64a87c4e61e9a3ac3ac824e24bb25646e6e78e572161279be39  port/cases/libs.kimath.include.geometry.rtree.application.pure.p003.jsonl
+668780e1bc0ed16920a42e12e824779f92ac4ee2d4bcdc4a7b5183c0b84b68da  port/goldens/libs.kimath.include.geometry.rtree.application.pure.p003.jsonl
+0749fc1f557804c315b9afda9d61fe1bb1ef1c0f3bea2f5a8bc71b4ad4a2848f  rust/kicad-rtree-node-shim/fixtures/reclassified.jsonl
+5c356a017ff10c50f20f9a01699f0fbe7c43778307a67321c33337b044d1a624  rust/kicad-rtree-node-shim/fixtures/refusals.replies.jsonl
+f48f864dadd3eaae564e662bde6700fe0b74eca06b268cb83b0c68db44dfdd71  rust/kicad-rtree-node-shim/fixtures/refusals.requests.jsonl
