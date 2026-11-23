@@ -5,14 +5,17 @@
 All data is generated here from fixed seeds and boundary tables; no design data is used.
 Binary64 values are 16 lowercase hex digits of their IEEE-754 bits.
 
-NaN selection policy (see README): copy-only operations carry arbitrary NaN payloads and
-signalling NaNs. Arithmetic cases combine NaNs of a single bit pattern only: whenever an
-infinity can generate a NaN, the only NaN used is the x86-64 default NaN fff8000000000000.
-Which payload propagates when two *different* NaNs meet depends on compiler operand order,
-not on the KiCad source, so such mixtures are not reference behaviour.
+The first 3,485 requests are the original corpus, qualified unchanged on Linux x86-64; their
+arithmetic cases happen to combine NaNs of one bit pattern only. Inputs with two or more
+different NaNs are valid and are covered by the retained mixed-NaN regressions, which
+reproduce the qualified request set byte for byte (generator sha256 6b334d54..., requests
+sha256 85fdf99b...). Later groups add the MATRIX3x3<int> instantiation, explicit stream state
+and the glibc CPU-variant-sensitive rotation angles. Groups are appended so earlier requests
+never change.
 """
 
 import argparse
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -292,9 +295,256 @@ def cases():
             case(f"dot-wide-{i}", op="dot_wide", a=a, b=b)
     case("dot-wide-max-defined", op="dot_wide", a=[INT64_MIN, INT64_MIN], b=[INT64_MIN, INT64_MIN + 1])
 
+    out += integer_cases(gen)
+    out += stream_cases(gen)
+    out += variant_rotation_cases()
+    out += mixed_nan_cases()
+
     names = [c["case"] for c in out]
     if len(names) != len(set(names)):
         raise ValueError("duplicate case id")
+    return out
+
+
+INT_MIN, INT_MAX = -(1 << 31), (1 << 31) - 1
+
+
+def int_matrix(values):
+    return [list(values[0:3]), list(values[3:6]), list(values[6:9])]
+
+
+def integer_cases(gen):
+    """MATRIX3x3<int>, as instantiated by the pinned qa/tests/libs/kimath/math/test_matrix3x3.cpp.
+
+    Only inputs whose C++ result is defined are cases; signed overflow and non-representable
+    double-to-int conversions are refusals, checked by test_refusals.py.
+    """
+    rng = gen.rng
+    out = []
+
+    def case(name, **fields):
+        out.append({"unit": UNIT, "case": f"int-{name}", "input": {"type": "int", **fields}})
+
+    small = lambda: rng.randint(-1000, 1000)
+    qa = int_matrix([1, 1, 1, 2, 2, 2, 3, 3, 3])
+    # The three QA checks: CTAD from VECTOR3I rows, m1 * VECTOR3I( 5, 5, 5 ), m1 * 5, and ==.
+    case("qa-from-vectors", op="matrix_from_vectors", a1=[1, 1, 1], a2=[2, 2, 2], a3=[3, 3, 3])
+    case("qa-multiply-vector", op="mul_vector3", matrix=qa, vector=[5, 5, 5])
+    case("qa-multiply-scalar", op="mul_scalar", scalar_type="int", matrix=qa, scalar=5)
+    case("qa-expected-equal", op="compare", matrix=int_matrix([5, 5, 5, 10, 10, 10, 15, 15, 15]),
+         other=int_matrix([5, 5, 5, 10, 10, 10, 15, 15, 15]))
+
+    extremes = [INT_MIN, INT_MIN + 1, -1, 0, 1, INT_MAX - 1, INT_MAX, 46340, -46341]
+    case("matrix-default", op="matrix_default")
+    case("from-elements-extremes", op="matrix_from_elements", elements=int_matrix(extremes))
+    case("from-vectors-extremes", op="matrix_from_vectors", a1=extremes[0:3], a2=extremes[3:6],
+         a3=extremes[6:9])
+    base = int_matrix(extremes)
+    for i, m in enumerate([qa, base, int_matrix([small() for _ in range(9)])]):
+        case(f"set-identity-{i}", op="set_identity", matrix=m)
+        case(f"get-translation-{i}", op="get_translation", matrix=m)
+        case(f"get-scale-{i}", op="get_scale", matrix=m)
+        case(f"transpose-{i}", op="transpose", matrix=m)
+        case(f"set-translation-{i}", op="set_translation", matrix=m, translation=[INT_MIN, INT_MAX])
+        case(f"set-scale-{i}", op="set_scale", matrix=m, scale=[-7, INT_MAX])
+    flat = [small() for _ in range(9)]
+    case("compare-identical", op="compare", matrix=int_matrix(flat), other=int_matrix(flat))
+    for position in range(9):
+        other = list(flat)
+        other[position] += 1
+        case(f"compare-differs-{position}", op="compare", matrix=int_matrix(flat),
+             other=int_matrix(other))
+
+    # SetRotation<int>: cos/sin of the integer angle truncated toward zero. These integers are
+    # close enough to multiples of pi that the double cosine is exactly +-1 (or, for 80143857,
+    # one ulp below 1 and truncated to 0).
+    angles = [0, 1, -1, 2, 3, 4, 7, 100, -100, INT_MAX, INT_MIN, 80143857, 165707065, 245850922,
+              411557987, 823115974, 1068966896, 1234673961, 2137933792, -2137933792]
+    angles += [rng.randint(INT_MIN, INT_MAX) for _ in range(20)]
+    for i, angle in enumerate(angles):
+        case(f"set-rotation-{i}", op="set_rotation", matrix=qa if i % 2 else base, angle=angle)
+
+    # Arithmetic with defined results: small values, products at the int boundary, unimodular
+    # and non-unimodular inverses (truncation toward zero of negative quotients).
+    defined = [qa, int_matrix([0] * 9), int_matrix([46340, 0, 0, 0, 46340, 0, 0, 0, 1]),
+               int_matrix([INT_MAX, 0, 0, 0, 1, 0, 0, 0, 1]),
+               int_matrix([INT_MIN, 0, 0, 0, 1, 0, 0, 0, 1])]
+    defined += [int_matrix([small() for _ in range(9)]) for _ in range(20)]
+    for i, m in enumerate(defined):
+        case(f"determinant-{i}", op="determinant", matrix=m)
+    inverses = [int_matrix([1, 0, 0, 0, 1, 0, 0, 0, 1]), int_matrix([2, 1, 0, 1, 1, 0, 0, 0, 1]),
+                int_matrix([2, 0, 0, 0, 2, 0, 0, 0, 1]), int_matrix([-3, 1, 0, 1, 1, 0, 0, 0, -1]),
+                int_matrix([1, 2, 3, 0, 1, 4, 5, 6, 0]), int_matrix([4, 7, 2, 3, 6, 1, 2, 5, 3]),
+                int_matrix([INT_MAX, 0, 0, 0, 1, 0, 0, 0, 1])]
+    for i, m in enumerate(inverses):
+        case(f"inverse-{i}", op="inverse", matrix=m)
+    for i in range(12):
+        a = int_matrix([small() for _ in range(9)])
+        b = int_matrix([small() for _ in range(9)])
+        case(f"mul-matrix-{i}", op="mul_matrix", a=a, b=b)
+        case(f"mul-vector2-{i}", op="mul_vector2", matrix=a, vector=[small(), small()])
+        case(f"mul-vector3-{i}", op="mul_vector3", matrix=a, vector=[small(), small(), small()])
+    case("mul-matrix-boundary", op="mul_matrix", a=int_matrix([46340, 0, 0, 0, 1, 0, 0, 0, 1]),
+         b=int_matrix([46340, 0, 0, 0, INT_MAX, 0, 0, 0, INT_MIN]))
+    case("mul-vector2-boundary", op="mul_vector2",
+         matrix=int_matrix([1, 1, INT_MIN + 2, 0, 1, INT_MAX - 3, 0, 0, 1]), vector=[1, 1])
+    for i, scalar in enumerate([0, 1, -1, 5, 46340, -46341]):
+        m = int_matrix([46340, -1, 0, 1, 2, 3, 0, 0, 1]) if abs(scalar) > 5 else qa
+        case(f"mul-scalar-int-{i}", op="mul_scalar", scalar_type="int", matrix=m, scalar=scalar)
+        case(f"scalar-mul-int-{i}", op="scalar_mul", scalar_type="int", scalar=scalar, matrix=m)
+    doubles = [bits(0.5), bits(-0.5), bits(0.25), bits(-1.0), bits(1e-300), NEG_ZERO,
+               bits(2147483647.0 / 2147483647.0), bits(1.9999999999999998), bits(-2.5)]
+    for i, scalar in enumerate(doubles):
+        m = int_matrix([1, -1, 3, -3, 7, -7, INT_MAX, INT_MIN + 1, 0])
+        if scalar in (bits(1.9999999999999998), bits(-2.5)):
+            m = qa
+        case(f"mul-scalar-double-{i}", op="mul_scalar", scalar_type="double", matrix=m,
+             scalar=scalar)
+        case(f"scalar-mul-double-{i}", op="scalar_mul", scalar_type="double", scalar=scalar,
+             matrix=m)
+
+    # MATRIX3x3<double> with S = int, also instantiable.
+    for i, scalar in enumerate([0, -1, 5, INT_MIN, INT_MAX]):
+        m = gen.matrix(gen.finite_bits) if i % 2 else gen.matrix()
+        out.append({"unit": UNIT, "case": f"double-mul-scalar-int-{i}",
+                    "input": {"op": "mul_scalar", "scalar_type": "int", "matrix": m, "scalar": scalar}})
+        out.append({"unit": UNIT, "case": f"double-scalar-mul-int-{i}",
+                    "input": {"op": "scalar_mul", "scalar_type": "int", "scalar": scalar, "matrix": m}})
+    return out
+
+
+def state(flags=(), precision=6, width=0, fill=" "):
+    return {"flags": list(flags), "precision": precision, "width": width, "fill": fill}
+
+
+def stream_cases(gen):
+    """operator<< on a caller stream with explicit flags, precision, width and fill.
+
+    The classic locale is the only supported locale (the oracle never changes it).
+    """
+    out = []
+
+    def case(name, matrix, st, element="double"):
+        fields = {"op": "stream", "matrix": matrix, "state": st}
+        if element == "int":
+            fields["type"] = "int"
+        out.append({"unit": UNIT, "case": f"stream-state-{name}", "input": fields})
+
+    eighths = matrix([bits(0.125)] + [ZERO] * 3 + [bits(0.125)] + [ZERO] * 3 + [bits(0.125)])
+    values = matrix([bits(0.125), NEG_ZERO, INF, DEFAULT_NAN, MIN_SUBNORMAL, bits(100.0),
+                     bits(1.5), bits(-3.14), MAX_FINITE])
+    tiny = matrix([bits(1e-5), bits(123456.5), bits(0.5), bits(9.5), bits(2.5e-310), QUIET_NAN,
+                   NEG_INF, bits(1e21), bits(-0.000123456789)])
+    # The reviewer's example: fixed, precision 2 prints 0.125 as 0.12 (ties to even).
+    case("fixed-2-eighths", eighths, state(["fixed"], 2))
+    case("explicit-default", values, state(["skipws", "dec"], 6))
+    fields = {"default": [], "fixed": ["fixed"], "scientific": ["scientific"],
+              "hexfloat": ["fixed", "scientific"]}
+    modifiers = {"plain": [], "showpos": ["showpos"], "showpoint": ["showpoint"],
+                 "uppercase": ["uppercase"], "all": ["showpos", "showpoint", "uppercase"]}
+    for field, field_flags in fields.items():
+        for modifier, modifier_flags in modifiers.items():
+            for precision in (-1, 0, 1, 2, 6, 17, 40):
+                if field == "hexfloat" and precision not in (-1, 6):
+                    continue  # hexfloat ignores precision; two probes suffice
+                for name, m in (("values", values), ("tiny", tiny)):
+                    case(f"{field}-{modifier}-p{precision}-{name}", m,
+                         state(["dec"] + field_flags + modifier_flags, precision))
+    case("fixed-p512-max", matrix([MAX_FINITE] * 9), state(["fixed"], 512))
+    for width in (0, 1, 2, 3, 10):
+        for adjust in ("none", "left", "right", "internal"):
+            flags = ["dec"] + ([] if adjust == "none" else [adjust])
+            case(f"width-{width}-{adjust}", values, state(flags, 6, width, "*"))
+    case("width-negative", values, state(["dec"], 6, -5, "#"))
+    case("left-and-right", values, state(["left", "right"], 6, 9, "."))
+    ints = int_matrix([-1, 255, 0, 2, INT_MIN, INT_MAX, 3, -46341, 8])
+    int_states = {
+        "default": state(["skipws", "dec"]),
+        "showpos": state(["dec", "showpos"]),
+        "hex": state(["hex"]),
+        "hex-showbase": state(["hex", "showbase"]),
+        "hex-showbase-upper": state(["hex", "showbase", "uppercase"]),
+        "oct": state(["oct"]),
+        "oct-showbase": state(["oct", "showbase", "showpos"]),
+        "dec-and-hex": state(["dec", "hex"]),
+        "none": state([]),
+        "width-left": state(["hex", "left"], 6, 12, "_"),
+        "width-internal": state(["dec", "internal", "showpos"], 6, 12, "0"),
+        "fixed-ignored": state(["dec", "fixed", "showpoint"], 2),
+    }
+    for name, st in int_states.items():
+        case(f"int-{name}", ints, st, element="int")
+    for i in range(6):
+        st = state(gen.rng.sample(FLAG_NAMES, gen.rng.randint(0, 6)), gen.rng.randint(-2, 20),
+                   gen.rng.randint(0, 8), gen.rng.choice("*_ 0."))
+        case(f"random-{i}", gen.matrix(gen.finite_bits), st)
+        case(f"random-int-{i}", int_matrix([gen.rng.randint(INT_MIN, INT_MAX) for _ in range(9)]),
+             st, element="int")
+    return out
+
+
+FLAG_NAMES = ["boolalpha", "dec", "fixed", "hex", "internal", "left", "oct", "right",
+              "scientific", "showbase", "showpoint", "showpos", "skipws", "unitbuf", "uppercase"]
+
+# Angles where the qualified WSL Linux x86-64 probe (glibc 2.43, Ryzen 9 5950X) found glibc's
+# default (FMA) and GLIBC_TUNABLES=glibc.cpu.hwcaps=-AVX2,-FMA,-FMA4,-AVX variants of sin or
+# cos one ulp apart. Within one environment C++ and Rust agree; the golden depends on which
+# variant produced it.
+VARIANT_SIN_ANGLES = ["bfc9720f0476d1e0", "bfcf21071b2cc010", "bfeed2645782e8ec",
+                      "bfea5996ecc71804", "3fd06645ac943414"]
+VARIANT_COS_ANGLES = ["3fea18772c9fb53e", "3febe296e65b7d7a", "bfeea6d3571c8b74",
+                      "bfe91c367a4e70fa", "bfedd9d1d8dfa03e"]
+
+
+def variant_rotation_cases():
+    out = []
+    for kind, angles in (("sin", VARIANT_SIN_ANGLES), ("cos", VARIANT_COS_ANGLES)):
+        for i, angle in enumerate(angles):
+            out.append({"unit": UNIT, "case": f"set-rotation-variant-{kind}-{i}",
+                        "input": {"op": "set_rotation", "matrix": IDENTITY, "angle": angle}})
+    return out
+
+
+# The retained mixed-NaN regressions: the exact request set of the WSL qualification of
+# 8dd2dc0b (scripts/gen_mixed_nan.py, sha256 6b334d54...), regenerated here with the same
+# seed, pool and draw order. Valid inputs; the qualified oracle and Rust disagreed on 1,824.
+MIXED_NAN_SHA256 = "85fdf99b914de6ce87c5288da470b4bd9b64e57cf9575eb3ff445ed032db6a2b"
+MIXED_NANS = ["7ff8000000000001", "7ff8000000000002", "fff8000000000003", "7ff0000000000001",
+              "fff0000000000002"]
+MIXED_POOL = MIXED_NANS + ["0000000000000000", "3ff0000000000000", "4000000000000000"]
+MIXED_LAYOUT = {"determinant": [("matrix", 9)], "inverse": [("matrix", 9)],
+                "mul_matrix": [("a", 9), ("b", 9)],
+                "mul_vector2": [("matrix", 9), ("vector", 2)],
+                "mul_vector3": [("matrix", 9), ("vector", 3)],
+                "mul_scalar": [("matrix", 9), ("scalar", 1)],
+                "scalar_mul": [("scalar", 1), ("matrix", 9)]}
+
+
+def mixed_nan_cases():
+    rng = random.Random(50)
+    out = [{"unit": UNIT, "case": "minimal-qnan-determinant",
+            "input": {"op": "determinant", "matrix": [
+                ["7ff8000000000001", "0000000000000000", "3ff0000000000000"],
+                ["fff8000000000002", "0000000000000000", "0000000000000000"],
+                ["0000000000000000", "0000000000000000", "0000000000000000"]]}}]
+    for op, layout in MIXED_LAYOUT.items():
+        for index in range(500):
+            total = sum(n for _, n in layout)
+            flat = [rng.choice(MIXED_POOL) for _ in range(total)]
+            # Two distinct NaN patterns at two distinct positions.
+            a, b = rng.sample(MIXED_NANS, 2)
+            i, j = rng.sample(range(total), 2)
+            flat[i], flat[j] = a, b
+            fields, k = {"op": op}, 0
+            for name, n in layout:
+                part = flat[k:k + n]
+                k += n
+                fields[name] = [part[0:3], part[3:6], part[6:9]] if n == 9 else (
+                    part[0] if n == 1 else part)
+            out.append({"unit": UNIT, "case": f"mixed-nan-{op}-{index}", "input": fields})
+    text = "".join(json.dumps(c, separators=(",", ":")) + "\n" for c in out)
+    if hashlib.sha256(text.encode()).hexdigest() != MIXED_NAN_SHA256:
+        raise ValueError("mixed-NaN regressions differ from the qualified request set")
     return out
 
 
