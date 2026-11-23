@@ -19,11 +19,13 @@ RUN --mount=type=bind,target=/opt/refenv-context,readonly \
     set -eu; \
     test -n "$LOCK_SHA256"; \
     echo "$LOCK_SHA256  /opt/refenv-context/inputs.lock.json" | sha256sum -c --quiet -; \
-    sh /opt/refenv-context/image/verify_chain.sh /opt/refenv-context/inputs; \
+    sh /opt/refenv-context/image/verify_chain.sh /opt/refenv-context/inputs /opt/refenv-context/inputs.lock.json "$LOCK_SHA256"; \
     apt-get install -y --no-install-recommends --no-download /opt/refenv-context/inputs/debs/*.deb; \
     rust=$(mktemp -d); \
-    for tarball in /opt/refenv-context/inputs/rust/*.tar.xz; do tar -xJf "$tarball" -C "$rust"; done; \
-    for component in "$rust"/*/; do "$component/install.sh" --prefix=/usr/local --disable-ldconfig; done; \
+    while read -r archive component; do \
+        tar -xJf "/opt/refenv-context/inputs/rust/$archive" -C "$rust"; \
+        "$rust/$component/install.sh" --prefix=/usr/local --disable-ldconfig; \
+    done < /opt/refenv-context/inputs/rust-components.list; \
     rm -rf "$rust" /var/lib/apt/lists/* /var/cache/apt/*.bin /var/log/apt /var/log/dpkg.log \
            /var/log/alternatives.log /var/cache/ldconfig/aux-cache
 
@@ -32,7 +34,7 @@ COPY image/ /opt/refenv/image/
 COPY probe/ /opt/refenv/probe/
 
 # The libm dispatch contract (see candidate.toml [dispatch]): baseline SSE2 code
-# for every CPU-dispatched libm function, on any x86-64 host.
+# for the explicitly checked libm function subset; other paths are uncertified.
 ENV GLIBC_TUNABLES=glibc.cpu.hwcaps=-AVX,-AVX2,-FMA,-FMA4,-AVX512F
 
 RUN python3 /opt/refenv/image/verify_image.py --lock /opt/refenv/inputs.lock.json \

@@ -13,6 +13,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import refenv  # noqa: E402
+import input_plan  # noqa: E402
 
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -44,6 +45,9 @@ def check(env_dir=refenv.ENV_DIR):
             "candidate.toml changed since inputs.lock.json was generated; rerun tools/lock_inputs.py")
     require(candidate["image"]["reference"].startswith(REGISTRY_PREFIX), "image must use the internal registry")
     require(candidate["platform"] == "linux/amd64", "platform must be linux/amd64")
+
+    require(lock.get("verification_plan_sha256") == input_plan.digest(input_plan.plan(lock)[1]),
+            "verification plan differs from the lock")
 
     base = candidate["base"]
     for key in ("index_digest", "manifest_digest"):

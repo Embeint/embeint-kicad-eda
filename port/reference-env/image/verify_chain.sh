@@ -8,10 +8,31 @@
 # Rust: the release key in the lock -> channel manifest signature -> tarball hashes.
 set -eu
 
-inputs=${1:?usage: verify_chain.sh INPUTS_DIR}
+inputs=${1:?usage: verify_chain.sh INPUTS_DIR LOCK_FILE LOCK_SHA256}
+lock=${2:?hashed lock required}
+lock_sha=${3:?expected lock SHA256 required}
+# The hash comes from the intended source revision, never a staged checksum file.
+echo "$lock_sha  $lock" | sha256sum -c --quiet -
+# Canonical generated lock: require exactly one top-level inventory digest. No
+# staged file is sourced, parsed as a checksum list or executed before this bind.
+plan_sha=$(awk '/^  "verification_plan_sha256": "[0-9a-f]+"[,]?$/ {
+    n++; value = $0; sub(/^  "verification_plan_sha256": "/, "", value);
+    sub(/"[,]?$/, "", value)
+} END { if (n != 1 || length(value) != 64) exit 1; print value }' "$lock")
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 cd "$inputs"
+echo "$plan_sha  inputs.sha256" | sha256sum -c --quiet -
+# Inventory membership is exact (including control/checksum/key files); reject
+# symlinks, special files, extras and omissions before installation.
+find . -mindepth 1 ! -type d ! -type f > "$work/special"
+test ! -s "$work/special"
+find . -type f | sed 's|^./||' | LC_ALL=C sort > "$work/actual"
+{ sed 's/^[0-9a-f]*  //' inputs.sha256; echo inputs.sha256; } | LC_ALL=C sort > "$work/expected"
+# Duplicate paths cannot be hidden by sorting.
+test "$(wc -l < "$work/expected")" = "$(LC_ALL=C sort -u "$work/expected" | wc -l)"
+cmp "$work/expected" "$work/actual"
+sha256sum -c --quiet inputs.sha256
 . ./snapshot.env
 
 echo "$KEYRING_SHA256  $KEYRING" | sha256sum -c --quiet -

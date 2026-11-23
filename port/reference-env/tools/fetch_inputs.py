@@ -15,6 +15,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import refenv  # noqa: E402
+import input_plan  # noqa: E402
 
 
 def stage(cache, destination, name, url, sha256):
@@ -71,15 +72,12 @@ def fetch_inputs(lock, cache, destination):
         stage(cache, destination / "rust", name, component["url"], component["sha256"])
         rust_lines.append(f"{component['sha256']}  {name}")
     (destination / "rust.sha256").write_text("\n".join(rust_lines) + "\n", encoding="utf-8")
-    suites = " ".join(sorted(snapshot["suites"]))
-    components = " ".join(sorted(next(iter(snapshot["suites"].values()))["indices"]))
-    (destination / "snapshot.env").write_text(
-        f"SUITES='{suites}'\nCOMPONENTS='{components}'\nARCH='{snapshot['architecture']}'\n"
-        f"KEYRING='{snapshot['keyring']}'\nKEYRING_SHA256='{snapshot['keyring_sha256']}'\n",
-        encoding="utf-8")
-    sums = [f"{record['inrelease_sha256']}  InRelease-{suite}"
-            for suite, record in sorted(snapshot["suites"].items())]
-    (destination / "inrelease.sha256").write_text("\n".join(sums) + "\n", encoding="utf-8")
+    controls, inventory = input_plan.plan(lock)
+    if input_plan.digest(inventory) != lock["verification_plan_sha256"]:
+        raise ValueError("Verification inventory differs from the hashed lock")
+    for name, data in controls.items():
+        (destination / name).write_bytes(data)
+    (destination / "inputs.sha256").write_bytes(inventory)
     return len(lines), len(rust["components"])
 
 

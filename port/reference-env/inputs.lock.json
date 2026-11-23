@@ -6993,5 +6993,6 @@
       "sha256": "4d1f341ae5b763b513258ee2812422a45e063c30a2f1924a0cf63d3699f3a158",
       "size": 336056
     }
-  ]
+  ],
+  "verification_plan_sha256": "e1603b2c83d44bcd71a588bb7977d8750cc8b58f201857a8887373a89500ddd0"
 }
