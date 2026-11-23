@@ -1,0 +1,15 @@
+{"unit":"libs.kimath.include.application.pure.p001","case":"mmh3-data-v1-after-int-1","error":{"kind":"invalid_input","message":"hashTail reads unwritten block bytes 4,5,6,7"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"mmh3-data-v1-after-int-4","error":{"kind":"invalid_input","message":"hashTail reads unwritten block bytes 8,9,10,11"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"mmh3-random-031","error":{"kind":"invalid_input","message":"getblock64 reads unwritten block bytes 8,9,10,11,12,13,14,15"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"mmh3-random-036","error":{"kind":"invalid_input","message":"getblock64 reads unwritten block bytes 4,5,6,7"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"mmh3-random-039","error":{"kind":"invalid_input","message":"getblock64 reads unwritten block bytes 8,9,10,11,12,13,14,15"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"mmh3-random-053","error":{"kind":"invalid_input","message":"getblock64 reads unwritten block bytes 0,1,2,3,4,5,6,7"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"mmh3-random-063","error":{"kind":"invalid_input","message":"getblock64 reads unwritten block bytes 0,1,2,3,4,5,6,7"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"mmh3-random-068","error":{"kind":"invalid_input","message":"getblock64 reads unwritten block bytes 8,9,10,11,12,13,14,15"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"mmh3-random-114","error":{"kind":"invalid_input","message":"getblock64 reads unwritten block bytes 8,9,10,11,12,13,14,15"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"mmh3-random-115","error":{"kind":"invalid_input","message":"getblock64 reads unwritten block bytes 8,9,10,11,12,13,14,15"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"mmh3-random-125","error":{"kind":"invalid_input","message":"getblock64 reads unwritten block bytes 8,9,10,11,12,13,14,15"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"mmh3-random-132","error":{"kind":"invalid_input","message":"getblock64 reads unwritten block bytes 8,9,10,11,12,13,14,15"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"mmh3-random-137","error":{"kind":"invalid_input","message":"getblock64 reads unwritten block bytes 8,9,10,11,12,13,14,15"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"mmh3-random-139","error":{"kind":"invalid_input","message":"hashTail reads unwritten block bytes 4,5,6,7"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"mmh3-random-143","error":{"kind":"invalid_input","message":"getblock64 reads unwritten block bytes 8,9,10,11,12,13,14,15"}}

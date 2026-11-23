@@ -2,8 +2,16 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Write the fixed-seed corpus for libs.kimath.include.application.pure.p001.
 
-Only generated public data is used. Every case is a successful operation in the
-pinned reference's defined domain; malformed requests live in guards.requests.jsonl.
+Only generated public data is used. Every corpus case is a successful operation
+in the pinned reference's defined domain. Malformed requests are in check_guards.py.
+
+The first 1315 requests are byte-identical to the original corpus (its RNG stream
+is unchanged). Fifteen of them read MMH3 block bytes the reference never wrote, so
+they are undefined in C++; they are kept, unchanged, in
+fixtures/mmh3-unwritten-reads.requests.jsonl as permanent refusal regressions and
+are not corpus cases (port/findings/kimath-header-hash-mmh3-unwritten-reads.md).
+Later additions use a separate seed so they never perturb the original stream.
+
 Run from the repository root: python3 rust/kicad-hash-shim/generate_cases.py
 """
 import itertools
@@ -15,7 +23,19 @@ import struct
 UNIT = "libs.kimath.include.application.pure.p001"
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 OUT = ROOT / "port" / "cases" / f"{UNIT}.jsonl"
+FIXTURE = ROOT / "rust" / "kicad-hash-shim" / "fixtures" / "mmh3-unwritten-reads.requests.jsonl"
 SEED = 0x4B1C4D_2026
+ADDITION_SEED = 0x4B1C4D_2027
+
+# Original cases whose reference execution would read never-written block bytes
+# (first read: hashTail via digest, or getblock64). Source-derived, and equal to the
+# independent review's defined-domain analysis of head 8c54103a7d.
+UNWRITTEN_READ_CASES = [
+    "mmh3-data-v1-after-int-1", "mmh3-data-v1-after-int-4", "mmh3-random-031", "mmh3-random-036",
+    "mmh3-random-039", "mmh3-random-053", "mmh3-random-063", "mmh3-random-068", "mmh3-random-114",
+    "mmh3-random-115", "mmh3-random-125", "mmh3-random-132", "mmh3-random-137", "mmh3-random-139",
+    "mmh3-random-143",
+]
 
 RANGES = {
     "i8": (-(1 << 7), (1 << 7) - 1), "u8": (0, (1 << 8) - 1),
@@ -338,6 +358,66 @@ def transform_cases(corpus):
         corpus.add(f"transform-{name}", {"op": "transform", "a": a, "b": b})
 
 
+def locale_cases(corpus):
+    """HASH_128::ToString under a caller global locale (numpunct<char> grouping)."""
+    rng = corpus.rng
+    reviewer = "f0debc9a78563412" + "3412000000000000"
+    groupings = [
+        ("reviewer-3-underscore", 0x5F, "03", reviewer),
+        ("empty-grouping", 0x2C, "", reviewer),
+        ("every-digit", 0x2E, "01", corpus.bytes(16).hex()),
+        ("one-two-zero", 0x2E, "010200", "efcdab0000000000" + "00" * 8),
+        ("repeat-four-non-ascii-sep", 0xC3, "04", "ff" * 8 + "01" + "00" * 7),
+        ("first-zero", 0x5F, "0002", reviewer),
+        ("first-negative", 0x5F, "8002", reviewer),
+        ("first-ff", 0x5F, "ff02", reviewer),
+        ("first-char-max", 0x5F, "7f02", reviewer),
+        ("later-char-max", 0x5F, "027f", reviewer),
+        ("later-negative", 0x5F, "0380", reviewer),
+        ("group-wider-than-digits", 0x27, "11", reviewer),
+        ("group-equals-word", 0x27, "10", "ff" * 16),
+        ("nul-separator", 0x00, "02", reviewer),
+        ("zero-words", 0x5F, "01", "00" * 16),
+        ("max-length-grouping", 0x2D, "0102" * 32, corpus.bytes(16).hex()),
+    ]
+    for name, sep, grouping, value in groupings:
+        corpus.add(f"hash128-locale-{name}", {"op": "hash128", "a": value, "b": corpus.bytes(16).hex(),
+                                              "locale": {"thousands_sep": sep, "grouping": grouping}})
+    for index in range(12):
+        grouping = bytes(rng.choice([1, 2, 3, 4, 5, 7, 16, 0, 0x7F, 0x80, 0xFF])
+                         for _ in range(rng.randint(1, 6))).hex()
+        corpus.add(f"hash128-locale-random-{index}", {
+            "op": "hash128", "a": corpus.bytes(16).hex(), "b": corpus.bytes(16).hex(),
+            "locale": {"thousands_sep": rng.randint(0, 255), "grouping": grouping}})
+
+
+def addition_cases(corpus):
+    """Cases added after the first review, from ADDITION_SEED."""
+    corpus.rng = random.Random(ADDITION_SEED)
+    locale_cases(corpus)
+    base = corpus.bytes(16)
+    for position in [p for p in range(16) if p not in (0, 7, 8, 15)]:
+        other = bytearray(base)
+        other[position] ^= 0x80
+        corpus.add(f"hash128-differ-byte-{position}", {"op": "hash128", "a": base.hex(), "b": bytes(other).hex()})
+    digest = {"op": "digest"}
+    # Defined mixes of add( int32_t ) and addDataV1: every byte read was written.
+    mmh3(corpus, "v1-then-int-defined", [{"op": "new"}, {"op": "data_v1", "hex": corpus.bytes(5).hex()},
+                                          {"op": "int", "value": 9}, {"op": "int", "value": -9}, digest])
+    # int writes 0..3 (len 4); addDataV1 of 8 bytes rewrites 0..7, pads 8..11 and
+    # counts len 16, so digest reads no tail and word 0 is written.
+    mmh3(corpus, "int-then-v1-aligned-defined", [{"op": "new"}, {"op": "int", "value": 3},
+                                                  {"op": "data_v1", "hex": corpus.bytes(8).hex()},
+                                                  {"op": "getblock64", "index": 0}, digest])
+    mmh3(corpus, "unwritten-bytes-after-ints", [{"op": "new", "seed": 5}, {"op": "int", "value": 1},
+                                                 {"op": "int", "value": 2}, {"op": "reset"},
+                                                 {"op": "getblock64", "index": 0}, digest])
+    mmh3(corpus, "unwritten-then-fully-written", [{"op": "new"}, {"op": "data_v1", "hex": "aa"},
+                                                   {"op": "data", "hex": corpus.bytes(16).hex()},
+                                                   {"op": "getblock64", "index": 1}, {"op": "hash_block"},
+                                                   {"op": "hash_tail"}, digest])
+
+
 def main():
     corpus = Corpus()
     std_hash_cases(corpus)
@@ -347,8 +427,19 @@ def main():
     free_function_cases(corpus)
     md5_cases(corpus)
     transform_cases(corpus)
+    if len(corpus.lines) != 1315:
+        raise ValueError("the original corpus stream changed")
+    refused = set(UNWRITTEN_READ_CASES)
+    fixture = [line for line in corpus.lines if json.loads(line)["case"] in refused]
+    if len(fixture) != len(refused):
+        raise ValueError("missing unwritten-read regression case")
+    corpus.lines = [line for line in corpus.lines if json.loads(line)["case"] not in refused]
+    addition_cases(corpus)
     OUT.write_text("\n".join(corpus.lines) + "\n", encoding="utf-8", newline="\n")
-    print(f"{len(corpus.lines)} cases -> {OUT.relative_to(ROOT)}")
+    FIXTURE.parent.mkdir(parents=True, exist_ok=True)
+    FIXTURE.write_text("\n".join(fixture) + "\n", encoding="utf-8", newline="\n")
+    print(f"{len(corpus.lines)} cases -> {OUT.relative_to(ROOT)}; "
+          f"{len(fixture)} refusal regressions -> {FIXTURE.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":

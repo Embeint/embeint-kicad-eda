@@ -1,11 +1,42 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 # Validation: libs.kimath.include.application.pure.p001
 
-Run 2026-11-23 on implementation commit `7cc11f2e83528fa3d655aa67db528f15fe8c1183`
+## Current status (rework after the Sol 6.1 review of 8c54103a7d)
+
+**No current qualification.** The 2026-11-23 run below is superseded and
+must not be used as qualification
+([record](../../port/findings/kimath-header-hash-baseline-8c54103-superseded.md)):
+its oracle adapter zero-filled `MMH3_HASH::blocks`, so all MMH3 cases compared
+an invented initial state and 15 compared undefined reads. The committed golden
+is that stale baseline, so CI's golden check is expected to fail until a
+reviewed reblessing.
+
+The rework removes the zero-fill. The adapter and the port track written bytes,
+report unwritten ones as `??` and refuse undefined reads. The 15 cases are moved,
+byte for byte, to `fixtures/` as refusal regressions
+([reclassification](../../port/findings/kimath-header-hash-mmh3-unwritten-reads.md)).
+It also adds the locale-aware `ToString` and 44 cases (1344 in the corpus).
+Checks run so far, none of them Linux qualification:
+
+| Check | Result |
+| --- | --- |
+| Rust `fmt`, `clippy -D warnings`, tests (Rust 1.99.1, macOS arm64) | see the PR's Tests section |
+| All 1315 original requests through the corrected Rust shim | 15 refusals (the review's exact set and first reads); 321 MMH3 replies differ from the old golden only in `blocks`; 979 identical |
+| Development smoke adapter: the real `kimath_header_hash.cpp` with the pinned `mmh3_hash.h`, `hash_128.h`, `hash.h`, `transform.h`, `md5_hash.cpp`, `transform.cpp`, built with Apple Clang/libc++ on macOS arm64 and a stub registry, `wx/debug.h` and `config.h` (scratch only) | equal to the Rust shim on every MMH3, `hash128` (including all 28 locale cases), TRANSFORM, MD5, `rotl` and `fmix64` case and on all 97 guards; `std-hash`/`hash-combine`/`hash-val` differ as expected because libc++'s `std::hash` is not libstdc++'s |
+
+Remaining before any corrected golden: build the real oracle natively on Linux
+x86-64 (to be assigned by the parent; the emulated Rancher container is no
+longer used), run `kicad-difftest compare --partial` on the 1344 cases and
+`check_guards.py` with both programs, then `propose`/`bless` with a reason
+citing the findings above.
+
+## Superseded: 2026-11-23 run (8c54103a7d)
+
+Historical, superseded. Run 2026-11-23 on implementation commit `7cc11f2e83528fa3d655aa67db528f15fe8c1183`
 (base `rust` `535a17e39cc77452ba3377a5afb4170c14e9ab81`). Files are in
 [`validation/2026-11-23-7cc11f2e`](validation/2026-11-23-7cc11f2e).
 
-## Platform and its limits
+### Platform and its limits
 
 - Oracle: `port/oracle/prepare.py` on the clean commit (`overlay_revision`
   `7cc11f2e83…`, `overlay_dirty_at_export` false, 915 pinned files), then
@@ -28,7 +59,7 @@ Run 2026-11-23 on implementation commit `7cc11f2e83528fa3d655aa67db528f15fe8c118
   CI run of the same commit on native `ubuntu-24.04` x86-64 compared all 1315
   cases live before stopping only at the then-missing golden (run 45085161090).
 
-## Results
+### Results
 
 | Check | Command | Result |
 | --- | --- | --- |

@@ -7,7 +7,8 @@
 //! including validation order and messages. The schema is in README.md.
 
 use kicad_hash::{
-    fmix64, hash_combine, hash_val, mmh3_rotl64, Hash128, Md5Hash, Mmh3Hash, StdHash, Transform,
+    fmix64, hash_combine, hash_val, mmh3_rotl64, CxxNumericGrouping, Hash128, Md5Hash, Mmh3Hash,
+    StdHash, Transform,
 };
 use serde_json::{json, Map, Value};
 use std::io::{self, BufRead, Write};
@@ -269,11 +270,34 @@ fn array16(bytes: &[u8]) -> Result<[u8; 16]> {
     <[u8; 16]>::try_from(bytes).map_err(|error| error.to_string())
 }
 
+/// The optional caller locale: `thousands_sep` (a `char` as 0..255) and the
+/// `grouping` string bytes of the global locale's `numpunct<char>`.
+fn grouping(input: &Value) -> Result<Option<CxxNumericGrouping>> {
+    let Some(locale) = input.get("locale") else {
+        return Ok(None);
+    };
+    keys(locale, &["thousands_sep", "grouping"], &[])?;
+    let sep =
+        u8::try_from(unsigned(locale, "thousands_sep", 255)?).map_err(|error| error.to_string())?;
+    let bytes = hex(locale, "grouping", 4096, false)?;
+    CxxNumericGrouping::new(sep, &bytes)
+        .map(Some)
+        .map_err(|error| error.to_string())
+}
+
 fn hash128_op(input: &Value) -> Result<Value> {
-    keys(input, &["op", "a", "b"], &[])?;
+    keys(input, &["op", "a", "b"], &["locale"])?;
     let fresh = Hash128::new();
     let mut a = Hash128::from_value8(array16(&hex(input, "a", 16, true)?)?);
     let b = Hash128::from_value8(array16(&hex(input, "b", 16, true)?)?);
+    let locale = grouping(input)?;
+    let mut grouped = locale.as_ref().map(|locale| {
+        json!({
+            "new": to_hex(&fresh.to_string_in(locale)),
+            "a": to_hex(&a.to_string_in(locale)),
+            "b": to_hex(&b.to_string_in(locale)),
+        })
+    });
     let mut result = json!({
         "new": view(&fresh),
         "a": view(&a),
@@ -288,6 +312,12 @@ fn hash128_op(input: &Value) -> Result<Value> {
         "equals_new": a.equals(&fresh),
         "equals_b": a.equals(&b),
     });
+    if let (Some(grouped), Some(locale)) = (grouped.as_mut(), locale.as_ref()) {
+        grouped["cleared"] = json!(to_hex(&a.to_string_in(locale)));
+    }
+    if let Some(grouped) = grouped {
+        result["grouped"] = grouped;
+    }
     Ok(result)
 }
 
@@ -297,7 +327,13 @@ fn snapshot(hash: &Mmh3Hash, op: &str) -> Map<String, Value> {
     event.insert("h1".into(), json!(hash.h1()));
     event.insert("h2".into(), json!(hash.h2()));
     event.insert("len".into(), json!(hash.len()));
-    event.insert("blocks".into(), json!(to_hex(&hash.blocks())));
+    // A byte the reference never wrote has no value; it is shown as "??".
+    let blocks: String = hash
+        .blocks()
+        .iter()
+        .map(|byte| byte.map_or_else(|| "??".to_owned(), |byte| format!("{byte:02x}")))
+        .collect();
+    event.insert("blocks".into(), json!(blocks));
     event
 }
 
@@ -371,10 +407,14 @@ fn mmh3_op(input: &Value) -> Result<Value> {
                     for _ in 0..repeat {
                         match op {
                             "data" => state.add_data(&data),
-                            "data_v1" => state.add_data_v1(&data),
+                            "data_v1" => {
+                                state.add_data_v1(&data);
+                                Ok(())
+                            }
                             "string" => state.add_string(&data),
                             _ => state.add_chars(&data),
                         }
+                        .map_err(|error| error.to_string())?;
                     }
                 }
                 "int" => {
@@ -384,11 +424,14 @@ fn mmh3_op(input: &Value) -> Result<Value> {
                         return Err("byte budget exceeded".into());
                     }
                     let value = signed(step, "value", i32::MIN.into(), i32::MAX.into())?;
-                    state.add_i32(i32::try_from(value).map_err(|error| error.to_string())?);
+                    state
+                        .add_i32(i32::try_from(value).map_err(|error| error.to_string())?)
+                        .map_err(|error| error.to_string())?;
                 }
                 "digest" => {
                     keys(step, &["op"], &[])?;
-                    extra.insert("digest".into(), view(&state.digest()));
+                    let digest = state.digest().map_err(|error| error.to_string())?;
+                    extra.insert("digest".into(), view(&digest));
                 }
                 "state" => {
                     keys(step, &["op", "h1", "h2", "blocks", "len"], &[])?;
@@ -402,10 +445,11 @@ fn mmh3_op(input: &Value) -> Result<Value> {
                 "hash_block" | "hash_tail" => {
                     keys(step, &["op"], &[])?;
                     if op == "hash_block" {
-                        state.hash_block();
+                        state.hash_block()
                     } else {
-                        state.hash_tail();
+                        state.hash_tail()
                     }
+                    .map_err(|error| error.to_string())?;
                 }
                 "hash_final" => {
                     keys(step, &["op"], &[])?;
