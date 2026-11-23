@@ -251,6 +251,6 @@ def check_conflicts(installed):
         for field in ("Conflicts", "Breaks"):
             for group in parse_relations(stanza.get(field, "")):
                 for other, _arch, op, version in group:
-                    target = installed.get(other)
-                    if other != name and target is not None and satisfies(target["Version"], op, version):
-                        raise ValueError(f"{name} {field} {other} {target['Version']}")
+                    others = {n: s for n, s in installed.items() if n != name}
+                    if relation_satisfied((other, _arch, op, version), others):
+                        raise ValueError(f"{name} {field} {other} (including virtual providers)")

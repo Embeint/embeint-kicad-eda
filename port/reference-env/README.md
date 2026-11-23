@@ -111,7 +111,10 @@ image also refuses `glibc-hwcaps` library directories,
 
 The checked list is a **subset**, not an audited closure of all calls made by
 pinned kimath. In particular, pinned geometry can reach `asin`/`acos`; their
-variants appear in the lock but are not probed here. Those and other unlisted
+variants appear in the lock but are not probed here. Code-derived examples at
+pin `4cf93977`: `eda_angle.h:217/219` (Arccos/Arcsin),
+`arc_chord_params.cpp:107` (asin), and
+`convert_basic_shapes_to_polygon.cpp:275` (acos). Those and other unlisted
 paths remain uncertified. Neither these checks nor matching sample bits certify
 all-kimath or native/wasm portability. Original NaN and SetRotation failures
 remain failures.
@@ -362,7 +365,10 @@ For `--with-difftest`, also supply a clean **Linux clone** at the same head.
 The bundle digest is an integrity handoff from the trusted native Git export,
 not a signature or independent qualification. The exporter records native Git
 version/platform; WSL verifies the digest and snapshots without invoking Git in
-the Windows checkout. Both modes build the preserved source/stage snapshots.
+the Windows checkout. Both modes build the preserved source/stage snapshots. The pre-existing absolute
+QA-only alias `qa/tests/resources -> /work/qa/resources` is preserved without
+following it and must remain unavailable; external QA resources are not certified
+or used by this qualification route. Other absolute/escaping source links fail.
 
 `qualify.sh` takes `~/kicad-port.build-lock`, caps the oracle at `ORACLE_JOBS`
 (default 8) and writes everything to `~/refenv-work/runs/<UTC time>/`:
