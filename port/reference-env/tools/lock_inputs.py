@@ -17,7 +17,6 @@ import gzip
 import io
 import json
 from pathlib import Path
-import re
 import shutil
 import subprocess
 import sys
@@ -29,13 +28,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import debian  # noqa: E402
 import refenv  # noqa: E402
 import input_plan  # noqa: E402
+import libm_elf  # noqa: E402  (shared with the runtime collector; on the path via refenv)
 
 REGISTRY = "https://registry-1.docker.io/v2/"
 INDEX_TYPES = ("application/vnd.oci.image.index.v1+json, "
                "application/vnd.docker.distribution.manifest.list.v2+json")
 MANIFEST_TYPES = ("application/vnd.oci.image.manifest.v1+json, "
                   "application/vnd.docker.distribution.manifest.v2+json")
-VARIANT = re.compile(r"^__.+_(sse2|sse41|sse4_1|avx|avx2|fma|fma4|avx512|evex)$")
 
 
 def docker_token(repository):
@@ -216,14 +215,20 @@ def inspect_debs(candidate, final, stanzas, snapshot_url):
     debug = refenv.Elf64(debug_bytes)
     if debug.build_id() != build_id:
         raise ValueError("libc6-dbg debug file does not match libm build ID")
-    variants = {}
-    for name, value, _binding in debug.function_symbols():
-        if VARIANT.match(name):
-            variants.setdefault(f"0x{value:x}", set()).add(name)
+    variants = libm_variants(debug)
     libm = {"path": "/usr/lib/x86_64-linux-gnu/libm.so.6", "build_id": build_id,
             "debug_file": debug_path, "debug_file_sha256": refenv.sha256_bytes(debug_bytes),
-            "multiarch_symbols": {offset: sorted(names) for offset, names in sorted(variants.items())}}
+            "multiarch_symbols": variants}
     return sorted(files, key=lambda f: f["path"]), libm
+
+
+def libm_variants(debug):
+    """libm's multiarch implementations, classified exactly as the runtime collector does."""
+    variants, excluded = libm_elf.multiarch_symbols(debug)
+    for item in excluded:
+        print(f"note: libm symbol {item['name']} at {item['offset']} ({item['type']}) is not locked: "
+              + item["reason"], file=sys.stderr)
+    return variants
 
 
 def resolve_rust(rust):

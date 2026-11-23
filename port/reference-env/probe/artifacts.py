@@ -385,7 +385,7 @@ def validate(directory):
         "loaded_objects",
     ):
         require(field in env, "missing environment field: " + field)
-    integer(env["schema"], 1, 1)
+    integer(env["schema"], 2, 2)
     require(
         type(env["host"]["cpu"]) is dict and type(env["host"]["uname"]) is dict,
         "missing host identity",
@@ -532,6 +532,10 @@ def validate(directory):
         not run_probe.dispatch_report({"libm_dispatch": dispatch}, lock, candidate)[1],
         "dispatch contract failed",
     )
+    keys(
+        env["libm"],
+        "debug_file multiarch_symbols_from_debug_file excluded_suffix_matches matches_lock",
+    )
     macros = {m["name"]: m["defined"] for m in contract["build"]["macros"]}
     require(
         macros["__SSE2__"]
@@ -544,7 +548,7 @@ def validate(directory):
         "runtime contract failed",
     )
     require(
-        env["libm"]["multiarch_symbols_from_nm"] == lock["libm"]["multiarch_symbols"]
+        env["libm"]["multiarch_symbols_from_debug_file"] == lock["libm"]["multiarch_symbols"]
         and env["libm"]["matches_lock"] is True,
         "libm symbol identity differs",
     )
