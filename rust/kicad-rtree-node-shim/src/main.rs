@@ -19,6 +19,7 @@ const MAX_STEPS: usize = 4096;
 const MAX_ALLOCATIONS: usize = 4096;
 const ITEMS: i64 = 64;
 const ALLOCATORS: usize = 4;
+const MAX_EXTERNALS: usize = 256;
 const DIMS: [i64; 16] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 16, 21, 22, 32, 33, 64, 65];
 
 type Outcome = Result<Value, String>;
@@ -183,6 +184,7 @@ struct Program<E: Coord, const D: usize, const M: usize> {
     /// naming its slot; the arena reports whether the page was destroyed.
     seen: Vec<NodeHandle>,
     allocated: usize,
+    externals: usize,
 }
 
 fn lib(error: RtreeError) -> String {
@@ -196,6 +198,7 @@ impl<E: Coord + Wire + Into<Value>, const D: usize, const M: usize> Program<E, D
             allocators: core::array::from_fn(|_| None),
             seen: Vec::new(),
             allocated: 0,
+            externals: 0,
         }
     }
 
@@ -433,25 +436,22 @@ impl<E: Coord + Wire + Into<Value>, const D: usize, const M: usize> Program<E, D
             "free" | "owns" | "find" => {
                 keys(step, &["op", "a", "node"])?;
                 let id = Self::allocator_id(step, "a")?;
-                let node = if op == "free" {
-                    self.optional_node(step, "node")?
-                } else {
-                    Some(self.node(step, "node")?)
-                };
+                // Owns( nullptr ) and findOwningPage( nullptr ) are defined: no page.
+                let node = self.optional_node(step, "node")?;
                 let allocator = self.allocator(id)?;
-                match (op, node) {
-                    ("owns", Some(node)) => {
-                        let owns = self.arena.owns(&allocator, &node).map_err(lib)?;
+                match op {
+                    "owns" => {
+                        let owns = self.arena.owns(&allocator, node.as_ref()).map_err(lib)?;
                         Ok(json!({"owns": owns}))
                     }
-                    ("find", Some(node)) => {
-                        let found = self.arena.find_owning_page(&allocator, &node);
+                    "find" => {
+                        let found = self.arena.find_owning_page(&allocator, node.as_ref());
                         Ok(match found.map_err(lib)? {
                             Some((page, offset)) => json!({"page": page, "offset": offset}),
                             None => json!({"page": null, "offset": null}),
                         })
                     }
-                    (_, node) => {
+                    _ => {
                         self.arena.free(&allocator, node.as_ref()).map_err(lib)?;
                         empty()
                     }
@@ -466,6 +466,28 @@ impl<E: Coord + Wire + Into<Value>, const D: usize, const M: usize> Program<E, D
                     return Ok(json!({"memory": memory}));
                 }
                 self.state(id)
+            }
+            "external" => {
+                keys(step, &["op"])?;
+                if self.externals >= MAX_EXTERNALS {
+                    return Err("external budget exceeded".into());
+                }
+                let node = self.arena.new_external().map_err(lib)?;
+                self.externals += 1;
+                Ok(json!({"node": self.id(&node)}))
+            }
+            "destroy_external" => {
+                keys(step, &["op", "node"])?;
+                let node = self.node(step, "node")?;
+                self.arena.destroy_external(&node).map_err(lib)?;
+                empty()
+            }
+            "neighbour" => {
+                keys(step, &["op", "node", "offset"])?;
+                let node = self.node(step, "node")?;
+                let offset = int(step, "offset")?;
+                let neighbour = self.arena.page_neighbour(&node, offset).map_err(lib)?;
+                Ok(json!({"node": self.id(&neighbour)}))
             }
             _ => self.node_step(op, step),
         }

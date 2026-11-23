@@ -12,6 +12,7 @@
 #include <cstring>
 #include <initializer_list>
 #include <limits>
+#include <memory>
 #include <optional>
 #include <string>
 #include <type_traits>
@@ -28,6 +29,7 @@ constexpr int    MAX_STEPS = 4096;
 constexpr size_t MAX_ALLOCATIONS = 4096;
 constexpr int    ITEMS = 64;
 constexpr int    ALLOCATORS = 4;
+constexpr size_t MAX_EXTERNALS = 256;
 
 // Leaf DATATYPE: a pointer, as in every KiCad instantiation.
 struct ITEM
@@ -338,6 +340,10 @@ public:
     using ALLOC = KIRTREE::SLAB_ALLOCATOR<NODE>;
     using PAGE = typename ALLOC::PAGE;
 
+    // Ending external storage that holds a destroyed node, and constructing over an
+    // existing node, are defined because the node is trivially destructible.
+    static_assert( std::is_trivially_destructible_v<NODE> );
+
     JSON Run( const JSON& aSteps )
     {
         JSON events = JSON::array();
@@ -389,11 +395,7 @@ private:
     }
 
     // Move assignment destroys the target's pages.  Their nodes are retired from the
-    // numbering, so a later page at a reused address is never mistaken for them.  A
-    // live node elsewhere may keep such a pointer: retaining, copying or overwriting
-    // its bits is defined, only a dereference is not, and nothing here dereferences
-    // it.  Those slots are recorded while the pointers are still valid, so the stale
-    // bits are never compared afterwards (a new page may reuse the address).
+    // numbering, so a later page at a reused address is never mistaken for them.
     void Retire( const ALLOC& aTarget )
     {
         std::vector<size_t> doomed;
@@ -404,12 +406,25 @@ private:
                 doomed.push_back( i );
         }
 
+        RetireNodes( doomed );
+    }
+
+    // Retire nodes whose storage is about to end (pages or external storage).  A live
+    // node elsewhere may keep such a pointer: retaining, copying or overwriting its
+    // bits is defined, only a dereference is not, and nothing here dereferences it.
+    // Those slots are recorded while the pointers are still valid, so the stale bits
+    // are never compared afterwards (new storage may reuse the address).
+    void RetireNodes( const std::vector<size_t>& doomed )
+    {
         for( size_t i = 0; i < m_seen.size(); ++i )
         {
             const NODE* node = m_seen[i];
 
-            if( !node || aTarget.Owns( node ) || !IsLive( node ) )
+            if( !node || std::find( doomed.begin(), doomed.end(), i ) != doomed.end()
+                || !IsLive( node ) )
+            {
                 continue;
+            }
 
             for( int slot = 0; slot < M; ++slot )
             {
@@ -860,7 +875,8 @@ private:
         {
             Keys( aStep, { "op", "a", "node" } );
             const int id = AllocatorId( aStep, "a" );
-            NODE*     node = aOp == "free" ? OptionalNode( aStep, "node" ) : Node( aStep, "node" );
+            // Owns( nullptr ) and findOwningPage( nullptr ) are defined: no page.
+            NODE*     node = OptionalNode( aStep, "node" );
             ALLOC&    allocator = Allocator( id );
 
             if( aOp == "owns" )
@@ -893,6 +909,65 @@ private:
 
             CheckFreeList( id );
             return JSON::object();
+        }
+
+        if( aOp == "external" )
+        {
+            // A caller-owned node outside every page, like a local NODE n.
+            Keys( aStep, { "op" } );
+
+            if( m_external.size() >= MAX_EXTERNALS )
+                Refuse( "external budget exceeded" );
+
+            m_external.push_back( std::make_unique<NODE>() );
+            return { { "node", Id( m_external.back().get() ) } };
+        }
+
+        if( aOp == "destroy_external" )
+        {
+            Keys( aStep, { "op", "node" } );
+            NODE* node = Node( aStep, "node" );
+            auto  it = std::find_if( m_external.begin(), m_external.end(),
+                                     [&]( const std::unique_ptr<NODE>& aOwned )
+                                     { return aOwned.get() == node; } );
+
+            if( it == m_external.end() )
+                Refuse( "node is not external" );
+
+            // Retire (and tombstone) the node before its storage is released.
+            RetireNodes( { IndexOf( node ) } );
+            it->reset();
+            return JSON::object();
+        }
+
+        if( aOp == "neighbour" )
+        {
+            // node + offset inside the node's PAGE::nodes array.  findOwningPage gives
+            // the element index; external storage has no other element.
+            Keys( aStep, { "op", "node", "offset" } );
+            NODE*     node = Node( aStep, "node" );
+            const int offset = Int( aStep, "offset" );
+
+            for( const std::optional<ALLOC>& allocator : m_allocators )
+            {
+                if( !allocator )
+                    continue;
+
+                if( const auto location = Find( *allocator, node ) )
+                {
+                    const int64_t target = static_cast<int64_t>( location->second ) + offset;
+
+                    if( target < 0 || target >= static_cast<int64_t>( ALLOC::NODES_PER_PAGE ) )
+                        Refuse( "neighbour outside page" );
+
+                    return { { "node", Id( node + offset ) } };
+                }
+            }
+
+            if( offset != 0 )
+                Refuse( "neighbour outside page" );
+
+            return { { "node", Id( node ) } };
         }
 
         if( aOp == "memory" || aOp == "state" )
@@ -1111,6 +1186,8 @@ private:
     std::vector<char>                               m_alive;
     // Per allocator: its free list as node numbers, in order.
     std::array<std::vector<int>, ALLOCATORS>        m_free;
+    // Caller-owned nodes outside every page; reset when their storage ends.
+    std::vector<std::unique_ptr<NODE>>              m_external;
     size_t                                          m_allocated = 0;
 };
 

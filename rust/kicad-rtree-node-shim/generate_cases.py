@@ -468,7 +468,7 @@ def corpus():
             cases.append(request(case, {"kind": "slab", "config": name, "steps": steps}))
     # Appended after the original corpus so every earlier case keeps its bytes and
     # index; see review_cases.
-    return cases + review_cases() + foreign_cases()
+    return cases + review_cases() + foreign_cases() + storage_cases()
 
 
 def review_cases():
@@ -828,6 +828,212 @@ def foreign_cases():
     return cases
 
 
+class StorageLifecycle(Lifecycle):
+    """Lifecycle model with caller-owned external nodes and page neighbours.
+
+    External storage is modelled as a one-slot "page" whose owner is "ext"; no
+    allocator ever owns it, so its used bits never change.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.externals = 0
+
+    def external(self):
+        token = ("x", self.externals)
+        self.externals += 1
+        self.pages[token] = {"owner": "ext", "used": set(), "alive": {0}}
+        return self.number((token, 0))
+
+    def is_external(self, node):
+        return self.pages[self.seen[node][0]]["owner"] == "ext"
+
+    def destroy_external(self, node):
+        self.pages[self.seen[node][0]]["owner"] = None
+
+    def neighbour(self, node, offset):
+        token, slot = self.seen[node]
+        return self.number((token, slot + offset))
+
+
+def storage_program(rng, dims, maxnodes):
+    model = StorageLifecycle()
+    for a in range(2):
+        model.allocators[a] = {"pages": [], "free": []}
+    steps = [{"op": "new", "a": 0}, {"op": "new", "a": 1}]
+    while len(steps) < 300:
+        existing = [i for i, a in enumerate(model.allocators) if a is not None]
+        known = [n for n in range(len(model.seen)) if not model.destroyed(n)]
+        alive = [n for n in known if model.alive(n)]
+        pages = [n for n in known if not model.is_external(n)]
+        externals = [n for n in known if model.is_external(n)]
+        roll = rng.random()
+        if roll < 0.18 or not alive:
+            a = rng.choice(existing)
+            if model.can_allocate(a) and model.allocated < 3000:
+                steps.append({"op": "alloc", "a": a})
+                model.allocate(a)
+        elif roll < 0.25:
+            if model.externals < 200:
+                steps.append({"op": "external"})
+                model.external()
+        elif roll < 0.33 and pages:
+            node = rng.choice(pages)
+            slot = model.seen[node][1]
+            offset = rng.randint(-slot, 255 - slot)
+            if rng.random() < 0.6:
+                offset = rng.choice([o for o in (-1, 1, 2) if 0 <= slot + o < 256] or [0])
+            steps.append({"op": "neighbour", "node": node, "offset": offset})
+            model.neighbour(node, offset)
+        elif roll < 0.55:
+            node, a = rng.choice(alive), rng.choice(existing)
+            steps.append({"op": "free", "a": a, "node": node})
+            model.free(a, node)
+        elif roll < 0.58 and externals:
+            node = rng.choice(externals)
+            steps.append({"op": "destroy_external", "node": node})
+            model.destroy_external(node)
+        elif roll < 0.62:
+            a = rng.choice(existing)
+            target = rng.choice(existing)
+            steps.append({"op": "move_assign", "a": target, "src": a})
+            if target != a:
+                model.destroy_pages(target)
+                model.adopt(target, model.take(a))
+        elif roll < 0.78:
+            a = rng.choice(existing)
+            step = {"op": rng.choice(["state", "memory", "owns", "find"]), "a": a}
+            if step["op"] in ("owns", "find"):
+                step["node"] = rng.choice(known) if known and rng.random() < 0.85 else None
+            steps.append(step)
+        else:
+            node = rng.choice(alive)
+            op = rng.choice(["snapshot", "set_count", "set_child", "predicates"])
+            if op == "set_count":
+                steps.append({"op": op, "node": node, "value": rng.randint(0, maxnodes)})
+            elif op == "set_child":
+                steps.append({"op": op, "node": node, "slot": rng.randrange(maxnodes),
+                              "child": rng.choice(known)})
+            else:
+                steps.append({"op": op, "node": node})
+    for a, state in enumerate(model.allocators):
+        if state is not None:
+            steps.append({"op": "state", "a": a})
+    return steps
+
+
+def alias_steps():
+    """The review's unused-slot sequence: q = a.Allocate() + 1 aliases two lists."""
+    return [{"op": "new", "a": 0}, {"op": "new", "a": 1}, {"op": "alloc", "a": 0},
+            {"op": "neighbour", "node": 0, "offset": 1},
+            {"op": "owns", "a": 0, "node": 1}, {"op": "find", "a": 0, "node": 1},
+            {"op": "snapshot", "node": 1}, {"op": "state", "a": 0},
+            {"op": "free", "a": 1, "node": 1}, {"op": "state", "a": 0},
+            {"op": "alloc", "a": 1}, {"op": "owns", "a": 1, "node": 1},
+            {"op": "memory", "a": 1},
+            {"op": "free", "a": 1, "node": 1},
+            {"op": "alloc", "a": 0}, {"op": "state", "a": 0}, {"op": "state", "a": 1},
+            {"op": "free", "a": 0, "node": 1},
+            {"op": "alloc", "a": 1}, {"op": "free", "a": 1, "node": 1},
+            {"op": "alloc", "a": 0}, {"op": "free", "a": 0, "node": 1},
+            {"op": "state", "a": 0}, {"op": "state", "a": 1},
+            {"op": "alloc", "a": 1}, {"op": "set_count", "node": 1, "value": 99},
+            {"op": "snapshot", "node": 1}, {"op": "alloc", "a": 0},
+            {"op": "snapshot", "node": 1}, {"op": "memory", "a": 0}, {"op": "memory", "a": 1},
+            {"op": "state", "a": 0}, {"op": "state", "a": 1},
+            # The last element of the page, also constructed and unused.
+            {"op": "neighbour", "node": 1, "offset": 254}, {"op": "snapshot", "node": 2},
+            {"op": "neighbour", "node": 2, "offset": -255}]
+
+
+def storage_cases():
+    """Regressions for the third independent review of PR 52: null ownership queries,
+    caller-owned external nodes and constructed unused page slots."""
+    cases = []
+    null = [{"op": "owns", "a": 0, "node": None}, {"op": "find", "a": 0, "node": None}]
+    steps = ([{"op": "new", "a": 0}] + null + [{"op": "free", "a": 0, "node": None}]
+             + [{"op": "alloc", "a": 0}] + null
+             + [{"op": "move_new", "a": 1, "src": 0}] + null
+             + [dict(step, a=1) for step in null]
+             + [{"op": "new", "a": 2}, {"op": "move_assign", "a": 2, "src": 1}]
+             + [dict(step, a=2) for step in null] + [dict(step, a=1) for step in null]
+             + [{"op": "state", "a": 2}])
+    cases.append(request("review3-slab-null-ownership",
+                         {"kind": "slab", "config": "i32.d2.m16", "steps": steps}))
+
+    for config in ["i32.d2.m16", "i64.d3.m8", "i32.d3.m33"]:
+        dims = CONFIGS_ALL[config]
+        steps = [{"op": "new", "a": 0}, {"op": "external"},
+                 {"op": "set_count", "node": 0, "value": 13},
+                 {"op": "set_bounds", "node": 0, "slot": 0, "min": [-4] * dims,
+                  "max": [4] * dims},
+                 {"op": "snapshot", "node": 0},
+                 {"op": "owns", "a": 0, "node": 0}, {"op": "find", "a": 0, "node": 0},
+                 {"op": "neighbour", "node": 0, "offset": 0},
+                 {"op": "free", "a": 0, "node": 0}, {"op": "state", "a": 0},
+                 {"op": "memory", "a": 0}, {"op": "alloc", "a": 0},
+                 {"op": "snapshot", "node": 0}, {"op": "owns", "a": 0, "node": 0},
+                 {"op": "state", "a": 0},
+                 # A page node and the external node share the free list.
+                 {"op": "alloc", "a": 0}, {"op": "free", "a": 0, "node": 0},
+                 {"op": "free", "a": 0, "node": 1}, {"op": "state", "a": 0},
+                 {"op": "alloc", "a": 0}, {"op": "alloc", "a": 0}, {"op": "state", "a": 0},
+                 # Another allocator frees and re-allocates it too.
+                 {"op": "new", "a": 1}, {"op": "free", "a": 1, "node": 0},
+                 {"op": "memory", "a": 1}, {"op": "alloc", "a": 1},
+                 {"op": "snapshot", "node": 0},
+                 # A page node points at it; its storage then ends.
+                 {"op": "set_level", "node": 1, "value": 1},
+                 {"op": "set_child", "node": 1, "slot": 0, "child": 0},
+                 {"op": "snapshot", "node": 1}, {"op": "destroy_external", "node": 0},
+                 {"op": "snapshot", "node": 1},
+                 # Ending storage that holds a destroyed node, then replacing the list.
+                 {"op": "external"}, {"op": "free", "a": 1, "node": 2},
+                 {"op": "destroy_external", "node": 2}, {"op": "state", "a": 1},
+                 {"op": "new", "a": 2}, {"op": "move_assign", "a": 1, "src": 2},
+                 {"op": "state", "a": 1}, {"op": "external"}, {"op": "snapshot", "node": 3}]
+        cases.append(request(f"review3-slab-{config}-external-node",
+                             {"kind": "slab", "config": config, "steps": steps}))
+
+    for config in ["i32.d2.m16", "i64.d3.m8", "i32.d3.m33"]:
+        cases.append(request(f"review3-slab-{config}-unused-slot-alias",
+                             {"kind": "slab", "config": config, "steps": alias_steps()}))
+
+    rng = random.Random(5353)
+    for config in ["i32.d2.m16", "i32.d3.m5", "i64.d2.m16"]:
+        dims, maxnodes = CONFIGS_ALL[config], int(config.rsplit(".m", 1)[1])
+        for index in range(2):
+            cases.append(request(f"review3-slab-{config}-storage-{index}", {
+                "kind": "slab", "config": config,
+                "steps": storage_program(rng, dims, maxnodes)}))
+    return cases
+
+
+# Refusal fixtures that later reviews showed to be defined operations.  Each entry keeps
+# the old request identity and reply and names the successful cases that replace it.
+RECLASSIFIED = [
+    {"refusal": "move-dangling-child", "removed_in": "56cbee6c90",
+     "old_reply": {"kind": "invalid_input",
+                   "message": "move assignment would leave a dangling child"},
+     "now": "review-slab-*-move-stale-*",
+     "rationale": "Retaining, copying and overwriting a pointer into pages destroyed by a "
+                  "move assignment is defined; only a dereference is not. First review, "
+                  "finding 4."},
+    {"refusal": "foreign-free", "removed_in": "962d311e3c",
+     "old_reply": {"kind": "invalid_input", "message": "node is not owned"},
+     "now": "review2-*",
+     "rationale": "B.Free( A.Allocate() ) runs markUnused's not-found branch, destroys and "
+                  "pushes the node; B.Allocate() re-constructs it in A's page. Second "
+                  "review."},
+    {"refusal": "node-null", "removed_in": "third-review null-ownership fix",
+     "old_reply": {"kind": "invalid_input", "message": "integer out of range: node"},
+     "now": "review3-slab-null-ownership",
+     "rationale": "Owns( nullptr ) and findOwningPage( nullptr ) compare address 0 with "
+                  "the page ranges and return false / null without dereferencing it, "
+                  "before and after page allocation. Third review, finding 1."},
+]
+
+
 def failure(case, message, kind="invalid_input", unit=UNIT):
     return {"unit": unit, "case": case, "error": {"kind": kind, "message": message}}
 
@@ -912,8 +1118,6 @@ def refusals():
          "allocation budget exceeded")
     slab("node-missing", [new, {"op": "snapshot", "node": 0}], "node does not exist")
     slab("node-range", [new, alloc, {"op": "snapshot", "node": 4096}], "integer out of range: node")
-    slab("node-null", [new, alloc, {"op": "owns", "a": 0, "node": None}],
-         "integer out of range: node")
     slab("use-after-free", [new, alloc, {"op": "free", "a": 0, "node": 0},
                             {"op": "snapshot", "node": 0}], "node is not live")
     slab("double-free", [new, alloc, {"op": "free", "a": 0, "node": 0},
@@ -1036,6 +1240,41 @@ def refusals():
                                           {"op": "snapshot", "node": 0}], "node is destroyed")
     slab("review2-destroyed-allocator", [new, {"op": "destroy", "a": 0},
                                          {"op": "memory", "a": 0}], "allocator does not exist")
+    # External storage and page neighbours: pointer arithmetic stays inside the node's
+    # PAGE::nodes array; ended storage is never constructed into or read.
+    outside = "neighbour outside page"
+    slab("review3-neighbour-past-page", node + [{"op": "neighbour", "node": 0, "offset": 256}],
+         outside)
+    slab("review3-neighbour-before-page", node + [{"op": "neighbour", "node": 0, "offset": -1}],
+         outside)
+    slab("review3-neighbour-external", [new, {"op": "external"},
+                                        {"op": "neighbour", "node": 0, "offset": 1}], outside)
+    slab("review3-neighbour-offset-type", node + [{"op": "neighbour", "node": 0, "offset": "1"}],
+         "integer out of range: offset")
+    slab("review3-neighbour-extra-field",
+         node + [{"op": "neighbour", "node": 0, "offset": 1, "a": 0}],
+         "unexpected or missing field")
+    slab("review3-neighbour-destroyed-page",
+         node + [{"op": "new", "a": 1}, {"op": "move_assign", "a": 0, "src": 1},
+                 {"op": "neighbour", "node": 0, "offset": 1}], "node is destroyed")
+    slab("review3-destroy-page-node", node + [{"op": "destroy_external", "node": 0}],
+         "node is not external")
+    slab("review3-destroy-external-twice",
+         [{"op": "external"}, {"op": "destroy_external", "node": 0},
+          {"op": "destroy_external", "node": 0}], "node is destroyed")
+    slab("review3-external-after-end",
+         [{"op": "external"}, {"op": "destroy_external", "node": 0},
+          {"op": "snapshot", "node": 0}], "node is destroyed")
+    slab("review3-external-entry-ended",
+         [new, {"op": "external"}, {"op": "free", "a": 0, "node": 0},
+          {"op": "destroy_external", "node": 0}, {"op": "alloc", "a": 0}], "node is destroyed")
+    slab("review3-external-second-destruction",
+         [new, {"op": "external"}, {"op": "free", "a": 0, "node": 0},
+          {"op": "free", "a": 0, "node": 0}], "node is not live")
+    slab("review3-external-use-after-free",
+         [new, {"op": "external"}, {"op": "free", "a": 0, "node": 0},
+          {"op": "snapshot", "node": 0}], "node is not live")
+    slab("review3-external-budget", [{"op": "external"}] * 257, "external budget exceeded")
     # Envelope-level refusals use the shared transport messages.
     checks.append(({"unit": "other.unit", "case": "unit", "input": {}},
                    failure("unit", "unit has no registered shim", "unknown_unit", "other.unit")))
@@ -1056,6 +1295,7 @@ def main():
         CASES: jsonl(corpus()),
         FIXTURES / "refusals.requests.jsonl": jsonl(request for request, _ in checks),
         FIXTURES / "refusals.replies.jsonl": jsonl(reply for _, reply in checks),
+        FIXTURES / "reclassified.jsonl": jsonl(RECLASSIFIED),
     }
     names = [json.loads(line)["case"] for line in outputs[CASES].splitlines()]
     assert len(names) == len(set(names)), "duplicate case IDs"

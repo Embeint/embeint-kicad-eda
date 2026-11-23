@@ -29,7 +29,10 @@ its number); items by index. No address is serialised.
 | `new`, `move_new`, `move_assign`, `destroy` | `a` (+ `src`) | `{}`; `destroy` runs the destructor and frees the slot |
 | `alloc`, `alloc_many` | `a` (+ `n` 1..1024) | `node` / `nodes`; at most 4096 allocations per case |
 | `free` | `a`, `node` or null | `{}`; any allocator may free any existing node |
-| `owns`, `find` | `a`, `node` | `owns` / `page`, `offset` (null when not owned) |
+| `owns`, `find` | `a`, `node` or null | `owns` / `page`, `offset` (null when not owned, or for a null node) |
+| `external` | | `node`: a new caller-owned `NODE n;` outside every page |
+| `destroy_external` | `node` | `{}`: its storage ends (only for external nodes) |
+| `neighbour` | `node`, `offset` | `node`: `node + offset` inside the same `PAGE::nodes` array (external: offset 0) |
 | `memory`, `state` | `a` | `memory` / `pages` (four 64-bit `used` words each), `free` (node numbers), `capacity`, `memory` |
 | `set_count`, `set_level`, `ref_add`, `ref_sub`, `ref_store` | `node`, `value` | `{}` or `previous` |
 | `ref_load`, `predicates`, `snapshot`, `enclosing` | `node` | value, flags, the complete node state, or `min`/`max` |
@@ -47,7 +50,11 @@ All allocators of a case share one address space (the Rust adapter uses one
 C++: for a node in another allocator's page, `markUnused` and `markUsed` find no page, so
 that page's owner, used bit and `MemoryUsage` are unchanged while the node is destroyed,
 pushed onto the freeing allocator's free list, popped and re-constructed. Both adapters
-call the real operations.
+call the real operations. The same holds for a caller-owned external node (the oracle
+adapter keeps such nodes on the heap) and for page slots that `PAGE()` constructed but
+nobody allocated, reached by `neighbour` (real pointer arithmetic inside the page array,
+bounded through `findOwningPage`). Two free lists may then name the same slot, and each
+allocation constructs over it.
 
 Node steps require a live node, one whose object exists: it was constructed and has not
 been destroyed by `Free` since. This is object lifetime, not the page's used bit, which a
@@ -71,7 +78,7 @@ still valid and never compares the stale bits afterwards. Nothing dereferences t
 `python rust/kicad-rtree-node-shim/generate_cases.py` (fixed seed 20261122; `--check`
 verifies the files are current) writes:
 
-* `port/cases/<unit>.jsonl`: 1512 successful cases. The original 1448 (Hilbert corners,
+* `port/cases/<unit>.jsonl`: 1525 successful cases. The original 1448 (Hilbert corners,
   exhaustive orders 1-3, random orders and coordinates, all dimensions; overlap masks for
   both element types, every fanout and counts 0, 1, half, fanout - 1, fanout,
   fanout + 1 and 31, extremes, touching edges, inverted boxes; for each of the first nine
@@ -86,12 +93,20 @@ verifies the files are current) writes:
   bits, free lists and memory before and after, for three configurations; repeated
   cross-allocator reuse; free-list order and capacity growth; foreign entries across moves
   and destruction; and eight fixed-seed lifecycle programs (seed 5252) in which any
-  allocator frees any node.
-* `fixtures/refusals.requests.jsonl` and `.replies.jsonl`: 116 malformed, out-of-domain and
+  allocator frees any node. `storage_cases` appends 13 regressions from the third review:
+  null `owns`/`find` before and after allocation and after moves; an external node freed,
+  re-allocated and freed by another allocator, as a child, and after its storage ends
+  (three configurations); the unused-slot alias sequence through two free lists (three
+  configurations); and six fixed-seed programs (seed 5353) with external nodes and
+  neighbours.
+* `fixtures/refusals.requests.jsonl` and `.replies.jsonl`: 128 malformed, out-of-domain and
   undefined-behaviour requests with the exact refusal both adapters return. `cargo test`
   checks this adapter against them; the validation run checks the oracle. The original
   `move-dangling-child` refusal was removed: that sequence is defined and is now the
   successful case family `review-slab-*-move-stale-*`. Likewise `foreign-free` (a foreign
   `Free`, formerly `node is not owned`) is defined and is now the `review2-*` family; its
   genuinely undefined neighbours (a second destruction, use after free, allocating into a
-  destroyed page) are refused.
+  destroyed page) are refused. `node-null` (a null `owns`, formerly `integer out of range:
+  node`) is likewise defined and is now `review3-slab-null-ownership`.
+  `fixtures/reclassified.jsonl` keeps every reclassified refusal with its old reply, the
+  replacing cases and the rationale.
