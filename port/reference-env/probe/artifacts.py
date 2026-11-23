@@ -160,7 +160,7 @@ def primitive(value, rust, count, candidate):
             else common + " build loaded_objects floating_point_state libm_dispatch stream_format"
         ),
     )
-    integer(value["schema"], 1, 1)
+    integer(value["schema"], *((1, 1) if rust else (2, 2)))
     require(value["probe"] == ("rust" if rust else "primitive"), "wrong probe identity")
     inputs, operands = input_tables()
     require(
@@ -236,10 +236,20 @@ def primitive(value, rust, count, candidate):
         "dispatch identities differ",
     )
     for row in value["libm_dispatch"]:
-        keys(row, "function object offset")
+        keys(row, "function object offset linked_object linked_offset inputs trace_status trace")
         require(
-            type(row["object"]) is str and re.fullmatch(r"0x[0-9a-f]+", row["offset"]),
+            type(row["object"]) is str
+            and type(row["linked_object"]) is str
+            and type(row["trace_status"]) is str
+            and all(re.fullmatch(r"0x[0-9a-f]+", row[k] if type(row[k]) is str else "")
+                    for k in ("offset", "linked_offset")),
             "invalid dispatch",
+        )
+        bitlist(row["inputs"], 2)
+        strings(row["trace"])
+        require(
+            all(re.fullmatch(r"0x[0-9a-f]+", step) or step.startswith("!") for step in row["trace"]),
+            "invalid dispatch trace",
         )
     stream_inputs = [
         "7ff0000000000000",
@@ -298,6 +308,7 @@ def matrix(value):
 
 def validate(directory):
     # Import lazily: run_probe also uses the strict decoder/inventory writer.
+    import dispatch_proof
     import run_probe
 
     summary = load(directory / "summary.json")
@@ -521,20 +532,23 @@ def validate(directory):
         },
         "FP contract failed",
     )
-    dispatch = []
     for row in contract["libm_dispatch"]:
         require(
-            row["object"] in env["loaded_objects"],
+            row["object"] in env["loaded_objects"] and row["linked_object"] in env["loaded_objects"],
             "dispatch object is not a recorded loaded object",
         )
-        dispatch.append({**row, "object": env["loaded_objects"][row["object"]]["resolved"]})
-    require(
-        not run_probe.dispatch_report({"libm_dispatch": dispatch}, lock, candidate)[1],
-        "dispatch contract failed",
-    )
     keys(
         env["libm"],
-        "debug_file multiarch_symbols_from_debug_file excluded_suffix_matches matches_lock",
+        "debug_file multiarch_symbols_from_debug_file excluded_suffix_matches matches_lock dispatch_facts",
+    )
+    require(
+        not run_probe.dispatch_report(
+            dispatch_proof.resolve_objects(contract, env["loaded_objects"]),
+            env["libm"]["dispatch_facts"],
+            lock,
+            candidate,
+        )[1],
+        "dispatch contract failed",
     )
     macros = {m["name"]: m["defined"] for m in contract["build"]["macros"]}
     require(
@@ -575,7 +589,7 @@ def validate(directory):
     for check in summary["contract_checks"]:
         keys(check, "check passed detail")
         require(check["passed"] is True and type(check["check"]) is str, "failed contract check")
-    comparisons = run_probe.comparison_report(directory, results, lock, candidate)
+    comparisons = run_probe.comparison_report(directory, results, lock, candidate, env)
     matching_types(summary["comparisons"], comparisons)
     require(
         summary["comparisons"] == comparisons,

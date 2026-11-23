@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""The shared libm multiarch classifier (synthetic ELF files)."""
+"""libm ELF facts: the shared multiarch classifier and static dispatch facts (synthetic ELF files)."""
 
 import contextlib
+import hashlib
 import io
 from pathlib import Path
 import sys
@@ -75,12 +76,14 @@ class ClassifierTest(unittest.TestCase):
     def test_lock_generator_and_collector_agree(self):
         """Both producers read the same bytes through the same classifier."""
         debug = fx.debug_elf("f772fc0c", DEBUG_SYMBOLS)
+        libm = fx.libm_elf_bytes("f772fc0c", [("sin", 0x30AE0, 0x4F, IFUNC, 2)], {2: "GLIBC_2.2.5"}, [], [])
         with tempfile.TemporaryDirectory() as directory:
+            (Path(directory) / "libm.so.6").write_bytes(libm)
             (Path(directory) / "libm.debug").write_bytes(debug)
             lock = {"libm": {"path": str(Path(directory) / "libm.so.6"),
                              "debug_file": str(Path(directory) / "libm.debug"),
                              "multiarch_symbols": EXPECTED_TABLE}}
-            record = collect_environment.libm_record(lock)
+            record = collect_environment.libm_record(lock, ["sin"])
         notes = io.StringIO()
         with contextlib.redirect_stderr(notes):
             generated = lock_inputs.libm_variants(refenv.Elf64(debug))
@@ -91,6 +94,34 @@ class ClassifierTest(unittest.TestCase):
         self.assertIn("__fma", [e["name"] for e in record["excluded_suffix_matches"]])
         lock["libm"]["multiarch_symbols"] = {**EXPECTED_TABLE, "0x33320": ["__fma"]}
         self.assertNotEqual(record["multiarch_symbols_from_debug_file"], lock["libm"]["multiarch_symbols"])
+
+
+class FactsTest(unittest.TestCase):
+    def test_versions_stubs_and_relocations(self):
+        dynamic = [("exp", 0x13B10, 122, FUNC, 2 | 0x8000), ("exp", 0x3A700, 111, FUNC, 3),
+                   ("sin", 0x30AE0, 79, IFUNC, 2), ("other", 0x100, 1, FUNC, 2)]
+        # The locked form, the BND form, and the locked jump with different padding.
+        plt = [(0x10400, 0xE7FA0), fx.bnd_plt_sec_entry(0x10410, 0xE7FA8),
+               bytes.fromhex("f30f1efaff2500000000909090909090")]
+        relocations = [(0xE7FA0, 37, 0, 0x280D0), (0xE7F00, 7, 1, 0)]
+        libm = fx.libm_elf_bytes("f772fc0c", dynamic, {2: "GLIBC_2.2.5", 3: "GLIBC_2.29"}, plt, relocations)
+        debug = fx.debug_elf("f772fc0c", DEBUG_SYMBOLS)
+        facts = libm_elf.dispatch_facts(libm, debug, ["exp", "sin"])
+        self.assertEqual(facts["definitions"]["exp"], [
+            {"value": "0x13b10", "size": 122, "type": "FUNC", "version": "GLIBC_2.2.5", "default": False},
+            {"value": "0x3a700", "size": 111, "type": "FUNC", "version": "GLIBC_2.29", "default": True}])
+        self.assertEqual(facts["definitions"]["sin"][0]["type"], "IFUNC")
+        self.assertEqual(facts["plt_sec"], {"start": "0x10400", "end": "0x10430"})
+        good, bnd, padded = facts["plt_stubs"]
+        self.assertEqual((good["template"], good["slot"]), (True, "0xe7fa0"))
+        self.assertEqual(good["relocations"], [{"type": "R_X86_64_IRELATIVE", "symbol": 0, "addend": "0x280d0"}])
+        for refused in (bnd, padded):
+            self.assertEqual((refused["template"], refused["slot"], refused["relocations"]), (False, None, []))
+        self.assertEqual(facts["ifuncs"]["0x280d0"], ["__ieee754_exp"])
+        self.assertIn(["0x27ea0", 0x228, ["__exp1_sse2_alias_sse2", "__ieee754_exp_sse2"]], facts["functions"])
+        self.assertEqual(facts["multiarch_symbols"], EXPECTED_TABLE)
+        self.assertEqual(facts["libm_build_id"], "f772fc0c")
+        self.assertEqual(facts["libm_sha256"], hashlib.sha256(libm).hexdigest())
 
 
 if __name__ == "__main__":

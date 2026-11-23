@@ -5,6 +5,12 @@
 // formatting. It prints observations only; run_probe.py and
 // compare_observations.py report differences without accepting any.
 //
+// libm dispatch is observed by executing each checked function once in a
+// ptrace-traced child and recording every instruction address it runs, from
+// the public entry point until it returns. run_probe.py proves the chain
+// (public symbol, PLT stub, IRELATIVE GOT slot, selected implementation)
+// against the locked libm and debug symbols; this program draws no conclusion.
+//
 // Usage: primitive_probe --functions sin,cos,... --sweep-count N --sweep-out FILE
 
 #include "probe_common.h"
@@ -12,6 +18,7 @@
 #include <cfenv>
 #include <cmath>
 #include <cstdlib>
+#include <csignal>
 #include <dlfcn.h>
 #include <gnu/libc-version.h>
 #include <iomanip>
@@ -19,6 +26,10 @@
 #include <locale>
 #include <sstream>
 #include <string>
+#include <sys/ptrace.h>
+#include <sys/user.h>
+#include <sys/wait.h>
+#include <unistd.h>
 #include <vector>
 #include <xmmintrin.h>
 
@@ -161,6 +172,212 @@ void Runtime( JSON& aOut )
     aOut.End( '}' );
 }
 
+enum class SIGNATURE
+{
+    D1,     ///< double f( double )
+    D2,     ///< double f( double, double )
+    D_PAIR, ///< void f( double, double*, double* )
+    F1,     ///< float f( float )
+    F2,     ///< float f( float, float )
+    F_PAIR  ///< void f( float, float*, float* )
+};
+
+using D1_FN = double ( * )( double );
+using D2_FN = double ( * )( double, double );
+using DP_FN = void ( * )( double, double*, double* );
+using F1_FN = float ( * )( float );
+using F2_FN = float ( * )( float, float );
+using FP_FN = void ( * )( float, float*, float* );
+
+/// A checked libm function: the address this program's own reference binds to
+/// (as compiled code calls it) and ordinary finite operands for the trace.
+struct LIBM_FUNCTION
+{
+    const char* name;
+    SIGNATURE   signature;
+    void*       linked;
+    double      a;
+    double      b;
+};
+
+#define LINK( type, f ) reinterpret_cast<void*>( static_cast<type>( &::f ) )
+
+const std::vector<LIBM_FUNCTION>& LibmFunctions()
+{
+    static const std::vector<LIBM_FUNCTION> functions = {
+        { "sin", SIGNATURE::D1, LINK( D1_FN, sin ), 0.5, 0.0 },
+        { "cos", SIGNATURE::D1, LINK( D1_FN, cos ), 0.5, 0.0 },
+        { "sincos", SIGNATURE::D_PAIR, LINK( DP_FN, sincos ), 0.5, 0.0 },
+        { "tan", SIGNATURE::D1, LINK( D1_FN, tan ), 0.5, 0.0 },
+        { "atan", SIGNATURE::D1, LINK( D1_FN, atan ), 0.5, 0.0 },
+        { "atan2", SIGNATURE::D2, LINK( D2_FN, atan2 ), 0.5, 0.75 },
+        { "exp", SIGNATURE::D1, LINK( D1_FN, exp ), 0.5, 0.0 },
+        { "log", SIGNATURE::D1, LINK( D1_FN, log ), 1.5, 0.0 },
+        { "pow", SIGNATURE::D2, LINK( D2_FN, pow ), 1.5, 2.5 },
+        { "sinf", SIGNATURE::F1, LINK( F1_FN, sinf ), 0.5, 0.0 },
+        { "cosf", SIGNATURE::F1, LINK( F1_FN, cosf ), 0.5, 0.0 },
+        { "sincosf", SIGNATURE::F_PAIR, LINK( FP_FN, sincosf ), 0.5, 0.0 },
+        { "expf", SIGNATURE::F1, LINK( F1_FN, expf ), 0.5, 0.0 },
+        { "exp2f", SIGNATURE::F1, LINK( F1_FN, exp2f ), 0.5, 0.0 },
+        { "logf", SIGNATURE::F1, LINK( F1_FN, logf ), 1.5, 0.0 },
+        { "log2f", SIGNATURE::F1, LINK( F1_FN, log2f ), 1.5, 0.0 },
+        { "powf", SIGNATURE::F2, LINK( F2_FN, powf ), 1.5, 2.5 },
+    };
+    return functions;
+}
+
+volatile double g_sink;
+volatile double g_inputs[2];
+
+/// One call through aEntry with opaque operands, so the call really happens.
+__attribute__( ( noinline ) ) void CallOnce( const LIBM_FUNCTION& aFunction, void* aEntry )
+{
+    g_inputs[0] = aFunction.a;
+    g_inputs[1] = aFunction.b;
+    const double a = g_inputs[0], b = g_inputs[1];
+    const float  af = static_cast<float>( a ), bf = static_cast<float>( b );
+    double       first = 0.0, second = 0.0;
+    float        firstf = 0.0f, secondf = 0.0f;
+
+    switch( aFunction.signature )
+    {
+    case SIGNATURE::D1: g_sink = reinterpret_cast<D1_FN>( aEntry )( a ); break;
+    case SIGNATURE::D2: g_sink = reinterpret_cast<D2_FN>( aEntry )( a, b ); break;
+    case SIGNATURE::D_PAIR:
+        reinterpret_cast<DP_FN>( aEntry )( a, &first, &second );
+        g_sink = first + second;
+        break;
+    case SIGNATURE::F1: g_sink = reinterpret_cast<F1_FN>( aEntry )( af ); break;
+    case SIGNATURE::F2: g_sink = reinterpret_cast<F2_FN>( aEntry )( af, bf ); break;
+    case SIGNATURE::F_PAIR:
+        reinterpret_cast<FP_FN>( aEntry )( af, &firstf, &secondf );
+        g_sink = firstf + secondf;
+        break;
+    }
+}
+
+/// Bounds of one traced call: single steps in total (including the child's
+/// return from raise() before it reaches the entry) and addresses recorded.
+constexpr long   MAX_STEPS = 2000000;
+constexpr size_t MAX_RECORDED = 50000;
+
+/// Execute aFunction once in a traced child, single-stepping from its stop
+/// until it reaches aEntry, then record every instruction address until the
+/// stack pointer rises above its value at the entry (the call returned).
+/// The child makes one untraced call first, so any lazy binding on the path
+/// has happened. Returns "returned" or the reason the trace is incomplete.
+std::string TraceCall( const LIBM_FUNCTION& aFunction, void* aEntry, std::vector<uintptr_t>& aAddresses )
+{
+    std::fflush( nullptr );
+    const pid_t child = fork();
+
+    if( child < 0 )
+        return "fork failed";
+
+    if( child == 0 )
+    {
+        CallOnce( aFunction, aEntry );
+
+        if( ptrace( PTRACE_TRACEME, 0, nullptr, nullptr ) != 0 )
+            _exit( 120 );
+
+        raise( SIGSTOP );
+        CallOnce( aFunction, aEntry );
+        _exit( 0 );
+    }
+
+    int         status = 0;
+    std::string result;
+
+    if( waitpid( child, &status, 0 ) != child || !WIFSTOPPED( status ) || WSTOPSIG( status ) != SIGSTOP )
+    {
+        result = WIFEXITED( status ) && WEXITSTATUS( status ) == 120 ? "PTRACE_TRACEME refused"
+                                                                       : "child did not stop for tracing";
+    }
+    else
+    {
+        bool               entered = false;
+        unsigned long long entryStack = 0;
+
+        for( long step = 0;; ++step )
+        {
+            user_regs_struct regs{};
+
+            if( step >= MAX_STEPS )
+            {
+                result = "step bound exceeded";
+                break;
+            }
+
+            if( ptrace( PTRACE_GETREGS, child, nullptr, &regs ) != 0 )
+            {
+                result = "PTRACE_GETREGS failed";
+                break;
+            }
+
+            if( !entered && regs.rip == reinterpret_cast<uintptr_t>( aEntry ) )
+            {
+                entered = true;
+                entryStack = regs.rsp;
+            }
+
+            if( entered )
+            {
+                if( regs.rsp > entryStack )
+                {
+                    result = "returned";
+                    break;
+                }
+
+                if( aAddresses.size() >= MAX_RECORDED )
+                {
+                    result = "recorded address bound exceeded";
+                    break;
+                }
+
+                aAddresses.push_back( regs.rip );
+            }
+
+            if( ptrace( PTRACE_SINGLESTEP, child, nullptr, nullptr ) != 0 )
+            {
+                result = "PTRACE_SINGLESTEP failed";
+                break;
+            }
+
+            if( waitpid( child, &status, 0 ) != child || !WIFSTOPPED( status )
+                || WSTOPSIG( status ) != SIGTRAP )
+            {
+                result = "child left single-step before the call returned";
+                break;
+            }
+        }
+    }
+
+    kill( child, SIGKILL );
+    waitpid( child, &status, 0 );
+    return result;
+}
+
+/// Object path and offset of an address in the loaded image.
+bool Locate( const void* aAddress, std::string& aObject, uintptr_t& aOffset )
+{
+    Dl_info info{};
+
+    if( !dladdr( aAddress, &info ) || !info.dli_fbase || !info.dli_fname )
+        return false;
+
+    aObject = info.dli_fname;
+    aOffset = reinterpret_cast<uintptr_t>( aAddress ) - reinterpret_cast<uintptr_t>( info.dli_fbase );
+    return true;
+}
+
+std::string HexOffset( uintptr_t aValue )
+{
+    char text[24];
+    std::snprintf( text, sizeof text, "0x%lx", static_cast<unsigned long>( aValue ) );
+    return text;
+}
+
 void Dispatch( JSON& aOut, const std::vector<std::string>& aFunctions )
 {
     aOut.Key( "libm_dispatch" );
@@ -168,23 +385,64 @@ void Dispatch( JSON& aOut, const std::vector<std::string>& aFunctions )
 
     for( const std::string& name : aFunctions )
     {
-        void*   symbol = Resolve( name.c_str() );
-        Dl_info info{};
+        const LIBM_FUNCTION* function = nullptr;
 
-        if( !dladdr( symbol, &info ) || !info.dli_fbase )
+        for( const LIBM_FUNCTION& candidate : LibmFunctions() )
+        {
+            if( name == candidate.name )
+                function = &candidate;
+        }
+
+        if( !function )
+        {
+            std::fprintf( stderr, "no traced signature for libm function %s\n", name.c_str() );
+            std::exit( 1 );
+        }
+
+        void*       symbol = Resolve( name.c_str() );
+        std::string object, linkedObject;
+        uintptr_t   offset = 0, linkedOffset = 0;
+
+        if( !Locate( symbol, object, offset ) || !Locate( function->linked, linkedObject, linkedOffset ) )
         {
             std::fprintf( stderr, "dladdr(%s) failed\n", name.c_str() );
             std::exit( 1 );
         }
 
-        char offset[24];
-        std::snprintf( offset, sizeof offset, "0x%lx",
-                       static_cast<unsigned long>( reinterpret_cast<uintptr_t>( symbol )
-                                                   - reinterpret_cast<uintptr_t>( info.dli_fbase ) ) );
+        const uintptr_t        base = reinterpret_cast<uintptr_t>( symbol ) - offset;
+        std::vector<uintptr_t> addresses;
+        const std::string      status = TraceCall( *function, symbol, addresses );
+
         aOut.Begin( '{' );
         aOut.Field( "function", name );
-        aOut.Field( "object", info.dli_fname ? info.dli_fname : "" );
-        aOut.Field( "offset", offset );
+        aOut.Field( "object", object );
+        aOut.Field( "offset", HexOffset( offset ) );
+        aOut.Field( "linked_object", linkedObject );
+        aOut.Field( "linked_offset", HexOffset( linkedOffset ) );
+        aOut.Key( "inputs" );
+        aOut.Begin( '[' );
+        aOut.Value( HexDouble( function->a ) );
+        aOut.Value( HexDouble( function->b ) );
+        aOut.End( ']' );
+        aOut.Field( "trace_status", status );
+        aOut.Key( "trace" );
+        aOut.Begin( '[' );
+
+        // Addresses in the entry's mapping are offsets; any other is object-qualified.
+        for( uintptr_t address : addresses )
+        {
+            std::string where;
+            uintptr_t   at = 0;
+
+            if( !Locate( reinterpret_cast<const void*>( address ), where, at ) )
+                aOut.Value( "!unmapped+" + HexOffset( address ) );
+            else if( where == object && address - at == base )
+                aOut.Value( HexOffset( at ) );
+            else
+                aOut.Value( "!" + where + "+" + HexOffset( at ) );
+        }
+
+        aOut.End( ']' );
         aOut.End( '}' );
     }
 
@@ -412,7 +670,7 @@ int main( int argc, char** argv )
 
     JSON out( stdout );
     out.Begin( '{' );
-    out.FieldRaw( "schema", "1" );
+    out.FieldRaw( "schema", "2" );
     out.Field( "probe", "primitive" );
     Build( out );
     Runtime( out );
