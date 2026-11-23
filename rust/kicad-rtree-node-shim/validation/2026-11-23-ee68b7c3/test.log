@@ -1,0 +1,426 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 18.65s
+     Running unittests src/lib.rs (target/debug/deps/embeint_ipc-2aea0c558d64ff29)
+
+running 23 tests
+test client::tests::mutation_options_number_later_operations ... ok
+test discovery::tests::endpoint_names ... ok
+test discovery::tests::unix_urls_are_absolute ... ok
+test discovery::tests::windows_candidates_keep_only_this_directory ... ok
+test discovery::tests::windows_urls_are_drive_paths_of_plain_components ... ok
+test discovery::tests::windows_temp_dir_prefers_tmpdir_then_tmp ... ok
+test nng::tests::headers_and_ids ... ok
+test nng::tests::a_duplex_exchange_round_trips ... ok
+test pbjson::tests::repr_escapes_windows_paths_like_python ... ok
+test pbjson::tests::repr_escapes_like_python ... ok
+test pbjson::tests::single_precision_prints_the_shortest_round_trip_decimal ... ok
+test pbjson::tests::accepts_json_names_and_clears_with_null ... ok
+test proto::tests::aliased_enum_values_are_named_as_python_names_them ... ok
+test pbjson::tests::rejects_unknown_fields_like_python ... ok
+test pbjson::tests::packs_and_prints_any ... ok
+test pbjson::tests::doubles_accept_numbers_strings_and_booleans ... ok
+test pbjson::tests::maps_and_oneofs ... ok
+test client::tests::documents_are_checked_like_python ... ok
+test pbjson::tests::integers_follow_python_conversion ... ok
+test proto::tests::the_protocol_compiles_and_packs ... ok
+test client::tests::only_schematic_items_are_accepted ... ok
+test pbjson::tests::round_trips_a_document_specifier ... ok
+test pbjson::tests::any_printing_refuses_unknown_types_and_excessive_nesting ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running unittests src/lib.rs (target/debug/deps/embeint_layout-bf3c4aa39ba3ca35)
+
+running 6 tests
+test pyvalue::tests::floats_print_as_python_repr ... ok
+test pyvalue::tests::truth_and_strip_follow_python ... ok
+test pyvalue::tests::values_print_as_python_str_and_repr ... ok
+test tests::millimetres_are_exact_decimals ... ok
+test tests::request_shape_is_checked_before_layout ... ok
+test tests::integers_beyond_python_limit_are_not_json ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/embeint_layout-930409d93aa025f5)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/embeint_mcp-f150440b8b7b1765)
+
+running 53 tests
+test board_client::tests::dog_legs_follow_python ... ok
+test board_client::tests::stackup_colours_follow_python ... ok
+test board_client::tests::units_follow_python ... ok
+test board_design::tests::line_points_follow_shapely ... ok
+test board_rf::tests::follows_python ... ok
+test board_design::tests::python_formatting ... ok
+test board_router::tests::distances_are_pythons ... ok
+test board_router::tests::buffers_follow_geos ... ok
+test board_router::tests::sets_iterate_like_cpython ... ok
+test board_router::tests::simplify_and_spanning_order ... ok
+test capabilities::tests::canonical_json_matches_python_dumps ... ok
+test board_router::tests::arcs_and_outlines ... ok
+test fab::tests::a_manifest_names_only_package_files ... ok
+test fab::tests::helpers_follow_python ... ok
+test footprint_gen::tests::python_number_formatting ... ok
+test kicad_cli::tests::output_tails ... ok
+test tools::schematic::ops::tests::rounding_follows_python ... ok
+test kicad_cli::tests::windows_paths_are_translated_for_wsl ... ok
+test tools::shared::tests::rounds_as_python ... ok
+test resources::tests::template_matches_as_fastmcp ... ok
+test tools::args::tests::defaults_fill_missing_arguments ... ok
+test tools::core::tests::validation_follows_fastmcp ... ok
+test model_handoff::tests::zstd_output_is_bounded_and_every_frame_decoded ... ok
+test tools::symbol::tests::python_reprs ... ok
+test kicad_cli::tests::the_allow_list_and_refusals_are_pythons ... ok
+test tools::args::tests::follows_pydantic_lax_mode ... ok
+test resources::skills::tests::splits_lines_as_python ... ok
+test resources::skills::tests::front_matter_checks ... ok
+test resources::tests::uris_are_normalised_as_anyurl ... ok
+test resources::skills::tests::bundled_front_matter_reads_alike ... ok
+test model_handoff::tests::paths ... ok
+test resources::skills::tests::bundled_skills_are_served ... ok
+test kicad_cli::tests::windows_name_rewrites_are_refused ... ok
+test resources::skills::tests::embedded_skills_equal_the_files ... ok
+test tools::tests::every_python_parameter_has_a_kind ... ok
+test tools::tests::implemented_tools_match_python_signatures ... ok
+test footprint_gen::tests::shapes_match_python ... ok
+test model_handoff::tests::plans_and_boards_match_python ... ok
+test board_client::tests::layers_follow_python ... ok
+test tools::shared::tests::grid_names ... ok
+test tools::schematic::ops::tests::requests_use_protocol_names ... ok
+test board_client::tests::only_board_items_are_accepted ... ok
+test tools::symbol::tests::helpers_follow_python ... ok
+test board_design::tests::custom_rules_follow_python ... ok
+test fab::tests::defaults_build_and_options_merge ... ok
+test board_client::tests::items_are_built_like_python ... ok
+test tools::footprint::tests::signatures_and_items ... ok
+test board_client::tests::rules_and_stackup_are_read_and_merged ... ok
+test board_client::tests::find_pad_and_widths_follow_python ... ok
+test board_client::tests::plain_route_draws_a_dog_leg_through_a_via ... ok
+test board_client::tests::tracks_and_keepouts_are_one_commit_each ... ok
+test capabilities::tests::commands_are_described ... ok
+test capabilities::tests::limitations_are_plain_sentences ... ok
+
+test result: ok. 53 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running unittests src/lib.rs (target/debug/deps/embeint_web-a3f2811a06ae7fb9)
+
+running 2 tests
+test tests::packing_keeps_pointer_and_length_apart ... ok
+test tests::response_is_the_layout_json ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/kicad_difftest-1b565d340138aa7b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/kicad_difftest-abd49bf72b88f0f2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/cli.rs (target/debug/deps/cli-39c27570c6374691)
+
+running 2 tests
+test baseline_blessing_is_live_reviewed_and_evidenced ... ok
+test identical_input_bytes_and_process_faults ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.64s
+
+     Running tests/partial.rs (target/debug/deps/partial-8490eb14148d39cf)
+
+running 11 tests
+test input_and_transport_faults_are_explicit ... ok
+test a_failed_blessing_step_keeps_reference_evidence ... ok
+test partial_never_blesses_and_is_an_explicit_single_flag ... ok
+test partial_without_deferrals_reports_green ... ok
+test all_deferred_is_not_a_successful_unit ... ok
+test mixed_success_and_deferral_is_partial_only_when_requested ... ok
+test large_stderr_is_bounded_on_clean_failed_and_timed_out_runs ... ok
+test partial_check_retains_every_reference_reply_against_the_golden ... ok
+test failures_always_fail_in_partial_mode ... ok
+test replies_written_before_a_process_fault_are_kept_and_golden_checked ... ok
+test invalid_utf8_reply_fails_its_case_and_later_replies_are_still_evaluated ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 35.32s
+
+     Running tests/protocol.rs (target/debug/deps/protocol-fb625bdee3211e95)
+
+running 9 tests
+test byte_lines_split_exactly_like_str_lines ... ok
+test blessing_requires_exact_case_values_reason_and_provenance ... ok
+test extra_reply_lines_are_kept_bounded_as_evidence ... ok
+test inventory_status_and_values_are_independent_checks ... ok
+test numeric_tokens_never_round_or_normalize ... ok
+test output_before_a_process_fault_is_evaluated_and_the_fault_still_fails ... ok
+test diagnostics_are_read_bounded_not_truncated_after_reading ... ok
+test partial_replies_classify_only_well_formed_deferrals ... ok
+test invalid_utf8_fails_only_its_line_and_later_replies_keep_their_positions ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/request.rs (target/debug/deps/request-2eb031698227b4bc)
+
+running 7 tests
+test finite_fallback_and_underflow_remain_parseable ... ok
+test comparator_still_accepts_and_distinguishes_arbitrary_precision_tokens ... ok
+test signed_zero_and_full_integer_domain_survive_validation ... ok
+test overflow_is_a_parse_failure_everywhere ... ok
+test ordinary_marker_named_objects_keep_their_keys_and_types ... ok
+test syntax_duplicates_and_nesting_are_checked_before_value_conversion ... ok
+test request_container_bound_is_stricter_than_exact_comparison ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.86s
+
+     Running tests/request_cpp.rs (target/debug/deps/request_cpp-8ec114ffd88d3b96)
+
+running 3 tests
+test marker_named_objects_match_actual_cpp_transport_without_coercion ... ok
+test request_boundary_matches_pinned_cpp_protocol ... ok
+test nesting_boundary_matches_pinned_cpp_protocol ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.77s
+
+     Running unittests src/lib.rs (target/debug/deps/kicad_iec60664-c2941fdd4acd22fa)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/state.rs (target/debug/deps/state-398730659faf8445)
+
+running 2 tests
+test finite_extremes_and_unnamed_categories_are_total ... ok
+test setters_do_not_recompute_and_instances_do_not_share_state ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/kicad_iec60664_shim-c0a420d5517f1548)
+
+running 6 tests
+test tests::invalid_identity_and_field_messages_preserve_complete_envelopes ... ok
+test tests::negative_zero_integer_bits_and_full_unsigned_domain_are_preserved ... ok
+test tests::reserved_marker_keys_match_the_shared_oracle_contract ... ok
+test tests::all_refusal_envelopes_match_the_shared_oracle_contract ... ok
+test tests::reserved_marker_keys_stay_ordinary_objects_with_their_strings ... ok
+test tests::nesting_bound_envelopes_match_the_shared_oracle_contract ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.50s
+
+     Running unittests src/lib.rs (target/debug/deps/kicad_math-c5f88a4256b7286c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/vector.rs (target/debug/deps/vector-36c434aea931aa55)
+
+running 7 tests
+test aliases_are_the_generic_types ... ok
+test constructors_are_const ... ok
+test components_keep_the_type_parameter ... ok
+test constructors_keep_integer_extremes ... ok
+test constructors_keep_float_bits_in_component_order ... ok
+test copy_clone_and_assignment_keep_bits ... ok
+test default_value_initialises_every_component ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/kicad_md5-c87a89e724579cb0)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/wrapper.rs (target/debug/deps/wrapper-2201fa9238f27f05)
+
+running 3 tests
+test copied_partial_contexts_continue_independently ... ok
+test rfc_digest_and_reference_format ... ok
+test validity_is_independent_of_digest_and_pending_context ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/kicad_md5_shim-c71f8ad190c7b6bc)
+
+running 11 tests
+test tests::literal_escaped_marker_keys_preserve_complete_refusals ... ok
+test tests::malformed_protocol_and_unknown_unit_fail ... ok
+test tests::legitimate_noops_remain_successful_results ... ok
+test tests::integer_negative_zero_byte_matches_zero_without_accepting_floats ... ok
+test tests::malformed_assignment_validation_matches_reference_order ... ok
+test tests::numeric_overflow_rejects_the_complete_request_before_identities ... ok
+test tests::resource_bounds_and_unconstructed_states_are_refused ... ok
+test tests::finite_numbers_reach_domain_and_envelope_validation ... ok
+test tests::reserved_serde_keys_stay_ordinary_objects_in_retained_requests ... ok
+test tests::reserved_serde_keys_are_refused_at_every_placement_with_state_guards ... ok
+test tests::complete_nesting_envelopes_match_the_shared_container_bound ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/lib.rs (target/debug/deps/kicad_resistors-4d8315790efd7444)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/contracts.rs (target/debug/deps/contracts-e374500aece12037)
+
+running 5 tests
+test literal_series_and_resistance_default_contracts ... ok
+test private_builder_rejects_only_undefined_or_nonterminating_tables ... ok
+test undefined_cpp_preconditions_are_typed_refusals ... ok
+test actual_collector_exception_is_distinct_from_precondition_refusal ... ok
+test contexts_own_their_state_and_new_calc_resets_only_reference_fields ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/nonfinite.rs (target/debug/deps/nonfinite-06dcb61860a42a4c)
+
+running 2 tests
+test distinct_nan_operands_keep_reference_second_sign_and_payload ... ok
+test invalid_operations_without_nan_inputs_generate_reference_indefinite ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/reader.rs (target/debug/deps/reader-917d667c237fb2b9)
+
+running 2 tests
+test constructors_outside_owned_scope_remain_explicitly_unported ... ok
+test getter_preserves_nullable_borrowed_identity ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/kicad_resistors_shim-8c2f90e362d8479c)
+
+running 6 tests
+test tests::unsigned_integer_minus_zero_is_distinct_from_float_minus_zero ... ok
+test tests::numeric_overflow_is_refused_before_any_identity ... ok
+test tests::typed_refusals_compare_complete_envelopes ... ok
+test tests::serde_private_marker_keys_stay_ordinary_objects ... ok
+test tests::real_cpp_exception_has_a_result_envelope ... ok
+test tests::protocol_and_count_refusals_never_become_results ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/generation.rs (target/debug/deps/generation-ccbd6897b2c13db0)
+
+running 1 test
+test corpus_regeneration_preserves_every_committed_byte ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/private_keys.rs (target/debug/deps/private_keys-1c5e5b0faf3845f3)
+
+running 3 tests
+test private_marker_key_objects_stay_ordinary_objects ... ok
+test escaped_marker_keys_and_decoded_duplicates_match_actual_cpp_replies ... ok
+test private_marker_keys_match_recorded_cpp_complete_replies ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running unittests src/lib.rs (target/debug/deps/kicad_rtree_node-e343a755d9dc0ca9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/behaviour.rs (target/debug/deps/behaviour-7da60eea2dd772f7)
+
+running 19 tests
+test hilbert_order_one_visits_the_unit_square_in_curve_order ... ok
+test external_node_is_freed_and_reconstructed_in_place ... ok
+test allocator_reuses_freed_nodes_last_in_first_out ... ok
+test foreign_free_and_allocate_reconstruct_the_owners_slot ... ok
+test hilbert_refuses_undefined_shifts ... ok
+test n_dimensional_mask_shifts_only_overlapping_slots ... ok
+test morton_refuses_only_the_undefined_intermediates ... ok
+test node_construction_and_predicates ... ok
+test overlap_mask_masks_by_count_and_checks_lanes ... ok
+test refcount_wraps_like_cxx20_atomics ... ok
+test moves_and_destruction_carry_pages_and_identity ... ok
+test reference_layout_matches_the_pinned_linux_abi ... ok
+test null_ownership_queries_are_false ... ok
+test allocator_fills_pages_then_adds_one ... ok
+test remove_child_moves_last_slot_and_keeps_stale_tail ... ok
+test remove_child_last_slot_touches_no_array ... ok
+test signed_overflow_is_refused_not_wrapped ... ok
+test unused_page_slots_alias_through_two_free_lists ... ok
+test node_pairs_are_distinct_and_ordered ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/kicad_rtree_node_shim-c6d0ae108a554530)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/refusals.rs (target/debug/deps/refusals-3e6b8f9098bb1ebe)
+
+running 2 tests
+test malformed_transport_is_refused_with_null_identities ... ok
+test refusals_match_the_recorded_replies ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+   Doc-tests embeint_ipc
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests embeint_layout
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests embeint_web
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests kicad_difftest
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests kicad_iec60664
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests kicad_math
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests kicad_md5
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests kicad_resistors
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests kicad_rtree_node
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

@@ -1,0 +1,4 @@
+clean export ee68b7c3f9724dc769bf7e2553e34be1f2311bb4 2925d325a428b8ec2c6663c514327f11473b75869e6fd5eaeb37e2893117dd1d
+decd86c2f3b44371fc7d43ec23ce182756adc68444d43f67f078d9de0608604d  /mnt/c/kb/rtree-p003-export/repo.tar
+2925d325a428b8ec2c6663c514327f11473b75869e6fd5eaeb37e2893117dd1d  /home/karlvonrichter/kicad-port/rtree-p003/final-ee68b7c3f9/stage/reference.tar
+4c047d62d1fb657eca0f528228d9de69c3cb21043d689b60ef2677d2fb20584c  /home/karlvonrichter/kicad-port/rtree-p003/final-ee68b7c3f9/stage/source-manifest.json
