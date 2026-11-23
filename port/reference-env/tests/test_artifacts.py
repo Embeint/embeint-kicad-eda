@@ -79,6 +79,13 @@ def fixture(directory):
         compiler={**{n:dict(path='/usr/bin/gcc',version=candidate['toolchain']['gcc_version']) for n in ('gcc','g++','cc','c++')},
             'predefined_macros_sha256':'0'*64,'target_options':[], 'glibc':'glibc '+candidate['toolchain']['glibc_version'],
             'libstdcxx_runtime':candidate['toolchain']['libstdcxx_runtime_soname']})
+    wanted = sorted(f"{c['name']}-{c['target']}" if c['name']=='rust-std' else c['name'] for c in lock['rust']['components'])
+    closure = ['bin/rustc','bin/cargo','lib/rustlib/components','lib/rustlib/rust-installer-version',
+               'lib/rustlib/x86_64-unknown-linux-gnu/bin/rust-lld',
+               'lib/rustlib/x86_64-unknown-linux-gnu/lib/libstd-native.rlib',
+               'lib/rustlib/wasm32-unknown-unknown/lib/libstd-wasm.rlib'] + ['lib/rustlib/manifest-'+n for n in wanted]
+    image['rust'].update(cargo='cargo 1.99.1',components=wanted,
+        inputs={'/usr/local/'+p:dict(kind='file',sha256='0'*64,mode=420) for p in closure})
     write(directory/'environment.json',env)
     summary = dict(schema=2,status='candidate-unqualified',qualification='not asserted',sweep_count=2,
         lock_sha256=image['lock_sha256'],contract_passed=True,cpp_rust_identical=True,differences_accepted=False,
