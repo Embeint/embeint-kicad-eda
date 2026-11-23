@@ -18,16 +18,23 @@ written. `addDataV1` copies one byte to offset 0, zeroes three padding bytes at
 1..3 and sets `len` to 8. `hashTail` then reads bytes 0..7 (`len & 15 == 8`);
 bytes 4..7 hold indeterminate values, which is undefined behaviour.
 
-Effect on the port: the comparison needs a defined reference. The oracle adapter
-(`port/oracle/shims/kimath_header_hash.cpp`) zero-fills `blocks` through the
-explicit-instantiation private member access immediately after every
-construction, and `kicad_hash::Mmh3Hash` starts with zero block bytes. Every
-other step calls the unmodified header. Corpus cases such as
-`mmh3-data-v1-after-int-1` therefore compare the defined zero-initialized state;
-they do not claim what an unprimed KiCad object would produce.
+Effect on the port: such sequences are outside the reference's defined domain
+and have no reference result. `kicad_hash::Mmh3Hash` records which block bytes
+the reference has written and refuses, before changing state, any operation
+whose reference counterpart would read an unwritten byte; it never reports a
+value for one (`blocks()` gives `None`). The oracle adapter
+(`port/oracle/shims/kimath_header_hash.cpp`) calls the unmodified header, tracks
+the same source-derived write sets externally, never executes a refused member
+and never reads an unwritten byte for a snapshot (shown as `??`). An earlier
+revision of this PR zero-filled `blocks` after construction instead; that
+baseline is superseded
+(`port/findings/kimath-header-hash-mmh3-unwritten-reads.md`), and its 15 affected
+requests, including `mmh3-data-v1-after-int-1`, are permanent refusal regressions.
 
 Confirmation state: suspected from source; not demonstrated with a sanitizer
-or a differing run. KiCad's own call sites at the pin use `addData`/`add` on
+or a native undefined execution. An independent probe on explicitly initialized
+block states (zero versus `0x5a`) showed the digest of the reproduction above
+depends on those bytes. KiCad's own call sites at the pin use `addData`/`add` on
 strings and byte vectors (`common/embedded_files.cpp`, `3d-viewer/3d_cache`),
 which always define the bytes they read; `addDataV1` is used for legacy
 verification of whole buffers. This is a fork-local record, not permission to

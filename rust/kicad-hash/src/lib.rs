@@ -22,7 +22,7 @@ pub mod mmh3_hash;
 pub mod transform;
 
 pub use hash::{hash_bytes, hash_combine, hash_val, StdHash, STD_HASH_SEED};
-pub use hash_128::Hash128;
+pub use hash_128::{CxxNumericGrouping, GroupingTooLong, Hash128, MAX_GROUPING_BYTES};
 pub use md5_hash::Md5Hash;
-pub use mmh3_hash::{fmix64, mmh3_rotl64, DomainError, Mmh3Hash};
+pub use mmh3_hash::{fmix64, mmh3_rotl64, BlockReader, DomainError, Mmh3Error, Mmh3Hash};
 pub use transform::Transform;

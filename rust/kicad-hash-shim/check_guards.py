@@ -4,13 +4,22 @@
 
 Refusals cannot enter the case corpus (every error envelope fails a difftest), so
 they are checked here: each literal request has an expected complete reply, and
-the oracle and the Rust shim must both produce it byte for byte.
+the oracle and the Rust shim must both produce it (compared as parsed JSON, so
+key order and whitespace are not significant).
+
+fixtures/mmh3-unwritten-reads.{requests,replies}.jsonl holds the 15 original
+corpus requests whose reference execution would read never-written MMH3 block
+bytes (port/findings/kimath-header-hash-mmh3-unwritten-reads.md); both programs
+must refuse each before the read.
 
     python3 rust/kicad-hash-shim/check_guards.py ORACLE [RUST_SHIM]
 """
 import json
+import pathlib
 import subprocess
 import sys
+
+FIXTURES = pathlib.Path(__file__).resolve().parent / "fixtures"
 
 UNIT = "libs.kimath.include.application.pure.p001"
 PARSE = {"kind": "invalid_request", "message": "invalid JSON or duplicate key"}
@@ -110,8 +119,44 @@ def checks():
         ("transform-member-overflow", '{"op":"transform","a":[2147483648,0,0,1],"b":null}', "integer out of range: a"),
         ("transform-member-float", '{"op":"transform","a":null,"b":[1,0,0,1.0]}', "integer out of range: b"),
         ("transform-missing-b", '{"op":"transform","a":null}', "unexpected or missing field"),
+        # HASH_128::ToString caller locale.
+        ("locale-not-object", '{"op":"hash128","a":"' + "00" * 16 + '","b":"' + "00" * 16 + '","locale":3}',
+         "expected object"),
+        ("locale-missing-grouping", '{"op":"hash128","a":"' + "00" * 16 + '","b":"' + "00" * 16
+         + '","locale":{"thousands_sep":44}}', "unexpected or missing field"),
+        ("locale-sep-256", '{"op":"hash128","a":"' + "00" * 16 + '","b":"' + "00" * 16
+         + '","locale":{"thousands_sep":256,"grouping":"03"}}', "integer out of range: thousands_sep"),
+        ("locale-grouping-upper-hex", '{"op":"hash128","a":"' + "00" * 16 + '","b":"' + "00" * 16
+         + '","locale":{"thousands_sep":44,"grouping":"0A"}}', "invalid hex: grouping"),
+        ("locale-grouping-65", '{"op":"hash128","a":"' + "00" * 16 + '","b":"' + "00" * 16
+         + '","locale":{"thousands_sep":44,"grouping":"' + "03" * 65 + '"}}', "grouping of 65 bytes exceeds 64"),
+        # MMH3 reads of never-written block bytes, refused before the read.
+        ("unwritten-new-getblock64", '{"op":"mmh3","steps":[{"op":"new"},{"op":"getblock64","index":1}]}',
+         "getblock64 reads unwritten block bytes 8,9,10,11,12,13,14,15"),
+        ("unwritten-new-hash-block", '{"op":"mmh3","steps":[{"op":"new","seed":1},{"op":"hash_block"}]}',
+         "hashBlock reads unwritten block bytes 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15"),
+        ("unwritten-int-hash-tail", '{"op":"mmh3","steps":[{"op":"new"},{"op":"int","value":1},'
+         '{"op":"data_v1","hex":"01"},{"op":"hash_tail"}]}', "hashTail reads unwritten block bytes 4,5,6,7"),
+        ("unwritten-pending-add-data", '{"op":"mmh3","steps":[{"op":"new"},{"op":"int","value":1},'
+         '{"op":"data_v1","hex":"01"},{"op":"data","hex":"' + "00" * 8 + '"}]}',
+         "hashBlock reads unwritten block bytes 4,5,6,7"),
+        # int writes 0..3 (len 4); addDataV1( 1 byte ) rewrites 0..3 and counts len 8,
+        # leaving 4..7 unwritten; ints fill 8..15 and the last completes the block.
+        ("unwritten-int-completes-block", '{"op":"mmh3","steps":[{"op":"new"},{"op":"int","value":1},'
+         '{"op":"data_v1","hex":"01"},{"op":"int","value":3},{"op":"int","value":4}]}',
+         "hashBlock reads unwritten block bytes 4,5,6,7"),
+        ("unwritten-reset-keeps-unwritten", '{"op":"mmh3","steps":[{"op":"new"},{"op":"int","value":1},'
+         '{"op":"reset"},{"op":"state","h1":0,"h2":0,"blocks":"' + "00" * 16 + '","len":0},'
+         '{"op":"new"},{"op":"digest"},{"op":"getblock64","index":0}]}',
+         "getblock64 reads unwritten block bytes 0,1,2,3,4,5,6,7"),
     ]
     out += [(wire(case, text), refusal(case, message)) for case, text, message in refusals]
+
+    requests = (FIXTURES / "mmh3-unwritten-reads.requests.jsonl").read_text(encoding="utf-8").splitlines()
+    replies = (FIXTURES / "mmh3-unwritten-reads.replies.jsonl").read_text(encoding="utf-8").splitlines()
+    if len(requests) != 15 or len(replies) != 15:
+        raise SystemExit("mmh3-unwritten-reads fixture must hold the 15 original requests and replies")
+    out += [(request, json.loads(reply)) for request, reply in zip(requests, replies)]
 
     # Shared transport refusals (kicad_difftest::request::parse and port/oracle/protocol.cpp).
     for name, text in [("overflow", '{"op":"fmix64","k":1e1000}'), ("huge-integer", '{"op":"fmix64","k":' + "9" * 400 + '}'),

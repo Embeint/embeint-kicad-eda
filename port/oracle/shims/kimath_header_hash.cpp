@@ -17,6 +17,7 @@
 #include <climits>
 #include <cstring>
 #include <initializer_list>
+#include <locale>
 #include <memory>
 #include <optional>
 #include <variant>
@@ -444,13 +445,88 @@ JSON View( const HASH_128& aHash )
 }
 
 
+// A global C++ locale whose numpunct<char> has the caller's thousands separator and
+// grouping; every other facet is classic.
+class GROUPING_FACET : public std::numpunct<char>
+{
+public:
+    GROUPING_FACET( char aSep, std::string aGrouping ) :
+            m_sep( aSep ), m_grouping( std::move( aGrouping ) )
+    {}
+
+protected:
+    char        do_thousands_sep() const override { return m_sep; }
+    std::string do_grouping() const override { return m_grouping; }
+
+private:
+    char        m_sep;
+    std::string m_grouping;
+};
+
+
+// Installs a global locale for the reference's own std::stringstream and restores
+// the previous one, including when a call throws.
+class GLOBAL_LOCALE
+{
+public:
+    explicit GLOBAL_LOCALE( const std::locale& aLocale ) : m_previous( std::locale::global( aLocale ) )
+    {}
+
+    ~GLOBAL_LOCALE() { std::locale::global( m_previous ); }
+
+    GLOBAL_LOCALE( const GLOBAL_LOCALE& ) = delete;
+    GLOBAL_LOCALE& operator=( const GLOBAL_LOCALE& ) = delete;
+
+private:
+    std::locale m_previous;
+};
+
+
+constexpr std::size_t MAX_GROUPING_BYTES = 64;
+
+
+std::optional<std::locale> Locale( const JSON& aInput )
+{
+    if( !aInput.contains( "locale" ) )
+        return std::nullopt;
+
+    const JSON& locale = aInput.at( "locale" );
+    Keys( locale, { "thousands_sep", "grouping" } );
+    const char sep = static_cast<char>( Unsigned( locale, "thousands_sep", 255 ) );
+    const std::vector<uint8_t> grouping = Hex( locale, "grouping", 4096 );
+
+    if( grouping.size() > MAX_GROUPING_BYTES )
+    {
+        throw std::invalid_argument( "grouping of " + std::to_string( grouping.size() )
+                                     + " bytes exceeds " + std::to_string( MAX_GROUPING_BYTES ) );
+    }
+
+    return std::locale( std::locale::classic(),
+                        new GROUPING_FACET( sep, std::string( grouping.begin(), grouping.end() ) ) );
+}
+
+
+// HASH_128::ToString under the caller's global locale, as bytes (the separator need
+// not be ASCII).
+std::string Grouped( const HASH_128& aHash, const std::locale& aLocale )
+{
+    std::string text;
+    {
+        GLOBAL_LOCALE guard( aLocale );
+        text = aHash.ToString();
+    }
+    return ToHex( reinterpret_cast<const uint8_t*>( text.data() ), text.size() );
+}
+
+
 JSON Hash128Op( const JSON& aInput )
 {
-    Keys( aInput, { "op", "a", "b" } );
+    Keys( aInput, { "op", "a", "b" }, { "locale" } );
     const std::vector<uint8_t> aBytes = Hex( aInput, "a", 16, true );
     const std::vector<uint8_t> bBytes = Hex( aInput, "b", 16, true );
+    const std::optional<std::locale> locale = Locale( aInput );
 
-    const HASH_128 fresh;
+    const HASH_128 fresh{};
     HASH_128       a;
     HASH_128       b;
     std::memcpy( a.Value64, aBytes.data(), 16 );
@@ -462,25 +538,145 @@ JSON Hash128Op( const JSON& aInput )
                     { "equal", a == b },
                     { "reverse_equal", b == a },
                     { "self_equal", a == a } };
+    JSON grouped = JSON::object();
+
+    if( locale )
+    {
+        grouped["new"] = Grouped( fresh, *locale );
+        grouped["a"] = Grouped( a, *locale );
+        grouped["b"] = Grouped( b, *locale );
+    }
 
     a.Clear();
     result["cleared"] = { { "view", View( a ) },
                           { "equals_new", a == fresh },
                           { "equals_b", a == b } };
+
+    if( locale )
+    {
+        grouped["cleared"] = Grouped( a, *locale );
+        result["grouped"] = std::move( grouped );
+    }
+
     return result;
 }
 
 
-JSON Snapshot( MMH3_HASH& aHash, const std::string& aOp )
+// The reference constructors and reset() never initialize MMH3_HASH::blocks. The adapter
+// records which block bytes the pinned members have written (mmh3_hash.h:74-155, as
+// read from the source) so that it never executes a member that would read an unwritten
+// byte, and never reads one itself. This bookkeeping computes no hash value and does
+// not touch the object.
+constexpr uint16_t ALL_BYTES = 0xFFFF;
+
+
+uint16_t Span( std::size_t aStart, std::size_t aEnd )
 {
-    uint8_t blocks[16];
-    std::memcpy( blocks, aHash.*Get( Blocks{} ), sizeof( blocks ) );
+    uint16_t mask = 0;
+
+    for( std::size_t byte = aStart; byte < aEnd && byte < 16; ++byte )
+        mask |= static_cast<uint16_t>( 1U << byte );
+
+    return mask;
+}
+
+
+void RequireWritten( uint16_t aWritten, const char* aReader, uint16_t aRead )
+{
+    const uint16_t unwritten = aRead & static_cast<uint16_t>( ~aWritten );
+
+    if( !unwritten )
+        return;
+
+    std::string message = std::string( aReader ) + " reads unwritten block bytes";
+    const char* separator = " ";
+
+    for( int byte = 0; byte < 16; ++byte )
+    {
+        if( unwritten & ( 1U << byte ) )
+        {
+            message += separator + std::to_string( byte );
+            separator = ",";
+        }
+    }
+
+    throw std::invalid_argument( message );
+}
+
+
+// addData( data, length ): refuse when completing a pending block would hash unwritten
+// bytes; otherwise return the written set after the call.
+uint16_t AddDataWrites( uint16_t aWritten, uint32_t aLen, std::size_t aLength )
+{
+    std::size_t remaining = aLength;
+    const std::size_t pending = aLen % 16;
+
+    if( pending > 0 && remaining > 0 )
+    {
+        const std::size_t fill = std::min<std::size_t>( remaining, 16 - pending );
+        aWritten |= Span( pending, pending + fill );
+
+        if( static_cast<uint32_t>( aLen + fill ) % 16 != 0 )
+            return aWritten;
+
+        RequireWritten( aWritten, "hashBlock", ALL_BYTES );
+        remaining -= fill;
+    }
+
+    // Whole blocks and a zero-padded tail write all 16 bytes.
+    return remaining > 0 ? ALL_BYTES : aWritten;
+}
+
+
+// addDataV1( data, length ) never reads an unwritten byte.
+uint16_t AddDataV1Writes( uint16_t aWritten, std::size_t aLength )
+{
+    std::size_t remaining = aLength;
+
+    if( remaining >= 16 )
+        aWritten = ALL_BYTES;
+
+    remaining %= 16;
+
+    if( remaining > 0 )
+        aWritten |= Span( 0, remaining + 4 - ( remaining + 4 ) % 4 );
+
+    return aWritten;
+}
+
+
+// add( int32_t ): refuse when the block it completes would hash unwritten bytes.
+uint16_t AddIntWrites( uint16_t aWritten, uint32_t aLen )
+{
+    const std::size_t slot = ( aLen % 16 ) / 4 * 4;
+    aWritten |= Span( slot, slot + 4 );
+
+    if( static_cast<uint32_t>( aLen + 4 ) % 16 == 0 )
+        RequireWritten( aWritten, "hashBlock", ALL_BYTES );
+
+    return aWritten;
+}
+
+
+JSON Snapshot( MMH3_HASH& aHash, uint16_t aWritten, const std::string& aOp )
+{
+    // Read only written bytes; an unwritten byte has no value and is shown as "??".
+    const unsigned char* bytes = reinterpret_cast<const unsigned char*>( aHash.*Get( Blocks{} ) );
+    std::string          blocks;
+
+    for( int byte = 0; byte < 16; ++byte )
+    {
+        if( aWritten & ( 1U << byte ) )
+            blocks += ToHex( &bytes[byte], 1 );
+        else
+            blocks += "??";
+    }
 
     return { { "op", aOp },
              { "h1", aHash.*Get( H1{} ) },
              { "h2", aHash.*Get( H2{} ) },
              { "len", aHash.*Get( Len{} ) },
-             { "blocks", ToHex( blocks, 16 ) } };
+             { "blocks", blocks } };
 }
 
 
@@ -496,6 +692,7 @@ JSON Mmh3Op( const JSON& aInput )
         throw std::invalid_argument( "steps outside 1..4096" );
 
     std::optional<MMH3_HASH> hash;
+    uint16_t                 written = 0;
     JSON                     events = JSON::array();
     uint64_t                 total = 0;
 
@@ -520,9 +717,7 @@ JSON Mmh3Op( const JSON& aInput )
             else
                 hash.emplace();
 
-            // The reference leaves blocks indeterminate; define them as zero bytes
-            // (the Rust port's initial value) before any operation can read them.
-            std::memset( *hash.*Get( Blocks{} ), 0, 16 );
+            written = 0;
         }
         else if( op == "reset" )
         {
@@ -549,6 +744,10 @@ JSON Mmh3Op( const JSON& aInput )
 
             for( uint64_t count = 0; count < repeat; ++count )
             {
+                const uint32_t len = *hash.*Get( Len{} );
+                const uint16_t after = op == "data_v1" ? AddDataV1Writes( written, data.size() )
+                                                       : AddDataWrites( written, len, data.size() );
+
                 if( op == "data" )
                     hash->addData( data.data(), data.size() );
                 else if( op == "data_v1" )
@@ -557,6 +756,8 @@ JSON Mmh3Op( const JSON& aInput )
                     hash->add( text );
                 else
                     hash->add( chars );
+
+                written = after;
             }
         }
         else if( op == "int" )
@@ -567,11 +768,15 @@ JSON Mmh3Op( const JSON& aInput )
             if( total > MAX_MMH3_BYTES )
                 throw std::invalid_argument( "byte budget exceeded" );
 
-            hash->add( static_cast<int32_t>( Signed( step, "value", INT32_MIN, INT32_MAX ) ) );
+            const int32_t  value = static_cast<int32_t>( Signed( step, "value", INT32_MIN, INT32_MAX ) );
+            const uint16_t after = AddIntWrites( written, *hash.*Get( Len{} ) );
+            hash->add( value );
+            written = after;
         }
         else if( op == "digest" )
         {
             Keys( step, { "op" } );
+            RequireWritten( written, "hashTail", Span( 0, *hash.*Get( Len{} ) & 15 ) );
             extra["digest"] = View( hash->digest() );
         }
         else if( op == "state" )
@@ -585,15 +790,22 @@ JSON Mmh3Op( const JSON& aInput )
             *hash.*Get( H2{} ) = h2;
             std::memcpy( *hash.*Get( Blocks{} ), blocks.data(), 16 );
             *hash.*Get( Len{} ) = len;
+            written = ALL_BYTES;
         }
         else if( op == "hash_block" || op == "hash_tail" )
         {
             Keys( step, { "op" } );
 
             if( op == "hash_block" )
+            {
+                RequireWritten( written, "hashBlock", ALL_BYTES );
                 ( *hash.*Get( HashBlock{} ) )();
+            }
             else
+            {
+                RequireWritten( written, "hashTail", Span( 0, *hash.*Get( Len{} ) & 15 ) );
                 ( *hash.*Get( HashTail{} ) )();
+            }
         }
         else if( op == "hash_final" )
         {
@@ -606,6 +818,7 @@ JSON Mmh3Op( const JSON& aInput )
         {
             Keys( step, { "op", "index" } );
             const int index = static_cast<int>( Signed( step, "index", 0, 1 ) );
+            RequireWritten( written, "getblock64", index == 0 ? Span( 0, 8 ) : Span( 8, 16 ) );
             extra["block"] = ( *hash.*Get( GetBlock64{} ) )( index );
         }
         else
@@ -613,7 +826,7 @@ JSON Mmh3Op( const JSON& aInput )
             throw std::invalid_argument( "unknown operation" );
         }
 
-        JSON event = Snapshot( *hash, op );
+        JSON event = Snapshot( *hash, written, op );
 
         for( auto& [key, value] : extra.items() )
             event[key] = value;
