@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Regression checks for non-vacuous staging and golden review evidence."""
+import copy
 import importlib.util
 import gzip
 import json
@@ -15,6 +16,82 @@ SPEC = importlib.util.spec_from_file_location("golden_policy", ROOT / "port/tool
 POLICY = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = POLICY
 SPEC.loader.exec_module(POLICY)
+RUNNER = ROOT / "rust/target/debug" / ("kicad-difftest.exe" if sys.platform == "win32" else "kicad-difftest")
+
+
+class FakeRunner:
+    """Stands in for cargo and kicad-difftest in ci(), writing the runner's report format.
+
+    behaviour maps a unit to {"defer": {case: owner}, "returncode": n, "mutate": f,
+    "text": g}. A unit's deferrals are honoured only with --partial, as in the real
+    runner, where a strict run with any deferral, or an all-deferred run, exits nonzero
+    with status "deferred". An explicit returncode, mutate (on the report object) and
+    text (on its serialized JSON) simulate a faulty or dishonest runner.
+    """
+
+    def __init__(self, root, behaviour=None):
+        self.root, self.behaviour, self.calls = root, behaviour or {}, []
+
+    def __call__(self, args, **kwargs):
+        if args[0] != "runner":
+            return subprocess.CompletedProcess(args, 0)
+        action, partial = args[1], "--partial" in args
+        uid = args[args.index("--unit") + 1]
+        report_path = Path(args[args.index("--report") + 1])
+        self.calls.append((uid, action, partial))
+        behaviour = self.behaviour.get(uid, {})
+        lines = (self.root / "port/cases" / f"{uid}.jsonl").read_text(encoding="utf-8").splitlines()
+        cases = [json.loads(line)["case"] for line in lines]
+        defer = behaviour.get("defer", {})
+        outcomes = []
+        for case in cases:
+            if case in defer:
+                reference = json.dumps({"unit": uid, "case": case, "result": {"n": 1}})
+                outcomes.append({"case": case, "outcome": "deferred", "upstream": "Callee::Fn",
+                                 "unit": defer[case], "oracle": reference,
+                                 "rust": json.dumps({"unit": uid, "case": case, "error": {
+                                     "kind": "unported", "upstream": "Callee::Fn",
+                                     "unit": defer[case]}})})
+            else:
+                outcomes.append({"case": case, "outcome": "compared"})
+        compared = len(cases) - len(defer)
+        status, returncode = "partial" if defer else "green", 0
+        if defer and not partial or not compared:
+            status, returncode = "deferred", 1
+        returncode = behaviour.get("returncode", returncode)
+        golden = ({"status": "matched", "error": None, "mismatched_cases": [], "unchecked_cases": []}
+                  if action == "check" else {"status": "not_requested"})
+        report = {"unit": uid, "status": status, "action": action,
+                  "mode": "partial" if partial else "strict", "cases": len(cases),
+                  "compared": compared, "deferred": len(defer), "failures": 0, "unprocessed": 0,
+                  "golden_checked": action == "check", "golden": golden, "run_faults": [],
+                  "extra_replies": [], "outcomes": outcomes}
+        if "mutate" in behaviour:
+            behaviour["mutate"](report)
+        text = json.dumps(report)
+        if "text" in behaviour:
+            text = behaviour["text"](text)
+        report_path.write_text(text, encoding="utf-8")
+        return subprocess.CompletedProcess(args, returncode)
+
+
+def write_unit(root, uid, status, layer=0, cases=("a",)):
+    units, corpus = root / "port/units", root / "port/cases"
+    units.mkdir(parents=True, exist_ok=True)
+    corpus.mkdir(parents=True, exist_ok=True)
+    (units / f"{uid}.toml").write_text(
+        f'id = "{uid}"\nstatus = "{status}"\nlayer = {layer}\n'
+        '[difftest]\nrust_package = "shim"\nrust_binary = "shim"\n', encoding="utf-8")
+    (corpus / f"{uid}.jsonl").write_text("".join(
+        json.dumps({"unit": uid, "case": case, "input": {}}) + "\n" for case in cases), encoding="utf-8")
+
+
+def policy_root(directory):
+    root = Path(directory)
+    validator = root / "port/tools/validate_units.py"
+    validator.parent.mkdir(parents=True)
+    validator.write_text("", encoding="utf-8")
+    return root
 
 
 class PolicyTests(unittest.TestCase):
@@ -46,7 +123,8 @@ class PolicyTests(unittest.TestCase):
                         '[difftest]\nrust_package = "shim"\nrust_binary = "shim"\n', encoding="utf-8")
                     (cases / f"{uid}.jsonl").write_text(
                         json.dumps({"unit": uid, "case": "a", "input": {}}) + "\n", encoding="utf-8")
-                with mock.patch.object(POLICY.subprocess, "run"):
+                runner = FakeRunner(root)
+                with mock.patch.object(POLICY.subprocess, "run", side_effect=runner):
                     if layer:
                         with self.assertRaisesRegex(ValueError, "layer-0"):
                             POLICY.ci(root, Path("runner"), Path("oracle"), root / "reports", True)
@@ -56,6 +134,385 @@ class PolicyTests(unittest.TestCase):
                 self.assertEqual(report["phase0"], expected)
                 self.assertEqual(report["total_live_green_units"], 3)
                 self.assertEqual(report["live_green_units"], 0 if layer else 3)
+                self.assertEqual(runner.calls, [(uid, "check", False) for uid in ("a", "b", "c")])
+
+    def run_ci(self, root, behaviour=None, required=False):
+        runner = FakeRunner(root, behaviour)
+        with mock.patch.object(POLICY.subprocess, "run", side_effect=runner):
+            POLICY.ci(root, Path("runner"), Path("oracle"), root / "reports", required)
+        return runner, json.loads((root / "reports/phase0.json").read_text(encoding="utf-8"))
+
+    def test_partial_mode_follows_only_the_declared_partial_record(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = policy_root(directory)
+            for uid in ("a", "b", "c"):
+                write_unit(root, uid, "green")
+            write_unit(root, "p", "partial", layer=1, cases=("x", "y", "z"))
+            write_unit(root, "q", "claimed", cases=("x",))
+            runner, summary = self.run_ci(root, {"p": {"defer": {"y": "a"}}}, required=True)
+            # Green and other statuses run strict check; only p runs --partial,
+            # live-only because goldens follow a green difftest.
+            self.assertEqual(sorted(runner.calls), [("a", "check", False), ("b", "check", False),
+                                                    ("c", "check", False), ("p", "compare", True),
+                                                    ("q", "check", False)])
+            self.assertEqual(summary["phase0"], "COMPLETE")
+            self.assertEqual(summary["live_green_units"], 3)
+            self.assertEqual(summary["live_partial_units"], 1)
+            self.assertEqual(summary["partial_deferred_cases"], 1)
+            self.assertEqual(summary["partial_units_without_deferrals"], [])
+            self.assertEqual(summary["units"]["p"], {
+                "declared_status": "partial", "mode": "partial", "action": "compare",
+                "result": "partial", "cases": 3, "compared": 2, "deferred": 1})
+            self.assertEqual(summary["units"]["a"]["result"], "green")
+            report = json.loads((root / "reports/p.json").read_text(encoding="utf-8"))
+            self.assertEqual([(o["case"], o["outcome"]) for o in report["outcomes"]],
+                             [("x", "compared"), ("y", "deferred"), ("z", "compared")])
+            self.assertEqual([{k: o[k] for k in ("case", "upstream", "unit")}
+                              for o in report["outcomes"] if o["outcome"] == "deferred"],
+                             [{"case": "y", "upstream": "Callee::Fn", "unit": "a"}])
+            # A partial unit with a golden is checked against all its reference replies.
+            golden = root / "port/goldens/p.jsonl"
+            golden.parent.mkdir(parents=True, exist_ok=True)
+            golden.write_text("", encoding="utf-8")
+            runner, _ = self.run_ci(root, {"p": {"defer": {"y": "a"}}})
+            self.assertIn(("p", "check", True), runner.calls)
+
+    def test_partial_units_never_count_towards_the_strict_phase0_gate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = policy_root(directory)
+            for uid in ("a", "b"):
+                write_unit(root, uid, "green")
+            write_unit(root, "p", "partial", cases=("x", "y"))
+            runner = FakeRunner(root, {"p": {"defer": {"y": "a"}}})
+            with mock.patch.object(POLICY.subprocess, "run", side_effect=runner):
+                with self.assertRaisesRegex(ValueError, "three live green layer-0"):
+                    POLICY.ci(root, Path("runner"), Path("oracle"), root / "reports", True)
+            summary = json.loads((root / "reports/phase0.json").read_text(encoding="utf-8"))
+            self.assertEqual(summary["phase0"], "INCOMPLETE")
+            self.assertEqual(summary["live_green_units"], 2)
+            self.assertEqual(summary["live_partial_units"], 1)
+            # A partial unit that defers nothing is still partial and still not counted.
+            _, summary = self.run_ci(root)
+            self.assertEqual(summary["partial_units_without_deferrals"], ["p"])
+            self.assertEqual(summary["live_green_units"], 2)
+            self.assertEqual(summary["units"]["p"]["result"], "green")
+            self.assertEqual(summary["units"]["p"]["declared_status"], "partial")
+
+    def test_green_and_undeclared_units_stay_zero_deferral(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = policy_root(directory)
+            write_unit(root, "g", "green", cases=("x", "y"))
+            write_unit(root, "o", "partial", cases=("x",))
+            for status in ("green", "claimed", "todo", "blocked"):
+                write_unit(root, "g", status, cases=("x", "y"))
+                with self.subTest(status=status):
+                    with self.assertRaisesRegex(ValueError, "strict live difftest check failed"):
+                        self.run_ci(root, {"g": {"defer": {"y": "o"}}})
+                    # A runner report claiming partial or deferrals for a strict run is refused.
+                    for mutate in (lambda r: r.update(status="partial"),
+                                   lambda r: r.update(mode="partial"),
+                                   lambda r: (r["outcomes"][1].update(
+                                       outcome="deferred", upstream="f", unit="o",
+                                       oracle=json.dumps({"unit": "g", "case": "y", "result": 1})),
+                                       r.update(compared=1, deferred=1))):
+                        with self.assertRaises(ValueError):
+                            self.run_ci(root, {"g": {"mutate": mutate}})
+
+    def test_partial_runs_still_reject_failures_and_dishonest_reports(self):
+        bad = {
+            "exit": {"defer": {"y": "a"}, "returncode": 1},
+            "all deferred": {"defer": {"x": "a", "y": "a"}},
+            "all deferred despite exit zero": {"defer": {"x": "a", "y": "a"}, "returncode": 0,
+                                               "mutate": lambda r: r.update(status="partial")},
+            "unknown owner": {"defer": {"y": "missing.unit"}},
+            "failures": {"defer": {"y": "a"}, "mutate": lambda r: r.update(failures=1)},
+            "case in both": {"defer": {"y": "a"}, "mutate": lambda r: r["outcomes"][1].update(
+                outcome="compared")},
+            "failed status": {"defer": {"y": "a"}, "mutate": lambda r: r.update(status="failed")},
+            "strict mode": {"defer": {"y": "a"}, "mutate": lambda r: r.update(mode="strict")},
+            "wrong unit": {"mutate": lambda r: r.update(unit="a")},
+            "wrong action": {"mutate": lambda r: r.update(action="check")},
+            "dropped case": {"defer": {"y": "a"}, "mutate": lambda r: (
+                r["outcomes"].pop(), r.update(deferred=0, status="green"))},
+            "duplicate case": {"mutate": lambda r: (
+                r["outcomes"].append(dict(r["outcomes"][0])), r.update(compared=3))},
+            "reordered": {"mutate": lambda r: r["outcomes"].reverse()},
+            "unknown case": {"mutate": lambda r: r["outcomes"][1].update(case="w")},
+            "count": {"defer": {"y": "a"}, "mutate": lambda r: r.update(deferred=0)},
+            "green with deferrals": {"defer": {"y": "a"}, "mutate": lambda r: r.update(status="green")},
+            "partial without deferrals": {"mutate": lambda r: r.update(status="partial")},
+            "failed case": {"mutate": lambda r: (r["outcomes"][1].update(outcome="failed", reason="x"),
+                                                 r.update(compared=1))},
+            "unprocessed case": {"mutate": lambda r: (
+                r["outcomes"][1].update(outcome="unprocessed", reason="x"),
+                r.update(compared=1, unprocessed=1))},
+            "unprocessed count": {"mutate": lambda r: r.update(unprocessed=1)},
+            "run fault": {"mutate": lambda r: r.update(run_faults=["Rust: 1 extra line"])},
+            "missing run faults": {"mutate": lambda r: r.pop("run_faults")},
+            "extra replies": {"mutate": lambda r: r.update(extra_replies=[
+                {"side": "Rust", "line": 3, "raw": "x", "truncated": False}])},
+            "missing extra replies": {"mutate": lambda r: r.pop("extra_replies")},
+            "unknown outcome": {"mutate": lambda r: r["outcomes"][1].update(outcome="skipped")},
+            "compared with reason": {"mutate": lambda r: r["outcomes"][0].update(reason="x")},
+            "empty upstream": {"defer": {"y": "a"}, "mutate": lambda r: r["outcomes"][1].update(
+                upstream="")},
+            "extra deferral key": {"defer": {"y": "a"}, "mutate": lambda r: r["outcomes"][1].update(
+                note="x")},
+            "deferral without oracle reference": {"defer": {"y": "a"}, "mutate": lambda r: r[
+                "outcomes"][1].pop("oracle")},
+            "deferral with oracle error": {"defer": {"y": "a"}, "mutate": lambda r: r["outcomes"][1].update(
+                oracle=json.dumps({"unit": "p", "case": "y", "error": {"kind": "execution_error"}}))},
+            "deferral with another case's reference": {"defer": {"y": "a"}, "mutate": lambda r: r[
+                "outcomes"][1].update(oracle=json.dumps({"unit": "p", "case": "x", "result": 1}))},
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = policy_root(directory)
+            write_unit(root, "a", "green")
+            write_unit(root, "p", "partial", cases=("x", "y"))
+            for name, behaviour in bad.items():
+                with self.subTest(name=name), self.assertRaises(ValueError):
+                    self.run_ci(root, {"p": behaviour})
+            # A stale report from an earlier run is never reused: the first unit's
+            # report is removed before its rerun, which here writes nothing.
+            report = root / "reports/a.json"
+            _, summary = self.run_ci(root, {"p": {"defer": {"y": "a"}}})
+            self.assertEqual(summary["units"]["p"]["result"], "partial")
+            self.assertTrue(report.exists())
+            def no_report(args, **kwargs):
+                return subprocess.CompletedProcess(args, 0)
+            with mock.patch.object(POLICY.subprocess, "run", side_effect=no_report):
+                with self.assertRaises(OSError):
+                    POLICY.ci(root, Path("runner"), Path("oracle"), root / "reports", False)
+            self.assertFalse(report.exists())
+
+    def test_report_counts_and_golden_marker_are_exact(self):
+        units = {"u": {"status": "partial"}, "owner": {"status": "todo"}}
+        reference = json.dumps({"unit": "u", "case": "b", "result": 2})
+
+        def base(action, mode="strict"):
+            golden = ({"status": "matched", "error": None, "mismatched_cases": [], "unchecked_cases": []}
+                      if action == "check" else {"status": "not_requested"})
+            outcomes = [{"case": "a", "outcome": "compared"}]
+            if mode == "partial":
+                outcomes.append({"case": "b", "outcome": "deferred", "upstream": "F::g",
+                                 "unit": "owner", "oracle": reference, "rust": json.dumps({
+                                     "unit": "u", "case": "b", "error": {
+                                         "kind": "unported", "upstream": "F::g", "unit": "owner"}})})
+            return {"unit": "u", "status": "partial" if mode == "partial" else "green",
+                    "action": action, "mode": mode, "cases": len(outcomes), "compared": 1,
+                    "deferred": len(outcomes) - 1, "failures": 0, "unprocessed": 0,
+                    "golden_checked": action == "check", "golden": golden, "run_faults": [],
+                    "extra_replies": [], "outcomes": outcomes}
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "report.json"
+
+            def verify(text, action, mode="strict"):
+                path.write_text(text, encoding="utf-8")
+                cases = ["a", "b"] if mode == "partial" else ["a"]
+                return POLICY.verify_report(path, "u", mode, action, cases, units)
+
+            for action in ("check", "compare"):
+                for mode in ("strict", "partial"):
+                    with self.subTest(action=action, mode=mode, probe="control"):
+                        verify(json.dumps(base(action, mode)), action, mode)
+                    text = json.dumps(base(action, mode))
+                    # Ordinary JSON decoding would accept every one of these as 0 or 1.
+                    token_probes = {
+                        "failures underflow": text.replace('"failures": 0', '"failures": 1e-400'),
+                        "unprocessed underflow": text.replace('"unprocessed": 0', '"unprocessed": 1e-400'),
+                        "integral float count": text.replace('"compared": 1', '"compared": 1.0'),
+                        "exponent count": text.replace('"compared": 1', '"compared": 1e0'),
+                        "rounded case count": text.replace(
+                            f'"cases": {len(base(action, mode)["outcomes"])}',
+                            f'"cases": {len(base(action, mode)["outcomes"])}.00000000000000000000001'),
+                        "negative zero failures": text.replace('"failures": 0', '"failures": -0'),
+                        "negative float zero": text.replace('"deferred": ', '"deferred": -0.0 , "x": '),
+                        "negative count": text.replace('"failures": 0', '"failures": -1'),
+                        "NaN extra field": text[:-1] + ', "oracle_sha256": NaN}',
+                        "Infinity extra field": text[:-1] + ', "x": Infinity}',
+                        "-Infinity count": text.replace('"failures": 0', '"failures": -Infinity'),
+                        "duplicate key": text[:-1] + ', "failures": 0}',
+                    }
+                    value_probes = {
+                        "boolean counts": dict(cases=True, compared=True, deferred=False, failures=False),
+                        "boolean failures": dict(failures=False),
+                        "boolean unprocessed": dict(unprocessed=False),
+                        "string count": dict(compared="1"),
+                        "null count": dict(failures=None),
+                        "missing failures": dict(failures="<drop>"),
+                        "missing unprocessed": dict(unprocessed="<drop>"),
+                        "missing golden_checked": dict(golden_checked="<drop>"),
+                        "golden_checked string": dict(golden_checked=str(action == "check").lower()),
+                        "golden_checked integer": dict(golden_checked=int(action == "check")),
+                        "golden_checked null": dict(golden_checked=None),
+                        "golden_checked contradicts action": dict(golden_checked=action != "check"),
+                        "missing golden": dict(golden="<drop>"),
+                        "golden status contradicts action": dict(golden={"status": "not_requested"}
+                                                                 if action == "check" else
+                                                                 {"status": "matched", "error": None,
+                                                                  "mismatched_cases": [],
+                                                                  "unchecked_cases": []}),
+                        "golden incomplete": dict(golden={"status": "incomplete", "error": None,
+                                                          "mismatched_cases": [], "unchecked_cases": ["a"]}),
+                        "golden mismatch listed": dict(golden={"status": "matched", "error": None,
+                                                               "mismatched_cases": [{"case": "a"}],
+                                                               "unchecked_cases": []}),
+                    }
+                    for name, changes in value_probes.items():
+                        value = base(action, mode)
+                        for key, new in changes.items():
+                            if new == "<drop>":
+                                value.pop(key)
+                            else:
+                                value[key] = new
+                        token_probes[name] = json.dumps(value)
+                    for name, probe in token_probes.items():
+                        with self.subTest(action=action, mode=mode, probe=name):
+                            self.assertNotEqual(probe, text, name)
+                            with self.assertRaises(ValueError):
+                                verify(probe, action, mode)
+
+    def check_rust_evidence(self, base, path, cases, units):
+        """Every adversarial Rust line for deferred case b fails; legitimate ones pass."""
+        deferral = {"kind": "unported", "upstream": base["outcomes"][1]["upstream"],
+                    "unit": base["outcomes"][1]["unit"]}
+
+        def line(**fields):
+            return json.dumps(dict({"unit": base["unit"], "case": "b", "error": deferral}, **fields))
+
+        bad = {
+            "missing": "<drop>", "null": None, "integer": 7, "object": {}, "list": [],
+            "empty string": "", "not JSON": "not JSON", "JSON string": json.dumps("x"),
+            "JSON array": "[]", "truncated": line()[:-3],
+            "execution_error": line(error={"kind": "execution_error", "message": "x"}),
+            "invalid_input": line(error={"kind": "invalid_input", "message": "x"}),
+            "result envelope": json.dumps({"unit": base["unit"], "case": "b", "result": 2}),
+            "result and error": line(result=2),
+            "wrong unit": line(unit="wrong"),
+            "wrong case": line(case="a"),
+            "numeric case": line(case=1),
+            "other owner": line(error=dict(deferral, unit="dependency.other")),
+            "other upstream": line(error=dict(deferral, upstream="Other::fn")),
+            "unknown kind": line(error=dict(deferral, kind="skipped")),
+            "missing upstream": line(error={"kind": "unported", "unit": deferral["unit"]}),
+            "missing owner": line(error={"kind": "unported", "upstream": deferral["upstream"]}),
+            "extra error key": line(error=dict(deferral, message="x")),
+            "error not object": line(error="unported"),
+            "duplicate key": line()[:-1] + ', "case": "b"}',
+            "duplicate error key": line().replace('"kind": "unported"', '"kind": "unported", "kind": "unported"'),
+            "NaN": line()[:-1] + ', "x": NaN}',
+            "trailing garbage": line() + " x",
+        }
+        for action in ("compare", "check"):
+            value = copy.deepcopy(base)
+            value.update(action=action, golden_checked=action == "check", golden=(
+                {"status": "matched", "error": None, "mismatched_cases": [], "unchecked_cases": []}
+                if action == "check" else {"status": "not_requested"}))
+            for name, legitimate in (("as reported", line()),
+                                     ("deferred alias", line(error=dict(deferral, kind="deferred")))):
+                with self.subTest(action=action, legitimate=name):
+                    value["outcomes"][1]["rust"] = legitimate
+                    path.write_text(json.dumps(value), encoding="utf-8")
+                    POLICY.verify_report(path, base["unit"], "partial", action, cases, units)
+            for name, raw in bad.items():
+                with self.subTest(action=action, probe=name):
+                    probe = copy.deepcopy(value)
+                    if raw == "<drop>":
+                        probe["outcomes"][1].pop("rust")
+                    else:
+                        probe["outcomes"][1]["rust"] = raw
+                    path.write_text(json.dumps(probe), encoding="utf-8")
+                    with self.assertRaises(ValueError):
+                        POLICY.verify_report(path, base["unit"], "partial", action, cases, units)
+
+    def test_deferral_rust_evidence_must_be_the_exact_reported_envelope(self):
+        units = {"u": {"status": "partial"}, "owner.unit": {"status": "todo"},
+                 "dependency.other": {"status": "todo"}}
+        rust = json.dumps({"unit": "u", "case": "b", "error": {
+            "kind": "unported", "upstream": "Owner::fn", "unit": "owner.unit"}})
+        base = {"unit": "u", "status": "partial", "action": "compare", "mode": "partial",
+                "cases": 2, "compared": 1, "deferred": 1, "failures": 0, "unprocessed": 0,
+                "golden_checked": False, "golden": {"status": "not_requested"}, "run_faults": [],
+                "extra_replies": [], "outcomes": [
+                    {"case": "a", "outcome": "compared"},
+                    {"case": "b", "outcome": "deferred", "upstream": "Owner::fn",
+                     "unit": "owner.unit", "rust": rust,
+                     "oracle": json.dumps({"unit": "u", "case": "b", "result": 2})}]}
+        with tempfile.TemporaryDirectory() as directory:
+            self.check_rust_evidence(base, Path(directory) / "report.json", ["a", "b"], units)
+
+    @unittest.skipUnless(RUNNER.exists(), "build kicad-difftest first (CI builds it before this suite)")
+    def test_real_runner_reports_satisfy_the_policy_contract(self):
+        peer = ROOT / "rust/kicad-difftest/tests/peer.py"
+        units = {"p": {"status": "partial"}, "dependency": {"status": "todo"}}
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_unit(root, "p", "partial", cases=("a", "b", "c"))
+            report = root / "report.json"
+
+            def run(oracle, rust, *extra, action="compare"):
+                report.unlink(missing_ok=True)
+                return subprocess.run(
+                    [str(RUNNER), action, "--root", str(root), "--unit", "p",
+                     "--oracle", sys.executable, "--oracle-arg", str(peer), "--oracle-arg", oracle,
+                     "--rust", sys.executable, "--rust-arg", str(peer), "--rust-arg", rust,
+                     "--report", str(report), *extra], capture_output=True, text=True)
+
+            cases = ["a", "b", "c"]
+            result = run("ok", "defer-b", "--partial")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            summary = POLICY.verify_report(report, "p", "partial", "compare", cases, units)
+            self.assertEqual((summary["result"], summary["compared"], summary["deferred"]),
+                             ("partial", 2, 1))
+            result = run("ok", "ok")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(POLICY.verify_report(report, "p", "strict", "compare", cases, units)["result"],
+                             "green")
+            with self.assertRaises(ValueError):
+                POLICY.verify_report(report, "p", "partial", "compare", cases, units)
+            for oracle, rust, extra in (("ok", "defer-b", ()), ("ok", "deferred", ("--partial",)),
+                                        ("ok", "changed-a,defer-b", ("--partial",))):
+                result = run(oracle, rust, *extra)
+                self.assertNotEqual(result.returncode, 0, rust)
+                mode = "partial" if extra else "strict"
+                with self.assertRaises(ValueError):
+                    POLICY.verify_report(report, "p", mode, "compare", cases, units)
+            # Rust evidence of a genuine partial report: every adversarial variant fails.
+            run("ok", "defer-b", "--partial")
+            genuine = json.loads(report.read_text(encoding="utf-8"))
+            self.check_rust_evidence(genuine, root / "probe.json", cases,
+                                     dict(units, **{"dependency.other": {"status": "todo"}}))
+            # The owner must be a unit record.
+            run("ok", "defer-b", "--partial")
+            with self.assertRaisesRegex(ValueError, "names no unit record"):
+                POLICY.verify_report(report, "p", "partial", "compare", cases, {"p": units["p"]})
+            # check: the real golden object and marker satisfy the policy, in both modes,
+            # and a stale golden at the deferred case is refused.
+            corpus = (root / "port/cases/p.jsonl").read_bytes()
+            golden = subprocess.run([sys.executable, str(peer), "ok"], input=corpus,
+                                    capture_output=True, check=True).stdout
+            (root / "port/goldens").mkdir(parents=True, exist_ok=True)
+            (root / "port/goldens/p.jsonl").write_bytes(golden)
+            for mode, rust, extra in (("strict", "ok", ()), ("partial", "defer-b", ("--partial",))):
+                result = run("ok", rust, *extra, action="check")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                summary = POLICY.verify_report(report, "p", mode, "check", cases, units)
+                self.assertEqual(summary["action"], "check")
+                self.assertIs(json.loads(report.read_text())["golden_checked"], True)
+                for marker in (False, None, "true", 1):
+                    value = json.loads(report.read_text())
+                    value["golden_checked"] = marker
+                    report.write_text(json.dumps(value), encoding="utf-8")
+                    with self.assertRaisesRegex(ValueError, "golden_checked"):
+                        POLICY.verify_report(report, "p", mode, "check", cases, units)
+            lines = golden.decode().splitlines()
+            lines[1] = lines[1].replace("9007199254740993", "9007199254740992")
+            (root / "port/goldens/p.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
+            result = run("ok", "defer-b", "--partial", action="check")
+            self.assertNotEqual(result.returncode, 0)
+            with self.assertRaises(ValueError):
+                POLICY.verify_report(report, "p", "partial", "check", cases, units)
 
     def test_evidence_checks_committed_head_and_ignores_dirty_worktree(self):
         with tempfile.TemporaryDirectory() as directory:

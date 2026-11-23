@@ -5,6 +5,11 @@
 The infrastructure stage is explicitly INCOMPLETE, never phase-0 qualification.
 Final integration enables --require-phase0; it requires three live green layer-0 units
 and valid exhaustive extraction accounting. Platform coverage stays reported.
+
+Only a unit record declared `partial` runs the difftest with --partial: its live run
+is accepted with at least one exact comparison, zero failures and enumerated Rust
+deferrals. Every other unit, green included, runs strict and must be zero-deferral.
+Partial units never count towards the phase-0 gate.
 """
 import argparse
 from dataclasses import dataclass
@@ -178,6 +183,130 @@ def wasm(root):
     subprocess.run(args, cwd=root, check=True)
 
 
+def case_ids(path, uid):
+    # JSONL frames end only at LF, as in replies(); Unicode separators stay in strings.
+    lines = path.read_bytes().decode("utf-8").split("\n")
+    if lines[-1] == "":
+        lines.pop()
+    ids = [exact(line.removesuffix("\r")).get("case") for line in lines]
+    if not ids or len(set(ids)) != len(ids) or not all(isinstance(i, str) and i for i in ids):
+        raise ValueError(f"{uid}: invalid case identities")
+    return ids
+
+
+def report_count(token):
+    """Integer tokens in a runner report are counts: canonical, nonnegative, exact."""
+    if not re.fullmatch(r"0|[1-9][0-9]*", token):
+        raise ValueError(f"report number {token} is not a canonical nonnegative integer")
+    return int(token)
+
+
+def report_json(text):
+    """Parse a runner report without numeric coercion.
+
+    Unlike ordinary JSON decoding, a fraction or exponent (1.0, 1e-400, -0.0), a
+    negative or non-canonical integer and NaN/Infinity all fail, so no value can be
+    rounded, underflowed or sign-folded into an accepted count.
+    """
+    def fraction(token):
+        raise ValueError(f"report number {token} is not an integer count")
+
+    def constant(token):
+        raise ValueError(f"non-JSON number {token} in report")
+    return json.loads(text, object_pairs_hook=unique, parse_int=report_count,
+                      parse_float=fraction, parse_constant=constant)
+
+
+def envelope(line, label):
+    """One protocol envelope line, parsed exactly (duplicate keys and NaN fail)."""
+    try:
+        value = exact(line)
+    except ValueError as error:
+        raise ValueError(f"{label} is not exact JSON: {error}") from None
+    if type(value) is not dict:
+        raise ValueError(f"{label} is not a JSON object")
+    return value
+
+
+def verify_report(path, uid, mode, action, cases, units):
+    """Check the runner's own report against the declared mode, action and corpus.
+
+    `outcomes` must list every corpus case exactly once, in corpus order. A strict run
+    must be green with every case compared. A partial run is accepted as green or
+    partial: at least one exact comparison, no failed or unprocessed case, run fault
+    or extra reply, and every deferral owned by an existing unit record, with its
+    retained oracle result and the exact Rust deferral envelope it reports. check
+    must report a matched golden, compare none. Returns the summary.
+    """
+    report = report_json(path.read_text(encoding="utf-8"))
+    if type(report) is not dict:
+        raise ValueError(f"{uid}: report must be a JSON object")
+    accepted = {"strict": {"green"}, "partial": {"green", "partial"}}[mode]
+    if (report.get("unit") != uid or report.get("mode") != mode or report.get("action") != action
+            or report.get("status") not in accepted):
+        raise ValueError(f"{uid}: {mode} {action} report is not an accepted run: {report.get('status')}")
+    counts = {}
+    for key in ("cases", "compared", "deferred", "failures", "unprocessed"):
+        value = report.get(key)
+        if type(value) is not int or value < 0:
+            raise ValueError(f"{uid}: report {key} must be a nonnegative integer, not {value!r}")
+        counts[key] = value
+    checked = report.get("golden_checked")
+    if type(checked) is not bool or checked != (action == "check"):
+        raise ValueError(f"{uid}: golden_checked {checked!r} contradicts action {action}")
+    golden = report.get("golden")
+    expected_golden = ({"status": "matched", "error": None, "mismatched_cases": [], "unchecked_cases": []}
+                       if action == "check" else {"status": "not_requested"})
+    if golden != expected_golden:
+        raise ValueError(f"{uid}: golden result {golden!r} is not an accepted {action}")
+    if (counts["failures"] or counts["unprocessed"] or report.get("run_faults") != []
+            or report.get("extra_replies") != []):
+        raise ValueError(f"{uid}: accepted run reports failures, unprocessed cases, run faults or extra replies")
+    outcomes = report.get("outcomes")
+    if type(outcomes) is not list or not all(type(o) is dict for o in outcomes):
+        raise ValueError(f"{uid}: report must list every case outcome")
+    if [o.get("case") for o in outcomes] != cases or counts["cases"] != len(cases):
+        raise ValueError(f"{uid}: outcomes do not account for every corpus case exactly once, in order")
+    compared = [o for o in outcomes if o.get("outcome") == "compared"]
+    deferred = [o for o in outcomes if o.get("outcome") == "deferred"]
+    if len(compared) + len(deferred) != len(outcomes):
+        raise ValueError(f"{uid}: accepted run has a case that is neither compared nor deferred")
+    if counts["compared"] != len(compared) or counts["deferred"] != len(deferred):
+        raise ValueError(f"{uid}: report counts do not match its outcomes")
+    if not compared:
+        raise ValueError(f"{uid}: all-deferred run proves no successful operation")
+    if (report["status"] == "partial") != bool(deferred) or (mode == "strict" and deferred):
+        raise ValueError(f"{uid}: report status contradicts its deferrals")
+    for item in compared:
+        if set(item) != {"case", "outcome"}:
+            raise ValueError(f"{uid}: invalid compared record {item}")
+    for item in deferred:
+        if (set(item) != {"case", "outcome", "upstream", "unit", "oracle", "rust"}
+                or not isinstance(item["upstream"], str) or not item["upstream"]
+                or not isinstance(item["unit"], str) or not isinstance(item["oracle"], str)
+                or not isinstance(item["rust"], str)):
+            raise ValueError(f"{uid}: invalid deferral record {item}")
+        case = item["case"]
+        reference = envelope(item["oracle"], f"{uid}/{case}: oracle reference")
+        if (set(reference) != {"unit", "case", "result"}
+                or reference["unit"] != uid or reference["case"] != case):
+            raise ValueError(f"{uid}/{case}: deferral lacks its oracle reference result")
+        # The Rust line must be exactly the deferral the outcome reports: never an
+        # error of another kind, a result, another case's reply or another owner.
+        rust = envelope(item["rust"], f"{uid}/{case}: Rust deferral evidence")
+        error = rust.get("error")
+        if (set(rust) != {"unit", "case", "error"} or rust["unit"] != uid or rust["case"] != case
+                or type(error) is not dict or set(error) != {"kind", "upstream", "unit"}
+                or error["kind"] not in ("unported", "deferred")
+                or error["upstream"] != item["upstream"] or error["unit"] != item["unit"]):
+            raise ValueError(f"{uid}/{case}: Rust evidence is not the reported deferral envelope")
+        if item["unit"] not in units:
+            raise ValueError(f"{uid}/{case}: deferral owner {item['unit']!r} names no unit record")
+    return {"declared_status": units[uid]["status"], "mode": mode, "action": action,
+            "result": report["status"], "cases": len(cases), "compared": len(compared),
+            "deferred": len(deferred)}
+
+
 def ci(root, runner, oracle, reports, required):
     reports.mkdir(parents=True, exist_ok=True)
     validator = root / "port/tools/validate_units.py"
@@ -199,6 +328,7 @@ def ci(root, runner, oracle, reports, required):
     green = {uid for uid, unit in units.items() if unit["status"] == "green"}
     cases = sorted((root / "port/cases").glob("*.jsonl"))
     tested = set()
+    results = {}
     for path in cases:
         uid = path.stem
         if uid not in units:
@@ -210,14 +340,27 @@ def ci(root, runner, oracle, reports, required):
         subprocess.run(["cargo", "build", "--locked", "--manifest-path", str(root / "rust/Cargo.toml"),
                         "-j8", "-p", package, "--bin", binary], cwd=root, check=True)
         shim = root / "rust/target/debug" / (binary + (".exe" if os.name == "nt" else ""))
-        args = [str(runner), "check", "--root", str(root), "--unit", uid,
-                "--oracle", str(oracle), "--rust", str(shim), "--report", str(reports / f"{uid}.json")]
+        # Partial mode follows the declared record only. Goldens follow a green
+        # difftest, so a partial unit without one is compared live; one that has a
+        # golden is checked against all of its reference replies.
+        mode = "partial" if units[uid]["status"] == "partial" else "strict"
+        golden = root / "port/goldens" / f"{uid}.jsonl"
+        action = "compare" if mode == "partial" and not golden.exists() else "check"
+        report = reports / f"{uid}.json"
+        report.unlink(missing_ok=True)
+        args = [str(runner), action, "--root", str(root), "--unit", uid,
+                "--oracle", str(oracle), "--rust", str(shim), "--report", str(report)]
+        if mode == "partial":
+            args.append("--partial")
         rust_args = config.get("rust_args", [])
         if not isinstance(rust_args, list) or not all(isinstance(arg, str) for arg in rust_args):
             raise ValueError(f"{uid}: rust_args must be a string array")
         for arg in rust_args:
             args += ["--rust-arg", arg]
-        subprocess.run(args, cwd=root, check=True)
+        returncode = subprocess.run(args, cwd=root).returncode
+        if returncode != 0:
+            raise ValueError(f"{uid}: {mode} live difftest {action} failed (exit {returncode}); see {report}")
+        results[uid] = verify_report(report, uid, mode, action, case_ids(path, uid), units)
         tested.add(uid)
     if green - tested:
         raise ValueError(f"green units missing live cases: {sorted(green - tested)}")
@@ -227,10 +370,15 @@ def ci(root, runner, oracle, reports, required):
     live_green = green & tested
     passed = sum(units[uid]["layer"] == 0 for uid in live_green)
     complete = required and passed >= 3 and bool(units)
+    partial = sorted(uid for uid, result in results.items() if result["mode"] == "partial")
+    deferred_cases = sum(results[uid]["deferred"] for uid in partial)
     summary = {"phase0": "COMPLETE" if complete else "INCOMPLETE", "strict_gate_enabled": required,
                "live_green_units": passed, "required_green_units": 3, "required_layer": 0,
                "total_live_green_units": len(live_green),
-               "validated_unit_records": len(units), "extraction": provenance}
+               "validated_unit_records": len(units), "extraction": provenance,
+               "live_partial_units": len(partial), "partial_deferred_cases": deferred_cases,
+               "partial_units_without_deferrals": [uid for uid in partial if not results[uid]["deferred"]],
+               "units": results}
     (reports / "phase0.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     coverage = {key: provenance.get(key) for key in
                 ("inventory_complete", "parse_complete", "compile_database_complete",
@@ -239,6 +387,9 @@ def ci(root, runner, oracle, reports, required):
         coverage[key] = len(provenance.get(key, []))
     message = (f"Phase 0: {summary['phase0']}; {passed}/3 live green layer-0 units; "
                f"{len(units)} validated unit records.\n\n"
+               f"Partial units (never counted green): {len(partial)} live, "
+               f"{deferred_cases} deferred cases; declared partial without corpus deferrals: "
+               f"{summary['partial_units_without_deferrals']}.\n\n"
                f"Extraction/configuration coverage (reported separately): `{json.dumps(coverage, sort_keys=True)}`\n")
     print(message)
     if os.environ.get("GITHUB_STEP_SUMMARY"):
