@@ -328,6 +328,17 @@ before and after CPython's actual venv directory-creation method, plus those
 negative cases. On macOS the test changes only that method's platform selector;
 this does not establish native Linux or full west/bootstrap qualification.
 
+Native WSL preflight at `b684f9b0` passed the 48 tests and real signed-input
+verification in an extracted base rootfs, without a Docker build or package
+installation. Image, dispatch, oracle and difftest qualification remained blocked
+by the missing engine/checkout. It also found that Git's archive conversion
+could produce non-blob source bytes under Windows line-ending configuration.
+The exporter now reads the raw tree and streams blobs directly, verifies each
+Git object ID, and independently verifies every resulting archive member.
+The 51-test suite covers CRLF checkouts, tracked `eol=crlf`, `export-subst` and
+`export-ignore` attributes, plus local replacement objects. No Git configuration
+is changed; these tests do not constitute native Windows or image qualification.
+
 **Not performed:** no amd64 image was built, so `verify_image.py`, the probes on
 x86-64, the oracle build inside the image, `--rebuild-check` and the difftest have
 never run. A recipe is not a passed reproducible build.
@@ -354,6 +365,11 @@ Before building, `qualify.sh --revision <full SHA>` requires a clean native Git
 checkout at that exact head. It exports canonical Git bytes, independently
 compares the reference archive/manifest against the pin's actual Git blobs,
 checks the original stage revision/clean flag and preserves that provenance.
+Both source and reference archives are made from unfiltered Git blobs, not
+`git archive`'s working-tree conversions. `core.autocrlf`, EOL attributes,
+export substitution/omission and local object replacements cannot change or
+omit committed inputs. A supplied stage containing converted bytes is rejected;
+regenerate the source bundle rather than regenerate the input lock.
 A supplied `--with-difftest REPO` checkout must also be clean and at that head
 before any build; execution uses the verified snapshot rather than that mutable
 checkout. Snapshot checks run before/after oracle build, dependency bootstrap,
