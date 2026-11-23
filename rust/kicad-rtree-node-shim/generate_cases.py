@@ -468,7 +468,7 @@ def corpus():
             cases.append(request(case, {"kind": "slab", "config": name, "steps": steps}))
     # Appended after the original corpus so every earlier case keeps its bytes and
     # index; see review_cases.
-    return cases + review_cases()
+    return cases + review_cases() + foreign_cases()
 
 
 def review_cases():
@@ -570,6 +570,264 @@ def review_cases():
     return cases
 
 
+# NUMDIMS of every configuration, including those added after the original corpus.
+CONFIGS_ALL = {**{name: value[1] for name, value in CONFIGS.items()}, "i32.d3.m33": 3}
+
+
+class Lifecycle:
+    """Predicts node numbering when any allocator frees and re-allocates any node.
+
+    Only used to keep generated programs inside the defined domain (no access to a
+    destroyed object, no construction into a destroyed page); it is not compared.
+    """
+
+    def __init__(self):
+        self.pages = {}  # token -> {"owner": index or None once destroyed, "used", "alive"}
+        self.allocators = [None] * 4
+        self.seen = []
+        self.tokens = 0
+        self.allocated = 0
+
+    def number(self, handle):
+        if handle not in self.seen:
+            self.seen.append(handle)
+        return self.seen.index(handle)
+
+    def destroyed(self, node):
+        return self.pages[self.seen[node][0]]["owner"] is None
+
+    def alive(self, node):
+        token, slot = self.seen[node]
+        return not self.destroyed(node) and slot in self.pages[token]["alive"]
+
+    def can_allocate(self, index):
+        free = self.allocators[index]["free"]
+        return not free or self.pages[free[-1][0]]["owner"] is not None
+
+    def allocate(self, index):
+        state = self.allocators[index]
+        self.allocated += 1
+        if state["free"]:
+            token, slot = state["free"].pop()
+            if token in state["pages"]:
+                self.pages[token]["used"].add(slot)
+        else:
+            for token in state["pages"]:
+                used = self.pages[token]["used"]
+                if len(used) < 256:
+                    slot = min(set(range(256)) - used)
+                    break
+            else:
+                self.tokens += 1
+                token, slot = self.tokens, 0
+                self.pages[token] = {"owner": index, "used": set(), "alive": set(range(256))}
+                state["pages"].append(token)
+            self.pages[token]["used"].add(slot)
+        self.pages[token]["alive"].add(slot)
+        return self.number((token, slot))
+
+    def free(self, index, node):
+        token, slot = self.seen[node]
+        state = self.allocators[index]
+        if token in state["pages"]:
+            self.pages[token]["used"].discard(slot)
+        self.pages[token]["alive"].discard(slot)
+        state["free"].append((token, slot))
+
+    def destroy_pages(self, index):
+        for token in self.allocators[index]["pages"]:
+            self.pages[token]["owner"] = None
+
+    def take(self, index):
+        state = self.allocators[index]
+        self.allocators[index] = {"pages": [], "free": []}
+        return state
+
+    def adopt(self, index, state):
+        self.allocators[index] = state
+        for token in state["pages"]:
+            self.pages[token]["owner"] = index
+
+
+def lifecycle_program(rng, name, dims, maxnodes):
+    model = Lifecycle()
+    model.allocators[0] = {"pages": [], "free": []}
+    model.allocators[1] = {"pages": [], "free": []}
+    steps = [{"op": "new", "a": 0}, {"op": "new", "a": 1}]
+    while len(steps) < 300:
+        existing = [i for i, a in enumerate(model.allocators) if a is not None]
+        empty = [i for i, a in enumerate(model.allocators) if a is None]
+        known = [n for n in range(len(model.seen)) if not model.destroyed(n)]
+        alive = [n for n in known if model.alive(n)]
+        roll = rng.random()
+        if roll < 0.25 or not alive:
+            a = rng.choice(existing)
+            if model.can_allocate(a) and model.allocated < 3000:
+                steps.append({"op": "alloc", "a": a})
+                model.allocate(a)
+        elif roll < 0.45:
+            # Free through any allocator: its own pages or another allocator's.
+            node, a = rng.choice(alive), rng.choice(existing)
+            steps.append({"op": "free", "a": a, "node": node})
+            model.free(a, node)
+        elif roll < 0.52:
+            a = rng.choice(existing)
+            if empty and rng.random() < 0.5:
+                target = rng.choice(empty)
+                steps.append({"op": "move_new", "a": target, "src": a})
+                model.adopt(target, model.take(a))
+            else:
+                target = rng.choice(existing)
+                steps.append({"op": "move_assign", "a": target, "src": a})
+                if target != a:
+                    model.destroy_pages(target)
+                    model.adopt(target, model.take(a))
+        elif roll < 0.55:
+            if empty:
+                a = rng.choice(empty)
+                steps.append({"op": "new", "a": a})
+                model.allocators[a] = {"pages": [], "free": []}
+            elif len(existing) > 1:
+                a = rng.choice(existing)
+                steps.append({"op": "destroy", "a": a})
+                model.destroy_pages(a)
+                model.allocators[a] = None
+        elif roll < 0.7:
+            a = rng.choice(existing)
+            step = {"op": rng.choice(["state", "memory", "owns", "find"]), "a": a}
+            if step["op"] in ("owns", "find"):
+                if not known:
+                    continue
+                step["node"] = rng.choice(known)
+            steps.append(step)
+        else:
+            node = rng.choice(alive)
+            op = rng.choice(["snapshot", "set_count", "set_child", "set_data", "set_bounds",
+                             "remove", "predicates"])
+            slot = rng.randrange(maxnodes)
+            if op == "set_count":
+                steps.append({"op": op, "node": node, "value": rng.randint(0, maxnodes)})
+            elif op == "set_child":
+                steps.append({"op": op, "node": node, "slot": slot,
+                              "child": rng.choice(known) if rng.random() < 0.9 else None})
+            elif op == "set_data":
+                steps.append({"op": op, "node": node, "slot": slot, "item": rng.randrange(64)})
+            elif op == "set_bounds":
+                lo = [rng.randint(-1000, 1000) for _ in range(dims)]
+                steps.append({"op": op, "node": node, "slot": slot, "min": lo,
+                              "max": [v + rng.randint(0, 50) for v in lo]})
+            elif op == "remove":
+                # i == count - 1 is defined for any count; it copies nothing.
+                steps += [{"op": "set_count", "node": node, "value": slot + 1},
+                          {"op": "remove", "node": node, "slot": slot}]
+            else:
+                steps.append({"op": op, "node": node})
+    for a, state in enumerate(model.allocators):
+        if state is not None:
+            steps.append({"op": "state", "a": a})
+    return steps
+
+
+def foreign_cases():
+    """Regressions for the second independent review of PR 52: B.Free( A.Allocate() )
+    and B.Allocate() re-construct the slot in A's page; A keeps the page."""
+    cases = []
+    for config in ["i32.d2.m16", "i64.d3.m8", "i32.d3.m33"]:
+        dims = CONFIGS_ALL[config]
+        box = {"min": [-2] * dims, "max": [3] * dims}
+        steps = [{"op": "new", "a": 0}, {"op": "alloc", "a": 0},
+                 {"op": "set_count", "node": 0, "value": 7},
+                 dict({"op": "set_bounds", "node": 0, "slot": 0}, **box),
+                 {"op": "set_data", "node": 0, "slot": 0, "item": 3},
+                 {"op": "snapshot", "node": 0}, {"op": "new", "a": 1},
+                 {"op": "free", "a": 1, "node": 0},
+                 {"op": "owns", "a": 0, "node": 0}, {"op": "owns", "a": 1, "node": 0},
+                 {"op": "find", "a": 0, "node": 0}, {"op": "find", "a": 1, "node": 0},
+                 {"op": "state", "a": 0}, {"op": "state", "a": 1},
+                 {"op": "memory", "a": 0}, {"op": "memory", "a": 1},
+                 {"op": "alloc", "a": 1}, {"op": "snapshot", "node": 0},
+                 {"op": "owns", "a": 0, "node": 0}, {"op": "owns", "a": 1, "node": 0},
+                 {"op": "state", "a": 0}, {"op": "state", "a": 1},
+                 {"op": "memory", "a": 0}, {"op": "memory", "a": 1},
+                 # The owner frees the re-constructed node normally and reuses it.
+                 {"op": "free", "a": 0, "node": 0}, {"op": "state", "a": 0},
+                 {"op": "alloc", "a": 0}, {"op": "state", "a": 0},
+                 # Repeated cross-allocator reuse of the same slot.
+                 {"op": "free", "a": 1, "node": 0}, {"op": "alloc", "a": 1},
+                 {"op": "free", "a": 1, "node": 0}, {"op": "alloc", "a": 1},
+                 {"op": "set_count", "node": 0, "value": 2}, {"op": "free", "a": 0, "node": 0},
+                 {"op": "free", "a": 1, "node": None}, {"op": "state", "a": 0},
+                 {"op": "state", "a": 1}, {"op": "alloc", "a": 0}, {"op": "snapshot", "node": 0},
+                 # The owner's page scan skips a slot whose bit a foreign Free left set.
+                 {"op": "alloc", "a": 0}, {"op": "free", "a": 1, "node": 1},
+                 {"op": "alloc_many", "a": 0, "n": 3}, {"op": "find", "a": 0, "node": 4},
+                 {"op": "state", "a": 0}, {"op": "state", "a": 1}]
+        cases.append(request(f"review2-slab-{config}-foreign-reuse",
+                             {"kind": "slab", "config": config, "steps": steps}))
+
+    # Several foreign entries in one free list: LIFO order and capacity growth.
+    steps = [{"op": "new", "a": 0}, {"op": "alloc_many", "a": 0, "n": 5}, {"op": "new", "a": 1},
+             {"op": "alloc_many", "a": 1, "n": 2}, {"op": "new", "a": 2}]
+    for node in [1, 5, 3, 6, 0]:
+        steps += [{"op": "free", "a": 2, "node": node}, {"op": "memory", "a": 2}]
+    steps += [{"op": "state", "a": 0}, {"op": "state", "a": 1}, {"op": "state", "a": 2},
+              {"op": "alloc_many", "a": 2, "n": 6}, {"op": "state", "a": 0},
+              {"op": "state", "a": 1}, {"op": "state", "a": 2},
+              {"op": "owns", "a": 1, "node": 6}, {"op": "owns", "a": 2, "node": 6},
+              {"op": "free", "a": 0, "node": 6}, {"op": "alloc", "a": 0},
+              {"op": "free", "a": 1, "node": 6}, {"op": "state", "a": 0},
+              {"op": "state", "a": 1}, {"op": "alloc", "a": 1}, {"op": "state", "a": 1}]
+    cases.append(request("review2-slab-foreign-free-list-order",
+                         {"kind": "slab", "config": "i32.d2.m16", "steps": steps}))
+
+    # Moves: foreign entries travel with the borrower's free list; page ownership
+    # travels with the owner's pages.
+    steps = [{"op": "new", "a": 0}, {"op": "alloc", "a": 0}, {"op": "new", "a": 1},
+             {"op": "free", "a": 1, "node": 0}, {"op": "move_new", "a": 2, "src": 1},
+             {"op": "state", "a": 1}, {"op": "state", "a": 2}, {"op": "alloc", "a": 2},
+             {"op": "owns", "a": 0, "node": 0}, {"op": "owns", "a": 2, "node": 0},
+             {"op": "free", "a": 2, "node": 0}, {"op": "move_new", "a": 3, "src": 0},
+             {"op": "owns", "a": 3, "node": 0}, {"op": "alloc", "a": 2},
+             {"op": "state", "a": 3}, {"op": "state", "a": 2},
+             {"op": "free", "a": 2, "node": 0}, {"op": "move_assign", "a": 1, "src": 2},
+             {"op": "state", "a": 1}, {"op": "state", "a": 2}, {"op": "alloc", "a": 1},
+             {"op": "snapshot", "node": 0}, {"op": "move_assign", "a": 1, "src": 1},
+             {"op": "state", "a": 1}]
+    cases.append(request("review2-slab-foreign-moves",
+                         {"kind": "slab", "config": "i32.d2.m16", "steps": steps}))
+
+    # Destruction: the owner's pages go with it, even while another allocator's free
+    # list names one of their nodes; that entry can then never be reused.
+    steps = [{"op": "new", "a": 0}, {"op": "alloc", "a": 0}, {"op": "alloc", "a": 0},
+             {"op": "new", "a": 1}, {"op": "free", "a": 1, "node": 0},
+             {"op": "new", "a": 2}, {"op": "alloc", "a": 2},
+             {"op": "set_level", "node": 2, "value": 1},
+             {"op": "set_child", "node": 2, "slot": 0, "child": 1},
+             {"op": "set_child", "node": 2, "slot": 1, "child": 0},
+             {"op": "snapshot", "node": 2}, {"op": "new", "a": 3},
+             {"op": "move_assign", "a": 0, "src": 3}, {"op": "state", "a": 0},
+             {"op": "state", "a": 1}, {"op": "memory", "a": 1}, {"op": "snapshot", "node": 2},
+             {"op": "move_assign", "a": 1, "src": 0}, {"op": "state", "a": 1},
+             {"op": "alloc", "a": 1}, {"op": "state", "a": 1},
+             # A borrower re-constructs a node, then its owner is destroyed.
+             {"op": "free", "a": 1, "node": 2}, {"op": "alloc", "a": 1},
+             {"op": "set_child", "node": 3, "slot": 0, "child": 2},
+             {"op": "destroy", "a": 2}, {"op": "snapshot", "node": 3},
+             {"op": "new", "a": 2}, {"op": "alloc", "a": 2}, {"op": "state", "a": 2},
+             {"op": "snapshot", "node": 3}]
+    cases.append(request("review2-slab-foreign-destruction",
+                         {"kind": "slab", "config": "i32.d2.m16", "steps": steps}))
+
+    rng = random.Random(5252)
+    for config in ["i32.d2.m16", "i32.d3.m5", "i64.d2.m16", "i32.d3.m33"]:
+        dims, maxnodes = CONFIGS_ALL[config], int(config.rsplit(".m", 1)[1])
+        for index in range(2):
+            cases.append(request(f"review2-slab-{config}-lifecycle-{index}", {
+                "kind": "slab", "config": config,
+                "steps": lifecycle_program(rng, config, dims, maxnodes)}))
+    return cases
+
+
 def failure(case, message, kind="invalid_input", unit=UNIT):
     return {"unit": unit, "case": case, "error": {"kind": kind, "message": message}}
 
@@ -660,8 +918,6 @@ def refusals():
                             {"op": "snapshot", "node": 0}], "node is not live")
     slab("double-free", [new, alloc, {"op": "free", "a": 0, "node": 0},
                          {"op": "free", "a": 0, "node": 0}], "node is not live")
-    slab("foreign-free", [new, alloc, {"op": "new", "a": 1}, {"op": "free", "a": 1, "node": 0}],
-         "node is not owned")
     slab("free-before-allocator", [new, alloc, {"op": "free", "a": 2, "node": 0}],
          "allocator does not exist")
     slab("set-after-free", [new, alloc, {"op": "free", "a": 0, "node": 0},
@@ -758,6 +1014,28 @@ def refusals():
     slab("review-remove-last-past-array",
          node + [{"op": "set_count", "node": 0, "value": 18},
                  {"op": "remove", "node": 0, "slot": 16}], "count outside reference domain")
+    # Foreign nodes: any allocator may free an existing node, but not destroy it twice,
+    # use it while destroyed, or construct into a page destroyed with its owner.
+    foreign = [new, alloc, {"op": "new", "a": 1}, {"op": "free", "a": 1, "node": 0}]
+    slab("review2-foreign-second-destruction", foreign + [{"op": "free", "a": 0, "node": 0}],
+         "node is not live")
+    slab("review2-foreign-borrower-second-destruction",
+         foreign + [{"op": "free", "a": 1, "node": 0}], "node is not live")
+    slab("review2-foreign-use-after-free", foreign + [{"op": "snapshot", "node": 0}],
+         "node is not live")
+    slab("review2-foreign-entry-in-destroyed-page",
+         foreign + [{"op": "new", "a": 2}, {"op": "move_assign", "a": 0, "src": 2},
+                    {"op": "alloc", "a": 1}], "node is destroyed")
+    slab("review2-foreign-entry-after-destroy",
+         foreign + [{"op": "destroy", "a": 0}, {"op": "alloc_many", "a": 1, "n": 2}],
+         "node is destroyed")
+    slab("review2-destroy-missing", [new, {"op": "destroy", "a": 3}], "allocator does not exist")
+    slab("review2-destroy-extra-field", [new, {"op": "destroy", "a": 0, "src": 0}],
+         "unexpected or missing field")
+    slab("review2-destroyed-node", node + [{"op": "destroy", "a": 0},
+                                          {"op": "snapshot", "node": 0}], "node is destroyed")
+    slab("review2-destroyed-allocator", [new, {"op": "destroy", "a": 0},
+                                         {"op": "memory", "a": 0}], "allocator does not exist")
     # Envelope-level refusals use the shared transport messages.
     checks.append(({"unit": "other.unit", "case": "unit", "input": {}},
                    failure("unit", "unit has no registered shim", "unknown_unit", "other.unit")))

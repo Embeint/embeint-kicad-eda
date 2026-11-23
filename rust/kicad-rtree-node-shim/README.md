@@ -26,9 +26,9 @@ its number); items by index. No address is serialised.
 | Step `op` | Fields | Event |
 | --- | --- | --- |
 | `layout` | | `node_size`, `node_align`, `page_size`, `page_align`, `nodes_per_page`, `pointer_size`, `min_nodes` |
-| `new`, `move_new`, `move_assign` | `a` (+ `src`) | `{}` |
+| `new`, `move_new`, `move_assign`, `destroy` | `a` (+ `src`) | `{}`; `destroy` runs the destructor and frees the slot |
 | `alloc`, `alloc_many` | `a` (+ `n` 1..1024) | `node` / `nodes`; at most 4096 allocations per case |
-| `free` | `a`, `node` or null | `{}` |
+| `free` | `a`, `node` or null | `{}`; any allocator may free any existing node |
 | `owns`, `find` | `a`, `node` | `owns` / `page`, `offset` (null when not owned) |
 | `memory`, `state` | `a` | `memory` / `pages` (four 64-bit `used` words each), `free` (node numbers), `capacity`, `memory` |
 | `set_count`, `set_level`, `ref_add`, `ref_sub`, `ref_store` | `node`, `value` | `{}` or `previous` |
@@ -42,9 +42,24 @@ its number); items by index. No address is serialised.
 `MAXNODES` slots, each union slot as `null`, `{"child":n}` or `{"item":k}` (classified
 from the union's object representation on the C++ side), and `refcount`.
 
-Node steps require a live node: one whose slot is allocated in the allocator that owns
-it. Inputs outside the reference's defined domain are refused before the call (see the
-library README). A move assignment destroys the target's pages. Their nodes keep their
+All allocators of a case share one address space (the Rust adapter uses one
+`SlabArena`). Any allocator may free any existing node and later re-allocate it, as in
+C++: for a node in another allocator's page, `markUnused` and `markUsed` find no page, so
+that page's owner, used bit and `MemoryUsage` are unchanged while the node is destroyed,
+pushed onto the freeing allocator's free list, popped and re-constructed. Both adapters
+call the real operations.
+
+Node steps require a live node, one whose object exists: it was constructed and has not
+been destroyed by `Free` since. This is object lifetime, not the page's used bit, which a
+foreign `Free` leaves set. The oracle adapter keeps it per node number, together with a
+mirror of every allocator's free list as node numbers. Each `state`, `free` and
+allocation checks the mirror against the real private free list, except for entries in
+destroyed pages, which are dangling and never compared. Allocating from a free-list entry
+in a destroyed page is refused (`node is destroyed`), because the reference would
+construct into freed memory.
+
+Inputs outside the reference's defined domain are refused before the call (see the
+library README). A move assignment or `destroy` destroys the target's pages. Their nodes keep their
 numbers but can no longer be named (`node is destroyed`), so a new page at a reused
 address is never mistaken for them. A live node elsewhere may retain such a pointer:
 keeping, copying (`remove`) and overwriting it are defined, and `snapshot` reports the
@@ -56,7 +71,7 @@ still valid and never compares the stale bits afterwards. Nothing dereferences t
 `python rust/kicad-rtree-node-shim/generate_cases.py` (fixed seed 20261122; `--check`
 verifies the files are current) writes:
 
-* `port/cases/<unit>.jsonl`: 1498 successful cases. The original 1448 (Hilbert corners,
+* `port/cases/<unit>.jsonl`: 1512 successful cases. The original 1448 (Hilbert corners,
   exhaustive orders 1-3, random orders and coordinates, all dimensions; overlap masks for
   both element types, every fanout and counts 0, 1, half, fanout - 1, fanout,
   fanout + 1 and 31, extremes, touching edges, inverted boxes; for each of the first nine
@@ -66,9 +81,17 @@ verifies the files are current) writes:
   33-slot mask boundary, plus the fixed programs for `i32.d3.m33`; `RemoveChild` at
   `count - 1`; and moves that leave stale child pointers. The legacy random programs still
   avoid such moves, because changing their generator would change the original cases;
-  the review cases cover them.
-* `fixtures/refusals.requests.jsonl` and `.replies.jsonl`: 108 malformed, out-of-domain and
+  the review cases cover them. `foreign_cases` then appends 14 regressions from the second
+  review: the exact `B.Free( A.Allocate() ); B.Allocate()` sequence with ownership, used
+  bits, free lists and memory before and after, for three configurations; repeated
+  cross-allocator reuse; free-list order and capacity growth; foreign entries across moves
+  and destruction; and eight fixed-seed lifecycle programs (seed 5252) in which any
+  allocator frees any node.
+* `fixtures/refusals.requests.jsonl` and `.replies.jsonl`: 116 malformed, out-of-domain and
   undefined-behaviour requests with the exact refusal both adapters return. `cargo test`
   checks this adapter against them; the validation run checks the oracle. The original
   `move-dangling-child` refusal was removed: that sequence is defined and is now the
-  successful case family `review-slab-*-move-stale-*`.
+  successful case family `review-slab-*-move-stale-*`. Likewise `foreign-free` (a foreign
+  `Free`, formerly `node is not owned`) is defined and is now the `review2-*` family; its
+  genuinely undefined neighbours (a second destruction, use after free, allocating into a
+  destroyed page) are refused.

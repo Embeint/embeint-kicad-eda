@@ -8,8 +8,8 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use kicad_rtree_node::{
-    hilbert_nd2d, hilbert_xy2d, overlap_mask_2d, Coord, NodeData, NodeHandle, Payload, RtreeError,
-    RtreeNode, SlabAllocator, SlabNode, NODES_PER_PAGE,
+    hilbert_nd2d, hilbert_xy2d, overlap_mask_2d, AllocatorId, Coord, NodeData, NodeHandle, Payload,
+    RtreeError, RtreeNode, SlabArena, SlabNode, NODES_PER_PAGE,
 };
 use serde_json::{json, Map, Value};
 use std::io::{self, BufRead, Write};
@@ -175,17 +175,13 @@ impl NodeData for Item {}
 
 type Node<E, const D: usize, const M: usize> = RtreeNode<Item, E, D, M>;
 
-/// A numbered node; `destroyed` once a move assignment destroyed its page.  The
-/// handle is kept: a live node may retain it in a slot, and handles never alias.
-struct Seen {
-    handle: NodeHandle,
-    destroyed: bool,
-}
-
 struct Program<E: Coord, const D: usize, const M: usize> {
-    allocators: [Option<SlabAllocator<Node<E, D, M>>>; ALLOCATORS],
-    /// Node numbering by first allocation.
-    seen: Vec<Seen>,
+    /// One arena: allocators exchange nodes in one address space, as in C++.
+    arena: SlabArena<Node<E, D, M>>,
+    allocators: [Option<AllocatorId>; ALLOCATORS],
+    /// Node numbering by first allocation.  Handles never alias, so a number keeps
+    /// naming its slot; the arena reports whether the page was destroyed.
+    seen: Vec<NodeHandle>,
     allocated: usize,
 }
 
@@ -196,6 +192,7 @@ fn lib(error: RtreeError) -> String {
 impl<E: Coord + Wire + Into<Value>, const D: usize, const M: usize> Program<E, D, M> {
     fn new() -> Self {
         Self {
+            arena: SlabArena::new(),
             allocators: core::array::from_fn(|_| None),
             seen: Vec::new(),
             allocated: 0,
@@ -220,23 +217,24 @@ impl<E: Coord + Wire + Into<Value>, const D: usize, const M: usize> Program<E, D
         usize::try_from(id).map_err(|_| format!("integer out of range: {name}"))
     }
 
-    fn allocator(&mut self, id: usize) -> Result<&mut SlabAllocator<Node<E, D, M>>, String> {
+    fn allocator(&self, id: usize) -> Result<AllocatorId, String> {
         self.allocators
-            .get_mut(id)
-            .and_then(Option::as_mut)
+            .get(id)
+            .and_then(Option::as_ref)
+            .cloned()
             .ok_or_else(|| "allocator does not exist".into())
     }
 
     fn node(&self, step: &Value, name: &str) -> Result<NodeHandle, String> {
         let id = signed(step, name, 0, MAX_ALLOCATIONS as i64 - 1)?;
-        let seen = usize::try_from(id)
+        let handle = usize::try_from(id)
             .ok()
             .and_then(|id| self.seen.get(id))
             .ok_or("node does not exist")?;
-        if seen.destroyed {
+        if self.arena.is_destroyed(handle).map_err(lib)? {
             return Err("node is destroyed".into());
         }
-        Ok(seen.handle.clone())
+        Ok(handle.clone())
     }
 
     fn optional_node(&self, step: &Value, name: &str) -> Result<Option<NodeHandle>, String> {
@@ -247,61 +245,33 @@ impl<E: Coord + Wire + Into<Value>, const D: usize, const M: usize> Program<E, D
     }
 
     fn id(&mut self, node: &NodeHandle) -> usize {
-        if let Some(index) = self
-            .seen
-            .iter()
-            .position(|seen| !seen.destroyed && seen.handle == *node)
-        {
+        if let Some(index) = self.seen.iter().position(|seen| seen == node) {
             return index;
         }
-        self.seen.push(Seen {
-            handle: node.clone(),
-            destroyed: false,
-        });
+        self.seen.push(node.clone());
         self.seen.len() - 1
     }
 
     /// A child slot as `{"child":n}`, or `{"destroyed":n}` for a retained pointer to
-    /// a node whose page a move assignment destroyed.
+    /// a node whose page was destroyed with its allocator.
     fn child_value(&self, node: &NodeHandle) -> Outcome {
-        let (id, seen) = self
+        let id = self
             .seen
             .iter()
-            .enumerate()
-            .find(|(_, seen)| seen.handle == *node)
+            .position(|seen| seen == node)
             .ok_or("unknown pointer in node")?;
-        Ok(if seen.destroyed {
+        Ok(if self.arena.is_destroyed(node).map_err(lib)? {
             json!({"destroyed": id})
         } else {
             json!({"child": id})
         })
     }
 
-    /// The live node, found in its owning allocator (no use after free).
+    /// The node, if its object exists (no use after free).
     fn live(&mut self, node: &NodeHandle) -> Result<&mut Node<E, D, M>, String> {
-        let not_live = || "node is not live".to_string();
-        let owner = self
-            .allocators
-            .iter_mut()
-            .flatten()
-            .find(|allocator| allocator.owns(node))
-            .ok_or_else(not_live)?;
-        owner.node_mut(node).map_err(|_| not_live())
-    }
-
-    /// Move assignment destroys the target's pages: retire their nodes from the
-    /// numbering.  Live nodes elsewhere may keep their handles in slots; that is
-    /// defined as long as nothing dereferences them.
-    fn retire(&mut self, target: usize) -> Result<(), String> {
-        let allocator = self.allocators[target]
-            .as_ref()
-            .ok_or("allocator does not exist")?;
-        for seen in &mut self.seen {
-            if !seen.destroyed && allocator.owns(&seen.handle) {
-                seen.destroyed = true;
-            }
-        }
-        Ok(())
+        self.arena
+            .node_mut(node)
+            .map_err(|_| "node is not live".to_string())
     }
 
     fn slot_domain(slot: i32) -> Result<usize, String> {
@@ -362,13 +332,19 @@ impl<E: Coord + Wire + Into<Value>, const D: usize, const M: usize> Program<E, D
 
     fn state(&mut self, id: usize) -> Outcome {
         let allocator = self.allocator(id)?;
-        let pages = (0..allocator.page_count())
-            .map(|page| allocator.page_used_words(page).map(|words| words.to_vec()))
-            .collect::<Option<Vec<_>>>()
-            .ok_or("page missing")?;
-        let free_list = allocator.free_list().to_vec();
-        let capacity = allocator.free_list_capacity();
-        let memory = allocator.memory_usage().map_err(lib)?;
+        let arena = &self.arena;
+        let pages = (0..arena.page_count(&allocator).map_err(lib)?)
+            .map(|page| {
+                arena
+                    .page_used_words(&allocator, page)
+                    .map_err(lib)?
+                    .map(|words| words.to_vec())
+                    .ok_or_else(|| "page missing".to_string())
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+        let free_list = arena.free_list(&allocator).map_err(lib)?.to_vec();
+        let capacity = arena.free_list_capacity(&allocator).map_err(lib)?;
+        let memory = arena.memory_usage(&allocator).map_err(lib)?;
         let free = free_list
             .iter()
             .map(|node| self.id(node))
@@ -382,46 +358,48 @@ impl<E: Coord + Wire + Into<Value>, const D: usize, const M: usize> Program<E, D
             "layout" => {
                 keys(step, &["op"])?;
                 let node = Node::<E, D, M>::reference_layout().map_err(lib)?;
-                let page = SlabAllocator::<Node<E, D, M>>::reference_page_layout().map_err(lib)?;
+                let page = SlabArena::<Node<E, D, M>>::reference_page_layout().map_err(lib)?;
                 Ok(json!({"node_size": node.size, "node_align": node.align,
                     "page_size": page.size, "page_align": page.align,
                     "nodes_per_page": NODES_PER_PAGE, "pointer_size": 8,
                     "min_nodes": Node::<E, D, M>::MIN_NODES}))
             }
-            "new" | "move_new" | "move_assign" => {
-                if op == "new" {
+            "new" | "move_new" | "move_assign" | "destroy" => {
+                let single = op == "new" || op == "destroy";
+                if single {
                     keys(step, &["op", "a"])?;
                 } else {
                     keys(step, &["op", "a", "src"])?;
                 }
                 let id = Self::allocator_id(step, "a")?;
-                let source = if op == "new" {
+                let source = if single {
                     0
                 } else {
                     Self::allocator_id(step, "src")?
                 };
                 if op == "move_assign" {
-                    self.allocator(id)?;
-                    self.allocator(source)?;
-                    // The reference's operator= ignores a self move.
-                    if id != source {
-                        self.retire(id)?;
-                        let mut moved = self.allocators[source]
-                            .take()
-                            .ok_or("allocator does not exist")?;
-                        self.allocator(id)?.move_assign(&mut moved);
-                        self.allocators[source] = Some(moved);
-                    }
+                    let (target, source) = (self.allocator(id)?, self.allocator(source)?);
+                    // Includes the reference's guarded self move.
+                    self.arena.move_assign(&target, &source).map_err(lib)?;
+                    return empty();
+                }
+                if op == "destroy" {
+                    let target = self.allocator(id)?;
+                    self.arena.destroy_allocator(&target).map_err(lib)?;
+                    self.allocators[id] = None;
                     return empty();
                 }
                 if self.allocators[id].is_some() {
                     return Err("allocator exists".into());
                 }
-                self.allocators[id] = Some(if op == "new" {
-                    SlabAllocator::new()
+                let created = if op == "new" {
+                    self.arena.new_allocator()
                 } else {
-                    self.allocator(source)?.take()
-                });
+                    let source = self.allocator(source)?;
+                    self.arena.move_construct(&source)
+                }
+                .map_err(lib)?;
+                self.allocators[id] = Some(created);
                 empty()
             }
             "alloc" | "alloc_many" => {
@@ -437,13 +415,13 @@ impl<E: Coord + Wire + Into<Value>, const D: usize, const M: usize> Program<E, D
                     usize::try_from(signed(step, "n", 1, 1024)?)
                         .map_err(|_| "integer out of range: n")?
                 };
-                self.allocator(id)?;
+                let allocator = self.allocator(id)?;
                 if self.allocated + count > MAX_ALLOCATIONS {
                     return Err("allocation budget exceeded".into());
                 }
                 let mut nodes = Vec::new();
                 for _ in 0..count {
-                    let node = self.allocator(id)?.allocate().map_err(lib)?;
+                    let node = self.arena.allocate(&allocator).map_err(lib)?;
                     nodes.push(self.id(&node));
                     self.allocated += 1;
                 }
@@ -462,13 +440,19 @@ impl<E: Coord + Wire + Into<Value>, const D: usize, const M: usize> Program<E, D
                 };
                 let allocator = self.allocator(id)?;
                 match (op, node) {
-                    ("owns", Some(node)) => Ok(json!({"owns": allocator.owns(&node)})),
-                    ("find", Some(node)) => Ok(match allocator.find_owning_page(&node) {
-                        Some((page, offset)) => json!({"page": page, "offset": offset}),
-                        None => json!({"page": null, "offset": null}),
-                    }),
+                    ("owns", Some(node)) => {
+                        let owns = self.arena.owns(&allocator, &node).map_err(lib)?;
+                        Ok(json!({"owns": owns}))
+                    }
+                    ("find", Some(node)) => {
+                        let found = self.arena.find_owning_page(&allocator, &node);
+                        Ok(match found.map_err(lib)? {
+                            Some((page, offset)) => json!({"page": page, "offset": offset}),
+                            None => json!({"page": null, "offset": null}),
+                        })
+                    }
                     (_, node) => {
-                        allocator.free(node.as_ref()).map_err(lib)?;
+                        self.arena.free(&allocator, node.as_ref()).map_err(lib)?;
                         empty()
                     }
                 }
@@ -477,7 +461,8 @@ impl<E: Coord + Wire + Into<Value>, const D: usize, const M: usize> Program<E, D
                 keys(step, &["op", "a"])?;
                 let id = Self::allocator_id(step, "a")?;
                 if op == "memory" {
-                    let memory = self.allocator(id)?.memory_usage().map_err(lib)?;
+                    let allocator = self.allocator(id)?;
+                    let memory = self.arena.memory_usage(&allocator).map_err(lib)?;
                     return Ok(json!({"memory": memory}));
                 }
                 self.state(id)
@@ -514,13 +499,7 @@ impl<E: Coord + Wire + Into<Value>, const D: usize, const M: usize> Program<E, D
                         "underflow": node.is_underflow()})),
                     "snapshot" => {
                         // Re-borrow immutably so node ids can be looked up.
-                        let owner = self
-                            .allocators
-                            .iter()
-                            .flatten()
-                            .find(|allocator| allocator.owns(&handle))
-                            .ok_or("node is not live")?;
-                        let node = owner.node(&handle).map_err(lib)?;
+                        let node = self.arena.node(&handle).map_err(lib)?;
                         self.snapshot(node)
                     }
                     _ => {

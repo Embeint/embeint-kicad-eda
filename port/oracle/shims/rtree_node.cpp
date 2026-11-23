@@ -380,15 +380,12 @@ private:
         return m_seen[id];
     }
 
+    // Whether the node object exists.  PAGE() constructs every node, Free destroys
+    // one and Allocate re-constructs one, whichever allocator owns its page; the used
+    // bits are page bookkeeping and do not follow a foreign Free.
     bool IsLive( const NODE* aNode )
     {
-        for( const std::optional<ALLOC>& allocator : m_allocators )
-        {
-            if( allocator && allocator->Owns( aNode ) )
-                return Used( *allocator, aNode );
-        }
-
-        return false;
+        return m_alive[IndexOf( aNode )];
     }
 
     // Move assignment destroys the target's pages.  Their nodes are retired from the
@@ -460,6 +457,7 @@ private:
         m_seen.push_back( const_cast<NODE*>( aNode ) );
         m_stale.emplace_back();
         m_stale.back().fill( -1 );
+        m_alive.push_back( true );
         return static_cast<int>( m_seen.size() - 1 );
     }
 
@@ -483,28 +481,30 @@ private:
         throw std::logic_error( "owning page not in page list" );
     }
 
-    bool Used( const ALLOC& aAllocator, const NODE* aNode )
-    {
-        const auto location = Find( aAllocator, aNode );
-        return location
-               && ( aAllocator.*Get( PAGES_TAG<NODE>{} ) )[location->first]->used[location->second];
-    }
-
-    // A node may only be accessed while its slot is allocated (no use after free).
+    // A node may only be accessed while its object exists (no use after free).
     NODE* Live( NODE* aNode )
     {
-        for( const std::optional<ALLOC>& allocator : m_allocators )
+        if( !IsLive( aNode ) )
+            Refuse( "node is not live" );
+
+        return aNode;
+    }
+
+    // The allocator's real free list must equal the mirror of node numbers.  Entries
+    // of destroyed pages are dangling and are never compared.
+    void CheckFreeList( int aId )
+    {
+        const auto&             freeList = ( *m_allocators[aId] ).*Get( FREE_TAG<NODE>{} );
+        const std::vector<int>& mirror = m_free[aId];
+
+        if( freeList.size() != mirror.size() )
+            throw std::logic_error( "free list mirror diverged" );
+
+        for( size_t i = 0; i < mirror.size(); ++i )
         {
-            if( allocator && allocator->Owns( aNode ) )
-            {
-                if( Used( *allocator, aNode ) )
-                    return aNode;
-
-                break;
-            }
+            if( m_seen[mirror[i]] && freeList[i] != m_seen[mirror[i]] )
+                throw std::logic_error( "free list mirror diverged" );
         }
-
-        Refuse( "node is not live" );
     }
 
     int Slot( const JSON& aStep )
@@ -694,9 +694,10 @@ private:
                  { "payload", payload },        { "refcount", aNode->refcount.load() } };
     }
 
-    JSON State( const ALLOC& aAllocator )
+    JSON State( int aId )
     {
-        JSON pages = JSON::array(), free = JSON::array();
+        const ALLOC& aAllocator = Allocator( aId );
+        JSON         pages = JSON::array(), free = JSON::array();
 
         for( const auto& page : aAllocator.*Get( PAGES_TAG<NODE>{} ) )
         {
@@ -718,10 +719,12 @@ private:
             pages.push_back( words );
         }
 
+        // Node numbers from the mirror: a foreign entry may name a destroyed page.
+        CheckFreeList( aId );
         const auto& freeList = aAllocator.*Get( FREE_TAG<NODE>{} );
 
-        for( const NODE* node : freeList )
-            free.push_back( Id( node ) );
+        for( int node : m_free[aId] )
+            free.push_back( node );
 
         return { { "pages", pages },
                  { "free", free },
@@ -743,15 +746,17 @@ private:
                      { "min_nodes", NODE::MINNODES } };
         }
 
-        if( aOp == "new" || aOp == "move_new" || aOp == "move_assign" )
+        if( aOp == "new" || aOp == "move_new" || aOp == "move_assign" || aOp == "destroy" )
         {
-            if( aOp == "new" )
+            const bool single = aOp == "new" || aOp == "destroy";
+
+            if( single )
                 Keys( aStep, { "op", "a" } );
             else
                 Keys( aStep, { "op", "a", "src" } );
 
             const int id = AllocatorId( aStep, "a" );
-            const int source = aOp == "new" ? 0 : AllocatorId( aStep, "src" );
+            const int source = single ? 0 : AllocatorId( aStep, "src" );
 
             if( aOp == "move_assign" )
             {
@@ -760,9 +765,22 @@ private:
 
                 // The reference's own guard makes a self move a no-op.
                 if( id != source )
+                {
                     Retire( target );
+                    m_free[id] = std::move( m_free[source] );
+                    m_free[source].clear();
+                }
 
                 target = std::move( from );
+                return JSON::object();
+            }
+
+            if( aOp == "destroy" )
+            {
+                // ~SLAB_ALLOCATOR destroys its pages and every node in them.
+                Retire( Allocator( id ) );
+                m_allocators[id].reset();
+                m_free[id].clear();
                 return JSON::object();
             }
 
@@ -770,9 +788,15 @@ private:
                 Refuse( "allocator exists" );
 
             if( aOp == "new" )
+            {
                 m_allocators[id].emplace();
+            }
             else
+            {
                 m_allocators[id].emplace( std::move( Allocator( source ) ) );
+                m_free[id] = std::move( m_free[source] );
+                m_free[source].clear();
+            }
 
             return JSON::object();
         }
@@ -795,10 +819,34 @@ private:
 
             for( size_t i = 0; i < count; ++i )
             {
-                const int id = Id( allocator.Allocate() );
+                CheckFreeList( id );
+                std::vector<int>& mirror = m_free[id];
+                int               reused = -1;
+
+                if( !mirror.empty() )
+                {
+                    reused = mirror.back();
+
+                    // Allocate would construct into the freed memory of a destroyed page.
+                    if( !m_seen[reused] )
+                        Refuse( "node is destroyed" );
+                }
+
+                NODE*     allocated = allocator.Allocate();
+                const int node = Id( allocated );
+
+                if( reused >= 0 )
+                {
+                    if( node != reused )
+                        throw std::logic_error( "free list reuse diverged" );
+
+                    mirror.pop_back();
+                }
+
                 // The node is freshly constructed: every child pointer is null.
-                m_stale[id].fill( -1 );
-                nodes.push_back( id );
+                m_stale[node].fill( -1 );
+                m_alive[node] = true;
+                nodes.push_back( node );
                 ++m_allocated;
             }
 
@@ -828,18 +876,22 @@ private:
                 return { { "page", location->first }, { "offset", location->second } };
             }
 
-            if( node )
-            {
-                // A foreign node would be destroyed and later re-constructed at an
-                // address this allocator does not own; a freed one destroyed twice.
-                if( !allocator.Owns( node ) )
-                    Refuse( "node is not owned" );
-
-                if( !Used( allocator, node ) )
-                    Refuse( "node is not live" );
-            }
+            // Any allocator may free any existing node: for a node in another
+            // allocator's page, markUnused finds no page and the node is still
+            // destroyed and pushed.  A second destruction is refused.
+            if( node && !IsLive( node ) )
+                Refuse( "node is not live" );
 
             allocator.Free( node );
+
+            if( node )
+            {
+                const int number = static_cast<int>( IndexOf( node ) );
+                m_alive[number] = false;
+                m_free[id].push_back( number );
+            }
+
+            CheckFreeList( id );
             return JSON::object();
         }
 
@@ -851,7 +903,7 @@ private:
             if( aOp == "memory" )
                 return { { "memory", allocator.MemoryUsage() } };
 
-            return State( allocator );
+            return State( AllocatorId( aStep, "a" ) );
         }
 
         return NodeStep( aOp, aStep );
@@ -1055,6 +1107,10 @@ private:
     // Per node number and slot: the number of the destroyed node whose pointer the
     // slot retains, or -1.
     std::vector<std::array<int, M>>                 m_stale;
+    // Per node number: whether the node object currently exists.
+    std::vector<char>                               m_alive;
+    // Per allocator: its free list as node numbers, in order.
+    std::array<std::vector<int>, ALLOCATORS>        m_free;
     size_t                                          m_allocated = 0;
 };
 

@@ -64,7 +64,6 @@
 {"case":"node-null","error":{"kind":"invalid_input","message":"integer out of range: node"},"unit":"libs.kimath.include.geometry.rtree.application.pure.p003"}
 {"case":"use-after-free","error":{"kind":"invalid_input","message":"node is not live"},"unit":"libs.kimath.include.geometry.rtree.application.pure.p003"}
 {"case":"double-free","error":{"kind":"invalid_input","message":"node is not live"},"unit":"libs.kimath.include.geometry.rtree.application.pure.p003"}
-{"case":"foreign-free","error":{"kind":"invalid_input","message":"node is not owned"},"unit":"libs.kimath.include.geometry.rtree.application.pure.p003"}
 {"case":"free-before-allocator","error":{"kind":"invalid_input","message":"allocator does not exist"},"unit":"libs.kimath.include.geometry.rtree.application.pure.p003"}
 {"case":"set-after-free","error":{"kind":"invalid_input","message":"node is not live"},"unit":"libs.kimath.include.geometry.rtree.application.pure.p003"}
 {"case":"slot--1","error":{"kind":"invalid_input","message":"slot outside node"},"unit":"libs.kimath.include.geometry.rtree.application.pure.p003"}
@@ -105,4 +104,13 @@
 {"case":"review-remove-precondition-int-min","error":{"kind":"invalid_input","message":"slot outside node"},"unit":"libs.kimath.include.geometry.rtree.application.pure.p003"}
 {"case":"review-remove-negative-copy","error":{"kind":"invalid_input","message":"slot outside node"},"unit":"libs.kimath.include.geometry.rtree.application.pure.p003"}
 {"case":"review-remove-last-past-array","error":{"kind":"invalid_input","message":"count outside reference domain"},"unit":"libs.kimath.include.geometry.rtree.application.pure.p003"}
+{"case":"review2-foreign-second-destruction","error":{"kind":"invalid_input","message":"node is not live"},"unit":"libs.kimath.include.geometry.rtree.application.pure.p003"}
+{"case":"review2-foreign-borrower-second-destruction","error":{"kind":"invalid_input","message":"node is not live"},"unit":"libs.kimath.include.geometry.rtree.application.pure.p003"}
+{"case":"review2-foreign-use-after-free","error":{"kind":"invalid_input","message":"node is not live"},"unit":"libs.kimath.include.geometry.rtree.application.pure.p003"}
+{"case":"review2-foreign-entry-in-destroyed-page","error":{"kind":"invalid_input","message":"node is destroyed"},"unit":"libs.kimath.include.geometry.rtree.application.pure.p003"}
+{"case":"review2-foreign-entry-after-destroy","error":{"kind":"invalid_input","message":"node is destroyed"},"unit":"libs.kimath.include.geometry.rtree.application.pure.p003"}
+{"case":"review2-destroy-missing","error":{"kind":"invalid_input","message":"allocator does not exist"},"unit":"libs.kimath.include.geometry.rtree.application.pure.p003"}
+{"case":"review2-destroy-extra-field","error":{"kind":"invalid_input","message":"unexpected or missing field"},"unit":"libs.kimath.include.geometry.rtree.application.pure.p003"}
+{"case":"review2-destroyed-node","error":{"kind":"invalid_input","message":"node is destroyed"},"unit":"libs.kimath.include.geometry.rtree.application.pure.p003"}
+{"case":"review2-destroyed-allocator","error":{"kind":"invalid_input","message":"allocator does not exist"},"unit":"libs.kimath.include.geometry.rtree.application.pure.p003"}
 {"case":"unit","error":{"kind":"unknown_unit","message":"unit has no registered shim"},"unit":"other.unit"}
