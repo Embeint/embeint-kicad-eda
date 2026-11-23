@@ -1,0 +1,108 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""Isolated Git/export/process fixtures. No Docker/oracle build is performed."""
+import hashlib
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+from unittest import mock
+
+ENV=Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ENV/'tools'))
+import source_binding as binding
+
+
+class SourceBindingTest(unittest.TestCase):
+    def fixture(self):
+        root=Path(tempfile.mkdtemp());self.addCleanup(shutil.rmtree,root)
+        repo=root/'repo';repo.mkdir()
+        def git(*args):
+            return subprocess.check_output(['git','-C',str(repo),*args],stderr=subprocess.PIPE).decode().strip()
+        git('init');git('config','user.name','Fixture');git('config','user.email','fixture@example.invalid')
+        (repo/'reference.cpp').write_text('public reference bytes\n')
+        git('add','reference.cpp');git('commit','-m','reference')
+        pin=git('rev-parse','HEAD')
+        (repo/'port/oracle').mkdir(parents=True)
+        (repo/'port/oracle/pin.py').write_text(f'KICAD_PIN = "{pin}"\nSOURCE_PATHS = ("reference.cpp",)\n')
+        (repo/'port/pins.toml').write_text(f'[kicad]\nrevision="{pin}"\n')
+        (repo/'port/oracle/overlay.cpp').write_text('public overlay bytes\n')
+        git('add','.');git('commit','-m','overlay')
+        head=git('rev-parse','HEAD')
+        return root,repo,head,pin
+
+    def export(self,root,repo,head):
+        bundle=root/'bundle';digest=binding.export(repo,head,bundle)
+        return bundle,digest
+
+    def test_valid_export_materialization_preserves_original_stage(self):
+        root,repo,head,pin=self.fixture();bundle,digest=self.export(root,repo,head)
+        original=(bundle/'stage/source-manifest.json').read_bytes()
+        # Simulate Windows-produced delivery: verification/materialization must not call Git.
+        with mock.patch.object(binding,'git',side_effect=AssertionError('Git must not run on consumer')):
+            binding.materialize(bundle,head,digest,root/'snapshot')
+            binding.check_snapshot(root/'snapshot',head,digest)
+        self.assertEqual((root/'snapshot/stage/source-manifest.json').read_bytes(),original)
+        marker=root/'build-marker'
+        command=[sys.executable,str(ENV/'tools/source_binding.py'),'check','--bundle',str(root/'snapshot'),
+                 '--revision',head,'--source-sha256',digest]
+        script='import subprocess,sys,pathlib; subprocess.run(sys.argv[2:],check=True); pathlib.Path(sys.argv[1]).touch()'
+        result=subprocess.run([sys.executable,'-c',script,str(marker),*command],capture_output=True)
+        self.assertEqual(result.returncode,0);self.assertTrue(marker.exists())
+        marker.unlink();(root/'snapshot/source/port/oracle/overlay.cpp').write_text('later drift')
+        result=subprocess.run([sys.executable,'-c',script,str(marker),*command],capture_output=True)
+        self.assertNotEqual(result.returncode,0);self.assertFalse(marker.exists())
+
+    def test_dirty_and_wrong_checkout_stop_before_export_or_build(self):
+        for change in ('dirty','untracked','wrong-head'):
+            with self.subTest(change=change):
+                root,repo,head,pin=self.fixture()
+                if change=='dirty':(repo/'port/oracle/overlay.cpp').write_text('dirty')
+                elif change=='untracked':(repo/'untracked.cpp').write_text('unexpected')
+                expected=pin if change=='wrong-head' else head
+                with self.assertRaises(ValueError):binding.export(repo,expected,root/'bundle')
+                self.assertFalse((root/'bundle/source.json').exists())
+
+    def test_stage_wrong_pin_stale_dirty_and_actual_drift_are_rejected(self):
+        for change in ('stale','dirty','pin','actual-source'):
+            with self.subTest(change=change):
+                root,repo,head,pin=self.fixture();bundle,digest=self.export(root,repo,head)
+                stage=bundle/'stage';m=json.loads((stage/'source-manifest.json').read_text())
+                if change=='stale':m['overlay_revision']='0'*40
+                elif change=='dirty':m['overlay_dirty_at_export']=True
+                elif change=='pin':m['kicad_pin']='0'*40
+                else:
+                    # Matching self-reported archive+manifest are insufficient: compare pinned Git bytes.
+                    (repo/'reference.cpp').write_text('mutated source')
+                    subprocess.run(['tar','-cf',str(stage/'reference.tar'),'-C',str(repo),'reference.cpp'],check=True)
+                    m['archive_sha256']=hashlib.sha256((stage/'reference.tar').read_bytes()).hexdigest()
+                    m['files']['reference.cpp']=hashlib.sha256((repo/'reference.cpp').read_bytes()).hexdigest()
+                    subprocess.run(['git','-C',str(repo),'restore','reference.cpp'],check=True)
+                (stage/'source-manifest.json').write_text(json.dumps(m))
+                with self.assertRaises(ValueError):binding.export(repo,head,root/'retry',stage)
+
+    def test_bundle_wrong_digest_revision_and_post_export_drift(self):
+        for change in ('digest','revision','archive','manifest','extra-code'):
+            root,repo,head,pin=self.fixture();bundle,digest=self.export(root,repo,head)
+            if change=='digest':digest='0'*64
+            elif change=='revision':head=pin
+            elif change=='archive':(bundle/'source.tar').write_bytes(b'mutated')
+            elif change=='manifest':(bundle/'stage/source-manifest.json').write_text('{}')
+            else:
+                binding.materialize(bundle,head,digest,root/'snapshot')
+                (root/'snapshot/source/extra.py').write_text('print("untracked")')
+                with self.assertRaises(ValueError):binding.check_snapshot(root/'snapshot',head,digest)
+                continue
+            with self.assertRaises(ValueError):binding.materialize(bundle,head,digest,root/'snapshot')
+
+    def test_stage_export_does_not_rewrite_supplied_provenance(self):
+        root,repo,head,pin=self.fixture();bundle,digest=self.export(root,repo,head)
+        original=(bundle/'stage/source-manifest.json').read_bytes()
+        binding.export(repo,head,root/'second',bundle/'stage')
+        self.assertEqual((root/'second/stage/source-manifest.json').read_bytes(),original)
+
+
+if __name__=='__main__':unittest.main()

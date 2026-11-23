@@ -32,6 +32,7 @@ RUN --mount=type=bind,target=/opt/refenv-context,readonly \
 COPY inputs.lock.json candidate.toml /opt/refenv/
 COPY image/ /opt/refenv/image/
 COPY probe/ /opt/refenv/probe/
+COPY tools/source_binding.py /opt/refenv/source_binding.py
 
 # The libm dispatch contract (see candidate.toml [dispatch]): baseline SSE2 code
 # for the explicitly checked libm function subset; other paths are uncertified.
