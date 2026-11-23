@@ -14,6 +14,7 @@ import argparse
 import json
 from pathlib import Path
 import sys
+import artifacts
 
 REFERENCE_FILES = ("primitive-contract.json", "primitive-contract.sweep.bin", "rust-contract.json",
                    "rust-contract.sweep.bin", "matrix-contract.json")
@@ -45,9 +46,11 @@ def compare_file(left, right):
     if not left.exists() or not right.exists():
         return [("presence", left.exists(), right.exists())]
     if left.suffix == ".json":
-        return json_differences(json.loads(left.read_text(encoding="utf-8")),
-                                json.loads(right.read_text(encoding="utf-8")))
+        return json_differences(artifacts.load(left),
+                                artifacts.load(right))
     a, b = left.read_bytes(), right.read_bytes()
+    if not a or not b or len(a) % 24 or len(b) % 24:
+        return [("invalid sweep length", len(a), len(b))]
     if a == b:
         return []
     if len(a) != len(b):
@@ -63,12 +66,12 @@ def main():
     parser.add_argument("--show", type=int, default=20, help="differences printed per file")
     args = parser.parse_args()
     failed = False
-    for directory in (args.left, args.right):
-        summary_path = directory / "summary.json"
-        summary = json.loads(summary_path.read_text(encoding="utf-8")) if summary_path.exists() else {}
-        valid = summary.get("contract_passed") is True and summary.get("cpp_rust_identical") is True
-        print(f"{directory}: contract and C++/Rust comparisons " + ("passed" if valid else "failed or absent"))
-        failed = failed or not valid
+    try:
+        for directory in (args.left, args.right):
+            artifacts.validate(directory)
+    except (ValueError, KeyError, TypeError, OSError, StopIteration) as error:
+        print("Invalid probe evidence: " + str(error), file=sys.stderr)
+        return 1
     for group, names, fatal in (("reference", REFERENCE_FILES, True), ("host-dependent", HOST_FILES, False)):
         for name in names:
             left, right = args.left / name, args.right / name
@@ -81,12 +84,12 @@ def main():
             for where, a, b in differences[:args.show]:
                 print(f"  {where}: {a!r} != {b!r}")
             failed = failed or (fatal and bool(differences))
-    identity = [json.loads((d / "environment.json").read_text(encoding="utf-8"))["image_identity"]
+    identity = [artifacts.load(d / "environment.json")["image_identity"]
                 for d in (args.left, args.right)]
     differences = json_differences(*identity)
     print("reference image identity: " + ("identical" if not differences else f"{len(differences)} differences"))
     failed = failed or bool(differences)
-    hosts = [json.loads((d / "environment.json").read_text(encoding="utf-8"))["host"]["cpu"]
+    hosts = [artifacts.load(d / "environment.json")["host"]["cpu"]
              for d in (args.left, args.right)]
     print(f"hosts: {hosts[0].get('model name')!r} / {hosts[1].get('model name')!r} (informational)")
     print("RESULT: " + ("reference observations differ" if failed else "reference observations identical"))

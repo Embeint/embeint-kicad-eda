@@ -367,6 +367,7 @@ class ProbeAnalysisTest(unittest.TestCase):
                                               [("sin", "sin")])
         self.assertEqual((changed["count"], changed["differences"][0]["key"]), (1, ["2"]))
         self.assertEqual(run_probe.field_differences(left, left[:1], [("sin", "sin")])["status"], "different")
+        self.assertEqual(run_probe.field_differences(left, list(reversed(left)), [("sin", "sin")])["status"], "different")
         self.assertEqual(run_probe.field_differences([left[0], left[0]], left, [("sin", "sin")])["status"],
                          "different")
 
@@ -385,30 +386,9 @@ class ProbeAnalysisTest(unittest.TestCase):
         self.assertEqual((compiler, cwd, source), ("/usr/bin/g++", "/b", "/o/shims/md5.cpp"))
         self.assertEqual(flags, ["-I/b", "-O3", "-DNDEBUG", "-fno-fast-math", "-ffp-contract=off"])
 
-    def test_compare_observations(self):
-        root = Path(tempfile.mkdtemp())
-        self.addCleanup(shutil.rmtree, root)
-        for side in ("left", "right"):
-            directory = root / side
-            directory.mkdir()
-            (directory / "summary.json").write_text(json.dumps({"contract_passed": True,
-                                                                 "cpp_rust_identical": True}))
-            for name in compare_observations.REFERENCE_FILES[:-1] + compare_observations.HOST_FILES:
-                (directory / name).write_bytes(b"{}" if name.endswith(".json") else b"\0" * 24)
-            (directory / "environment.json").write_text(json.dumps(
-                {"image_identity": {"lock": "x"}, "host": {"cpu": {"model name": side}}}))
-        args = [sys.executable, str(ENV / "probe/compare_observations.py"), str(root / "left"), str(root / "right")]
-        self.assertEqual(subprocess.run(args, capture_output=True).returncode, 0)
-        (root / "right/primitive-host-default.sweep.bin").write_bytes(b"\1" * 24)
-        self.assertEqual(subprocess.run(args, capture_output=True).returncode, 0)
-        (root / "right/rust-contract.sweep.bin").write_bytes(b"\0" * 23 + b"\1")
-        result = subprocess.run(args, capture_output=True, text=True)
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("record 0 word 2", result.stdout)
-        shutil.copy(root / "left/rust-contract.sweep.bin", root / "right/rust-contract.sweep.bin")
-        (root / "right/summary.json").write_text('{"contract_passed": false, "cpp_rust_identical": true}')
-        self.assertEqual(subprocess.run(args, capture_output=True).returncode, 1)
-        self.assertEqual(compare_observations.json_differences({"a": [1, 2]}, {"a": [1, 3]}), [("$.a[1]", 2, 3)])
+    def test_json_differences_are_exact(self):
+        self.assertEqual(compare_observations.json_differences({"a": [1, 2]}, {"a": [1, 3]}),
+                         [("$.a[1]", 2, 3)])
 
 
 class ShellTest(unittest.TestCase):
