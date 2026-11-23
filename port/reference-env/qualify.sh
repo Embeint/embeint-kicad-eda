@@ -5,9 +5,11 @@
 # It never pushes an image, never changes goldens and never qualifies the
 # candidate by itself: it produces evidence for independent review.
 #
-# usage: qualify.sh --work DIR [--sweep-count N] [--stage DIR] [--with-oracle]
+# usage: qualify.sh --revision SHA --work DIR [--sweep-count N] [--stage DIR] [--with-oracle]
 #                   [--with-difftest REPO] [--rebuild-check]
+#                   [--source-bundle DIR --source-sha256 SHA256]
 set -euo pipefail
+export PYTHONDONTWRITEBYTECODE=1
 
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 repo=$(cd "$here/../.." && pwd)
@@ -17,6 +19,9 @@ stage=
 with_oracle=0
 difftest_repo=
 rebuild_check=0
+revision=
+source_bundle=
+source_sha=
 
 usage() {
     sed -n '/^# usage:/,/^set /p' "$0" | sed '$d; s/^# \{0,1\}//' >&2
@@ -24,6 +29,9 @@ usage() {
 }
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --revision) revision=${2:?}; shift 2 ;;
+        --source-bundle) source_bundle=${2:?}; shift 2 ;;
+        --source-sha256) source_sha=${2:?}; shift 2 ;;
         --work) work=${2:?}; shift 2 ;;
         --sweep-count) sweep=${2:?}; shift 2 ;;
         --stage) stage=${2:?}; shift 2 ;;
@@ -33,7 +41,7 @@ while [[ $# -gt 0 ]]; do
         *) usage ;;
     esac
 done
-[[ -n "$work" ]] || usage
+[[ -n "$work" && "$revision" =~ ^[0-9a-f]{40}$ ]] || usage
 [[ "$sweep" =~ ^[0-9]+$ ]] && (( sweep >= 1 && sweep <= 2000000 )) || { echo 'sweep 1..2000000' >&2; exit 2; }
 
 # Native x86-64 Linux engine only. Emulated amd64 (for example on an arm64 VM)
@@ -63,6 +71,33 @@ run_id=$(date -u +%Y%m%dT%H%M%SZ)
 out="$work/runs/$run_id"
 mkdir -p "$work/runs"
 mkdir "$out"
+# All Git operations occur before building, in a native Linux checkout. A
+# Windows-prepared bundle bypasses Git entirely; its externally recorded digest
+# and intended head are mandatory. Mutable checkout paths are never built.
+source_tool="$here/tools/source_binding.py"
+if [[ -n "$difftest_repo" ]]; then
+    python3 "$source_tool" checkout --repo "$difftest_repo" --revision "$revision"
+fi
+if [[ -z "$source_bundle" ]]; then
+    source_bundle="$out/source-bundle"
+    export_args=(--repo "$repo" --revision "$revision" --out "$source_bundle")
+    if [[ -n "$stage" ]]; then export_args+=(--stage "$(realpath "$stage")"); fi
+    python3 "$source_tool" export "${export_args[@]}" > "$out/source-export.log"
+    source_sha=$(sha256sum "$source_bundle/source.json" | cut -d' ' -f1)
+else
+    [[ -z "$stage" && "$source_sha" =~ ^[0-9a-f]{64}$ ]] || { echo 'Bundle requires its digest and forbids a stage override' >&2; exit 2; }
+fi
+snapshot="$out/snapshot"
+python3 "$source_tool" materialize --bundle "$source_bundle" --revision "$revision" \
+    --source-sha256 "$source_sha" --out "$snapshot"
+# From here onward only the verified canonical source snapshot is consumed.
+repo="$snapshot/source"
+here="$repo/port/reference-env"
+source_tool="$here/tools/source_binding.py"
+source_check() {
+    python3 "$source_tool" check --bundle "$snapshot" --revision "$revision" --source-sha256 "$source_sha"
+}
+stage="$snapshot/stage"
 lock_sha=$(sha256sum "$here/inputs.lock.json" | cut -d' ' -f1)
 tag="$(python3 -c 'import sys,tomllib; c=tomllib.load(open(sys.argv[1],"rb")); print(c["image"]["reference"]+":"+c["image"]["tag"])' "$here/candidate.toml")"
 # Pull the base by digest alone; the Dockerfile's tag@digest names the same object.
@@ -72,12 +107,16 @@ base="$(sed -n 's/^FROM \([^:@ ]*\)[^@ ]*\(@sha256:[0-9a-f]*\).*/\1\2/p' "$here/
 python3 "$here/tools/check_candidate.py"
 python3 "$here/tools/fetch_inputs.py" --lock "$here/inputs.lock.json" --cache "$work/cache" \
     --dest "$work/context/inputs"
-cp "$here/Dockerfile" "$here/candidate.toml" "$here/inputs.lock.json" "$work/context/"
-rm -rf "$work/context/image" "$work/context/probe"
-cp -r "$here/image" "$here/probe" "$work/context/"
+# Fresh context: keep only the verified staged inputs and exact snapshot files.
+for directory in image probe tools; do rm -rf "$work/context/$directory"; done
+python3 "$source_tool" context --repo "$repo" --bundle "$snapshot" --revision "$revision" \
+    --source-sha256 "$source_sha" --out "$work/context"
 
 docker pull --platform linux/amd64 "$base"
 build() {
+    source_check
+    python3 "$source_tool" context --bundle "$snapshot" --revision "$revision" \
+        --source-sha256 "$source_sha" --out "$work/context"
     docker build --network=none --platform linux/amd64 --pull=false "$@" \
         --build-arg "LOCK_SHA256=$lock_sha" "$work/context"
 }
@@ -106,19 +145,13 @@ docker version --format '{{json .}}' > "$out/docker-version.json"
 docker info --format '{{json .}}' > "$work/docker-info.json"
 python3 "$here/tools/host_provenance.py" --run-id "$run_id" --image "$image" --tag "$tag" \
     --lock-sha256 "$lock_sha" --repo "$repo" --docker-version "$out/docker-version.json" \
-    --docker-info "$work/docker-info.json" > "$out/host-provenance.json"
+    --docker-info "$work/docker-info.json" --source-manifest "$snapshot/source.json" > "$out/host-provenance.json"
 
-user=(--user "$(id -u):$(id -g)" -e HOME=/work/home)
+user=(--user "$(id -u):$(id -g)" -e HOME=/work/home
+      -e "REFENV_REVISION=$revision" -e "REFENV_SOURCE_SHA=$source_sha" -v "$snapshot:/snapshot:ro")
 mkdir -p "$work/oracle-work/home"
 probe_args=()
 if (( with_oracle )); then
-    if [[ -z "$stage" ]]; then
-        # prepare.py needs the pinned commit in this checkout's Git objects. For a
-        # Windows worktree, run prepare.py from Windows and pass --stage instead.
-        stage="$work/stage"
-        python3 "$repo/port/oracle/prepare.py" --output-dir "$stage"
-    fi
-    stage=$(realpath "$stage")
     # A fixed in-container path keeps absolute paths in the audited provenance
     # (and the embedded binary) the same on every host.
     rm -rf "$work/oracle-work/kicad-port"
@@ -127,7 +160,9 @@ if (( with_oracle )); then
         "$image" bash -c 'set -euo pipefail
             python3 /opt/refenv/image/verify_image.py --lock /opt/refenv/inputs.lock.json \
                 --candidate /opt/refenv/candidate.toml --expect /opt/refenv/image-identity.json
+            python3 /opt/refenv/source_binding.py check --bundle /snapshot --revision "$REFENV_REVISION" --source-sha256 "$REFENV_SOURCE_SHA"
             bash /src/oracle/build.sh /stage /src/oracle /work/kicad-port
+            python3 /opt/refenv/source_binding.py check --bundle /snapshot --revision "$REFENV_REVISION" --source-sha256 "$REFENV_SOURCE_SHA"
             /work/kicad-port/oracle-build/kicad-oracle --provenance > /work/oracle-provenance.json' \
         2>&1 | tee "$out/oracle-build.log"
     mkdir -p "$out/oracle"
@@ -150,7 +185,7 @@ if [[ -n "$difftest_repo" ]]; then
     # Hosted-CI-equivalent difftest inside the image. Needs network for west's
     # PyPI packages and crates.io (both pinned by version/Cargo.lock checksums).
     # The repository must be a Linux clone at the commit under test.
-    difftest_repo=$(realpath "$difftest_repo")
+    difftest_repo="$repo" # build the sealed exact source, not the supplied mutable checkout
     mkdir -p "$out/difftest"
     set +e
     docker run --rm "${user[@]}" -e CARGO_HOME=/work/home/cargo -e CARGO_BUILD_JOBS=8 \
@@ -158,18 +193,23 @@ if [[ -n "$difftest_repo" ]]; then
         "$image" bash -c 'set -euo pipefail
             python3 /opt/refenv/image/verify_image.py --lock /opt/refenv/inputs.lock.json \
                 --candidate /opt/refenv/candidate.toml --expect /opt/refenv/image-identity.json
-            git config --global --add safe.directory /repo
+            python3 /opt/refenv/source_binding.py check --bundle /snapshot --revision "$REFENV_REVISION" --source-sha256 "$REFENV_SOURCE_SHA"
             python3 port/tools/bootstrap_west.py
+            python3 /opt/refenv/source_binding.py check --bundle /snapshot --revision "$REFENV_REVISION" --source-sha256 "$REFENV_SOURCE_SHA"
             python3 port/tools/bootstrap_west.py --check
+            python3 /opt/refenv/source_binding.py check --bundle /snapshot --revision "$REFENV_REVISION" --source-sha256 "$REFENV_SOURCE_SHA"
             cargo build --locked --manifest-path rust/Cargo.toml -p kicad-difftest -j8
-            git rev-parse HEAD > /out/revision.txt
+            python3 /opt/refenv/source_binding.py check --bundle /snapshot --revision "$REFENV_REVISION" --source-sha256 "$REFENV_SOURCE_SHA"
+            printf "%s\n" "$REFENV_REVISION" > /out/revision.txt
             python3 port/tools/check_goldens_policy.py --ci --runner "$PWD/rust/target/debug/kicad-difftest" \
-                --oracle /work/kicad-port/oracle-build/kicad-oracle --reports /out/reports --require-phase0' \
+                --oracle /work/kicad-port/oracle-build/kicad-oracle --reports /out/reports --require-phase0
+            python3 /opt/refenv/source_binding.py check --bundle /snapshot --revision "$REFENV_REVISION" --source-sha256 "$REFENV_SOURCE_SHA"' \
         2>&1 | tee "$out/difftest.log"
     difftest_status=${PIPESTATUS[0]}
     set -e
 fi
 
+source_check
 echo "Run directory: $out"
 echo "Probe exit status: $probe_status (1 = contract failed, 4 = C++/Rust mismatch)"
 echo "Difftest exit status: $difftest_status"

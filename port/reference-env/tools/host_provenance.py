@@ -24,7 +24,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("--run-id", "--image", "--tag", "--lock-sha256", "--repo", "--docker-version", "--docker-info"):
         parser.add_argument(name, required=True)
+    parser.add_argument("--source-manifest", required=True)
     args = parser.parse_args()
+    with open(args.source_manifest, encoding="utf-8") as stream:
+        source = json.load(stream)
     with open(args.docker_info, encoding="utf-8") as stream:
         info = json.load(stream)
     with open(args.docker_version, encoding="utf-8") as stream:
@@ -36,8 +39,9 @@ def main():
         "image_tag": args.tag,
         "pushed": False,
         "lock_sha256": args.lock_sha256,
-        "checkout_revision": git(args.repo, "rev-parse", "HEAD"),
-        "checkout_status": git(args.repo, "status", "--porcelain"),
+        "checkout_revision": source["revision"],
+        "checkout_status": "clean at native Git export",
+        "source_export": source,
         "host_uname": platform.uname()._asdict(),
         "docker_version": version,
         "docker_info": {key: info.get(key) for key in DOCKER_INFO_FIELDS},

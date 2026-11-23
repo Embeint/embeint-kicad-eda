@@ -109,6 +109,13 @@ implementation fails the contract. A missing record, unknown offset, wrong funct
 image also refuses `glibc-hwcaps` library directories,
 `/etc/ld.so.preload` and `LD_*` overrides.
 
+The checked list is a **subset**, not an audited closure of all calls made by
+pinned kimath. In particular, pinned geometry can reach `asin`/`acos`; their
+variants appear in the lock but are not probed here. Those and other unlisted
+paths remain uncertified. Neither these checks nor matching sample bits certify
+all-kimath or native/wasm portability. Original NaN and SetRotation failures
+remain failures.
+
 Code generation is not changed: no `-march` is added to the oracle. The image
 checks that GCC's defaults are `-march=x86-64` and that the predefined macros at
 the oracle flags include `__SSE2__` and exclude `__AVX__`, `__AVX2__`, `__FMA__`,
@@ -238,6 +245,12 @@ The exit status is 1 when the environment contract fails, or 4 when the native
 C++/Rust bit comparisons differ. Contract-versus-host-default and paired-versus-
 separate-call comparisons are diagnostic; all differences are listed with counts
 and examples. Nothing updates expected results or accepts differences.
+Probe output schema 2 includes the exact lock/candidate files and hashes every
+artifact, including built probes. Before comparison the reader rejects duplicate
+keys, floating/nonfinite JSON numbers, malformed schemas, missing/extra files,
+wrong types/counts/identities and any binary sweep not exactly `24 * count` bytes.
+It recomputes the comparisons and key environment checks; summary flags alone
+are insufficient. Historical schema-1 observations are not upgraded or accepted.
 `compare_observations.py A B` compares two runs, for example two hosts: a missing
 or failed contract/comparison summary, any difference in a reference observation,
 or a different image identity exits 1.
@@ -282,6 +295,13 @@ with a representative Python/certificates/rsync/D-Bus/GTK/CMake package set
 produced no `dpkg --verify` diagnostics outside the documented doc exclusions;
 this tests the verification policy, not the amd64 candidate install.
 
+The independent review of `e15b233` found installer-membership, artifact-validation,
+Rust-closure and source-binding blockers despite its 25 passing tests. The
+follow-up fixes and new adversarial fixtures are implementation work; historical
+results above are not relabelled as evidence for the fixed head. Any cancelled
+native qualification attempt is historical/unqualified and must be restarted
+at the independently reviewed fixed head.
+
 **Not performed:** no amd64 image was built, so `verify_image.py`, the probes on
 x86-64, the oracle build inside the image, `--rebuild-check` and the difftest have
 never run. A recipe is not a passed reproducible build.
@@ -299,9 +319,50 @@ python3 port/reference-env/tools/check_candidate.py
 python3 -m unittest discover -s port/reference-env/tests
 # Build twice (no cache), probe, build and audit the oracle inside the image,
 # then run the hosted-CI-equivalent difftest in the image:
-bash port/reference-env/qualify.sh --work ~/refenv-work --rebuild-check \
+revision=$(git rev-parse HEAD) # must be the independently reviewed fixed head
+bash port/reference-env/qualify.sh --revision "$revision" --work ~/refenv-work --rebuild-check \
     --with-difftest ~/refenv-src --sweep-count 2000000
 ```
+
+Before building, `qualify.sh --revision <full SHA>` requires a clean native Git
+checkout at that exact head. It exports canonical Git bytes, independently
+compares the reference archive/manifest against the pin's actual Git blobs,
+checks the original stage revision/clean flag and preserves that provenance.
+A supplied `--with-difftest REPO` checkout must also be clean and at that head
+before any build; execution uses the verified snapshot rather than that mutable
+checkout. Snapshot checks run before/after oracle build, dependency bootstrap,
+Cargo build and difftest, and before every image build. Extra source files,
+actual-byte drift or mixed stage metadata fail. Tracked sources cannot acquire
+untracked bytecode caches; generated dependencies/build output have explicit
+separate permitted directories. The policy enumerates every corpus in this
+exact source revision, including accepted partial units; it does not limit the
+run to three pilot corpora.
+
+For a Windows checkout, prepare the bundle with **Windows Python and Windows
+Git**, before entering WSL (replace the placeholders with the intended full SHA
+and a new output directory):
+
+```powershell
+python port/reference-env/tools/source_binding.py export --repo . --revision <HEAD-SHA> --out C:/Temp/refenv-source
+# Record the printed source.json SHA-256. Optional --stage <prepared-stage>
+# validates and copies an existing Windows-prepared stage without rewriting it.
+```
+
+In WSL, consume that digest-bound bundle without running Git on the Windows
+checkout:
+
+```bash
+bash /mnt/c/path/to/checkout/port/reference-env/qualify.sh \
+    --revision <HEAD-SHA> --source-bundle /mnt/c/Temp/refenv-source \
+    --source-sha256 <EXPORTED-SHA256> --work ~/refenv-work \
+    --with-oracle --rebuild-check
+```
+
+For `--with-difftest`, also supply a clean **Linux clone** at the same head.
+The bundle digest is an integrity handoff from the trusted native Git export,
+not a signature or independent qualification. The exporter records native Git
+version/platform; WSL verifies the digest and snapshots without invoking Git in
+the Windows checkout. Both modes build the preserved source/stage snapshots.
 
 `qualify.sh` takes `~/kicad-port.build-lock`, caps the oracle at `ORACLE_JOBS`
 (default 8) and writes everything to `~/refenv-work/runs/<UTC time>/`:

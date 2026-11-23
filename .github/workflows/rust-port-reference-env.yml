@@ -65,7 +65,7 @@ jobs:
           WITH_ORACLE: ${{ inputs.with_oracle }}
           SWEEP_COUNT: ${{ inputs.sweep_count }}
         run: |
-          args=(--work "$RUNNER_TEMP/refenv" --sweep-count "$SWEEP_COUNT" --rebuild-check)
+          args=(--revision "$GITHUB_SHA" --work "$RUNNER_TEMP/refenv" --sweep-count "$SWEEP_COUNT" --rebuild-check)
           if test "$WITH_ORACLE" = true; then args+=(--with-oracle); fi
           bash port/reference-env/qualify.sh "${args[@]}"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
