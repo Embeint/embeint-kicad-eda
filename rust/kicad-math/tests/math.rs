@@ -3,11 +3,11 @@
 //! live difftest (`port/cases/libs.kimath.include.math.application.pure.p001.jsonl`); these
 //! tests guard internal consistency and documented edge cases.
 
-use kicad_math::matrix3x3::format_stream_double;
+use kicad_math::stream::{StreamInsert, StreamState};
 use kicad_math::wide_int::{
     cross_wide, dot_wide, to_double, to_double_via_words, words_to_double, WideIntError,
 };
-use kicad_math::{Matrix3x3D, Vector2, Vector2L, Vector3};
+use kicad_math::{Matrix3x3, Matrix3x3D, Vector2, Vector2L, Vector3};
 
 /// SplitMix64, fixed seed: deterministic generator for broad internal consistency checks.
 struct SplitMix(u64);
@@ -121,7 +121,7 @@ fn stream_doubles_follow_default_ostream_g6() {
         (f64::from_bits(0x7ff8_0000_0000_0000), "nan"),
         (f64::from_bits(0xfff8_0000_0000_0000), "-nan"),
     ] {
-        assert_eq!(format_stream_double(value), text, "{value:e}");
+        assert_eq!(value.insert(&mut StreamState::default()), text, "{value:e}");
     }
 }
 
@@ -167,4 +167,200 @@ fn matrix_bodies_keep_unrelated_members_and_reference_semantics() {
         (transformed.x, transformed.y, transformed.z),
         (-2.0, -2.0, -3.0)
     );
+}
+
+fn state(precision: i64, apply: impl FnOnce(&mut kicad_math::FmtFlags)) -> StreamState {
+    let mut state = StreamState {
+        precision,
+        ..StreamState::default()
+    };
+    apply(&mut state.flags);
+    state
+}
+
+#[test]
+fn stream_state_controls_double_formatting() {
+    let eighth = Matrix3x3D::from_elements(0.125, 0.0, 0.0, 0.0, 0.125, 0.0, 0.0, 0.0, 0.125);
+    let mut fixed2 = state(2, |flags| flags.fixed = true);
+    assert_eq!(
+        eighth.stream_text(&mut fixed2),
+        "| 0.12 0.00 0.00 |\n| 0.00 0.12 0.00 |\n| 0.00 0.00 0.12 |\n"
+    );
+    for (precision, apply, value, text) in [
+        (
+            3,
+            (|f: &mut kicad_math::FmtFlags| f.scientific = true) as fn(&mut _),
+            1234.5,
+            "1.234e+03",
+        ),
+        (
+            3,
+            |f| {
+                f.scientific = true;
+                f.uppercase = true;
+            },
+            1234.5,
+            "1.234E+03",
+        ),
+        (0, |f| f.fixed = true, 2.5, "2"),
+        (
+            0,
+            |f| {
+                f.fixed = true;
+                f.showpoint = true;
+            },
+            2.5,
+            "2.",
+        ),
+        (0, |_| (), 0.000123456, "0.0001"),
+        (-1, |_| (), 1.0 / 3.0, "0.333333"),
+        (4, |f| f.showpoint = true, 1.0, "1.000"),
+        (6, |f| f.showpos = true, 0.0, "+0"),
+        (6, |f| f.showpos = true, f64::NAN, "+nan"),
+        (
+            6,
+            |f| {
+                f.fixed = true;
+                f.uppercase = true;
+            },
+            f64::INFINITY,
+            "inf",
+        ),
+        (
+            6,
+            |f| {
+                f.fixed = true;
+                f.scientific = true;
+            },
+            1.0,
+            "0x1p+0",
+        ),
+        (
+            6,
+            |f| {
+                f.fixed = true;
+                f.scientific = true;
+                f.showpoint = true;
+            },
+            0.125,
+            "0x1.p-3",
+        ),
+        (
+            6,
+            |f| {
+                f.fixed = true;
+                f.scientific = true;
+                f.uppercase = true;
+            },
+            -3.0,
+            "-0X1.8P+1",
+        ),
+        (
+            6,
+            |f| {
+                f.fixed = true;
+                f.scientific = true;
+            },
+            f64::from_bits(1),
+            "0x0.0000000000001p-1022",
+        ),
+        (
+            6,
+            |f| {
+                f.fixed = true;
+                f.scientific = true;
+            },
+            0.0,
+            "0x0p+0",
+        ),
+    ] {
+        assert_eq!(
+            value.insert(&mut state(precision, apply)),
+            text,
+            "{value:e}"
+        );
+    }
+}
+
+#[test]
+fn stream_width_applies_to_the_first_insertion_only() {
+    let identity = Matrix3x3D::from_elements(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0);
+    let mut padded = StreamState {
+        width: 5,
+        fill: '*',
+        ..StreamState::default()
+    };
+    assert_eq!(
+        identity.stream_text(&mut padded),
+        "***| 1 0 0 |\n| 0 1 0 |\n| 0 0 1 |\n"
+    );
+    assert_eq!(padded.width, 0);
+    let mut left = state(6, |f| f.left = true);
+    left.width = 4;
+    left.fill = '_';
+    assert_eq!(&identity.stream_text(&mut left)[..5], "| __1");
+}
+
+#[test]
+fn stream_state_controls_integer_formatting() {
+    let ints = Matrix3x3::<i32>::from_elements(-1, 255, 0, 8, i32::MIN, i32::MAX, 1, 2, 3);
+    let mut hex = state(6, |f| {
+        f.dec = false;
+        f.hex = true;
+        f.showbase = true;
+        f.uppercase = true;
+    });
+    assert_eq!(
+        ints.stream_text(&mut hex),
+        "| 0XFFFFFFFF 0XFF 0 |\n| 0X8 0X80000000 0X7FFFFFFF |\n| 0X1 0X2 0X3 |\n"
+    );
+    let mut oct = state(6, |f| {
+        f.dec = false;
+        f.oct = true;
+        f.showbase = true;
+        f.showpos = true;
+    });
+    assert_eq!(&ints.stream_text(&mut oct)[..21], "| 037777777777 0377 0");
+    let mut showpos = state(6, |f| f.showpos = true);
+    assert_eq!(&ints.stream_text(&mut showpos)[..13], "| -1 +255 +0 ");
+}
+
+#[test]
+fn integer_instantiation_matches_the_pinned_qa_test_and_refuses_undefined_inputs() {
+    let qa = Matrix3x3::<i32>::from_vectors(
+        Vector3::new(1, 1, 1),
+        Vector3::new(2, 2, 2),
+        Vector3::new(3, 3, 3),
+    );
+    let product = qa.mul_vector3(&Vector3::new(5, 5, 5));
+    assert!(matches!(product, Ok(v) if (v.x, v.y, v.z) == (15, 30, 45)));
+    let scaled = qa.mul_scalar(5);
+    let expected = Matrix3x3::<i32>::from_elements(5, 5, 5, 10, 10, 10, 15, 15, 15);
+    assert!(matches!(scaled, Ok(m) if m == expected));
+
+    let mut rotated = Matrix3x3::<i32>::new();
+    rotated.set_rotation(0);
+    assert_eq!(rotated.data[0], [1, 0, 0]);
+    rotated.set_rotation(165_707_065); // cos rounds to exactly -1.0
+    assert_eq!(rotated.data[0][0], -1);
+
+    let halves = Matrix3x3::<i32>::from_elements(2, 0, 0, 0, 2, 0, 0, 0, 1);
+    assert!(matches!(halves.inverse(), Ok(m) if m.data == [[0, 0, 0], [0, 0, 0], [0, 0, 1]]));
+    let singular = Matrix3x3::<i32>::from_elements(1, 2, 3, 2, 4, 6, 1, 1, 1);
+    assert!(matches!(
+        singular.inverse(),
+        Err(kicad_math::MatrixError::Conversion { .. })
+    ));
+    let huge = Matrix3x3::<i32>::from_elements(i32::MAX, 0, 0, 0, 2, 0, 0, 0, 1);
+    assert!(matches!(
+        huge.determinant(),
+        Err(kicad_math::MatrixError::Overflow {
+            upstream: "MATRIX3x3<int>::Determinant"
+        })
+    ));
+    assert!(huge.mul_scalar(2).is_err());
+    assert!(matches!(
+        huge.mul_scalar_double(-0.5),
+        Ok(m) if m.data[0][0] == -1_073_741_823
+    ));
 }

@@ -206,3 +206,59 @@ fn reply_identities_are_preserved_for_results_and_refusals() {
     assert_eq!(bad["unit"], UNIT);
     assert_eq!(bad["case"], "t");
 }
+
+#[test]
+fn integer_matrices_and_explicit_stream_state_reach_the_port() {
+    let qa = json!([[1, 1, 1], [2, 2, 2], [3, 3, 3]]);
+    assert_eq!(
+        run(&json!({"op":"mul_vector3","type":"int","matrix":qa,"vector":[5,5,5]}))
+            .unwrap_or_default(),
+        json!({"vector":[15,30,45]})
+    );
+    assert_eq!(
+        run(&json!({"op":"mul_scalar","type":"int","scalar_type":"int","matrix":qa,"scalar":5}))
+            .unwrap_or_default(),
+        json!({"matrix":[[5,5,5],[10,10,10],[15,15,15]]})
+    );
+    let eighth = "3fc0000000000000";
+    let reply = run(
+        &json!({"op":"stream","matrix":[[eighth,ZERO,ZERO],[ZERO,eighth,ZERO],
+        [ZERO,ZERO,eighth]],"state":{"flags":["fixed"],"precision":2,"width":0,"fill":" "}}),
+    );
+    assert_eq!(
+        reply.unwrap_or_default(),
+        json!({"text":"| 0.12 0.00 0.00 |\n| 0.00 0.12 0.00 |\n| 0.00 0.00 0.12 |\n",
+            "width_after":0})
+    );
+    // Without a state the reply keeps the original fresh-stream shape.
+    assert_eq!(
+        run(&json!({"op":"stream","matrix":identity()})).unwrap_or_default(),
+        json!({"text":"| 1 0 0 |\n| 0 1 0 |\n| 0 0 1 |\n"})
+    );
+    for (input, message) in [
+        (
+            json!({"op":"determinant","type":"int","matrix":[[i32::MAX,0,0],[0,2,0],[0,0,1]]}),
+            "MATRIX3x3<int>::Determinant overflows int",
+        ),
+        (
+            json!({"op":"inverse","type":"int","matrix":[[1,2,3],[2,4,6],[1,1,1]]}),
+            "operator*( MATRIX3x3<int>, double ) converts a value outside int",
+        ),
+        (
+            json!({"op":"transpose","type":"float","matrix":identity()}),
+            "expected type: double or int",
+        ),
+        (
+            json!({"op":"stream","matrix":identity(),"state":{"flags":["fixed","fixed"],
+                "precision":2,"width":0,"fill":" "}}),
+            "expected stream state",
+        ),
+        (
+            json!({"op":"stream","matrix":identity(),"state":{"flags":[],
+                "precision":513,"width":0,"fill":" "}}),
+            "integer out of range: precision",
+        ),
+    ] {
+        assert_eq!(refused(input.clone()), message, "{input}");
+    }
+}
