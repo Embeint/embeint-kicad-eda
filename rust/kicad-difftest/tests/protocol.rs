@@ -1,5 +1,40 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-use kicad_difftest::{compare, exact::parse, golden, identities, records};
+use kicad_difftest::evaluate::{
+    check_golden, evaluate, split_lines, Evaluation, Outcome, RawLine, EXTRA_LINES_KEPT,
+    EXTRA_LINE_LIMIT,
+};
+use kicad_difftest::process::{read_bounded, read_diagnostic, Captured};
+
+/// Output of a program that ran, optionally ending in a process fault.
+fn out(text: &str, fault: Option<&str>) -> Captured {
+    out_bytes(text.as_bytes(), fault)
+}
+
+/// Output given as raw bytes, which need not be valid UTF-8.
+fn out_bytes(bytes: &[u8], fault: Option<&str>) -> Captured {
+    Captured {
+        started: true,
+        stdout: bytes.to_vec(),
+        fault: fault.map(str::to_owned),
+        ..Captured::default()
+    }
+}
+
+fn text(raw: &RawLine) -> Option<&str> {
+    match raw {
+        RawLine::Text(text) => Some(text),
+        RawLine::Bytes(_) => None,
+    }
+}
+
+/// A program that never started.
+fn never(fault: &str) -> Captured {
+    Captured {
+        fault: Some(fault.to_owned()),
+        ..Captured::default()
+    }
+}
+use kicad_difftest::{compare, exact::parse, golden, identities, partial_replies, records};
 use serde_json::json;
 
 #[test]
@@ -118,5 +153,458 @@ fn blessing_requires_exact_case_values_reason_and_provenance() -> Result<(), Str
     assert_eq!(baseline["oracle"]["source_revision"], "pin");
     let (removed, _) = golden::proposal("u", b"new cases", old_text, &old, &[], json!({}));
     assert_eq!(removed["changes"][0]["new"], json!(null));
+    Ok(())
+}
+
+#[test]
+fn partial_replies_classify_only_well_formed_deferrals() -> Result<(), String> {
+    let ok = |case: &str, value: &str| {
+        format!("{{\"unit\":\"u\",\"case\":\"{case}\",\"result\":{value}}}\n")
+    };
+    let defer = |case: &str, error: &str| {
+        format!("{{\"unit\":\"u\",\"case\":\"{case}\",\"error\":{error}}}\n")
+    };
+    let well_formed = r#"{"kind":"unported","upstream":"MD5_HASH::Hash","unit":"owner.unit"}"#;
+    let cases = records(
+        "{\"unit\":\"u\",\"case\":\"a\",\"input\":{}}\n\
+         {\"unit\":\"u\",\"case\":\"b\",\"input\":{}}\n\
+         {\"unit\":\"u\",\"case\":\"c\",\"input\":{}}\n",
+        "u",
+        true,
+    )?;
+    let oracle_text = format!("{}{}{}", ok("a", "1"), ok("b", "2"), ok("c", "3"));
+    let oracle = out(&oracle_text, None);
+    let run = |rust: &str| evaluate(&cases, "u", &oracle, &out(rust, None));
+    let names = |eval: &Evaluation| -> Vec<(String, &'static str)> {
+        eval.outcomes
+            .iter()
+            .map(|c| (c.case.clone(), c.outcome.name()))
+            .collect()
+    };
+    let expect = |pairs: &[(&str, &'static str)]| -> Vec<(String, &'static str)> {
+        pairs.iter().map(|(c, n)| ((*c).to_owned(), *n)).collect()
+    };
+    let mixed = format!(
+        "{}{}{}",
+        ok("a", "1"),
+        defer("b", well_formed),
+        ok("c", "3")
+    );
+    // Strict parsing is unchanged: any deferral rejects the reply set.
+    assert!(matches!(records(&mixed, "u", false), Err(e) if e.starts_with("DEFERRED")));
+    assert!(partial_replies(&mixed, "u")?[1].deferral.is_some());
+    let eval = run(&mixed);
+    assert_eq!(
+        names(&eval),
+        expect(&[("a", "compared"), ("b", "deferred"), ("c", "compared")])
+    );
+    assert!(eval.faults.is_empty());
+    let Outcome::Deferred(deferral) = &eval.outcomes[1].outcome else {
+        return Err("b must be deferred".into());
+    };
+    assert_eq!(deferral.upstream, "MD5_HASH::Hash");
+    assert_eq!(deferral.unit, "owner.unit");
+    // The deferred case keeps the oracle's real reference result.
+    assert_eq!(
+        eval.outcomes[1].oracle.as_ref().map(|r| r.raw.as_str()),
+        Some(ok("b", "2").trim_end())
+    );
+    let alias = well_formed.replace("unported", "deferred");
+    assert!(partial_replies(&defer("a", &alias), "u")?[0]
+        .deferral
+        .is_some());
+    // A mismatch after a success and a deferral keeps both earlier outcomes.
+    let changed = format!(
+        "{}{}{}",
+        ok("a", "1"),
+        defer("b", well_formed),
+        ok("c", "3.0")
+    );
+    assert_eq!(
+        names(&run(&changed)),
+        expect(&[("a", "compared"), ("b", "deferred"), ("c", "failed")])
+    );
+    // A missing reply fails only its own case; a misplaced one fails its position.
+    let missing = format!("{}{}", ok("a", "1"), defer("b", well_formed));
+    assert_eq!(
+        names(&run(&missing)),
+        expect(&[("a", "compared"), ("b", "deferred"), ("c", "failed")])
+    );
+    let reordered = format!(
+        "{}{}{}",
+        defer("b", well_formed),
+        ok("a", "1"),
+        ok("c", "3")
+    );
+    assert_eq!(
+        names(&run(&reordered)),
+        expect(&[("a", "failed"), ("b", "failed"), ("c", "compared")])
+    );
+    let extra = run(&format!("{mixed}{}", defer("b", well_formed)));
+    assert_eq!(extra.faults.len(), 1);
+    assert!(partial_replies(&format!("{mixed}{}", defer("b", well_formed)), "u").is_err());
+    // A Rust process failure leaves every case unprocessed with its reference kept;
+    // an oracle failure leaves no reference, and an oracle deferral is a failure.
+    let crashed = evaluate(&cases, "u", &oracle, &never("cannot start"));
+    assert_eq!(crashed.count("unprocessed"), 3);
+    assert!(crashed.outcomes.iter().all(|c| c.oracle.is_some()));
+    let no_oracle = evaluate(&cases, "u", &never("cannot start"), &out(&mixed, None));
+    assert_eq!(no_oracle.count("unprocessed"), 3);
+    let oracle_defers = evaluate(
+        &cases,
+        "u",
+        &out(
+            &format!(
+                "{}{}{}",
+                ok("a", "1"),
+                defer("b", well_formed),
+                ok("c", "3")
+            ),
+            None,
+        ),
+        &out(&mixed, None),
+    );
+    assert_eq!(
+        names(&oracle_defers),
+        expect(&[("a", "compared"), ("b", "failed"), ("c", "compared")])
+    );
+    // All-deferred compares nothing; the caller must refuse it.
+    let all = format!(
+        "{}{}{}",
+        defer("a", well_formed),
+        defer("b", well_formed),
+        defer("c", well_formed)
+    );
+    let eval = run(&all);
+    assert_eq!(eval.count("compared"), 0);
+    assert_eq!(eval.count("deferred"), 3);
+    // The golden is compared with every available oracle result, deferred or not.
+    let eval = run(&mixed);
+    assert_eq!(
+        check_golden(Ok(oracle_text.clone()), "u", &eval).status(),
+        "matched"
+    );
+    let stale = oracle_text.replace("\"result\":2", "\"result\":2.0");
+    let check = check_golden(Ok(stale), "u", &eval);
+    assert_eq!(check.status(), "failed");
+    assert_eq!(check.mismatched.len(), 1);
+    assert_eq!(check.mismatched[0].0, "b");
+    assert_eq!(
+        check_golden(Err("missing".into()), "u", &eval).status(),
+        "failed"
+    );
+    assert_eq!(
+        check_golden(Ok(oracle_text.clone()), "u", &crashed).status(),
+        "matched"
+    );
+    assert_eq!(
+        check_golden(Ok(oracle_text.clone()), "u", &no_oracle).status(),
+        "incomplete"
+    );
+    // Other error kinds and malformed deferrals are failures, never deferrals.
+    for error in [
+        r#"{"kind":"execution_error","message":"x"}"#,
+        r#"{"kind":"invalid_input","message":"x"}"#,
+        r#"{"kind":"unported","upstream":"f"}"#,
+        r#"{"kind":"unported","unit":"owner"}"#,
+        r#"{"kind":"unported","upstream":"f","unit":"owner","message":"x"}"#,
+        r#"{"kind":"unported","upstream":"","unit":"owner"}"#,
+        r#"{"kind":"unported","upstream":"f","unit":"../owner"}"#,
+        r#"{"kind":"unported","upstream":"f","unit":1}"#,
+        r#"{"kind":"unported","upstream":"f","unit":"owner","unit":"owner"}"#,
+        r#""unported""#,
+    ] {
+        let result = partial_replies(&defer("a", error), "u");
+        assert!(result.is_err(), "{error}");
+    }
+    let wrong_unit =
+        r#"{"unit":"v","case":"a","error":{"kind":"unported","upstream":"f","unit":"o"}}"#;
+    assert!(partial_replies(wrong_unit, "u").is_err());
+    assert!(partial_replies("", "u").is_err());
+    Ok(())
+}
+
+#[test]
+fn output_before_a_process_fault_is_evaluated_and_the_fault_still_fails() -> Result<(), String> {
+    let line = |case: &str, value: &str| {
+        format!("{{\"unit\":\"u\",\"case\":\"{case}\",\"result\":{value}}}\n")
+    };
+    let cases = records(
+        "{\"unit\":\"u\",\"case\":\"a\",\"input\":{}}\n\
+         {\"unit\":\"u\",\"case\":\"b\",\"input\":{}}\n\
+         {\"unit\":\"u\",\"case\":\"c\",\"input\":{}}\n",
+        "u",
+        true,
+    )?;
+    let all = format!("{}{}{}", line("a", "1"), line("b", "2"), line("c", "3"));
+    let names = |eval: &Evaluation| -> Vec<&'static str> {
+        eval.outcomes.iter().map(|c| c.outcome.name()).collect()
+    };
+    let rust = out(&all, None);
+    // Three complete replies, then exit 7 or a timeout: every reply is compared and
+    // golden-checked, and the process fault is still a run fault.
+    for fault in ["oracle: process failed (exit status: 7)", "timeout"] {
+        let eval = evaluate(&cases, "u", &out(&all, Some(fault)), &rust);
+        assert_eq!(names(&eval), ["compared", "compared", "compared"]);
+        assert_eq!(eval.faults.len(), 1);
+        assert!(eval.faults[0].contains(fault));
+        assert!(eval.outcomes.iter().all(|c| c.oracle.is_some()));
+        assert_eq!(
+            check_golden(Ok(all.clone()), "u", &eval).status(),
+            "matched"
+        );
+        let stale = all.replace("\"result\":2", "\"result\":20");
+        let check = check_golden(Ok(stale), "u", &eval);
+        assert_eq!(check.status(), "failed");
+        assert_eq!(check.mismatched[0].0, "b");
+    }
+    // Output stopping early: answered cases keep their outcomes, the rest are
+    // unprocessed and their golden lines unchecked.
+    let two = format!("{}{}", line("a", "1"), line("b", "2"));
+    let eval = evaluate(&cases, "u", &out(&two, Some("timeout")), &rust);
+    assert_eq!(names(&eval), ["compared", "compared", "unprocessed"]);
+    let check = check_golden(Ok(all.clone()), "u", &eval);
+    assert_eq!(check.status(), "incomplete");
+    assert_eq!(check.unchecked, ["c"]);
+    // A truncated final line is a malformed reply; nothing after it is invented.
+    let truncated = format!("{}{{\"unit\":\"u\",\"case\":\"b\",\"res", line("a", "1"));
+    let eval = evaluate(&cases, "u", &out(&truncated, Some("timeout")), &rust);
+    assert_eq!(names(&eval), ["compared", "failed", "unprocessed"]);
+    assert!(eval.outcomes[1]
+        .oracle_raw
+        .as_ref()
+        .and_then(text)
+        .is_some_and(|r| r.ends_with("\"res")));
+    // The same output without a fault but with a missing final reply fails that case.
+    let eval = evaluate(&cases, "u", &out(&two, None), &rust);
+    assert_eq!(names(&eval), ["compared", "compared", "failed"]);
+    assert!(eval.faults.is_empty());
+    // Equivalent preservation for Rust: replies before its fault are compared.
+    let eval = evaluate(&cases, "u", &out(&all, None), &out(&two, Some("exit 3")));
+    assert_eq!(names(&eval), ["compared", "compared", "unprocessed"]);
+    assert_eq!(eval.faults.len(), 1);
+    // Malformed lines among recovered output fail only their own case.
+    let malformed = format!("{}not json\n{}", line("a", "1"), line("c", "3"));
+    let eval = evaluate(&cases, "u", &out(&malformed, Some("exit 1")), &rust);
+    assert_eq!(names(&eval), ["compared", "failed", "compared"]);
+    Ok(())
+}
+
+#[test]
+fn extra_reply_lines_are_kept_bounded_as_evidence() -> Result<(), String> {
+    let line = |case: &str| format!("{{\"unit\":\"u\",\"case\":\"{case}\",\"result\":1}}\n");
+    let cases = records("{\"unit\":\"u\",\"case\":\"a\",\"input\":{}}\n", "u", true)?;
+    let long = "x".repeat(EXTRA_LINE_LIMIT + 10);
+    let mut oracle = format!("{}EXTRA_REFERENCE_EVIDENCE\n{long}\n", line("a"));
+    for index in 0..EXTRA_LINES_KEPT {
+        oracle.push_str(&format!("more {index}\n"));
+    }
+    let eval = evaluate(&cases, "u", &out(&oracle, None), &out(&line("a"), None));
+    assert_eq!(eval.count("compared"), 1);
+    assert_eq!(eval.faults.len(), 1);
+    assert!(eval.faults[0].contains(&format!("{} reply lines", EXTRA_LINES_KEPT + 2)));
+    assert_eq!(eval.extra.len(), EXTRA_LINES_KEPT);
+    assert_eq!(
+        eval.extra[0].raw,
+        RawLine::Text("EXTRA_REFERENCE_EVIDENCE".into())
+    );
+    assert_eq!((eval.extra[0].side, eval.extra[0].line), ("oracle", 2));
+    assert!(!eval.extra[0].truncated);
+    assert_eq!(
+        text(&eval.extra[1].raw).map(str::len),
+        Some(EXTRA_LINE_LIMIT)
+    );
+    assert!(eval.extra[1].truncated);
+    // Multi-byte characters are never split by the bound.
+    let wide = "\u{e9}".repeat(EXTRA_LINE_LIMIT);
+    let eval = evaluate(
+        &cases,
+        "u",
+        &out(&line("a"), None),
+        &out(&format!("{}{wide}\n", line("a")), None),
+    );
+    assert_eq!(eval.extra[0].side, "Rust");
+    assert!(
+        text(&eval.extra[0].raw).is_some_and(|t| t.len() <= EXTRA_LINE_LIMIT)
+            && eval.extra[0].truncated
+    );
+    // Invalid UTF-8 beyond the corpus is kept as exact bytes, bounded too.
+    let mut bad = line("a").into_bytes();
+    bad.extend_from_slice(b"EXTRA\xffEVIDENCE\n");
+    bad.extend(std::iter::repeat_n(0xffu8, EXTRA_LINE_LIMIT + 5));
+    let eval = evaluate(&cases, "u", &out(&line("a"), None), &out_bytes(&bad, None));
+    assert_eq!(
+        eval.extra[0].raw,
+        RawLine::Bytes(b"EXTRA\xffEVIDENCE".to_vec())
+    );
+    assert!(!eval.extra[0].truncated);
+    assert_eq!(
+        eval.extra[1].raw,
+        RawLine::Bytes(vec![0xff; EXTRA_LINE_LIMIT])
+    );
+    assert!(eval.extra[1].truncated);
+    Ok(())
+}
+
+#[test]
+fn byte_lines_split_exactly_like_str_lines() {
+    for text in [
+        "",
+        "\n",
+        "a",
+        "a\n",
+        "a\r\n",
+        "a\r",
+        "a\r\r\n",
+        "\r\n\r\n",
+        "a\n\nb",
+        "a\nb\r",
+        "\u{e9}\nx\r\ny",
+        "\r",
+        "\n\n",
+        "x\ry\n",
+    ] {
+        let expected: Vec<&[u8]> = text.lines().map(str::as_bytes).collect();
+        assert_eq!(split_lines(text.as_bytes()), expected, "{text:?}");
+    }
+}
+
+#[test]
+fn invalid_utf8_fails_only_its_line_and_later_replies_keep_their_positions() -> Result<(), String> {
+    let line = |case: &str, value: &str| {
+        format!("{{\"unit\":\"u\",\"case\":\"{case}\",\"result\":{value}}}").into_bytes()
+    };
+    let cases = records(
+        "{\"unit\":\"u\",\"case\":\"a\",\"input\":{}}\n\
+         {\"unit\":\"u\",\"case\":\"b\",\"input\":{}}\n\
+         {\"unit\":\"u\",\"case\":\"c\",\"input\":{}}\n",
+        "u",
+        true,
+    )?;
+    let good: Vec<Vec<u8>> = vec![line("a", "1"), line("b", "2"), line("c", "3")];
+    let golden = String::from_utf8(good.join(&b'\n')).map_err(|e| e.to_string())? + "\n";
+    let corrupt = |bytes: &[u8], kind: &str| -> Vec<u8> {
+        match kind {
+            // A stray continuation-range byte, a lead byte followed by ASCII, and a
+            // multibyte character cut at the end of the line.
+            "byte" => [b"{\"\xff\":0,".as_slice(), &bytes[1..]].concat(),
+            "continuation" => [b"{\"\xc3\x28\":0,".as_slice(), &bytes[1..]].concat(),
+            _ => [bytes, b"\xe2\x82".as_slice()].concat(),
+        }
+    };
+    let names = |eval: &Evaluation| -> Vec<&'static str> {
+        eval.outcomes.iter().map(|c| c.outcome.name()).collect()
+    };
+    for kind in ["byte", "continuation", "truncated multibyte"] {
+        for bad in 0..3 {
+            for ending in ["\n", "\r\n"] {
+                for (fault, final_newline) in [
+                    (None, true),
+                    (None, false),
+                    (Some("timeout"), false),
+                    (Some("exit 7"), true),
+                ] {
+                    let mut lines = good.clone();
+                    lines[bad] = corrupt(&lines[bad], kind);
+                    let mut bytes = lines.join(ending.as_bytes());
+                    if final_newline {
+                        bytes.extend_from_slice(ending.as_bytes());
+                    }
+                    let label = format!("{kind} at {bad} {ending:?} {fault:?} {final_newline}");
+                    let mut expected = ["compared"; 3];
+                    expected[bad] = "failed";
+                    // Oracle side: the bad case fails, the others are compared in
+                    // their real positions and still golden-checked.
+                    let eval = evaluate(
+                        &cases,
+                        "u",
+                        &out_bytes(&bytes, fault),
+                        &out_bytes(&good.join(&b'\n'), None),
+                    );
+                    assert_eq!(names(&eval), expected, "oracle {label}");
+                    assert_eq!(
+                        eval.outcomes[bad].oracle_raw,
+                        Some(RawLine::Bytes(
+                            lines[bad]
+                                .strip_suffix(b"\r")
+                                .unwrap_or(&lines[bad])
+                                .to_vec()
+                        )),
+                        "oracle {label}"
+                    );
+                    assert!(matches!(&eval.outcomes[bad].outcome,
+                        Outcome::Failed(r) if r.contains("not valid UTF-8")));
+                    let check = check_golden(Ok(golden.clone()), "u", &eval);
+                    assert_eq!(check.status(), "incomplete", "oracle {label}");
+                    assert_eq!(check.unchecked, [["a", "b", "c"][bad]], "oracle {label}");
+                    assert_eq!(eval.faults.len(), usize::from(fault.is_some()));
+                    // Rust side: the same, with the oracle references all kept.
+                    let eval = evaluate(
+                        &cases,
+                        "u",
+                        &out_bytes(&good.join(&b'\n'), None),
+                        &out_bytes(&bytes, fault),
+                    );
+                    assert_eq!(names(&eval), expected, "Rust {label}");
+                    assert!(matches!(eval.outcomes[bad].rust, Some(RawLine::Bytes(_))));
+                    assert!(eval.outcomes.iter().all(|c| c.oracle.is_some()));
+                    assert_eq!(
+                        check_golden(Ok(golden.clone()), "u", &eval).status(),
+                        "matched"
+                    );
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// An endless reader that counts every byte it hands out.
+struct Endless {
+    served: std::rc::Rc<std::cell::Cell<usize>>,
+}
+
+impl std::io::Read for Endless {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        buf.fill(b'e');
+        self.served.set(self.served.get() + buf.len());
+        Ok(buf.len())
+    }
+}
+
+#[test]
+fn diagnostics_are_read_bounded_not_truncated_after_reading() -> Result<(), String> {
+    use std::io::Write;
+    // The read itself is bounded: an endless reader would never finish a full read.
+    let served = std::rc::Rc::new(std::cell::Cell::new(0));
+    let bounded = read_bounded(
+        Endless {
+            served: served.clone(),
+        },
+        1000,
+    );
+    assert_eq!(bounded.bytes.len(), 1000);
+    assert!(bounded.error.is_none());
+    assert!(served.get() <= 1000, "served {}", served.get());
+    // File diagnostics: totals come from metadata, at, below and above the limit.
+    let limit = kicad_difftest::process::STDERR_LIMIT;
+    for size in [0, 1, limit - 1, limit, limit + 1, 3 * limit + 7] {
+        let mut file = tempfile::tempfile().map_err(|e| e.to_string())?;
+        file.write_all(&vec![b'x'; size])
+            .map_err(|e| e.to_string())?;
+        let (text, total) = read_diagnostic(&mut file, limit);
+        assert_eq!(total, Some(size as u64), "{size}");
+        let kept = size.min(limit);
+        assert!(text.starts_with(&"x".repeat(kept)), "{size}");
+        if size > limit {
+            assert_eq!(
+                &text[kept..],
+                format!(" [{} more bytes omitted]", size - limit),
+                "{size}"
+            );
+        } else {
+            assert_eq!(text.len(), size, "{size}");
+        }
+    }
     Ok(())
 }
