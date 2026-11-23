@@ -48,13 +48,103 @@ def read_json(path):
     return json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=pairs)
 
 
-def git(repo, *args):
+def git_command(repo, *args):
     # Never use WSL Git on Windows metadata, including linked worktree files.
     require(
         not (sys.platform != "win32" and str(repo.resolve()).startswith("/mnt/")),
         "Use Windows Git to export this checkout",
     )
-    return subprocess.check_output(["git", "-C", str(repo), *args], stderr=subprocess.PIPE)
+    return ["git", "--no-replace-objects", "-C", str(repo), *args]
+
+
+def git(repo, *args):
+    return subprocess.check_output(git_command(repo, *args), stderr=subprocess.PIPE)
+
+
+class GitBlob:
+    """Bounded, hashed reader for one unfiltered cat-file batch response."""
+
+    def __init__(self, stream, size, oid):
+        self.stream = stream
+        self.remaining = size
+        self.oid = oid
+        self.object_hash = hashlib.sha1(f"blob {size}\0".encode())
+        self.content_hash = hashlib.sha256()
+
+    def read(self, size=-1):
+        count = self.remaining if size < 0 else min(size, self.remaining)
+        data = self.stream.read(count)
+        require(len(data) == count, "truncated Git blob")
+        self.remaining -= count
+        self.object_hash.update(data)
+        self.content_hash.update(data)
+        return data
+
+    def finish(self):
+        require(self.remaining == 0, "Git blob was not fully consumed")
+        require(self.object_hash.hexdigest() == self.oid, "Git blob object hash differs")
+        require(self.stream.read(1) == b"\n", "malformed Git blob delimiter")
+
+
+def archive_git_blobs(repo, revision, destination, paths=()):
+    """Archive raw tree objects, never working-tree/EOL/export filters.
+
+    git archive applies core.autocrlf and attributes such as eol=crlf and
+    export-subst. Even overriding core.autocrlf cannot establish raw source
+    identity. Stream blobs through cat-file, verify their Git object IDs, then
+    independently check every archived member against the raw-byte inventory.
+    """
+    entries = git(repo, "ls-tree", "-r", "-z", revision, "--", *paths)
+    process = subprocess.Popen(
+        git_command(repo, "cat-file", "--batch"),
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+    )
+    files = {}
+    try:
+        mode = "w:gz" if str(destination).endswith(".gz") else "w"
+        with tarfile.open(destination, mode) as archive:
+            for entry in entries.split(b"\0"):
+                if not entry:
+                    continue
+                metadata, raw_name = entry.split(b"\t", 1)
+                git_mode, kind, oid = metadata.decode("ascii").split()
+                require(kind == "blob" and git_mode in ("100644", "100755", "120000"),
+                        "unsupported Git tree entry")
+                name = raw_name.decode("utf-8", "surrogateescape")
+                require(name not in files, "duplicate Git tree entry")
+                process.stdin.write(oid.encode("ascii") + b"\n")
+                process.stdin.flush()
+                header = process.stdout.readline().decode("ascii").split()
+                require(len(header) == 3 and header[:2] == [oid, "blob"]
+                        and header[2].isdigit(), "invalid Git blob response")
+                size = int(header[2])
+                blob = GitBlob(process.stdout, size, oid)
+                member = tarfile.TarInfo(name)
+                member.mode = int(git_mode, 8) & 0o777
+                # Fixed archive metadata; identity is the raw committed bytes.
+                member.mtime = 0
+                if git_mode == "120000":
+                    target = blob.read().decode("utf-8", "surrogateescape")
+                    member.type = tarfile.SYMTYPE
+                    member.linkname = target
+                    archive.addfile(member)
+                    files[name] = {"kind": "symlink", "target": target}
+                else:
+                    member.size = size
+                    archive.addfile(member, blob)
+                    files[name] = {"kind": "file", "sha256": blob.content_hash.hexdigest()}
+                blob.finish()
+        process.stdin.close()
+        require(process.wait() == 0, "Git blob export process failed")
+    finally:
+        if process.poll() is None:
+            process.kill()
+        process.wait()
+        for stream in (process.stdin, process.stdout, process.stderr):
+            if stream and not stream.closed:
+                stream.close()
+    require(archive_files(destination) == files, "source archive differs from raw Git blobs")
+    return dict(sorted(files.items()))
 
 
 def archive_files(path):
@@ -195,8 +285,7 @@ def clean_checkout(repo, revision, archive):
         not git(repo, "status", "--porcelain", "--untracked-files=all").strip(),
         "source checkout is dirty/untracked",
     )
-    git(repo, "archive", "--format=tar.gz", "--output=" + str(archive), revision)
-    files = archive_files(archive)
+    files = archive_git_blobs(repo, revision, archive)
     check_tree(repo, files, checkout=True)
     return files
 
@@ -240,15 +329,7 @@ def export(repo, revision, output, stage=None):
     pins = tomllib.loads(git(repo, "show", revision + ":port/pins.toml").decode())
     require(pin == pins["kicad"]["revision"], "source pin interfaces differ")
     reference = output / "expected-reference.tar"
-    git(
-        repo,
-        "archive",
-        "--format=tar",
-        "--output=" + str(reference),
-        pin,
-        *constants["SOURCE_PATHS"]
-    )
-    expected = archive_files(reference)
+    expected = archive_git_blobs(repo, pin, reference, constants["SOURCE_PATHS"])
     proof = {
         "schema": 1,
         "revision": revision,

@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tarfile
 from types import SimpleNamespace
 import unittest
 from unittest import mock
@@ -91,6 +92,86 @@ class SourceBindingTest(unittest.TestCase):
         )
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse(marker.exists())
+
+    def assert_bundle_matches_git_blobs(self, bundle, repo, head, pin):
+        proof = binding.read_json(bundle / "source.json")
+        with tarfile.open(bundle / "source.tar.gz") as archive:
+            for name, record in proof["files"].items():
+                if record["kind"] != "file":
+                    continue
+                raw = subprocess.check_output(["git", "--no-replace-objects", "-C", str(repo), "show", head + ":" + name])
+                self.assertEqual(archive.extractfile(name).read(), raw)
+                self.assertEqual(record["sha256"], hashlib.sha256(raw).hexdigest())
+        with tarfile.open(bundle / "stage/reference.tar") as archive:
+            for name, digest in proof["reference_files"].items():
+                raw = subprocess.check_output(["git", "--no-replace-objects", "-C", str(repo), "show", pin + ":" + name])
+                self.assertEqual(archive.extractfile(name).read(), raw)
+                self.assertEqual(digest, hashlib.sha256(raw).hexdigest())
+
+    def test_autocrlf_windows_checkout_exports_raw_source_and_reference(self):
+        root, repo, head, pin = self.fixture()
+        subprocess.run(["git", "-C", str(repo), "config", "core.autocrlf", "true"], check=True)
+        for name in subprocess.check_output(["git", "-C", str(repo), "ls-files", "-z"]).split(b"\0"):
+            if name:
+                (repo / name.decode()).unlink()
+        subprocess.run(["git", "-C", str(repo), "checkout-index", "--all", "--force", "--index"], check=True)
+        self.assertIn(b"\r\n", (repo / "port/oracle/overlay.cpp").read_bytes())
+        bundle, digest = self.export(root, repo, head)
+        self.assert_bundle_matches_git_blobs(bundle, repo, head, pin)
+        binding.materialize(bundle, head, digest, root / "snapshot")
+        binding.check_snapshot(root / "snapshot", head, digest)
+        self.assertEqual((root / "snapshot/source/port/oracle/overlay.cpp").read_bytes(),
+                         b"public overlay bytes\n")
+        self.assertEqual(subprocess.check_output(["git", "-C", str(repo), "config", "core.autocrlf"]),
+                         b"true\n")
+
+    def test_raw_export_ignores_eol_substitution_and_export_ignore_attributes(self):
+        root, repo, head, pin = self.fixture()
+        (repo / ".gitattributes").write_text(
+            "*.cpp text eol=crlf\nliteral.txt export-subst\nhidden.cpp export-ignore\n"
+        )
+        (repo / "literal.txt").write_text("$Format:%H$\n")
+        (repo / "hidden.cpp").write_text("committed input, not omitted\n")
+        subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
+        subprocess.run(["git", "-C", str(repo), "commit", "-m", "reference attributes"],
+                       check=True, stdout=subprocess.DEVNULL)
+        pin = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"]).decode().strip()
+        (repo / "port/oracle/pin.py").write_text(
+            f'KICAD_PIN = "{pin}"\nSOURCE_PATHS = ("reference.cpp",)\n'
+        )
+        (repo / "port/pins.toml").write_text(f'[kicad]\nrevision="{pin}"\n')
+        subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
+        subprocess.run(["git", "-C", str(repo), "commit", "-m", "bind reference"],
+                       check=True, stdout=subprocess.DEVNULL)
+        head = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"]).decode().strip()
+        subprocess.run(["git", "-C", str(repo), "config", "core.autocrlf", "true"], check=True)
+        for name in subprocess.check_output(["git", "-C", str(repo), "ls-files", "-z"]).split(b"\0"):
+            if name:
+                (repo / name.decode()).unlink()
+        subprocess.run(["git", "-C", str(repo), "checkout-index", "--all", "--force", "--index"], check=True)
+        self.assertIn(b"\r\n", (repo / "reference.cpp").read_bytes())
+        bundle, digest = self.export(root, repo, head)
+        self.assert_bundle_matches_git_blobs(bundle, repo, head, pin)
+        binding.materialize(bundle, head, digest, root / "snapshot")
+        self.assertEqual((root / "snapshot/source/literal.txt").read_bytes(), b"$Format:%H$\n")
+        self.assertTrue((root / "snapshot/source/hidden.cpp").is_file())
+
+    def test_local_object_replacements_cannot_change_the_committed_export(self):
+        for kind in ("blob", "commit"):
+            with self.subTest(kind=kind):
+                root, repo, head, pin = self.fixture()
+                if kind == "blob":
+                    original = subprocess.check_output(
+                        ["git", "-C", str(repo), "rev-parse", head + ":port/oracle/overlay.cpp"]
+                    ).decode().strip()
+                    other = subprocess.check_output(
+                        ["git", "-C", str(repo), "hash-object", "-w", "--stdin"],
+                        input=b"replacement bytes\n").decode().strip()
+                else:
+                    original, other = head, pin
+                subprocess.run(["git", "-C", str(repo), "replace", original, other], check=True)
+                bundle, digest = self.export(root, repo, head)
+                self.assert_bundle_matches_git_blobs(bundle, repo, head, pin)
 
     def test_dirty_and_wrong_checkout_stop_before_export_or_build(self):
         for change in ("dirty", "untracked", "wrong-head"):
