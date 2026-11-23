@@ -23,7 +23,7 @@ no `unwrap`/`expect`/`panic`, no global state, and builds for `wasm32-unknown-un
 | `Set/GetChildBounds`, `Set/GetInsertBounds` | same | Any slot `0..MAXNODES` |
 | `RemoveChild` | `remove_child` (takes the reference's `int`) | Precondition `assert( i < count )`. For `i == count - 1` no slot is touched and only `count` is decremented (defined even above `MAXNODES` or for negative `i`); otherwise the last slot is moved into `i` and both must be inside the arrays. The vacated slot's bounds, insertion bounds and pointer stay (stale) |
 | `children`/`data` union, `refcount` | `payload`, `child`, `data`, `set_child`, `set_data`, `refcount_*` | See storage below |
-| `SLAB_ALLOCATOR`: `PAGE()`, `Allocate`, `Free`, `MemoryUsage`, `Owns`, move constructor/assignment, private `findOwningPage`, `markUsed`, `markUnused` | `SlabAllocator::{allocate, free, memory_usage, owns, take, move_assign, find_owning_page}` | `markUsed`/`markUnused` are the bit updates inside `allocate`/`free` |
+| `SLAB_ALLOCATOR`: `PAGE()`, `Allocate`, `Free`, `MemoryUsage`, `Owns`, move constructor/assignment, private `findOwningPage`, `markUsed`, `markUnused` | `SlabArena::{new_allocator, allocate, free, memory_usage, owns, move_construct, move_assign, destroy_allocator, find_owning_page}` | `markUsed`/`markUnused` are the bit updates inside `allocate`/`free`, applied only to pages the calling allocator owns; foreign nodes are freed and re-constructed like the reference |
 
 ## Storage design
 
@@ -40,38 +40,63 @@ no `unwrap`/`expect`/`panic`, no global state, and builds for `wasm32-unknown-un
 * **Reference counts.** `std::atomic<int>` becomes an `i32` with `load`, `store`,
   `fetch_add` and `fetch_sub` that return the previous value and wrap like C++20 signed
   atomics. Portable crates are single-threaded; a host that shares nodes across threads
-  serialises access to the allocator, which owns the node storage.
+  serialises access to the arena, which owns the node storage.
 * **Copying.** Like the reference (whose atomic member deletes the copy constructor), a
   node is not `Clone`; a copy-on-write caller copies fields through the accessors, using
-  `SlabAllocator::node_pair_mut` for a source and destination at once.
+  `SlabArena::node_pair_mut` for a source and destination at once.
 
 ## Node identity and allocator ownership
 
-The reference returns `NODE*` into 256-node pages and decides ownership by comparing a
-pointer with each page's address range. Here every page owns an `Rc<PageToken>` and a
-`NodeHandle` is a `Weak` reference to that token plus the slot offset:
+In the reference every allocator returns `NODE*` into its own 256-node pages, and any
+allocator may `Free` and later `Allocate` any node: the private `findOwningPage`
+compares the pointer with the allocator's page ranges and simply fails for a foreign
+node, so `markUnused`/`markUsed` do nothing while the node is still destroyed, pushed,
+popped and placement-constructed in the other allocator's page. All allocators share one
+address space. `SlabArena<N>` is that space: it owns every page and every allocator's
+state, and keeps apart what the C++ keeps apart.
 
-* Handles are equal exactly when they name the same slot of the same page, wherever that
-  page has moved. No address is compared numerically or reaches any output (`Debug`
-  prints only the slot).
-* `owns`/`find_owning_page` look for the handle's token among this allocator's pages, in
-  page order: page membership, including freed slots, not live occupancy.
-* Node storage lives in the pages, so nodes are read and written through
-  `node`/`node_mut`, which require the slot to be allocated. A freed slot is unreachable
-  until `allocate` re-constructs it, matching the ended lifetime after `~NODE()`.
-* `take` (move constructor) and `move_assign` (move assignment) move pages, free list and
-  free-list capacity together; the source keeps none, as libstdc++ leaves moved-from
-  vectors empty with zero capacity. Handles follow their pages. `move_assign` destroys the
-  target's previous pages; their handles are then owned by no allocator. The reference's
-  `this != &aOther` guard cannot be expressed with two exclusive borrows.
-* A live `Weak` keeps its token allocation reserved, so a stale handle never matches a
-  page created later. The C++ reference can reuse a destroyed page's address for a new
-  page, making stale pointers alias new nodes; that address-dependent aliasing is not
-  reproduced (see below).
+| Concept | Reference | Here |
+| --- | --- | --- |
+| Page ownership | `m_pages` of one allocator | the allocator's list of page numbers; `owns`, `find_owning_page` and `memory_usage` use it |
+| Slot occupancy | `PAGE::used` | the page's bitset, changed only through the owning allocator's `markUsed`/`markUnused` |
+| Free-list entries | `m_freeList` | per-allocator handles, which may name nodes in any allocator's pages |
+| Object lifetime | constructed by `PAGE()` and `Allocate`, ended by `Free` | a per-slot `alive` bitset; `node`/`node_mut` require it |
 
-`allocate` follows the reference order exactly: the most recently freed node (re-marked
-used and re-constructed), otherwise the first unused slot of the first non-full page,
-otherwise slot 0 of a new page (whose 256 nodes are default-constructed).
+So after `B.Free( A.Allocate() ); B.Allocate()` the same slot is re-constructed in A's page:
+A still owns it (and its used bit, which B's `Free` never cleared), B does not, and B's
+`MemoryUsage` counts only its own pages and free-list capacity (8 bytes after one push).
+
+* A `NodeHandle` is the arena's identity, a page number and a slot. Handles are equal
+  exactly when they name the same slot of the same page, wherever its page has moved. Page
+  numbers are never reused: a destroyed page keeps its number without storage, so a stale
+  handle is recognised exactly (`NodeDestroyed`) and never aliases a later page. No address
+  is compared numerically or reaches any output (`Debug` prints the logical page and slot).
+* An allocator is an `AllocatorId`: `new_allocator` (constructor), `move_construct` and
+  `move_assign` (the source keeps no pages, free list or capacity, as libstdc++ moves leave
+  zero capacity; a self move is the reference's guarded no-op), and `destroy_allocator`
+  (destructor). Move assignment and destruction destroy the target's pages and every node
+  in them, including nodes another allocator re-constructed. An allocator lives until it
+  is destroyed or the arena is dropped.
+* Handles from another arena are `ForeignArena`: allocators that exchange nodes must share
+  an arena, as C++ allocators share one address space.
+
+`allocate` follows the reference order exactly: the most recently freed node, whichever
+page holds it (re-marked used only if the allocator owns that page, then re-constructed),
+otherwise the first unused slot of the allocator's first non-full page, otherwise slot 0
+of a new page (whose 256 nodes are all constructed). A free-list entry whose page has
+been destroyed is refused (`NodeDestroyed`) without changing state: the reference would
+construct into freed memory.
+
+### Interface for the tree units
+
+A dynamic or copy-on-write tree holds (or shares, for COW clones) one `SlabArena` and its
+`AllocatorId`. It reads and writes nodes through `arena.node(&handle)`,
+`arena.node_mut(&handle)` and `arena.node_pair_mut(&a, &b)`, where the C++ dereferences
+`NODE*`; child pointers are `Payload::Child(NodeHandle)`. `allocNode`/`freeNode` map to
+`arena.allocate(&id)` and `arena.free(&id, Some(&handle))`, `MemoryUsage` to
+`arena.memory_usage(&id)`, and moving or destroying a tree's allocator to `move_construct`,
+`move_assign` and `destroy_allocator`. Every call returns `Result`; the errors are the
+refusals below.
 
 ## Reference accounting
 
@@ -95,26 +120,25 @@ live oracle for every configuration.
 | Slot outside `0..MAXNODES` where a slot is accessed; `RemoveChild` slot not below `count` (its `assert` precondition) or negative when a copy is made | `SlotOutOfRange` |
 | `count` above `MAXNODES` for loops that index with it; a non-2D mask whose overlapping slot is 32 or above (`1U << i` runs only for overlapping slots) | `CountOutOfDomain` |
 | Signed 64-bit overflow in area, perimeter, overlap area or enlargement | `Overflow` |
-| Access to or `Free` of a freed node (use after free, double destruction) | `NodeNotLive` |
+| Access to or `Free` of a node whose object does not exist (use after free, a second destruction), whichever allocator frees it | `NodeNotLive` |
+| Access to a node, or `Allocate` from a free-list entry, in a page destroyed with its allocator | `NodeDestroyed` |
 | Typed read of the inactive union member | `InactiveUnionMember` |
 
 ## Deliberately unported reference branches
 
 These are not deferrals of another unit; they are reference behaviours this safe port
-does not reproduce, and the unit is `partial` until they are resolved by review:
+does not reproduce, and the unit is `partial` until they are resolved by review. Foreign
+`Free`/`Allocate` (the not-found `markUnused`/`markUsed` branches) was listed here before
+and is now ported.
 
-1. **Nodes outside the allocator's pages.** `Free` of such a node runs `markUnused`'s
-   not-found branch, destroys the node and pushes it; a later `Allocate` runs
-   `markUsed`'s not-found branch and placement-constructs at that foreign address. Here
-   `free` returns `ForeignNode` and nothing changes.
-2. **Other instantiations.** Only `ELEMTYPE` `int`/`int64_t` and pointer-sized `DATATYPE`
+1. **Other instantiations.** Only `ELEMTYPE` `int`/`int64_t` and pointer-sized `DATATYPE`
    are supported (the `Coord` trait is sealed). On x86-64 the SSE2 `OverlapMask2D` path
    compares any 4-byte `ELEMTYPE` as signed 32-bit lanes, which differs from the scalar
    path for `uint32_t` values at or above 2^31 and for `float` bit patterns; no KiCad
    instantiation uses those types with this function.
-3. **Other platforms.** The oracle is Linux x86-64 with SSE2. The NEON and plain scalar
+2. **Other platforms.** The oracle is Linux x86-64 with SSE2. The NEON and plain scalar
    paths agree with the implemented predicate for `int`, but are not oracle-checked.
-4. **Address reuse.** After a page is destroyed, the reference may place a new page at
+3. **Address reuse.** After a page is destroyed, the reference may place a new page at
    the same address so that stale pointers alias new nodes; handles here never alias.
 
 ## Tests

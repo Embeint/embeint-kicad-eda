@@ -5,8 +5,10 @@
 //! `OverlapMask2D`, `RTREE_NODE` and `SLAB_ALLOCATOR`.
 //!
 //! Inputs outside the reference's defined domain (shifts by the type width, signed
-//! overflow, out-of-bounds slots, use after free, nodes from another allocator) are
-//! refused with a typed [`RtreeError`] instead of being given an invented result.
+//! overflow, out-of-bounds slots, use after free, construction into a destroyed page)
+//! are refused with a typed [`RtreeError`] instead of being given an invented result.
+//! Nodes from another allocator are not among them: any allocator in the same
+//! [`SlabArena`] may free and re-allocate any node, as in C++.
 //! See `README.md` for the storage design and the unported branches.
 #![forbid(unsafe_code)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
@@ -24,15 +26,15 @@ pub use error::RtreeError;
 pub use hilbert::{hilbert_nd, hilbert_nd2d, hilbert_xy2d};
 pub use node::{NodeData, Payload, RtreeNode};
 pub use overlap::{overlap_mask_2d, overlap_mask_2d_dyn};
-pub use slab::{NodeHandle, SlabAllocator, SlabNode, NODES_PER_PAGE};
+pub use slab::{AllocatorId, NodeHandle, SlabArena, SlabNode, NODES_PER_PAGE};
 
 /// Every definition of `rtree_node.h`, under the header's name (the unit record's
 /// `rust_module`).
 pub mod rtree_node {
     pub use crate::layout;
     pub use crate::{
-        hilbert_nd, hilbert_nd2d, hilbert_xy2d, overlap_mask_2d, overlap_mask_2d_dyn, Coord,
-        NodeData, NodeHandle, Payload, RtreeError, RtreeNode, SlabAllocator, SlabNode,
+        hilbert_nd, hilbert_nd2d, hilbert_xy2d, overlap_mask_2d, overlap_mask_2d_dyn, AllocatorId,
+        Coord, NodeData, NodeHandle, Payload, RtreeError, RtreeNode, SlabArena, SlabNode,
         NODES_PER_PAGE,
     };
 }

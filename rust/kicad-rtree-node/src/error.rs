@@ -22,11 +22,15 @@ pub enum RtreeError {
     Overflow,
     /// Reading the inactive member of the `children`/`data` union.
     InactiveUnionMember,
-    /// A node that no page of this allocator contains.  The reference would destroy
-    /// and later re-construct an object at that foreign address; that is not ported.
-    ForeignNode,
-    /// A node whose slot is not currently allocated (use after free or double free).
+    /// A handle or allocator from a different [`crate::SlabArena`].  Allocators that
+    /// exchange nodes must share one arena, as C++ allocators share one address space.
+    ForeignArena,
+    /// A node whose object does not exist (use after free, or a second destruction).
     NodeNotLive,
+    /// A node whose page was destroyed with its allocator (a dangling pointer).
+    NodeDestroyed,
+    /// An allocator that has been destroyed.
+    AllocatorDestroyed,
     /// Two handles to the same node where distinct mutable nodes are required.
     AliasedNodes,
     /// The reference layout computation does not fit in 64 bits.
@@ -44,8 +48,10 @@ impl fmt::Display for RtreeError {
             Self::SliceTooShort => "bounds shorter than fanout",
             Self::Overflow => "arithmetic overflow outside reference domain",
             Self::InactiveUnionMember => "inactive union member",
-            Self::ForeignNode => "node is not owned",
+            Self::ForeignArena => "foreign arena",
             Self::NodeNotLive => "node is not live",
+            Self::NodeDestroyed => "node is destroyed",
+            Self::AllocatorDestroyed => "allocator does not exist",
             Self::AliasedNodes => "aliased nodes",
             Self::LayoutOverflow => "layout overflow",
         })

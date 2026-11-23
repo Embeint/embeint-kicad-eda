@@ -4,7 +4,7 @@
 
 use kicad_rtree_node::{
     hilbert_nd, hilbert_nd2d, hilbert_xy2d, overlap_mask_2d, NodeData, Payload, RtreeError,
-    RtreeNode, SlabAllocator, SlabNode,
+    RtreeNode, SlabArena, SlabNode,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -192,78 +192,139 @@ fn remove_child_last_slot_touches_no_array() {
 fn reference_layout_matches_the_pinned_linux_abi() {
     let node = Node::reference_layout().unwrap();
     assert_eq!((node.size, node.align), (656, 8));
-    assert_eq!(SlabAllocator::<Node>::reference_page_size(), Ok(168_000));
+    assert_eq!(SlabArena::<Node>::reference_page_size(), Ok(168_000));
 }
 
 #[test]
 fn allocator_reuses_freed_nodes_last_in_first_out() {
-    let mut slab = SlabAllocator::<Node>::new();
-    assert_eq!(slab.memory_usage(), Ok(0));
-    let nodes: Vec<_> = (0..3).map(|_| slab.allocate().unwrap()).collect();
-    assert_eq!(slab.find_owning_page(&nodes[2]), Some((0, 2)));
-    slab.node_mut(&nodes[1]).unwrap().count = 9;
-    slab.free(Some(&nodes[1])).unwrap();
-    slab.free(Some(&nodes[0])).unwrap();
-    assert_eq!(slab.free(Some(&nodes[0])), Err(RtreeError::NodeNotLive));
-    assert_eq!(slab.node(&nodes[1]).err(), Some(RtreeError::NodeNotLive));
-    assert!(slab.owns(&nodes[1]), "freed slots stay owned");
-    assert_eq!(slab.free(None), Ok(()));
-    assert_eq!(slab.free_list_capacity(), 2);
-    assert_eq!(slab.memory_usage(), Ok(168_000 + 16));
-    assert_eq!(slab.allocate(), Ok(nodes[0].clone()));
-    assert_eq!(slab.allocate(), Ok(nodes[1].clone()));
-    assert_eq!(slab.node(&nodes[1]).unwrap().count, 0, "re-constructed");
-    assert_eq!(slab.free_list_capacity(), 2, "pop_back keeps capacity");
+    let mut arena = SlabArena::<Node>::new();
+    let slab = arena.new_allocator().unwrap();
+    assert_eq!(arena.memory_usage(&slab), Ok(0));
+    let nodes: Vec<_> = (0..3).map(|_| arena.allocate(&slab).unwrap()).collect();
+    assert_eq!(arena.find_owning_page(&slab, &nodes[2]), Ok(Some((0, 2))));
+    arena.node_mut(&nodes[1]).unwrap().count = 9;
+    arena.free(&slab, Some(&nodes[1])).unwrap();
+    arena.free(&slab, Some(&nodes[0])).unwrap();
+    assert_eq!(
+        arena.free(&slab, Some(&nodes[0])),
+        Err(RtreeError::NodeNotLive)
+    );
+    assert_eq!(arena.node(&nodes[1]).err(), Some(RtreeError::NodeNotLive));
+    assert_eq!(
+        arena.owns(&slab, &nodes[1]),
+        Ok(true),
+        "freed slots stay owned"
+    );
+    assert_eq!(arena.free(&slab, None), Ok(()));
+    assert_eq!(arena.free_list_capacity(&slab), Ok(2));
+    assert_eq!(arena.memory_usage(&slab), Ok(168_000 + 16));
+    assert_eq!(arena.allocate(&slab), Ok(nodes[0].clone()));
+    assert_eq!(arena.allocate(&slab), Ok(nodes[1].clone()));
+    assert_eq!(arena.node(&nodes[1]).unwrap().count, 0, "re-constructed");
+    assert_eq!(
+        arena.free_list_capacity(&slab),
+        Ok(2),
+        "pop_back keeps capacity"
+    );
 }
 
 #[test]
 fn allocator_fills_pages_then_adds_one() {
-    let mut slab = SlabAllocator::<Node>::new();
+    let mut arena = SlabArena::<Node>::new();
+    let slab = arena.new_allocator().unwrap();
     for _ in 0..256 {
-        slab.allocate().unwrap();
+        arena.allocate(&slab).unwrap();
     }
-    assert_eq!(slab.page_count(), 1);
-    let next = slab.allocate().unwrap();
-    assert_eq!(slab.find_owning_page(&next), Some((1, 0)));
-    assert_eq!(slab.page_used_words(1), Some([1, 0, 0, 0]));
+    assert_eq!(arena.page_count(&slab), Ok(1));
+    let next = arena.allocate(&slab).unwrap();
+    assert_eq!(arena.find_owning_page(&slab, &next), Ok(Some((1, 0))));
+    assert_eq!(arena.page_used_words(&slab, 1), Ok(Some([1, 0, 0, 0])));
 }
 
 #[test]
-fn moves_carry_pages_and_identity() {
-    let mut first = SlabAllocator::<Node>::new();
-    let node = first.allocate().unwrap();
-    let mut second = first.take();
-    assert!(!first.owns(&node) && second.owns(&node));
-    assert_eq!(first.memory_usage(), Ok(0));
-    let mut third = SlabAllocator::<Node>::new();
-    let old = third.allocate().unwrap();
-    third.move_assign(&mut second);
-    assert!(third.owns(&node) && !third.owns(&old) && !second.owns(&node));
-    assert_eq!(third.node(&old).err(), Some(RtreeError::ForeignNode));
-    let mut other = SlabAllocator::<Node>::new();
-    assert_eq!(other.free(Some(&node)), Err(RtreeError::ForeignNode));
-    drop(third);
-    assert!(
-        !other.owns(&node),
-        "a destroyed page never matches a later one"
+fn foreign_free_and_allocate_reconstruct_the_owners_slot() {
+    // B.Free( A.Allocate() ); B.Allocate() in the pinned reference.
+    let mut arena = SlabArena::<Node>::new();
+    let (owner, borrower) = (
+        arena.new_allocator().unwrap(),
+        arena.new_allocator().unwrap(),
     );
-    let fresh = other.allocate().unwrap();
-    assert_ne!(fresh, node);
+    let node = arena.allocate(&owner).unwrap();
+    arena.node_mut(&node).unwrap().count = 7;
+    arena.free(&borrower, Some(&node)).unwrap();
+    // markUnused found no page in the borrower: the owner's bit stays set.
+    assert_eq!(arena.page_used_words(&owner, 0), Ok(Some([1, 0, 0, 0])));
+    assert_eq!(arena.node(&node).err(), Some(RtreeError::NodeNotLive));
+    assert_eq!(
+        arena.free(&owner, Some(&node)),
+        Err(RtreeError::NodeNotLive)
+    );
+    assert_eq!(arena.memory_usage(&borrower), Ok(8));
+    let revived = arena.allocate(&borrower).unwrap();
+    assert_eq!(revived, node);
+    assert_eq!(arena.node(&node).unwrap().count, 0);
+    assert_eq!(arena.owns(&owner, &node), Ok(true));
+    assert_eq!(arena.owns(&borrower, &node), Ok(false));
+    assert_eq!(arena.memory_usage(&owner), Ok(168_000));
+    assert_eq!(arena.memory_usage(&borrower), Ok(8));
+    // The owner can free it again normally, clearing its own bit.
+    arena.free(&owner, Some(&node)).unwrap();
+    assert_eq!(arena.page_used_words(&owner, 0), Ok(Some([0, 0, 0, 0])));
+    assert_eq!(arena.allocate(&owner), Ok(node));
+}
+
+#[test]
+fn moves_and_destruction_carry_pages_and_identity() {
+    let mut arena = SlabArena::<Node>::new();
+    let first = arena.new_allocator().unwrap();
+    let node = arena.allocate(&first).unwrap();
+    let second = arena.move_construct(&first).unwrap();
+    assert_eq!(arena.owns(&first, &node), Ok(false));
+    assert_eq!(arena.owns(&second, &node), Ok(true));
+    assert_eq!(arena.memory_usage(&first), Ok(0));
+    let third = arena.new_allocator().unwrap();
+    let old = arena.allocate(&third).unwrap();
+    arena.move_assign(&third, &third).unwrap();
+    assert_eq!(arena.owns(&third, &old), Ok(true), "self move is a no-op");
+    arena.move_assign(&third, &second).unwrap();
+    assert_eq!(arena.owns(&third, &node), Ok(true));
+    assert_eq!(arena.owns(&second, &node), Ok(false));
+    assert_eq!(arena.node(&old).err(), Some(RtreeError::NodeDestroyed));
+    // A foreign free-list entry into a page that is then destroyed cannot be reused.
+    let borrower = arena.new_allocator().unwrap();
+    arena.free(&borrower, Some(&node)).unwrap();
+    arena.destroy_allocator(&third).unwrap();
+    assert_eq!(arena.is_destroyed(&node), Ok(true));
+    assert_eq!(arena.allocate(&borrower), Err(RtreeError::NodeDestroyed));
+    assert_eq!(
+        arena.free_list(&borrower).map(<[_]>::len),
+        Ok(1),
+        "refusal keeps state"
+    );
+    assert_eq!(
+        arena.memory_usage(&third),
+        Err(RtreeError::AllocatorDestroyed)
+    );
+    let fresh = arena.allocate(&first).unwrap();
+    assert_ne!(fresh, node, "a destroyed page never matches a later one");
+    let other = SlabArena::<Node>::new();
+    assert_eq!(other.node(&fresh).err(), Some(RtreeError::ForeignArena));
 }
 
 #[test]
 fn node_pairs_are_distinct_and_ordered() {
-    let mut slab = SlabAllocator::<Node>::new();
-    let nodes: Vec<_> = (0..258).map(|_| slab.allocate().unwrap()).collect();
+    let mut arena = SlabArena::<Node>::new();
+    let slab = arena.new_allocator().unwrap();
+    let nodes: Vec<_> = (0..258).map(|_| arena.allocate(&slab).unwrap()).collect();
     for (a, b) in [(3, 1), (1, 3), (257, 2), (2, 257)] {
-        let (x, y) = slab.node_pair_mut(&nodes[a], &nodes[b]).unwrap();
+        let (x, y) = arena.node_pair_mut(&nodes[a], &nodes[b]).unwrap();
         x.count = 100 + a as i32;
         y.count = 100 + b as i32;
-        assert_eq!(slab.node(&nodes[a]).unwrap().count, 100 + a as i32);
-        assert_eq!(slab.node(&nodes[b]).unwrap().count, 100 + b as i32);
+        assert_eq!(arena.node(&nodes[a]).unwrap().count, 100 + a as i32);
+        assert_eq!(arena.node(&nodes[b]).unwrap().count, 100 + b as i32);
     }
     assert_eq!(
-        slab.node_pair_mut(&nodes[4], &nodes[4]).err(),
+        arena.node_pair_mut(&nodes[4], &nodes[4]).err(),
         Some(RtreeError::AliasedNodes)
     );
 }
