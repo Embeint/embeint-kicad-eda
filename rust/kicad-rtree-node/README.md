@@ -23,7 +23,7 @@ no `unwrap`/`expect`/`panic`, no global state, and builds for `wasm32-unknown-un
 | `Set/GetChildBounds`, `Set/GetInsertBounds` | same | Any slot `0..MAXNODES` |
 | `RemoveChild` | `remove_child` (takes the reference's `int`) | Precondition `assert( i < count )`. For `i == count - 1` no slot is touched and only `count` is decremented (defined even above `MAXNODES` or for negative `i`); otherwise the last slot is moved into `i` and both must be inside the arrays. The vacated slot's bounds, insertion bounds and pointer stay (stale) |
 | `children`/`data` union, `refcount` | `payload`, `child`, `data`, `set_child`, `set_data`, `refcount_*` | See storage below |
-| `SLAB_ALLOCATOR`: `PAGE()`, `Allocate`, `Free`, `MemoryUsage`, `Owns`, move constructor/assignment, private `findOwningPage`, `markUsed`, `markUnused` | `SlabArena::{new_allocator, allocate, free, memory_usage, owns, move_construct, move_assign, destroy_allocator, find_owning_page}` | `markUsed`/`markUnused` are the bit updates inside `allocate`/`free`, applied only to pages the calling allocator owns; foreign nodes are freed and re-constructed like the reference |
+| `SLAB_ALLOCATOR`: `PAGE()`, `Allocate`, `Free`, `MemoryUsage`, `Owns`, move constructor/assignment, private `findOwningPage`, `markUsed`, `markUnused` | `SlabArena::{new_allocator, allocate, free, memory_usage, owns, move_construct, move_assign, destroy_allocator, find_owning_page}` | `markUsed`/`markUnused` are the bit updates inside `allocate`/`free`, applied only to pages the calling allocator owns. Any constructed node can be freed and re-constructed: another allocator's slot, a constructed unused slot (`page_neighbour`) or caller-owned storage (`new_external`). `owns`/`find_owning_page` take `Option`: null is never owned |
 
 ## Storage design
 
@@ -57,10 +57,11 @@ state, and keeps apart what the C++ keeps apart.
 
 | Concept | Reference | Here |
 | --- | --- | --- |
-| Page ownership | `m_pages` of one allocator | the allocator's list of page numbers; `owns`, `find_owning_page` and `memory_usage` use it |
+| Page ownership | `m_pages` of one allocator | the allocator's list of page numbers; `owns`, `find_owning_page` and `memory_usage` use it; null and external nodes are never owned |
 | Slot occupancy | `PAGE::used` | the page's bitset, changed only through the owning allocator's `markUsed`/`markUnused` |
 | Free-list entries | `m_freeList` | per-allocator handles, which may name nodes in any allocator's pages |
-| Object lifetime | constructed by `PAGE()` and `Allocate`, ended by `Free` | a per-slot `alive` bitset; `node`/`node_mut` require it |
+| Object lifetime | constructed by `PAGE()`, `NODE n;` and `Allocate`, ended by `Free` | a per-slot `alive` bitset (per external node a flag); `node`/`node_mut` require it |
+| Storage | page arrays (destroyed with their allocator), caller storage (ends with its scope) | page and external numbers, never reused; ended storage keeps its number without contents |
 
 So after `B.Free( A.Allocate() ); B.Allocate()` the same slot is re-constructed in A's page:
 A still owns it (and its used bit, which B's `Free` never cleared), B does not, and B's
@@ -71,6 +72,20 @@ A still owns it (and its used bit, which B's `Free` never cleared), B does not, 
   numbers are never reused: a destroyed page keeps its number without storage, so a stale
   handle is recognised exactly (`NodeDestroyed`) and never aliases a later page. No address
   is compared numerically or reaches any output (`Debug` prints the logical page and slot).
+* Any constructed node can be named, not only allocated ones, because the reference
+  accepts any constructed `NODE*`:
+  * `page_neighbour( node, k )` is `node + k` inside the same `PAGE::nodes` array (the
+    result must be an element). Slots that `PAGE()` constructed but no allocator handed
+    out are alive, owned by the page's allocator and have clear used bits. Another
+    allocator may free and re-construct one while the bit stays clear, so the owner's page
+    scan can return it too, and two free lists can name the same slot. Each allocation
+    then constructs over it, as placement new does over an existing trivially
+    destructible node.
+  * `new_external()` is a caller-owned `NODE n;` outside every page: never owned, so
+    `Free`/`Allocate` change no used bit and only the freeing allocator's free-list
+    capacity counts towards its `MemoryUsage`. `destroy_external` ends that storage
+    (defined whether or not its node exists, since the node is trivially destructible);
+    later handles to it are `NodeDestroyed`.
 * An allocator is an `AllocatorId`: `new_allocator` (constructor), `move_construct` and
   `move_assign` (the source keeps no pages, free list or capacity, as libstdc++ moves leave
   zero capacity; a self move is the reference's guarded no-op), and `destroy_allocator`
@@ -83,9 +98,10 @@ A still owns it (and its used bit, which B's `Free` never cleared), B does not, 
 `allocate` follows the reference order exactly: the most recently freed node, whichever
 page holds it (re-marked used only if the allocator owns that page, then re-constructed),
 otherwise the first unused slot of the allocator's first non-full page, otherwise slot 0
-of a new page (whose 256 nodes are all constructed). A free-list entry whose page has
-been destroyed is refused (`NodeDestroyed`) without changing state: the reference would
-construct into freed memory.
+of a new page (whose 256 nodes are all constructed). A free-list entry whose storage has
+ended (destroyed page or released external storage) is refused (`NodeDestroyed`) without
+changing state: the reference would construct into freed memory. Constructing over a node
+that exists is not refused: placement new over a trivially destructible node is defined.
 
 ### Interface for the tree units
 
@@ -121,15 +137,17 @@ live oracle for every configuration.
 | `count` above `MAXNODES` for loops that index with it; a non-2D mask whose overlapping slot is 32 or above (`1U << i` runs only for overlapping slots) | `CountOutOfDomain` |
 | Signed 64-bit overflow in area, perimeter, overlap area or enlargement | `Overflow` |
 | Access to or `Free` of a node whose object does not exist (use after free, a second destruction), whichever allocator frees it | `NodeNotLive` |
-| Access to a node, or `Allocate` from a free-list entry, in a page destroyed with its allocator | `NodeDestroyed` |
+| Access to a node, `page_neighbour` from it, or `Allocate` from a free-list entry, in storage that has ended (destroyed page or released external storage) | `NodeDestroyed` |
+| `page_neighbour` outside the node's `PAGE::nodes` array (any offset but 0 for external storage) | `NeighbourOutOfPage` |
 | Typed read of the inactive union member | `InactiveUnionMember` |
 
 ## Deliberately unported reference branches
 
 These are not deferrals of another unit; they are reference behaviours this safe port
 does not reproduce, and the unit is `partial` until they are resolved by review. Foreign
-`Free`/`Allocate` (the not-found `markUnused`/`markUsed` branches) was listed here before
-and is now ported.
+`Free`/`Allocate` (the not-found `markUnused`/`markUsed` branches), null ownership queries,
+caller-owned external nodes and constructed unused page slots were listed or missing here
+before and are now ported.
 
 1. **Other instantiations.** Only `ELEMTYPE` `int`/`int64_t` and pointer-sized `DATATYPE`
    are supported (the `Coord` trait is sealed). On x86-64 the SSE2 `OverlapMask2D` path

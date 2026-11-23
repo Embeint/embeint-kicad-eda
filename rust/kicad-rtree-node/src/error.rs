@@ -27,8 +27,14 @@ pub enum RtreeError {
     ForeignArena,
     /// A node whose object does not exist (use after free, or a second destruction).
     NodeNotLive,
-    /// A node whose page was destroyed with its allocator (a dangling pointer).
+    /// A node whose storage has ended: a page destroyed with its allocator, or
+    /// external storage that was released (a dangling pointer).
     NodeDestroyed,
+    /// `destroy_external` on a node that lives in a page.
+    NotExternal,
+    /// Pointer arithmetic past the node's `PAGE::nodes` array (or, for external
+    /// storage, to anything but the node itself).
+    NeighbourOutOfPage,
     /// An allocator that has been destroyed.
     AllocatorDestroyed,
     /// Two handles to the same node where distinct mutable nodes are required.
@@ -51,6 +57,8 @@ impl fmt::Display for RtreeError {
             Self::ForeignArena => "foreign arena",
             Self::NodeNotLive => "node is not live",
             Self::NodeDestroyed => "node is destroyed",
+            Self::NotExternal => "node is not external",
+            Self::NeighbourOutOfPage => "neighbour outside page",
             Self::AllocatorDestroyed => "allocator does not exist",
             Self::AliasedNodes => "aliased nodes",
             Self::LayoutOverflow => "layout overflow",

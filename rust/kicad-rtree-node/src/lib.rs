@@ -5,7 +5,7 @@
 //! `OverlapMask2D`, `RTREE_NODE` and `SLAB_ALLOCATOR`.
 //!
 //! Inputs outside the reference's defined domain (shifts by the type width, signed
-//! overflow, out-of-bounds slots, use after free, construction into a destroyed page)
+//! overflow, out-of-bounds slots, use after free, construction into ended storage)
 //! are refused with a typed [`RtreeError`] instead of being given an invented result.
 //! Nodes from another allocator are not among them: any allocator in the same
 //! [`SlabArena`] may free and re-allocate any node, as in C++.

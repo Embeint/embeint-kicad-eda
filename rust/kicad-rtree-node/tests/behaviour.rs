@@ -201,7 +201,10 @@ fn allocator_reuses_freed_nodes_last_in_first_out() {
     let slab = arena.new_allocator().unwrap();
     assert_eq!(arena.memory_usage(&slab), Ok(0));
     let nodes: Vec<_> = (0..3).map(|_| arena.allocate(&slab).unwrap()).collect();
-    assert_eq!(arena.find_owning_page(&slab, &nodes[2]), Ok(Some((0, 2))));
+    assert_eq!(
+        arena.find_owning_page(&slab, Some(&nodes[2])),
+        Ok(Some((0, 2)))
+    );
     arena.node_mut(&nodes[1]).unwrap().count = 9;
     arena.free(&slab, Some(&nodes[1])).unwrap();
     arena.free(&slab, Some(&nodes[0])).unwrap();
@@ -211,7 +214,7 @@ fn allocator_reuses_freed_nodes_last_in_first_out() {
     );
     assert_eq!(arena.node(&nodes[1]).err(), Some(RtreeError::NodeNotLive));
     assert_eq!(
-        arena.owns(&slab, &nodes[1]),
+        arena.owns(&slab, Some(&nodes[1])),
         Ok(true),
         "freed slots stay owned"
     );
@@ -237,7 +240,7 @@ fn allocator_fills_pages_then_adds_one() {
     }
     assert_eq!(arena.page_count(&slab), Ok(1));
     let next = arena.allocate(&slab).unwrap();
-    assert_eq!(arena.find_owning_page(&slab, &next), Ok(Some((1, 0))));
+    assert_eq!(arena.find_owning_page(&slab, Some(&next)), Ok(Some((1, 0))));
     assert_eq!(arena.page_used_words(&slab, 1), Ok(Some([1, 0, 0, 0])));
 }
 
@@ -263,8 +266,8 @@ fn foreign_free_and_allocate_reconstruct_the_owners_slot() {
     let revived = arena.allocate(&borrower).unwrap();
     assert_eq!(revived, node);
     assert_eq!(arena.node(&node).unwrap().count, 0);
-    assert_eq!(arena.owns(&owner, &node), Ok(true));
-    assert_eq!(arena.owns(&borrower, &node), Ok(false));
+    assert_eq!(arena.owns(&owner, Some(&node)), Ok(true));
+    assert_eq!(arena.owns(&borrower, Some(&node)), Ok(false));
     assert_eq!(arena.memory_usage(&owner), Ok(168_000));
     assert_eq!(arena.memory_usage(&borrower), Ok(8));
     // The owner can free it again normally, clearing its own bit.
@@ -279,16 +282,20 @@ fn moves_and_destruction_carry_pages_and_identity() {
     let first = arena.new_allocator().unwrap();
     let node = arena.allocate(&first).unwrap();
     let second = arena.move_construct(&first).unwrap();
-    assert_eq!(arena.owns(&first, &node), Ok(false));
-    assert_eq!(arena.owns(&second, &node), Ok(true));
+    assert_eq!(arena.owns(&first, Some(&node)), Ok(false));
+    assert_eq!(arena.owns(&second, Some(&node)), Ok(true));
     assert_eq!(arena.memory_usage(&first), Ok(0));
     let third = arena.new_allocator().unwrap();
     let old = arena.allocate(&third).unwrap();
     arena.move_assign(&third, &third).unwrap();
-    assert_eq!(arena.owns(&third, &old), Ok(true), "self move is a no-op");
+    assert_eq!(
+        arena.owns(&third, Some(&old)),
+        Ok(true),
+        "self move is a no-op"
+    );
     arena.move_assign(&third, &second).unwrap();
-    assert_eq!(arena.owns(&third, &node), Ok(true));
-    assert_eq!(arena.owns(&second, &node), Ok(false));
+    assert_eq!(arena.owns(&third, Some(&node)), Ok(true));
+    assert_eq!(arena.owns(&second, Some(&node)), Ok(false));
     assert_eq!(arena.node(&old).err(), Some(RtreeError::NodeDestroyed));
     // A foreign free-list entry into a page that is then destroyed cannot be reused.
     let borrower = arena.new_allocator().unwrap();
@@ -309,6 +316,95 @@ fn moves_and_destruction_carry_pages_and_identity() {
     assert_ne!(fresh, node, "a destroyed page never matches a later one");
     let other = SlabArena::<Node>::new();
     assert_eq!(other.node(&fresh).err(), Some(RtreeError::ForeignArena));
+}
+
+#[test]
+fn null_ownership_queries_are_false() {
+    let mut arena = SlabArena::<Node>::new();
+    let slab = arena.new_allocator().unwrap();
+    assert_eq!(arena.owns(&slab, None), Ok(false));
+    assert_eq!(arena.find_owning_page(&slab, None), Ok(None));
+    arena.allocate(&slab).unwrap();
+    assert_eq!(arena.owns(&slab, None), Ok(false));
+    assert_eq!(arena.find_owning_page(&slab, None), Ok(None));
+}
+
+#[test]
+fn external_node_is_freed_and_reconstructed_in_place() {
+    // ALLOC b; NODE n; n.count = 13; b.Free( &n ); b.Allocate() == &n.
+    let mut arena = SlabArena::<Node>::new();
+    let slab = arena.new_allocator().unwrap();
+    let node = arena.new_external().unwrap();
+    arena.node_mut(&node).unwrap().count = 13;
+    assert_eq!(arena.owns(&slab, Some(&node)), Ok(false));
+    arena.free(&slab, Some(&node)).unwrap();
+    assert_eq!(arena.memory_usage(&slab), Ok(8));
+    assert_eq!(arena.node(&node).err(), Some(RtreeError::NodeNotLive));
+    assert_eq!(arena.allocate(&slab), Ok(node.clone()));
+    assert_eq!(arena.node(&node).unwrap().count, 0);
+    assert_eq!(arena.owns(&slab, Some(&node)), Ok(false));
+    assert_eq!(arena.page_count(&slab), Ok(0));
+    assert_eq!(arena.page_neighbour(&node, 0), Ok(node.clone()));
+    assert_eq!(
+        arena.page_neighbour(&node, 1),
+        Err(RtreeError::NeighbourOutOfPage)
+    );
+    // Ending the storage while a free list still names it: reuse is refused.
+    arena.free(&slab, Some(&node)).unwrap();
+    arena.destroy_external(&node).unwrap();
+    assert_eq!(arena.is_destroyed(&node), Ok(true));
+    assert_eq!(arena.allocate(&slab), Err(RtreeError::NodeDestroyed));
+    let page = {
+        let other = arena.new_allocator().unwrap();
+        arena.allocate(&other).unwrap()
+    };
+    assert_eq!(arena.destroy_external(&page), Err(RtreeError::NotExternal));
+}
+
+#[test]
+fn unused_page_slots_alias_through_two_free_lists() {
+    // The review's sequence with q = a.Allocate() + 1.
+    let mut arena = SlabArena::<Node>::new();
+    let (a, b) = (
+        arena.new_allocator().unwrap(),
+        arena.new_allocator().unwrap(),
+    );
+    let p = arena.allocate(&a).unwrap();
+    let q = arena.page_neighbour(&p, 1).unwrap();
+    assert_eq!(arena.owns(&a, Some(&q)), Ok(true));
+    assert_eq!(arena.node(&q).unwrap().count, 0, "PAGE() constructed it");
+    arena.free(&b, Some(&q)).unwrap();
+    assert_eq!(arena.allocate(&b), Ok(q.clone()));
+    assert_eq!(arena.owns(&b, Some(&q)), Ok(false));
+    assert_eq!(arena.memory_usage(&b), Ok(8));
+    arena.free(&b, Some(&q)).unwrap();
+    assert_eq!(
+        arena.allocate(&a),
+        Ok(q.clone()),
+        "owner scan finds the clear bit"
+    );
+    arena.free(&a, Some(&q)).unwrap();
+    arena.allocate(&b).unwrap();
+    arena.free(&b, Some(&q)).unwrap();
+    arena.allocate(&a).unwrap();
+    arena.free(&a, Some(&q)).unwrap();
+    // Both free lists name q; each allocation re-constructs the same node.
+    let x = arena.allocate(&b).unwrap();
+    arena.node_mut(&x).unwrap().count = 99;
+    let y = arena.allocate(&a).unwrap();
+    assert_eq!(x, y);
+    assert_eq!(arena.node(&x).unwrap().count, 0);
+    assert_eq!(arena.memory_usage(&a), Ok(168_000 + 8));
+    assert_eq!(arena.memory_usage(&b), Ok(8));
+    assert_eq!(arena.page_neighbour(&p, 255).err(), None);
+    assert_eq!(
+        arena.page_neighbour(&p, 256),
+        Err(RtreeError::NeighbourOutOfPage)
+    );
+    assert_eq!(
+        arena.page_neighbour(&p, -1),
+        Err(RtreeError::NeighbourOutOfPage)
+    );
 }
 
 #[test]
