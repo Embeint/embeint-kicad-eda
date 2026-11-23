@@ -147,7 +147,9 @@ GCC 13 at the oracle flags combines a `cos` and `sin` of the same argument into 
    controls (including checksum lists, metadata, keyring and installer list). The
    bare-base verifier rejects extras, omissions, duplicates and symlinks and
    checks every byte before sourcing any control file. The Dockerfile installs
-   only the components named by that verified list, without archive/installer globs.
+   Rust components only from the verified installer list, without Rust archive
+   or installer globs. Its `.deb` glob expands the exact verified package inventory;
+   extra files are rejected before installation.
    Signature-stubbed fixtures test inventory coverage only, not cryptography.
    `qualify.sh` builds with `docker build --network=none`. Inside the pinned base,
    `image/verify_chain.sh` checks the archive keyring hash, verifies each InRelease
@@ -156,8 +158,10 @@ GCC 13 at the oracle flags combines a `cos` and `sin` of the same argument into 
    the same filename, SHA-256, package, version and architecture; extra files fail.
    It verifies the Rust manifest signature and that every locked tarball hash is
    named by it.
-4. The image has no package index: `apt-get install --no-download` of the locked
-   local files cannot fetch or choose anything else. `image/verify_image.py` then
+4. The image has no package index and the build uses `--network=none`:
+   `apt-get install` consumes the verified local files without network access.
+   The `--no-download` apt option is deliberately absent: apt 2.8.4 fails on
+   these local-file acquisition paths when it is set. `image/verify_image.py` then
    checks the package set, `dpkg --verify`, identity files, compiler facts, loader
    state, the dispatch variable and Rust, writing `/opt/refenv/image-identity.json`.
    The Rust identity includes all files and in-prefix file symlinks under
@@ -347,8 +351,22 @@ accepts that alias's native drive-root/NT-prefix representation as well as an
 exact text stub. This applies only to that known link in a Windows checkout;
 the archive and Linux snapshot retain `/work/qa/resources` exactly, and the
 actual alias must still be unavailable. The 53 tests cover matching host
-representations and changed-target/drive/scope rejection. Native revalidation
-remains pending; no Git settings workaround is needed.
+representations and changed-target/drive/scope rejection. Native Windows
+revalidation at `33f5d286` subsequently passed, including the full raw-blob
+source/reference export and independent checks of all 24,598 source and 915
+reference entries. The digest-bound WSL consumer passed the 53 tests and repeated
+source/context checks. No Git settings workaround was used.
+
+The first native amd64 image build at `33f5d286` failed in apt 2.8.4 with
+`Internal Error, Pathname to install is not absolute`. A network-disabled
+diagnostic using the same pinned base and verified inputs reproduced the failure
+with `--no-download`; removing only that flag installed the expected 339-package
+set successfully. This was a diagnostic container, not a candidate image.
+The Dockerfile now omits that flag while retaining signature/inventory checks,
+network-disabled builds and installed-image verification. A fresh image build
+and independent review of this follow-up remain pending. Engine version/info is
+now retained in the run directory before the first pull/build; complete
+image-bound host provenance still requires a successful image.
 
 **Not performed:** no amd64 image was built, so `verify_image.py`, the probes on
 x86-64, the oracle build inside the image, `--rebuild-check` and the difftest have

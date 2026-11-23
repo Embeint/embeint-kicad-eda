@@ -112,6 +112,10 @@ for directory in image probe tools; do rm -rf "$work/context/$directory"; done
 python3 "$source_tool" context --repo "$repo" --bundle "$snapshot" --revision "$revision" \
     --source-sha256 "$source_sha" --out "$work/context"
 
+# Keep engine evidence even if the first pull/build fails. Image-bound host
+# provenance is written only after an image has been built successfully.
+docker version --format '{{json .}}' > "$out/docker-version.json"
+docker info --format '{{json .}}' > "$out/docker-info.json"
 docker pull --platform linux/amd64 "$base"
 build() {
     source_check
@@ -141,11 +145,9 @@ if (( rebuild_check )); then
     fi
 fi
 
-docker version --format '{{json .}}' > "$out/docker-version.json"
-docker info --format '{{json .}}' > "$work/docker-info.json"
 python3 "$here/tools/host_provenance.py" --run-id "$run_id" --image "$image" --tag "$tag" \
     --lock-sha256 "$lock_sha" --repo "$repo" --docker-version "$out/docker-version.json" \
-    --docker-info "$work/docker-info.json" --source-manifest "$snapshot/source.json" > "$out/host-provenance.json"
+    --docker-info "$out/docker-info.json" --source-manifest "$snapshot/source.json" > "$out/host-provenance.json"
 
 user=(--user "$(id -u):$(id -g)" -e HOME=/work/home
       -e "REFENV_REVISION=$revision" -e "REFENV_SOURCE_SHA=$source_sha" -v "$snapshot:/snapshot:ro")

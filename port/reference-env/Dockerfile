@@ -13,14 +13,16 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 # One step: verify the signature/hash chain of every staged input, install exactly
 # the locked local packages, then the locked Rust components. The image has no
-# package index, so apt cannot fetch, choose or upgrade anything else; an
-# incomplete or inconsistent lock fails here instead of silently resolving.
+# package index and qualify.sh disables the build network. Do not use
+# --no-download: apt 2.8.4 fails to resolve its local-file acquisition paths with
+# that flag. The verifier checks every local file before apt runs; the final
+# image check requires exactly the locked package set.
 RUN --mount=type=bind,target=/opt/refenv-context,readonly \
     set -eu; \
     test -n "$LOCK_SHA256"; \
     echo "$LOCK_SHA256  /opt/refenv-context/inputs.lock.json" | sha256sum -c --quiet -; \
     sh /opt/refenv-context/image/verify_chain.sh /opt/refenv-context/inputs /opt/refenv-context/inputs.lock.json "$LOCK_SHA256"; \
-    apt-get install -y --no-install-recommends --no-download /opt/refenv-context/inputs/debs/*.deb; \
+    apt-get install -y --no-install-recommends /opt/refenv-context/inputs/debs/*.deb; \
     rust=$(mktemp -d); \
     while read -r archive component; do \
         tar -xJf "/opt/refenv-context/inputs/rust/$archive" -C "$rust"; \
