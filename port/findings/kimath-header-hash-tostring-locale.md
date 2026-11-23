@@ -47,8 +47,9 @@ the value. It cuts the grouping at its first zero byte: `"\1\2\0"` formats like
 (`/usr/include/c++/15/bits/locale_facets.tcc:82-98,1292-1327`) and the C++ standard
 ([facet.numpunct.virtuals]: a group `<= 0` is unlimited) end grouping at the zero
 instead, and the port follows them. A standalone probe built against the same
-runtime shows this (`grouping-probe.cpp` and its output in the PR's validation
-directory).
+runtime shows this
+(`rust/kicad-hash-shim/validation/2026-11-23-9bf572d4/grouping-probe.cpp` and
+`grouping-probe.txt`).
 
 Exactly three corpus cases have a zero after a positive group and digits left to
 group: `hash128-locale-one-two-zero`, `hash128-locale-random-4` and

@@ -1,34 +1,67 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 # Validation: libs.kimath.include.application.pure.p001
 
-## Current status (rework after the Sol 6.1 review of 8c54103a7d)
+## Current status: 2026-11-23, clean commit 9bf572d4 (native WSL x86-64)
 
-**No current qualification.** The 2026-11-23 run below is superseded and
-must not be used as qualification
-([record](../../port/findings/kimath-header-hash-baseline-8c54103-superseded.md)):
-its oracle adapter zero-filled `MMH3_HASH::blocks`, so all MMH3 cases compared
-an invented initial state and 15 compared undefined reads. The committed golden
-is that stale baseline, so CI's golden check is expected to fail until a
-reviewed reblessing.
+**Not green and no corrected golden.** 2600 of 2641 corpus cases agree exactly with
+the live oracle, with no deferral. 41 fail on two open questions that need a parent
+decision. The committed golden is still the superseded 8c54103 baseline
+([record](../../port/findings/kimath-header-hash-baseline-8c54103-superseded.md)),
+so `check` and the base-relative golden policy fail, as they must until a reviewed
+reblessing. Files: [`validation/2026-11-23-9bf572d4`](validation/2026-11-23-9bf572d4).
 
-The rework removes the zero-fill. The adapter and the port track written bytes,
-report unwritten ones as `??` and refuse undefined reads. The 15 cases are moved,
-byte for byte, to `fixtures/` as refusal regressions
-([reclassification](../../port/findings/kimath-header-hash-mmh3-unwritten-reads.md)).
-It also adds the locale-aware `ToString` and 44 cases (1344 in the corpus).
-Checks run so far, none of them Linux qualification:
+### Identity
+
+- Tested commit `9bf572d4a34645ec4885f4005aaa7413096b789f` (tree `cf4dd1083da74101b57938d83fb68a61ab949955`).
+  It is PR #51 with official `rust` `2f01eaa1d9d47d051c5e562984df56f94b103fe5` merged
+  (includes #52, #53 and #54) and the recovered edits of `0bd49991` reviewed and corrected.
+- Platform (`platform.txt`): WSL2 Linux 6.18 x86-64, Ubuntu 26.04.1, GCC 15.2.0, distribution
+  `libstdc++6 16-20260322`, Rust 1.99.1, Node 22.22.1. Native; no emulation or container.
+- Source: `git archive` of the clean `HEAD` with process-local `core.autocrlf=false` and
+  `core.eol=lf` (`export-full.ps1`). The pinned reference has 0 files with CR (archive SHA-256
+  `2925d325a428b8ec2c6663c514327f11473b75869e6fd5eaeb37e2893117dd1d`, 915 files,
+  `overlay_dirty_at_export` false).
+- Oracle: `port/oracle/build.sh` (own work root, shared build lock, `-j8`), all 8 oracle ctests
+  passed. The FP and source audit ran as part of the build. `oracle-provenance.json` is the
+  binary's own `--provenance`.
+- Executable SHA-256 (`sha256.txt`, the binaries themselves, not wrappers): `kicad-oracle`
+  `705f856d…`, debug `kicad-hash-shim` `8046a1db…`, release `0e119fdc…`, `kicad-difftest`
+  `00078346…`, `wasm_parity.wasm` `d15cd107…`. Corpus SHA-256 `5464c930…`.
+
+An earlier attempt on the same commit exported the pinned reference with CRLF line
+endings (archive `7863f078…`, Windows `core.eol`). That attempt was discarded and is
+not evidence. Its comparison counts were the same.
+
+### Results
 
 | Check | Result |
 | --- | --- |
-| Rust `fmt`, `clippy -D warnings`, tests (Rust 1.99.1, macOS arm64) | see the PR's Tests section |
-| All 1315 original requests through the corrected Rust shim | 15 refusals (the review's exact set and first reads); 321 MMH3 replies differ from the old golden only in `blocks`; 979 identical |
-| Development smoke adapter: the real `kimath_header_hash.cpp` with the pinned `mmh3_hash.h`, `hash_128.h`, `hash.h`, `transform.h`, `md5_hash.cpp`, `transform.cpp`, built with Apple Clang/libc++ on macOS arm64 and a stub registry, `wx/debug.h` and `config.h` (scratch only) | equal to the Rust shim on every MMH3, `hash128` (including all 28 locale cases), TRANSFORM, MD5, `rotl` and `fmix64` case and on all 97 guards; `std-hash`/`hash-combine`/`hash-val` differ as expected because libc++'s `std::hash` is not libstdc++'s |
+| `cargo fmt --all --check`; `cargo clippy --locked --workspace --all-targets -- -D warnings`; `cargo test --locked --workspace` | clean; clean; 45 suites, 218 tests passed, 0 failed |
+| Live comparison, debug and release shims (`kicad-difftest compare`) | 2641 cases: 2600 compared exactly, 0 deferred, 41 failed (`compare-debug.json`, `failing-cases.txt`, `failures.txt`); debug and release replies byte-identical |
+| Guards (`check_guards.py`), debug and release | 441 requests (incl. the 15 MMH3 unwritten-read refusals and 325 undefined `BEZIER<int>` requests), both programs give every expected reply, 0 failures |
+| MMH3 audit of all 1315 original requests (`port/findings/kimath-header-hash-mmh3-audit/audit.json`) | 979 unchanged, 321 `blocks-only` (invented `00` -> `??`), 15 refused, 0 other |
+| wasm (`check_goldens_policy.py --wasm`; `wasm_parity` in Node) | every portable crate builds for `wasm32-unknown-unknown`; all 2641 replies computed in wasm equal the native digest `099fd02b786fb398`, NaN bits included |
+| Generator | regenerates the corpus and both fixtures byte for byte |
+| `validate_units.py` | all unit records and source accounting valid |
+| Other registered units on the same oracle | R-tree node (partial) 1525/1525, MD5 5973, resistors 1050, IEC 60664 14190: all compared exactly, green against their goldens (`other-units.txt`) |
+| `check_goldens_policy.py --ci --require-phase0` | fails at this unit (`hash128-locale-one-two-zero`, the first failing case in corpus order); sorted before the other units, so the policy stops there (`ci-phase0.log`) |
+| `check --partial` against the committed golden | fails (stale 8c54103 golden) |
+| `check_goldens_policy.py --base origin/rust` (Windows checkout) | fails: `stale evidence cases_sha256` (the 8c54103 evidence no longer matches the corrected corpus) |
 
-Remaining before any corrected golden: build the real oracle natively on Linux
-x86-64 (to be assigned by the parent; the emulated Rancher container is no
-longer used), run `kicad-difftest compare --partial` on the 1344 cases and
-`check_guards.py` with both programs, then `propose`/`bless` with a reason
-citing the findings above.
+The 41 failing cases:
+
+- 38 `BEZIER<double>` cases where two distinct NaN payloads meet in one operation
+  ([record](../../port/findings/kimath-header-hash-bezier-two-nan-payloads.md);
+  `nan-fit.py` and `nan-fit.txt` reproduce the fitting on this run's oracle replies);
+- 3 `hash128-locale-*` cases with a zero group after a positive group, which the host's
+  libstdc++ 16 runtime handles differently from the GCC 15 template and the standard
+  ([record](../../port/findings/kimath-header-hash-tostring-locale.md);
+  `grouping-probe.cpp` and `grouping-probe.txt`).
+
+Corpus (`port/cases/<unit>.jsonl`, 2641): the 1300 original non-refused requests
+(byte-identical), the first review's 44 additions and the second review's 1297:
+`bezier` 1280 (`f64`: 15 constructor, 196 `PointAt`, 195 `Split`, 209 `SubCurve`; `i32`: 10,
+240, 151, 264), `bezier_poly` 13 and 4 long-grouping `hash128-locale` cases.
 
 ## Superseded: 2026-11-23 run (8c54103a7d)
 

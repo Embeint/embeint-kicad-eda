@@ -1,0 +1,8 @@
+Linux 6.18.58.1-microsoft-standard-WSL2 x86_64
+Ubuntu 26.04.1 LTS
+gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+rustc 1.99.1 (58cf8f9c3 2026-10-13)
+cargo 1.99.1 (5f94df478 2026-08-27)
+v22.22.1
+Python 3.14.4
+libstdc++6:amd64 16-20260322-1ubuntu1

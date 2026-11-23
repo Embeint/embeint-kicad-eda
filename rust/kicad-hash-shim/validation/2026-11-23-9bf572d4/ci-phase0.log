@@ -1,0 +1,3 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.03s
+"FAILURE case hash128-locale-one-two-zero: oracle vs Rust: changed result"
+goldens policy: libs.kimath.include.application.pure.p001: partial live difftest check failed (exit 1); see /home/karlvonrichter/kicad-port-hash51/final/ci-reports/libs.kimath.include.application.pure.p001.json

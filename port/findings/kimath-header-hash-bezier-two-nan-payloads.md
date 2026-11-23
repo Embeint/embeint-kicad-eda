@@ -37,7 +37,10 @@ written to measure this choice; the random cases draw control points from a pool
 NaN payloads.
 
 No consistent rule reproduces the oracle. A bit-level model of the evaluation, with the
-two-NaN choice fitted over all 615 `BEZIER<double>` cases:
+two-NaN choice fitted over all 615 `BEZIER<double>` cases
+(`rust/kicad-hash-shim/validation/2026-11-23-9bf572d4/nan-fit.py`, run on that commit's
+oracle replies in `nan-fit.txt`; the per-kind row is the same model with one choice per
+operation kind):
 
 | Model | Cases still differing |
 | --- | ---: |

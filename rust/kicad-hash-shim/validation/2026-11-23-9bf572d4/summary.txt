@@ -1,0 +1,27 @@
+== pinned mmh3_hash.h CR lines: 0; reference files with CR: 0; source files with CR: 57
+== oracle build.sh exit 0 in 40s; 100% tests passed, 0 tests failed out of 8
+== oracle provenance overlay: {'overlay_dirty_at_export': False, 'overlay_revision': '9bf572d4a34645ec4885f4005aaa7413096b789f'}
+== cargo fmt --check exit 0
+== cargo clippy --workspace -D warnings exit 0
+== cargo test --workspace exit 0; 45 ok suites, 218 passed, 0 failed
+== debug build (every workspace binary, incl. all unit shims) exit 0
+== release build exit 0
+== check_goldens_policy --wasm exit 0:     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.03s
+== native wasm_parity: 2641 cases, digest 099fd02b786fb398
+== wasm example build exit 0
+== node wasm run exit 0: Every corpus reply in wasm equals the native digest; Node v22.22.1, V8 12.4.254.21-node.35
+== check_goldens_policy --ci --require-phase0 exit 1: "FAILURE case hash128-locale-one-two-zero: oracle vs Rust: changed result" goldens policy: libs.kimath.include.application.pure.p001: partial live difftest check failed (exit 1); see /home/karlvonrichter/kicad-port-hash51/final/ci-reports/libs.kimath.include.application.pure.p001.json 
+== guards debug exit 0: 441 guard requests, 2 program(s), 0 failure(s)
+== guards release exit 0: 441 guard requests, 2 program(s), 0 failure(s)
+== compare debug exit 1: {'status': 'failed', 'cases': 2641, 'compared': 2600, 'deferred': 0, 'failures': 41, 'unprocessed': 0}
+== compare release exit 1: {'status': 'failed', 'cases': 2641, 'compared': 2600, 'deferred': 0, 'failures': 41, 'unprocessed': 0}
+== check --partial (committed golden) exit 1: failed failed
+== libs.kimath.include.geometry.rtree.application.pure.p003 (partial) check --partial exit 0: {'status': 'green', 'cases': 1525, 'compared': 1525, 'deferred': 0, 'failures': 0}
+== libs.kimath.src.md5_hash.application.pure.p001 (green) check  exit 0: {'status': 'green', 'cases': 5973, 'compared': 5973, 'deferred': 0, 'failures': 0}
+== pcb_calculator.application.pure.p001 (green) check  exit 0: {'status': 'green', 'cases': 1050, 'compared': 1050, 'deferred': 0, 'failures': 0}
+== pcb_calculator.calculator_panels.application.pure.p001 (green) check  exit 0: {'status': 'green', 'cases': 14190, 'compared': 14190, 'deferred': 0, 'failures': 0}
+== validate_units exit 0: All unit records and source accounting valid
+== generator reproduces corpus and fixtures byte for byte: exit 0 (2641 cases -> port/cases/libs.kimath.include.application.pure.p001.jsonl; 15 refusal regressions -> rust/kicad-hash-shim/fixtures/mmh3-unwritten-reads.requests.jsonl; 325 BEZIER<int> refusals -> rust/kicad-hash-shim/fixtures/bezier-int-undefined.requests.jsonl)
+== mmh3 audit exit 0: {'unchanged': 979, 'blocks-only': 321, 'refused': 15}
+== debug and release replies identical: exit 0
+== done
