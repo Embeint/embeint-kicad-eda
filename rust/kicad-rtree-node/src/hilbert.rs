@@ -68,7 +68,9 @@ pub fn hilbert_nd2d(order: i32, coords: &[u32]) -> Result<u64, RtreeError> {
     // const int bits = std::min( aOrder, 64 / NUMDIMS ); const int drop = aOrder - bits;
     let per_axis = i32::try_from(64 / dims).map_err(|_| RtreeError::DimensionsOutOfDomain)?;
     let bits = order.min(per_axis);
-    let drop = order.checked_sub(bits).ok_or(RtreeError::OrderOutOfDomain)?;
+    let drop = order
+        .checked_sub(bits)
+        .ok_or(RtreeError::OrderOutOfDomain)?;
     // for( int bit = bits - 1; bit >= 0; --bit ): the initializer itself can overflow.
     let first = bits.checked_sub(1).ok_or(RtreeError::OrderOutOfDomain)?;
     let mut d: u64 = 0;

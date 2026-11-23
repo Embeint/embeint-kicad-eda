@@ -46,8 +46,14 @@ fn morton_refuses_only_the_undefined_intermediates() {
         assert_eq!(hilbert_nd(order, &[u32::MAX; 65]), Ok(0), "order {order}");
     }
     // bits - 1 overflows in the loop initializer.
-    assert_eq!(hilbert_nd(i32::MIN, &[0; 65]), Err(RtreeError::OrderOutOfDomain));
-    assert_eq!(hilbert_nd(i32::MIN, &[0; 3]), Err(RtreeError::OrderOutOfDomain));
+    assert_eq!(
+        hilbert_nd(i32::MIN, &[0; 65]),
+        Err(RtreeError::OrderOutOfDomain)
+    );
+    assert_eq!(
+        hilbert_nd(i32::MIN, &[0; 3]),
+        Err(RtreeError::OrderOutOfDomain)
+    );
     assert_eq!(hilbert_nd(i32::MIN + 1, &[u32::MAX; 3]), Ok(0));
     // Whenever the loop runs, the first shift is aOrder - 1.
     assert_eq!(hilbert_nd(33, &[0; 64]), Err(RtreeError::OrderOutOfDomain));
