@@ -252,8 +252,11 @@ Probe output schema 2 includes the exact lock/candidate files and hashes every
 artifact, including built probes. Before comparison the reader rejects duplicate
 keys, floating/nonfinite JSON numbers, malformed schemas, missing/extra files,
 wrong types/counts/identities and any binary sweep not exactly `24 * count` bytes.
-It recomputes the comparisons and key environment checks; summary flags alone
-are insufficient. Historical schema-1 observations are not upgraded or accepted.
+Every sweep input word must also match the fixed-seed sequence in its recorded
+position, even when all runs contain the same altered inputs and fresh hashes.
+It recomputes comparisons and key environment checks, including the exact types
+of nested counts (a boolean is not an integer count); summary flags alone are
+insufficient. Historical schema-1 observations are not upgraded or accepted.
 `compare_observations.py A B` compares two runs, for example two hosts: a missing
 or failed contract/comparison summary, any difference in a reference observation,
 or a different image identity exits 1.
@@ -304,6 +307,17 @@ follow-up fixes and new adversarial fixtures are implementation work; historical
 results above are not relabelled as evidence for the fixed head. Any cancelled
 native qualification attempt is historical/unqualified and must be restarted
 at the independently reviewed fixed head.
+
+The re-review of `a3ad6f53` found directory-link containment and fixed-seed input
+validation gaps, plus boolean comparison counts passing integer equality. The
+follow-up checks reject symlinked source ancestors before reading tracked files,
+enumerate unrecorded directory links without following them, reconstruct every
+sweep input independently, and validate nested comparison types. Recorded source
+links retain their exact identity; their actual target directories are still
+enumerated. The 46 tooling tests include real-entrypoint directory-link probes,
+altered/reordered inputs on either or both sides with refreshed hashes, and
+boolean replacements of every nested comparison count. These are validation
+regressions, not native amd64 qualification.
 
 **Not performed:** no amd64 image was built, so `verify_image.py`, the probes on
 x86-64, the oracle build inside the image, `--rebuild-check` and the difftest have

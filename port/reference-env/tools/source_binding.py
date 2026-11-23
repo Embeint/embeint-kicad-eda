@@ -103,8 +103,23 @@ def archive_files(path):
 
 
 def check_tree(root, files, *, checkout=False):
+    require(root.is_dir() and not root.is_symlink(), "source root must be a real directory")
+    resolved_root = root.resolve(strict=True)
     for name, record in files.items():
         path = root / name
+        # Check ancestors before reading bytes: an unchanged tracked file reached
+        # through a directory link is not the recorded snapshot layout. In
+        # particular, CMake can discover extra sources through that same link.
+        for parent in path.relative_to(root).parents:
+            directory = root / parent
+            require(
+                not directory.is_symlink() and directory.is_dir(),
+                "non-directory/symlink source ancestor: " + str(parent),
+            )
+        require(
+            path.parent.resolve(strict=True).is_relative_to(resolved_root),
+            "source ancestor escapes snapshot: " + name,
+        )
         if record["kind"] == "symlink":
             # Git for Windows can check out a tracked link as a text stub
             # (core.symlinks=false). Compare the exact recorded link bytes;
@@ -130,14 +145,25 @@ def check_tree(root, files, *, checkout=False):
             require(actual == record["sha256"], "actual source bytes drift: " + name)
     if not checkout:
         allowed = (".port-deps/", ".port-venv/", ".west/", "rust/target/")
-        for path in root.rglob("*"):
-            if path.is_dir():
-                continue
-            name = path.relative_to(root).as_posix()
-            require(
-                name in files or name.startswith(allowed),
-                "unexpected source snapshot file: " + name,
-            )
+        # os.walk exposes directory links without traversing them. rglob plus
+        # is_dir() silently skipped those links and everything behind them.
+        for directory, dirs, names in os.walk(root, followlinks=False):
+            for child in dirs[:]:
+                path = Path(directory) / child
+                if path.is_symlink():
+                    name = path.relative_to(root).as_posix()
+                    require(
+                        name in files and files[name]["kind"] == "symlink",
+                        "unexpected source directory symlink: " + name,
+                    )
+                    dirs.remove(child)
+            for child in names:
+                path = Path(directory) / child
+                name = path.relative_to(root).as_posix()
+                require(
+                    name in files or name.startswith(allowed),
+                    "unexpected source snapshot file: " + name,
+                )
 
 
 def clean_checkout(repo, revision, archive):
