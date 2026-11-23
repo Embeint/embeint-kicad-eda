@@ -14,5 +14,6 @@ portable = false
 
 [dependencies]
 kicad-hash = { path = "../kicad-hash" }
+kicad-math = { path = "../kicad-math" }
 kicad-difftest = { path = "../kicad-difftest" }
 serde_json.workspace = true

@@ -104,28 +104,11 @@ impl core::fmt::Display for Hash128 {
     }
 }
 
-/// The largest `numpunct<char>::grouping()` string accepted, in bytes. A 64-bit
-/// value has at most 16 hexadecimal digits, so longer strings cannot change the
-/// result; they are refused rather than truncated.
-pub const MAX_GROUPING_BYTES: usize = 64;
-
-/// A grouping string longer than [`MAX_GROUPING_BYTES`].
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct GroupingTooLong(pub usize);
-
-impl core::fmt::Display for GroupingTooLong {
-    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(
-            formatter,
-            "grouping of {} bytes exceeds {MAX_GROUPING_BYTES}",
-            self.0
-        )
-    }
-}
-
 /// The immutable `std::numpunct<char>` values of a global C++ locale that
 /// affect integer output: `thousands_sep()` and `grouping()`, whose bytes are
-/// interpreted as `char` (signed on the qualified x86-64 platform).
+/// interpreted as `char` (signed on the qualified x86-64 platform). A grouping of
+/// any length is accepted, as `numpunct` accepts it; at most one byte per digit
+/// is ever consulted.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CxxNumericGrouping {
     thousands_sep: u8,
@@ -147,14 +130,13 @@ impl CxxNumericGrouping {
         }
     }
 
-    pub fn new(thousands_sep: u8, grouping: &[u8]) -> Result<Self, GroupingTooLong> {
-        if grouping.len() > MAX_GROUPING_BYTES {
-            return Err(GroupingTooLong(grouping.len()));
-        }
-        Ok(Self {
+    /// A `numpunct<char>` with `do_thousands_sep()` returning `thousands_sep` and
+    /// `do_grouping()` returning the bytes of `grouping`.
+    pub fn new(thousands_sep: u8, grouping: &[u8]) -> Self {
+        Self {
             thousands_sep,
             grouping: grouping.to_vec(),
-        })
+        }
     }
 
     pub fn thousands_sep(&self) -> u8 {

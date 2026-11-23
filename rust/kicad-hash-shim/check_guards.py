@@ -10,7 +10,9 @@ key order and whitespace are not significant).
 fixtures/mmh3-unwritten-reads.{requests,replies}.jsonl holds the 15 original
 corpus requests whose reference execution would read never-written MMH3 block
 bytes (port/findings/kimath-header-hash-mmh3-unwritten-reads.md); both programs
-must refuse each before the read.
+must refuse each before the read. fixtures/bezier-int-undefined.* holds the
+generated BEZIER<int> requests whose evaluation overflows an int or converts a
+NaN to int; both programs must refuse each before calling the member.
 
     python3 rust/kicad-hash-shim/check_guards.py ORACLE [RUST_SHIM]
 """
@@ -128,8 +130,45 @@ def checks():
          + '","locale":{"thousands_sep":256,"grouping":"03"}}', "integer out of range: thousands_sep"),
         ("locale-grouping-upper-hex", '{"op":"hash128","a":"' + "00" * 16 + '","b":"' + "00" * 16
          + '","locale":{"thousands_sep":44,"grouping":"0A"}}', "invalid hex: grouping"),
-        ("locale-grouping-65", '{"op":"hash128","a":"' + "00" * 16 + '","b":"' + "00" * 16
-         + '","locale":{"thousands_sep":44,"grouping":"' + "03" * 65 + '"}}', "grouping of 65 bytes exceeds 64"),
+        # The transport bound of every hex field (numpunct accepts any length; 65 bytes and
+        # more are corpus cases).
+        ("locale-grouping-4097", '{"op":"hash128","a":"' + "00" * 16 + '","b":"' + "00" * 16
+         + '","locale":{"thousands_sep":44,"grouping":"' + "03" * 4097 + '"}}', "invalid hex: grouping"),
+        # BEZIER requests (the undefined BEZIER<int> evaluations are in fixtures/).
+        ("bezier-missing-call", '{"op":"bezier","type":"f64","points":[]}', "unexpected or missing field"),
+        ("bezier-extra-key", '{"op":"bezier","type":"f64","points":[],"call":"new","x":1}',
+         "unexpected or missing field"),
+        ("bezier-type-f32", '{"op":"bezier","type":"f32","points":[],"call":"new"}', "invalid bezier type"),
+        ("bezier-type-number", '{"op":"bezier","type":1,"points":[],"call":"bogus"}', "invalid bezier type"),
+        ("bezier-three-points", '{"op":"bezier","type":"i32","points":[[0,0],[0,0],[0,0]],"call":"new"}',
+         "expected four points: points"),
+        ("bezier-point-triple", '{"op":"bezier","type":"i32","points":[[0,0,0],[0,0],[0,0],[0,0]],"call":"new"}',
+         "expected point: points"),
+        ("bezier-i32-overflow", '{"op":"bezier","type":"i32","points":[[2147483648,0],[0,0],[0,0],[0,0]],'
+         '"call":"new"}', "integer out of range: points"),
+        ("bezier-i32-float", '{"op":"bezier","type":"i32","points":[[0,0.5],[0,0],[0,0],[0,0]],"call":"new"}',
+         "integer out of range: points"),
+        ("bezier-f64-number", '{"op":"bezier","type":"f64","points":[[0,0],[0,0],[0,0],[0,0]],"call":"new"}',
+         "invalid bits: points"),
+        ("bezier-f64-upper-bits", '{"op":"bezier","type":"f64","points":[["3FF0000000000000","0000000000000000"],'
+         + ",".join(['["0000000000000000","0000000000000000"]'] * 3) + '],"call":"new"}', "invalid bits: points"),
+        ("bezier-unknown-call", '{"op":"bezier","type":"i32","points":[[0,0],[0,0],[0,0],[0,0]],"call":"eval"}',
+         "unknown bezier call"),
+        ("bezier-point-at-without-t", '{"op":"bezier","type":"i32","points":[[0,0],[0,0],[0,0],[0,0]],'
+         '"call":"point_at","t0":"0000000000000000"}', "unexpected or missing field"),
+        ("bezier-new-with-t", '{"op":"bezier","type":"i32","points":[[0,0],[0,0],[0,0],[0,0]],"call":"new",'
+         '"t":"0000000000000000"}', "unexpected or missing field"),
+        ("bezier-sub-curve-missing-t1", '{"op":"bezier","type":"f64","points":[' + ",".join(
+            ['["0000000000000000","0000000000000000"]'] * 4) + '],"call":"sub_curve","t0":"0000000000000000"}',
+         "unexpected or missing field"),
+        ("bezier-t-short", '{"op":"bezier","type":"i32","points":[[0,0],[0,0],[0,0],[0,0]],"call":"split",'
+         '"t":"3ff0"}', "invalid bits: t"),
+        ("bezier-t1-number", '{"op":"bezier","type":"i32","points":[[0,0],[0,0],[0,0],[0,0]],"call":"sub_curve",'
+         '"t0":"0000000000000000","t1":1}', "invalid bits: t1"),
+        ("bezier-poly-not-array", '{"op":"bezier_poly","points":{}}', "expected points array"),
+        ("bezier-poly-4097", '{"op":"bezier_poly","points":[' + ",".join(
+            ['["0000000000000000","0000000000000000"]'] * 4097) + ']}', "too many points"),
+        ("bezier-poly-bad-point", '{"op":"bezier_poly","points":[["0000000000000000"]]}', "expected point: points"),
         # MMH3 reads of never-written block bytes, refused before the read.
         ("unwritten-new-getblock64", '{"op":"mmh3","steps":[{"op":"new"},{"op":"getblock64","index":1}]}',
          "getblock64 reads unwritten block bytes 8,9,10,11,12,13,14,15"),
@@ -156,6 +195,14 @@ def checks():
     replies = (FIXTURES / "mmh3-unwritten-reads.replies.jsonl").read_text(encoding="utf-8").splitlines()
     if len(requests) != 15 or len(replies) != 15:
         raise SystemExit("mmh3-unwritten-reads fixture must hold the 15 original requests and replies")
+    out += [(request, json.loads(reply)) for request, reply in zip(requests, replies)]
+
+    # BEZIER<int> evaluations that overflow an int or convert a NaN to int (generated with
+    # generate_cases.py, which classifies them from bezier_curves.h and vector2d.h).
+    requests = (FIXTURES / "bezier-int-undefined.requests.jsonl").read_text(encoding="utf-8").splitlines()
+    replies = (FIXTURES / "bezier-int-undefined.replies.jsonl").read_text(encoding="utf-8").splitlines()
+    if not requests or len(requests) != len(replies):
+        raise SystemExit("bezier-int-undefined fixture must pair every request with its reply")
     out += [(request, json.loads(reply)) for request, reply in zip(requests, replies)]
 
     # Shared transport refusals (kicad_difftest::request::parse and port/oracle/protocol.cpp).

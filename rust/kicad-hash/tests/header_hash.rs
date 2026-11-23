@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use kicad_hash::{
     fmix64, hash_bytes, hash_combine, hash_val, mmh3_rotl64, BlockReader, CxxNumericGrouping,
-    DomainError, GroupingTooLong, Hash128, Md5Hash, Mmh3Error, Mmh3Hash, StdHash, Transform,
-    STD_HASH_SEED,
+    DomainError, Hash128, Md5Hash, Mmh3Error, Mmh3Hash, StdHash, Transform, STD_HASH_SEED,
 };
 
 type Result = std::result::Result<(), Mmh3Error>;
@@ -168,33 +167,33 @@ fn checked_domains() {
 }
 
 #[test]
-fn hash_128_grouping_follows_libstdcxx_num_put() -> std::result::Result<(), GroupingTooLong> {
+fn hash_128_grouping_follows_libstdcxx_num_put() {
     let hash = Hash128::from_value64([0x1234_5678_9abc_def0, 0x1234]);
     assert_eq!(
         hash.to_string_in(&CxxNumericGrouping::classic()),
         hash.to_hex_string().into_bytes()
     );
     // The reviewer's macOS reproduction with numpunct grouping "\3" and '_'.
-    let grouped = CxxNumericGrouping::new(b'_', &[3])?;
+    let grouped = CxxNumericGrouping::new(b'_', &[3]);
     assert_eq!(
         hash.to_string_in(&grouped),
         b"1_234_567_89A_BCD_EF0000000000001_234".to_vec()
     );
     // Grouping that starts with 0, a negative char or CHAR_MAX is not used.
     for first in [0_u8, 0x80, 0xFF, 127] {
-        let unused = CxxNumericGrouping::new(b'_', &[first, 2])?;
+        let unused = CxxNumericGrouping::new(b'_', &[first, 2]);
         assert_eq!(
             hash.to_string_in(&unused),
             hash.to_hex_string().into_bytes()
         );
     }
     // A later non-positive group stops grouping; the last group repeats.
-    let mixed = CxxNumericGrouping::new(b'.', &[1, 2, 0])?;
+    let mixed = CxxNumericGrouping::new(b'.', &[1, 2, 0]);
     assert_eq!(
         Hash128::from_value64([0xABCDEF, 0]).to_string_in(&mixed),
         b"00000000ABC.DE.F0000000000000000".to_vec()
     );
-    let repeat = CxxNumericGrouping::new(0xC3, &[4])?;
+    let repeat = CxxNumericGrouping::new(0xC3, &[4]);
     assert_eq!(
         Hash128::from_value64([u64::MAX, 1]).to_string_in(&repeat),
         [
@@ -209,11 +208,248 @@ fn hash_128_grouping_follows_libstdcxx_num_put() -> std::result::Result<(), Grou
         ]
         .concat()
     );
+    // numpunct accepts a grouping of any length; a 64-bit word has at most 16 digits, so
+    // only the leading bytes are ever consulted and the rest are ignored, not refused.
+    let mut long = vec![1_u8; 15];
+    long.extend_from_slice(&[0; 4000]);
+    let every = CxxNumericGrouping::new(b'-', &[1; 4096]);
     assert_eq!(
-        CxxNumericGrouping::new(b',', &[1; 65]),
-        Err(GroupingTooLong(65))
+        Hash128::from_value64([u64::MAX, 0]).to_string_in(&every),
+        [
+            b"F-F-F-F-F-F-F-F-F-F-F-F-F-F-F-F".as_slice(),
+            b"0000000000000000"
+        ]
+        .concat()
     );
-    Ok(())
+    assert_eq!(
+        Hash128::from_value64([u64::MAX, 0]).to_string_in(&CxxNumericGrouping::new(b'-', &long)),
+        [
+            b"F-F-F-F-F-F-F-F-F-F-F-F-F-F-F-F".as_slice(),
+            b"0000000000000000"
+        ]
+        .concat()
+    );
+}
+
+mod bezier {
+    use kicad_hash::{Bezier, BezierPoly};
+    use kicad_math::{Vector2, Vector2D, Vector2I, VectorDomainError};
+
+    fn bits(point: Vector2D) -> (u64, u64) {
+        (point.x.to_bits(), point.y.to_bits())
+    }
+
+    fn curve_bits(curve: &Bezier<f64>) -> [(u64, u64); 4] {
+        [
+            bits(curve.start),
+            bits(curve.c1),
+            bits(curve.c2),
+            bits(curve.end),
+        ]
+    }
+
+    fn s_curve() -> Bezier<f64> {
+        Bezier::new(
+            Vector2::new(0.0, 0.0),
+            Vector2::new(1.0, 2.0),
+            Vector2::new(3.0, -2.0),
+            Vector2::new(4.0, 0.0),
+        )
+    }
+
+    #[test]
+    fn constructor_stores_every_bit_pattern() {
+        let nan = f64::from_bits(0x7ff0_0000_0000_0005);
+        let curve = Bezier::new(
+            Vector2::new(nan, -0.0),
+            Vector2::new(f64::INFINITY, 5e-324),
+            Vector2::new(f64::MAX, 1.0),
+            Vector2::new(-1.0, f64::NEG_INFINITY),
+        );
+        assert_eq!(curve.start.x.to_bits(), 0x7ff0_0000_0000_0005);
+        assert_eq!(curve.start.y.to_bits(), 0x8000_0000_0000_0000);
+        let ints = Bezier::new(
+            Vector2::new(i32::MIN, i32::MAX),
+            Vector2::new(0, -1),
+            Vector2::new(1, 2),
+            Vector2::new(3, 4),
+        );
+        assert_eq!((ints.start.x, ints.start.y), (i32::MIN, i32::MAX));
+    }
+
+    #[test]
+    fn point_at_is_the_bernstein_sum_in_order() -> Result<(), VectorDomainError> {
+        let curve = s_curve();
+        assert_eq!(bits(curve.point_at(0.0)?), bits(Vector2::new(0.0, 0.0)));
+        assert_eq!(bits(curve.point_at(1.0)?), bits(Vector2::new(4.0, 0.0)));
+        // t = 0.5: 0.125 * 0 + 0.375 * 1 + 0.375 * 3 + 0.125 * 4 = 2, and y = 0.
+        assert_eq!(bits(curve.point_at(0.5)?), bits(Vector2::new(2.0, 0.0)));
+        // Outside [0, 1] the formula is evaluated as given: at t = 2,
+        // x = -1 * 0 + 6 * 1 + -12 * 3 + 8 * 4 = 2 and y = 6 * 2 + -12 * -2 = 36.
+        assert_eq!(bits(curve.point_at(2.0)?), bits(Vector2::new(2.0, 36.0)));
+        Ok(())
+    }
+
+    #[test]
+    fn int_point_at_promotes_then_truncates_and_saturates() -> Result<(), VectorDomainError> {
+        let odd: Bezier<i32> = Bezier::new(
+            Vector2::new(-7, 7),
+            Vector2::new(3, -3),
+            Vector2::new(-1, 11),
+            Vector2::new(9, -5),
+        );
+        // x = 0.125 * -7 + 0.375 * 3 + 0.375 * -1 + 0.125 * 9 = 1.0;
+        // y = 0.125 * 7 + 0.375 * -3 + 0.375 * 11 + 0.125 * -5 = 3.25 -> 3 (truncated).
+        let mid = odd.point_at(0.5)?;
+        assert_eq!((mid.x, mid.y), (1, 3));
+        // A negative fraction truncates toward zero.
+        let negative: Bezier<i32> = Bezier::new(
+            Vector2::new(-3, -3),
+            Vector2::new(-3, -3),
+            Vector2::new(-3, -3),
+            Vector2::new(-2, -2),
+        );
+        let point = negative.point_at(0.5)?;
+        assert_eq!((point.x, point.y), (-2, -2)); // -2.875 -> -2
+                                                  // Signs that make every term +inf saturate at INT_MAX instead of overflowing.
+        let saturating: Bezier<i32> = Bezier::new(
+            Vector2::new(-1, -1),
+            Vector2::new(1, 1),
+            Vector2::new(-1, -1),
+            Vector2::new(1, 1),
+        );
+        let point = saturating.point_at(1e200)?;
+        assert_eq!((point.x, point.y), (i32::MAX, i32::MAX));
+        let point = saturating.point_at(-1e200)?;
+        assert_eq!((point.x, point.y), (i32::MIN, i32::MIN));
+        Ok(())
+    }
+
+    #[test]
+    fn int_undefined_evaluations_are_refused() {
+        let curve: Bezier<i32> = Bezier::new(
+            Vector2::new(0, 0),
+            Vector2::new(1, 1),
+            Vector2::new(2, 2),
+            Vector2::new(3, 3),
+        );
+        assert_eq!(
+            curve.point_at(f64::NAN).err(),
+            Some(VectorDomainError::NanToInteger)
+        );
+        let extremes: Bezier<i32> = Bezier::new(
+            Vector2::new(i32::MIN, 0),
+            Vector2::new(i32::MAX, 0),
+            Vector2::new(0, 0),
+            Vector2::new(0, 0),
+        );
+        // C1 - Start overflows an int.
+        assert_eq!(
+            extremes.split(0.5).err(),
+            Some(VectorDomainError::IntegerOverflow)
+        );
+        // The first level saturates at INT_MAX; inf * 0 at the second level is NaN.
+        assert_eq!(
+            curve.split(f64::INFINITY).err(),
+            Some(VectorDomainError::NanToInteger)
+        );
+    }
+
+    #[test]
+    fn split_is_one_de_casteljau_step() -> Result<(), VectorDomainError> {
+        let (left, right) = s_curve().split(0.5)?;
+        assert_eq!(
+            curve_bits(&left),
+            [
+                bits(Vector2::new(0.0, 0.0)),
+                bits(Vector2::new(0.5, 1.0)),
+                bits(Vector2::new(1.25, 0.5)),
+                bits(Vector2::new(2.0, 0.0)),
+            ]
+        );
+        assert_eq!(
+            curve_bits(&right),
+            [
+                bits(Vector2::new(2.0, 0.0)),
+                bits(Vector2::new(2.75, -0.5)),
+                bits(Vector2::new(3.5, -1.0)),
+                bits(Vector2::new(4.0, 0.0)),
+            ]
+        );
+        // The int instantiation stores each intermediate (truncated) before using it.
+        let ints: Bezier<i32> = Bezier::new(
+            Vector2::new(0, 0),
+            Vector2::new(1, 1),
+            Vector2::new(2, -1),
+            Vector2::new(3, 0),
+        );
+        let (left, right) = ints.split(0.5)?;
+        let pairs = |curve: &Bezier<i32>| {
+            [curve.start, curve.c1, curve.c2, curve.end].map(|p: Vector2I| (p.x, p.y))
+        };
+        // startC1 = (0.5, 0.5) -> (0, 0), c1C2 = (1.5, 0) -> (1, 0),
+        // c2End = (2.5, -0.5) -> (2, 0), leftC2 = (0.5, 0) -> (0, 0),
+        // rightC1 = (1.5, 0) -> (1, 0), shared = (0.5, 0) -> (0, 0).
+        assert_eq!(pairs(&left), [(0, 0), (0, 0), (0, 0), (0, 0)]);
+        assert_eq!(pairs(&right), [(0, 0), (1, 0), (2, 0), (3, 0)]);
+        Ok(())
+    }
+
+    #[test]
+    fn sub_curve_branches() -> Result<(), VectorDomainError> {
+        let curve = s_curve();
+        // Full range, also after clamping and with -0.0.
+        for (t0, t1) in [(0.0, 1.0), (-1.0, 2.0), (-0.0, 1.0)] {
+            assert_eq!(curve_bits(&curve.sub_curve(t0, t1)?), curve_bits(&curve));
+        }
+        // t0 == 0 and t1 == 1 take the left and right halves of a single split.
+        let (left, right) = curve.split(0.5)?;
+        assert_eq!(curve_bits(&curve.sub_curve(0.0, 0.5)?), curve_bits(&left));
+        assert_eq!(curve_bits(&curve.sub_curve(0.5, 1.0)?), curve_bits(&right));
+        // An interior range splits at t1, then the left part at t0 / t1.
+        let (first, _) = curve.split(0.75)?;
+        let (_, inner) = first.split(0.25 / 0.75)?;
+        assert_eq!(
+            curve_bits(&curve.sub_curve(0.25, 0.75)?),
+            curve_bits(&inner)
+        );
+        // An empty or reversed range is the degenerate curve at PointAt( t0 ).
+        let point = curve.point_at(0.75)?;
+        let degenerate = curve.sub_curve(0.75, 0.25)?;
+        assert_eq!(curve_bits(&degenerate), [bits(point); 4]);
+        let clamped = curve.sub_curve(1.5, 2.0)?;
+        assert_eq!(curve_bits(&clamped), [bits(curve.point_at(1.0)?); 4]);
+        // A NaN passes the clamps: (NaN, 0.5) splits at 0.5, then the left half at NaN / 0.5;
+        // the right part keeps the finite split point as its end.
+        let nan = f64::from_bits(0x7ff8_0000_0000_00c3);
+        let nan_curve = curve.sub_curve(nan, 0.5)?;
+        assert_eq!(nan_curve.start.x.to_bits(), 0x7ff8_0000_0000_00c3);
+        assert_eq!(bits(nan_curve.end), bits(left.end));
+        Ok(())
+    }
+
+    #[test]
+    fn nan_results_follow_the_oracle_platform() -> Result<(), VectorDomainError> {
+        let curve = s_curve();
+        // inf - inf generates x86's negative indefinite NaN; a NaN input keeps its payload.
+        let point = curve.point_at(f64::INFINITY)?;
+        assert_eq!(point.x.to_bits(), 0xfff8_0000_0000_0000);
+        let point = curve.point_at(f64::from_bits(0x7ff0_0000_0000_0009))?;
+        assert_eq!(point.x.to_bits(), 0x7ff8_0000_0000_0009);
+        Ok(())
+    }
+
+    #[test]
+    fn bezier_poly_copies_control_points_and_zeroes_min_seg_len() {
+        let nan = f64::from_bits(0xfff8_0000_0000_00a5);
+        let points = [Vector2::new(nan, -0.0), Vector2::new(1.0, 2.0)];
+        let poly = BezierPoly::from_vector2d(&points);
+        assert_eq!(poly.min_seg_len().to_bits(), 0);
+        assert_eq!(poly.ctrl_pts().len(), 2);
+        assert_eq!(poly.ctrl_pts()[0].x.to_bits(), 0xfff8_0000_0000_00a5);
+        assert_eq!(poly.ctrl_pts()[0].y.to_bits(), 0x8000_0000_0000_0000);
+        assert!(BezierPoly::from_vector2d(&[]).ctrl_pts().is_empty());
+    }
 }
 
 #[test]

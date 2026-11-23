@@ -671,6 +671,7 @@ dependencies = [
 name = "kicad-hash"
 version = "0.1.0"
 dependencies = [
+ "kicad-math",
  "kicad-md5",
 ]
 
@@ -680,6 +681,7 @@ version = "0.1.0"
 dependencies = [
  "kicad-difftest",
  "kicad-hash",
+ "kicad-math",
  "serde_json",
 ]
 

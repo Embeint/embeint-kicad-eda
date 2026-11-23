@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Oracle adapter for unit libs.kimath.include.application.pure.p001: the pinned
-// header-only hash.h, hash_128.h, mmh3_hash.h, md5_hash.h validity accessors and
-// TRANSFORM constructors/inequality. Only input validation, conversion, calls into
-// the pinned headers/library and serialization live here; no algorithm is copied.
-// The operation schema is documented in rust/kicad-hash-shim/README.md.
+// header-only hash.h, hash_128.h, mmh3_hash.h, md5_hash.h validity accessors,
+// TRANSFORM constructors/inequality and the owned inline bezier_curves.h members.
+// Only input validation, conversion, calls into the pinned headers/library,
+// definedness bookkeeping and serialization live here; no returned value is computed
+// by the adapter. The operation schema is documented in rust/kicad-hash-shim/README.md.
 #include "registry.h"
+#include <bezier_curves.h>
 #include <hash.h>
 #include <hash_128.h>
 #include <md5_hash.h>
@@ -15,6 +17,7 @@
 #include <array>
 #include <bit>
 #include <climits>
+#include <cmath>
 #include <cstring>
 #include <initializer_list>
 #include <locale>
@@ -56,6 +59,8 @@ MEMBER( HashTail, void ( MMH3_HASH::* )(), &MMH3_HASH::hashTail )
 MEMBER( HashFinal, void ( MMH3_HASH::* )( HASH_128& ), &MMH3_HASH::hashFinal )
 MEMBER( GetBlock64, uint64_t ( MMH3_HASH::* )( int ), &MMH3_HASH::getblock64 )
 MEMBER( Fmix64, uint64_t ( * )( uint64_t ), &MMH3_HASH::fmix64 )
+MEMBER( MinSegLen, double BEZIER_POLY::*, &BEZIER_POLY::m_minSegLen )
+MEMBER( CtrlPts, std::vector<VECTOR2D> BEZIER_POLY::*, &BEZIER_POLY::m_ctrlPts )
 #undef MEMBER
 
 using oracle::JSON;
@@ -482,7 +487,9 @@ private:
 };
 
 
-constexpr std::size_t MAX_GROUPING_BYTES = 64;
+// The transport bound shared with every other hex field; numpunct itself accepts any
+// grouping length.
+constexpr std::size_t MAX_GROUPING_BYTES = 4096;
 
 
 std::optional<std::locale> Locale( const JSON& aInput )
@@ -493,13 +500,7 @@ std::optional<std::locale> Locale( const JSON& aInput )
     const JSON& locale = aInput.at( "locale" );
     Keys( locale, { "thousands_sep", "grouping" } );
     const char sep = static_cast<char>( Unsigned( locale, "thousands_sep", 255 ) );
-    const std::vector<uint8_t> grouping = Hex( locale, "grouping", 4096 );
-
-    if( grouping.size() > MAX_GROUPING_BYTES )
-    {
-        throw std::invalid_argument( "grouping of " + std::to_string( grouping.size() )
-                                     + " bytes exceeds " + std::to_string( MAX_GROUPING_BYTES ) );
-    }
+    const std::vector<uint8_t> grouping = Hex( locale, "grouping", MAX_GROUPING_BYTES );
 
     return std::locale( std::locale::classic(),
                         new GROUPING_FACET( sep, std::string( grouping.begin(), grouping.end() ) ) );
@@ -1001,6 +1002,307 @@ JSON TransformOp( const JSON& aInput )
 }
 
 
+constexpr std::size_t MAX_POLY_POINTS = 4096;
+
+
+// A double as 16 lower-case hex digits of its bits, most significant first.
+double Bits( const JSON& aValue, const std::string& aName )
+{
+    const std::string invalid = "invalid bits: " + aName;
+
+    if( !aValue.is_string() )
+        throw std::invalid_argument( invalid );
+
+    const std::string& text = aValue.get_ref<const std::string&>();
+
+    if( text.size() != 16 )
+        throw std::invalid_argument( invalid );
+
+    uint64_t bits = 0;
+
+    for( char c : text )
+    {
+        uint64_t nibble = 0;
+
+        if( c >= '0' && c <= '9' )
+            nibble = static_cast<uint64_t>( c - '0' );
+        else if( c >= 'a' && c <= 'f' )
+            nibble = static_cast<uint64_t>( c - 'a' + 10 );
+        else
+            throw std::invalid_argument( invalid );
+
+        bits = bits << 4 | nibble;
+    }
+
+    return std::bit_cast<double>( bits );
+}
+
+
+JSON BitsJson( double aValue )
+{
+    static const char digits[] = "0123456789abcdef";
+    const uint64_t    bits = std::bit_cast<uint64_t>( aValue );
+    std::string       text;
+
+    for( int shift = 60; shift >= 0; shift -= 4 )
+        text.push_back( digits[( bits >> shift ) & 15] );
+
+    return text;
+}
+
+
+template <typename T>
+T Coordinate( const JSON& aValue, const std::string& aName )
+{
+    if constexpr( std::is_same_v<T, int> )
+    {
+        const JSON wrapper = { { aName, aValue } };
+        return static_cast<int>( Signed( wrapper, aName, INT32_MIN, INT32_MAX ) );
+    }
+    else
+    {
+        return Bits( aValue, aName );
+    }
+}
+
+
+template <typename T>
+JSON CoordinateJson( T aValue )
+{
+    if constexpr( std::is_same_v<T, int> )
+        return aValue;
+    else
+        return BitsJson( aValue );
+}
+
+
+template <typename T>
+VECTOR2<T> Point( const JSON& aValue, const std::string& aName )
+{
+    if( !aValue.is_array() || aValue.size() != 2 )
+        throw std::invalid_argument( "expected point: " + aName );
+
+    // Components in order x, y, each through the pinned VECTOR2( T, T ) constructor.
+    const T x = Coordinate<T>( aValue[0], aName );
+    const T y = Coordinate<T>( aValue[1], aName );
+    return VECTOR2<T>( x, y );
+}
+
+
+// Explicit arrays: a braced list of two-element arrays led by strings would otherwise become a
+// JSON object.
+template <typename T>
+JSON PointJson( const VECTOR2<T>& aPoint )
+{
+    return JSON::array( { CoordinateJson<T>( aPoint.x ), CoordinateJson<T>( aPoint.y ) } );
+}
+
+
+template <typename T>
+JSON CurveJson( const BEZIER<T>& aCurve )
+{
+    return JSON::array( { PointJson( aCurve.Start ), PointJson( aCurve.C1 ),
+                          PointJson( aCurve.C2 ), PointJson( aCurve.End ) } );
+}
+
+
+// BEZIER<int> definedness, checked before any reference member runs. The int instantiation
+// stores each double intermediate into a VECTOR2<int> through the casting constructor (a NaN
+// component is undefined) and subtracts int vectors (signed overflow is undefined). This
+// bookkeeping follows bezier_curves.h:110-191 statement by statement with the pinned VECTOR2
+// operators, only to decide whether the real member may be called; every reported value comes
+// from the real member.
+constexpr const char* INT_OVERFLOW = "int component overflow";
+constexpr const char* NAN_TO_INT = "NaN component converted to int";
+
+
+// The double instantiation computes exactly the int PointAt sum (each int converts exactly).
+void RequirePointAt( const BEZIER<int>& aCurve, double aT )
+{
+    const BEZIER<double> probe( VECTOR2D( aCurve.Start ), VECTOR2D( aCurve.C1 ),
+                                VECTOR2D( aCurve.C2 ), VECTOR2D( aCurve.End ) );
+    const VECTOR2D       sum = probe.PointAt( aT );
+
+    if( std::isnan( sum.x ) || std::isnan( sum.y ) )
+        throw std::invalid_argument( NAN_TO_INT );
+}
+
+
+// One `a + aT * ( b - a )` initialisation of a VECTOR2<int>.
+VECTOR2I RequireLerp( const VECTOR2I& aA, const VECTOR2I& aB, double aT )
+{
+    int dx = 0;
+    int dy = 0;
+
+    if( __builtin_sub_overflow( aB.x, aA.x, &dx ) || __builtin_sub_overflow( aB.y, aA.y, &dy ) )
+        throw std::invalid_argument( INT_OVERFLOW );
+
+    const VECTOR2D value = aA + aT * ( aB - aA );
+
+    if( std::isnan( value.x ) || std::isnan( value.y ) )
+        throw std::invalid_argument( NAN_TO_INT );
+
+    return value;
+}
+
+
+void RequireSplit( const BEZIER<int>& aCurve, double aT )
+{
+    const VECTOR2I startC1 = RequireLerp( aCurve.Start, aCurve.C1, aT );
+    const VECTOR2I c1C2 = RequireLerp( aCurve.C1, aCurve.C2, aT );
+    const VECTOR2I c2End = RequireLerp( aCurve.C2, aCurve.End, aT );
+    const VECTOR2I leftC2 = RequireLerp( startC1, c1C2, aT );
+    const VECTOR2I rightC1 = RequireLerp( c1C2, c2End, aT );
+    RequireLerp( leftC2, rightC1, aT );
+}
+
+
+void RequireSubCurve( const BEZIER<int>& aCurve, double aT0, double aT1 )
+{
+    double t0 = aT0;
+    double t1 = aT1;
+
+    if( t0 < 0.0 )
+        t0 = 0.0;
+    else if( t0 > 1.0 )
+        t0 = 1.0;
+
+    if( t1 < 0.0 )
+        t1 = 0.0;
+    else if( t1 > 1.0 )
+        t1 = 1.0;
+
+    if( t1 <= t0 )
+        return RequirePointAt( aCurve, t0 );
+
+    if( t0 == 0.0 && t1 == 1.0 )
+        return;
+
+    if( t0 == 0.0 )
+        return RequireSplit( aCurve, t1 );
+
+    if( t1 == 1.0 )
+        return RequireSplit( aCurve, t0 );
+
+    RequireSplit( aCurve, t1 );
+
+    // The second split runs on the real left half of the first.
+    BEZIER<int> left;
+    BEZIER<int> right;
+    aCurve.Split( t1, left, right );
+    RequireSplit( left, t0 / t1 );
+}
+
+
+template <typename T>
+JSON BezierCall( const JSON& aInput, const std::string& aCall )
+{
+    const JSON& points = aInput.at( "points" );
+
+    if( !points.is_array() || points.size() != 4 )
+        throw std::invalid_argument( "expected four points: points" );
+
+    const VECTOR2<T> start = Point<T>( points[0], "points" );
+    const VECTOR2<T> c1 = Point<T>( points[1], "points" );
+    const VECTOR2<T> c2 = Point<T>( points[2], "points" );
+    const VECTOR2<T> end = Point<T>( points[3], "points" );
+
+    if( aCall == "new" )
+        Keys( aInput, { "op", "type", "points", "call" } );
+    else if( aCall == "point_at" || aCall == "split" )
+        Keys( aInput, { "op", "type", "points", "call", "t" } );
+    else if( aCall == "sub_curve" )
+        Keys( aInput, { "op", "type", "points", "call", "t0", "t1" } );
+    else
+        throw std::invalid_argument( "unknown bezier call" );
+
+    const BEZIER<T> curve( start, c1, c2, end );
+    JSON            result = { { "curve", CurveJson( curve ) } };
+
+    if( aCall == "point_at" )
+    {
+        const double t = Bits( aInput.at( "t" ), "t" );
+
+        if constexpr( std::is_same_v<T, int> )
+            RequirePointAt( curve, t );
+
+        result["point"] = PointJson( curve.PointAt( t ) );
+    }
+    else if( aCall == "split" )
+    {
+        const double t = Bits( aInput.at( "t" ), "t" );
+
+        if constexpr( std::is_same_v<T, int> )
+            RequireSplit( curve, t );
+
+        BEZIER<T> left;
+        BEZIER<T> right;
+        curve.Split( t, left, right );
+        result["left"] = CurveJson( left );
+        result["right"] = CurveJson( right );
+    }
+    else if( aCall == "sub_curve" )
+    {
+        const double t0 = Bits( aInput.at( "t0" ), "t0" );
+        const double t1 = Bits( aInput.at( "t1" ), "t1" );
+
+        if constexpr( std::is_same_v<T, int> )
+            RequireSubCurve( curve, t0, t1 );
+
+        result["sub_curve"] = CurveJson( curve.SubCurve( t0, t1 ) );
+    }
+
+    return result;
+}
+
+
+JSON BezierOp( const JSON& aInput )
+{
+    // Validation order (shared with the Rust shim): keys, type, points, call, the call's
+    // exact keys, then its parameters.
+    Keys( aInput, { "op", "type", "points", "call" }, { "t", "t0", "t1" } );
+    const JSON&       type = aInput.at( "type" );
+    const std::string kind = type.is_string() ? type.get<std::string>() : std::string();
+    const JSON&       callValue = aInput.at( "call" );
+    const std::string call = callValue.is_string() ? callValue.get<std::string>() : std::string();
+
+    if( kind == "i32" )
+        return BezierCall<int>( aInput, call );
+
+    if( kind == "f64" )
+        return BezierCall<double>( aInput, call );
+
+    throw std::invalid_argument( "invalid bezier type" );
+}
+
+
+JSON BezierPolyOp( const JSON& aInput )
+{
+    Keys( aInput, { "op", "points" } );
+    const JSON& points = aInput.at( "points" );
+
+    if( !points.is_array() )
+        throw std::invalid_argument( "expected points array" );
+
+    if( points.size() > MAX_POLY_POINTS )
+        throw std::invalid_argument( "too many points" );
+
+    std::vector<VECTOR2D> control;
+
+    for( const JSON& point : points )
+        control.push_back( Point<double>( point, "points" ) );
+
+    const BEZIER_POLY poly( control );
+    JSON              ctrlPts = JSON::array();
+
+    for( const VECTOR2D& point : poly.*Get( CtrlPts{} ) )
+        ctrlPts.push_back( PointJson( point ) );
+
+    return { { "min_seg_len", BitsJson( poly.*Get( MinSegLen{} ) ) },
+             { "ctrl_pts", std::move( ctrlPts ) } };
+}
+
+
 JSON KimathHeaderHash( const JSON& aInput )
 {
     if( !aInput.contains( "op" ) || !aInput.at( "op" ).is_string() )
@@ -1028,6 +1330,10 @@ JSON KimathHeaderHash( const JSON& aInput )
         return Md5ValidOp( aInput );
     if( op == "transform" )
         return TransformOp( aInput );
+    if( op == "bezier" )
+        return BezierOp( aInput );
+    if( op == "bezier_poly" )
+        return BezierPolyOp( aInput );
 
     throw std::invalid_argument( "unknown operation" );
 }
@@ -1039,7 +1345,8 @@ namespace oracle
 void RegisterKimathHeaderHash( REGISTRY& aRegistry )
 {
     aRegistry.Add( "libs.kimath.include.application.pure.p001",
-                   "libs/kimath/include/{hash.h,hash_128.h,mmh3_hash.h,md5_hash.h,transform.h}",
+                   "libs/kimath/include/{bezier_curves.h,hash.h,hash_128.h,mmh3_hash.h,md5_hash.h,"
+                   "transform.h}",
                    KimathHeaderHash );
 }
 } // namespace oracle

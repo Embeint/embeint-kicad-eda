@@ -10,12 +10,22 @@ is unchanged). Fifteen of them read MMH3 block bytes the reference never wrote, 
 they are undefined in C++; they are kept, unchanged, in
 fixtures/mmh3-unwritten-reads.requests.jsonl as permanent refusal regressions and
 are not corpus cases (port/findings/kimath-header-hash-mmh3-unwritten-reads.md).
-Later additions use a separate seed so they never perturb the original stream.
+Later additions use separate seeds so they never perturb the earlier streams:
+ADDITION_SEED for the first review's additions and BEZIER_SEED for the second
+review's (the owned bezier_curves.h members and locale groupings of any length).
+
+BEZIER<int> requests whose reference evaluation is undefined (a signed int
+overflow or a NaN converted to int) are refusals, so they are written to
+fixtures/bezier-int-undefined.{requests,replies}.jsonl for check_guards.py. The
+classification below follows bezier_curves.h and vector2d.h at the pin; the oracle
+adapter and the Rust port each decide definedness independently, and check_guards.py
+and the difftest require all three to agree.
 
 Run from the repository root: python3 rust/kicad-hash-shim/generate_cases.py
 """
 import itertools
 import json
+import math
 import pathlib
 import random
 import struct
@@ -23,9 +33,13 @@ import struct
 UNIT = "libs.kimath.include.application.pure.p001"
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 OUT = ROOT / "port" / "cases" / f"{UNIT}.jsonl"
-FIXTURE = ROOT / "rust" / "kicad-hash-shim" / "fixtures" / "mmh3-unwritten-reads.requests.jsonl"
+FIXTURES = ROOT / "rust" / "kicad-hash-shim" / "fixtures"
+FIXTURE = FIXTURES / "mmh3-unwritten-reads.requests.jsonl"
+BEZIER_REQUESTS = FIXTURES / "bezier-int-undefined.requests.jsonl"
+BEZIER_REPLIES = FIXTURES / "bezier-int-undefined.replies.jsonl"
 SEED = 0x4B1C4D_2026
 ADDITION_SEED = 0x4B1C4D_2027
+BEZIER_SEED = 0x4B1C4D_2028
 
 # Original cases whose reference execution would read never-written block bytes
 # (first read: hashTail via digest, or getblock64). Source-derived, and equal to the
@@ -418,6 +432,311 @@ def addition_cases(corpus):
                                                    {"op": "hash_tail"}, digest])
 
 
+# --- BEZIER<T> (bezier_curves.h:89-197) and BEZIER_POLY( std::vector<VECTOR2D> ) ---
+
+INT_MIN = -(1 << 31)
+INT_MAX = (1 << 31) - 1
+OVERFLOW = "int component overflow"
+NAN_TO_INT = "NaN component converted to int"
+
+
+class Undefined(Exception):
+    """A BEZIER<int> evaluation the reference leaves undefined."""
+
+
+def f64_bits(value):
+    return struct.unpack("<Q", struct.pack("<d", value))[0]
+
+
+def bits_text(bits):
+    return f"{bits:016x}"
+
+
+def from_bits(bits):
+    return struct.unpack("<d", struct.pack("<Q", bits))[0]
+
+
+def int_store(point):
+    """VECTOR2<int>( const VECTOR2<double>& ): clamp to [INT_MIN, INT_MAX], truncate."""
+    result = []
+    for value in point:
+        clamped = float(INT_MIN) if value < INT_MIN else float(INT_MAX) if INT_MAX < value else value
+        if math.isnan(clamped):
+            raise Undefined(NAN_TO_INT)
+        result.append(int(clamped))
+    return tuple(result)
+
+
+def int_lerp(a, b, t):
+    """a + aT * ( b - a ) for VECTOR2<int> a and b, stored as VECTOR2<int>."""
+    difference = (b[0] - a[0], b[1] - a[1])
+    if not all(INT_MIN <= d <= INT_MAX for d in difference):
+        raise Undefined(OVERFLOW)
+    return int_store((float(a[0]) + t * float(difference[0]), float(a[1]) + t * float(difference[1])))
+
+
+def int_point_at(curve, t):
+    """PointAt for int: the double sum stored as VECTOR2<int> (only NaN is undefined)."""
+    t2 = t * t
+    t3 = t2 * t
+    t_m1 = 1.0 - t
+    t_m1_2 = t_m1 * t_m1
+    t_m1_3 = t_m1_2 * t_m1
+    s, c1, c2, e = curve
+    point = tuple(t_m1_3 * float(s[i]) + 3.0 * t * t_m1_2 * float(c1[i]) + 3.0 * t2 * t_m1 * float(c2[i])
+                  + t3 * float(e[i]) for i in range(2))
+    return int_store(point)
+
+
+def int_split(curve, t):
+    s, c1, c2, e = curve
+    start_c1 = int_lerp(s, c1, t)
+    c1_c2 = int_lerp(c1, c2, t)
+    c2_end = int_lerp(c2, e, t)
+    left_c2 = int_lerp(start_c1, c1_c2, t)
+    right_c1 = int_lerp(c1_c2, c2_end, t)
+    shared = int_lerp(left_c2, right_c1, t)
+    return (s, start_c1, left_c2, shared), (shared, right_c1, c2_end, e)
+
+
+def unit_clamp(t):
+    return 0.0 if t < 0.0 else 1.0 if t > 1.0 else t
+
+
+def ieee_div(a, b):
+    """IEEE double division (Python raises for a zero divisor); NaN bits are not modelled."""
+    if b != 0.0 or math.isnan(b):
+        return a / b
+    if math.isnan(a) or a == 0.0:
+        return math.nan
+    return math.copysign(math.inf, a) * math.copysign(1.0, b)
+
+
+def int_sub_curve(curve, t0, t1):
+    t0, t1 = unit_clamp(t0), unit_clamp(t1)
+    if t1 <= t0:
+        return int_point_at(curve, t0)
+    if t0 == 0.0 and t1 == 1.0:
+        return curve
+    if t0 == 0.0:
+        return int_split(curve, t1)[0]
+    if t1 == 1.0:
+        return int_split(curve, t0)[1]
+    return int_split(int_split(curve, t1)[0], ieee_div(t0, t1))[1]
+
+
+def int_refusal(curve, call, params):
+    """None when the BEZIER<int> call is defined, else the refusal message."""
+    try:
+        if call == "point_at":
+            int_point_at(curve, from_bits(params["t"]))
+        elif call == "split":
+            int_split(curve, from_bits(params["t"]))
+        elif call == "sub_curve":
+            int_sub_curve(curve, from_bits(params["t0"]), from_bits(params["t1"]))
+    except Undefined as error:
+        return str(error)
+    return None
+
+
+# Bit patterns: signed zeros, +-1, a subnormal, the largest finite, infinities, quiet and
+# signalling NaNs with payloads and both signs, and ordinary fractions.
+F64_POINT_SPECIAL = [0x0000000000000000, 0x8000000000000000, 0x3FF0000000000000, 0xBFF0000000000000,
+                     0x0000000000000001, 0x7FEFFFFFFFFFFFFF, 0xFFEFFFFFFFFFFFFF, 0x7FF0000000000000,
+                     0xFFF0000000000000, 0x7FF8000000000001, 0xFFF80000000000A5, 0x7FF0000000000005,
+                     0x3FB999999999999A, 0x4059000000000000, 0x41CDCD6500000000]
+T_SPECIAL = [0.0, -0.0, 1.0, 0.5, 0.25, 0.75, 1.0 / 3.0, 2.0 / 3.0, -0.5, 1.5, 2.0, -1.0,
+             1e-300, -1e-300, 5e-324, 1.0 - 2.0 ** -53, 1.0 + 2.0 ** -52, 1e10, -1e10, 1e200, -1e200,
+             math.inf, -math.inf]
+T_NAN_BITS = [0x7FF8000000000000, 0xFFF8000000000000, 0x7FF80000000000C3, 0x7FF0000000000009]
+
+
+def bezier_request(kind, points, call, **params):
+    value = {"op": "bezier", "type": kind, "points": [list(point) for point in points], "call": call}
+    for name, bits in params.items():
+        value[name] = bits_text(bits)
+    return value
+
+
+def f64_points(points):
+    return [[bits_text(f64_bits(x)), bits_text(f64_bits(y))] for x, y in points]
+
+
+def f64_raw_points(points):
+    return [[bits_text(x), bits_text(y)] for x, y in points]
+
+
+def bezier_cases(corpus, refusals):
+    """Every owned BEZIER branch for both instantiations, plus BEZIER_POLY."""
+    rng = corpus.rng
+
+    def add(name, kind, points, call, curve=None, **params):
+        value = bezier_request(kind, points, call, **params)
+        message = int_refusal(curve, call, params) if kind == "i32" else None
+        if message is None:
+            corpus.add(f"bezier-{name}", value)
+        else:
+            refusals.append((f"bezier-{name}", value, message))
+
+    def t_bits():
+        choice = rng.random()
+        if choice < 0.45:
+            return f64_bits(rng.random())
+        if choice < 0.75:
+            return f64_bits(rng.choice(T_SPECIAL))
+        if choice < 0.85:
+            return rng.choice(T_NAN_BITS)
+        return f64_bits(rng.uniform(-3.0, 4.0))
+
+    # Fixed curves for double: an S curve, a straight line, a point, and EDA_SHAPE-like
+    # nanometre coordinates converted to double.
+    f64_curves = {
+        "s-curve": [(0.0, 0.0), (1.0, 2.0), (3.0, -2.0), (4.0, 0.0)],
+        "line": [(-5.0, -5.0), (-1.0, -1.0), (1.0, 1.0), (5.0, 5.0)],
+        "point": [(2.5, -7.25)] * 4,
+        "nanometres": [(1000000.0, 2500000.0), (1500000.0, 4000000.0), (3000000.0, 4000000.0),
+                       (3500000.0, 2500000.0)],
+        "fractions": [(0.1, 0.2), (0.3, -0.7), (1e-3, 123.456), (-9.875, 1e9)],
+    }
+    for name, points in f64_curves.items():
+        encoded = f64_points(points)
+        add(f"f64-{name}-new", "f64", encoded, "new")
+        for index, t in enumerate(T_SPECIAL):
+            add(f"f64-{name}-point-at-{index}", "f64", encoded, "point_at", t=f64_bits(t))
+            add(f"f64-{name}-split-{index}", "f64", encoded, "split", t=f64_bits(t))
+        for index, bits in enumerate(T_NAN_BITS):
+            add(f"f64-{name}-point-at-nan-{index}", "f64", encoded, "point_at", t=bits)
+            add(f"f64-{name}-split-nan-{index}", "f64", encoded, "split", t=bits)
+
+    # SubCurve: every clamp and branch, including -0.0, equal and reversed ranges and NaNs.
+    sub_ranges = [(0.0, 1.0), (-0.0, 1.0), (-1.0, 2.0), (0.0, 0.5), (-3.0, 0.5), (0.5, 1.0), (0.5, 7.0),
+                  (0.25, 0.75), (0.1, 0.9), (0.5, 0.5), (0.75, 0.25), (1.5, 2.0), (-1.0, -2.0),
+                  (0.0, 0.0), (1.0, 1.0), (-0.0, 0.0), (0.0, -0.0), (1.0, 0.0), (1e-300, 1.0),
+                  (0.0, 1.0 - 2.0 ** -53), (5e-324, 1.0 - 2.0 ** -53), (1.0 / 3.0, 2.0 / 3.0),
+                  (-math.inf, math.inf), (math.inf, -math.inf), (0.3, math.inf)]
+    nan = from_bits(0x7FF80000000000C3)
+    nan_ranges = [(nan, 0.5), (0.5, nan), (nan, nan), (0.0, nan), (nan, 1.0), (nan, 0.0), (1.0, nan)]
+    for name, points in f64_curves.items():
+        encoded = f64_points(points)
+        for index, (t0, t1) in enumerate(sub_ranges + nan_ranges):
+            add(f"f64-{name}-sub-curve-{index}", "f64", encoded, "sub_curve", t0=f64_bits(t0), t1=f64_bits(t1))
+    # Distinct NaN payloads meeting in one expression: aT against a coordinate, and two
+    # coordinates (the left operand's payload is the platform's result).
+    nan_points = [
+        [(0x7FF8000000000011, 0x3FF0000000000000), (0x4000000000000000, 0x7FF8000000000022),
+         (0x4008000000000000, 0xFFF8000000000033), (0x7FF0000000000044, 0x4010000000000000)],
+        [(0xFFF8000000000055, 0xFFF8000000000066), (0x7FF8000000000077, 0x7FF8000000000088),
+         (0x0000000000000000, 0x8000000000000000), (0x7FF0000000000000, 0xFFF0000000000000)],
+    ]
+    for curve_index, points in enumerate(nan_points):
+        encoded = f64_raw_points(points)
+        add(f"f64-nan-curve-{curve_index}-new", "f64", encoded, "new")
+        for index, bits in enumerate([f64_bits(0.5), f64_bits(0.0), f64_bits(1.0), f64_bits(2.0)] + T_NAN_BITS):
+            add(f"f64-nan-curve-{curve_index}-point-at-{index}", "f64", encoded, "point_at", t=bits)
+            add(f"f64-nan-curve-{curve_index}-split-{index}", "f64", encoded, "split", t=bits)
+        for index, (t0, t1) in enumerate([(0.25, 0.75), (0.0, 0.5), (0.5, 1.0), (0.6, 0.4), (nan, 0.5)]):
+            add(f"f64-nan-curve-{curve_index}-sub-curve-{index}", "f64", encoded, "sub_curve",
+                t0=f64_bits(t0), t1=f64_bits(t1))
+    # Constructor: every special bit pattern stored unchanged.
+    for index in range(0, len(F64_POINT_SPECIAL), 2):
+        values = (F64_POINT_SPECIAL * 2)[index:index + 8]
+        add(f"f64-new-special-{index}", "f64", f64_raw_points(list(zip(values[0::2], values[1::2]))), "new")
+    # Overflow to infinity and inf - inf inside the double evaluation.
+    big = [(1e308, -1e308), (-1e308, 1e308), (1e308, 1e308), (-1e308, -1e308)]
+    for index, t in enumerate([0.5, 2.0, -1.0, 1e10]):
+        add(f"f64-overflow-point-at-{index}", "f64", f64_points(big), "point_at", t=f64_bits(t))
+        add(f"f64-overflow-split-{index}", "f64", f64_points(big), "split", t=f64_bits(t))
+    # Fixed-seed random double curves and calls.
+    for index in range(120):
+        if index % 4 == 3:
+            points = [(rng.choice(F64_POINT_SPECIAL), rng.choice(F64_POINT_SPECIAL)) for _ in range(4)]
+            encoded = f64_raw_points(points)
+        else:
+            scale = rng.choice([1.0, 1e3, 1e6, 1e9, 1e-6])
+            encoded = f64_points([(rng.uniform(-scale, scale), rng.uniform(-scale, scale)) for _ in range(4)])
+        call = rng.choice(["point_at", "split", "sub_curve"])
+        if call == "sub_curve":
+            add(f"f64-random-{index:03d}", "f64", encoded, call, t0=t_bits(), t1=t_bits())
+        else:
+            add(f"f64-random-{index:03d}", "f64", encoded, call, t=t_bits())
+
+    # BEZIER<int>: promotion of int components to double, truncation toward zero, saturation at
+    # INT_MIN/INT_MAX, and the undefined overflows and NaN conversions (refused).
+    i32_curves = {
+        "s-curve": [(0, 0), (1, 2), (3, -2), (4, 0)],
+        "odd": [(-7, 7), (3, -3), (-1, 11), (9, -5)],
+        "nanometres": [(1000000, 2500000), (1500000, 4000000), (3000000, 4000000), (3500000, 2500000)],
+        "negative": [(-1000001, -2500001), (-1500003, -4000005), (-3000007, -4000009), (-3500011, -2500013)],
+        "point": [(123456789, -987654321)] * 4,
+        "extremes": [(INT_MIN, INT_MAX), (INT_MAX, INT_MIN), (INT_MIN, INT_MIN), (INT_MAX, INT_MAX)],
+        "near-extremes": [(INT_MAX - 1, INT_MIN + 1), (INT_MAX, INT_MAX - 2), (INT_MIN, INT_MIN + 3),
+                          (INT_MAX - 4, INT_MIN)],
+        "half-range": [(-(1 << 30), 1 << 30), ((1 << 30) - 1, -(1 << 30)), (0, 0), (1 << 30, (1 << 30) - 1)],
+        "saturating": [(-1, -1), (1, 1), (-1, -1), (1, 1)],
+        "large": [(2000000000, -2000000000), (-2000000000, 2000000000), (2000000000, 2000000000),
+                  (-2000000000, -2000000000)],
+    }
+    for name, curve in i32_curves.items():
+        encoded = [list(point) for point in curve]
+        add(f"i32-{name}-new", "i32", encoded, "new", curve)
+        for index, t in enumerate(T_SPECIAL):
+            add(f"i32-{name}-point-at-{index}", "i32", encoded, "point_at", curve, t=f64_bits(t))
+            add(f"i32-{name}-split-{index}", "i32", encoded, "split", curve, t=f64_bits(t))
+        for index, bits in enumerate(T_NAN_BITS[:2]):
+            add(f"i32-{name}-point-at-nan-{index}", "i32", encoded, "point_at", curve, t=bits)
+            add(f"i32-{name}-split-nan-{index}", "i32", encoded, "split", curve, t=bits)
+        for index, (t0, t1) in enumerate(sub_ranges + nan_ranges):
+            add(f"i32-{name}-sub-curve-{index}", "i32", encoded, "sub_curve", curve,
+                t0=f64_bits(t0), t1=f64_bits(t1))
+    for index in range(160):
+        bound = rng.choice([10, 1000, 1000000, 1 << 30, INT_MAX])
+        curve = [(rng.randint(max(-bound, INT_MIN), bound), rng.randint(max(-bound, INT_MIN), bound))
+                 for _ in range(4)]
+        encoded = [list(point) for point in curve]
+        call = rng.choice(["point_at", "split", "sub_curve"])
+        if call == "sub_curve":
+            add(f"i32-random-{index:03d}", "i32", encoded, call, curve, t0=t_bits(), t1=t_bits())
+        else:
+            add(f"i32-random-{index:03d}", "i32", encoded, call, curve, t=t_bits())
+
+    # BEZIER_POLY( const std::vector<VECTOR2D>& ): any count, every bit pattern copied.
+    polys = {
+        "empty": [],
+        "one": [(1.0, 2.0)],
+        "quadratic": [(0.0, 0.0), (5.0, 10.0), (10.0, 0.0)],
+        "cubic": [(0.0, 0.0), (1.0, 2.0), (3.0, -2.0), (4.0, 0.0)],
+        "five": [(float(i), float(-i)) for i in range(5)],
+    }
+    for name, points in polys.items():
+        corpus.add(f"bezier-poly-{name}", {"op": "bezier_poly", "points": f64_points(points)})
+    corpus.add("bezier-poly-special", {"op": "bezier_poly", "points": f64_raw_points(
+        list(zip(F64_POINT_SPECIAL, reversed(F64_POINT_SPECIAL))))})
+    corpus.add("bezier-poly-4096", {"op": "bezier_poly", "points": [
+        [bits_text(rng.getrandbits(64)), bits_text(rng.getrandbits(64))] for _ in range(4096)]})
+    for index in range(6):
+        corpus.add(f"bezier-poly-random-{index}", {"op": "bezier_poly", "points": f64_points(
+            [(rng.uniform(-1e6, 1e6), rng.uniform(-1e6, 1e6)) for _ in range(rng.randint(0, 12))])})
+
+
+def long_grouping_cases(corpus):
+    """numpunct groupings longer than 64 bytes; only one byte per digit is ever used."""
+    reviewer = "f0debc9a78563412" + "3412000000000000"
+    for name, grouping in [("grouping-65-bytes", "03" * 65), ("grouping-100-ones", "01" * 100),
+                           ("grouping-4096-bytes", "02" * 4096),
+                           ("grouping-long-then-invalid", "01" * 15 + "00" + "05" * 200)]:
+        corpus.add(f"hash128-locale-{name}", {"op": "hash128", "a": reviewer, "b": corpus.bytes(16).hex(),
+                                              "locale": {"thousands_sep": 0x5F, "grouping": grouping}})
+
+
+def second_review_cases(corpus):
+    """Cases added after the second review, from BEZIER_SEED; returns the BEZIER<int> refusals."""
+    corpus.rng = random.Random(BEZIER_SEED)
+    refusals = []
+    long_grouping_cases(corpus)
+    bezier_cases(corpus, refusals)
+    return refusals
+
+
 def main():
     corpus = Corpus()
     std_hash_cases(corpus)
@@ -435,11 +754,19 @@ def main():
         raise ValueError("missing unwritten-read regression case")
     corpus.lines = [line for line in corpus.lines if json.loads(line)["case"] not in refused]
     addition_cases(corpus)
+    refusals = second_review_cases(corpus)
     OUT.write_text("\n".join(corpus.lines) + "\n", encoding="utf-8", newline="\n")
-    FIXTURE.parent.mkdir(parents=True, exist_ok=True)
+    FIXTURES.mkdir(parents=True, exist_ok=True)
     FIXTURE.write_text("\n".join(fixture) + "\n", encoding="utf-8", newline="\n")
+    requests = [json.dumps({"unit": UNIT, "case": case, "input": value}, separators=(",", ":"))
+                for case, value, _ in refusals]
+    replies = [json.dumps({"unit": UNIT, "case": case, "error": {"kind": "invalid_input", "message": message}},
+                          separators=(",", ":")) for case, _, message in refusals]
+    BEZIER_REQUESTS.write_text("\n".join(requests) + "\n", encoding="utf-8", newline="\n")
+    BEZIER_REPLIES.write_text("\n".join(replies) + "\n", encoding="utf-8", newline="\n")
     print(f"{len(corpus.lines)} cases -> {OUT.relative_to(ROOT)}; "
-          f"{len(fixture)} refusal regressions -> {FIXTURE.relative_to(ROOT)}")
+          f"{len(fixture)} refusal regressions -> {FIXTURE.relative_to(ROOT)}; "
+          f"{len(refusals)} BEZIER<int> refusals -> {BEZIER_REQUESTS.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":
