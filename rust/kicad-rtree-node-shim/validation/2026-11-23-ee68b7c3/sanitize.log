@@ -1,0 +1,4 @@
+383baba7466381e5b45f729e2df7bc7ad3e85207bddd2f7b72870af096a51d1a  /home/karlvonrichter/kicad-port/rtree-p003/sanitized/rtree-adapter-sanitized
+cases: sanitized output identical (1525 requests)
+refusals: sanitized output identical (128 requests)
+sanitize status=0

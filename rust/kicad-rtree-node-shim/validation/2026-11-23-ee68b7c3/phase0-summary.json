@@ -1,0 +1,63 @@
+{
+  "phase0": "COMPLETE",
+  "strict_gate_enabled": true,
+  "live_green_units": 3,
+  "required_green_units": 3,
+  "required_layer": 0,
+  "total_live_green_units": 3,
+  "validated_unit_records": 1801,
+  "live_partial_units": 1,
+  "partial_deferred_cases": 0,
+  "partial_units_without_deferrals": [
+    "libs.kimath.include.geometry.rtree.application.pure.p003"
+  ],
+  "units": {
+    "libs.kimath.include.geometry.rtree.application.pure.p003": {
+      "declared_status": "partial",
+      "mode": "partial",
+      "action": "check",
+      "result": "green",
+      "cases": 1525,
+      "compared": 1525,
+      "deferred": 0
+    },
+    "libs.kimath.src.md5_hash.application.pure.p001": {
+      "declared_status": "green",
+      "mode": "strict",
+      "action": "check",
+      "result": "green",
+      "cases": 5973,
+      "compared": 5973,
+      "deferred": 0
+    },
+    "pcb_calculator.application.pure.p001": {
+      "declared_status": "green",
+      "mode": "strict",
+      "action": "check",
+      "result": "green",
+      "cases": 1050,
+      "compared": 1050,
+      "deferred": 0
+    },
+    "pcb_calculator.calculator_panels.application.pure.p001": {
+      "declared_status": "green",
+      "mode": "strict",
+      "action": "check",
+      "result": "green",
+      "cases": 14190,
+      "compared": 14190,
+      "deferred": 0
+    }
+  },
+  "extraction_coverage": {
+    "inventory_complete": true,
+    "parse_complete": false,
+    "compile_database_complete": true,
+    "all_configurations_complete": false,
+    "gate_complete": false,
+    "unresolved_call_count": 8899609,
+    "parse_failures": 4,
+    "uncompiled_application_sources": 63
+  },
+  "full_report_sha256": "d49eae0811847397d6477904e8a6e314f093b3b6c5d6391188ebc7e66ea497d7"
+}

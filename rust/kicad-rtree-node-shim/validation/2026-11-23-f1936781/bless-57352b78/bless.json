@@ -1,0 +1,12 @@
+{
+  "unit": "libs.kimath.include.geometry.rtree.application.pure.p003",
+  "status": "green",
+  "action": "bless",
+  "cases": 1448,
+  "deferred": 0,
+  "cases_sha256": "9789865122def0755e80c851c1f712f20411c2fe85642d08933c4bf8189e4d03",
+  "oracle_output_sha256": "4941ae0ddade8efb59eabf7b20b49f434ce8552cdd129a87f223a6db7b4d14c4",
+  "rust_output_sha256": "3a4a3346ede7ff6a387591ece9f82d7042a856789f1b126f56ac819615f695c4",
+  "oracle_sha256": "9b8df4b300d3e5b6cd940713f09b7163676434e73415e3f50791ac97dd83ce84",
+  "rust_sha256": "64cca39299ca49192a61aa36ace5b29515fb54d88584a38daab4aa3a6ad1b2e2"
+}

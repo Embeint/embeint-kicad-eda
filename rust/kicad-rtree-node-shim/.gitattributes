@@ -1,0 +1,3 @@
+# Recorded outputs and hashes are compared byte for byte.
+validation/** text eol=lf
+fixtures/*.jsonl text eol=lf
