@@ -125,7 +125,12 @@ adds `width_after`, the stream's width afterwards, which every insertion resets 
 - Locale: the classic `"C"` locale only. The oracle never changes the global locale, and the
   port models no other decimal point or grouping.
 
-The Rust API is `Matrix3x3::stream_text( &mut StreamState )` with `kicad_math::StreamState`.
+The Rust API is `Matrix3x3::stream_text( &mut StreamState ) -> Result<String, StreamError>`
+with `kicad_math::StreamState`. Public matrix, numeric and string insertions reject positive
+precision or width above `MAX_STREAM_FIELD` (512) with `StreamError::ResourceLimit` before
+formatting or changing stream state. This explicit resource refusal also applies to direct
+Rust callers; it is not a C++ domain restriction or a silent clamp. Negative precision and
+width retain their default-precision and no-padding meanings.
 There is deliberately no `Display` implementation that would ignore caller state.
 
 Refusal messages, in validation order: `expected op string`, `unknown operation`,

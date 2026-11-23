@@ -22,7 +22,7 @@
 //!   out-of-range `double` to `int` are undefined behaviour in C++; those inputs return a
 //!   [`MatrixError`] instead of a value. Every defined input returns the C++ result.
 
-use crate::stream::{insert_str, StreamInsert, StreamState};
+use crate::stream::{insert_str, StreamError, StreamInsert, StreamState};
 use crate::vector::{Vector2, Vector3};
 use core::ops::Mul;
 
@@ -195,23 +195,25 @@ impl<T: MatrixElement> Matrix3x3<T> {
     /// `operator<<( std::ostream&, const MATRIX3x3<T>& )` on a stream in `state`: each row is
     /// `"| "`, then each member followed by `" "`, then `"|"` and `"\n"`. Every insertion uses
     /// and updates `state` as the C++ stream does (only the first `"| "` sees a nonzero
-    /// width, because every insertion resets it).
-    pub fn stream_text(&self, state: &mut StreamState) -> String {
+    /// width, because every insertion resets it). Resource limits are validated before
+    /// any insertion, so a rejected state remains unchanged.
+    pub fn stream_text(&self, state: &mut StreamState) -> Result<String, StreamError> {
+        state.validate()?;
         let mut text = String::new();
 
         for row in &self.data {
-            text.push_str(&insert_str("| ", state));
+            text.push_str(&insert_str("| ", state)?);
 
             for value in row {
-                text.push_str(&value.insert(state));
-                text.push_str(&insert_str(" ", state));
+                text.push_str(&value.insert(state)?);
+                text.push_str(&insert_str(" ", state)?);
             }
 
-            text.push_str(&insert_str("|", state));
-            text.push_str(&insert_str("\n", state));
+            text.push_str(&insert_str("|", state)?);
+            text.push_str(&insert_str("\n", state)?);
         }
 
-        text
+        Ok(text)
     }
 }
 

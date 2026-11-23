@@ -21,6 +21,38 @@
 //!
 //! Locales other than the classic one (decimal point, grouping) are not supported: the oracle
 //! never changes the global locale, so its streams always use the classic locale.
+//!
+//! Public insertions return a typed resource error before formatting or changing stream
+//! state when precision or width exceeds [`MAX_STREAM_FIELD`]. This is an implementation
+//! resource limit, not a restriction on the C++ operator's defined domain.
+
+/// Maximum positive precision or width accepted by a public insertion.
+pub const MAX_STREAM_FIELD: i64 = 512;
+
+/// A formatting request exceeds the portable implementation's resource budget.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StreamError {
+    ResourceLimit {
+        field: &'static str,
+        requested: i64,
+        maximum: i64,
+    },
+}
+
+impl core::fmt::Display for StreamError {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::ResourceLimit {
+                field,
+                requested,
+                maximum,
+            } => write!(
+                formatter,
+                "stream {field} exceeds resource limit {maximum}: {requested}"
+            ),
+        }
+    }
+}
 
 /// `std::ios_base::fmtflags`, one field per flag.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -54,6 +86,23 @@ pub struct StreamState {
     pub fill: char,
 }
 
+impl StreamState {
+    /// Check resource bounds without changing the stream. Negative precision and width
+    /// retain their C++ meanings (default precision and no padding, respectively).
+    pub fn validate(&self) -> Result<(), StreamError> {
+        for (field, requested) in [("precision", self.precision), ("width", self.width)] {
+            if requested > MAX_STREAM_FIELD {
+                return Err(StreamError::ResourceLimit {
+                    field,
+                    requested,
+                    maximum: MAX_STREAM_FIELD,
+                });
+            }
+        }
+        Ok(())
+    }
+}
+
 impl Default for StreamState {
     /// A freshly constructed stream: `skipws | dec`, precision 6, width 0, fill `' '`.
     fn default() -> Self {
@@ -73,11 +122,12 @@ impl Default for StreamState {
 /// A value `operator<<` can insert into the modelled stream.
 pub trait StreamInsert {
     /// Format `self` as the C++ insertion would, then reset the width as it does.
-    fn insert(&self, state: &mut StreamState) -> String;
+    fn insert(&self, state: &mut StreamState) -> Result<String, StreamError>;
 }
 
 /// `operator<<( std::ostream&, const char* )`: pad to the width, then reset it.
-pub fn insert_str(text: &str, state: &mut StreamState) -> String {
+pub fn insert_str(text: &str, state: &mut StreamState) -> Result<String, StreamError> {
+    state.validate()?;
     let length = text.chars().count();
     let padding = usize::try_from(state.width)
         .unwrap_or(0)
@@ -85,11 +135,11 @@ pub fn insert_str(text: &str, state: &mut StreamState) -> String {
     state.width = 0;
     let fill: String = core::iter::repeat_n(state.fill, padding).collect();
     let left = state.flags.left && !state.flags.right && !state.flags.internal;
-    if left {
+    Ok(if left {
         format!("{text}{fill}")
     } else {
         format!("{fill}{text}")
-    }
+    })
 }
 
 /// Pad a formatted number to the width with libstdc++'s `__pad`: `left` pads after,
@@ -128,7 +178,8 @@ fn pad_number(text: String, state: &mut StreamState) -> String {
 }
 
 impl StreamInsert for i32 {
-    fn insert(&self, state: &mut StreamState) -> String {
+    fn insert(&self, state: &mut StreamState) -> Result<String, StreamError> {
+        state.validate()?;
         let flags = state.flags;
         let octal = flags.oct && !flags.hex && !flags.dec;
         let hexadecimal = flags.hex && !flags.oct && !flags.dec;
@@ -156,14 +207,15 @@ impl StreamInsert for i32 {
         } else {
             format!("{self}")
         };
-        pad_number(text, state)
+        Ok(pad_number(text, state))
     }
 }
 
 impl StreamInsert for f64 {
-    fn insert(&self, state: &mut StreamState) -> String {
+    fn insert(&self, state: &mut StreamState) -> Result<String, StreamError> {
+        state.validate()?;
         let text = format_double(*self, state);
-        pad_number(text, state)
+        Ok(pad_number(text, state))
     }
 }
 

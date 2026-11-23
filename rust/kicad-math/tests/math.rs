@@ -3,7 +3,7 @@
 //! live difftest (`port/cases/libs.kimath.include.math.application.pure.p001.jsonl`); these
 //! tests guard internal consistency and documented edge cases.
 
-use kicad_math::stream::{StreamInsert, StreamState};
+use kicad_math::stream::{insert_str, StreamError, StreamInsert, StreamState, MAX_STREAM_FIELD};
 use kicad_math::wide_int::{
     cross_wide, dot_wide, to_double, to_double_via_words, words_to_double, WideIntError,
 };
@@ -121,7 +121,11 @@ fn stream_doubles_follow_default_ostream_g6() {
         (f64::from_bits(0x7ff8_0000_0000_0000), "nan"),
         (f64::from_bits(0xfff8_0000_0000_0000), "-nan"),
     ] {
-        assert_eq!(value.insert(&mut StreamState::default()), text, "{value:e}");
+        assert_eq!(
+            value.insert(&mut StreamState::default()),
+            Ok(text.into()),
+            "{value:e}"
+        );
     }
 }
 
@@ -184,7 +188,7 @@ fn stream_state_controls_double_formatting() {
     let mut fixed2 = state(2, |flags| flags.fixed = true);
     assert_eq!(
         eighth.stream_text(&mut fixed2),
-        "| 0.12 0.00 0.00 |\n| 0.00 0.12 0.00 |\n| 0.00 0.00 0.12 |\n"
+        Ok("| 0.12 0.00 0.00 |\n| 0.00 0.12 0.00 |\n| 0.00 0.00 0.12 |\n".into())
     );
     for (precision, apply, value, text) in [
         (
@@ -276,7 +280,7 @@ fn stream_state_controls_double_formatting() {
     ] {
         assert_eq!(
             value.insert(&mut state(precision, apply)),
-            text,
+            Ok(text.into()),
             "{value:e}"
         );
     }
@@ -292,13 +296,19 @@ fn stream_width_applies_to_the_first_insertion_only() {
     };
     assert_eq!(
         identity.stream_text(&mut padded),
-        "***| 1 0 0 |\n| 0 1 0 |\n| 0 0 1 |\n"
+        Ok("***| 1 0 0 |\n| 0 1 0 |\n| 0 0 1 |\n".into())
     );
     assert_eq!(padded.width, 0);
     let mut left = state(6, |f| f.left = true);
     left.width = 4;
     left.fill = '_';
-    assert_eq!(&identity.stream_text(&mut left)[..5], "| __1");
+    assert_eq!(
+        identity
+            .stream_text(&mut left)
+            .as_deref()
+            .map(|s| s.get(..5)),
+        Ok(Some("| __1"))
+    );
 }
 
 #[test]
@@ -312,7 +322,7 @@ fn stream_state_controls_integer_formatting() {
     });
     assert_eq!(
         ints.stream_text(&mut hex),
-        "| 0XFFFFFFFF 0XFF 0 |\n| 0X8 0X80000000 0X7FFFFFFF |\n| 0X1 0X2 0X3 |\n"
+        Ok("| 0XFFFFFFFF 0XFF 0 |\n| 0X8 0X80000000 0X7FFFFFFF |\n| 0X1 0X2 0X3 |\n".into())
     );
     let mut oct = state(6, |f| {
         f.dec = false;
@@ -320,9 +330,56 @@ fn stream_state_controls_integer_formatting() {
         f.showbase = true;
         f.showpos = true;
     });
-    assert_eq!(&ints.stream_text(&mut oct)[..21], "| 037777777777 0377 0");
+    assert_eq!(
+        ints.stream_text(&mut oct).as_deref().map(|s| s.get(..21)),
+        Ok(Some("| 037777777777 0377 0"))
+    );
     let mut showpos = state(6, |f| f.showpos = true);
-    assert_eq!(&ints.stream_text(&mut showpos)[..13], "| -1 +255 +0 ");
+    assert_eq!(
+        ints.stream_text(&mut showpos)
+            .as_deref()
+            .map(|s| s.get(..13)),
+        Ok(Some("| -1 +255 +0 "))
+    );
+}
+
+#[test]
+fn public_stream_resource_limits_return_errors_without_mutating_state() {
+    let ones = Matrix3x3D::from_elements(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
+    for requested in [MAX_STREAM_FIELD + 1, 65_536, i64::MAX] {
+        for field in ["precision", "width"] {
+            let mut state = state(2, |f| f.fixed = true);
+            state.width = 5;
+            if field == "precision" {
+                state.precision = requested;
+            } else {
+                state.width = requested;
+            }
+            let original = state;
+            let expected = Err(StreamError::ResourceLimit {
+                field,
+                requested,
+                maximum: MAX_STREAM_FIELD,
+            });
+            assert_eq!(ones.stream_text(&mut state), expected);
+            assert_eq!(state, original);
+            assert_eq!(1.0_f64.insert(&mut state), expected);
+            assert_eq!(state, original);
+            assert_eq!(1_i32.insert(&mut state), expected);
+            assert_eq!(state, original);
+            assert_eq!(insert_str("text", &mut state), expected);
+            assert_eq!(state, original);
+        }
+    }
+
+    // The supported upper boundary still formats every requested digit, with no clamp.
+    let mut boundary = state(MAX_STREAM_FIELD, |f| f.fixed = true);
+    let expected = format!("1.{}", "0".repeat(MAX_STREAM_FIELD as usize));
+    assert_eq!(1.0_f64.insert(&mut boundary), Ok(expected));
+    let mut negative = state(i64::MIN, |_| ());
+    negative.width = i64::MIN;
+    assert_eq!(1.0_f64.insert(&mut negative), Ok("1".into()));
+    assert_eq!(negative.width, 0);
 }
 
 #[test]

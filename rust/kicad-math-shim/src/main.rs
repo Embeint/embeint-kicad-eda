@@ -366,10 +366,13 @@ fn shared<T: Element>(op: &str, input: &Value) -> Result<Option<Value>, String> 
         "stream" => {
             let m = matrix::<T>(arg("matrix"), "matrix")?;
             match input.get("state") {
-                None => json!({"text": m.stream_text(&mut StreamState::default())}),
+                None => json!({"text": m.stream_text(&mut StreamState::default())
+                    .map_err(|error| error.to_string())?}),
                 Some(state) => {
                     let mut state = stream_state(state)?;
-                    let text = m.stream_text(&mut state);
+                    let text = m
+                        .stream_text(&mut state)
+                        .map_err(|error| error.to_string())?;
                     json!({"text": text, "width_after": state.width})
                 }
             }
