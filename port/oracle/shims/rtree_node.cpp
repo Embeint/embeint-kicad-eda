@@ -392,8 +392,11 @@ private:
     }
 
     // Move assignment destroys the target's pages.  Their nodes are retired from the
-    // numbering, so a later page at a reused address is never mistaken for them, and
-    // a live node elsewhere may not keep a pointer into them (it would dangle).
+    // numbering, so a later page at a reused address is never mistaken for them.  A
+    // live node elsewhere may keep such a pointer: retaining, copying or overwriting
+    // its bits is defined, only a dereference is not, and nothing here dereferences
+    // it.  Those slots are recorded while the pointers are still valid, so the stale
+    // bits are never compared afterwards (a new page may reuse the address).
     void Retire( const ALLOC& aTarget )
     {
         std::vector<size_t> doomed;
@@ -404,26 +407,42 @@ private:
                 doomed.push_back( i );
         }
 
-        for( const NODE* node : m_seen )
+        for( size_t i = 0; i < m_seen.size(); ++i )
         {
+            const NODE* node = m_seen[i];
+
             if( !node || aTarget.Owns( node ) || !IsLive( node ) )
                 continue;
 
             for( int slot = 0; slot < M; ++slot )
             {
+                if( m_stale[i][slot] >= 0 )
+                    continue;
+
                 const void* pointer = nullptr;
                 std::memcpy( &pointer, &node->children[slot], sizeof( pointer ) );
 
                 for( size_t id : doomed )
                 {
                     if( pointer == static_cast<const void*>( m_seen[id] ) )
-                        Refuse( "move assignment would leave a dangling child" );
+                        m_stale[i][slot] = static_cast<int>( id );
                 }
             }
         }
 
         for( size_t id : doomed )
             m_seen[id] = nullptr;
+    }
+
+    // The number of a known, undestroyed node.
+    size_t IndexOf( const NODE* aNode )
+    {
+        auto it = std::find( m_seen.begin(), m_seen.end(), const_cast<NODE*>( aNode ) );
+
+        if( it == m_seen.end() )
+            throw std::logic_error( "node not numbered" );
+
+        return static_cast<size_t>( it - m_seen.begin() );
     }
 
     NODE* OptionalNode( const JSON& aStep, const char* aName )
@@ -439,6 +458,8 @@ private:
             return static_cast<int>( it - m_seen.begin() );
 
         m_seen.push_back( const_cast<NODE*>( aNode ) );
+        m_stale.emplace_back();
+        m_stale.back().fill( -1 );
         return static_cast<int>( m_seen.size() - 1 );
     }
 
@@ -632,6 +653,15 @@ private:
             const void* pointer = nullptr;
             std::memcpy( &pointer, &aNode->children[i], sizeof( pointer ) );
 
+            const int destroyed = m_stale[IndexOf( aNode )][i];
+
+            if( destroyed >= 0 )
+            {
+                // Retained bits of a node destroyed by a move assignment.
+                payload.push_back( { { "destroyed", destroyed } } );
+                continue;
+            }
+
             int item = -1;
 
             for( int k = 0; k < ITEMS && item < 0; ++k )
@@ -765,7 +795,10 @@ private:
 
             for( size_t i = 0; i < count; ++i )
             {
-                nodes.push_back( Id( allocator.Allocate() ) );
+                const int id = Id( allocator.Allocate() );
+                // The node is freshly constructed: every child pointer is null.
+                m_stale[id].fill( -1 );
+                nodes.push_back( id );
                 ++m_allocated;
             }
 
@@ -953,6 +986,10 @@ private:
                         Refuse( "slot outside node" );
 
                     CountDomain( node );
+
+                    // The whole slot, including a retained stale pointer, is copied.
+                    std::array<int, M>& stale = m_stale[IndexOf( node )];
+                    stale[slot] = stale[node->count - 1];
                 }
 
                 node->RemoveChild( slot );
@@ -1004,6 +1041,8 @@ private:
             else
                 node->data[slot] = item;
 
+            m_stale[IndexOf( node )][slot] = -1;
+
             return JSON::object();
         }
 
@@ -1013,6 +1052,9 @@ private:
     std::array<ITEM, ITEMS>                         m_items{};
     std::array<std::optional<ALLOC>, ALLOCATORS>    m_allocators;
     std::vector<NODE*>                              m_seen;
+    // Per node number and slot: the number of the destroyed node whose pointer the
+    // slot retains, or -1.
+    std::vector<std::array<int, M>>                 m_stale;
     size_t                                          m_allocated = 0;
 };
 

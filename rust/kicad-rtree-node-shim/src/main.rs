@@ -175,11 +175,17 @@ impl NodeData for Item {}
 
 type Node<E, const D: usize, const M: usize> = RtreeNode<Item, E, D, M>;
 
+/// A numbered node; `destroyed` once a move assignment destroyed its page.  The
+/// handle is kept: a live node may retain it in a slot, and handles never alias.
+struct Seen {
+    handle: NodeHandle,
+    destroyed: bool,
+}
+
 struct Program<E: Coord, const D: usize, const M: usize> {
     allocators: [Option<SlabAllocator<Node<E, D, M>>>; ALLOCATORS],
-    /// Node numbering by first allocation; `None` once a move assignment destroyed
-    /// the node's page.
-    seen: Vec<Option<NodeHandle>>,
+    /// Node numbering by first allocation.
+    seen: Vec<Seen>,
     allocated: usize,
 }
 
@@ -223,12 +229,14 @@ impl<E: Coord + Wire + Into<Value>, const D: usize, const M: usize> Program<E, D
 
     fn node(&self, step: &Value, name: &str) -> Result<NodeHandle, String> {
         let id = signed(step, name, 0, MAX_ALLOCATIONS as i64 - 1)?;
-        usize::try_from(id)
+        let seen = usize::try_from(id)
             .ok()
             .and_then(|id| self.seen.get(id))
-            .ok_or("node does not exist")?
-            .clone()
-            .ok_or_else(|| "node is destroyed".into())
+            .ok_or("node does not exist")?;
+        if seen.destroyed {
+            return Err("node is destroyed".into());
+        }
+        Ok(seen.handle.clone())
     }
 
     fn optional_node(&self, step: &Value, name: &str) -> Result<Option<NodeHandle>, String> {
@@ -242,19 +250,31 @@ impl<E: Coord + Wire + Into<Value>, const D: usize, const M: usize> Program<E, D
         if let Some(index) = self
             .seen
             .iter()
-            .position(|seen| seen.as_ref() == Some(node))
+            .position(|seen| !seen.destroyed && seen.handle == *node)
         {
             return index;
         }
-        self.seen.push(Some(node.clone()));
+        self.seen.push(Seen {
+            handle: node.clone(),
+            destroyed: false,
+        });
         self.seen.len() - 1
     }
 
-    fn known_id(&self, node: &NodeHandle) -> Result<usize, String> {
-        self.seen
+    /// A child slot as `{"child":n}`, or `{"destroyed":n}` for a retained pointer to
+    /// a node whose page a move assignment destroyed.
+    fn child_value(&self, node: &NodeHandle) -> Outcome {
+        let (id, seen) = self
+            .seen
             .iter()
-            .position(|seen| seen.as_ref() == Some(node))
-            .ok_or_else(|| "unknown pointer in node".into())
+            .enumerate()
+            .find(|(_, seen)| seen.handle == *node)
+            .ok_or("unknown pointer in node")?;
+        Ok(if seen.destroyed {
+            json!({"destroyed": id})
+        } else {
+            json!({"child": id})
+        })
     }
 
     /// The live node, found in its owning allocator (no use after free).
@@ -269,51 +289,17 @@ impl<E: Coord + Wire + Into<Value>, const D: usize, const M: usize> Program<E, D
         owner.node_mut(node).map_err(|_| not_live())
     }
 
-    fn is_live(&self, node: &NodeHandle) -> bool {
-        self.allocators
-            .iter()
-            .flatten()
-            .find(|allocator| allocator.owns(node))
-            .is_some_and(|allocator| allocator.node(node).is_ok())
-    }
-
     /// Move assignment destroys the target's pages: retire their nodes from the
-    /// numbering, refusing first if a live node elsewhere points into them.
+    /// numbering.  Live nodes elsewhere may keep their handles in slots; that is
+    /// defined as long as nothing dereferences them.
     fn retire(&mut self, target: usize) -> Result<(), String> {
         let allocator = self.allocators[target]
             .as_ref()
             .ok_or("allocator does not exist")?;
-        let doomed: Vec<usize> = (0..self.seen.len())
-            .filter(|id| {
-                self.seen[*id]
-                    .as_ref()
-                    .is_some_and(|node| allocator.owns(node))
-            })
-            .collect();
-        for node in self.seen.iter().flatten() {
-            if allocator.owns(node) || !self.is_live(node) {
-                continue;
+        for seen in &mut self.seen {
+            if !seen.destroyed && allocator.owns(&seen.handle) {
+                seen.destroyed = true;
             }
-            let owner = self
-                .allocators
-                .iter()
-                .flatten()
-                .find(|other| other.owns(node))
-                .ok_or("node is not live")?;
-            let live = owner.node(node).map_err(lib)?;
-            for slot in 0..M {
-                if let Payload::Child(child) = live.payload(slot).map_err(lib)? {
-                    if doomed
-                        .iter()
-                        .any(|id| self.seen[*id].as_ref() == Some(child))
-                    {
-                        return Err("move assignment would leave a dangling child".into());
-                    }
-                }
-            }
-        }
-        for id in doomed {
-            self.seen[id] = None;
         }
         Ok(())
     }
@@ -365,7 +351,7 @@ impl<E: Coord + Wire + Into<Value>, const D: usize, const M: usize> Program<E, D
             payload.push(match node.payload(slot).map_err(lib)? {
                 Payload::Null => Value::Null,
                 Payload::Data(Item(item)) => json!({"item": item}),
-                Payload::Child(child) => json!({"child": self.known_id(child)?}),
+                Payload::Child(child) => self.child_value(child)?,
             });
         }
         Ok(

@@ -529,6 +529,44 @@ def review_cases():
                   {"op": "remove", "node": 0, "slot": 0}, {"op": "snapshot", "node": 0}]
         cases.append(request(f"review-slab-{config}-remove-last",
                              {"kind": "slab", "config": config, "steps": steps}))
+    # A page-destroying move assignment may leave live nodes elsewhere holding the
+    # destroyed nodes' pointers.  Keeping, copying and overwriting those bits is
+    # defined; they are reported as {"destroyed": n} and never dereferenced.  The
+    # first case is the review's reproduction, unchanged.
+    cases.append(request("review-slab-move-stale-unused-child", {
+        "kind": "slab", "config": "i32.d2.m16", "steps": [
+            {"op": "new", "a": 0}, {"op": "alloc", "a": 0}, {"op": "new", "a": 1},
+            {"op": "alloc", "a": 1}, {"op": "new", "a": 2},
+            {"op": "set_child", "node": 0, "slot": 15, "child": 1},
+            {"op": "move_assign", "a": 1, "src": 2},
+            {"op": "set_child", "node": 0, "slot": 15, "child": None},
+            {"op": "snapshot", "node": 0}]}))
+    for config, maxnodes in [("i32.d2.m16", 16), ("i32.d3.m5", 5), ("i64.d3.m8", 8)]:
+        top = maxnodes - 1
+        steps = [{"op": "new", "a": 0}, {"op": "alloc", "a": 0}, {"op": "new", "a": 1},
+                 {"op": "alloc", "a": 1}, {"op": "new", "a": 2},
+                 {"op": "set_level", "node": 0, "value": 1},
+                 {"op": "set_child", "node": 0, "slot": top, "child": 1},
+                 {"op": "set_child", "node": 0, "slot": 0, "child": 1},
+                 {"op": "set_count", "node": 0, "value": 2}, {"op": "snapshot", "node": 0},
+                 {"op": "move_assign", "a": 1, "src": 2}, {"op": "snapshot", "node": 0},
+                 {"op": "state", "a": 1}, {"op": "memory", "a": 1},
+                 {"op": "owns", "a": 0, "node": 0}, {"op": "predicates", "node": 0},
+                 {"op": "set_child", "node": 0, "slot": 1, "child": None},
+                 {"op": "remove", "node": 0, "slot": 0}, {"op": "snapshot", "node": 0},
+                 {"op": "set_count", "node": 0, "value": maxnodes},
+                 {"op": "remove", "node": 0, "slot": 3}, {"op": "snapshot", "node": 0},
+                 # New pages in the moved-into allocator may reuse the destroyed
+                 # page's address; the retained slots still name the destroyed node.
+                 {"op": "alloc_many", "a": 1, "n": 3}, {"op": "snapshot", "node": 0},
+                 {"op": "set_child", "node": 0, "slot": 3, "child": 2},
+                 {"op": "snapshot", "node": 0},
+                 {"op": "set_child", "node": 0, "slot": top, "child": None},
+                 {"op": "snapshot", "node": 0},
+                 {"op": "free", "a": 0, "node": 0}, {"op": "alloc", "a": 0},
+                 {"op": "snapshot", "node": 0}]
+        cases.append(request(f"review-slab-{config}-move-stale-children",
+                             {"kind": "slab", "config": config, "steps": steps}))
     return cases
 
 
@@ -687,9 +725,6 @@ def refusals():
     # A page-destroying move assignment retires its nodes and may not leave a live
     # node elsewhere pointing into them.
     retire = [new, alloc, {"op": "new", "a": 1}, {"op": "alloc", "a": 1}, {"op": "new", "a": 2}]
-    slab("move-dangling-child", retire + [{"op": "set_child", "node": 0, "slot": 0, "child": 1},
-                                          {"op": "move_assign", "a": 1, "src": 2}],
-         "move assignment would leave a dangling child")
     slab("move-destroyed-node", retire + [{"op": "move_assign", "a": 1, "src": 2},
                                           {"op": "snapshot", "node": 1}], "node is destroyed")
     slab("move-destroyed-owns", retire + [{"op": "move_assign", "a": 1, "src": 2},
