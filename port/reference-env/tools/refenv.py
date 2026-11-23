@@ -9,8 +9,8 @@ import json
 import lzma
 from pathlib import Path
 import shutil
-import struct
 import subprocess
+import sys
 import tarfile
 import tomllib
 import urllib.request
@@ -20,6 +20,10 @@ ENV_DIR = HERE.parent
 CANDIDATE = ENV_DIR / "candidate.toml"
 LOCK = ENV_DIR / "inputs.lock.json"
 USER_AGENT = "embeint-kicad-reference-env/1"
+
+# The ELF reader is shared with the in-image probe (libm_elf.py is copied there).
+sys.path.insert(0, str(ENV_DIR / "probe"))
+from libm_elf import Elf64  # noqa: E402,F401
 
 
 def sha256_bytes(data):
@@ -155,59 +159,6 @@ def tar_file_bytes(archive, path):
             raise ValueError("Not a regular file in deb: " + path)
         return wanted[1:], archive.extractfile(member).read()
     raise ValueError("Too many symbolic links: " + path)
-
-
-class Elf64:
-    """Minimal little-endian ELF64 reader: sections, symbols and the build ID."""
-
-    def __init__(self, data):
-        if data[:4] != b"\x7fELF" or data[4] != 2 or data[5] != 1:
-            raise ValueError("Not a little-endian ELF64 file")
-        self.data = data
-        (self.shoff,) = struct.unpack_from("<Q", data, 0x28)
-        self.shentsize, self.shnum, self.shstrndx = struct.unpack_from("<HHH", data, 0x3A)
-        self.sections = []
-        for index in range(self.shnum):
-            fields = struct.unpack_from("<IIQQQQIIQQ", data, self.shoff + index * self.shentsize)
-            self.sections.append(fields)
-        names = self.sections[self.shstrndx]
-        self.names = [self._string(names[4], s[0]) for s in self.sections]
-
-    def _string(self, offset, index):
-        end = self.data.index(b"\0", offset + index)
-        return self.data[offset + index:end].decode()
-
-    def section(self, name):
-        for section_name, fields in zip(self.names, self.sections):
-            if section_name == name:
-                return fields
-        return None
-
-    def build_id(self):
-        note = self.section(".note.gnu.build-id")
-        if note is None:
-            return None
-        offset = note[4]
-        namesz, descsz, kind = struct.unpack_from("<III", self.data, offset)
-        if kind != 3:
-            raise ValueError("Unexpected build-id note type")
-        start = offset + 12 + ((namesz + 3) & ~3)
-        return self.data[start:start + descsz].hex()
-
-    def function_symbols(self):
-        """Yield (name, value, binding) for FUNC/IFUNC symbols in .symtab."""
-        symtab = self.section(".symtab")
-        if symtab is None:
-            return
-        strtab = self.sections[symtab[6]]
-        entsize = symtab[9] or 24
-        for offset in range(symtab[4], symtab[4] + symtab[5], entsize):
-            name_index, info, _other, _shndx, value, _size = struct.unpack_from(
-                "<IBBHQQ", self.data, offset)
-            kind = info & 0xF
-            if kind not in (2, 10) or not name_index:
-                continue
-            yield self._string(strtab[4], name_index), value, info >> 4
 
 
 def dearmor(text):

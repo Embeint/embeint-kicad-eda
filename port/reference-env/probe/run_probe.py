@@ -260,7 +260,9 @@ def analyse(out, results, lock, candidate, built):
 
     environment = json.loads((out / "environment.json").read_text(encoding="utf-8"))
     check("installed libm debug symbols name the same implementations as the lock",
-          environment["libm"]["matches_lock"], environment["libm"]["debug_file"])
+          environment["libm"]["matches_lock"],
+          {"debug_file": environment["libm"]["debug_file"],
+           "excluded_suffix_matches": environment["libm"]["excluded_suffix_matches"]})
 
     comparisons = comparison_report(out, results, lock, candidate)
     outputs = artifacts.inventory(out)

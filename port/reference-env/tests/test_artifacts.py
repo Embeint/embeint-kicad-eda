@@ -153,7 +153,7 @@ def fixture(directory):
     )
     output = dict(command=["fixture"], returncode=0, stdout="fixture", stderr="")
     env = dict(
-        schema=1,
+        schema=2,
         host=dict(cpu={"model name": "synthetic"}, uname={}),
         loader={
             k: output
@@ -166,7 +166,12 @@ def fixture(directory):
         },
         image_identity=image,
         os_release="fixture",
-        libm=dict(multiarch_symbols_from_nm=lock["libm"]["multiarch_symbols"], matches_lock=True),
+        libm=dict(
+            debug_file=lock["libm"]["debug_file"],
+            multiarch_symbols_from_debug_file=lock["libm"]["multiarch_symbols"],
+            excluded_suffix_matches=[],
+            matches_lock=True,
+        ),
         loaded_objects=loaded,
     )
     write(directory / "environment.json", env)

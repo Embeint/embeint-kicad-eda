@@ -16,6 +16,8 @@ from pathlib import Path
 import platform
 import subprocess
 
+import libm_elf
+
 LOADER = "/lib64/ld-linux-x86-64.so.2"
 RECORDED_VARIABLES = ("GLIBC_TUNABLES", "LANG", "LC_ALL", "TZ", "PATH", "HOME", "PYTHONDONTWRITEBYTECODE",
                       "SOURCE_DATE_EPOCH", "ORACLE_JOBS", "CC", "CXX", "CFLAGS", "CXXFLAGS", "LDFLAGS",
@@ -48,17 +50,18 @@ def cpu():
     return {"logical_cpus": text.count("processor\t:"), **{k: fields.get(k) for k in keep}}
 
 
-def libm_symbols(debug_file):
-    """Multiarch implementation symbols from the installed detached debug file (nm)."""
-    result = output(["nm", "--defined-only", debug_file])
-    table = {}
-    for line in result["stdout"].splitlines():
-        parts = line.split()
-        if len(parts) == 3 and parts[1] in ("t", "T", "i") and parts[2].startswith("__") and any(
-                parts[2].endswith(suffix) for suffix in ("_sse2", "_sse41", "_sse4_1", "_avx", "_avx2",
-                                                          "_fma", "_fma4", "_avx512", "_evex")):
-            table.setdefault(f"0x{int(parts[0], 16):x}", []).append(parts[2])
-    return {offset: sorted(names) for offset, names in sorted(table.items())}
+def libm_record(lock):
+    """libm's multiarch table, read from the installed detached debug file.
+
+    The classifier is the lock generator's (libm_elf.py). Suffix matches that are
+    not implementations are listed with their reason rather than dropped.
+    """
+    debug_file = lock["libm"]["debug_file"]
+    debug_bytes = Path(debug_file).read_bytes()
+    installed, excluded = libm_elf.multiarch_symbols(libm_elf.Elf64(debug_bytes))
+    return {"debug_file": debug_file, "multiarch_symbols_from_debug_file": installed,
+            "excluded_suffix_matches": excluded,
+            "matches_lock": installed == lock["libm"]["multiarch_symbols"]}
 
 
 def main():
@@ -70,7 +73,7 @@ def main():
     contract_env = dict(os.environ)
     default_env = {k: v for k, v in contract_env.items() if k != "GLIBC_TUNABLES"}
     record = {
-        "schema": 1,
+        "schema": 2,
         "host": {
             "uname": platform.uname()._asdict(),
             "cpu": cpu(),
@@ -103,10 +106,7 @@ def main():
         "os_release": Path("/usr/lib/os-release").read_text(encoding="utf-8"),
     }
     os.umask(int(record["environment"]["umask"], 8))
-    debug = lock["libm"]["debug_file"]
-    installed = libm_symbols(debug)
-    record["libm"] = {"debug_file": debug, "multiarch_symbols_from_nm": installed,
-                      "matches_lock": installed == lock["libm"]["multiarch_symbols"]}
+    record["libm"] = libm_record(lock)
     if args.probe is not None:
         probe = json.loads(args.probe.read_text(encoding="utf-8"))
         record["loaded_objects"] = {name: {"resolved": str(Path(name).resolve()),
