@@ -2,7 +2,8 @@
 # kimath header hash/transform difftest adapter
 
 Native JSONL adapter (`portable = false`) for unit
-`libs.kimath.include.application.pure.p001`, pinned KiCad
+`libs.kimath.include.application.pure.p001` (hash, MMH3, `HASH_128`, `TRANSFORM`
+and the owned `bezier_curves.h` members), pinned KiCad
 `4cf939778df04d2b747bb2c4714fc5014a7565c7`. The portable implementation is
 [`rust/kicad-hash`](../kicad-hash); the C++ oracle adapter is
 [`port/oracle/shims/kimath_header_hash.cpp`](../../port/oracle/shims/kimath_header_hash.cpp).
@@ -35,6 +36,8 @@ lower-case, even length. Unknown or missing keys are refused.
 | `fmix64` | `k` (u64) | private static `MMH3_HASH::fmix64` | `value` |
 | `md5_valid` | `steps`: 1..4096, first `new` | `MD5_HASH` validity steps below | `valid`, `Format( true )` per step |
 | `transform` | `a`, `b`: `null` or 4 int32 | `TRANSFORM()` / `TRANSFORM( x1, y1, x2, y2 )`, `operator==` (co-port), `operator!=` | members, `equal`, `not_equal`, `reverse_not_equal`, `self_not_equal` |
+| `bezier` | `type` (`i32` or `f64`), `points` (4 `[x, y]`), `call` (`new`, `point_at`, `split`, `sub_curve`) and its parameters (`t`, or `t0` and `t1`) | `BEZIER<int>` or `BEZIER<double>` constructor, then `PointAt( t )`, `Split( t, left, right )` or `SubCurve( t0, t1 )` | `curve` (the constructed control points) and `point`, `left`/`right` or `sub_curve` |
+| `bezier_poly` | `points`: up to 4096 `[x, y]` (`f64`) | `BEZIER_POLY( const std::vector<VECTOR2D>& )` | private `min_seg_len` and `ctrl_pts` |
 
 Typed values: `{"type":T,"value":n}` for `i8 u8 i16 u16 i32 u32 i64 u64`
 (the type's full range), `{"type":"bool","value":b}`, `{"type":"f32"|"f64","bits":hex}`
@@ -60,11 +63,23 @@ or reads a value for such a byte. A step whose reference member would read one
 `<reader> reads unwritten block bytes <list>`; the case is then a refusal, never
 a corpus case.
 
-`hash128`'s `locale` is `{"thousands_sep": 0..255, "grouping": hex}` (at most 64
-grouping bytes; longer is refused with `grouping of N bytes exceeds 64`). The
+`hash128`'s `locale` is `{"thousands_sep": 0..255, "grouping": hex}`, with any
+grouping length up to the 4096-byte transport bound of every hex field. The
 oracle installs a global locale whose `numpunct<char>` returns those values
 (every other facet classic) around each reference `ToString` call and restores
 the previous global locale.
+
+`bezier` coordinates are JSON integers for `i32` and 16 lower-case hex digits of
+the `double`'s bits (most significant first) for `f64`. Every `t` is such a bit
+string. Results use the same encodings, so NaN payloads, signed zeros and
+infinities are compared exactly. The validation order is: keys, `type`, `points`,
+`call`, the call's exact keys, then its parameters. A `BEZIER<int>` call whose
+evaluation is undefined (an `int` subtraction that overflows, or a NaN converted
+to `int` by the clamping `VECTOR2<int>( VECTOR2<double> )` constructor) is refused
+before any member runs, with `int component overflow` or
+`NaN component converted to int`. The oracle decides this with a definedness
+check that follows `bezier_curves.h` statement by statement with the pinned
+`VECTOR2` operators; every reported value comes from the real member.
 
 `md5_valid` steps: `new`, `set_valid` (`value`), `init`, `finalize`, `copy`
 (copy constructor), `assign` (`operator=` into a fresh object), `bytes` (`hex`
@@ -83,12 +98,24 @@ up to 4096 bytes, 1 MiB per case), `int` and `inspect`.
   [reclassification](../../port/findings/kimath-header-hash-mmh3-unwritten-reads.md)).
 - `HASH_128::ToString` depends on the global C++ locale's grouping; the port
   takes it explicitly ([locale record](../../port/findings/kimath-header-hash-tostring-locale.md)).
+  How a zero group after a positive group is handled depends on the libstdc++
+  runtime build (open; three cases).
+- `BEZIER<double>` NaN results follow the oracle platform for one NaN operand and
+  for generated NaNs. Where two distinct NaN payloads meet, the compiled
+  reference is not consistent (open; 38 cases,
+  [record](../../port/findings/kimath-header-hash-bezier-two-nan-payloads.md)).
 - `HASH_128` is filled through `Value64` and its `Value32` view is read from
   the object bytes; `ToString` reads `Value64`, as KiCad does.
 - Malformed and undefined-domain requests are refusals
   (`invalid_input`/`invalid_request`), never corpus cases: `check_guards.py`
-  requires the expected complete reply (parsed JSON) from both programs for 97
-  requests, including transport overflow, nesting, duplicate keys, locale
-  limits and the 15 original unwritten-read requests in `fixtures/`.
+  requires the expected complete reply (parsed JSON) from both programs for 441
+  requests. They include transport overflow, nesting, duplicate keys, the
+  locale transport bound and malformed `bezier` requests. They also include the
+  15 original unwritten-read requests and the 325 generated undefined
+  `BEZIER<int>` requests in `fixtures/`.
+- `src/operations.rs` holds the pure operations (no I/O); `main.rs` adds the
+  JSONL transport. The portable `kicad-hash` example `wasm_parity` reuses the
+  operations to run the whole corpus in a wasm runtime
+  (`rust/kicad-hash/wasm-test.mjs`).
 
 See [AUDIT.md](AUDIT.md) for the owned-definition audit and remaining work.

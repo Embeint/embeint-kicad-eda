@@ -63,16 +63,25 @@ from the invented zero bytes.
 - Development smoke only (macOS arm64, Apple Clang, libc++; not Linux
   qualification): an adapter build from the pinned `mmh3_hash.h`,
   `md5_hash.cpp` and `transform.cpp` returns exactly the committed 15 refusals.
-- Linux x86-64 oracle qualification of the corrected adapter is pending (see
-  the PR); no corrected golden has been blessed.
+- Native Linux x86-64 (WSL, GCC 15.2, the audited own-library oracle build): the
+  corrected oracle and the Rust shim both return each of the 15 committed
+  replies exactly (`check_guards.py`). No corrected golden has been blessed (see
+  the PR for the unit's remaining open cases).
 
 ## The other original MMH3 cases
 
 The remaining 321 original MMH3 cases stay in the corpus with byte-identical
 requests. Their replies change only in the `blocks` snapshot field: bytes the
 reference never wrote are now reported as `??` instead of the invented `00`.
-Every `h1`, `h2`, `len`, digest, `out` and `block` value is unchanged (checked by
-replaying all 1315 original requests through the corrected Rust shim against the
-old golden). Those golden changes need a new reviewed blessing from a live Linux
-oracle, with this finding as the reason; until then the committed golden is
-stale and CI's golden check fails for them, as it must.
+Every `h1`, `h2`, `len`, digest, `out` and `block` value is unchanged.
+
+All 1315 original requests were replayed, byte for byte, through the live corrected
+oracle on native Linux and classified against the old golden by
+[`kimath-header-hash-mmh3-audit/audit.py`](kimath-header-hash-mmh3-audit/audit.py).
+Results are in `audit.json` beside it, with every case ID and its old and new reply
+SHA-256: 979 unchanged byte for byte (all non-MMH3 cases), 321 `blocks-only` (each
+differing byte is an old `00` that is now `??`; every other field identical) and the 15
+refusals above, with no other difference. The old golden's SHA-256 matches the
+superseded evidence (`e1b95812…`). Those golden changes need a new reviewed blessing
+with this finding as the reason. Until then the committed golden is stale and CI's
+golden check fails for them, as it must. The old golden and evidence are not edited.
