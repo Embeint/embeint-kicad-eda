@@ -30,8 +30,11 @@ Nothing from the PR55 image is adopted.
 
 1. checks the domain file (count, SHA-256, fixed part) written by the Rust test
    `reference_write_domain`;
-2. downloads the `.deb` from the locked URL and verifies its size and SHA-256 before
-   extracting it with `dpkg-deb -x` (data only; no maintainer script runs);
+2. downloads the `.deb` from the locked URL, with three bounded attempts for transient
+   network/service errors. If those fail, it tries the same package path on Ubuntu's
+   official archive. Either transport must supply the original locked size and SHA-256
+   before `dpkg-deb -x` (data only; no maintainer script runs). Hash failures never trigger
+   a fallback. The identity record includes the URL that supplied the bytes;
 3. verifies the extracted loader, libc and libm (regular files, size and SHA-256);
 4. builds `probe.c` with the host `gcc -O0`;
 5. runs the probe only through the extracted loader: `ld-linux-x86-64.so.2 --inhibit-cache

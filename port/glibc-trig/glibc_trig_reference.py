@@ -164,14 +164,36 @@ def tool_version(args):
         return "unavailable"
 
 
+def fetch_package(lock, target):
+    """Allow the official archive as transport fallback; the locked bytes stay mandatory."""
+    url = lock["package"]["url"]
+    try:
+        download(url, lock["package"]["size"], target)
+    except urllib.error.HTTPError as error:
+        if error.code not in (429, 500, 502, 503, 504):
+            raise
+    except (urllib.error.URLError, TimeoutError, ConnectionError):
+        pass
+    else:
+        verify_package(lock, target)
+        return url
+
+    match = re.fullmatch(r"https://snapshot\.ubuntu\.com/ubuntu/\d{8}T\d{6}Z/"
+                         r"(pool/main/g/glibc/libc6_[A-Za-z0-9.+~_-]+_amd64\.deb)", url)
+    need(match is not None, "no official archive fallback for this package URL")
+    mirror = "https://archive.ubuntu.com/ubuntu/" + match.group(1)
+    download(mirror, lock["package"]["size"], target)
+    verify_package(lock, target)
+    return mirror
+
+
 def reference(lock, domain_path, probe_source, out_dir):
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     check_domain(lock, domain_path)
     work = Path(tempfile.mkdtemp(prefix="glibc-trig-"))
     deb = work / "libc6.deb"
-    download(lock["package"]["url"], lock["package"]["size"], deb)
-    verify_package(lock, deb)
+    download_url = fetch_package(lock, deb)
     root = work / "root"
     subprocess.run(["dpkg-deb", "-x", str(deb), str(root)], check=True)
     verify_extracted(lock, root)
@@ -196,6 +218,7 @@ def reference(lock, domain_path, probe_source, out_dir):
     identity = {
         "lock_binding": lock["lock_binding"],
         "package": lock["package"],
+        "download_url": download_url,
         "files": {role: spec["sha256"] for role, spec in lock["files"].items()},
         "glibc_tunables": lock["dispatch"]["glibc_tunables"],
         "offsets": offsets,

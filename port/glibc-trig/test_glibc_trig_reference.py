@@ -164,6 +164,44 @@ class Parsing(unittest.TestCase):
 
 
 class Download(unittest.TestCase):
+    def test_official_mirror_requires_the_same_locked_bytes(self):
+        lock = copy.deepcopy(LOCK)
+        lock["package"].update(size=7, sha256=hashlib.sha256(b"package").hexdigest())
+        for body in (b"package", b"changed"):
+            with self.subTest(body=body), tempfile.TemporaryDirectory() as directory:
+                calls = []
+
+                def download(url, size, target):
+                    calls.append(url)
+                    if len(calls) == 1:
+                        raise HTTPError(url, 502, "bad gateway", {}, None)
+                    Path(target).write_bytes(body)
+
+                with patch.object(harness, "download", side_effect=download):
+                    target = Path(directory) / "package.deb"
+                    if body == b"package":
+                        used = harness.fetch_package(lock, target)
+                        self.assertTrue(used.startswith("https://archive.ubuntu.com/ubuntu/"))
+                    else:
+                        with self.assertRaises(harness.Refused):
+                            harness.fetch_package(lock, target)
+                self.assertEqual(len(calls), 2)
+                self.assertEqual(calls[1].split("/pool/")[1], calls[0].split("/pool/")[1])
+
+    def test_hash_mismatch_and_permanent_error_never_use_mirror(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "package.deb"
+            target.write_bytes(b"wrong bytes")
+            with patch.object(harness, "download") as download:
+                with self.assertRaises(harness.Refused):
+                    harness.fetch_package(LOCK, target)
+                self.assertEqual(download.call_count, 1)
+            with patch.object(harness, "download", side_effect=
+                              HTTPError("url", 404, "missing", {}, None)) as download:
+                with self.assertRaises(HTTPError):
+                    harness.fetch_package(LOCK, target)
+                self.assertEqual(download.call_count, 1)
+
     def test_retries_transient_service_error_then_verifies_exact_bytes(self):
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / "package.deb"
