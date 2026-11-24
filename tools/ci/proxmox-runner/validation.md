@@ -50,7 +50,45 @@ Three local admission-hook tests passed: trusted push/manual admission, refusal 
 PR/PR-target/other events, and wrong-repository refusal. `actionlint` 1.7.7 passed
 for all three edited workflows. Shell syntax and `git diff --check` passed.
 
+The initially installed local image digest was
+`sha256:c14de9f90e9d70f0f725e66b169b9b08f9e6dab7b6c3afdfc8fd7d547c1dd608`.
+`kicad-ci.service` was enabled on the build VM only. Docker inspect/cgroup checks
+confirmed no privileged mode, no published ports, two named volumes, memory.max
+2684354560 and cpu.max `200000 100000`. The host's HTF service remained active;
+its registration and the second HTF runner remained online and idle at setup.
+The installed admission hook also refused a simulated PR event inside the running
+container. Repository runner API confirmed the single custom label, online state,
+and name `proxmox-kicad-isolated-01` before opt-in was enabled.
+
+The only repository setting changed was the new Actions variable
+`KICAD_CI_RUNNER_ENABLED=true`. The pre-existing external-contributor approval
+policy and permissions were preserved. No long-lived operator credential was
+copied to the host or container; registration used a short-lived token on stdin.
+
 ## End-to-end measurements
 
-Pending execution on the published infrastructure branch. No speed improvement
-or numerical certification is claimed until the actual runs below are recorded.
+Measurements run the same product source/test commands at infrastructure revision
+`8d5bd9e24ec8d5493a4aed43e182f0f9355b8ebf`. PR jobs use GitHub's computed merge
+commit (base main unchanged); manual jobs use that exact branch revision.
+The runner/job identities were obtained from the Actions jobs API, rather than
+inferred from workflow configuration.
+
+- [Hosted PR MCP contracts](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45356217409)
+  selected `ubuntu-latest` / `GitHub Actions 1000019102`.
+- [Isolated manual MCP contracts](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45356257351)
+  selected `kicad-ci-isolated-linux-x64` / `proxmox-kicad-isolated-01`.
+- [Hosted PR Rust layout](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45356217343)
+  and [isolated manual Rust layout](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45356263430)
+  provide the paired ordinary Rust/WASM/cache measurement.
+
+The initial contracts run failed two stdio subprocess tests: the relocated
+`setup-python` tool cache needed `LD_LIBRARY_PATH`, which MCP subprocesses
+intentionally sanitize. The container now provides the Python archive's canonical
+`/opt/hostedtoolcache` path through a symlink to the persistent tool cache.
+Executing that interpreter with `LD_LIBRARY_PATH` removed then succeeded. No test,
+subprocess environment policy or Python version requirement was relaxed. The
+original failed attempt is retained; its rerun and layout measurements are pending.
+
+No speed improvement or numerical certification is claimed until completed
+successful timings/results are recorded. The isolated runner intentionally
+serializes its jobs, so queue time must be reported separately from execution time.

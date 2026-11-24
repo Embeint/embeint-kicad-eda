@@ -30,3 +30,8 @@ RUN curl --proto '=https' --tlsv1.2 --fail --silent --show-error https://sh.rust
     && rustup default 1.99.1
 WORKDIR /runner
 ENTRYPOINT ["/runner/run.sh"]
+# GitHub's Python archives contain the canonical hosted-toolcache library path.
+# MCP subprocesses intentionally sanitize LD_LIBRARY_PATH; preserve that contract.
+USER root
+RUN ln -s /home/runner/toolcache /opt/hostedtoolcache
+USER runner
