@@ -160,6 +160,22 @@ class ProofTest(unittest.TestCase):
         self.assertTrue(caller.contains(fx.RETURN))
         self.assertFalse(caller.contains("!/out/bin/primitive_probe+0x401234"))
 
+    def test_object_identity_does_not_resolve_historical_paths(self):
+        for name in ("/a/b", "/a/./b", "/a//b", "//a///b", "/a/b/."):
+            with self.subTest(name=name):
+                self.assertEqual(dispatch_proof.object_identity(name), "/a/b")
+        for name in (None, 1, "a/b", "/a/../b", "/a/..", "/a/\0b", "/a/\nb"):
+            with self.subTest(name=name):
+                with self.assertRaises(ValueError):
+                    dispatch_proof.object_identity(name)
+        for name in ("/out/./primitive_probe", "/out//primitive_probe", "//out/primitive_probe",
+                     "/out/primitive_probe/."):
+            with self.subTest(caller=name):
+                caller, problems = dispatch_proof.recorded_caller(
+                    None, {"probe_object": name}, self.syn.lock, {})
+                self.assertIsNone(caller)
+                self.assertEqual(problems, ["recorded probe object path is not canonical"])
+
     def test_wrong_target_through_slot(self):
         record = self.record("exp")
         fma = self.at("exp", "fma")

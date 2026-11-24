@@ -368,17 +368,27 @@ class ArtifactTest(unittest.TestCase):
                 self.assertComparatorRejects(change, reason)
 
     def test_loaded_library_cannot_be_the_caller_alias(self):
-        for resolved_alias in (False, True):
+        canonical = "/review-alias/primitive_probe"
+        variants = (
+            (canonical, canonical, None),
+            (canonical, "/review-alias/library.so", canonical),
+            ("/review-alias/./primitive_probe", canonical, None),
+            ("/review-alias//primitive_probe", canonical, None),
+            ("//review-alias///primitive_probe", canonical, None),
+            (canonical, "/review-alias/./primitive_probe", None),
+            (canonical, "/review-alias//primitive_probe", None),
+            (canonical, "/review-alias/library.so", "/review-alias/./primitive_probe"),
+            (canonical, "/review-alias/library.so", "/review-alias//primitive_probe"),
+        )
+        for name, alias, resolved in variants:
             root = self.pair()
             directory = root / "left"
             env = artifacts.load(directory / "environment.json")
             lock = artifacts.load(directory / "inputs.lock.json")
             candidate = tomllib.loads((directory / "candidate.toml").read_text())
             library = copy.deepcopy(env["loaded_objects"][lock["libm"]["path"]])
-            name = "/review-alias/primitive_probe"
-            alias = "/review-alias/library.so" if resolved_alias else name
-            if resolved_alias:
-                library["resolved"] = name
+            if resolved is not None:
+                library["resolved"] = resolved
             env["loaded_objects"][alias] = library
             results = {}
             for label in ("contract", "host-default"):
@@ -399,10 +409,33 @@ class ArtifactTest(unittest.TestCase):
             write(directory / "environment.json", env)
             summary["output_sha256"] = artifacts.inventory(directory)
             write(directory / "summary.json", summary)
-            with self.subTest(resolved_alias=resolved_alias):
+            with self.subTest(name=name, alias=alias, resolved=resolved):
                 result = self.compare(root)
                 self.assertEqual(result.returncode, 1, result.stdout)
                 self.assertIn("recorded shared-object alias", result.stderr)
+
+    def test_program_header_table_loader_bound_in_full_comparator(self):
+        for count in (1170, 1171, 2000):
+            root = self.pair()
+            directory = root / "left"
+            path = directory / "bin/primitive_probe"
+            data = bytearray(path.read_bytes())
+            old = struct.unpack_from("<Q", data, 0x20)[0]
+            headers = data[old:old + 2 * 56]
+            offset = len(data)
+            data.extend(headers + bytes((count - 2) * 56))
+            struct.pack_into("<Q", data, 0x20, offset)
+            struct.pack_into("<H", data, 0x38, count)
+            path.write_bytes(data)
+            summary = artifacts.load(directory / "summary.json")
+            summary["built"]["primitive"]["sha256"] = artifacts.sha256(path)
+            write(directory / "summary.json", summary)
+            self.rehash(directory)
+            with self.subTest(count=count):
+                result = self.compare(root)
+                self.assertEqual(result.returncode, int(count > 1170), result.stderr)
+                if count > 1170:
+                    self.assertIn("invalid probe ELF program-header table", result.stderr)
 
     def test_caller_machine_and_load_flags_fail_the_full_comparator(self):
         for machine in (False, True):

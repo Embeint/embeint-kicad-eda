@@ -605,7 +605,16 @@ does not remove the loader's execute permission. Probe offsets are relative to
 the first mapped page, matching [glibc 2.39 `dladdr`](https://github.com/bminor/glibc/blob/glibc-2.39/elf/dl-addr.c)
 and its [segment mapper](https://github.com/bminor/glibc/blob/glibc-2.39/elf/dl-map-segments.h).
 LOCK and invalid MOVMSK forms are also outside the decoder's supported subset.
-These follow-ups still need independent review and native validation.
+The `50cacbba` native review confirmed those fixes but found equivalent-path
+aliases and oversized program-header tables. Caller and shared-object identities
+now compare guaranteed-equivalent Linux spellings, folding repeated separators
+and `.` without consulting the reviewer's filesystem. `..` is rejected because
+symlink traversal prevents safe lexical folding. The probe's own recorded path
+must also be canonical, as emitted by the fixed compiler command. Program headers
+are capped at
+65,536 bytes, following [Linux `load_elf_phdrs`](https://github.com/torvalds/linux/blob/v6.18/fs/binfmt_elf.c):
+1,170 ELF64 entries fit, 1,171 do not. These follow-ups still need independent
+review and native validation.
 
 ## Native WSL qualification handoff
 
