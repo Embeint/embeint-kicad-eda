@@ -101,28 +101,49 @@ GLIBC_TUNABLES=glibc.cpu.hwcaps=-AVX,-AVX2,-FMA,-FMA4,-AVX512F
 baseline SSE2 implementations for the checked libm functions on x86-64 hosts. Programs in the container,
 including the oracle and native Rust (which calls the same libm), inherit it.
 Setting the variable is not taken as proof; execution is checked. The primitive
-probe calls each checked function once untraced, then once in a `ptrace`d child,
-single-stepping from the public entry until the call returns (bounded), and records
-every instruction address. It also records the address its own compiled reference
-binds to. `collect_environment.py` reads static facts from the installed libm and
-the matching `libc6-dbg` debug file (build ID
-`f772fc0c42a75e38f138f8b66f1ebc8aad060525`): default-version public definitions,
-each `.plt.sec` stub and its GOT relocation, IFUNC resolvers and function ranges.
-`dispatch_proof.py` then requires, per function:
+probe (`probe/trace_call.h`) first calls each checked function once untraced. It
+then calls it once in a `ptrace`d child, single-stepping from the public entry
+until the call returns, and records:
 
-- the facts come from the locked libm and debug-file bytes (SHA-256 and build ID)
-  and name exactly the lock's multiarch implementations;
+- every instruction address;
+- the return address on the stack at the entry, and the address reached after the
+  return;
+- each GOT slot read live at a RIP-relative jump;
+- the address its own compiled reference binds to.
+
+The run keeps copies of the locked libm and `libc6-dbg` debug file (build ID
+`f772fc0c42a75e38f138f8b66f1ebc8aad060525`) as `libm/libm.so.6` and
+`libm/libm.debug`. Each must have the lock's SHA-256, be a regular file and be at
+most 16 MiB. Every static fact is re-derived from those bytes: default-version
+public definitions, each `.plt.sec` stub with its decoded slot and GOT relocation,
+IFUNC resolvers and function ranges. The facts recorded in `environment.json` must
+equal the derived ones exactly, as canonical JSON, so changed bytes, slots,
+symbols, versions or types are all rejected; recorded facts are never trusted on
+their own. `dispatch_proof.py` then requires, per function:
+
 - the compiled reference and `dlsym` agree, inside the locked libm;
-- the entry is the **default-version** public definition. It is either an IFUNC
-  whose resolved target is the entry (direct: `sin`, `cos`, `sincos`, `tan`, `atan`
-  and the float functions), or a FUNC wrapper (`atan2`, `exp`, `log`, `pow`). The
-  wrapper must reach its target through a `.plt.sec` stub of the locked libm's exact
-  form (`endbr64; jmp *rel32(%rip); nopw`) whose GOT slot has exactly one
-  `R_X86_64_IRELATIVE` relocation;
+- the entry is the start of the **default-version** public definition. It is either
+  an IFUNC whose resolved target is the entry (direct: `sin`, `cos`, `sincos`, `tan`,
+  `atan` and the float functions), or a FUNC wrapper (`atan2`, `exp`, `log`, `pow`).
+  The wrapper must reach its target through a `.plt.sec` stub of the locked libm's
+  exact form (`endbr64; jmp *rel32(%rip); nopw`). The stub's slot must have exactly
+  one `R_X86_64_IRELATIVE` relocation with symbol 0 and an IFUNC resolver as its
+  addend, and the live slot read at the jump must hold the next traced address;
 - the target is the function's locked `__<f>_sse2`/`__ieee754_<f>_sse2` and the SSE2
   variant of the resolver that relocation names;
-- the trace returned without leaving libm, every address lies in a known function
-  or stub, and the only multiarch implementation executed is that target.
+- every step decodes in libm's executable code, and every successor is that
+  instruction's fall-through, its direct target, the return address of a traced
+  call, or (for the stub's jump only) the slot value. The decoder
+  (`probe/x86_decode.py`) is fail-closed: it accepts an explicit subset of legacy,
+  0F, 0F38 and 0F3A encodings and refuses VEX/EVEX (AVX, FMA), x87, string, system
+  and other indirect transfers. Inside the image it is cross-checked against
+  objdump's length and kind for every instruction it accepts in the locked libm;
+- the trace ends with the entry's own `ret` at call depth 0, and the address after
+  it equals the return address read at the entry, outside libm. Single-address,
+  entry-only, truncated, mid-instruction, skipped-instruction and
+  forged-completion traces fail;
+- every address lies in a known function or stub, and the only multiarch
+  implementation executed is the target.
 
 In the locked libm, `__sin_sse2` is at `0x2f8e0`, `__cos_sse2` at `0x301f0` and
 `__sincos_sse2` at `0x31e10`. `exp@@GLIBC_2.29` (`0x3a700`) calls stub `0x10400`,
@@ -139,7 +160,22 @@ Failures include:
   missing or reordered record.
 
 The trace needs `ptrace` of the probe's own child: Docker's default seccomp profile
-permits it, and a refusal fails the check as `PTRACE_TRACEME refused`. The image
+permits it, and a refusal fails the check as `PTRACE_TRACEME refused`. The
+tracer is bounded in steps, recorded addresses and wall-clock time (20 s per
+call, 10 s per wait, 5 s to reap). Each wait polls `waitpid` with a monotonic
+deadline while `SIGCHLD` is blocked, without a process-wide alarm. The child dies
+with the tracer (`PR_SET_PDEATHSIG` before tracing, `PTRACE_O_EXITKILL` after).
+Any child not yet reaped is killed and reaped on success, timeout or error, and
+the probe fails if any child could not be reaped. `run_probe.py` bounds every
+command at 1800 s.
+
+Scope: one ordinary input per function. A valid trace proves the path that input
+took, through the locked code; other wrapper branches and special-input paths are
+not certified. The hashes bind the evidence to the locked files; they do not
+authenticate a run. `compare_observations.py` compares the traces in
+`primitive-contract.json` byte for byte. The return addresses in them belong to
+the probe binary built by each run, so they compare equal across hosts only while
+the same image builds the same probe. The image
 also refuses `glibc-hwcaps` library directories, `/etc/ld.so.preload` and `LD_*`
 overrides.
 
@@ -287,7 +323,8 @@ difference:
   an oracle shim from the audited compile database;
 - `environment.json` (host, loader diagnostics with and without the contract, tool
   versions, package list, loaded object hashes, image identity, libm's multiarch
-  table with excluded names and the static dispatch facts) and `summary.json`
+  table with excluded names and the static dispatch facts), `libm/libm.so.6` and
+  `libm/libm.debug` (the locked files the proof is re-derived from), and `summary.json`
   (contract checks with the per-function dispatch chain, comparisons, output hashes).
 
 The exit status is 1 when the environment contract fails, or 4 when the native
@@ -480,46 +517,74 @@ the cases, the goldens and the tolerances are unchanged. The historical golden
 (GCC 15.2/glibc 2.43) has no recorded dispatch proof. The resistor, PR51 and PR50
 failures remain open, and reference adoption remains unresolved.
 
-### Probe-tooling fixes after `1b4aa6a8`
+### Probe-tooling fixes at `7e36f33f` (historical)
 
-The two tooling defects are fixed as described in
+`7e36f33f` (implementation `3bfafe0b`, tree `b00104d3`) replaced the
+dlsym-offset check with a traced proof and shared the multiarch classifier
+between the lock generator and the collector. The lock was unchanged: the shared
+classifier yields exactly its 79 entries. On Linux, 75 tests passed with the 3
+runtime tests skipped. In the retained 1b4 image (new tree `1e3510db`), all 75
+tests passed and the probe passed 12/12.
+
+An independent review of exact `7e36f33f` then reproduced two P2 defects and a
+bounds objection. Its native diagnostic also passed 75/75 tests in the image with
+0 skips, and 12/12 under Docker's default security.
+
+1. The proof trusted recorded stub, slot, relocation and version facts. Artifacts
+   with every stub's bytes replaced by `cc`, slot `0xdeadbeef`, relocation symbol
+   17, or null versions, integer defaults and a boolean schema still passed the
+   full comparator.
+2. Range membership is not a trace. Direct traces cut to their first address,
+   wrappers cut on arrival at the target, and an inserted `entry+1` all passed.
+3. The tracer's waits had no wall-clock deadline. A blocking callee hung it
+   until an external watchdog killed it.
+
+### Review fixes after `7e36f33f`
+
+The three are fixed as described in
 [CPU dispatch contract](#cpu-dispatch-contract):
 
-- a traced, fail-closed proof of each function's wrapper, stub, IRELATIVE slot and
-  locked SSE2 target;
-- one shared multiarch classifier, so lock generation and the runtime collector
-  cannot disagree.
+- facts are re-derived from locked ELF copies kept with the run, and recorded
+  facts must equal them;
+- a fail-closed decoder validates every control-flow edge, the call stack and the
+  return edge, together with live GOT slot reads;
+- the tracer is bounded in wall-clock time, with child cleanup.
 
-The lock is unchanged: the shared classifier yields exactly its 79 entries from
-the locked debug file, so it was not regenerated. On Linux (Python 3.14.4, canonical
-LF export), the 75 tooling tests pass, with 3 runtime tests skipped outside the
-image, and `check_candidate.py` passes. The 56-test baseline at `0cd423cf` also
-passes.
+The lock, CPU contract, algorithms, cases and goldens are unchanged. Tested code
+tree `09bd6fce00cd2d61c70c493e69240e918ad3fda6`:
 
-The fixes were then run as a **development diagnostic**: new probe source (tree
-`1e3510db`) in the retained `1b4` image `sha256:8b70857a…3597`. It is neither a
-qualification of the new head nor of that image.
+- **WSL Linux**, Python 3.14.4, canonical LF export: **86 tests, 82 passed, 4
+  skipped** (the in-image runtime tests). This includes 6 real-process lifecycle
+  tests: success, 17 repeated calls, blocking before the entry, blocking in the
+  callee, exit, abort, exit before the entry, the step bound, and the tracee dying
+  with its killed tracer. Each proves bounded exit, a reaped child and no child
+  left. `check_candidate.py` passes.
+- **Development diagnostic in the retained 1b4 image** `sha256:8b70857a…3597`,
+  not a qualification, under default Docker security (no privileges, capabilities
+  or seccomp changes): **86 tests, 86 passed, 0 skipped**. These include objdump
+  agreement for every decoder-accepted instruction of the locked libm. They also
+  include the full comparator rejecting mutated copies of a real run: bad stubs
+  and slots, bad versions and types, a changed libm copy, entry-only traces,
+  truncated wrappers, `entry+1`, a forged return and a forged slot.
+- `run_probe.py` at 200,000 angles with the matrix probe passed **12/12**, and
+  `artifacts.validate` passed. Primitive probe `a921cb8c…bfe`, Rust probe
+  `7d8e157d…ded`, matrix probe `21d76a8e…0d7`.
+- All 17 contract traces end in their entry's return. The host-default run is
+  reported as executing `_fma` code, which the decoder refuses as VEX.
+- The reviewer's unmodified artifact counterexample script, run against these
+  fresh artifacts, now exits 1 with a specific reason in all four cases.
+- The probe and the lifecycle harness compile in the image with `-Wall -Wextra
+  -Wpedantic` and no warnings.
+- **Windows** Python 3.12.0, canonical export: 86 tests, with 1 failure and 55
+  error entries, the same test names and counts as the review's `7e36f33f` Windows
+  log. They come from POSIX-shell, Linux-path and Git-fixture tests that predate
+  this change. All new tests pass on Windows, and the 10 skips are the runtime and
+  lifecycle tests. The full Windows suite is not claimed to pass.
 
-- All 75 tests passed in the image, including the 3 runtime dispatch tests.
-- `run_probe.py` passed **12/12** contract checks at 200,000 angles, with the matrix
-  probe built from the retained audited oracle compile database.
-- `artifacts.validate` passed.
-- The recorded wrapper chains matched the independent diagnosis:
-  - `atan2` `0x12ae3` -> `0x10260` -> slot `0xe7ed0` -> `0x26fe0`;
-  - `exp` `0x3a712` -> `0x10400` -> `0xe7fa0` -> `0x27ea0`;
-  - `log` `0x3a5fe` -> `0x10340` -> `0xe7f40` -> `0x2b3d0`;
-  - `pow` `0x3a647` -> `0x10370` -> `0xe7f58` -> `0x2b810`.
-- The host-default run is correctly reported as executing `_fma` variants.
-- The new primitive probe compiles in the image with `-Wall -Wextra -Wpedantic`
-  without warnings.
-
-The final tree differs from `1e3510db` only in test layout and an equivalent
-build-ID comparison. The engine was stopped by another party before that tree
-could be re-run in the image.
-
-**Not completed:** an image built from the fixed head, its probe and the
-official `--with-difftest` route. Fresh independent review is also pending. A
-passing probe would not resolve the resistor, PR51 or PR50 failures.
+**Not completed:** fresh independent review of these fixes; an image built from
+the fixed head, its probe and the official `--with-difftest` route. A passing
+probe would not resolve the resistor (13/1050), PR51 (41) or PR50 (2273 debug,
+2687 release of 7460) failures, which remain open.
 
 ## Native WSL qualification handoff
 
