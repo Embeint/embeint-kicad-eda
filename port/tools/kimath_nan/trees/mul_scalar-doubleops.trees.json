@@ -1,0 +1,149 @@
+{
+ "site": "operator*(MATRIX3x3<double>, double)@DoubleOps mul_scalar 0x49605-0x49675",
+ "outputs": {
+  "r00": {
+   "tree": [
+    "op",
+    "mul",
+    [
+     "leaf",
+     "m00"
+    ],
+    [
+     "leaf",
+     "s"
+    ]
+   ],
+   "text": "mul(m00, s)",
+   "source_equal_modulo_commutativity": true
+  },
+  "r01": {
+   "tree": [
+    "op",
+    "mul",
+    [
+     "leaf",
+     "m01"
+    ],
+    [
+     "leaf",
+     "s"
+    ]
+   ],
+   "text": "mul(m01, s)",
+   "source_equal_modulo_commutativity": true
+  },
+  "r02": {
+   "tree": [
+    "op",
+    "mul",
+    [
+     "leaf",
+     "m02"
+    ],
+    [
+     "leaf",
+     "s"
+    ]
+   ],
+   "text": "mul(m02, s)",
+   "source_equal_modulo_commutativity": true
+  },
+  "r10": {
+   "tree": [
+    "op",
+    "mul",
+    [
+     "leaf",
+     "m10"
+    ],
+    [
+     "leaf",
+     "s"
+    ]
+   ],
+   "text": "mul(m10, s)",
+   "source_equal_modulo_commutativity": true
+  },
+  "r11": {
+   "tree": [
+    "op",
+    "mul",
+    [
+     "leaf",
+     "m11"
+    ],
+    [
+     "leaf",
+     "s"
+    ]
+   ],
+   "text": "mul(m11, s)",
+   "source_equal_modulo_commutativity": true
+  },
+  "r12": {
+   "tree": [
+    "op",
+    "mul",
+    [
+     "leaf",
+     "m12"
+    ],
+    [
+     "leaf",
+     "s"
+    ]
+   ],
+   "text": "mul(m12, s)",
+   "source_equal_modulo_commutativity": true
+  },
+  "r20": {
+   "tree": [
+    "op",
+    "mul",
+    [
+     "leaf",
+     "s"
+    ],
+    [
+     "leaf",
+     "m20"
+    ]
+   ],
+   "text": "mul(s, m20)",
+   "source_equal_modulo_commutativity": true
+  },
+  "r21": {
+   "tree": [
+    "op",
+    "mul",
+    [
+     "leaf",
+     "s"
+    ],
+    [
+     "leaf",
+     "m21"
+    ]
+   ],
+   "text": "mul(s, m21)",
+   "source_equal_modulo_commutativity": true
+  },
+  "r22": {
+   "tree": [
+    "op",
+    "mul",
+    [
+     "leaf",
+     "s"
+    ],
+    [
+     "leaf",
+     "m22"
+    ]
+   ],
+   "text": "mul(s, m22)",
+   "source_equal_modulo_commutativity": true
+  }
+ }
+}

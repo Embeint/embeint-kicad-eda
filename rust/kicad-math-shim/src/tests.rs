@@ -153,16 +153,15 @@ fn singular_inverse_transports_nonfinite_bits_losslessly() {
     );
     let matrix = reply.unwrap_or_default()["matrix"].clone();
     // Determinant is +0, so 1.0 / det is +inf: nonzero cofactors become signed infinities
-    // and zero cofactors 0 * inf = NaN. Exact bits depend on the platform's NaN sign; only the
-    // non-NaN members are asserted here, the live oracle comparison checks all of them.
-    assert_eq!(matrix[0][0], "7ff0000000000000");
-    assert_eq!(matrix[0][1], "fff0000000000000");
-    for row in matrix.as_array().into_iter().flatten() {
-        for value in row.as_array().into_iter().flatten() {
-            let text = value.as_str().unwrap_or_default();
-            assert_eq!(text.len(), 16);
-        }
-    }
+    // and zero cofactors 0 * inf are invalid, giving the SSE2 default NaN on every target.
+    // These are the pinned oracle's bits for corpus case `inverse-singular-rows`.
+    let inf = "7ff0000000000000";
+    let ninf = "fff0000000000000";
+    let nan = "fff8000000000000";
+    assert_eq!(
+        matrix,
+        json!([[inf, ninf, nan], [nan, nan, nan], [ninf, inf, nan]])
+    );
 }
 
 #[test]

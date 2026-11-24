@@ -17,11 +17,20 @@
 //! `S = int` (the QA test). Both element types are implemented here:
 //!
 //! - `Matrix3x3<f64>`: IEEE binary64 arithmetic in the C++ evaluation order (left-associative
-//!   sums, no contraction). It never fails.
+//!   sums, no contraction). It never fails. When several operands are NaN, which NaN survives
+//!   is not defined by the source; it is the compiled oracle's choice. `Determinant`,
+//!   `Inverse` and the `double` products therefore evaluate generated per-site code
+//!   (`crate::generated`, derived from oracle sha256 `0bac7567…`, GCC 13.3 `-O3
+//!   -fno-fast-math -ffp-contract=off`, x86-64) on explicit SSE2 NaN selection
+//!   (`crate::sse2`): the same operations, operands and rounding as the C++ expression, with
+//!   each commutative `+`/`*` in the binary's operand order and invalid operations giving
+//!   `fff8000000000000`, identically on every target. See
+//!   `port/findings/kimath-matrix-mixed-nan-payloads.md`.
 //! - `Matrix3x3<i32>`: `int` arithmetic. Signed overflow and the conversion of a NaN or
 //!   out-of-range `double` to `int` are undefined behaviour in C++; those inputs return a
 //!   [`MatrixError`] instead of a value. Every defined input returns the C++ result.
 
+use crate::generated;
 use crate::glibc_trig;
 use crate::stream::{insert_str, StreamError, StreamInsert, StreamState};
 use crate::vector::{Vector2, Vector3};
@@ -250,97 +259,61 @@ impl Matrix3x3<f64> {
         self.data[1][1] = cos_value;
     }
 
-    /// `Determinant()`, by cofactor expansion along the first row.
+    /// `Determinant()`, by cofactor expansion along the first row:
+    ///
+    /// `m00 * (m11 * m22 - m12 * m21) - m01 * (m10 * m22 - m12 * m20)
+    ///  + m02 * (m10 * m21 - m11 * m20)`
+    ///
+    /// evaluated with the compiled oracle's NaN operand priority (module documentation).
     pub fn determinant(&self) -> f64 {
-        let m = &self.data;
-        m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
-            - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
-            + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0])
+        generated::determinant_doubleops_generated(self)
     }
 
     /// `Inverse()`: the adjugate times `1.0 / Determinant()`.
     ///
     /// There is no singularity check, as in the C++: a zero determinant gives infinite or NaN
-    /// members, which are returned unchanged.
+    /// members, which are returned unchanged. The compiled `Inverse` computes its own
+    /// determinant inline and shares cofactors with it, so it is its own generated site rather
+    /// than [`Self::determinant`] followed by [`Self::mul_scalar`]; the finite results are the
+    /// same operations on the same operands.
     pub fn inverse(&self) -> Self {
-        let m = &self.data;
-        let mut result = Self::new();
-
-        result.data[0][0] = m[1][1] * m[2][2] - m[2][1] * m[1][2];
-        result.data[0][1] = m[0][2] * m[2][1] - m[2][2] * m[0][1];
-        result.data[0][2] = m[0][1] * m[1][2] - m[1][1] * m[0][2];
-
-        result.data[1][0] = m[1][2] * m[2][0] - m[2][2] * m[1][0];
-        result.data[1][1] = m[0][0] * m[2][2] - m[2][0] * m[0][2];
-        result.data[1][2] = m[0][2] * m[1][0] - m[1][2] * m[0][0];
-
-        result.data[2][0] = m[1][0] * m[2][1] - m[2][0] * m[1][1];
-        result.data[2][1] = m[0][1] * m[2][0] - m[2][1] * m[0][0];
-        result.data[2][2] = m[0][0] * m[1][1] - m[1][0] * m[0][1];
-
-        result.mul_scalar(1.0 / self.determinant())
+        generated::inverse_member(self)
     }
 
-    /// `operator*( MATRIX3x3<T>, MATRIX3x3<T> )`: matrix multiplication.
-    #[allow(clippy::needless_range_loop, reason = "mirrors the C++ index loops")]
+    /// `operator*( MATRIX3x3<T>, MATRIX3x3<T> )`: matrix multiplication,
+    /// `result[i][j] = a[i][0] * b[0][j] + a[i][1] * b[1][j] + a[i][2] * b[2][j]`.
     pub fn mul_matrix(&self, b: &Self) -> Self {
-        let a = &self.data;
-        let mut result = Self::new();
-
-        for i in 0..3 {
-            for j in 0..3 {
-                result.data[i][j] =
-                    a[i][0] * b.data[0][j] + a[i][1] * b.data[1][j] + a[i][2] * b.data[2][j];
-            }
-        }
-
-        result
+        generated::mul_matrix_doubleops(self, b)
     }
 
     /// `operator*( MATRIX3x3<T>, VECTOR2<T> )`: multiplication with a 2D vector; the third
-    /// component is assumed to be 1.
+    /// component is assumed to be 1: `x = m00 * v.x + m01 * v.y + m02`, likewise `y`.
     pub fn mul_vector2(&self, v: &Vector2<f64>) -> Vector2<f64> {
-        let m = &self.data;
-        // VECTOR2<T> result( 0, 0 ); then assign both components.
-        let mut result = Vector2::new(0.0, 0.0);
-        result.x = m[0][0] * v.x + m[0][1] * v.y + m[0][2];
-        result.y = m[1][0] * v.x + m[1][1] * v.y + m[1][2];
-        result
+        generated::mul_vector2_doubleops(self, v)
     }
 
-    /// `operator*( MATRIX3x3<T>, VECTOR3<T> )`
+    /// `operator*( MATRIX3x3<T>, VECTOR3<T> )`: `x = m00 * v.x + m01 * v.y + m02 * v.z`,
+    /// likewise `y` and `z`.
     pub fn mul_vector3(&self, v: &Vector3<f64>) -> Vector3<f64> {
-        let m = &self.data;
-        // VECTOR3<T> result( 0, 0, 0 ); then assign all components.
-        let mut result = Vector3::new(0.0, 0.0, 0.0);
-        result.x = m[0][0] * v.x + m[0][1] * v.y + m[0][2] * v.z;
-        result.y = m[1][0] * v.x + m[1][1] * v.y + m[1][2] * v.z;
-        result.z = m[2][0] * v.x + m[2][1] * v.y + m[2][2] * v.z;
-        result
+        generated::mul_vector3_doubleops(self, v)
     }
 
-    /// `operator*( MATRIX3x3<T>, S aScalar )` with `S = double`: multiplication with a scalar.
+    /// `operator*( MATRIX3x3<T>, S aScalar )` with `S = double`: every member times the scalar.
     pub fn mul_scalar(&self, scalar: f64) -> Self {
-        let mut result = Self::new();
-
-        for i in 0..3 {
-            for j in 0..3 {
-                result.data[i][j] = self.data[i][j] * scalar;
-            }
-        }
-
-        result
+        generated::mul_scalar_doubleops(self, scalar)
     }
 
     /// `operator*( MATRIX3x3<T>, S aScalar )` with `S = int`: the `int` converts exactly to
-    /// `double` before each multiplication.
+    /// `double` before each multiplication. The converted scalar is never a NaN, so each
+    /// product meets at most one NaN and its result does not depend on operand order.
     pub fn mul_scalar_int(&self, scalar: i32) -> Self {
         self.mul_scalar(f64::from(scalar))
     }
 
     /// `operator*( S aScalar, MATRIX3x3<T> )` with `S = double`: returns `aMatrix * aScalar`.
+    /// The oracle inlines this operator separately, so it has its own generated site.
     pub fn scalar_mul(scalar: f64, matrix: &Self) -> Self {
-        matrix.mul_scalar(scalar)
+        generated::scalar_mul_doubleops(scalar, matrix)
     }
 
     /// `operator*( S aScalar, MATRIX3x3<T> )` with `S = int`: returns `aMatrix * aScalar`.

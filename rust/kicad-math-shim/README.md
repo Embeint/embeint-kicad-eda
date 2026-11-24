@@ -162,7 +162,9 @@ These are recorded findings, not tolerances. Each needs a parent/user decision.
 
 - [Mixed NaNs](../../port/findings/kimath-matrix-mixed-nan-payloads.md): which NaN
   payload survives depends on the compiler's operand order. The qualified Linux run
-  mismatches on 1,824 of 3,500 requests.
+  mismatched on 1,824 of 3,500 requests before the arithmetic followed the pinned oracle's
+  sites (`generated.rs` on explicit SSE2 rules); machine eligibility of the compared oracle
+  (`port/tools/kimath_nan/README.md`) has not run yet.
 - [libm](../../port/findings/kimath-matrix-libm-sin-cos.md) and its
   [qualified addendum](../../port/findings/kimath-matrix-libm-sin-cos-qualified-addendum.md):
   with std's host libm, wasm differed on 24 of 275 angles, and glibc's ifunc variant changes
