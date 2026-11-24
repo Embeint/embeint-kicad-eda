@@ -1,0 +1,325 @@
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-s-curve-split-17","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-s-curve-split-18","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-s-curve-point-at-19","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-s-curve-split-19","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-s-curve-point-at-20","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-s-curve-split-20","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-s-curve-point-at-21","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-s-curve-split-21","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-s-curve-point-at-22","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-s-curve-split-22","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-s-curve-point-at-nan-0","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-s-curve-split-nan-0","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-s-curve-point-at-nan-1","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-s-curve-split-nan-1","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-s-curve-sub-curve-25","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-s-curve-sub-curve-26","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-s-curve-sub-curve-27","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-s-curve-sub-curve-28","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-s-curve-sub-curve-29","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-s-curve-sub-curve-30","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-s-curve-sub-curve-31","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-odd-split-17","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-odd-split-18","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-odd-split-19","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-odd-split-20","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-odd-split-21","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-odd-split-22","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-odd-point-at-nan-0","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-odd-split-nan-0","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-odd-point-at-nan-1","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-odd-split-nan-1","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-odd-sub-curve-25","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-odd-sub-curve-26","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-odd-sub-curve-27","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-odd-sub-curve-28","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-odd-sub-curve-29","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-odd-sub-curve-30","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-odd-sub-curve-31","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-nanometres-split-17","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-nanometres-split-18","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-nanometres-point-at-19","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-nanometres-split-19","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-nanometres-point-at-20","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-nanometres-split-20","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-nanometres-point-at-21","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-nanometres-split-21","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-nanometres-point-at-22","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-nanometres-split-22","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-nanometres-point-at-nan-0","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-nanometres-split-nan-0","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-nanometres-point-at-nan-1","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-nanometres-split-nan-1","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-nanometres-sub-curve-25","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-nanometres-sub-curve-26","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-nanometres-sub-curve-27","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-nanometres-sub-curve-28","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-nanometres-sub-curve-29","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-nanometres-sub-curve-30","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-nanometres-sub-curve-31","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-negative-split-17","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-negative-split-18","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-negative-point-at-19","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-negative-split-19","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-negative-point-at-20","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-negative-split-20","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-negative-point-at-21","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-negative-split-21","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-negative-point-at-22","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-negative-split-22","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-negative-point-at-nan-0","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-negative-split-nan-0","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-negative-point-at-nan-1","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-negative-split-nan-1","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-negative-sub-curve-25","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-negative-sub-curve-26","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-negative-sub-curve-27","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-negative-sub-curve-28","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-negative-sub-curve-29","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-negative-sub-curve-30","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-negative-sub-curve-31","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-point-point-at-19","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-point-point-at-20","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-point-point-at-21","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-point-split-21","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-point-point-at-22","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-point-split-22","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-point-point-at-nan-0","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-point-split-nan-0","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-point-point-at-nan-1","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-point-split-nan-1","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-point-sub-curve-25","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-point-sub-curve-26","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-point-sub-curve-27","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-point-sub-curve-28","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-point-sub-curve-29","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-point-sub-curve-30","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-point-sub-curve-31","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-split-0","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-split-1","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-split-2","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-split-3","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-split-4","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-split-5","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-split-6","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-split-7","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-split-8","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-split-9","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-split-10","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-split-11","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-split-12","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-split-13","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-split-14","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-split-15","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-split-16","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-split-17","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-split-18","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-point-at-19","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-split-19","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-point-at-20","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-split-20","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-point-at-21","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-split-21","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-point-at-22","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-split-22","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-point-at-nan-0","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-split-nan-0","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-point-at-nan-1","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-split-nan-1","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-sub-curve-3","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-sub-curve-4","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-sub-curve-5","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-sub-curve-6","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-sub-curve-7","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-sub-curve-8","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-sub-curve-18","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-sub-curve-19","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-sub-curve-20","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-sub-curve-21","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-sub-curve-24","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-sub-curve-25","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-sub-curve-26","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-sub-curve-27","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-sub-curve-28","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-sub-curve-29","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-sub-curve-30","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-extremes-sub-curve-31","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-split-0","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-split-1","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-split-2","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-split-3","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-split-4","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-split-5","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-split-6","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-split-7","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-split-8","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-split-9","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-split-10","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-split-11","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-split-12","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-split-13","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-split-14","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-split-15","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-split-16","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-split-17","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-split-18","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-point-at-19","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-split-19","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-point-at-20","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-split-20","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-point-at-21","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-split-21","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-point-at-22","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-split-22","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-point-at-nan-0","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-split-nan-0","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-point-at-nan-1","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-split-nan-1","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-sub-curve-3","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-sub-curve-4","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-sub-curve-5","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-sub-curve-6","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-sub-curve-7","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-sub-curve-8","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-sub-curve-18","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-sub-curve-19","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-sub-curve-20","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-sub-curve-21","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-sub-curve-24","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-sub-curve-25","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-sub-curve-26","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-sub-curve-27","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-sub-curve-28","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-sub-curve-29","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-sub-curve-30","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-near-extremes-sub-curve-31","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-half-range-split-8","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-half-range-split-9","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-half-range-split-10","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-half-range-split-11","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-half-range-split-17","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-half-range-split-18","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-half-range-point-at-19","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-half-range-split-19","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-half-range-point-at-20","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-half-range-split-20","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-half-range-point-at-21","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-half-range-split-21","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-half-range-point-at-22","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-half-range-split-22","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-half-range-point-at-nan-0","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-half-range-split-nan-0","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-half-range-point-at-nan-1","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-half-range-split-nan-1","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-half-range-sub-curve-25","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-half-range-sub-curve-26","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-half-range-sub-curve-27","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-half-range-sub-curve-28","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-half-range-sub-curve-29","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-half-range-sub-curve-30","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-half-range-sub-curve-31","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-saturating-split-17","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-saturating-split-18","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-saturating-split-19","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-saturating-split-20","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-saturating-split-21","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-saturating-split-22","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-saturating-point-at-nan-0","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-saturating-split-nan-0","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-saturating-point-at-nan-1","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-saturating-split-nan-1","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-saturating-sub-curve-25","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-saturating-sub-curve-26","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-saturating-sub-curve-27","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-saturating-sub-curve-28","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-saturating-sub-curve-29","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-saturating-sub-curve-30","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-saturating-sub-curve-31","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-split-0","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-split-1","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-split-2","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-split-3","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-split-4","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-split-5","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-split-6","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-split-7","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-split-8","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-split-9","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-split-10","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-split-11","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-split-12","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-split-13","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-split-14","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-split-15","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-split-16","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-split-17","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-split-18","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-point-at-19","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-split-19","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-point-at-20","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-split-20","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-point-at-21","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-split-21","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-point-at-22","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-split-22","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-point-at-nan-0","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-split-nan-0","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-point-at-nan-1","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-split-nan-1","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-sub-curve-3","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-sub-curve-4","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-sub-curve-5","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-sub-curve-6","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-sub-curve-7","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-sub-curve-8","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-sub-curve-18","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-sub-curve-19","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-sub-curve-20","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-sub-curve-21","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-sub-curve-24","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-sub-curve-25","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-sub-curve-26","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-sub-curve-27","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-sub-curve-28","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-sub-curve-29","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-sub-curve-30","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-large-sub-curve-31","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-000","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-019","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-023","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-026","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-028","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-037","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-039","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-041","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-042","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-043","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-046","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-050","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-054","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-055","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-056","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-064","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-066","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-070","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-071","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-072","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-073","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-076","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-077","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-078","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-085","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-092","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-100","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-102","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-107","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-108","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-110","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-117","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-122","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-134","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-136","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-141","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-143","error":{"kind":"invalid_input","message":"int component overflow"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-154","error":{"kind":"invalid_input","message":"NaN component converted to int"}}
+{"unit":"libs.kimath.include.application.pure.p001","case":"bezier-i32-random-159","error":{"kind":"invalid_input","message":"int component overflow"}}

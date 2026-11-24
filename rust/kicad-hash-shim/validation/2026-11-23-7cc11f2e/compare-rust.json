@@ -1,0 +1,12 @@
+{
+  "unit": "libs.kimath.include.application.pure.p001",
+  "status": "green",
+  "action": "compare",
+  "cases": 1315,
+  "deferred": 0,
+  "cases_sha256": "3098b01e26b9dba5ac01316476ee591d8be9507f046ea58a7910c1573a57bf5d",
+  "oracle_output_sha256": "e1b95812a96a314af616bb1f7a21a56961df7b0d67a692bffea0f2bec891f4b9",
+  "rust_output_sha256": "e94d5e886ca1eb4942ebe29eb30edfb6fe4f24ddf851c2ffe378e17c0c167a59",
+  "oracle_sha256": "b723f41c572ce953067e9d6cd97d5d62da2dfdcbf3f99ffd45a22adb69b22d1e",
+  "rust_sha256": "44d2a535ea4274ee0c7c2709945361c60845f631567058feda4aef8a7ea0c7d5"
+}

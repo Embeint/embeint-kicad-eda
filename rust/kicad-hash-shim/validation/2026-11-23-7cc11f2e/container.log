@@ -1,0 +1,35 @@
+## ctest
+Test project /work/kicad-port/oracle-build
+    Start 1: oracle-protocol
+1/8 Test #1: oracle-protocol ..................   Passed    1.31 sec
+    Start 2: oracle-build-guards
+2/8 Test #2: oracle-build-guards ..............   Passed    1.89 sec
+    Start 3: oracle-iec60664-build-guards
+3/8 Test #3: oracle-iec60664-build-guards .....   Passed    1.22 sec
+    Start 4: oracle-dispatch
+4/8 Test #4: oracle-dispatch ..................   Passed    0.11 sec
+    Start 5: oracle-md5-inputs
+5/8 Test #5: oracle-md5-inputs ................   Passed    1.06 sec
+    Start 6: oracle-iec60664-inputs
+6/8 Test #6: oracle-iec60664-inputs ...........   Passed    1.88 sec
+    Start 7: oracle-resistor-inputs
+7/8 Test #7: oracle-resistor-inputs ...........   Passed    0.65 sec
+    Start 8: oracle-resistor-private-keys
+8/8 Test #8: oracle-resistor-private-keys .....   Passed    1.30 sec
+
+100% tests passed, 0 tests failed out of 8
+
+Total Test time (real) =   9.48 sec
+Oracle: /work/kicad-port/oracle-build/kicad-oracle
+Provenance: /work/kicad-port/oracle-build/oracle-provenance.json
+rc=0
+## guards
+71 guard requests, 2 program(s), 0 failure(s)
+## platform
+PRETTY_NAME="Ubuntu 24.04.5 LTS"
+x86_64
+g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+## binaries
+6e65e38510f5f3ca34f08b9ebd970afbbe4e0edfef2bef389ca4dc3f2fff99e3  /work/kicad-port/oracle-build/kicad-oracle
+15377b904b11f75fb467d47b9dbb26bc69e980a9628fd53b2abffe80b369954f  kicad-hash-shim-debug
+2874a24e435fc16c95ac3436a69355326d74d0493bcbd9ec1c560d131a1a97ae  kicad-hash-shim-release

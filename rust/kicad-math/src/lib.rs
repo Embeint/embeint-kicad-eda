@@ -23,6 +23,8 @@
 // exactly as the generator emits it, so the generated file stays byte-identical.
 extern crate self as kicad_math;
 
+mod fp;
+
 // `generated.rs` is emitter output (sha256 d24ff0f2..., from the reviewed graph locks of the
 // pinned oracle; port/tools/kimath_nan/README.md). It is bound byte for byte by
 // port/tools/kimath_nan/check_generated.py and the emitter's handoff check, so it is never
@@ -39,5 +41,7 @@ pub mod wide_int;
 
 pub use matrix3x3::{Matrix3x3, Matrix3x3D, MatrixElement, MatrixError};
 pub use stream::{FmtFlags, StreamError, StreamInsert, StreamState, MAX_STREAM_FIELD};
-pub use vector::{Vector2, Vector2D, Vector2I, Vector2L, Vector3, Vector3D, Vector3I, Vector3U};
+pub use vector::{
+    Vector2, Vector2D, Vector2I, Vector2L, Vector3, Vector3D, Vector3I, Vector3U, VectorDomainError,
+};
 pub use wide_int::{KiInt128, KiUint128, WideIntError};
