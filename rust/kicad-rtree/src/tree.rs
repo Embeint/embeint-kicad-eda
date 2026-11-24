@@ -49,6 +49,22 @@ pub struct Structure {
     pub leaves: usize,
 }
 
+/// Host resource policy. Limits apply to work/storage, never coordinate validity.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ResourceBudget {
+    pub max_items: usize,
+    /// Active nodes. Slabs round storage up to 256 nodes; freed nodes are reused.
+    pub max_nodes: usize,
+}
+impl Default for ResourceBudget {
+    fn default() -> Self {
+        Self {
+            max_items: 1_000_000,
+            max_nodes: 65_536,
+        }
+    }
+}
+
 /// One owning dynamic tree. The arena and its allocator move together. Rust
 /// borrowing prevents mutation while an iterator/range is alive.
 pub struct DynamicRtree<T: NodeData, E: Coord, const D: usize = 2, const F: usize = 16> {
@@ -56,22 +72,29 @@ pub struct DynamicRtree<T: NodeData, E: Coord, const D: usize = 2, const F: usiz
     allocator: AllocatorId,
     pub(crate) root: Option<NodeHandle>,
     count: usize,
-    limit: usize,
+    budget: ResourceBudget,
+    active_nodes: usize,
     failed: bool,
 }
 impl<T: NodeData, E: Coord, const D: usize, const F: usize> DynamicRtree<T, E, D, F> {
     /// Default budget is one million items. A different budget is a host resource
     /// policy, not a restriction of the mathematical valid domain.
     pub fn new() -> Result<Self> {
-        Self::with_limit(1_000_000)
+        Self::with_resources(ResourceBudget::default())
     }
     pub fn with_limit(limit: usize) -> Result<Self> {
+        Self::with_resources(ResourceBudget {
+            max_items: limit,
+            ..ResourceBudget::default()
+        })
+    }
+    pub fn with_resources(budget: ResourceBudget) -> Result<Self> {
         // 2D's accepted SIMD helper requires multiples of four, <=31. Other
         // dimensions may use any fanout >=3 up to31; MINNODES must be positive.
         if D == 0 || F < 3 || F > 31 || (D == 2 && F % 4 != 0) {
             return Err(Error::UnsupportedTemplate);
         }
-        if limit > i32::MAX as usize {
+        if budget.max_items > i32::MAX as usize || budget.max_nodes > i32::MAX as usize {
             return Err(Error::Resource);
         }
         let mut arena = SlabArena::new();
@@ -81,7 +104,8 @@ impl<T: NodeData, E: Coord, const D: usize, const F: usize> DynamicRtree<T, E, D
             allocator,
             root: None,
             count: 0,
-            limit,
+            budget,
+            active_nodes: 0,
             failed: false,
         })
     }
@@ -108,7 +132,7 @@ impl<T: NodeData, E: Coord, const D: usize, const F: usize> DynamicRtree<T, E, D
     /// Move construction: source is empty with a fresh allocator. All handles and
     /// pages stay with the destination; no nodes are copied.
     pub fn move_out(&mut self) -> Result<Self> {
-        let empty = Self::with_limit(self.limit)?;
+        let empty = Self::with_resources(self.budget)?;
         Ok(core::mem::replace(self, empty))
     }
     /// Move assignment destroys the previous destination storage by ownership.
@@ -123,17 +147,18 @@ impl<T: NodeData, E: Coord, const D: usize, const F: usize> DynamicRtree<T, E, D
         Ok(self.arena.node_mut(h)?)
     }
     fn alloc(&mut self, level: i32) -> Result<NodeHandle> {
-        // With positive minimum fill, every level consumes entries; 64 is a
-        // defensive resource depth budget, above any i32-sized valid tree here.
-        if level > 64 {
+        if self.active_nodes >= self.budget.max_nodes {
             return Err(Error::Resource);
         }
         let h = self.arena.allocate(&self.allocator)?;
+        self.active_nodes += 1;
         self.node_mut(&h)?.level = level;
         Ok(h)
     }
     fn free(&mut self, h: &NodeHandle) -> Result<()> {
-        Ok(self.arena.free(&self.allocator, Some(h))?)
+        self.arena.free(&self.allocator, Some(h))?;
+        self.active_nodes = self.active_nodes.checked_sub(1).ok_or(Error::Invariant)?;
+        Ok(())
     }
     fn ncount(&self, h: &NodeHandle) -> Result<usize> {
         usize::try_from(self.node(h)?.count).map_err(|_| Error::Invariant)
@@ -191,7 +216,7 @@ impl<T: NodeData, E: Coord, const D: usize, const F: usize> DynamicRtree<T, E, D
     }
     pub fn insert(&mut self, min: [E; D], max: [E; D], data: T) -> Result<()> {
         self.ready()?;
-        if self.count >= self.limit {
+        if self.count >= self.budget.max_items {
             return Err(Error::Resource);
         }
         let result = (|| {
@@ -424,79 +449,92 @@ impl<T: NodeData, E: Coord, const D: usize, const F: usize> DynamicRtree<T, E, D
         _levels: &mut u32,
         internal: bool,
     ) -> Result<()> {
-        let mut entries = self.entries(h)?;
-        entries.push(e);
-        let mut best_axis = 0;
-        let mut best_perimeter = i64::MAX;
-        for axis in 0..D {
+        let mut h = h.clone();
+        let mut e = e;
+        let mut internal = internal;
+        loop {
+            let mut entries = self.entries(&h)?;
+            entries.push(e);
+            let mut best_axis = 0;
+            let mut best_perimeter = i64::MAX;
+            for axis in 0..D {
+                order::sort(&mut entries, |a, b| {
+                    if internal {
+                        a.min[axis].cmp(&b.min[axis])
+                    } else {
+                        (a.min[axis], a.max[axis]).cmp(&(b.min[axis], b.max[axis]))
+                    }
+                })?;
+                let mut perimeter = Self::perimeters(&entries)?;
+                if !internal {
+                    order::sort(&mut entries, |a, b| {
+                        (a.max[axis], a.min[axis]).cmp(&(b.max[axis], b.min[axis]))
+                    })?;
+                    perimeter = add(perimeter, Self::perimeters(&entries)?)?;
+                }
+                if perimeter < best_perimeter {
+                    best_axis = axis;
+                    best_perimeter = perimeter;
+                }
+            }
             order::sort(&mut entries, |a, b| {
                 if internal {
-                    a.min[axis].cmp(&b.min[axis])
+                    a.min[best_axis].cmp(&b.min[best_axis])
                 } else {
-                    (a.min[axis], a.max[axis]).cmp(&(b.min[axis], b.max[axis]))
+                    (a.min[best_axis], a.max[best_axis]).cmp(&(b.min[best_axis], b.max[best_axis]))
                 }
             })?;
-            let mut perimeter = Self::perimeters(&entries)?;
+            let mut index = Self::split_index(&entries)?;
             if !internal {
-                order::sort(&mut entries, |a, b| {
-                    (a.max[axis], a.min[axis]).cmp(&(b.max[axis], b.min[axis]))
+                let mut by_max = entries.clone();
+                order::sort(&mut by_max, |a, b| {
+                    (a.max[best_axis], a.min[best_axis]).cmp(&(b.max[best_axis], b.min[best_axis]))
                 })?;
-                perimeter = add(perimeter, Self::perimeters(&entries)?)?;
+                let max_index = Self::split_index(&by_max)?;
+                let overlap_min = Self::split_overlap(&entries, index)?;
+                let overlap_max = Self::split_overlap(&by_max, max_index)?;
+                if overlap_max < overlap_min {
+                    entries = by_max;
+                    index = max_index;
+                }
             }
-            if perimeter < best_perimeter {
-                best_axis = axis;
-                best_perimeter = perimeter;
-            }
-        }
-        order::sort(&mut entries, |a, b| {
-            if internal {
-                a.min[best_axis].cmp(&b.min[best_axis])
+            let sibling = self.alloc(self.node(&h)?.level)?;
+            let (a, b) = entries.split_at_checked(index).ok_or(Error::Invariant)?;
+            self.rebuild(&h, a)?;
+            self.rebuild(&sibling, b)?;
+            let (min, max) = self.bounds(&sibling)?;
+            let sibling_entry = Entry::internal(min, max, sibling);
+            if let Some(parent) = path.pop() {
+                self.update(&parent, &h)?;
+                if !self.node(&parent)?.is_full() {
+                    self.append(&parent, &sibling_entry)?;
+                    self.adjust(path, &parent)?;
+                } else {
+                    h = parent;
+                    e = sibling_entry;
+                    internal = true;
+                    continue;
+                }
             } else {
-                (a.min[best_axis], a.max[best_axis]).cmp(&(b.min[best_axis], b.max[best_axis]))
+                let root = self.root.as_ref().ok_or(Error::Invariant)?;
+                let new_root = self.alloc(
+                    self.node(root)?
+                        .level
+                        .checked_add(1)
+                        .ok_or(Error::Overflow)?,
+                )?;
+                let (min, max) = self.bounds(&h)?;
+                self.append(&new_root, &Entry::internal(min, max, h.clone()))?;
+                self.append(&new_root, &sibling_entry)?;
+                self.root = Some(new_root);
             }
-        })?;
-        let mut index = Self::split_index(&entries)?;
-        if !internal {
-            let mut by_max = entries.clone();
-            order::sort(&mut by_max, |a, b| {
-                (a.max[best_axis], a.min[best_axis]).cmp(&(b.max[best_axis], b.min[best_axis]))
-            })?;
-            let max_index = Self::split_index(&by_max)?;
-            let overlap_min = Self::split_overlap(&entries, index)?;
-            let overlap_max = Self::split_overlap(&by_max, max_index)?;
-            if overlap_max < overlap_min {
-                entries = by_max;
-                index = max_index;
-            }
+            return Ok(());
         }
-        let sibling = self.alloc(self.node(h)?.level)?;
-        let (a, b) = entries.split_at_checked(index).ok_or(Error::Invariant)?;
-        self.rebuild(h, a)?;
-        self.rebuild(&sibling, b)?;
-        let (min, max) = self.bounds(&sibling)?;
-        let sibling_entry = Entry::internal(min, max, sibling);
-        if let Some(parent) = path.pop() {
-            self.update(&parent, h)?;
-            if !self.node(&parent)?.is_full() {
-                self.append(&parent, &sibling_entry)?;
-                self.adjust(path, &parent)?;
-            } else {
-                self.split(&parent, sibling_entry, path, _levels, true)?;
-            }
-        } else {
-            let root = self.root.as_ref().ok_or(Error::Invariant)?;
-            let new_root = self.alloc(self.node(root)?.level + 1)?;
-            let (min, max) = self.bounds(h)?;
-            self.append(&new_root, &Entry::internal(min, max, h.clone()))?;
-            self.append(&new_root, &sibling_entry)?;
-            self.root = Some(new_root);
-        }
-        Ok(())
     }
     /// Hilbert packed bulk loading. The input slice is read, never reordered.
     pub fn bulk_load(&mut self, entries: &[BulkEntry<T, E, D>]) -> Result<()> {
         self.ready()?;
-        if entries.len() > self.limit {
+        if entries.len() > self.budget.max_items {
             return Err(Error::Resource);
         }
         if entries.is_empty() {
@@ -582,38 +620,49 @@ impl<T: NodeData, E: Coord, const D: usize, const F: usize> DynamicRtree<T, E, D
         data: &T,
         orphans: &mut Vec<NodeHandle>,
     ) -> Result<bool> {
-        if self.node(h)?.is_leaf() {
-            for i in 0..self.ncount(h)? {
-                if self.node(h)?.data(i)? == Some(data)
-                    && self.node(h)?.child_overlaps(i, min, max)?
-                {
-                    self.node_mut(h)?.remove_child(i as i32)?;
-                    return Ok(true);
-                }
-            }
-            return Ok(false);
-        }
-        for i in 0..self.ncount(h)? {
-            if !self.node(h)?.child_overlaps(i, min, max)? {
+        let mut stack = Vec::new();
+        stack.try_reserve(1).map_err(|_| Error::Resource)?;
+        stack.push((h.clone(), 0_usize));
+        while let Some((node, i)) = stack.last().cloned() {
+            if i >= self.ncount(&node)? {
+                stack.pop();
                 continue;
             }
-            let child = self.child(h, i)?;
-            if self.remove_impl(&child, min, max, data, orphans)? {
-                let count = self.ncount(&child)?;
-                if count > 0 {
-                    let (cmin, cmax) = self.bounds(&child)?;
-                    self.node_mut(h)?.set_child_bounds(i, &cmin, &cmax)?;
-                    // Faithful quirk: exemption is based on the PARENT being root.
-                    if count < Self::min_nodes() && Some(h) != self.root.as_ref() {
-                        orphans.try_reserve(1).map_err(|_| Error::Resource)?;
-                        orphans.push(child);
-                        self.node_mut(h)?.remove_child(i as i32)?;
+            stack.last_mut().ok_or(Error::Invariant)?.1 += 1;
+            if self.node(&node)?.is_leaf() {
+                if self.node(&node)?.data(i)? != Some(data)
+                    || !self.node(&node)?.child_overlaps(i, min, max)?
+                {
+                    continue;
+                }
+                self.node_mut(&node)?.remove_child(i as i32)?;
+                stack.pop();
+                let mut child = node;
+                for (parent, next) in stack.iter().rev() {
+                    let slot = next.checked_sub(1).ok_or(Error::Invariant)?;
+                    let count = self.ncount(&child)?;
+                    if count > 0 {
+                        let (cmin, cmax) = self.bounds(&child)?;
+                        self.node_mut(parent)?
+                            .set_child_bounds(slot, &cmin, &cmax)?;
+                        // The reference exempts a child when its PARENT is root.
+                        if count < Self::min_nodes() && Some(parent) != self.root.as_ref() {
+                            orphans.try_reserve(1).map_err(|_| Error::Resource)?;
+                            orphans.push(child.clone());
+                            self.node_mut(parent)?.remove_child(slot as i32)?;
+                        }
+                    } else {
+                        self.free(&child)?;
+                        self.node_mut(parent)?.remove_child(slot as i32)?;
                     }
-                } else {
-                    self.free(&child)?;
-                    self.node_mut(h)?.remove_child(i as i32)?;
+                    child = parent.clone();
                 }
                 return Ok(true);
+            }
+            if self.node(&node)?.child_overlaps(i, min, max)? {
+                let child = self.child(&node, i)?;
+                stack.try_reserve(1).map_err(|_| Error::Resource)?;
+                stack.push((child, 0));
             }
         }
         Ok(false)
@@ -672,19 +721,38 @@ impl<T: NodeData, E: Coord, const D: usize, const F: usize> DynamicRtree<T, E, D
         result
     }
     fn remove_nodes(&mut self, h: &NodeHandle) -> Result<()> {
-        if self.node(h)?.is_internal() {
-            for i in 0..self.ncount(h)? {
-                self.remove_nodes(&self.child(h, i)?)?;
+        let mut stack = Vec::new();
+        let mut postorder = Vec::new();
+        stack
+            .try_reserve(self.active_nodes)
+            .map_err(|_| Error::Resource)?;
+        postorder
+            .try_reserve(self.active_nodes)
+            .map_err(|_| Error::Resource)?;
+        stack.push((h.clone(), false));
+        while let Some((h, visited)) = stack.pop() {
+            if visited {
+                postorder.push(h);
+                continue;
+            }
+            stack.push((h.clone(), true));
+            if self.node(&h)?.is_internal() {
+                for i in (0..self.ncount(&h)?).rev() {
+                    stack.push((self.child(&h, i)?, false));
+                }
             }
         }
-        self.free(h)
+        for h in postorder {
+            self.free(&h)?;
+        }
+        Ok(())
     }
     /// Releases active nodes postorder, retaining slab pages and free-list capacity.
     /// After an undefined-domain mutation refusal, drops the arena instead, because
     /// disconnected partial nodes cannot be traversed as a successful tree.
     pub fn remove_all(&mut self) -> Result<()> {
         if self.failed {
-            let replacement = Self::with_limit(self.limit)?;
+            let replacement = Self::with_resources(self.budget)?;
             *self = replacement;
             return Ok(());
         }
@@ -705,12 +773,19 @@ impl<T: NodeData, E: Coord, const D: usize, const F: usize> DynamicRtree<T, E, D
         Ok(s)
     }
     fn shape(&self, h: &NodeHandle, s: &mut Structure) -> Result<()> {
-        s.nodes += 1;
-        if self.node(h)?.is_leaf() {
-            s.leaves += 1;
-        } else {
-            for i in 0..self.ncount(h)? {
-                self.shape(&self.child(h, i)?, s)?;
+        let mut stack = Vec::new();
+        stack
+            .try_reserve(self.active_nodes)
+            .map_err(|_| Error::Resource)?;
+        stack.push(h.clone());
+        while let Some(h) = stack.pop() {
+            s.nodes += 1;
+            if self.node(&h)?.is_leaf() {
+                s.leaves += 1;
+            } else {
+                for i in (0..self.ncount(&h)?).rev() {
+                    stack.push(self.child(&h, i)?);
+                }
             }
         }
         Ok(())

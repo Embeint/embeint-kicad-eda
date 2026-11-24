@@ -53,13 +53,14 @@ leaf does no area arithmetic. Bulk normalization is validated before dropping th
 previous tree. Rust tests distinguish those valid paths from overflow refusals.
 
 The host supplies an item budget (`with_limit`, default one million, maximum
-INT_MAX). A separate current defensive depth budget is 64 levels; an exhausted
-budget is `Resource`, not an undefined-input error. A monotone fanout-4 sequence
-can reach that limit around 1,051 entries, far below the optimistic header comment.
-Making this depth budget host-configurable and bounding slab pages independently
-are outstanding resource-policy work; no claim of the entire valid C++ domain is
-made. Internal temporary vectors use try_reserve, but allocations inside the
-accepted slab and payload Clone retain their existing allocation-failure boundary.
+INT_MAX). `with_resources` also supplies a maximum active-node budget (default 65,536).
+Slab storage is rounded to 256-node pages and recycled, so the page bound follows
+from that node budget. All depth-dependent tree algorithms use explicit stacks;
+there is no coordinate or depth exclusion. The monotone fanout-4 1,200-item case
+reaches a tree height above 64 and then fully removes/condenses it. Resource
+exhaustion is Resource, not an assertion of undefined C++ input. Temporary
+vectors use try_reserve; allocations inside the accepted slab and payload Clone
+retain their existing allocation-failure boundary.
 
 A query failure clears or partially fills its caller-owned output according to the
 upstream order; NN clears before checking root/k. A failed arithmetic mutation has
@@ -80,9 +81,10 @@ The native JSONL shim is `../kicad-rtree-shim`. The registered C++ adapter calls
 real pinned templates with stable pointers to real ITEM objects, not list/search
 stand-ins. Both retain duplicate data identities and insertion boxes. The corpus
 contains only public fixed-seed generated inputs. Goldens are intentionally absent.
-Status stays partial pending hosted live evidence and independent review.
+The current corpus has 201 cases / 56,023 operations. Status stays partial pending
+hosted live evidence and independent review.
 
-Current local evidence (macOS ARM64, Rust 1.96.1, -j2): 8 tree and 19 existing node
+Current local evidence (macOS ARM64, Rust 1.96.1, -j2): 9 tree and 19 existing node
 tests pass; scoped clippy, format, portable wasm compilation and 47 refusal/47
 following valid requests pass. These results do not qualify GCC ordering.
 

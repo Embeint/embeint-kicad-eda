@@ -56,7 +56,7 @@ JSON Collect( const TREE& aTree, int aLimit )
 {
     JSON result = JSON::array();
     for( auto it = aTree.begin(); it != aTree.end() && ( aLimit < 0 || result.size() < static_cast<size_t>( aLimit ) ); ++it )
-        result.push_back( ( *it )->tag );
+        result.push_back( ( *it ) ? ( *it )->tag : -1 );
     return result;
 }
 template<class E, int D, int F>
@@ -66,7 +66,7 @@ JSON RunTree( const JSON& aSteps )
     TREE tree;
     std::vector<ITEM> items( 65536 );
     for( int i = 0; i < 65536; ++i ) items[i].tag = i;
-    auto item = [&]( const JSON& s ){ return &items[oracle::Integer( s, "data", 0, 65535 )]; };
+    auto item = [&]( const JSON& s ){ int id=oracle::Integer( s, "data", -1, 65535 ); return id<0 ? nullptr : &items[id]; };
     JSON outputs = JSON::array();
     for( const JSON& step : aSteps )
     {
@@ -123,10 +123,10 @@ JSON RunTree( const JSON& aSteps )
             Keys( step, { "op", "min", "max", "stop" } );
             auto min=Coords<E,D>(step,"min"),max=Coords<E,D>(step,"max");int stop=Int(step,"stop");
             JSON hits=JSON::array(),lazy=JSON::array();
-            auto visitor=[&]( ITEM* data ){hits.push_back(data->tag);return stop<=0 || hits.size()<static_cast<size_t>(stop);};
+            auto visitor=[&]( ITEM* data ){hits.push_back(data ? data->tag : -1);return stop<=0 || hits.size()<static_cast<size_t>(stop);};
             int found=tree.Search(min.data(),max.data(),visitor);
             auto range=tree.Overlapping(min.data(),max.data());bool empty=range.empty();
-            for( ITEM* data : range ) lazy.push_back(data->tag);
+            for( ITEM* data : range ) lazy.push_back(data ? data->tag : -1);
             value={{"found",found},{"hits",hits},{"lazy",lazy},{"empty",empty}};
         }
         else if( op == "nearest" )
@@ -134,7 +134,7 @@ JSON RunTree( const JSON& aSteps )
             Keys( step, { "op", "point", "k" } );auto point=Coords<E,D>(step,"point");int k=Int(step,"k");
             std::vector<std::pair<int64_t,ITEM*>> results={{99,&items[65535]}};
             tree.NearestNeighbors(point.data(),k,results);value=JSON::array();
-            for( const auto& [distance,data] : results ) value.push_back({distance,data->tag});
+            for( const auto& [distance,data] : results ) value.push_back({distance,data ? data->tag : -1});
         }
         else if( op == "move" )
         {

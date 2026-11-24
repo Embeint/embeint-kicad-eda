@@ -66,6 +66,19 @@ def generate():
                   {'op':'insert','min':[1]*d,'max':[-1]*d,'data':0}, {'op':'query','min':[0]*d,'max':[0]*d,'stop':0},
                   {'op':'remove','min':[5]*d,'max':[4]*d,'data':0}, {'op':'state'}]
         put(config+'.extremes',config,steps)
+    entries=[{'min':[i*13,i%11],'max':[i*13+7,i%11+2],'data':i} for i in range(1200)]
+    steps=[dict(op='insert',**e) for e in entries]+[{'op':'state'},{'op':'nearest','point':[0,0],'k':1200}]
+    steps += [dict(op='remove',min=[-999,-999],max=[-998,-998],data=i) for i in range(1200)]
+    steps += [{'op':'state'},{'op':'clear'},{'op':'bulk','entries':entries},{'op':'state'},{'op':'clear'}]
+    put('i32.d2.m4.monotone-depth-over-64','i32.d2.m4',steps)
+    for config,d,f in CONFIGS:
+        steps=[{'op':'insert','min':[0]*d,'max':[0]*d,'data':-1},{'op':'state'},
+               {'op':'query','min':[0]*d,'max':[0]*d,'stop':1},
+               {'op':'nearest','point':[0]*d,'k':10},
+               {'op':'remove','min':[5]*d,'max':[6]*d,'data':-1},{'op':'state'},
+               {'op':'bulk','entries':[{'min':[0]*d,'max':[1]*d,'data':-1}]},
+               {'op':'move','kind':'assign'},{'op':'clear'}]
+        put(config+'.null-pointer',config,steps)
     return rows
 
 def main():

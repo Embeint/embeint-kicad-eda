@@ -18,19 +18,19 @@ fn all(t: &Tree) -> Result<Vec<i32>, Error> {
 #[test]
 fn deep_insertions_fallback_removal_and_condensation() -> Result<(), Error> {
     let mut t = Tree::new()?;
-    for i in 0..1000 {
+    for i in 0..1200 {
         t.insert([i * 13, i % 11], [i * 13 + 7, i % 11 + 2], Item(i))?;
     }
-    assert!(t.structure()?.height >= 5);
+    assert!(t.structure()?.height > 64);
     assert!(t.structure()?.nodes > 256);
-    assert_eq!(t.size()?, 1000);
+    assert_eq!(t.size()?, 1200);
     let mut seen = all(&t)?;
     seen.sort();
-    assert_eq!(seen, (0..1000).collect::<Vec<_>>());
-    for i in 0..1000 {
+    assert_eq!(seen, (0..1200).collect::<Vec<_>>());
+    for i in 0..1200 {
         assert!(t.remove([-999; 2], [-998; 2], &Item(i))?);
         if i % 53 == 0 {
-            assert_eq!(t.size()?, 999 - i as usize);
+            assert_eq!(t.size()?, 1199 - i as usize);
         }
     }
     assert!(t.empty()?);
@@ -197,5 +197,27 @@ fn inverted_bulk_refuses_only_evaluated_cast_and_keeps_old_tree() -> Result<(), 
     // Inverted insertion itself is defined while no overflowing area is evaluated.
     t.insert([10; 2], [-10; 2], Item(8))?;
     assert_eq!(t.size()?, 2);
+    Ok(())
+}
+
+#[test]
+fn node_storage_budget_is_explicit_and_clear_recovers() -> Result<(), Error> {
+    use kicad_rtree::ResourceBudget;
+    let mut t = Tree::with_resources(ResourceBudget {
+        max_items: 100,
+        max_nodes: 1,
+    })?;
+    for i in 0..4 {
+        t.insert([i; 2], [i + 1; 2], Item(i))?;
+    }
+    assert_eq!(t.insert([5; 2], [6; 2], Item(5)), Err(Error::Resource));
+    assert_eq!(t.size(), Err(Error::FailedMutation));
+    t.remove_all()?;
+    assert!(t.empty()?);
+    let mut zero = Tree::with_resources(ResourceBudget {
+        max_items: 10,
+        max_nodes: 0,
+    })?;
+    assert_eq!(zero.insert([0; 2], [1; 2], Item(0)), Err(Error::Resource));
     Ok(())
 }

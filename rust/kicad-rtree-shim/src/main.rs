@@ -70,10 +70,10 @@ fn fixed<E: Wire, const N: usize>(object: &Value, name: &str) -> Result<[E; N], 
 }
 
 #[derive(Clone, Debug, PartialEq)]
-struct Item(u32);
+struct Item(i32);
 impl NodeData for Item {}
 fn item(step: &Value) -> Result<Item, String> {
-    Ok(Item(signed(step, "data", 0, 65535)? as u32))
+    Ok(Item(signed(step, "data", -1, 65535)? as i32))
 }
 fn array<'a>(v: &'a Value, name: &str) -> Result<&'a Vec<Value>, String> {
     v.get(name)

@@ -11,7 +11,7 @@ mod tree;
 use core::fmt;
 pub use kicad_rtree_node::{Coord, NodeData, RtreeError};
 pub use traversal::{SearchRange, TreeIterator};
-pub use tree::{BulkEntry, DynamicRtree, Structure};
+pub use tree::{BulkEntry, DynamicRtree, ResourceBudget, Structure};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Error {

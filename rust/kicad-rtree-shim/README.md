@@ -4,7 +4,7 @@
 Unit `libs.kimath.include.geometry.rtree.application.pure.p001`. Input is exactly
 `{config,steps}`; configs are i32.d2.m4/m16/m28, i32.d3.m3/m5, i32.d1.m8,
 i64.d2.m16 and i64.d3.m8. 1..4096 operations per request, <=65536 items and IDs
-0..65535. IDs denote real stable ITEM pointers on C++, Item handles on Rust.
+-1..65535 (-1 is a real null pointer). IDs denote real stable ITEM pointers on C++, Item handles on Rust.
 
 Operations: insert/remove `{min,max,data}`, bulk `{entries:[{min,max,data}]}`,
 clear/state `{}`, iter `{limit}` (negative unlimited), query `{min,max,stop}`

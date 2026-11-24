@@ -131,18 +131,26 @@ impl<T: NodeData, E: Coord, const D: usize, const F: usize> DynamicRtree<T, E, D
         visitor: &mut V,
         found: &mut i32,
     ) -> Result<bool> {
-        let n = self.node(h)?;
-        let mut mask = n.child_overlap_mask(min, max)?;
-        while mask != 0 {
+        let mut stack = Vec::new();
+        stack.try_reserve(1).map_err(|_| Error::Resource)?;
+        stack.push((h.clone(), self.node(h)?.child_overlap_mask(min, max)?));
+        while let Some((h, mask)) = stack.last_mut() {
+            if *mask == 0 {
+                stack.pop();
+                continue;
+            }
             let i = mask.trailing_zeros() as usize;
-            mask &= mask - 1;
-            if n.is_leaf() {
+            *mask &= *mask - 1;
+            if self.node(h)?.is_leaf() {
                 *found = found.checked_add(1).ok_or(Error::Overflow)?;
                 if !visitor(self.node(h)?.data(i)?.ok_or(Error::Invariant)?) {
                     return Ok(false);
                 }
-            } else if !self.search_impl(&self.child(h, i)?, min, max, visitor, found)? {
-                return Ok(false);
+            } else {
+                let child = self.child(h, i)?;
+                let mask = self.node(&child)?.child_overlap_mask(min, max)?;
+                stack.try_reserve(1).map_err(|_| Error::Resource)?;
+                stack.push((child, mask));
             }
         }
         Ok(true)

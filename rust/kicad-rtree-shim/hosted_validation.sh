@@ -30,6 +30,7 @@ chmod +x "$out/wasi-shim"
 rust/target/debug/kicad-difftest compare --partial --unit "$unit" --root "$PWD" \
   --oracle "$build/kicad-oracle" --rust "$out/wasi-shim" --report "$out/compare-wasi.json"
 python3 rust/kicad-rtree-shim/test_inputs.py "$out/wasi-shim" | tee "$out/guards-wasi.json"
+bash rust/kicad-rtree-shim/sanitized_validation.sh "$build/../oracle-src/reference" "$out/sanitized"
 sha256sum "$build/kicad-oracle" rust/target/{debug,release}/kicad-rtree-shim "$RTREE_WASM" > "$out/binaries.sha256"
 git rev-parse HEAD > "$out/revision.txt"
 git rev-parse HEAD^ > "$out/parent.txt"

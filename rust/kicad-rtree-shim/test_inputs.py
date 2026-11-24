@@ -27,7 +27,7 @@ def controls():
     for field in ['min','max']:
         for value in [[],[1],[1,2,3],[True,0],[1.5,0],['1',0],[2147483648,0],[-2147483649,0],None]:
             add(lambda v,f=field,x=value:v['input']['steps'][0].update({f:x}))
-    for value in [-1,65536,True,1.5,'1',None]:
+    for value in [-2,65536,True,1.5,'1',None]:
         add(lambda v,x=value:v['input']['steps'][0].update(data=x))
     for op,fields in [('iter',{'limit':2147483648}),('nearest',{'point':[0,0],'k':2147483648}),('query',{'min':[0,0],'max':[1,1],'stop':1.5}),('move',{'kind':'other'}),('move',{'kind':1}),('bulk',{'entries':None}),('bulk',{'entries':[{'min':[10,10],'max':[-10,-10],'data':1}]})]:
         add(lambda v,o=op,f=fields:v['input'].update(steps=[dict(op=o,**f)]))
