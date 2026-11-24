@@ -1,0 +1,2 @@
+WebAssembly build for every portable workspace crate: embeint-layout, embeint-web, kicad-iec60664, kicad-md5, kicad-resistors, kicad-rtree-node
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.49s
