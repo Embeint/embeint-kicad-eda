@@ -61,10 +61,14 @@ for n,x in enumerate(patterns):
    a=[x,y]+([bits(2)] if dim==3 else []);b=[y,x]+([bits(2)] if dim==3 else [])
    for op in ['new','copy','compare']:
     case(f'bits-{dim}-{n}-{m}-{op}',dim,'f64',op,a,**({'b':b} if op=='compare' else {}))
+  for op in ['neg','perpendicular']:
+   case(f'fp-unary-{n}-{m}-{op}',2,'f64',op,[x,y])
   for op in ['add','sub','dot','cross','mul_assign','norm','squared_norm']:
    case(f'fp-sites-{n}-{m}-{op}',2,'f64',op,[x,y],**({'b':[y,x]} if op in ['add','sub','dot','cross','mul_assign'] else {}))
   for op in ['normalize','norm']:
    case(f'3-fp-{n}-{m}-{op}',3,'f64',op,[x,y,bits(0)])
+for n,x in enumerate(patterns):
+ case(f'3-set-all-bits-{n}',3,'f64','set_all',floats([1,2,3]),scalar=x)
 for op in ['equals','ki_round','ki_round_xy']:
  for n,x in enumerate(patterns+[bits(0.5),bits(-0.5),bits(2147483647.9)]):
   case(f'{op}-{n}',2,'f64',op,[x,bits(-0.5)],**({'b':[bits(1),bits(-0.5)]} if op=='equals' else {}))

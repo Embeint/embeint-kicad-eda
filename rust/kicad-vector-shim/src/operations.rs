@@ -152,7 +152,7 @@ where
             json!({"min":Vector2::<T>::ECOORD_MIN.wire(),"max":Vector2::<T>::ECOORD_MAX.wire()})
         }
         "compare" => {
-            json!({"eq":a==b,"ne":a!=b,"lt":a.less(&b),"le":a.less_equal(&b),"gt":a.greater(&b),"ge":a.greater_equal(&b),"compare":a.lexicographical_compare(&b),"min":w2(*a.lexicographical_min(&b)),"max":w2(*a.lexicographical_max(&b)),"min_first":std::ptr::eq(&a,a.lexicographical_min(&b)),"max_first":std::ptr::eq(&a,a.lexicographical_max(&b))})
+            json!({"eq":a==b,"ne":a!=b,"lt":a<b,"le":a<=b,"gt":a>b,"ge":a>=b,"compare":a.lexicographical_compare(&b),"min":w2(*a.lexicographical_min(&b)),"max":w2(*a.lexicographical_max(&b)),"min_first":std::ptr::eq(&a,a.lexicographical_min(&b)),"max_first":std::ptr::eq(&a,a.lexicographical_max(&b))})
         }
         "add" => val(w2(a.try_add(b)?)),
         "sub" => val(w2(a.try_sub(b)?)),
@@ -249,11 +249,11 @@ where
         "norm" => val(a.euclidean_norm()?.wire()),
         "normalize" => {
             let v = a.normalize()?;
-            mutation(w3(v), w3(a), false)
+            mutation(w3(v), w3(a), std::ptr::eq(&v, &a))
         }
         "set_all" => {
             let v = a.set_all(s);
-            mutation(w3(v), w3(a), false)
+            mutation(w3(v), w3(a), std::ptr::eq(&v, &a))
         }
         "mul_assign_scalar" | "div_assign_scalar" => {
             let s = match i.get("alias").and_then(Value::as_str) {
@@ -333,6 +333,11 @@ pub fn run(i: &Value) -> Result<Value> {
         vec![]
     };
     keys(i, &fields, &optional)?;
+    if let Some(alias) = i.get("alias") {
+        if !alias.is_string() || alias.as_str().is_none_or(str::is_empty) {
+            return invalid("invalid scalar alias");
+        }
+    }
     // The scalar helper wrappers have double-only declarations.
     if op == "equals" || op == "ki_round" || op == "ki_round_xy" {
         if i["dim"] != 2 || i["type"] != "f64" {
@@ -350,7 +355,7 @@ pub fn run(i: &Value) -> Result<Value> {
             val(w2(kicad_math::vector::ki_round_xy(a.x, a.y)?))
         });
     }
-    match (i["dim"].as_u64(), i["type"].as_str()) {
+    let result = match (i["dim"].as_u64(), i["type"].as_str()) {
         (Some(2), Some("i32")) => run2::<i32>(i, op),
         (Some(2), Some("i64")) => run2::<i64>(i, op),
         (Some(2), Some("f64")) => run2::<f64>(i, op),
@@ -358,5 +363,40 @@ pub fn run(i: &Value) -> Result<Value> {
         (Some(3), Some("u32")) => run3::<u32>(i, op),
         (Some(3), Some("f64")) => run3::<f64>(i, op),
         _ => invalid("unsupported component type"),
-    }
+    };
+    result.map_err(|error| match error {
+        Error::Domain(VectorDomainError::Unported {
+            upstream: "VECTOR floating arithmetic: NaN result site",
+            unit,
+        }) => {
+            // Attribute the still-unqualified NaN site to the actual upstream call,
+            // not to a fictitious missing scalar dependency.
+            let upstream = match (i["dim"].as_u64(), op) {
+                (Some(3), "cross") => "VECTOR3<T>::Cross",
+                (Some(3), "dot") => "VECTOR3<T>::Dot",
+                (Some(3), "norm") => "VECTOR3<T>::EuclideanNorm",
+                (Some(3), "normalize") => "VECTOR3<T>::Normalize",
+                (Some(3), "mul_assign_scalar") => "VECTOR3<T>::operator*=",
+                (Some(3), "div_assign_scalar") => "VECTOR3<T>::operator/=",
+                (_, "cross") => "VECTOR2<T>::Cross",
+                (_, "dot") => "VECTOR2<T>::Dot",
+                (_, "operator_dot") => "operator*(VECTOR2<T>, VECTOR2<U>)",
+                (_, "norm") => "VECTOR2<T>::EuclideanNorm",
+                (_, "squared_norm") => "VECTOR2<T>::SquaredEuclideanNorm",
+                (_, "distance") => "VECTOR2<T>::Distance",
+                (_, "squared_distance") => "VECTOR2<T>::SquaredDistance",
+                (_, "resize") => "VECTOR2<T>::Resize",
+                (_, "divide") => "VECTOR2<T>::operator/",
+                (_, "mul_assign" | "mul_assign_scalar") => "VECTOR2<T>::operator*=",
+                (_, "add_assign" | "add_assign_scalar") => "VECTOR2<T>::operator+=",
+                (_, "sub_assign" | "sub_assign_scalar") => "VECTOR2<T>::operator-=",
+                (_, "add" | "add_scalar" | "add_float") => "operator+(VECTOR2<T>, U)",
+                (_, "sub" | "sub_scalar" | "sub_float") => "operator-(VECTOR2<T>, U)",
+                (_, "scalar_mul") => "operator*(T, VECTOR2<U>)",
+                _ => "operator*(VECTOR2<T>, U)",
+            };
+            Error::Domain(VectorDomainError::Unported { upstream, unit })
+        }
+        other => other,
+    })
 }

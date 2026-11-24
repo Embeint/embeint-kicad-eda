@@ -16,5 +16,12 @@ def main():
     for n,r in enumerate(requests):
         assert replies[2*n]=={'unit':r['unit'],'case':r['case'],'error':{'kind':'invalid_input','message':'undefined vector operation'}},replies[2*n]
         assert replies[2*n+1]=={'unit':survivor['unit'],'case':f'after-{n}','result':{'value':[2,3]}},replies[2*n+1]
-    print(f'{len(requests)} vector UB guard refusals; {len(requests)} subsequent operations preserved')
+    controls=json.loads(Path(__file__).with_name('vector-invalid-inputs.json').read_text())
+    rs=[dict(survivor,case=f'invalid-{n}',input=i) for n,(i,_) in enumerate(controls)]
+    p=subprocess.run([sys.argv[1]],input=''.join(json.dumps(r)+'\n' for r in rs),text=True,capture_output=True,check=True,timeout=30)
+    replies=[json.loads(s) for s in p.stdout.splitlines()]
+    assert len(replies)==len(controls)
+    for n,((_,message),r) in enumerate(zip(controls,rs)):
+        assert replies[n]=={'unit':r['unit'],'case':r['case'],'error':{'kind':'invalid_input','message':message}},replies[n]
+    print(f'{len(requests)} vector UB guard refusals; {len(requests)} subsequent operations preserved; {len(controls)} malformed-input controls')
 if __name__=='__main__': main()

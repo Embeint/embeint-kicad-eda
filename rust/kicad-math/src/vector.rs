@@ -321,7 +321,7 @@ macro_rules! signed_component {
                 let ny = round_i32(ny)?;
                 let nx = if x < 0 { nx.c_neg()? } else { nx } as Self;
                 let ny = if y < 0 { ny.c_neg()? } else { ny } as Self;
-                let sign = ((0 < length) as i8 - (length < 0) as i8) as Self;
+                let sign = scalar_sign(length)? as Self;
                 Vector2::new(nx, ny).try_mul_scalar(sign)
             }
             fn stream(self) -> VResult<String> {
@@ -482,7 +482,7 @@ impl VectorComponent for f64 {
         };
         let nx = if x < 0.0 { -nx } else { nx };
         let ny = if y < 0.0 { -ny } else { ny };
-        let sign = f64::from(i32::from(0.0 < length) - i32::from(length < 0.0));
+        let sign = f64::from(scalar_sign(length)?);
         Vector2::new(nx, ny).try_mul_scalar(sign)
     }
     fn normalization_norm(x: Self, y: Self, z: Self) -> VResult<Self> {
@@ -972,3 +972,42 @@ fn rounded_hypot(_x: i64, _y: i64) -> VResult<u64> {
 fn rescale_f64(_n: f64, _v: f64, _d: f64) -> VResult<f64> {
     missing("rescale<double>", UTIL_HEADER)
 }
+
+// UNPORTED(libs.kimath.include.math.application.ui.p001): sign<T>
+fn scalar_sign<T: VectorComponent>(_value: T) -> VResult<i32> {
+    missing("sign<T>", UTIL_HEADER)
+}
+
+impl<T: Eq> Eq for Vector2<T> {}
+impl<T: Eq> Eq for Vector3<T> {}
+impl<T: PartialOrd> PartialOrd for Vector2<T> {
+    fn partial_cmp(&self, rhs: &Self) -> Option<core::cmp::Ordering> {
+        match self.x.partial_cmp(&rhs.x)? {
+            core::cmp::Ordering::Equal => self.y.partial_cmp(&rhs.y),
+            order => Some(order),
+        }
+    }
+    fn lt(&self, rhs: &Self) -> bool {
+        self.less(rhs)
+    }
+    fn le(&self, rhs: &Self) -> bool {
+        self.less_equal(rhs)
+    }
+    fn gt(&self, rhs: &Self) -> bool {
+        self.greater(rhs)
+    }
+    fn ge(&self, rhs: &Self) -> bool {
+        self.greater_equal(rhs)
+    }
+}
+macro_rules! integer_order {
+    ($t:ty) => {
+        impl Ord for Vector2<$t> {
+            fn cmp(&self, rhs: &Self) -> core::cmp::Ordering {
+                self.x.cmp(&rhs.x).then_with(|| self.y.cmp(&rhs.y))
+            }
+        }
+    };
+}
+integer_order!(i32);
+integer_order!(i64);

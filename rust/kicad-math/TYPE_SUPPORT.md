@@ -22,7 +22,8 @@ were separately hash-verified. Initial official base was `eb4cd4724ff6f5fa2119c8
 Directly exercised aliases are `Vector2I` (i32), `Vector2L` (i64), `Vector2D` (f64),
 `Vector3I` (i32), `Vector3U` (u32), `Vector3D` (f64). Representation remains generic and
 existing generic construction/copy/alias tests remain. Rust spells C++'s default `T=int`
-as `Vector2I`/`Vector3I`, not a new duplicate public vector. No Hash implementation is
+as `Vector2I`/`Vector3I`, not a new duplicate public vector. Integral Vector2 ordering implements Ord for ordered collections; floating relational operators
+retain unordered semantics and LexicographicalCompare stays a separate API. No Hash implementation is
 provided, preserving the deliberately deleted `std::hash<VECTOR2I>` contract.
 
 `VectorComponent::Extended` ports the trait boundary: i32 -> i64; i64/u32/f64 -> themselves.
@@ -73,7 +74,7 @@ No helper is co-ported or reclassified under this unit. No other owner record is
 | --- | --- | --- |
 | RoundedHypot, UnsignedAbs, ct_sqrt/isqrt | `libs.kimath.include.math.application.ui.p001` | signed norm's min(type max), cast and return; squared norm uses equivalent bounded u128 arithmetic locally for its owned inline saturation body |
 | RoundedHypotWide | `libs.kimath.src.math.util.application.ui.p001` | reached inside missing RoundedHypot; no DotWide/CrossWide dependency invented |
-| scalar KiROUND (NaN -> zero, saturating with logging), sign, generic rescale, scalar equals | `libs.kimath.include.math.application.ui.p001` | vector x/y calls, sign/abs branches, scalar default-int round, equals x-false/y continuation retained; trivial sign expression is inlined at its call site |
+| scalar KiROUND (NaN -> zero, saturating with logging), sign, generic rescale, scalar equals | `libs.kimath.include.math.application.ui.p001` | vector x/y calls, sign/abs branches, scalar default-int round, equals x-false/y continuation retained; sign call has its own precise owner deferral |
 | rescale<int64_t>, kimathLogOverflow | `libs.kimath.src.math.util.application.ui.p001` | general Resize squares then both rescale/sqrt calls and signed reconstruction retained; no invented numerator<=denominator guard |
 
 KiCheckedCast is not called by vectors. RoundedHypotWide's KI_UINT128 implementation belongs
@@ -112,7 +113,7 @@ labels and USRs identify bodies exactly; constrained scalar overloads are audite
 | VECTOR2 EuclideanNorm<br>`c:@ST>1#T@VECTOR2@F@EuclideanNorm#1` | `euclidean_norm / norm2` | `2-*-norm, fp-sites-*-norm` | signed RoundedHypot deferred; double diagonal/axis implemented; general std::hypot deferred; other integral types unqualified |
 | VECTOR2 Format<br>`c:@ST>1#T@VECTOR2@F@Format#1` | `format` | `2-*-format` | fresh classic stream; double formatting deferred |
 | VECTOR2 Perpendicular<br>`c:@ST>1#T@VECTOR2@F@Perpendicular#1` | `perpendicular` | `2-*-perpendicular-min-x` | negates only y; signed-min y refused |
-| VECTOR2 Resize<br>`c:@ST>1#T@VECTOR2@F@Resize#t0.0#1` | `resize` | `2-*-resize-*, floating-resize-*` | zero/diagonal/general branches retained; KiROUND/rescale deferred at actual calls; no naive normalized replacement |
+| VECTOR2 Resize<br>`c:@ST>1#T@VECTOR2@F@Resize#t0.0#1` | `resize` | `2-*-resize-*, floating-resize-*` | zero/diagonal/general branches retained; KiROUND/sign/rescale deferred at actual calls; no naive normalized replacement |
 | VECTOR2 SquaredDistance<br>`c:@ST>1#T@VECTOR2@F@SquaredDistance#&1>@ST>1#T@VECTOR21t0.0#1` | `squared_distance` | `random-*-squared_distance` | each extended subtraction/product/sum guarded; floating NaN arithmetic deferred |
 | VECTOR2 SquaredEuclideanNorm<br>`c:@ST>1#T@VECTOR2@F@SquaredEuclideanNorm#1` | `squared_euclidean_norm` | `2-*-squared_norm` | i32/i64 exact saturation; double NaN arithmetic deferred |
 | VECTOR2 default constructor<br>`c:@ST>1#T@VECTOR2@F@VECTOR2#` | `Default` | `2-*-default` | value initialization; generic non-arithmetic uses T::default |
@@ -155,7 +156,7 @@ labels and USRs identify bodies exactly; constrained scalar overloads are audite
 mutation, cast intervals, extended-before-double Distance, norm saturation, Normalize state
 and return, unordered comparison, second-reference identity and f64 ECOORD_MIN.
 
-The deterministic generator emits 4,103 valid cases and 29 separate UB refusal controls.
+The deterministic generator emits 4,454 valid cases and 29 separate UB refusal controls.
 Every corpus case runs in the real pinned C++ and in Rust; Rust deferrals are explicit error
 envelopes with actual owner, while C++ must return a real result. Refusals are outside the
 success corpus and assert a later request survives. There is no tolerance, lookup table,

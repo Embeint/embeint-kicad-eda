@@ -91,6 +91,16 @@ mod tests {
                 json!({"value":[2,3]})
             );
         }
+        let controls: Vec<(Value, String)> = serde_json::from_str(include_str!(
+            "../../../port/oracle/vector-invalid-inputs.json"
+        ))?;
+        for (input, message) in controls {
+            let request = json!({"unit":super::UNIT,"case":"invalid","input":input});
+            assert_eq!(
+                dispatch(&request.to_string())["error"],
+                json!({"kind":"invalid_input","message":message})
+            );
+        }
         Ok(())
     }
 }

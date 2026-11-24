@@ -104,6 +104,7 @@ fn unordered_compare_and_second_reference_ties() {
     let b = Vector2::new(f64::from_bits(0xfff8_0000_0000_0456), 2.0);
     assert!(!a.less(&b) && !a.less_equal(&b) && !a.greater(&b) && !a.greater_equal(&b));
     assert_eq!(a.lexicographical_compare(&b), -1);
+    assert_eq!(a.partial_cmp(&b), None);
     assert!(std::ptr::eq(a.lexicographical_min(&b), &b));
     assert!(std::ptr::eq(a.lexicographical_max(&b), &b));
     let a = Vector2::new(0.0_f64, 0.0);
