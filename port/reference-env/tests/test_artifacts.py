@@ -367,6 +367,60 @@ class ArtifactTest(unittest.TestCase):
             with self.subTest(marker=marker):
                 self.assertComparatorRejects(change, reason)
 
+    def test_loaded_library_cannot_be_the_caller_alias(self):
+        for resolved_alias in (False, True):
+            root = self.pair()
+            directory = root / "left"
+            env = artifacts.load(directory / "environment.json")
+            lock = artifacts.load(directory / "inputs.lock.json")
+            candidate = tomllib.loads((directory / "candidate.toml").read_text())
+            library = copy.deepcopy(env["loaded_objects"][lock["libm"]["path"]])
+            name = "/review-alias/primitive_probe"
+            alias = "/review-alias/library.so" if resolved_alias else name
+            if resolved_alias:
+                library["resolved"] = name
+            env["loaded_objects"][alias] = library
+            results = {}
+            for label in ("contract", "host-default"):
+                result = artifacts.load(directory / ("primitive-" + label + ".json"))
+                result["probe_object"] = name
+                result["loaded_objects"].append(alias)
+                for row in result["libm_dispatch"]:
+                    for field in ("return_address", "return_to"):
+                        row[field] = "!" + name + "+" + row[field].rsplit("+", 1)[1]
+                results[label] = result
+                write(directory / ("primitive-" + label + ".json"), result)
+            results["rust"] = artifacts.load(directory / "rust-contract.json")
+            summary = artifacts.load(directory / "summary.json")
+            summary["built"]["primitive"]["command"][-1] = name
+            summary["runtime_object_sha256"] = {v["resolved"]: v["sha256"]
+                                                 for v in env["loaded_objects"].values()}
+            summary["comparisons"] = run_probe.comparison_report(directory, results, lock, candidate, env)
+            write(directory / "environment.json", env)
+            summary["output_sha256"] = artifacts.inventory(directory)
+            write(directory / "summary.json", summary)
+            with self.subTest(resolved_alias=resolved_alias):
+                result = self.compare(root)
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn("recorded shared-object alias", result.stderr)
+
+    def test_caller_machine_and_load_flags_fail_the_full_comparator(self):
+        for machine in (False, True):
+            def change(directory, _env, _rows):
+                path = directory / "bin/primitive_probe"
+                data = bytearray(path.read_bytes())
+                if machine:
+                    struct.pack_into("<H", data, 0x12, 183)
+                else:
+                    phoff = struct.unpack_from("<Q", data, 0x20)[0]
+                    struct.pack_into("<I", data, phoff + 56 + 4, 4)
+                path.write_bytes(data)
+                summary = artifacts.load(directory / "summary.json")
+                summary["built"]["primitive"]["sha256"] = artifacts.sha256(path)
+                write(directory / "summary.json", summary)
+            with self.subTest(machine=machine):
+                self.assertComparatorRejects(change, "retained probe ELF cannot be read")
+
     def rehash(self, directory):
         summary = artifacts.load(directory / "summary.json")
         summary["output_sha256"] = artifacts.inventory(directory)

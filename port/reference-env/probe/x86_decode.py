@@ -112,6 +112,8 @@ def decode(code, address):
     position = 0
     prefixes = set()
     while position < len(code) and code[position] in LEGACY_PREFIXES:
+        if code[position] == 0xF0:
+            raise Unsupported("LOCK prefix is outside the supported decoder subset")
         if code[position] in prefixes or len(prefixes) >= 4:
             raise Unsupported("repeated or excessive prefixes")
         prefixes.add(code[position])
@@ -160,6 +162,8 @@ def decode(code, address):
             position += 1
             used, _rip = _modrm_length(code, position)
             return finish(position + used + (1 if second == 0x3A else 0))
+        if second == 0x50 and (prefixes - {0x66} or position >= len(code) or code[position] >> 6 != 3):
+            raise Unsupported("MOVMSK requires a supported prefix and register source")
         entry = _two_byte(second)
         if entry is None:
             raise Unsupported(f"unsupported opcode 0f {second:02x}")

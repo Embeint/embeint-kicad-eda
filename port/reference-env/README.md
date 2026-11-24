@@ -587,8 +587,7 @@ probe would not resolve the resistor (13/1050), PR51 (41) or PR50 (2273 debug,
 2687 release of 7460) failures, which remain open.
 
 The `fead6cdc` review found two remaining validation/lifecycle gaps. Completion
-markers now name the recorded probe object and must fall inside executable
-sections of its retained ELF; artifact validation also binds that object name
+markers name the recorded probe object; artifact validation binds that object name
 to the compiler's recorded `-o` output. The primitive observation is schema 3;
 older observations remain historical, not upgraded. Cleanup rejects inherited
 SIGCHLD auto-reaping dispositions before forking, and treats ECHILD as loss of
@@ -596,7 +595,17 @@ PID ownership, never as permission to signal that PID. The helper no longer
 flushes parent stdio before forking: all child exits use `_exit`, so inherited
 buffers need not be flushed and a full pipe cannot block that startup step.
 The decoder rejects unlisted three-byte encodings and C6/C7 groups, including
-XBEGIN/XABORT. These fixes still need independent review and native validation.
+XBEGIN/XABORT. Native review at `a867cebf` confirmed those fixes, then identified
+coordinated library-alias and ELF-header counterexamples. The caller now cannot
+also be a recorded shared-object name or resolved alias. Its retained file must
+be a supported x86-64 executable/PIE, with bounded, file-backed executable
+`PT_LOAD` mappings covering both its entry point and completion offset. Mapping
+checks use program headers, not section flags; clearing a section annotation
+does not remove the loader's execute permission. Probe offsets are relative to
+the first mapped page, matching [glibc 2.39 `dladdr`](https://github.com/bminor/glibc/blob/glibc-2.39/elf/dl-addr.c)
+and its [segment mapper](https://github.com/bminor/glibc/blob/glibc-2.39/elf/dl-map-segments.h).
+LOCK and invalid MOVMSK forms are also outside the decoder's supported subset.
+These follow-ups still need independent review and native validation.
 
 ## Native WSL qualification handoff
 
