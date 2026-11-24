@@ -1,0 +1,11 @@
+# Hash-bound bytes: the reviewed locks (graphs.lock.json is CRLF as reviewed), the site trees,
+# the site table and the gate sources (hashed by the handoff) are identified by SHA-256.
+gate/locks/*.json -text
+gate/*.py text eol=lf
+gate/tests/*.py text eol=lf
+trees/*.json text eol=lf
+sites.json text eol=lf
+check_generated.py text eol=lf
+gate/review/*.md text eol=lf
+gate/objcontrols.inputs.json text eol=lf
+gate/object.externals.json text eol=lf

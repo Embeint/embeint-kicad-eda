@@ -1,0 +1,209 @@
+{
+ "determinant-doubleops": {
+  "function": "determinant_doubleops_generated",
+  "public_api": "Matrix3x3<f64>::determinant",
+  "oracle_site": "determinant@DoubleOps 0x489b7-0x48a4b",
+  "inputs": [
+   "m00",
+   "m01",
+   "m02",
+   "m10",
+   "m11",
+   "m12",
+   "m20",
+   "m21",
+   "m22"
+  ],
+  "outputs": [
+   "det"
+  ],
+  "equivalent_nodes": [
+   4,
+   5,
+   9,
+   10,
+   11
+  ],
+  "trees_sha256": "d5e54a038fb6f89a43905651b3cf76f732303cf78ba73d086e249709531e94b2"
+ },
+ "inverse": {
+  "function": "inverse_member",
+  "public_api": "Matrix3x3<f64>::inverse",
+  "oracle_site": "MATRIX3x3<double>::Inverse() 0x4fbb0-0x4fd29",
+  "inputs": [
+   "m00",
+   "m01",
+   "m02",
+   "m10",
+   "m11",
+   "m12",
+   "m20",
+   "m21",
+   "m22"
+  ],
+  "outputs": [
+   "r00",
+   "r01",
+   "r02",
+   "r10",
+   "r11",
+   "r12",
+   "r20",
+   "r21",
+   "r22"
+  ],
+  "equivalent_nodes": [
+   14,
+   15
+  ],
+  "trees_sha256": "c02d81417b64ecc4b674b946908f8084c88ebf41dca9570e9ff9ffdeca055f6e"
+ },
+ "mul_matrix-doubleops": {
+  "function": "mul_matrix_doubleops",
+  "public_api": "Matrix3x3<f64>::mul_matrix, Mul<Matrix3x3<f64>>",
+  "oracle_site": "operator*(MATRIX3x3<double>, MATRIX3x3<double>)@DoubleOps 0x49041-0x4923a",
+  "inputs": [
+   "a00",
+   "a01",
+   "a02",
+   "a10",
+   "a11",
+   "a12",
+   "a20",
+   "a21",
+   "a22",
+   "b00",
+   "b01",
+   "b02",
+   "b10",
+   "b11",
+   "b12",
+   "b20",
+   "b21",
+   "b22"
+  ],
+  "outputs": [
+   "r00",
+   "r01",
+   "r02",
+   "r10",
+   "r11",
+   "r12",
+   "r20",
+   "r21",
+   "r22"
+  ],
+  "equivalent_nodes": [],
+  "trees_sha256": "741636347d04ce538d0e24cc6da7556faab64c3db0026623f4de1deabd66785d"
+ },
+ "mul_vector2-doubleops": {
+  "function": "mul_vector2_doubleops",
+  "public_api": "Matrix3x3<f64>::mul_vector2, Mul<Vector2<f64>>",
+  "oracle_site": "operator*(MATRIX3x3<double>, VECTOR2<double>)@DoubleOps 0x49430-0x494a7",
+  "inputs": [
+   "m00",
+   "m01",
+   "m02",
+   "m10",
+   "m11",
+   "m12",
+   "m20",
+   "m21",
+   "m22",
+   "vx",
+   "vy"
+  ],
+  "outputs": [
+   "x",
+   "y"
+  ],
+  "equivalent_nodes": [],
+  "trees_sha256": "6a831bdf8de7699beecf9e1e26429f47cef792dce0bfd31fab9854950cfeb4b6"
+ },
+ "mul_vector3-doubleops": {
+  "function": "mul_vector3_doubleops",
+  "public_api": "Matrix3x3<f64>::mul_vector3, Mul<Vector3<f64>>",
+  "oracle_site": "operator*(MATRIX3x3<double>, VECTOR3<double>)@DoubleOps 0x48c8b-0x48d40",
+  "inputs": [
+   "m00",
+   "m01",
+   "m02",
+   "m10",
+   "m11",
+   "m12",
+   "m20",
+   "m21",
+   "m22",
+   "vx",
+   "vy",
+   "vz"
+  ],
+  "outputs": [
+   "x",
+   "y",
+   "z"
+  ],
+  "equivalent_nodes": [],
+  "trees_sha256": "149247ddaa13e8c9aa3a6ce46027e46da57b814cd07119e38433b2aa08ea618e"
+ },
+ "mul_scalar-doubleops": {
+  "function": "mul_scalar_doubleops",
+  "public_api": "Matrix3x3<f64>::mul_scalar, mul_scalar_int, scalar_mul_int, Mul<f64>",
+  "oracle_site": "operator*(MATRIX3x3<double>, double)@DoubleOps mul_scalar 0x49605-0x49675",
+  "inputs": [
+   "m00",
+   "m01",
+   "m02",
+   "m10",
+   "m11",
+   "m12",
+   "m20",
+   "m21",
+   "m22",
+   "s"
+  ],
+  "outputs": [
+   "r00",
+   "r01",
+   "r02",
+   "r10",
+   "r11",
+   "r12",
+   "r20",
+   "r21",
+   "r22"
+  ],
+  "equivalent_nodes": [],
+  "trees_sha256": "9e042c4844e808086ebc3450f079f44321c94cda5f86e27b085901d30164675e"
+ },
+ "scalar_mul-doubleops": {
+  "function": "scalar_mul_doubleops",
+  "public_api": "Matrix3x3<f64>::scalar_mul, Mul<Matrix3x3<f64>> for f64",
+  "oracle_site": "operator*(double, MATRIX3x3<double>)@DoubleOps scalar_mul 0x48274-0x482fb",
+  "inputs": [
+   "m00",
+   "m01",
+   "m02",
+   "m10",
+   "m11",
+   "m12",
+   "m20",
+   "m21",
+   "m22",
+   "s"
+  ],
+  "outputs": [
+   "r00",
+   "r01",
+   "r02",
+   "r10",
+   "r11",
+   "r12",
+   "r20",
+   "r21",
+   "r22"
+  ],
+  "equivalent_nodes": [],
+  "trees_sha256": "a2b7c310d3189644fdc7e7bbb6ed18aca7db7dbafb8da9a5f6b19186b45fe5b0"
+ }
+}

@@ -1,0 +1,350 @@
+name: Rust kimath NaN sites
+
+# MATRIX3x3<double> NaN operand priority (port/tools/kimath_nan/README.md).
+#
+# graph-check (every PR/push touching the port): the stable offline graph checker and the
+#   gate's unit tests. It proves generated.rs is exactly the reviewed operation graph with a
+#   commutativity-only finite proof; it is NOT machine eligibility and needs no oracle.
+# object-reference (manual only): builds the current sealed candidate, captures actual
+#   objects/includes/link order and runs object mode in that image. A pending review fails;
+#   golden generation is a second explicit opt-in after a full PASS, artifacts only.
+#   No lock, source commit or image is published by the job.
+# frozen-reference (manual dispatch only): builds the oracle from the exact unit source
+#   snapshot in the pinned reference image at the locked /work/kicad-port paths, then runs the
+#   gate's full phase (machine eligibility, context and arithmetic) against the reviewed locks
+#   and, only on a full PASS, emission. Any identity that differs from the locks fails closed.
+#   It never rebinds a lock, blesses a golden or changes a case.
+
+on:
+  pull_request:
+    branches: [rust]
+    paths:
+      - "rust/kicad-math/**"
+      - "rust/kicad-math-shim/**"
+      - "port/tools/kimath_nan/**"
+      - ".github/workflows/rust-kimath-nan.yml"
+  push:
+    branches: [rust]
+    paths:
+      - "rust/kicad-math/**"
+      - "rust/kicad-math-shim/**"
+      - "port/tools/kimath_nan/**"
+      - ".github/workflows/rust-kimath-nan.yml"
+  workflow_dispatch:
+    inputs:
+      object_reference:
+        description: Capture the current image build and run the full object gate
+        type: boolean
+        default: false
+      generate_golden:
+        description: After full object eligibility, generate only the exact initial math baseline as artifacts
+        type: boolean
+        default: false
+      frozen_reference:
+        description: Build the frozen 8ef0c0e reference in the pinned image and run the full gate
+        type: boolean
+        default: false
+      source_bundle_url:
+        description: Optional retained source bundle (tar of the bundle directory) the locks were bound to
+        type: string
+        default: ""
+      source_bundle_sha256:
+        description: SHA-256 of that tar (required with the URL)
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rust-kimath-nan-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+env:
+  # Exact unit source the locks were derived from (oracle sha256 0bac7567...).
+  UNIT_REVISION: 8ef0c0e846ba8f190080ddf46c77373dcc0e4608
+  # Reference-image tools, as in rust-port.yml's resistor migration.
+  REFERENCE_TOOLS: 33535308d33e019f04af6e089b14ca593ea84ccb
+  NANTOOLS: port/tools/kimath_nan
+
+jobs:
+  graph-check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Install numpy for the bounded equivalence check
+        run: python -m pip install --disable-pip-version-check --no-input numpy==2.4.3
+      - name: Stable graph checker (not machine eligibility)
+        run: python -B "$NANTOOLS/check_generated.py"
+      - name: Gate unit tests (typed schema, inventory binding, overlay)
+        env:
+          PYTHONPATH: ${{ github.workspace }}/port/tools/kimath_nan/gate
+        run: python -B -m unittest discover -s "$NANTOOLS/gate/tests" -p 'test_*.py' -v
+      - name: Initial golden authorization controls
+        run: python -B -m unittest discover -s rust/kicad-math-shim -p 'test_approve_golden.py' -v
+
+  object-reference:
+    if: github.event_name == 'workflow_dispatch' && inputs.object_reference
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - name: Prepare object-reference output
+        run: |
+          out="$RUNNER_TEMP/kimath-object"
+          mkdir -p "$out"
+          echo "OUT=$out" >> "$GITHUB_ENV"
+          echo "OBJECT_WORK=$RUNNER_TEMP/kimath-object-reference" >> "$GITHUB_ENV"
+          { echo "head $GITHUB_SHA"; uname -srm; /usr/bin/python3 --version; } > "$out/tools.txt"
+      - name: Build the current sealed image and oracle, and verify rebuild identity
+        env:
+          ORACLE_JOBS: "2"
+        shell: bash
+        run: |
+          set -o pipefail
+          bash port/reference-env/qualify.sh --revision "$GITHUB_SHA" --work "$OBJECT_WORK" \
+            --with-oracle --rebuild-check --sweep-count 2000000 2>&1 | tee "$OUT/qualify.log"
+      - name: Capture the actual linked provider objects and include tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          runs=("$OBJECT_WORK"/runs/*)
+          test "${#runs[@]}" -eq 1 && test -d "${runs[0]}"
+          run="${runs[0]}"
+          image=$(cat "$run/image.iid")
+          snapshot="$run/snapshot"
+          source_sha=$(sha256sum "$snapshot/source.json" | cut -d' ' -f1)
+          echo "IMAGE=$image" >> "$GITHUB_ENV"
+          echo "SNAPSHOT=$snapshot" >> "$GITHUB_ENV"
+          echo "SOURCE_SHA=$source_sha" >> "$GITHUB_ENV"
+          docker run --rm --network=none --user "$(id -u):$(id -g)" \
+            -v "$OBJECT_WORK/oracle-work:/work:ro" "$image" \
+            ninja -C /work/kicad-port/oracle-build -t commands kicad-oracle > "$OUT/ninja-commands.txt"
+          /usr/bin/python3 -B "$snapshot/source/$NANTOOLS/gate/capture.py" \
+            --root "$OBJECT_WORK/oracle-work/kicad-port" --out "$OUT/inputs" \
+            --ninja-commands "$OUT/ninja-commands.txt" --identity "$run/image-identity.json"
+          docker image inspect "$image" > "$OUT/image-inspect.json"
+      - name: Full object gate in the image (pending review remains a failure)
+        shell: bash
+        run: |
+          set -o pipefail
+          docker run --rm --network=none --memory=4g --memory-swap=4g --cpus=2 \
+            --user "$(id -u):$(id -g)" -e HOME=/work/home -e PYTHONDONTWRITEBYTECODE=1 \
+            -e "REVISION=$GITHUB_SHA" -e "SOURCE_SHA=$SOURCE_SHA" \
+            -v "$SNAPSHOT:/snapshot:ro" -v "$OUT:/out" -w /snapshot/source \
+            "$IMAGE" bash -c '
+              set -euo pipefail
+              check_source() { python3 /opt/refenv/source_binding.py check --bundle /snapshot \
+                --revision "$REVISION" --source-sha256 "$SOURCE_SHA"; }
+              check_source
+              set +e
+              python3 -B port/tools/kimath_nan/gate/objgate.py verify --phase full --objdump objdump \
+                --oracle /out/inputs/kicad-oracle --object /out/inputs/providers/kimath_math.cpp.o \
+                --providers /out/inputs/providers --compiler-inputs /out/inputs/compiler-inputs \
+                --toolchain-identity /out/inputs/image-identity.json --oracle-src /out/inputs/tree \
+                --locks port/tools/kimath_nan/gate/locks --out /out/gate-full.json \
+                --verify-closure --emit /out/generated.rs
+              result=$?
+              set -e
+              check_source
+              test "$result" -eq 0
+              cmp /out/generated.rs rust/kicad-math/src/generated.rs' 2>&1 | tee "$OUT/gate.log"
+      - name: Generate the exact initial golden after eligible live debug and release agreement
+        if: github.event_name == 'workflow_dispatch' && inputs.generate_golden
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The source guard remains on the sealed, read-only snapshot. Build
+          # dependencies and the new golden live in a separate disposable copy.
+          cp -a "$SNAPSHOT/source" "$OBJECT_WORK/golden-source"
+          mkdir -p "$OUT/golden"
+          docker run --rm --memory=4g --memory-swap=4g --cpus=2 \
+            --user "$(id -u):$(id -g)" -e HOME=/work/home -e CARGO_HOME=/work/home/cargo \
+            -e CARGO_TARGET_DIR=/work/math-golden-target -e CARGO_BUILD_JOBS=2 \
+            -e PYTHONDONTWRITEBYTECODE=1 -e "RUN_ID=$GITHUB_RUN_ID" \
+            -e "REVISION=$GITHUB_SHA" -e "SOURCE_SHA=$SOURCE_SHA" \
+            -v "$SNAPSHOT:/snapshot:ro" -v "$OBJECT_WORK/golden-source:/repo" \
+            -v "$OBJECT_WORK/oracle-work:/work" -v "$OUT:/out" -w /repo \
+            "$IMAGE" bash -c '
+              set -euo pipefail
+              check_source() { python3 /opt/refenv/source_binding.py check --bundle /snapshot \
+                --revision "$REVISION" --source-sha256 "$SOURCE_SHA"; }
+              trap check_source EXIT
+              check_source
+              python3 /opt/refenv/image/verify_image.py --lock /opt/refenv/inputs.lock.json \
+                --candidate /opt/refenv/candidate.toml --expect /out/inputs/image-identity.json
+              oracle=/work/kicad-port/oracle-build/kicad-oracle
+              cmp "$oracle" /out/inputs/kicad-oracle
+              python3 port/tools/bootstrap_west.py
+              .port-venv/linux/bin/west update
+              python3 port/tools/bootstrap_west.py --check
+              cargo build --locked --manifest-path rust/Cargo.toml -p kicad-difftest -p kicad-math-shim -j2
+              cargo build --locked --release --manifest-path rust/Cargo.toml -p kicad-math-shim -j2
+              unit=libs.kimath.include.math.application.pure.p001
+              runner=$CARGO_TARGET_DIR/debug/kicad-difftest
+              shim=$CARGO_TARGET_DIR/debug/kicad-math-shim
+              out=/out/golden
+              common=(--root /repo --unit "$unit" --oracle "$oracle")
+              "$oracle" --provenance > "$out/provenance.json"
+              for profile in debug release; do
+                rust=$CARGO_TARGET_DIR/$profile/kicad-math-shim
+                python3 rust/kicad-math-shim/test_refusals.py "$oracle" "$rust" > "$out/refusals-$profile.json"
+                "$runner" compare "${common[@]}" --rust "$rust" --report "$out/compare-$profile.json"
+              done
+              test ! -e "port/goldens/$unit.jsonl"
+              approval=(--approval "$out/approval.json" --provenance "$out/provenance.json")
+              "$runner" propose "${common[@]}" --rust "$shim" "${approval[@]}" --report "$out/propose.json"
+              python3 rust/kicad-math-shim/approve_golden.py --root /repo --approval "$out/approval.json" \
+                --gate /out/gate-full.json --run "$RUN_ID"
+              evidence="port/goldens/evidence/$unit-sse2-object-baseline-v1.json"
+              "$runner" bless "${common[@]}" --rust "$shim" "${approval[@]}" \
+                --evidence "$evidence" --report "$out/bless.json"
+              "$runner" check "${common[@]}" --rust "$shim" --report "$out/check.json"
+              cp "port/goldens/$unit.jsonl" "$out/golden.jsonl"
+              cp "$evidence" "$out/evidence.json"
+              cp "$shim" "$runner" "$out/"
+              sha256sum "$oracle" "$shim" "$runner" > "$out/binaries.sha256"' \
+            2>&1 | tee "$OUT/golden.log"
+      - name: Retain image-stage facts even after failure
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          if test -d "$OBJECT_WORK/runs"; then
+            for run in "$OBJECT_WORK"/runs/*; do
+              test -d "$run" || continue
+              dst="$OUT/stages/$(basename "$run")"
+              mkdir -p "$dst"
+              for name in docker-version.json docker-info.json image.iid image-identity.json \
+                rebuild.iid rebuild-identity.json rebuild-check.txt host-provenance.json oracle-build.log probe.log; do
+                if test -f "$run/$name"; then cp "$run/$name" "$dst/$name"; fi
+              done
+            done
+          fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ always() }}
+        with:
+          name: kimath-object-reference-${{ github.run_id }}
+          path: ${{ runner.temp }}/kimath-object/
+          include-hidden-files: true # capture.json inventories the complete sealed include tree
+          retention-days: 14
+          if-no-files-found: warn
+
+  frozen-reference:
+    if: github.event_name == 'workflow_dispatch' && inputs.frozen_reference
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0 # the unit revision is exported from history, not HEAD
+          path: source
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: 33535308d33e019f04af6e089b14ca593ea84ccb
+          fetch-depth: 0
+          path: reference-tools
+      - name: Prepare output
+        run: |
+          out="$RUNNER_TEMP/kimath-nan"
+          mkdir -p "$out" "$HOME/kimath-work/home"
+          echo "OUT=$out" >> "$GITHUB_ENV"
+          { echo "head $GITHUB_SHA"; echo "unit $UNIT_REVISION"; uname -srm; /usr/bin/python3 --version;
+            objdump --version | head -1; docker version --format '{{.Server.Version}}'; } > "$out/tools.txt"
+      - name: Build and verify the pinned measurement image twice
+        env:
+          ORACLE_JOBS: "2"
+        run: |
+          bash reference-tools/port/reference-env/qualify.sh \
+            --revision "$REFERENCE_TOOLS" --work "$HOME/kimath-reference-image" --rebuild-check --sweep-count 200000
+      - name: Seal the exact unit source snapshot
+        env:
+          BUNDLE_URL: ${{ inputs.source_bundle_url }}
+          BUNDLE_SHA256: ${{ inputs.source_bundle_sha256 }}
+        run: |
+          tool="$PWD/reference-tools/port/reference-env/tools/source_binding.py"
+          bundle="$HOME/kimath-source-bundle"
+          if test -n "$BUNDLE_URL"; then
+            test -n "$BUNDLE_SHA256" || { echo '::error::source_bundle_sha256 is required with the URL'; exit 1; }
+            curl -fsSL --retry 3 -o "$RUNNER_TEMP/bundle.tar" "$BUNDLE_URL"
+            echo "$BUNDLE_SHA256  $RUNNER_TEMP/bundle.tar" | sha256sum -c -
+            mkdir -p "$bundle" && tar -xf "$RUNNER_TEMP/bundle.tar" -C "$bundle" --no-same-owner --no-same-permissions
+            echo "retained bundle $BUNDLE_SHA256" > "$OUT/source-mode.txt"
+          else
+            # A Linux export records another platform and Git version than the reviewed
+            # Windows-exported manifest; the gate's manifest rows then fail closed by design.
+            python3 "$tool" export --repo "$PWD/source" --revision "$UNIT_REVISION" --out "$bundle"
+            echo "fresh linux export (manifest rows are expected to fail)" > "$OUT/source-mode.txt"
+          fi
+          digest=$(sha256sum "$bundle/source.json" | cut -d' ' -f1)
+          python3 "$tool" materialize --bundle "$bundle" --revision "$UNIT_REVISION" --source-sha256 "$digest" \
+            --out "$HOME/kimath-source"
+          printf '%s\n' "$digest" > "$HOME/kimath-source.sha256"
+          cp "$bundle/source.json" "$OUT/source.json"
+      - name: Build the oracle from the snapshot in the image at the locked paths
+        run: |
+          image_run=$(find "$HOME/kimath-reference-image/runs" -mindepth 1 -maxdepth 1 -type d)
+          test -d "$image_run"
+          image=$(cat "$image_run/image.iid")
+          echo "IMAGE=$image" >> "$GITHUB_ENV"
+          docker image inspect "$image" > "$OUT/image-inspect.json"
+          cp "$image_run/image-identity.json" "$image_run/rebuild-identity.json" "$image_run/rebuild-check.txt" "$OUT/"
+          docker run --rm --memory=8g --memory-swap=8g --cpus=4 \
+            --user "$(id -u):$(id -g)" -e HOME=/work/home -e ORACLE_JOBS=2 -e PYTHONDONTWRITEBYTECODE=1 \
+            -e "REVISION=$UNIT_REVISION" -e "SOURCE_SHA=$(cat "$HOME/kimath-source.sha256")" \
+            -v "$HOME/kimath-source:/snapshot" -v "$HOME/kimath-work:/work" -w /snapshot/source "$image" bash -c '
+              set -euo pipefail
+              python3 /opt/refenv/image/verify_image.py --lock /opt/refenv/inputs.lock.json \
+                --candidate /opt/refenv/candidate.toml --expect /opt/refenv/image-identity.json
+              check_source() { python3 /opt/refenv/source_binding.py check --bundle /snapshot \
+                --revision "$REVISION" --source-sha256 "$SOURCE_SHA"; }
+              check_source
+              bash port/oracle/build.sh /snapshot/stage "$PWD/port/oracle" /work/kicad-port
+              /work/kicad-port/oracle-build/kicad-oracle --provenance > /work/oracle-provenance.json
+              check_source'
+      - name: Assemble the gate inputs and record identities
+        run: |
+          in="$RUNNER_TEMP/gate-inputs"
+          root="$HOME/kimath-work/kicad-port"
+          mkdir -p "$in"
+          cp "$root/oracle-build/kicad-oracle" "$in/kicad-oracle"
+          cp "$root/oracle-build/compile_commands.json" "$in/compile_commands.json"
+          cp "$HOME/kimath-work/oracle-provenance.json" "$in/oracle-provenance.json"
+          cp "$OUT/source.json" "$in/source.json"
+          /usr/bin/python3 - "$root" "$in" "source/$NANTOOLS/gate/locks/eligibility.lock.json" <<'EOF'
+          import json, pathlib, shutil, sys
+          root, dst, lock = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]), json.loads(pathlib.Path(sys.argv[3]).read_text())
+          names = {'header': 'compiler-input-matrix3x3.h', 'vector2': 'compiler-input-vector2d.h',
+                   'vector3': 'compiler-input-vector3.h', 'adapter': 'compiler-input-kimath_math.cpp'}
+          for key, rel in lock['source']['compiler_input_paths'].items():
+              shutil.copyfile(root / rel, dst / names[key])
+          EOF
+          (cd "$in" && sha256sum *) | tee "$OUT/gate-inputs.sha256"
+          cp "$in/oracle-provenance.json" "$in/compile_commands.json" "$OUT/"
+          echo "GATE_INPUTS=$in" >> "$GITHUB_ENV"
+      - name: Machine eligibility, context and arithmetic (full gate, fail-closed)
+        id: gate
+        run: |
+          /usr/bin/python3 -B "source/$NANTOOLS/gate/gate.py" verify --phase full \
+            --inputs "$GATE_INPUTS" --locks "source/$NANTOOLS/gate/locks" --out "$OUT/gate-full.json" \
+            --oracle-src "$HOME/kimath-work/kicad-port"
+      - name: Emission must reproduce generated.rs byte for byte
+        if: ${{ steps.gate.outcome == 'success' }}
+        run: |
+          /usr/bin/python3 -B "source/$NANTOOLS/gate/emit.py" accept --report "$OUT/gate-full.json" \
+            --locks "source/$NANTOOLS/gate/locks" --accepted "$OUT/generated.rs"
+          cmp "$OUT/generated.rs" source/rust/kicad-math/src/generated.rs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ always() }}
+        with:
+          name: kimath-nan-frozen-reference-${{ github.run_id }}
+          path: ${{ runner.temp }}/kimath-nan/
+          retention-days: 14
+          if-no-files-found: warn
