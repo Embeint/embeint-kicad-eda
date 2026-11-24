@@ -168,6 +168,7 @@ jobs:
         with:
           name: kimath-object-reference-${{ github.run_id }}
           path: ${{ runner.temp }}/kimath-object/
+          include-hidden-files: true # capture.json inventories the complete sealed include tree
           retention-days: 14
           if-no-files-found: warn
 

@@ -2,9 +2,11 @@
 """Binary-free checks of the execution-mapping extension (elfexec.py); the 30 mapping controls on
 the genuine oracles are elfexec_controls.py and need the external inputs."""
 import json
+import copy
 import pathlib
 import struct
 import unittest
+import types
 
 import elfexec
 import objgate
@@ -53,6 +55,37 @@ class ElfExecTests(unittest.TestCase):
 
     def test_elf_hash(self):
         self.assertEqual(elfexec.elf_hash('GLIBC_2.2.5'), 0x09691A75)
+
+    def test_recursive_extension_schema_rejects_equal_floats_and_unknown_fields(self):
+        for path in [('header', 'machine'), ('dynamic_flags', 'FLAGS'),
+                     ('program_headers', 0, 0), ('section_segments', '.text'),
+                     ('relocation_types', '.rela.dyn', 0)]:
+            e = copy.deepcopy(self.ext)
+            parent = e
+            for key in path[:-1]:
+                parent = parent[key]
+            parent[path[-1]] = float(parent[path[-1]])
+            self.assertFalse(elfexec.ext_row(e)[1], path)
+        e = copy.deepcopy(self.ext)
+        e['header']['unknown'] = 1
+        self.assertFalse(elfexec.ext_row(e)[1])
+        self.assertFalse(elfexec.ext_row(dict(self.ext, import_versions={}))[1])
+
+    def test_version_auxiliary_count_must_match_the_chain(self):
+        data = bytearray(96)
+        struct.pack_into('<HHIII', data, 0, 1, 1, 0, 16, 0)
+        struct.pack_into('<IHHII', data, 16, elfexec.elf_hash('VER'), 0, 2, 4, 0)
+        data[64:72] = b'lib\0VER\0'
+        raw = types.SimpleNamespace(data=bytes(data), by={
+            '.gnu.version_r': {'addr': 0, 'offset': 0, 'size': 32},
+            '.dynstr': {'offset': 64, 'size': 8}})
+        self.assertEqual(len(elfexec.parse_verneed(raw, 0)[0][1]), 1)
+        for offset, fmt, value in [(2, '<H', 2), (28, '<I', 16), (24, '<I', 8)]:
+            mutant = bytearray(data)
+            struct.pack_into(fmt, mutant, offset, value)
+            raw.data = bytes(mutant)
+            with self.assertRaises((elfexec.ExecError, ValueError)):
+                elfexec.parse_verneed(raw, 0)
 
 
 if __name__ == '__main__':

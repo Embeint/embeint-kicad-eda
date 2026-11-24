@@ -40,6 +40,7 @@ import argparse
 import hashlib
 import json
 import pathlib
+import re
 import struct
 import sys
 
@@ -152,12 +153,14 @@ class Raw:
 
 def check(data, ext, unit_imports):
     """Returns [(row, ok, detail)] in ROWS order; never raises for malformed input."""
+    if not ext_row(ext)[1]:
+        return [(n, False, 'invalid extension schema') for n in ROWS]
     res = {}
 
     def row(i, fn):
         try:
             ok, det = fn()
-        except (ExecError, struct.error, ValueError, KeyError, IndexError, UnicodeDecodeError) as e:
+        except (ExecError, struct.error, ValueError, KeyError, IndexError, UnicodeDecodeError, StopIteration) as e:
             ok, det = False, f'{type(e).__name__}: {e}'
         res[ROWS[i]] = (bool(ok), det)
 
@@ -427,8 +430,37 @@ def check(data, ext, unit_imports):
 
 
 def ext_row(ext):
-    ok = isinstance(ext, dict) and sorted(ext) == sorted(EXT_FIELDS) and ext.get('mode') == MODE \
-        and ext.get('status') == 'DERIVED-PENDING-REVIEW'
+    def text(v):
+        return type(v) is str and bool(v.strip())
+
+    def number(v):
+        return type(v) is int and v >= 0
+
+    def numbers(v):
+        return type(v) is list and bool(v) and all(number(n) for n in v)
+
+    def mapping(v, fields, test):
+        return type(v) is dict and set(v) == set(fields) and all(test(x) for x in v.values())
+
+    ok = type(ext) is dict and set(ext) == set(EXT_FIELDS)
+    if ok:
+        ok = (ext['mode'] == MODE and ext['status'] == 'DERIVED-PENDING-REVIEW'
+              and text(ext['note']) and type(ext['derived_from']) is str
+              and re.fullmatch('[0-9a-f]{64}', ext['derived_from']) is not None
+              and mapping(ext['header'], ('osabi', 'abiversion', 'type', 'machine', 'flags', 'ehsize',
+                                         'phentsize', 'shentsize'), number)
+              and type(ext['program_headers']) is list and bool(ext['program_headers'])
+              and all(numbers(p) and len(p) == 3 for p in ext['program_headers'])
+              and text(ext['interpreter']) and ext['entry_symbol'] == '_start'
+              and all(type(ext[k]) is list and bool(ext[k]) and all(text(n) for n in ext[k])
+                      for k in ('dynamic_tags', 'needed'))
+              and mapping(ext['dynamic_flags'], ('FLAGS', 'FLAGS_1'), number)
+              and type(ext['section_segments']) is dict and bool(ext['section_segments'])
+              and all(text(k) and number(v) for k, v in ext['section_segments'].items())
+              and mapping(ext['relocation_types'], ('.rela.dyn', '.rela.plt'), numbers)
+              and type(ext['import_versions']) is dict and bool(ext['import_versions'])
+              and all(text(k) and type(v) is list and len(v) == 2 and all(text(x) for x in v)
+                      for k, v in ext['import_versions'].items()))
     return (ROWS[-1], ok, None if ok else 'missing, incomplete or not the derived pending extension')
 
 
@@ -444,27 +476,37 @@ def parse_verneed(raw, va):
     if va != s['addr']:
         raise ExecError('DT_VERNEED is not .gnu.version_r')
     dstr = raw.by['.dynstr']
-    cstr = lambda o: raw.data[dstr['offset'] + o:raw.data.index(b'\0', dstr['offset'] + o)].decode('ascii')
+    def cstr(o):
+        if not 0 <= o < dstr['size']:
+            raise ExecError('version string outside .dynstr')
+        start = dstr['offset'] + o
+        end = raw.data.index(b'\0', start, dstr['offset'] + dstr['size'])
+        return raw.data[start:end].decode('ascii')
     off = s['offset']
     while True:
         if not s['offset'] <= off <= s['offset'] + s['size'] - 16:
             raise ExecError('verneed entry outside .gnu.version_r')
         ver, cnt, file_, aux, nxt = struct.unpack_from('<HHIII', raw.data, off)
-        if ver != 1:
-            raise ExecError('verneed version is not 1')
+        if ver != 1 or cnt == 0 or aux < 16 or aux % 4:
+            raise ExecError('invalid verneed version, count or auxiliary offset')
         entries, a = [], off + aux
-        for _ in range(cnt):
+        for index in range(cnt):
             if not s['offset'] <= a <= s['offset'] + s['size'] - 16:
                 raise ExecError('vernaux entry outside .gnu.version_r')
             h, fl, other, name, anext = struct.unpack_from('<IHHII', raw.data, a)
             entries.append({'hash': h, 'flags': fl, 'other': other, 'name': cstr(name)})
+            if index == cnt - 1:
+                if anext != 0:
+                    raise ExecError('vernaux chain continues beyond its recorded count')
+            elif anext < 16 or anext % 4:
+                raise ExecError('vernaux chain ends early or overlaps its previous entry')
             a += anext
-            if anext == 0:
-                break
         out.append((cstr(file_), entries))
         seen += 1
-        if nxt == 0 or seen > 64:
+        if nxt == 0:
             break
+        if seen >= 64 or nxt < 16 or nxt % 4:
+            raise ExecError('invalid or overlong verneed chain')
         off += nxt
     return out
 

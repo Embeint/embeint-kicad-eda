@@ -49,6 +49,7 @@ import emit  # noqa: E402
 import gate  # noqa: E402
 import graph  # noqa: E402
 import objschema  # noqa: E402
+import provider_layout  # noqa: E402
 import srcexpr  # noqa: E402
 from elfbin import Elf, ElfError, git_blob_id  # noqa: E402
 from linkproof import Linked, LinkError, Prover, named  # noqa: E402
@@ -519,11 +520,17 @@ def run(a):
     except (LinkError, ObjError, ElfError, DecodeError) as e:
         ck.add(E, 'link proof: reachable units are the relocated reviewed object bytes', False, str(e)[:400])
     lk = olock['link']
+    bound_proof = dict(proof) if proof else None
+    if proof:
+        references = json.loads((HERE / 'reference' / 'provider-layout-preimages.json').read_bytes())
+        bound_proof['provider_units'], layout_changes = provider_layout.apply(
+            prover, proof, lk['provider_units'], references)
+        report['provider_layout_equivalences'] = layout_changes
     for name, key in (('link proof: home sections equal the reviewed set', 'home_sections'),
                       ('link proof: other-object bodies equal the reviewed digests', 'provider_units'),
                       ('link proof: dynamic imports equal the reviewed set', 'imports'),
                       ('link proof: externals equal the reviewed bindings', 'externals')):
-        got = proof.get(key) if proof else None
+        got = bound_proof.get(key) if bound_proof else None
         det = None
         if proof and got != lk[key] and isinstance(got, dict):
             det = {'missing': sorted(set(lk[key]) - set(got))[:5], 'extra': sorted(set(got) - set(lk[key]))[:5],
@@ -610,7 +617,7 @@ def run(a):
             except (ListingError, gate.GateError, KeyError, TypeError, ValueError) as e:
                 ck.add(C, f'{sid}: context', False, str(e))
     rv = olock['context_review']
-    link_digest = sha(canon({k: proof[k] for k in ('home_sections', 'provider_units', 'imports', 'externals')})) if proof else None
+    link_digest = sha(canon({k: bound_proof[k] for k in ('home_sections', 'provider_units', 'imports', 'externals')})) if bound_proof else None
     ck.add(C, OBJECT_CONTEXT_REVIEW,
            rv.get('status') == 'REVIEWED' and isinstance(rv.get('reviewer'), str) and rv['reviewer'].strip() != ''
            and rv.get('object_sha256') == obj.sha256 and rv.get('link_digest') == link_digest,

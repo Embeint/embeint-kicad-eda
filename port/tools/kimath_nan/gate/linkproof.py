@@ -138,6 +138,7 @@ class Prover:
         self.derived = {}      # (obj, sec) -> set of implied addresses
         self.reached = set()   # units: (obj, sec) whole, or (obj, sec, start, end) function range
         self.done = {}         # unit -> digest (None for home units)
+        self.provider_canons = {}  # exact digest preimages, exposed for layout equivalence checks
         self.unit_base = {}    # function unit -> where its section's offset 0 would be
         self.facts = {'relocations': 0, 'by_type': {}, 'imports': set(), 'externals': {}, 'merge_items': 0,
                       'relaxed': 0, 'providers': {}}
@@ -524,6 +525,7 @@ class Prover:
                      'bytes_sha256': hashlib.sha256(o.section_bytes(idx)[start:end]).hexdigest(),
                      'relocations': desc}
             digest = hashlib.sha256(json.dumps(canon, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+            self.provider_canons[unit] = canon
         self.done[unit] = digest
         for p in pending:
             if p[0] == 'unit':
