@@ -1,6 +1,6 @@
 name: Rust port reference environment (candidate tooling)
 
-# Separate from the phase zero gate (rust-port.yml), which is unchanged. The
+# Separate from the phase zero gate (rust-port.yml). The
 # tooling job checks the candidate recipe offline. The probe job runs only on
 # manual dispatch, builds the CANDIDATE image locally on the runner without
 # pushing it, and uploads unqualified evidence. Neither job qualifies the
