@@ -1,0 +1,3 @@
+note: adapter object sha256 a6b793f510022586dc4b9f9469f2ff9a63f98de51ec33669ec8467bbd6670012 (the measured object)
+note: libstdc++ /usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.33 sha256 1fd75fe70354a416d75aef22bcae68c47bd25d20e2d0568c30b1a9838cf62f11: measured runtime libstdc++6 14.2.0-4ubuntu2~24.04.1 (amd64)
+reference bindings: bound

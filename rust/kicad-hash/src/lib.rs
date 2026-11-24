@@ -14,7 +14,7 @@
 //! The owned `bezier_curves.h` definitions ([`bezier`]) use the canonical
 //! `kicad_math::vector::Vector2` and the minimal `VECTOR2` arithmetic co-ported there;
 //! `BEZIER<double>` NaN results follow the bound reference build site by site
-//! (`bezier_f64_sites`, through the temporary SSE2 scalar interface `sse2`).
+//! (`bezier_f64_sites`, through the private SSE2 scalar interface `sse2`).
 
 pub mod bezier;
 mod bezier_f64_sites;

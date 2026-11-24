@@ -1,7 +1,28 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 # Validation: libs.kimath.include.application.pure.p001
 
-## Pending: per-site NaN order and runtime grouping (static and offline only)
+## Live baseline: 2026-11-24, exact a051ef7c
+
+[Generation run 45348544983](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45348544983)
+passed live propose/bless/check against both the original and empty official-rust
+baselines, with 2,641 compared and zero failed/deferred/unprocessed at every step.
+Both checks matched the same golden. Debug/release comparisons, 441 guards and
+1,983 sensitive requests per profile, actual wasm, 78 strict compilations and
+eight CTests also passed. The full adapter object matched measured bytes.
+
+The parent verified the complete artifact ZIP SHA-256, every CRC, both exact
+evidence change lists, all six full runner reports and executable identities.
+Imported golden SHA-256 is `1ef5a58c552ee2898575b7563807e4a8cf5325eae78d226244e7ca58623e08d9`;
+the corpus and all sixteen earlier evidence artifacts are unchanged. The fifteen
+removed undefined-read cases exactly equal the retained refusal fixtures.
+Evidence, limits and reproducible hashes are in
+[`port/findings/kimath-header-hash-live-baseline/2026-11-24-a051ef7c`](../../port/findings/kimath-header-hash-live-baseline/2026-11-24-a051ef7c).
+
+This is unit validation in a measured hosted GCC13.3/runtime environment, not
+adoption of the full reference-image candidate. Status stays partial. Current-head
+ordinary CI and final parent review remain required after the artifact import.
+
+## Historical checkpoint: per-site changes before live execution
 
 This revision changes the two behaviours behind the 41 failures below. **No live oracle has run
 on it.** What was checked, on retained genuine artifacts only:

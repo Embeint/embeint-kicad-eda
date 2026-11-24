@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! TEMPORARY scalar interface: the x86-64 SSE2 two-operand `addsd/subsd/mulsd/divsd` results,
+//! Private scalar interface: the x86-64 SSE2 two-operand `addsd/subsd/mulsd/divsd` results,
 //! with operands in instruction order (`dst = dst OP src`).
 //!
-//! This module only exists until the canonical private scalar helpers of `kicad-math` land
-//! (another owner is preparing them together with the matrix integration). It replaces this
-//! crate's earlier private `fp` module and has exactly the semantics and argument order of the
-//! separately reviewed PR50 matrix prototype (`nanproto::sse2`, sha256
-//! `6104c06356cb670be191b54ae9ff503ecdc6781f2545bc05b1712cbdd7f6ab7f`), so the parent can
-//! swap the import for the canonical helpers without touching any call site.
+//! This replaces the crate's earlier private `fp` module. The operand order belongs to the
+//! bound Bézier sites, not a public vector-arithmetic API. Keeping the helpers private avoids
+//! making this unit depend on an open matrix implementation or exposing compiler-specific
+//! operations through `kicad-math`. The rules agree with the separately reviewed matrix
+//! prototype (`nanproto::sse2`, sha256
+//! `6104c06356cb670be191b54ae9ff503ecdc6781f2545bc05b1712cbdd7f6ab7f`).
 //!
 //! Intel SDM vol. 1, table 4-7 ("Rules for handling NaNs", SSE/SSE2 column):
 //!
