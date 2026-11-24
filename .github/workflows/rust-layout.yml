@@ -33,10 +33,14 @@ env:
 
 jobs:
   layout-parity:
-    runs-on: ubuntu-latest
+    # Pull requests always stay hosted, including branches in this repository.
+    # The opt-in is enabled only while the isolated runner is verified online.
+    runs-on: ${{ fromJSON(vars.KICAD_CI_RUNNER_ENABLED == 'true' && github.repository == 'Embeint/embeint-kicad-eda' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && '["kicad-ci-isolated-linux-x64"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
         with:
           python-version: "3.12"
@@ -49,11 +53,19 @@ jobs:
           rustup toolchain install "$RUST_MSRV" --profile minimal --target wasm32-unknown-unknown
           rustup default "$RUST_TOOLCHAIN"
       - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4.3.0
+        if: runner.environment == 'github-hosted'
         with:
           path: |
             ~/.cargo/registry
             rust/target
           key: rust-layout-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ env.RUST_MSRV }}-${{ hashFiles('rust/Cargo.lock') }}
+      - name: Restore the isolated runner's ordinary Rust build cache
+        if: runner.environment == 'self-hosted'
+        run: |
+          # This cache is for product MCP/layout jobs, never numerical qualification.
+          cache="$HOME/build-cache/${{ github.job }}-${{ env.RUST_TOOLCHAIN }}"
+          mkdir -p "$cache"
+          ln -s "$cache" rust/target
       - name: Format and lint
         working-directory: rust
         run: |
