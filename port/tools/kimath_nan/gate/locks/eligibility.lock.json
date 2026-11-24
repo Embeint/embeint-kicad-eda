@@ -1,0 +1,684 @@
+{
+ "note": "PRIVATE EXPERIMENTAL reviewed eligibility lock; not a qualification or reference adoption.",
+ "status": "EXPERIMENTAL-ELIGIBLE-UNQUALIFIED",
+ "image": {
+  "id": "sha256:8b70857a8ca585f2a9893a815b5afdd64b9fff9693257993bf02623f4f4a3597",
+  "status": "candidate, UNQUALIFIED (PR55 1b4: probe contract FAIL, resistors 13 FAIL)"
+ },
+ "oracle": {
+  "sha256": "0bac756736379961a9c3fa34ae2d549615231561650d6d36af6b05a403c1b4db",
+  "build_id": "c8e721185408a24ddcd902bc5d7f9b107afa654f",
+  "x86_isa_needed_data": "01000000",
+  "abi_tag": [
+   0,
+   3,
+   2,
+   0
+  ],
+  "comment": [
+   "GCC: (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0"
+  ]
+ },
+ "compiler": {
+  "path": "/usr/bin/g++",
+  "version_line": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+  "target": "x86_64-linux-gnu",
+  "libc": "glibc 2.39"
+ },
+ "compile_commands_sha256": "0b7b080c462f4420ee71735a8c2bfff755ce37c07f487a1dc917b4d96c1e35ef",
+ "compile_count": 76,
+ "provenance_sha256": "7fbc768f98a2d40b162fd6a8781c38a4ce0ab15b53a123be18876c5ae2b1ac95",
+ "adapter_compile": {
+  "file": "/work/kicad-port/oracle-src/overlay/shims/kimath_math.cpp",
+  "output": "CMakeFiles/kicad-oracle.dir/shims/kimath_math.cpp.o",
+  "header_include_dir": "/work/kicad-port/oracle-src/reference/libs/kimath/include",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DJSON_HAS_FILESYSTEM=0 -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/kicad-port/oracle-src/reference/include -I/work/kicad-port/oracle-src/overlay -I/work/kicad-port/oracle-build -I/work/kicad-port/oracle-src/reference/libs/kimath/include -I/work/kicad-port/oracle-src/overlay/include -I/work/kicad-port/oracle-src/reference/libs/core/include -I/work/kicad-port/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/kicad-port/oracle-src/reference/thirdparty/rtree -I/work/kicad-port/oracle-src/reference/thirdparty/nlohmann_json -I/work/kicad-port/oracle-src/reference/pcb_calculator/calculator_panels -I/work/kicad-port/oracle-src/reference/pcb_calculator -I/work/kicad-port/oracle-src/overlay/reference -I/work/kicad-port/oracle-src/reference/thirdparty/fmt/include -I/work/kicad-port/oracle-build/reader-generated -I/work/kicad-port/oracle-src/reference/libs/kiplatform/include -I/work/kicad-port/oracle-src/reference/thirdparty/fast_float/include -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o CMakeFiles/kicad-oracle.dir/shims/kimath_math.cpp.o -c /work/kicad-port/oracle-src/overlay/shims/kimath_math.cpp"
+ },
+ "source": {
+  "revision": "8ef0c0e846ba8f190080ddf46c77373dcc0e4608",
+  "tree": "667e8506214447ff5ab4d06fd6b9f3d0f7374a8b",
+  "pin": "4cf939778df04d2b747bb2c4714fc5014a7565c7",
+  "manifest_sha256": "26ee1995f0c28be23e5d68fe728025cf15e6fa99c0dc3f91590403c1387e9d00",
+  "blobs": {
+   "header": {
+    "blob": "5771039ec4213b674e4ae0345c90b0ad02fa345d",
+    "git_path": "4cf9397:libs/kimath/include/math/matrix3x3.h"
+   },
+   "vector2": {
+    "blob": "6ca73bdd178dd7b0ed6789c57ff5ce51c88512ed",
+    "git_path": "4cf9397:libs/kimath/include/math/vector2d.h"
+   },
+   "vector3": {
+    "blob": "70f8bb65b08f4397b28b1dcc2183482420a67f95",
+    "git_path": "4cf9397:libs/kimath/include/math/vector3.h"
+   },
+   "adapter": {
+    "blob": "29bd24855cb379d41ca499c3cb8958a139c848db",
+    "git_path": "8ef0c0e:port/oracle/shims/kimath_math.cpp"
+   }
+  },
+  "compiler_input_paths": {
+   "header": "oracle-src/reference/libs/kimath/include/math/matrix3x3.h",
+   "vector2": "oracle-src/reference/libs/kimath/include/math/vector2d.h",
+   "vector3": "oracle-src/reference/libs/kimath/include/math/vector3.h",
+   "adapter": "oracle-src/overlay/shims/kimath_math.cpp"
+  }
+ },
+ "adapter_spans": {
+  "KIND": "fe7bfec2aed948d42965455204affbf2a35e78f0c7e2098436dccfee1a7d2fed",
+  "Double": "b06a161fe577e03e5bf5a2ce0f4aaf23254d551eb303b4d8f547547ce9a90f5e",
+  "Bits": "961f7a3c0f983bc60e83bc88768cc94623c792bb8d56cdddcef8c541fd224933",
+  "Elements": "01d7f0799d43fd9b08d8343bd63973e1d65c9d86dd688ad47b3b231b2b195193",
+  "Element<double>": "23085494c50aeec61a467728993656deb33b8b54ab25530f3b809f39e5cd1e2b",
+  "ElementJSON(double)": "24594fd6ec74ea2a2706fd987e9916d972b8b696006acce7f1eb475cf1cf9ede",
+  "Vector2": "0edeeab1b5fa0af765280136c306ddb206f6d135aa156ee451f5e31e51ba39df",
+  "Vector3": "2dbf7aa71c122cd12780de1417cb8fb3b37be775b86d93f1623cb0a5942b0f39",
+  "Matrix": "85b27629e89df1a70ccc51b4422cce1db4588d4f788948cc2c027c58ad3e6b36",
+  "MatrixReply": "f8a8c87372e73e4498a0a1a0100ef6f9fbc2d774948d04e035bf42ad5988b88d",
+  "Vector2JSON": "add42949ebeb739d492c95666531d0df4e3962d458a17a2948e08367052176fb",
+  "Vector3JSON": "225db83f0eef402c930f274d1583c3a9e235f30eb8251bbbd023d818ffd5e9e4",
+  "DoubleOps": "145c03bb79def9c488ba30f844087325f2965fb71a861eb895486e7c9e3f89a2",
+  "KimathMath": "554702a31c6fada9d3f2a97cdb9aca23f92ab19e0b5a907f887de820ce5dcd4f"
+ },
+ "runtime_fp": {
+  "mxcsr": "0x1f80",
+  "tunables": "glibc.cpu.hwcaps=-AVX,-AVX2,-FMA,-FMA4,-AVX512F",
+  "evidence": "MXCSR observed 0x1f80 by the Sol6.1 primitive probe in this image; the gate statically requires no FP-environment functions and no ldmxcsr/fldcw in analysed code."
+ },
+ "analysed_functions": [
+  "_ZN6oracleL9DoubleOpsERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERKN8nlohmann16json_abi_v3_11_310basic_jsonISt3mapSt6vectorS5_blmdSaNS9_14adl_serializerESC_IhSaIhEEvEENS_4KINDE",
+  "_ZNK9MATRIX3x3IdE7InverseEv"
+ ],
+ "entry_registers": {
+  "r12": {
+   "binding_insn": "0x4801b",
+   "binding_text": "mov %rdx,%r12",
+   "source_family": "rdx",
+   "value": "json_input",
+   "meaning": "DoubleOps(aOp, aInput, aScalar) returns JSON by sret (%rdi): %rdx = const JSON& aInput"
+  },
+  "r15": {
+   "binding_insn": "0x48012",
+   "binding_text": "mov %ecx,%r15d",
+   "source_family": "rcx",
+   "value": "kind_arg",
+   "meaning": "%ecx = KIND aScalar (enum class KIND { DOUBLE, INT })"
+  }
+ },
+ "op_binding": {
+  "binding_insn": "0x48023",
+  "binding_text": "mov %rsi,%rbx",
+  "source_family": "rsi",
+  "value": "aOp",
+  "meaning": "%rsi = const std::string& aOp (sret in %rdi); %rbx is the dispatch receiver"
+ },
+ "frame": {
+  "size": 1800,
+  "setup_insn": "0x48030",
+  "setup_text": "sub $0x708,%rsp"
+ },
+ "callees": {
+  "0x41d00": {
+   "symbol": "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEC1IS3_EEPKcRKS3_.isra.0",
+   "sha256": "9d684be4d0e5d7d160fa4477cb3223c011f1d6c17f5517721b398004807569e7",
+   "effect": "string_from_cstr",
+   "rationale": "std::string(const char*) constructor clone: writes only the 32-byte object at %rdi (and heap).",
+   "contract_sha256": "7d67f6638f1255be44babdf7e6bdfec036291103ddca1344572df1fcf4bf7375"
+  },
+  "0x50370": {
+   "symbol": "_ZNK8nlohmann16json_abi_v3_11_310basic_jsonISt3mapSt6vectorNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEblmdSaNS0_14adl_serializerES3_IhSaIhEEvE2atIRPKcLi0EEERKSD_OT_",
+   "sha256": "c490ad29e5057e25fbeaf5369f55291d1d505bb7a143cf592d3170dafe96eaae",
+   "effect": "json_at_cstr",
+   "rationale": "const json::at(const char*&): returns a const reference to the named member; writes no caller memory.",
+   "contract_sha256": "897124876253069bad35f1ee3ace0b87a74ef9ddfe5571195529596b89e13ca2"
+  },
+  "0x449e0": {
+   "symbol": "_ZN6oracleL6MatrixIdEE9MATRIX3x3IT_ERKN8nlohmann16json_abi_v3_11_310basic_jsonISt3mapSt6vectorNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEblmdSaNS5_14adl_serializerES8_IhSaIhEEvEERKSE_",
+   "sha256": "095467a5786e92ef1d91f37b25a6d23e9c9bbe0702ced8384d609252010eb41e",
+   "effect": "parse_matrix_double",
+   "rationale": "adapter Matrix<double> (reviewed span): row-major exact-bit Double() elements into the sret MATRIX3x3 (T m_data[3][3]) at %rdi.",
+   "contract_sha256": "aad802261a16f4c912f9ad0c38960a10c4d6f701bc0ba5e1aefbda67d416b991"
+  },
+  "0x43e80": {
+   "symbol": "_ZN6oracleL6DoubleERKN8nlohmann16json_abi_v3_11_310basic_jsonISt3mapSt6vectorNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEblmdSaNS1_14adl_serializerES4_IhSaIhEEvEERKSA_.isra.0",
+   "sha256": "f20667a46486dfcdc19abe4637a5cc48f7b770ba91060799f45b38d22a29d8ba",
+   "effect": "parse_double_isra",
+   "rationale": "adapter Double() IPA-SRA clone (json, name data, name length): returns bit_cast<double> of the 16-hex string in %xmm0.",
+   "contract_sha256": "c72a0f00b64d03a04ab3b01a312f49e50779b6086776de8c4af8df10b177f04a"
+  },
+  "0x44760": {
+   "symbol": "_ZN6oracleL7Vector2IdEE7VECTOR2IT_ERKN8nlohmann16json_abi_v3_11_310basic_jsonISt3mapSt6vectorNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEblmdSaNS5_14adl_serializerES8_IhSaIhEEvEERKSE_",
+   "sha256": "be5643d3b4aa48f1c671d9f208df5f669044fcc694b8b364faef51b4dce02b64",
+   "effect": "parse_vector2_double",
+   "rationale": "adapter Vector2<double>: VECTOR2(v[0], v[1]) into the sret (T x, y) at %rdi.",
+   "contract_sha256": "c2906f3d47229e03c0ffca460d87a0ae3b7c1a855e40927a900d6297d343dbd6"
+  },
+  "0x44930": {
+   "symbol": "_ZN6oracleL7Vector3IdEE7VECTOR3IT_ERKN8nlohmann16json_abi_v3_11_310basic_jsonISt3mapSt6vectorNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEblmdSaNS5_14adl_serializerES8_IhSaIhEEvEERKSE_",
+   "sha256": "af03701bae872724abeed981e27efb92dbb09c3ee1c2dc074e77649af4ab7877",
+   "effect": "parse_vector3_double",
+   "rationale": "adapter Vector3<double>: VECTOR3(v[0], v[1], v[2]) into the sret (T x{}; T y{}; T z{};) at %rdi.",
+   "contract_sha256": "22a9120be0487cc1b2f62aea88adcbf07565eb813237173ecf01ba61762f7da9"
+  },
+  "0x1faa0": {
+   "symbol": "_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE10_M_disposeEv",
+   "sha256": "91a485eddc82ddf71a39c70a453dd91d2dabc2b02b3f5d781d1c8ce37f4673ef",
+   "effect": "string_dispose",
+   "rationale": "std::string::_M_dispose on the object at %rdi: frees its heap buffer; the object becomes dead.",
+   "contract_sha256": "f47af2fff86ecb9a37eb80e231c46c394ace7e046a882fee9849664841810fc3"
+  },
+  "0x31150": {
+   "symbol": "_ZN8nlohmann16json_abi_v3_11_310basic_jsonISt3mapSt6vectorNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEblmdSaNS0_14adl_serializerES3_IhSaIhEEvEC1IRA6_KcA6_cLi0EEEOT_",
+   "sha256": "503847866d4a4a947c45d54fd7f05ddfdcbd371a061fa7969c34ee6aef55416d",
+   "effect": "json_from_literal",
+   "rationale": "json(const char(&)[6]) constructor: writes only the 16-byte object at %rdi.",
+   "contract_sha256": "9b99fa1412f6a7554156cc30295396b613cbb178f940d3590b8bc4d6c4319af5"
+  },
+  "0x51000": {
+   "symbol": "_ZN8nlohmann16json_abi_v3_11_310basic_jsonISt3mapSt6vectorNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEblmdSaNS0_14adl_serializerES3_IhSaIhEEvEC1IRA7_KcA7_cLi0EEEOT_",
+   "sha256": "20a4b58b52343dbc38ac3f92c7e456148e92bed02b2ee5ef622d454f46c6ed1e",
+   "effect": "json_from_literal",
+   "rationale": "json(const char(&)[7]) constructor: writes only the 16-byte object at %rdi.",
+   "contract_sha256": "9b99fa1412f6a7554156cc30295396b613cbb178f940d3590b8bc4d6c4319af5"
+  },
+  "0x44f60": {
+   "symbol": "_ZN6oracleL4BitsEd",
+   "sha256": "caf995f5a9135f8cdfc67fd91e69cb900a16fdd6becb697b1d82d0d968650559",
+   "effect": "bits_json",
+   "rationale": "adapter Bits(double) (reviewed span): exact 16-hex bit string of %xmm0 into the sret JSON at %rdi.",
+   "contract_sha256": "574debd2c41ce2f3aa6cf31fecc324723edd252e7d23199205f7344ecc56b3ed"
+  },
+  "0x47a40": {
+   "symbol": "_ZN6oracleL11MatrixReplyIdEEN8nlohmann16json_abi_v3_11_310basic_jsonISt3mapSt6vectorNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEblmdSaNS2_14adl_serializerES5_IhSaIhEEvEERK9MATRIX3x3IT_E",
+   "sha256": "8e44c9868723c43e1fa4660a41b78f9d4f87100f38d0014d480319d9e95e8d08",
+   "effect": "matrix_reply",
+   "rationale": "adapter MatrixReply (reviewed span): reply rows i, columns j = Bits(m_data[i][j]) of the MATRIX3x3 at %rsi.",
+   "contract_sha256": "092fa5408ee9829ea38e016a3930d2a75d028442d57b6b8908c186296fb0bfd7"
+  },
+  "0x47f10": {
+   "symbol": "_ZN6oracleL11Vector2JSONIdEEN8nlohmann16json_abi_v3_11_310basic_jsonISt3mapSt6vectorNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEblmdSaNS2_14adl_serializerES5_IhSaIhEEvEERK7VECTOR2IT_E",
+   "sha256": "df1caae212c3238eb0c2298e00d955bc3ecee808c9af6b9ba79803dca929d27c",
+   "effect": "vector2_json",
+   "rationale": "adapter Vector2JSON (reviewed span): [Bits(x), Bits(y)] of the VECTOR2 at %rsi.",
+   "contract_sha256": "b4e5734705a27e6e6172e34c1532bdf3124d49d62eb8333c36365a659fa7dffc"
+  },
+  "0x474b0": {
+   "symbol": "_ZN8nlohmann16json_abi_v3_11_310basic_jsonISt3mapSt6vectorNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEblmdSaNS0_14adl_serializerES3_IhSaIhEEvEC2ESt16initializer_listINS0_6detail8json_refISD_EEEbNSF_7value_tE.constprop.0",
+   "sha256": "bdf8bd7c971ba104a260725e067800a10f968c324f89c020e27911c33008bc50",
+   "effect": "json_array_init",
+   "rationale": "JSON::array({...}) (Vector3JSON, reviewed span): array of the owned json_ref elements at %rsi, count %rdx, in order.",
+   "contract_sha256": "e8fbb34c07e0a53ee073949a2838d669d36d555cd721ed193aa709c232bb984f"
+  },
+  "0x4fbb0": {
+   "symbol": "_ZNK9MATRIX3x3IdE7InverseEv",
+   "sha256": "80a0352bcff5fd0205a71d3afe14fc8716e5243b3659dc12dcb08459ef462894",
+   "effect": "analyse",
+   "padding": 0,
+   "rationale": "MATRIX3x3<double>::Inverse(): leaf function analysed instruction by instruction to its final ret.",
+   "contract_sha256": "0335ebd672a17cd4c0d7fef5adcf6f1c39173bf1a85da26590711b90959d22bd",
+   "args": {
+    "rdi": {
+     "size": 72,
+     "access": "write"
+    },
+    "rsi": {
+     "size": 72,
+     "access": "read"
+    }
+   }
+  }
+ },
+ "contexts": {
+  "determinant-doubleops": {
+   "path_instructions": 748,
+   "path_call_count": 24,
+   "path_calls_sha256": "bfe43aeaf8ddc663f99d69290809676744248af5cd6f7ce5b1434a768d60c6aa",
+   "path_bytes_sha256": "238642c465ae8343646f95b5f9749e9085005cf77921f9c821aab2825fb13c87"
+  },
+  "inverse": {
+   "path_instructions": 753,
+   "path_call_count": 24,
+   "path_calls_sha256": "bfe43aeaf8ddc663f99d69290809676744248af5cd6f7ce5b1434a768d60c6aa",
+   "path_bytes_sha256": "57ebe620abc37eff6ddab5ae7162278d0e9cabee2b1920d0663f64d82850bea1"
+  },
+  "mul_matrix-doubleops": {
+   "path_instructions": 758,
+   "path_call_count": 24,
+   "path_calls_sha256": "bfe43aeaf8ddc663f99d69290809676744248af5cd6f7ce5b1434a768d60c6aa",
+   "path_bytes_sha256": "4ca5ea32c047f05283ba7a2ef36ade9443eac18b95fe284c0e3e3b30820f2bb4"
+  },
+  "mul_vector2-doubleops": {
+   "path_instructions": 763,
+   "path_call_count": 24,
+   "path_calls_sha256": "bfe43aeaf8ddc663f99d69290809676744248af5cd6f7ce5b1434a768d60c6aa",
+   "path_bytes_sha256": "cafa2a828060db6ccc31689f095756a22f71dad7bc7082d61a1ef8f4f2b42aa3"
+  },
+  "mul_vector3-doubleops": {
+   "path_instructions": 768,
+   "path_call_count": 24,
+   "path_calls_sha256": "bfe43aeaf8ddc663f99d69290809676744248af5cd6f7ce5b1434a768d60c6aa",
+   "path_bytes_sha256": "53dc02539248b261863fa072524b97a2e90adb53d1f7c946e3d687e0480d3847"
+  },
+  "mul_scalar-doubleops": {
+   "path_instructions": 773,
+   "path_call_count": 24,
+   "path_calls_sha256": "bfe43aeaf8ddc663f99d69290809676744248af5cd6f7ce5b1434a768d60c6aa",
+   "path_bytes_sha256": "a1d512c364cd0854517a4ee3ebaf3411348e48323dc86dc12c83d28439ccbee2"
+  },
+  "scalar_mul-doubleops": {
+   "path_instructions": 778,
+   "path_call_count": 24,
+   "path_calls_sha256": "bfe43aeaf8ddc663f99d69290809676744248af5cd6f7ce5b1434a768d60c6aa",
+   "path_bytes_sha256": "ca2dc59d33be704b1197646e15f743bd7d3b255bdcd18c2b4ec765720354d339"
+  }
+ },
+ "context_review": {
+  "binary_sha256": "0bac756736379961a9c3fa34ae2d549615231561650d6d36af6b05a403c1b4db",
+  "binary_build_id": "c8e721185408a24ddcd902bc5d7f9b107afa654f",
+  "reviewer": "manual context review of the exact retained binary: Sol6.1 private reviews (cited) plus this private author review of the bound pre-window bytes; NOT a machine proof",
+  "citations": [
+   {
+    "path": "C:\\Users\\KarlVonRichter\\pr50-sol61-private-review-20261124\\REVIEW.md",
+    "sha256": "1227616db3ea15f6c23d83984ffbb08786b338cb1c0d78a7ddfdac1244974fa0",
+    "section": "Expression and mutation arguments; Identities and scope (operation dispatch by public name)"
+   },
+   {
+    "path": "C:\\Users\\KarlVonRichter\\pr50-sol61-hardening-review-20261124\\REVIEW.md",
+    "sha256": "fab82ecdf68e601f5dc44fad95af4cf25c290719ecdc1763af7cc30278b20ce7",
+    "section": "Assessment of the disclosed boundaries (operation routing safe for the one exact binary); findings 1-2"
+   }
+  ],
+  "assumptions": [
+   "A1 aOp: %rbx = %rsi (const std::string& aOp) at 0x48023. Paths that re-enter the dispatch chain from the inlined Shared<double> bodies via 0x4809c reach `je 48120` only when Shared returned null (adapter DoubleOps: `if( !shared.is_null() ) return shared;`); Shared bodies that rewrite %rbx return non-null. Path feasibility is reviewed manually, not proved.",
+   "A2 request memory: aInput is const JSON&; no instruction on any pre-window path writes through %r12 (mechanically checked); direct callees on those paths are bound by exact bytes and take the request as a const reference (C++ const-correctness, reviewed, transitive callees trusted via binary identity).",
+   "A3 KIND: %r15d = aScalar on every path (proved); window branch dispositions reviewed per site.",
+   "A4 frame: window %rsp = DoubleOps frame after `sub $0x708,%rsp`; window memory is confined to [0, 0x708) (enforced by the executor); below-%rsp memory is callee-owned.",
+   "A5 exceptions: a throwing callee unwinds out of DoubleOps; no window output is derived on that path."
+  ],
+  "renewal": "any change of a bound context byte, path, callee, binding instruction or frame setup FAILS and requires renewed manual context review; the arithmetic fingerprint cannot substitute for it"
+ },
+ "static_substitutes": {
+  "listings": {
+   "_ZN6oracleL9DoubleOpsERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERKN8nlohmann16json_abi_v3_11_310basic_jsonISt3mapSt6vectorS5_blmdSaNS9_14adl_serializerESC_IhSaIhEEvEENS_4KINDE": {
+    "path": "C:\\Users\\KarlVonRichter\\pr50-sol61-private-review-20261124\\fresh-DoubleOps.dis",
+    "sha256": "97f221298668df4dab403053bd239c2545b6d133c0f9ecdd77e171ab373d4310",
+    "decoder": "GNU objdump 2.46 host listing (-C, no raw bytes) retained by the Sol6.1 private review"
+   },
+   "_ZNK9MATRIX3x3IdE7InverseEv": {
+    "path": "C:\\Users\\KarlVonRichter\\pr50-sol61-private-review-20261124\\fresh-Inverse-double.dis",
+    "sha256": "f16b18e3cf5305f6521b3315cd3618e550cd52845bf2cef128ecd8815c948754",
+    "decoder": "GNU objdump 2.46 host listing (-C, no raw bytes) retained by the Sol6.1 private review"
+   }
+  }
+ },
+ "sites": {
+  "determinant-doubleops": {
+   "op": "determinant",
+   "function": "_ZN6oracleL9DoubleOpsERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERKN8nlohmann16json_abi_v3_11_310basic_jsonISt3mapSt6vectorS5_blmdSaNS9_14adl_serializerESC_IhSaIhEEvEENS_4KINDE",
+   "start": "0x48958",
+   "stop": "0x48a4b",
+   "consumer": {
+    "effect": "bits_value",
+    "name": "det"
+   },
+   "roles": {
+    "matrix": "m"
+   },
+   "branches": {},
+   "source": "determinant",
+   "output_order": [
+    "det"
+   ],
+   "dispatch": {
+    "literal": "determinant",
+    "kind": "jne"
+   },
+   "label": "determinant@DoubleOps 0x489b7-0x48a4b",
+   "rust": {
+    "name": "determinant_doubleops_generated",
+    "params": "matrix: &Matrix3x3D",
+    "ret": "f64",
+    "prelude": "let m = &matrix.data;",
+    "leaves": {
+     "m00": "m[0][0]",
+     "m01": "m[0][1]",
+     "m02": "m[0][2]",
+     "m10": "m[1][0]",
+     "m11": "m[1][1]",
+     "m12": "m[1][2]",
+     "m20": "m[2][0]",
+     "m21": "m[2][1]",
+     "m22": "m[2][2]"
+    },
+    "return": "{det}"
+   }
+  },
+  "inverse": {
+   "op": "inverse",
+   "function": "_ZN6oracleL9DoubleOpsERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERKN8nlohmann16json_abi_v3_11_310basic_jsonISt3mapSt6vectorS5_blmdSaNS9_14adl_serializerESC_IhSaIhEEvEENS_4KINDE",
+   "start": "0x48668",
+   "stop": "0x486cd",
+   "consumer": {
+    "effect": "matrix_reply"
+   },
+   "roles": {
+    "matrix": "m"
+   },
+   "branches": {},
+   "source": "inverse",
+   "output_order": [
+    "r00",
+    "r01",
+    "r02",
+    "r10",
+    "r11",
+    "r12",
+    "r20",
+    "r21",
+    "r22"
+   ],
+   "dispatch": {
+    "literal": "inverse",
+    "kind": "jne"
+   },
+   "label": "MATRIX3x3<double>::Inverse() 0x4fbb0-0x4fd29",
+   "rust": {
+    "name": "inverse_member",
+    "params": "matrix: &Matrix3x3D",
+    "ret": "Matrix3x3D",
+    "prelude": "let m = &matrix.data;",
+    "leaves": {
+     "m00": "m[0][0]",
+     "m01": "m[0][1]",
+     "m02": "m[0][2]",
+     "m10": "m[1][0]",
+     "m11": "m[1][1]",
+     "m12": "m[1][2]",
+     "m20": "m[2][0]",
+     "m21": "m[2][1]",
+     "m22": "m[2][2]"
+    },
+    "return": "Matrix3x3D::from_elements({r00}, {r01}, {r02}, {r10}, {r11}, {r12}, {r20}, {r21}, {r22})"
+   }
+  },
+  "mul_matrix-doubleops": {
+   "op": "mul_matrix",
+   "function": "_ZN6oracleL9DoubleOpsERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERKN8nlohmann16json_abi_v3_11_310basic_jsonISt3mapSt6vectorS5_blmdSaNS9_14adl_serializerESC_IhSaIhEEvEENS_4KINDE",
+   "start": "0x48fab",
+   "stop": "0x4923a",
+   "consumer": {
+    "effect": "matrix_reply"
+   },
+   "roles": {
+    "a": "a",
+    "b": "b"
+   },
+   "branches": {},
+   "source": "mul_matrix",
+   "output_order": [
+    "r00",
+    "r01",
+    "r02",
+    "r10",
+    "r11",
+    "r12",
+    "r20",
+    "r21",
+    "r22"
+   ],
+   "dispatch": {
+    "literal": "mul_matrix",
+    "kind": "jne"
+   },
+   "label": "operator*(MATRIX3x3<double>, MATRIX3x3<double>)@DoubleOps 0x49041-0x4923a",
+   "rust": {
+    "name": "mul_matrix_doubleops",
+    "params": "a: &Matrix3x3D, b: &Matrix3x3D",
+    "ret": "Matrix3x3D",
+    "prelude": "let (a, b) = (&a.data, &b.data);",
+    "leaves": {
+     "a00": "a[0][0]",
+     "a01": "a[0][1]",
+     "a02": "a[0][2]",
+     "a10": "a[1][0]",
+     "a11": "a[1][1]",
+     "a12": "a[1][2]",
+     "a20": "a[2][0]",
+     "a21": "a[2][1]",
+     "a22": "a[2][2]",
+     "b00": "b[0][0]",
+     "b01": "b[0][1]",
+     "b02": "b[0][2]",
+     "b10": "b[1][0]",
+     "b11": "b[1][1]",
+     "b12": "b[1][2]",
+     "b20": "b[2][0]",
+     "b21": "b[2][1]",
+     "b22": "b[2][2]"
+    },
+    "return": "Matrix3x3D::from_elements({r00}, {r01}, {r02}, {r10}, {r11}, {r12}, {r20}, {r21}, {r22})"
+   }
+  },
+  "mul_vector2-doubleops": {
+   "op": "mul_vector2",
+   "function": "_ZN6oracleL9DoubleOpsERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERKN8nlohmann16json_abi_v3_11_310basic_jsonISt3mapSt6vectorS5_blmdSaNS9_14adl_serializerESC_IhSaIhEEvEENS_4KINDE",
+   "start": "0x49395",
+   "stop": "0x494a7",
+   "consumer": {
+    "effect": "vector2_json"
+   },
+   "roles": {
+    "matrix": "m",
+    "vector": "v"
+   },
+   "branches": {},
+   "source": "mul_vector2",
+   "output_order": [
+    "x",
+    "y"
+   ],
+   "dispatch": {
+    "literal": "mul_vector2",
+    "kind": "jne"
+   },
+   "label": "operator*(MATRIX3x3<double>, VECTOR2<double>)@DoubleOps 0x49430-0x494a7",
+   "rust": {
+    "name": "mul_vector2_doubleops",
+    "params": "matrix: &Matrix3x3D, v: &Vector2<f64>",
+    "ret": "Vector2<f64>",
+    "prelude": "let m = &matrix.data;",
+    "leaves": {
+     "m00": "m[0][0]",
+     "m01": "m[0][1]",
+     "m02": "m[0][2]",
+     "m10": "m[1][0]",
+     "m11": "m[1][1]",
+     "m12": "m[1][2]",
+     "m20": "m[2][0]",
+     "m21": "m[2][1]",
+     "m22": "m[2][2]",
+     "vx": "v.x",
+     "vy": "v.y"
+    },
+    "return": "Vector2::new({x}, {y})"
+   }
+  },
+  "mul_vector3-doubleops": {
+   "op": "mul_vector3",
+   "function": "_ZN6oracleL9DoubleOpsERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERKN8nlohmann16json_abi_v3_11_310basic_jsonISt3mapSt6vectorS5_blmdSaNS9_14adl_serializerESC_IhSaIhEEvEENS_4KINDE",
+   "start": "0x48be1",
+   "stop": "0x48e0e",
+   "consumer": {
+    "effect": "json_array_init",
+    "count": 3,
+    "names": [
+     "x",
+     "y",
+     "z"
+    ]
+   },
+   "roles": {
+    "matrix": "m",
+    "vector": "v"
+   },
+   "branches": {},
+   "source": "mul_vector3",
+   "output_order": [
+    "x",
+    "y",
+    "z"
+   ],
+   "dispatch": {
+    "literal": "mul_vector3",
+    "kind": "jne"
+   },
+   "label": "operator*(MATRIX3x3<double>, VECTOR3<double>)@DoubleOps 0x48c8b-0x48d40",
+   "rust": {
+    "name": "mul_vector3_doubleops",
+    "params": "matrix: &Matrix3x3D, v: &Vector3<f64>",
+    "ret": "Vector3<f64>",
+    "prelude": "let m = &matrix.data;",
+    "leaves": {
+     "m00": "m[0][0]",
+     "m01": "m[0][1]",
+     "m02": "m[0][2]",
+     "m10": "m[1][0]",
+     "m11": "m[1][1]",
+     "m12": "m[1][2]",
+     "m20": "m[2][0]",
+     "m21": "m[2][1]",
+     "m22": "m[2][2]",
+     "vx": "v.x",
+     "vy": "v.y",
+     "vz": "v.z"
+    },
+    "return": "Vector3::new({x}, {y}, {z})"
+   }
+  },
+  "mul_scalar-doubleops": {
+   "op": "mul_scalar",
+   "function": "_ZN6oracleL9DoubleOpsERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERKN8nlohmann16json_abi_v3_11_310basic_jsonISt3mapSt6vectorS5_blmdSaNS9_14adl_serializerESC_IhSaIhEEvEENS_4KINDE",
+   "start": "0x49562",
+   "stop": "0x49675",
+   "consumer": {
+    "effect": "matrix_reply"
+   },
+   "roles": {
+    "matrix": "m",
+    "scalar": "s"
+   },
+   "branches": {
+    "0x495cf": {
+     "mnem": "je",
+     "target": "0x49e0c",
+     "flag_value": [
+      "kind_arg"
+     ],
+     "flag_imm": 1,
+     "expect": "fallthrough",
+     "meaning": "aScalar == KIND::INT (enum value 1) is false: the double-scalar path"
+    }
+   },
+   "source": "mul_scalar",
+   "output_order": [
+    "r00",
+    "r01",
+    "r02",
+    "r10",
+    "r11",
+    "r12",
+    "r20",
+    "r21",
+    "r22"
+   ],
+   "dispatch": {
+    "literal": "mul_scalar",
+    "kind": "jne"
+   },
+   "label": "operator*(MATRIX3x3<double>, double)@DoubleOps mul_scalar 0x49605-0x49675",
+   "rust": {
+    "name": "mul_scalar_doubleops",
+    "params": "matrix: &Matrix3x3D, scalar: f64",
+    "ret": "Matrix3x3D",
+    "prelude": "let m = &matrix.data;",
+    "leaves": {
+     "m00": "m[0][0]",
+     "m01": "m[0][1]",
+     "m02": "m[0][2]",
+     "m10": "m[1][0]",
+     "m11": "m[1][1]",
+     "m12": "m[1][2]",
+     "m20": "m[2][0]",
+     "m21": "m[2][1]",
+     "m22": "m[2][2]",
+     "s": "scalar"
+    },
+    "return": "Matrix3x3D::from_elements({r00}, {r01}, {r02}, {r10}, {r11}, {r12}, {r20}, {r21}, {r22})"
+   }
+  },
+  "scalar_mul-doubleops": {
+   "op": "scalar_mul",
+   "function": "_ZN6oracleL9DoubleOpsERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEERKN8nlohmann16json_abi_v3_11_310basic_jsonISt3mapSt6vectorS5_blmdSaNS9_14adl_serializerESC_IhSaIhEEvEENS_4KINDE",
+   "start": "0x481d8",
+   "stop": "0x482fb",
+   "consumer": {
+    "effect": "matrix_reply"
+   },
+   "roles": {
+    "matrix": "m",
+    "scalar": "s"
+   },
+   "branches": {
+    "0x481f1": {
+     "mnem": "je",
+     "target": "0x497d6",
+     "flag_value": [
+      "kind_arg"
+     ],
+     "flag_imm": 1,
+     "expect": "fallthrough",
+     "meaning": "aScalar == KIND::INT (enum value 1) is false: the double-scalar path"
+    }
+   },
+   "source": "scalar_mul",
+   "output_order": [
+    "r00",
+    "r01",
+    "r02",
+    "r10",
+    "r11",
+    "r12",
+    "r20",
+    "r21",
+    "r22"
+   ],
+   "dispatch": {
+    "literal": "scalar_mul",
+    "kind": "je"
+   },
+   "label": "operator*(double, MATRIX3x3<double>)@DoubleOps scalar_mul 0x48274-0x482fb",
+   "rust": {
+    "name": "scalar_mul_doubleops",
+    "params": "scalar: f64, matrix: &Matrix3x3D",
+    "ret": "Matrix3x3D",
+    "prelude": "let m = &matrix.data;",
+    "leaves": {
+     "m00": "m[0][0]",
+     "m01": "m[0][1]",
+     "m02": "m[0][2]",
+     "m10": "m[1][0]",
+     "m11": "m[1][1]",
+     "m12": "m[1][2]",
+     "m20": "m[2][0]",
+     "m21": "m[2][1]",
+     "m22": "m[2][2]",
+     "s": "scalar"
+    },
+    "return": "Matrix3x3D::from_elements({r00}, {r01}, {r02}, {r10}, {r11}, {r12}, {r20}, {r21}, {r22})"
+   }
+  }
+ },
+ "not_extracted": {
+  "mul_scalar/scalar_mul with an int scalar": "order independent: double(int) is never NaN (proof in the prototype FINDINGS)"
+ }
+}

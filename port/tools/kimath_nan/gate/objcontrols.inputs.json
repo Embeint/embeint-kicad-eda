@@ -1,0 +1,45 @@
+{
+ "files": {
+  "fresh/oracle-build/CMakeFiles/kicad-oracle.dir/shims/kimath_math.cpp.o": "97c5f4527c06760a405a5c2f11b99e1ed1524c9b14c8893cbfdc694f580feeb8",
+  "fresh/oracle-build/compile_commands.json": "833a0d6d34a075f24961c2b32c9ca53ba58447f8f6bfe0519093e6e478479ea6",
+  "fresh/oracle-build/kicad-oracle": "6b6629d886cda51f5471d57a3d4a932c06bc89657f0430a5ff7b71ddfc942c64",
+  "fresh/oracle-src/overlay/shims/kimath_math.cpp": "55ee7aeabedb617aaabfe0587ae78eac9790cc573e1bede25f378973471875d6",
+  "fresh/oracle-src/reference/libs/kimath/include/math/matrix3x3.h": "e76d1d5db223412f442757aaa87246e509574ae1f4ba69d04f96b6e582eea665",
+  "fresh/oracle-src/reference/libs/kimath/include/math/vector2d.h": "445e01764e09e6d0b9cfbfe74af553253a09fce5a290e1940c83cb57150e9599",
+  "fresh/oracle-src/reference/libs/kimath/include/math/vector3.h": "eda25023ca4f79819e9b29d6723d79a6d13becf22a1c3b4967b15b1db8de228e",
+  "reviewed/compile_commands.json": "0b7b080c462f4420ee71735a8c2bfff755ce37c07f487a1dc917b4d96c1e35ef",
+  "reviewed/image-identity.json": "c37568600ebf319225f8e5cb2b152bdfb90f5a8b11d1d08d4a4bb94ba1b85b8b",
+  "reviewed/kicad-oracle": "0bac756736379961a9c3fa34ae2d549615231561650d6d36af6b05a403c1b4db",
+  "reviewed/objects/example_rescale.cpp.o": "e5760d090a86628232d4c0dcb5af6ed3e35c4874206f058a31f71236c5a464dd",
+  "reviewed/objects/iec60664.cpp.o": "3c666cfa27fccb84d067df37e9fee0ce7d3d6d43cbc452b3b06959e79577aacb",
+  "reviewed/objects/kimath_math.cpp.o": "97c5f4527c06760a405a5c2f11b99e1ed1524c9b14c8893cbfdc694f580feeb8",
+  "reviewed/objects/main.cpp.o": "233dcc0ce5b6cd9581db8af6688f09de7299a885b20248dbf0087d64b39428e6",
+  "reviewed/objects/md5.cpp.o": "007a6cf43d26f84aca3356dcd707fd2237e36434f1baf40bbe0895b408a70617",
+  "reviewed/objects/protocol.cpp.o": "e8291a7edb2a9038a4cf50a291bee4edf6580c277c322f85f35cdc29dc81f1ec",
+  "reviewed/objects/registry.cpp.o": "9c0ffaeaf0e6cb3f70634f8b61779cad2e9588d18b77679695727f6abd52a604",
+  "reviewed/objects/resistors.cpp.o": "1820bb90aef27412cecbfb9e7cd0e37d31f72e707a3f946dba37337706296b64"
+ },
+ "link_order": [
+  "main.cpp.o",
+  "protocol.cpp.o",
+  "registry.cpp.o",
+  "example_rescale.cpp.o",
+  "iec60664.cpp.o",
+  "kimath_math.cpp.o",
+  "md5.cpp.o",
+  "resistors.cpp.o"
+ ],
+ "note": "External genuine inputs of objcontrols.py; not in the repository. Every file is checked by SHA-256 before a control runs. fresh/ is from the PR50 rust-port artifact; reviewed/ is the reviewed build of oracle 0bac7567...",
+ "sources": {
+  "fresh/": "rust-port run 45349355098, artifact 14899782401 rust-port-difftest-evidence, ZIP sha256 39ba7ef884c209b634f92050f3a355021b943c1308360b3c138799e2f25bd794; copy kicad-port/<path> to fresh/<path>",
+  "reviewed/image-identity.json": "image-identity.json of that candidate-image run (sha256 c3756860...)",
+  "reviewed/kicad-oracle, reviewed/compile_commands.json, reviewed/objects/*.cpp.o": "the reviewed build directory that produced oracle 0bac7567... (kicad-port/oracle-build/; objects from CMakeFiles/kicad-oracle.dir/ and CMakeFiles/kicad-oracle.dir/shims/)",
+  "reviewed/tree/": "that build's kicad-port/oracle-src/ plus oracle-build/config.h, oracle-build/oracle_provenance.h and oracle-build/reader-generated/"
+ },
+ "trees": {
+  "reviewed/tree": {
+   "files": 958,
+   "sha256": "c38e8abeaccae31bed17e659160be4166383da94e969afec7a6d7526c12f30b0"
+  }
+ }
+}
