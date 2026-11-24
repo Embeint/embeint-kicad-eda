@@ -2,6 +2,7 @@
 """Counterexamples for the whole-executable FP scan and installed-closure check."""
 import contextlib
 import io
+from pathlib import Path
 import subprocess
 import unittest
 from types import SimpleNamespace
@@ -67,7 +68,7 @@ class ObjectClosureTests(unittest.TestCase):
         self.assertFalse(ok)
         self.assertIn('changed installed file', detail['output'])
         command = run.call_args.args[0]
-        self.assertTrue(command[1].endswith('/port/reference-env/image/verify_image.py'))
+        self.assertEqual(Path(command[1]).parts[-4:], ('port', 'reference-env', 'image', 'verify_image.py'))
         self.assertEqual(command[2:], ['--lock', '/opt/refenv/inputs.lock.json', '--candidate',
                                      '/opt/refenv/candidate.toml', '--expect', 'expected-identity.json'])
         self.assertEqual(run.call_args.kwargs['timeout'], 180)

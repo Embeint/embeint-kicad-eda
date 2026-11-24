@@ -305,11 +305,16 @@ def main():
               k.run(fresh, locks=lockdir('drift', lambda o, g: g['sites']['inverse'].update(fingerprint='0' * 64)), emit=str(k.tmp / 'e.rs')),
               base_np['fresh'], ['inverse: arithmetic graph fingerprint'])
     rv = objgate.OBJECT_CONTEXT_REVIEW
+    def synthetic_review(o, g, **fields):
+        # This temporary fixture must satisfy the two consistent review-state fields.
+        # It is never written to the repository or used as a real review.
+        o['status'] = 'REVIEWED-EXPERIMENTAL-UNQUALIFIED'
+        o['context_review'].update(status='REVIEWED', reviewer='SYNTHETIC-FIXTURE', **fields)
     k.control('review record', 'synthetic REVIEWED record with the right link digest clears only that row (temporary fixture, not a review)',
-              k.run(fresh, locks=lockdir('rv', lambda o, g: o['context_review'].update(status='REVIEWED', reviewer='SYNTHETIC-FIXTURE'))),
+              k.run(fresh, locks=lockdir('rv', synthetic_review)),
               base_np['fresh'] - {('context', rv, 'fail')}, 'same')
     k.control('review record', 'REVIEWED record bound to another link digest',
-              k.run(fresh, locks=lockdir('rv2', lambda o, g: o['context_review'].update(status='REVIEWED', reviewer='SYNTHETIC-FIXTURE', link_digest='0' * 64))),
+              k.run(fresh, locks=lockdir('rv2', lambda o, g: synthetic_review(o, g, link_digest='0' * 64))),
               base_np['fresh'] - {('context', rv, 'fail')}, ['object context review'])
     st = k.run(reviewed, phase='static', emit=str(k.tmp / 's.rs'))
     k.results.append({'group': 'emission', 'control': 'static object report never emits or reads as a pass',
