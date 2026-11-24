@@ -90,6 +90,24 @@ target_include_directories( iec60664-reference PUBLIC
     "${KICAD_REFERENCE_SOURCE}/pcb_calculator/calculator_panels" )
 
 file( GLOB ORACLE_SHIMS CONFIGURE_DEPENDS "${ORACLE_OVERLAY}/shims/*.cpp" )
+# GNU ld keeps the first weak/COMDAT template definition. Preserve the measured
+# matrix adapter's selection when the later hash adapter is present: alphabetical
+# glob order would otherwise put kimath_header_hash before kimath_math and select
+# differently compiled JSON/string helpers. Both executables use the same order.
+set( MATRIX_SHIM "${ORACLE_OVERLAY}/shims/kimath_math.cpp" )
+set( HASH_SHIM "${ORACLE_OVERLAY}/shims/kimath_header_hash.cpp" )
+if( MATRIX_SHIM IN_LIST ORACLE_SHIMS AND HASH_SHIM IN_LIST ORACLE_SHIMS )
+    list( REMOVE_ITEM ORACLE_SHIMS "${HASH_SHIM}" )
+    list( FIND ORACLE_SHIMS "${MATRIX_SHIM}" MATRIX_SHIM_INDEX )
+    math( EXPR HASH_SHIM_INDEX "${MATRIX_SHIM_INDEX} + 1" )
+    list( INSERT ORACLE_SHIMS ${HASH_SHIM_INDEX} "${HASH_SHIM}" )
+endif()
+# Keep new tree instantiations after the accepted matrix/hash provider order.
+set( DYNAMIC_RTREE_SHIM "${ORACLE_OVERLAY}/shims/dynamic_rtree.cpp" )
+if( DYNAMIC_RTREE_SHIM IN_LIST ORACLE_SHIMS )
+    list( REMOVE_ITEM ORACLE_SHIMS "${DYNAMIC_RTREE_SHIM}" )
+    list( APPEND ORACLE_SHIMS "${DYNAMIC_RTREE_SHIM}" )
+endif()
 add_executable( kicad-oracle main.cpp protocol.cpp registry.cpp ${ORACLE_SHIMS} )
 target_include_directories( kicad-oracle PRIVATE "${ORACLE_OVERLAY}" "${CMAKE_BINARY_DIR}" )
 target_link_libraries( kicad-oracle PRIVATE kimath nlohmann_json iec60664-reference resistor-reference

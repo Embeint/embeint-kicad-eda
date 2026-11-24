@@ -1,0 +1,85 @@
+{
+ "site": "operator*(MATRIX3x3<double>, VECTOR2<double>)@DoubleOps 0x49430-0x494a7",
+ "outputs": {
+  "x": {
+   "tree": [
+    "op",
+    "add",
+    [
+     "op",
+     "add",
+     [
+      "op",
+      "mul",
+      [
+       "leaf",
+       "m01"
+      ],
+      [
+       "leaf",
+       "vy"
+      ]
+     ],
+     [
+      "op",
+      "mul",
+      [
+       "leaf",
+       "m00"
+      ],
+      [
+       "leaf",
+       "vx"
+      ]
+     ]
+    ],
+    [
+     "leaf",
+     "m02"
+    ]
+   ],
+   "text": "add(add(mul(m01, vy), mul(m00, vx)), m02)",
+   "source_equal_modulo_commutativity": true
+  },
+  "y": {
+   "tree": [
+    "op",
+    "add",
+    [
+     "op",
+     "add",
+     [
+      "op",
+      "mul",
+      [
+       "leaf",
+       "m10"
+      ],
+      [
+       "leaf",
+       "vx"
+      ]
+     ],
+     [
+      "op",
+      "mul",
+      [
+       "leaf",
+       "m11"
+      ],
+      [
+       "leaf",
+       "vy"
+      ]
+     ]
+    ],
+    [
+     "leaf",
+     "m12"
+    ]
+   ],
+   "text": "add(add(mul(m10, vx), mul(m11, vy)), m12)",
+   "source_equal_modulo_commutativity": true
+  }
+ }
+}

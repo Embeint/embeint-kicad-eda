@@ -1,0 +1,76 @@
+{
+ "note": "PRIVATE EXPERIMENTAL reviewed arithmetic-graph lock (format pr50-nan-arith-graph-v1); not an adoption.",
+ "graph_format": "pr50-nan-arith-graph-v1",
+ "generated_rs_sha256": "d24ff0f24a1fae55cc8e9eb85fa783282030083802d58eb0e332be331c6935af",
+ "source_layouts": {
+  "MATRIX3x3": [
+   "T m_data[3][3];"
+  ],
+  "VECTOR2": [
+   "T x, y;"
+  ],
+  "VECTOR3": [
+   "T x{};",
+   "T y{};",
+   "T z{};"
+  ]
+ },
+ "sites": {
+  "determinant-doubleops": {
+   "fingerprint": "c64de6f99240213ec2fc501c370e6bf08f10b8357beaf9906d7b5dfed02aaf2d",
+   "nodes": 23,
+   "source": "determinant",
+   "source_definition_sha256": "75449f63fb9bf309ff72c2104f741b6f29a0b8b26b77ad195e604a0d10591cf3",
+   "observable_flip_witnesses": 9,
+   "equivalence_proofs": 5
+  },
+  "inverse": {
+   "fingerprint": "19db12178c6e7b31e2bab69cae4ec26a25dcf33d27ec0a18a2f18c8ec33e2024",
+   "nodes": 53,
+   "source": "inverse",
+   "source_definition_sha256": "613b0a6e9ed15df77893609ab0e446dc67c8af3825f3d724b8fa49798a786a4c",
+   "observable_flip_witnesses": 41,
+   "equivalence_proofs": 2
+  },
+  "mul_matrix-doubleops": {
+   "fingerprint": "eecbea0d42de023c2e073f776d5d42dbed6d9dea4d9fa6cd8e7c558a1eef9d0f",
+   "nodes": 63,
+   "source": "mul_matrix",
+   "source_definition_sha256": "b89870f1624baa07bea94f178f6e98cacc789b6beee1b4810302b668d9890058",
+   "observable_flip_witnesses": 45,
+   "equivalence_proofs": 0
+  },
+  "mul_vector2-doubleops": {
+   "fingerprint": "734a6c2c5a2aa05cc8e4b626190915dfb77d740acc117681a6dd368988eafdc0",
+   "nodes": 16,
+   "source": "mul_vector2",
+   "source_definition_sha256": "04506cdbd591206c3965345fd0646783d262c885869cd428f59c869ff681126a",
+   "observable_flip_witnesses": 8,
+   "equivalence_proofs": 0
+  },
+  "mul_vector3-doubleops": {
+   "fingerprint": "adc9e38e5de66fcc6d88399063a94fc6977c5b7ba06e05dddac7211efddebbbd",
+   "nodes": 27,
+   "source": "mul_vector3",
+   "source_definition_sha256": "ee509462bfe3c31d0d08ff728c01f4f72f3084983a78c1406e6b200742fe250a",
+   "observable_flip_witnesses": 15,
+   "equivalence_proofs": 0
+  },
+  "mul_scalar-doubleops": {
+   "fingerprint": "328b49404fdd39e075f0ea7f1d3c45d9d5b4f40b3e47f84f0af39df6f82bd46c",
+   "nodes": 19,
+   "source": "mul_scalar",
+   "source_definition_sha256": "b67dbcc6bf4b01e732004ab51102f5c08fc9add82254d97611a1c36dd29a83e7",
+   "observable_flip_witnesses": 9,
+   "equivalence_proofs": 0
+  },
+  "scalar_mul-doubleops": {
+   "fingerprint": "328b49404fdd39e075f0ea7f1d3c45d9d5b4f40b3e47f84f0af39df6f82bd46c",
+   "nodes": 19,
+   "source": "scalar_mul",
+   "source_definition_sha256": "c87c913aad6db4aad68fd9daddf0d3d2f680691a99d89a11e5b7953fb2963db8",
+   "observable_flip_witnesses": 9,
+   "equivalence_proofs": 0
+  }
+ }
+}

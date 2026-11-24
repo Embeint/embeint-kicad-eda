@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# CI-only wasm32-unknown-unknown export shim: MATRIX3x3<double>::SetRotation through the public
+# kicad-math API, compared with the fresh genuine reference records. It has its own empty
+# workspace so the product workspace and rust/Cargo.lock are unchanged; kicad-math has no
+# dependencies, so nothing is resolved from a registry.
+[package]
+name = "kicad-math-wasm-set-rotation"
+version = "0.0.0"
+edition = "2021"
+publish = false
+license = "GPL-3.0-or-later"
+
+[lib]
+crate-type = ["cdylib"]
+path = "lib.rs"
+
+[dependencies]
+kicad-math = { path = "../../../rust/kicad-math" }
+
+[workspace]
+
+# The product workspace's release profile (rust/Cargo.toml).
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

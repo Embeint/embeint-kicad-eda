@@ -1,0 +1,209 @@
+{
+  "tested_code": "0915a81f7d (implementation) with corpus commit 2a0640c08e",
+  "qualified": false,
+  "host": "macOS 26 (Darwin 25.5.0) arm64, Apple clang + libc++/Apple libm smoke oracle (genuine adapter, real protocol.cpp, empty config.h and two-macro wx/debug.h stand-ins for the uninstantiated VECTOR3::Normalize); Rust 1.99.1 debug",
+  "cases": 7460,
+  "cases_sha256": "c82021245968c5f9cdbf23b2c1b681257d4ba68836ad1d884b41bb77dc6ac287",
+  "original_3485_sha256": "c21be36d1e16fcf4fb6271016ceaed5cb1eed19bf4a520250b40f33919fa1611",
+  "error_replies": {
+    "smoke_oracle": 0,
+    "rust": 0,
+    "wasm": 0
+  },
+  "smoke_oracle_vs_rust_native": {
+    "original": {
+      "cases": 3485,
+      "identical": 3482,
+      "different": 3,
+      "different_cases": [
+        "set-rotation-22",
+        "stream-default-nan-with-infinity",
+        "stream-values-3"
+      ]
+    },
+    "int": {
+      "cases": 185,
+      "identical": 185,
+      "different": 0,
+      "different_cases": []
+    },
+    "stream-state": {
+      "cases": 279,
+      "identical": 82,
+      "different": 197,
+      "different_cases": [
+        "stream-state-explicit-default",
+        "stream-state-default-plain-p-1-values",
+        "stream-state-default-plain-p0-values",
+        "stream-state-default-plain-p1-values",
+        "stream-state-default-plain-p2-values",
+        "stream-state-default-plain-p6-values",
+        "stream-state-default-plain-p17-values",
+        "stream-state-default-plain-p40-values",
+        "stream-state-default-showpos-p-1-values",
+        "stream-state-default-showpos-p-1-tiny",
+        "stream-state-default-showpos-p0-values",
+        "stream-state-default-showpos-p0-tiny",
+        "stream-state-default-showpos-p1-values",
+        "stream-state-default-showpos-p1-tiny",
+        "stream-state-default-showpos-p2-values",
+        "stream-state-default-showpos-p2-tiny",
+        "stream-state-default-showpos-p6-values",
+        "stream-state-default-showpos-p6-tiny",
+        "stream-state-default-showpos-p17-values",
+        "stream-state-default-showpos-p17-tiny",
+        "stream-state-default-showpos-p40-values",
+        "stream-state-default-showpos-p40-tiny",
+        "stream-state-default-showpoint-p-1-values",
+        "stream-state-default-showpoint-p0-values",
+        "stream-state-default-showpoint-p1-values",
+        "stream-state-default-showpoint-p2-values",
+        "stream-state-default-showpoint-p6-values",
+        "stream-state-default-showpoint-p17-values",
+        "stream-state-default-showpoint-p40-values",
+        "stream-state-default-uppercase-p-1-values",
+        "stream-state-default-uppercase-p0-values",
+        "stream-state-default-uppercase-p1-values",
+        "stream-state-default-uppercase-p2-values",
+        "stream-state-default-uppercase-p6-values",
+        "stream-state-default-uppercase-p17-values",
+        "stream-state-default-uppercase-p40-values",
+        "stream-state-default-all-p-1-values",
+        "stream-state-default-all-p-1-tiny",
+        "stream-state-default-all-p0-values",
+        "stream-state-default-all-p0-tiny",
+        "... 157 more"
+      ]
+    },
+    "set-rotation-variant": {
+      "cases": 10,
+      "identical": 9,
+      "different": 1,
+      "different_cases": [
+        "set-rotation-variant-sin-4"
+      ]
+    },
+    "mixed-nan": {
+      "cases": 3501,
+      "identical": 1875,
+      "different": 1626,
+      "different_cases": [
+        "minimal-qnan-determinant",
+        "mixed-nan-determinant-0",
+        "mixed-nan-determinant-1",
+        "mixed-nan-determinant-2",
+        "mixed-nan-determinant-3",
+        "mixed-nan-determinant-4",
+        "mixed-nan-determinant-5",
+        "mixed-nan-determinant-6",
+        "mixed-nan-determinant-7",
+        "mixed-nan-determinant-10",
+        "mixed-nan-determinant-11",
+        "mixed-nan-determinant-12",
+        "mixed-nan-determinant-15",
+        "mixed-nan-determinant-16",
+        "mixed-nan-determinant-18",
+        "mixed-nan-determinant-19",
+        "mixed-nan-determinant-20",
+        "mixed-nan-determinant-21",
+        "mixed-nan-determinant-22",
+        "mixed-nan-determinant-24",
+        "mixed-nan-determinant-25",
+        "mixed-nan-determinant-26",
+        "mixed-nan-determinant-27",
+        "mixed-nan-determinant-28",
+        "mixed-nan-determinant-29",
+        "mixed-nan-determinant-30",
+        "mixed-nan-determinant-32",
+        "mixed-nan-determinant-33",
+        "mixed-nan-determinant-34",
+        "mixed-nan-determinant-38",
+        "mixed-nan-determinant-39",
+        "mixed-nan-determinant-40",
+        "mixed-nan-determinant-42",
+        "mixed-nan-determinant-43",
+        "mixed-nan-determinant-44",
+        "mixed-nan-determinant-45",
+        "mixed-nan-determinant-46",
+        "mixed-nan-determinant-47",
+        "mixed-nan-determinant-48",
+        "mixed-nan-determinant-49",
+        "... 1586 more"
+      ]
+    }
+  },
+  "rust_native_vs_wasm32_wasip1_node24": {
+    "original": {
+      "cases": 3485,
+      "identical": 3461,
+      "different": 24,
+      "different_cases": [
+        "set-rotation-22",
+        "set-rotation-29",
+        "set-rotation-46",
+        "set-rotation-71",
+        "set-rotation-75",
+        "set-rotation-82",
+        "set-rotation-90",
+        "set-rotation-97",
+        "set-rotation-105",
+        "set-rotation-114",
+        "set-rotation-120",
+        "set-rotation-127",
+        "set-rotation-132",
+        "set-rotation-143",
+        "set-rotation-152",
+        "set-rotation-154",
+        "set-rotation-177",
+        "set-rotation-182",
+        "set-rotation-184",
+        "set-rotation-205",
+        "set-rotation-244",
+        "set-rotation-248",
+        "set-rotation-256",
+        "set-rotation-267"
+      ]
+    },
+    "int": {
+      "cases": 185,
+      "identical": 185,
+      "different": 0,
+      "different_cases": []
+    },
+    "stream-state": {
+      "cases": 279,
+      "identical": 279,
+      "different": 0,
+      "different_cases": []
+    },
+    "set-rotation-variant": {
+      "cases": 10,
+      "identical": 4,
+      "different": 6,
+      "different_cases": [
+        "set-rotation-variant-sin-1",
+        "set-rotation-variant-sin-3",
+        "set-rotation-variant-sin-4",
+        "set-rotation-variant-cos-0",
+        "set-rotation-variant-cos-1",
+        "set-rotation-variant-cos-2"
+      ]
+    },
+    "mixed-nan": {
+      "cases": 3501,
+      "identical": 3501,
+      "different": 0,
+      "different_cases": []
+    }
+  },
+  "refusal_parity": {
+    "refusal_probes": 260,
+    "requests": 520,
+    "failures": 0
+  },
+  "output_sha256": {
+    "smoke_oracle": "3a723a8e624c60dd001de9b16ff0a8248bc888de594d75239381fabe5eba83cd",
+    "rust_native": "33436b570ae79f6115b94544e2e97aa123c225d6ad545278d5f017e0d1001891",
+    "rust_wasm32_wasip1": "d6985652329db981c3c365918722d6f619bebbca2e51ca1fb46eaae4347696ea"
+  }
+}

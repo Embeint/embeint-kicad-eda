@@ -1,0 +1,55 @@
+{
+  "tested_source": "2f0d6b142b7cc908342c1c918e0a12885da99369",
+  "qualified": false,
+  "host": "macOS 26 (Darwin 25.5.0) arm64, Apple clang, Apple libc/libm; not the qualified Linux x86-64 platform",
+  "cases": 3485,
+  "cases_sha256": "c21be36d1e16fcf4fb6271016ceaed5cb1eed19bf4a520250b40f33919fa1611",
+  "smoke_oracle_vs_rust_native": {
+    "identical": 3482,
+    "different": [
+      "set-rotation-22",
+      "stream-default-nan-with-infinity",
+      "stream-values-3"
+    ],
+    "errors": 0
+  },
+  "rust_native_vs_wasm32_wasip1_node24": {
+    "identical": 3461,
+    "different": [
+      "set-rotation-22",
+      "set-rotation-29",
+      "set-rotation-46",
+      "set-rotation-71",
+      "set-rotation-75",
+      "set-rotation-82",
+      "set-rotation-90",
+      "set-rotation-97",
+      "set-rotation-105",
+      "set-rotation-114",
+      "set-rotation-120",
+      "set-rotation-127",
+      "set-rotation-132",
+      "set-rotation-143",
+      "set-rotation-152",
+      "set-rotation-154",
+      "set-rotation-177",
+      "set-rotation-182",
+      "set-rotation-184",
+      "set-rotation-205",
+      "set-rotation-244",
+      "set-rotation-248",
+      "set-rotation-256",
+      "set-rotation-267"
+    ]
+  },
+  "refusal_parity": {
+    "refusal_probes": 187,
+    "requests": 374,
+    "failures": 0
+  },
+  "output_sha256": {
+    "smoke_oracle": "8fe1c5fddef1cac67e38c6261cba86c4edf4e99667346f58f7193a6fac4f97c2",
+    "rust_native": "1c91b2eff696decb971c0a7a30caf9f22acc8179f5c44fbe641ef355fb04aa18",
+    "rust_wasm32_wasip1": "26623fba7ed2e9b47d6505d2802cc47121ebab9c94ebc58650d86c042056831a"
+  }
+}
