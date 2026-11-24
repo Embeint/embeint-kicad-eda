@@ -365,6 +365,9 @@ def check(data, ext, unit_imports):
 
     def relocations():
         bad, types = [], {}
+        writes = relocation_writes(raw)
+        reject_overlapping_writes(writes)
+        widths = {(name, index): end - start for start, end, name, index in writes}
         nsym = raw.by['.dynsym']['size'] // 24
         w = [s for s in raw.secs if s['flags'] & SHF_ALLOC and s['flags'] & SHF_WRITE]
         got, bss = raw.by['.got'], raw.by['.bss']
@@ -380,7 +383,8 @@ def check(data, ext, unit_imports):
                     bad.append(f'{name}: relocation type {t}')
                 if sym >= nsym or (t == 8) != (sym == 0):
                     bad.append(f'{name}: symbol index {sym} for type {t}')
-                place = [x for x in w if x['addr'] <= off and off + 8 <= x['addr'] + x['size']]
+                width = widths[(name, k)]
+                place = [x for x in w if x['addr'] <= off and off + width <= x['addr'] + x['size']]
                 if len(place) != 1:
                     bad.append(f'{name}: place {off:#x} is not in one writable section')
                 elif t == 7 and place[0]['name'] != '.got' or t == 5 and place[0]['name'] not in ('.bss', '.data.rel.ro'):
@@ -468,6 +472,33 @@ def copy_symbols(raw):
     s = raw.by['.rela.dyn']
     return {struct.unpack_from('<QQq', raw.data, s['offset'] + 24 * k)[1] >> 32 for k in range(s['size'] // 24)
             if struct.unpack_from('<QQq', raw.data, s['offset'] + 24 * k)[1] & 0xFFFFFFFF == 5}
+
+
+def relocation_writes(raw):
+    """Every loader write across both RELA tables, including full COPY symbol sizes."""
+    ds = raw.by['.dynsym']
+    writes = []
+    for name in ('.rela.dyn', '.rela.plt'):
+        s = raw.by[name]
+        if s['type'] != 4 or s['entsize'] != 24 or s['size'] % 24:
+            raise ExecError(f'{name}: invalid RELA table shape')
+        for index in range(s['size'] // 24):
+            off, info, _add = struct.unpack_from('<QQq', raw.data, s['offset'] + 24 * index)
+            typ, sym = info & 0xFFFFFFFF, info >> 32
+            if typ not in (1, 5, 6, 7, 8) or sym >= ds['size'] // 24:
+                raise ExecError(f'{name}: unknown write type or symbol index')
+            size = struct.unpack_from('<Q', raw.data, ds['offset'] + 24 * sym + 16)[0] if typ == 5 else 8
+            if size == 0 or off + size > 1 << 64:
+                raise ExecError(f'{name}: invalid relocation write size')
+            writes.append((off, off + size, name, index))
+    return writes
+
+
+def reject_overlapping_writes(writes):
+    ordered = sorted(writes)
+    for previous, current in zip(ordered, ordered[1:]):
+        if current[0] < previous[1]:
+            raise ExecError(f'overlapping runtime relocation writes: {previous} and {current}')
 
 
 def parse_verneed(raw, va):

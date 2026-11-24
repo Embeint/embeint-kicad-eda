@@ -121,16 +121,30 @@ class Elf:
         if len(rela) != 1 or len(dynsym) != 1:
             raise ElfError('missing .rela.plt or .dynsym')
         dynstr = self.sections[dynsym[0]['link']]
-        for k in range(rela[0]['size'] // 24):
-            off, info, add = struct.unpack_from('<QQq', self.data, rela[0]['offset'] + 24 * k)
-            if off == got:
-                if info & 0xffffffff != 7:
-                    raise ElfError(f'GOT {got:#x} relocation type {info & 0xffffffff} is not JUMP_SLOT')
-                idx = info >> 32
-                name_off = struct.unpack_from('<I', self.data, dynsym[0]['offset'] + 24 * idx)[0]
-                return {'import': self._str(dynstr['offset'], name_off), 'stub_sha256': hashlib.sha256(stub).hexdigest(),
-                        'got': hex(got)}
-        raise ElfError(f'no .rela.plt entry for GOT {got:#x}')
+        hits = []
+        for table in ('.rela.dyn', '.rela.plt'):
+            tables = [x for x in self.sections if x['name'] == table]
+            if len(tables) != 1:
+                raise ElfError(f'missing or ambiguous {table}')
+            r = tables[0]
+            if r['entsize'] != 24 or r['size'] % 24:
+                raise ElfError(f'invalid {table} entry size')
+            for k in range(r['size'] // 24):
+                off, info, add = struct.unpack_from('<QQq', self.data, r['offset'] + 24 * k)
+                typ, idx = info & 0xffffffff, info >> 32
+                if typ not in (1, 5, 6, 7, 8) or idx >= dynsym[0]['size'] // 24:
+                    raise ElfError('unsupported runtime relocation write or symbol')
+                width = struct.unpack_from('<Q', self.data, dynsym[0]['offset'] + 24 * idx + 16)[0] if typ == 5 else 8
+                if width == 0 or off + width > 1 << 64:
+                    raise ElfError('invalid runtime relocation write size')
+                if off < got + 8 and got < off + width:
+                    hits.append((table, off, typ, idx))
+        if len(hits) != 1 or hits[0][:3] != ('.rela.plt', got, 7):
+            raise ElfError(f'GOT {got:#x} does not have one unique JUMP_SLOT write: {hits}')
+        idx = hits[0][3]
+        name_off = struct.unpack_from('<I', self.data, dynsym[0]['offset'] + 24 * idx)[0]
+        return {'import': self._str(dynstr['offset'], name_off), 'stub_sha256': hashlib.sha256(stub).hexdigest(),
+                'got': hex(got)}
 
     def functions_at(self, va):
         return sorted({s['name'] for s in self.symbols if s['type'] == STT_FUNC and s['value'] == va})
