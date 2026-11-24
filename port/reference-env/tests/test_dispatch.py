@@ -17,6 +17,7 @@ from pathlib import Path
 import re
 import shutil
 import signal
+import struct
 import subprocess
 import sys
 import tempfile
@@ -54,7 +55,7 @@ class ProofTest(unittest.TestCase):
         return self.syn.layout[function][key]
 
     def report(self):
-        caller = dispatch_proof.Caller("/out/bin/primitive_probe", libm_elf.Elf64(fx.probe_elf()))
+        caller = dispatch_proof.Caller("/out/bin/primitive_probe", fx.probe_elf())
         return dispatch_proof.dispatch_report(self.observation, self.facts, self.syn.lock, CANDIDATE,
                                               self.syn.elf, caller=caller)
 
@@ -119,6 +120,45 @@ class ProofTest(unittest.TestCase):
             with self.subTest(marker=marker):
                 self.record("sin")["return_address"] = self.record("sin")["return_to"] = marker
                 self.assertFails("sin", "in executable probe code")
+
+    def test_caller_requires_supported_executable_load_segments(self):
+        original = fx.probe_elf()
+        phoff = struct.unpack_from("<Q", original, 0x20)[0]
+        changes = (
+            (7, "<B", 9),       # unsupported OS ABI
+            (8, "<B", 1),       # unsupported ABI version
+            (0x12, "<H", 183),  # AArch64
+            (0x10, "<H", 1),    # relocatable, not executable/PIE
+            (0x38, "<H", 0),    # no program headers
+            (phoff + 56 + 4, "<I", 4),  # executable section, non-executable PT_LOAD
+            (phoff + 56 + 32, "<Q", len(original) + 1),  # segment exceeds the file
+            (0x18, "<Q", 0),    # entry is not in executable code
+        )
+        for offset, fmt, value in changes:
+            with self.subTest(offset=offset, value=value):
+                data = bytearray(original)
+                struct.pack_into(fmt, data, offset, value)
+                with self.assertRaises(ValueError):
+                    dispatch_proof.Caller("/out/bin/primitive_probe", bytes(data))
+
+    def test_caller_load_bias_and_section_flags(self):
+        data = bytearray(fx.probe_elf())
+        elf = libm_elf.Elf64(data)
+        text_index = elf.names.index(".text")
+        struct.pack_into("<Q", data, elf.shoff + text_index * elf.shentsize + 8, 0)
+        caller = dispatch_proof.Caller("/out/bin/primitive_probe", bytes(data))
+        self.assertTrue(caller.contains(fx.RETURN))  # PT_LOAD still grants execution.
+        self.assertFalse(caller.contains("!/out/bin/primitive_probe+0x0"))
+        phoff = struct.unpack_from("<Q", data, 0x20)[0]
+        struct.pack_into("<H", data, 0x10, 2)  # ET_EXEC with a fixed, nonzero mapping base.
+        struct.pack_into("<Q", data, 0x18, 0x401040)
+        for i in range(2):
+            at = phoff + 56 * i
+            address = struct.unpack_from("<Q", data, at + 16)[0] + 0x400000
+            struct.pack_into("<QQ", data, at + 16, address, address)
+        caller = dispatch_proof.Caller("/out/bin/primitive_probe", bytes(data))
+        self.assertTrue(caller.contains(fx.RETURN))
+        self.assertFalse(caller.contains("!/out/bin/primitive_probe+0x401234"))
 
     def test_wrong_target_through_slot(self):
         record = self.record("exp")
@@ -248,13 +288,14 @@ class DecoderTest(unittest.TestCase):
         ("0fae5c24fc", 5, "seq"), ("f6c510", 3, "seq"), ("f682b800000020", 7, "seq"),
         ("81e100000010", 6, "seq"), ("480f44c2", 4, "seq"), ("0fc6c000", 4, "seq"), ("f20f2ac0", 4, "seq"),
         ("660f3a0bc104", 6, "seq"), ("660f3800c1", 5, "seq"), ("660f1f440000", 6, "seq"),
+        ("0f50c0", 3, "seq"), ("660f50c0", 4, "seq"),
         ("c3", 1, "ret"), ("f3c3", 2, "ret"), ("e8fbffffff", 5, "call"), ("e9fbffffff", 5, "jmp"),
         ("eb02", 2, "jmp"), ("721b", 2, "jcc"), ("0f8510000000", 6, "jcc"), ("ff2566000000", 6, "jmp_rip_memory"),
     ]
     REFUSED = ["c5f957c0", "c4e2f1a9c2", "62f1fd4858c0", "0f0b", "0f05", "cc", "ffd0", "ffe0", "ff10", "d9e8",
                "f3a4", "66e90000", "f4", "0fa2", "0f77", "8f00", "f0f0f0f0f0c3", "",
                "0f38ffc0", "0f3affc000", "660f38ffc0", "660f3affc000", "c7f801000000", "c6f801",
-               "0f3800c1", "f30f3800c1", "f2660f3a0bc104"]
+               "0f3800c1", "f30f3800c1", "f2660f3a0bc104", "f0c3", "660f5000", "f30f50c0"]
 
     def test_lengths_and_kinds(self):
         for code, length, kind in self.CASES:

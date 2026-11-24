@@ -170,11 +170,49 @@ def default_definition(facts, function):
 
 
 class Caller:
-    """The recorded probe object and its retained executable bytes."""
+    """The recorded probe object and its file-backed executable load mappings."""
 
-    def __init__(self, name, elf):
+    def __init__(self, name, data):
         self.name = name
-        self.elf = elf
+        if (len(data) < 64 or data[:7] != b"\x7fELF\x02\x01\x01" or data[7] not in (0, 3) or data[8] != 0
+                or struct.unpack_from("<H", data, 0x10)[0] not in (2, 3)
+                or struct.unpack_from("<H", data, 0x12)[0] != 62
+                or struct.unpack_from("<I", data, 0x14)[0] != 1):
+            raise ValueError("probe is not a supported x86-64 ELF executable")
+        entry, phoff = struct.unpack_from("<QQ", data, 0x18)
+        ehsize, phsize, phnum = struct.unpack_from("<HHH", data, 0x34)
+        if (ehsize != 64 or phsize != 56 or not 0 < phnum < 65535 or phoff < ehsize
+                or phoff + phsize * phnum > len(data)):
+            raise ValueError("invalid probe ELF program-header table")
+        self.loads = []
+        for i in range(phnum):
+            kind, flags, offset, address, _physical, filesz, memsz, align = struct.unpack_from(
+                "<IIQQQQQQ", data, phoff + phsize * i)
+            if kind != 1:  # PT_LOAD, the loader's authority; section flags are not permissions.
+                continue
+            if (filesz > memsz or offset + filesz > len(data) or address + memsz >= 1 << 64
+                    or (address - offset) % 4096
+                    or (align > 1 and (align & (align - 1) or (address - offset) % align))):
+                raise ValueError("invalid probe ELF load segment")
+            if self.loads and address < self.loads[-1][0]:
+                raise ValueError("unordered probe ELF load segments")
+            self.loads.append((address, filesz, memsz, flags))
+        if not self.loads or not any(flags & 1 and filesz for _a, filesz, _m, flags in self.loads):
+            raise ValueError("probe has no file-backed executable load segment")
+        # glibc 2.39 dladdr reports l_map_start, the first mapped page, so both
+        # ET_EXEC and PIE offsets must be measured relative to that page.
+        self.base = self.loads[0][0] & ~4095
+        if not self.executable(entry):
+            raise ValueError("probe entry is not in a file-backed executable load segment")
+
+    def executable(self, address):
+        mapping = None
+        for start, filesz, memsz, flags in self.loads:
+            page_start, page_end = start & ~4095, (start + memsz + 4095) & ~4095
+            if page_start <= address < page_end:
+                mapping = (start, filesz, flags)  # A later mapping replaces an overlapping page.
+        return (mapping is not None and bool(mapping[2] & 1)
+                and mapping[0] <= address < mapping[0] + mapping[1])
 
     def contains(self, text):
         prefix = "!" + self.name + "+"
@@ -183,23 +221,28 @@ class Caller:
         offset = text[len(prefix):]
         if not re.fullmatch(r"0x[0-9a-f]{1,16}", offset):
             return False
-        try:
-            return bool(self.elf.code(_int(offset)))
-        except ValueError:
-            return False
+        return self.executable(self.base + _int(offset))
 
 
-def recorded_caller(directory, observation, lock):
+def recorded_caller(directory, observation, lock, loaded_objects):
     """Bind completion markers to the probe binary, never to a named library."""
     name = observation.get("probe_object")
     if (type(name) is not str or not name.startswith("/") or "\n" in name or "\0" in name
             or PurePosixPath(name).name != "primitive_probe" or name == lock["libm"]["path"]):
         return None, ["missing or invalid recorded probe object"]
+    # CollectObject deliberately omits the main executable. A caller cannot
+    # simultaneously be one of its recorded shared libraries or aliases.
+    if type(loaded_objects) is not dict or any(type(item) is not dict for item in loaded_objects.values()):
+        return None, ["invalid recorded shared-object map"]
+    shared = set(loaded_objects) | {item.get("resolved") for item in loaded_objects.values()
+                                  if type(item.get("resolved")) is str}
+    if name in shared:
+        return None, ["probe caller is a recorded shared-object alias"]
     path = Path(directory) / "bin/primitive_probe"
     if path.is_symlink() or not path.is_file() or path.stat().st_size > MAX_ELF_BYTES:
         return None, ["missing, invalid or oversized retained probe ELF"]
     try:
-        return Caller(name, libm_elf.Elf64(path.read_bytes())), []
+        return Caller(name, path.read_bytes()), []
     except (ValueError, IndexError, KeyError, struct.error) as error:
         return None, ["retained probe ELF cannot be read: " + str(error)]
 
@@ -419,7 +462,7 @@ def run_report(directory, observation, environment, lock, candidate):
     facts, libm, problems = verified_facts(directory, environment, lock,
                                            candidate["dispatch"]["checked_functions"])
     resolved = resolve_objects(observation, environment.get("loaded_objects", {}))
-    caller, caller_problems = recorded_caller(directory, observation, lock)
+    caller, caller_problems = recorded_caller(directory, observation, lock, environment.get("loaded_objects", {}))
     return dispatch_report(resolved, facts, lock, candidate, libm, problems + caller_problems, caller)
 
 

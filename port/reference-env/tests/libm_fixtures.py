@@ -28,8 +28,15 @@ FUNC, IFUNC = 2, 10
 
 def probe_elf():
     """Synthetic caller with executable bytes at RETURN, not at the ELF header."""
-    return build_elf([{"name": ".text", "type": 1, "flags": 6, "addr": 0x1200,
-                       "data": b"\x90" * 0x40}])
+    data = bytearray(build_elf([{"name": ".text", "type": 1, "flags": 6, "addr": 0x1040,
+                                "data": b"\x90" * 0x400}]))
+    phoff = len(data)
+    struct.pack_into("<Q", data, 0x18, 0x1040)
+    struct.pack_into("<Q", data, 0x20, phoff)
+    struct.pack_into("<HH", data, 0x36, 56, 2)
+    data += struct.pack("<IIQQQQQQ", 1, 4, 0, 0, 0, 64, 64, 4096)
+    data += struct.pack("<IIQQQQQQ", 1, 5, 64, 0x1040, 0x1040, 0x400, 0x400, 4096)
+    return bytes(data)
 
 
 def hx(value):
