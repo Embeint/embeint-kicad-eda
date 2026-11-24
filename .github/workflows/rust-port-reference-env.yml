@@ -27,6 +27,10 @@ on:
         description: Also build and audit the pinned oracle inside the candidate image
         type: boolean
         default: false
+      with_difftest:
+        description: Run the strict corpus and golden checks inside the candidate (implies oracle)
+        type: boolean
+        default: false
       sweep_count:
         description: Number of sweep angles (1..2000000)
         default: "200000"
@@ -63,10 +67,15 @@ jobs:
         env:
           ORACLE_JOBS: "4"
           WITH_ORACLE: ${{ inputs.with_oracle }}
+          WITH_DIFFTEST: ${{ inputs.with_difftest }}
           SWEEP_COUNT: ${{ inputs.sweep_count }}
         run: |
           args=(--revision "$GITHUB_SHA" --work "$RUNNER_TEMP/refenv" --sweep-count "$SWEEP_COUNT" --rebuild-check)
-          if test "$WITH_ORACLE" = true; then args+=(--with-oracle); fi
+          if test "$WITH_DIFFTEST" = true; then
+            args+=(--with-difftest "$GITHUB_WORKSPACE")
+          elif test "$WITH_ORACLE" = true; then
+            args+=(--with-oracle)
+          fi
           bash port/reference-env/qualify.sh "${args[@]}"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()

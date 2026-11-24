@@ -613,8 +613,9 @@ symlink traversal prevents safe lexical folding. The probe's own recorded path
 must also be canonical, as emitted by the fixed compiler command. Program headers
 are capped at
 65,536 bytes, following [Linux `load_elf_phdrs`](https://github.com/torvalds/linux/blob/v6.18/fs/binfmt_elf.c):
-1,170 ELF64 entries fit, 1,171 do not. These follow-ups still need independent
-review and native validation.
+1,170 ELF64 entries fit, 1,171 do not. Independent Sol 6.1 review at `00106ffed1`
+cleared these follow-ups; its retained-image tests passed 97/97. Fresh hosted
+evidence at that revision is recorded below, separately from corpus qualification.
 
 ## Native WSL qualification handoff
 
@@ -696,6 +697,32 @@ RUN_A/probe RUN_B/probe`. The historical `1b4` run matched the R-tree, MD5 and
 supplementary IEC corpora but retained 13 resistor mismatches. The controlled
 SSE2/FMA `pow(10,126)` difference is recorded above; it is not a golden-update
 or comparison exemption.
+
+## Native Linux CI evidence
+
+The read-only `rust-port-reference-env.yml` workflow also supports manual runs on
+an isolated native Linux runner. Set `probe=true` to enable the candidate job.
+`with_oracle=true` adds the audited oracle; `with_difftest=true` implies the oracle
+and passes the clean, full-depth CI checkout to the existing strict corpus and
+golden-check payload. These inputs default to false. For example:
+
+```bash
+gh workflow run rust-port-reference-env.yml --ref t3/rust-reference-environment \
+    -f probe=true -f with_difftest=true -f sweep_count=2000000
+```
+
+The corpus option runs the existing gate without changing comparisons or goldens.
+A mismatch fails the job and retains the run artifacts. Its clean Linux checkout
+preflight is distinct from the earlier WSL manual payload, whose preflight was
+not run. Successful measurement jobs do not adopt the candidate as the reference.
+
+Historical [run 45320317656](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45320317656)
+at exact `00106ffed153ef6422513242c1ab47782c7c956e` built the image and its no-cache
+rebuild with byte-identical installed-identity records. On an AMD EPYC 7763 Linux
+runner, all 76 oracle compilations passed the strict FP audit, eight CTests passed,
+and all twelve probe checks passed at 2,000,000 angles. C++ and Rust sweep results
+matched exactly. The committed artifact validator also accepted the retained probe
+files. That run did not request corpus difftests; it is not full qualification.
 
 Publication is a separate, authorised step: tag the locally built image as
 `registry.taileef599.ts.net/embeint-kicad/rust-port-reference:noble-20261110.1-gcc13.3-candidate-1`,
