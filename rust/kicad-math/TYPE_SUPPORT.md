@@ -21,15 +21,15 @@ were separately hash-verified. Initial official base was `eb4cd4724ff6f5fa2119c8
 
 Directly exercised aliases are `Vector2I` (i32), `Vector2L` (i64), `Vector2D` (f64),
 `Vector3I` (i32), `Vector3U` (u32), `Vector3D` (f64). Representation remains generic and
-existing generic construction/copy/alias tests remain. Rust spells C++'s default `T=int`
-as `Vector2I`/`Vector3I`, not a new duplicate public vector. Integral Vector2 ordering implements Ord for ordered collections; floating relational operators
+existing generic construction/copy/alias tests remain. Rust's default generic `T=i32` also preserves bare `Vector2`/`Vector3` spellings, alongside
+`Vector2I`/`Vector3I`; no duplicate public vector is introduced. Integral Vector2 ordering implements Ord for ordered collections; floating relational operators
 retain unordered semantics and LexicographicalCompare stays a separate API. No Hash implementation is
 provided, preserving the deliberately deleted `std::hash<VECTOR2I>` contract.
 
 `VectorComponent::Extended` ports the trait boundary: i32 -> i64; i64/u32/f64 -> themselves.
 ECOORD_MIN/MAX use that extended type; f64 MIN is **MIN_POSITIVE**, not the most negative
 finite value. Defaulted/implicit VECTOR3 construction/copy/assignment are covered by Rust
-Default/Copy/Clone/assignment. coord_type is the generic component T.
+Default/Copy/Clone/assignment and explicit assign_from returning mutable self. coord_type is the generic component T.
 
 Fallible checked operations are named methods. They reject each signed UB intermediate,
 not the final result alone, and preserve x-then-y(-then-z) writes on later Rust failure.
@@ -132,7 +132,7 @@ labels and USRs identify bodies exactly; constrained scalar overloads are audite
 | VECTOR2 / double<br>`c:@ST>1#T@VECTOR2@F@operator/#d#1` | `divide` | `2-*-divide-*` | integral uses default int KiROUND even for i64; zero/NaN valid and deferred to helper |
 | VECTOR2 <<br>`c:@ST>1#T@VECTOR2@F@operator<#&1>@ST>1#T@VECTOR21t0.0#1` | `less` | `bits-*-compare` | x unordered never falls through to y |
 | VECTOR2 <=<br>`c:@ST>1#T@VECTOR2@F@operator<=#&1>@ST>1#T@VECTOR21t0.0#1` | `less_equal` | `bits-*-compare` | same x ordering/eq condition |
-| VECTOR2 assignment<br>`c:@ST>1#T@VECTOR2@F@operator=#&1>@ST>1#T@VECTOR21t0.0#` | `Rust assignment` | `2-*-assign` | memberwise Copy; source bits retained |
+| VECTOR2 assignment<br>`c:@ST>1#T@VECTOR2@F@operator=#&1>@ST>1#T@VECTOR21t0.0#` | `assign_from / Rust assignment` | `2-*-assign, bits-*-assign` | memberwise copy and mutable-self return; source bits retained |
 | VECTOR2 ==<br>`c:@ST>1#T@VECTOR2@F@operator==#&1>@ST>1#T@VECTOR21t0.0#1` | `PartialEq::eq` | `bits-*-compare` | short circuit x then y |
 | VECTOR2 ><br>`c:@ST>1#T@VECTOR2@F@operator>#&1>@ST>1#T@VECTOR21t0.0#1` | `greater` | `bits-*-compare` | same x ordering/eq condition |
 | VECTOR2 >=<br>`c:@ST>1#T@VECTOR2@F@operator>=#&1>@ST>1#T@VECTOR21t0.0#1` | `greater_equal` | `bits-*-compare` | same x ordering/eq condition |
@@ -148,7 +148,7 @@ labels and USRs identify bodies exactly; constrained scalar overloads are audite
 | VECTOR3 *= scalar value<br>`c:@ST>1#T@VECTOR3@F@operator*=#t0.0#` | `mul_assign_scalar` | `3-*-mul_assign_scalar-alias-*` | scalar copied before first write; x/y/z mutation order |
 | VECTOR3 /= scalar value<br>`c:@ST>1#T@VECTOR3@F@operator/=#t0.0#` | `div_assign_scalar` | `3-*-div_assign_scalar-alias-*` | integer zero and MIN/-1 refused; u32 division; distinct quieted NaN operands deferred |
 | VECTOR3 ==<br>`c:@ST>1#T@VECTOR3@F@operator==#&1>@ST>1#T@VECTOR31t0.0#1` | `PartialEq::eq` | `bits-*-compare` | short circuit x/y/z |
-| VECTOR3 converting constructor<br>`c:@ST>1#T@VECTOR3@FT@>1#TVECTOR3#&1>@ST>1#T@VECTOR31t1.0#v#` | `try_cast / Vector3CastFrom` | `3-*-cast-*` | direct unclamped conversion; i32/u32 narrowing uses measured Linux/GCC modular interpretation; other types unqualified |
+| VECTOR3 converting constructor<br>`c:@ST>1#T@VECTOR3@FT@>1#TVECTOR3#&1>@ST>1#T@VECTOR31t1.0#v#` | `try_cast / Vector3CastFrom` | `3-*-cast-*` | direct unclamped conversion; i32/u32 narrowing follows C++20 modulo semantics, with direct boundary cases; other types unqualified |
 
 ## Evidence and remaining work
 
@@ -158,7 +158,7 @@ labels and USRs identify bodies exactly; constrained scalar overloads are audite
 mutation, cast intervals, extended-before-double Distance, norm saturation, Normalize state
 and return, unordered comparison, second-reference identity and f64 ECOORD_MIN.
 
-The deterministic generator emits 9,186 valid cases and 29 separate UB refusal controls.
+The deterministic generator emits 9,533 valid cases and 29 separate UB refusal controls.
 Every corpus case runs in the real pinned C++ and in Rust; Rust deferrals are explicit error
 envelopes with actual owner, while C++ must return a real result. Refusals are outside the
 success corpus and assert a later request survives. There is no tolerance, lookup table,
@@ -179,3 +179,12 @@ The initial live result and its exact revision binding are retained at
 motivation and the remaining ambiguous sites are recorded in
 `../../port/findings/vector-unique-nan-arithmetic.md`.
 Those observations are not an output lookup and do not certify later code without a fresh run.
+
+The current adapter invokes the actual public common-type arithmetic functions for free
+vector operators and scalar-first multiplication. Assignment observes the returned reference
+through `assign_from`; every compound mutation compares its actual returned address with the
+destination address. The C++ adapter observes the real assignment-expression reference too.
+Rust const-evaluation of arithmetic/assignment beyond the existing constructors remains
+unqualified. Mixed scalar +/- with a different integral U, f32 scalar specializations and
+non-arithmetic fallback casts are not implemented as separate public overloads; they are
+explicit missing instantiations, not certified by same-type cases.

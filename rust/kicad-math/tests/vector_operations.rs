@@ -156,3 +156,24 @@ fn arithmetic_preserves_a_unique_quieted_nan_and_defers_ambiguous_sites() {
         Ok(q)
     );
 }
+
+#[test]
+fn assignment_returns_the_destination_and_keeps_source_bits() {
+    let default2: Vector2 = Vector2::new(0, 0);
+    let default3: Vector3 = Vector3::new(0, 0, 0);
+    assert_eq!(default2, kicad_math::Vector2I::default());
+    assert_eq!(default3, kicad_math::Vector3I::default());
+    let source = Vector2::new(f64::from_bits(0x7ff0_0000_0000_0123), -0.0);
+    let mut destination = Vector2::default();
+    let address = std::ptr::from_ref(&destination);
+    let returned = std::ptr::from_mut(destination.assign_from(source));
+    assert!(std::ptr::eq(address, returned));
+    assert_eq!(destination.x.to_bits(), source.x.to_bits());
+    assert_eq!(destination.y.to_bits(), source.y.to_bits());
+    let source = Vector3::new(i32::MIN, 0, i32::MAX);
+    let mut destination = Vector3::default();
+    let address = std::ptr::from_ref(&destination);
+    let returned = std::ptr::from_mut(destination.assign_from(source));
+    assert!(std::ptr::eq(address, returned));
+    assert_eq!(destination, source);
+}

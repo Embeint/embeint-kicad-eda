@@ -1,0 +1,25 @@
+{
+  "unit": "libs.kimath.include.math.application.ui.p002",
+  "status": "partial",
+  "action": "compare",
+  "mode": "partial",
+  "cases": 9186,
+  "compared": 8513,
+  "deferred": 673,
+  "failures": 0,
+  "unprocessed": 0,
+  "golden_checked": false,
+  "golden": {
+    "status": "not_requested"
+  },
+  "run_faults": [],
+  "extra_replies": [],
+  "cases_sha256": "04fe03a441ff74a1c91d48f347186c38a5b8e993e063b1167817867339e82164",
+  "oracle_output_sha256": "526d2ec5dbb24c2088b573764f55bc8e561443d1524e8c15daccac31e1815fd7",
+  "rust_output_sha256": "d4e6a56d2e0908ce7af393996aa0517329d4263d3e57a30c6a754109d41484bc",
+  "oracle_sha256": "5bfc35b769c6a1e7ccb65bae81527f9eeaa6d7d49cd9df453068c43b92dab3c1",
+  "rust_sha256": "3b6fe97601c70b82bc14f606cf9652c601070061881407479474c57e77c0d661",
+  "tested_head": "ff389f87e17ba9d85c51024aef0af1fd43bb218e",
+  "tested_merge": "35d2e874c2d345707fd1abc9ea1e48c218b3d591",
+  "run": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45390599190"
+}

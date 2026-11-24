@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-use kicad_math::vector::{Vector2CastFrom, Vector2Scalar, Vector3CastFrom, VectorComponent};
+use kicad_math::vector::{
+    Vector2CastFrom, Vector2Scalar, Vector3CastFrom, VectorCommon, VectorComponent,
+};
 use kicad_math::{Vector2, Vector3, VectorDomainError};
 use serde_json::{json, Value};
 pub const UNIT: &str = "libs.kimath.include.math.application.ui.p002";
@@ -127,7 +129,7 @@ fn val(v: Value) -> Value {
 fn mutation(v: Value, state: Value, same_ref: bool) -> Value {
     json!({"value":v,"state":state,"same_ref":same_ref})
 }
-fn run2<T: Wire>(i: &Value, op: &str) -> Result<Value>
+fn run2<T: Wire + VectorCommon<T, Common = T>>(i: &Value, op: &str) -> Result<Value>
 where
     T::Extended: Wire,
     i32: Vector2CastFrom<T>,
@@ -146,7 +148,17 @@ where
         T::default()
     };
     Ok(match op {
-        "new" | "copy" | "assign" => val(w2(a)),
+        "new" | "copy" => val(w2(a)),
+        "assign" => {
+            let mut destination = Vector2::default();
+            let address = std::ptr::from_ref(&destination);
+            let returned = std::ptr::from_mut(destination.assign_from(a));
+            mutation(
+                w2(destination),
+                w2(destination),
+                std::ptr::eq(address, returned),
+            )
+        }
         "default" => val(w2(Vector2::<T>::default())),
         "traits" => {
             json!({"min":Vector2::<T>::ECOORD_MIN.wire(),"max":Vector2::<T>::ECOORD_MAX.wire()})
@@ -154,9 +166,10 @@ where
         "compare" => {
             json!({"eq":a==b,"ne":a!=b,"lt":a<b,"le":a<=b,"gt":a>b,"ge":a>=b,"compare":a.lexicographical_compare(&b),"min":w2(*a.lexicographical_min(&b)),"max":w2(*a.lexicographical_max(&b)),"min_first":std::ptr::eq(&a,a.lexicographical_min(&b)),"max_first":std::ptr::eq(&a,a.lexicographical_max(&b))})
         }
-        "add" => val(w2(a.try_add(b)?)),
-        "sub" => val(w2(a.try_sub(b)?)),
-        "dot" | "operator_dot" => val(a.dot(b)?.wire()),
+        "add" => val(w2(kicad_math::vector::vector2_add(a, b)?)),
+        "sub" => val(w2(kicad_math::vector::vector2_sub(a, b)?)),
+        "dot" => val(a.dot(b)?.wire()),
+        "operator_dot" => val(kicad_math::vector::vector2_dot(a, b)?.wire()),
         "cross" => val(a.cross(b)?.wire()),
         "squared_distance" => val(a.squared_distance(b)?.wire()),
         "distance" => val(a.distance(v2::<T::Extended>(&i["b"])?)?.wire()),
@@ -164,7 +177,8 @@ where
         "squared_norm" => val(a.squared_euclidean_norm()?.wire()),
         "neg" => val(w2(a.try_neg()?)),
         "perpendicular" => val(w2(a.perpendicular()?)),
-        "mul_scalar" | "scalar_mul" => val(w2(a.try_mul_scalar(s)?)),
+        "mul_scalar" => val(w2(kicad_math::vector::vector2_mul(a, s)?)),
+        "scalar_mul" => val(w2(kicad_math::vector::scalar_mul_vector2(s, a)?)),
         "add_scalar" => val(w2(a.try_add_scalar(s)?)),
         "sub_scalar" => val(w2(a.try_sub_scalar(s)?)),
         "add_float" | "sub_float" => val(w2(T::add_float(
@@ -183,18 +197,14 @@ where
             _ => return invalid("unsupported target type"),
         }),
         "add_assign" | "sub_assign" | "mul_assign" => {
-            match op {
-                "add_assign" => {
-                    a.add_assign(b)?;
-                }
-                "sub_assign" => {
-                    a.sub_assign(b)?;
-                }
-                _ => {
-                    a.mul_assign(b)?;
-                }
-            }
-            mutation(w2(a), w2(a), true)
+            let address = std::ptr::from_ref(&a);
+            let returned = match op {
+                "add_assign" => a.add_assign(b)?,
+                "sub_assign" => a.sub_assign(b)?,
+                _ => a.mul_assign(b)?,
+            };
+            let same = std::ptr::eq(address, std::ptr::from_mut(returned));
+            mutation(w2(a), w2(a), same)
         }
         "add_assign_scalar" | "sub_assign_scalar" | "mul_assign_scalar" => {
             let operand = match i.get("alias").and_then(Value::as_str) {
@@ -203,18 +213,14 @@ where
                 None => Vector2Scalar::Value(s),
                 _ => return invalid("invalid scalar alias"),
             };
-            match op {
-                "add_assign_scalar" => {
-                    a.add_assign_operand(operand)?;
-                }
-                "sub_assign_scalar" => {
-                    a.sub_assign_operand(operand)?;
-                }
-                _ => {
-                    a.mul_assign_operand(operand)?;
-                }
-            }
-            mutation(w2(a), w2(a), true)
+            let address = std::ptr::from_ref(&a);
+            let returned = match op {
+                "add_assign_scalar" => a.add_assign_operand(operand)?,
+                "sub_assign_scalar" => a.sub_assign_operand(operand)?,
+                _ => a.mul_assign_operand(operand)?,
+            };
+            let same = std::ptr::eq(address, std::ptr::from_mut(returned));
+            mutation(w2(a), w2(a), same)
         }
         _ => return invalid("unknown operation"),
     })
@@ -238,7 +244,17 @@ where
         T::default()
     };
     Ok(match op {
-        "new" | "copy" | "assign" => val(w3(a)),
+        "new" | "copy" => val(w3(a)),
+        "assign" => {
+            let mut destination = Vector3::default();
+            let address = std::ptr::from_ref(&destination);
+            let returned = std::ptr::from_mut(destination.assign_from(a));
+            mutation(
+                w3(destination),
+                w3(destination),
+                std::ptr::eq(address, returned),
+            )
+        }
         "default" => val(w3(Vector3::<T>::default())),
         "traits" => {
             json!({"min":Vector3::<T>::ECOORD_MIN.wire(),"max":Vector3::<T>::ECOORD_MAX.wire()})
@@ -263,12 +279,14 @@ where
                 None => s,
                 _ => return invalid("invalid scalar alias"),
             };
-            if op == "mul_assign_scalar" {
-                a.mul_assign_scalar(s)?;
+            let address = std::ptr::from_ref(&a);
+            let returned = if op == "mul_assign_scalar" {
+                a.mul_assign_scalar(s)?
             } else {
-                a.div_assign_scalar(s)?;
-            }
-            mutation(w3(a), w3(a), true)
+                a.div_assign_scalar(s)?
+            };
+            let same = std::ptr::eq(address, std::ptr::from_mut(returned));
+            mutation(w3(a), w3(a), same)
         }
         "stream" => val(json!(a.stream()?)),
         "cast" => val(match i["target"].as_str() {

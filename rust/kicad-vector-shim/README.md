@@ -15,7 +15,8 @@ use the same encoding; no JSON NaN/null substitution or decimal rounding.
 
 | Operations | Extra fields | Observable output |
 | --- | --- | --- |
-| `new`, `copy`, `assign`, `default` | none | `{value: vector}` |
+| `new`, `copy`, `default` | none | `{value: vector}` |
+| `assign` | none | `{value, state, same_ref}` from actual assignment return |
 | `traits` | none | `{min, max}` in extended_type |
 | `compare` | `b` | eq/ne; 2D also four relational operators, lex compare, min/max vectors and whether each returned the first reference |
 | `dot`, `cross` | `b` | scalar or 3D vector |
@@ -47,7 +48,7 @@ floating division by zero is allowed and reaches KiROUND, unlike integral VECTOR
 The adapter does not impose the rescale comment's numerator <= denominator as a precondition.
 
 `generate_cases.py` regenerates the fixed-seed synthetic corpus and separate UB controls.
-The 9,186 corpus cases include all exposed operations, signed extremes, cast boundaries,
+The 9,533 corpus cases include all exposed operations, signed extremes, cast boundaries,
 scalar aliases, signed zeros, tiny/huge floats, infinities and payload-bearing sNaN/qNaN pairs.
 It computes inputs only. `port/oracle/vector-refusals.jsonl` has 29 UB controls; they are not
 success cases or goldens. Both guard tests require each refusal and a succeeding next request. The shared 12 malformed-input controls also check component ranges, alias types and strict input shape.
@@ -71,5 +72,10 @@ execution or per-site floating qualification is claimed in this unit yet.
 
 The initial 4,103-case hosted pass is retained under
 `validation/2026-11-24-f98485d7/`: 3,173 exact comparisons, 930 deferrals, zero failures.
-It is tied to that historical head. The expanded 9,186-case corpus and later changes require
+It is tied to that historical head. The expanded 9,533-case corpus and later changes require
 a fresh hosted result; no count from the initial run certifies them.
+
+The later `validation/2026-11-24-ff389f87/` snapshot records 9,186 native cases,
+8,513 exact comparisons and 673 explicit deferrals, with zero failures. It qualifies the
+unique-NaN arithmetic implementation at that head; subsequent API/reference observations
+and accepted-base integration remain pending their own live run.

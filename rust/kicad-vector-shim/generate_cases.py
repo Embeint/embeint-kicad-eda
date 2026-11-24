@@ -54,12 +54,20 @@ case('2-i64-resize-default-int-round',2,'i64','resize',[1,0],scalar=3_000_000_00
 case('distance-subtract-before-double',2,'i64','distance',[2**53,0],b=[2**53+1,0])
 case('distance-extended-argument',2,'i32','distance',[0,0],b=[2**32,0])
 case('distance-overflow',2,'i64','distance',[-2**63,0],b=[2**63-1,0],refuse=True)
+for op in ['cast','cast_call']:
+ case(f'integral-clamp-i64-i32-{op}',2,'i64',op,[-2**63,2**63-1],target='i32')
+ case(f'integral-widen-i32-i64-{op}',2,'i32',op,[-2**31,2**31-1],target='i64')
+case('direct-i32-u32-modulo',3,'i32','cast',[-2**31,-1,2**31-1],target='u32')
+case('direct-u32-i32-modulo',3,'u32','cast',[0,2**31,2**32-1],target='i32')
+case('direct-u32-f64-high',3,'u32','cast',[2**32-1,0,2**31],target='f64')
+case('direct-f64-i32-truncate-boundaries',3,'f64','cast',floats([-2**31-0.75,2**31-0.5,-0.0]),target='i32')
+case('clamp-f64-i32-boundaries',2,'f64','cast',floats([-2**31-0.75,2**31-0.25]),target='i32')
 patterns=['0000000000000000','8000000000000000','0000000000000001','8000000000000001','0010000000000000','7fefffffffffffff','ffefffffffffffff','7ff0000000000000','fff0000000000000','7ff8000000000123','fff8000000000456','7ff0000000000789','fff0000000000abc']
 for n,x in enumerate(patterns):
  for m,y in enumerate(patterns):
   for dim in [2,3]:
    a=[x,y]+([bits(2)] if dim==3 else []);b=[y,x]+([bits(2)] if dim==3 else [])
-   for op in ['new','copy','compare']:
+   for op in ['new','copy','assign','compare']:
     case(f'bits-{dim}-{n}-{m}-{op}',dim,'f64',op,a,**({'b':b} if op=='compare' else {}))
   for op in ['mul_scalar','scalar_mul','add_scalar','sub_scalar','divide','add_assign_scalar','sub_assign_scalar','mul_assign_scalar']:
    for which,scalar in enumerate([x,y]):

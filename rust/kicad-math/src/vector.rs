@@ -16,14 +16,14 @@ use crate::fp;
 
 /// `VECTOR2<T>`: a general 2D vector or point. Coordinates keep the C++ component type.
 #[derive(Clone, Copy, Debug, Default)]
-pub struct Vector2<T> {
+pub struct Vector2<T = i32> {
     pub x: T,
     pub y: T,
 }
 
 /// `VECTOR3<T>`: a general 3D vector.
 #[derive(Clone, Copy, Debug, Default)]
-pub struct Vector3<T> {
+pub struct Vector3<T = i32> {
     pub x: T,
     pub y: T,
     pub z: T,
@@ -34,12 +34,33 @@ impl<T> Vector2<T> {
     pub const fn new(x: T, y: T) -> Self {
         Self { x, y }
     }
+
+    /// Memberwise assignment with the upstream mutable-self return contract.
+    pub fn assign_from(&mut self, source: Self) -> &mut Self
+    where
+        T: Copy,
+    {
+        self.x = source.x;
+        self.y = source.y;
+        self
+    }
 }
 
 impl<T> Vector3<T> {
     /// `VECTOR3( T x, T y, T z )`: construct a vector with the given components.
     pub const fn new(x: T, y: T, z: T) -> Self {
         Self { x, y, z }
+    }
+
+    /// The implicit C++ assignment also returns mutable self.
+    pub fn assign_from(&mut self, source: Self) -> &mut Self
+    where
+        T: Copy,
+    {
+        self.x = source.x;
+        self.y = source.y;
+        self.z = source.z;
+        self
     }
 }
 

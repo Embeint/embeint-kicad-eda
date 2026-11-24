@@ -33,7 +33,7 @@ has additional NaN/infinity/axis behavior and libm/runtime dependencies that thi
 rule does not cover. Normalize's unordered norm check returns the unchanged original vector,
 including signalling bits; it does not expose the temporary norm's NaN payload.
 
-The expanded 9,186-case corpus adds scalar-first/scalar-last arithmetic, division, both live
+The expanded 9,533-case corpus adds scalar-first/scalar-last arithmetic, division, both live
 scalar aliases, and 3D dot/cross/scalar mutations across raw-bit pairs. Quiet/signalling,
 positive/negative payloads, zeros, subnormals, finite extremes and infinities remain inputs.
 The new library code reads none of this report, case IDs or recorded answers. Every result
