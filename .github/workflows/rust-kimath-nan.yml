@@ -5,6 +5,9 @@ name: Rust kimath NaN sites
 # graph-check (every PR/push touching the port): the stable offline graph checker and the
 #   gate's unit tests. It proves generated.rs is exactly the reviewed operation graph with a
 #   commutativity-only finite proof; it is NOT machine eligibility and needs no oracle.
+# object-reference (manual only): builds the current sealed candidate, captures actual
+#   objects/includes/link order and runs object mode in that image. A pending review fails;
+#   no golden or lock is written and no image is pushed.
 # frozen-reference (manual dispatch only): builds the oracle from the exact unit source
 #   snapshot in the pinned reference image at the locked /work/kicad-port paths, then runs the
 #   gate's full phase (machine eligibility, context and arithmetic) against the reviewed locks
@@ -26,6 +29,10 @@ on:
       - ".github/workflows/rust-kimath-nan.yml"
   workflow_dispatch:
     inputs:
+      object_reference:
+        description: Capture the current image build and run the pending object gate (no golden)
+        type: boolean
+        default: false
       frozen_reference:
         description: Build the frozen 8ef0c0e reference in the pinned image and run the full gate
         type: boolean
@@ -70,6 +77,99 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}/port/tools/kimath_nan/gate
         run: python -B -m unittest discover -s "$NANTOOLS/gate/tests" -p 'test_*.py' -v
+
+  object-reference:
+    if: github.event_name == 'workflow_dispatch' && inputs.object_reference
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - name: Prepare object-reference output
+        run: |
+          out="$RUNNER_TEMP/kimath-object"
+          mkdir -p "$out"
+          echo "OUT=$out" >> "$GITHUB_ENV"
+          echo "OBJECT_WORK=$RUNNER_TEMP/kimath-object-reference" >> "$GITHUB_ENV"
+          { echo "head $GITHUB_SHA"; uname -srm; /usr/bin/python3 --version; } > "$out/tools.txt"
+      - name: Build the current sealed image and oracle, and verify rebuild identity
+        env:
+          ORACLE_JOBS: "2"
+        shell: bash
+        run: |
+          set -o pipefail
+          bash port/reference-env/qualify.sh --revision "$GITHUB_SHA" --work "$OBJECT_WORK" \
+            --with-oracle --rebuild-check --sweep-count 2000000 2>&1 | tee "$OUT/qualify.log"
+      - name: Capture the actual linked provider objects and include tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          runs=("$OBJECT_WORK"/runs/*)
+          test "${#runs[@]}" -eq 1 && test -d "${runs[0]}"
+          run="${runs[0]}"
+          image=$(cat "$run/image.iid")
+          snapshot="$run/snapshot"
+          source_sha=$(sha256sum "$snapshot/source.json" | cut -d' ' -f1)
+          echo "IMAGE=$image" >> "$GITHUB_ENV"
+          echo "SNAPSHOT=$snapshot" >> "$GITHUB_ENV"
+          echo "SOURCE_SHA=$source_sha" >> "$GITHUB_ENV"
+          docker run --rm --network=none --user "$(id -u):$(id -g)" \
+            -v "$OBJECT_WORK/oracle-work:/work:ro" "$image" \
+            ninja -C /work/kicad-port/oracle-build -t commands kicad-oracle > "$OUT/ninja-commands.txt"
+          /usr/bin/python3 -B "$snapshot/source/$NANTOOLS/gate/capture.py" \
+            --root "$OBJECT_WORK/oracle-work/kicad-port" --out "$OUT/inputs" \
+            --ninja-commands "$OUT/ninja-commands.txt" --identity "$run/image-identity.json"
+          docker image inspect "$image" > "$OUT/image-inspect.json"
+      - name: Full object gate in the image (pending review remains a failure)
+        shell: bash
+        run: |
+          set -o pipefail
+          docker run --rm --network=none --memory=4g --memory-swap=4g --cpus=2 \
+            --user "$(id -u):$(id -g)" -e HOME=/work/home -e PYTHONDONTWRITEBYTECODE=1 \
+            -e "REVISION=$GITHUB_SHA" -e "SOURCE_SHA=$SOURCE_SHA" \
+            -v "$SNAPSHOT:/snapshot:ro" -v "$OUT:/out" -w /snapshot/source \
+            "$IMAGE" bash -c '
+              set -euo pipefail
+              check_source() { python3 /opt/refenv/source_binding.py check --bundle /snapshot \
+                --revision "$REVISION" --source-sha256 "$SOURCE_SHA"; }
+              check_source
+              set +e
+              python3 -B port/tools/kimath_nan/gate/objgate.py verify --phase full --objdump objdump \
+                --oracle /out/inputs/kicad-oracle --object /out/inputs/providers/kimath_math.cpp.o \
+                --providers /out/inputs/providers --compiler-inputs /out/inputs/compiler-inputs \
+                --toolchain-identity /out/inputs/image-identity.json --oracle-src /out/inputs/tree \
+                --locks port/tools/kimath_nan/gate/locks --out /out/gate-full.json \
+                --verify-closure --emit /out/generated.rs
+              result=$?
+              set -e
+              check_source
+              test "$result" -eq 0
+              cmp /out/generated.rs rust/kicad-math/src/generated.rs' 2>&1 | tee "$OUT/gate.log"
+      - name: Retain image-stage facts even after failure
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          if test -d "$OBJECT_WORK/runs"; then
+            for run in "$OBJECT_WORK"/runs/*; do
+              test -d "$run" || continue
+              dst="$OUT/stages/$(basename "$run")"
+              mkdir -p "$dst"
+              for name in docker-version.json docker-info.json image.iid image-identity.json \
+                rebuild.iid rebuild-identity.json rebuild-check.txt host-provenance.json oracle-build.log probe.log; do
+                if test -f "$run/$name"; then cp "$run/$name" "$dst/$name"; fi
+              done
+            done
+          fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ always() }}
+        with:
+          name: kimath-object-reference-${{ github.run_id }}
+          path: ${{ runner.temp }}/kimath-object/
+          retention-days: 14
+          if-no-files-found: warn
 
   frozen-reference:
     if: github.event_name == 'workflow_dispatch' && inputs.frozen_reference
