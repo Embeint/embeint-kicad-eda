@@ -61,12 +61,17 @@ requires repeated live equality and matching live oracle provenance. A new
 immutable evidence file is written; no historical evidence is edited. The job
 uploads generated files for review and never commits or pushes them.
 
-Fresh native generation, full strict CI, actual wasm execution and independent
-review are pending at the initial implementation commit. The earlier private
-Mac debug experiment matched all 1050 retained genuine CI oracle replies and
-passed nineteen tests; that was retained-reference replay, not fresh C++
-execution or permission to bless a mismatch. New results will be recorded
-before this PR is marked ready.
+Fresh native [run 45328928252](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45328928252)
+at initial source `6cf8807dc2144a5bf82c4aca9804a75fa19ab4a7` passed all 1050
+cases during live propose, bless and check with zero failures/deferrals. The
+new golden and immutable evidence are copied verbatim from its artifact. The
+parent verified the full artifact digest, all authorized replacements and the
+1037 unchanged lines, then revalidated the artifact under the stricter approval
+guard at `4e1a387`. That later guard/CI source was not executed by the older run.
+See the [revision-bound evidence](resistors-sse2-reference-migration/6cf8807dc2/README.md).
+Final ordinary CI, successful actual wasm execution and independent data review
+remain pending. The earlier private Mac 1050-case replay/nineteen tests remain
+separate historical evidence; they were not the live blessing.
 
 Matrix NaN/SetRotation, hash/Bézier NaN/locale, other libm paths, cross-host
 qualification and PR55 adoption remain separate work.

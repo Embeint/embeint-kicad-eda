@@ -1,0 +1,4227 @@
+{
+  "unit": "pcb_calculator.application.pure.p001",
+  "status": "green",
+  "action": "check",
+  "mode": "strict",
+  "cases": 1050,
+  "compared": 1050,
+  "deferred": 0,
+  "failures": 0,
+  "unprocessed": 0,
+  "golden_checked": true,
+  "golden": {
+    "status": "matched",
+    "error": null,
+    "mismatched_cases": [],
+    "unchecked_cases": []
+  },
+  "run_faults": [],
+  "extra_replies": [],
+  "outcomes": [
+    {
+      "case": "series-0",
+      "outcome": "compared"
+    },
+    {
+      "case": "series-1",
+      "outcome": "compared"
+    },
+    {
+      "case": "series-2",
+      "outcome": "compared"
+    },
+    {
+      "case": "series-3",
+      "outcome": "compared"
+    },
+    {
+      "case": "series-4",
+      "outcome": "compared"
+    },
+    {
+      "case": "series-5",
+      "outcome": "compared"
+    },
+    {
+      "case": "series-6",
+      "outcome": "compared"
+    },
+    {
+      "case": "series-7",
+      "outcome": "compared"
+    },
+    {
+      "case": "series--1",
+      "outcome": "compared"
+    },
+    {
+      "case": "series--2147483648",
+      "outcome": "compared"
+    },
+    {
+      "case": "series-2147483647",
+      "outcome": "compared"
+    },
+    {
+      "case": "series-8",
+      "outcome": "compared"
+    },
+    {
+      "case": "format-boundaries-0",
+      "outcome": "compared"
+    },
+    {
+      "case": "format-boundaries-1",
+      "outcome": "compared"
+    },
+    {
+      "case": "format-boundaries-2",
+      "outcome": "compared"
+    },
+    {
+      "case": "format-boundaries-3",
+      "outcome": "compared"
+    },
+    {
+      "case": "format-boundaries-4",
+      "outcome": "compared"
+    },
+    {
+      "case": "format-boundaries-5",
+      "outcome": "compared"
+    },
+    {
+      "case": "format-fixed-seed-bits",
+      "outcome": "compared"
+    },
+    {
+      "case": "resistance-default-empty-explicit-parts",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-parentheses-tiebreak-0",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-parentheses-tiebreak-1",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-parentheses-tiebreak-2",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-parentheses-tiebreak-3",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-parentheses-tiebreak-4",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-parentheses-tiebreak-5",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-parentheses-tiebreak-6",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-parentheses-tiebreak-7",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-parentheses-tiebreak-8",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-parentheses-tiebreak-9",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-parentheses-tiebreak-10",
+      "outcome": "compared"
+    },
+    {
+      "case": "collector-real-continuations-0",
+      "outcome": "compared"
+    },
+    {
+      "case": "collector-real-continuations-1",
+      "outcome": "compared"
+    },
+    {
+      "case": "collector-real-continuations-2",
+      "outcome": "compared"
+    },
+    {
+      "case": "collector-real-continuations-3",
+      "outcome": "compared"
+    },
+    {
+      "case": "collector-real-continuations-4",
+      "outcome": "compared"
+    },
+    {
+      "case": "collector-real-continuations-5",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-empty-public-parts",
+      "outcome": "compared"
+    },
+    {
+      "case": "collector-empty-public-parts",
+      "outcome": "compared"
+    },
+    {
+      "case": "setter-full-u32-and-nan-exclusion-no-index",
+      "outcome": "compared"
+    },
+    {
+      "case": "constructor-default-and-private-build-all-series",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e0-0",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e0-1",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e0-2",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e0-3",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e0-4",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e0-5",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e0-6",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e0-7",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e0-8",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e0-9",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e0-10",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e0-11",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e0-12",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e0-13",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e0-14",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e0-15",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e0-16",
+      "outcome": "compared"
+    },
+    {
+      "case": "private-search-and-all-levels-e0",
+      "outcome": "compared"
+    },
+    {
+      "case": "exclusion-boundaries-reset-repeated-e0",
+      "outcome": "compared"
+    },
+    {
+      "case": "collector-extreme-target-e0-0",
+      "outcome": "compared"
+    },
+    {
+      "case": "collector-extreme-target-e0-1",
+      "outcome": "compared"
+    },
+    {
+      "case": "collector-extreme-target-e0-2",
+      "outcome": "compared"
+    },
+    {
+      "case": "collector-extreme-target-e0-3",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e1-0",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e1-1",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e1-2",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e1-3",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e1-4",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e1-5",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e1-6",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e1-7",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e1-8",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e1-9",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e1-10",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e1-11",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e1-12",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e1-13",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e1-14",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e1-15",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e1-16",
+      "outcome": "compared"
+    },
+    {
+      "case": "private-search-and-all-levels-e1",
+      "outcome": "compared"
+    },
+    {
+      "case": "exclusion-boundaries-reset-repeated-e1",
+      "outcome": "compared"
+    },
+    {
+      "case": "collector-extreme-target-e1-0",
+      "outcome": "compared"
+    },
+    {
+      "case": "collector-extreme-target-e1-1",
+      "outcome": "compared"
+    },
+    {
+      "case": "collector-extreme-target-e1-2",
+      "outcome": "compared"
+    },
+    {
+      "case": "collector-extreme-target-e1-3",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e2-0",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e2-1",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e2-2",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e2-3",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e2-4",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e2-5",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e2-6",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e2-7",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e2-8",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e2-9",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e2-10",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e2-11",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e2-12",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e2-13",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e2-14",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e2-15",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e2-16",
+      "outcome": "compared"
+    },
+    {
+      "case": "private-search-and-all-levels-e2",
+      "outcome": "compared"
+    },
+    {
+      "case": "exclusion-boundaries-reset-repeated-e2",
+      "outcome": "compared"
+    },
+    {
+      "case": "collector-extreme-target-e2-0",
+      "outcome": "compared"
+    },
+    {
+      "case": "collector-extreme-target-e2-1",
+      "outcome": "compared"
+    },
+    {
+      "case": "collector-extreme-target-e2-2",
+      "outcome": "compared"
+    },
+    {
+      "case": "collector-extreme-target-e2-3",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e3-0",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e3-1",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e3-2",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e3-3",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e3-4",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e3-5",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e3-6",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e3-7",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e3-8",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e3-9",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e3-10",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e3-11",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e3-12",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e3-13",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e3-14",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e3-15",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e3-16",
+      "outcome": "compared"
+    },
+    {
+      "case": "private-search-and-all-levels-e3",
+      "outcome": "compared"
+    },
+    {
+      "case": "exclusion-boundaries-reset-repeated-e3",
+      "outcome": "compared"
+    },
+    {
+      "case": "collector-extreme-target-e3-0",
+      "outcome": "compared"
+    },
+    {
+      "case": "collector-extreme-target-e3-1",
+      "outcome": "compared"
+    },
+    {
+      "case": "collector-extreme-target-e3-2",
+      "outcome": "compared"
+    },
+    {
+      "case": "collector-extreme-target-e3-3",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e4-0",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e4-1",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e4-2",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e4-3",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e4-4",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e4-5",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e4-6",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e4-7",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e4-8",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e4-9",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e4-10",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e4-11",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e4-12",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e4-13",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e4-14",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e4-15",
+      "outcome": "compared"
+    },
+    {
+      "case": "calculate-e4-16",
+      "outcome": "compared"
+    },
+    {
+      "case": "private-search-and-all-levels-e4",
+      "outcome": "compared"
+    },
+    {
+      "case": "exclusion-boundaries-reset-repeated-e4",
+      "outcome": "compared"
+    },
+    {
+      "case": "collector-extreme-target-e4-0",
+      "outcome": "compared"
+    },
+    {
+      "case": "collector-extreme-target-e4-1",
+      "outcome": "compared"
+    },
+    {
+      "case": "collector-extreme-target-e4-2",
+      "outcome": "compared"
+    },
+    {
+      "case": "collector-extreme-target-e4-3",
+      "outcome": "compared"
+    },
+    {
+      "case": "series-mutation-and-buffer-persistence",
+      "outcome": "compared"
+    },
+    {
+      "case": "empty-and-singleton-buffers-defined-domain",
+      "outcome": "compared"
+    },
+    {
+      "case": "mixed-topology-0",
+      "outcome": "compared"
+    },
+    {
+      "case": "mixed-topology-1",
+      "outcome": "compared"
+    },
+    {
+      "case": "mixed-topology-2",
+      "outcome": "compared"
+    },
+    {
+      "case": "mixed-topology-3",
+      "outcome": "compared"
+    },
+    {
+      "case": "mixed-topology-4",
+      "outcome": "compared"
+    },
+    {
+      "case": "mixed-topology-5",
+      "outcome": "compared"
+    },
+    {
+      "case": "mixed-topology-6",
+      "outcome": "compared"
+    },
+    {
+      "case": "mixed-topology-7",
+      "outcome": "compared"
+    },
+    {
+      "case": "mixed-topology-8",
+      "outcome": "compared"
+    },
+    {
+      "case": "mixed-topology-9",
+      "outcome": "compared"
+    },
+    {
+      "case": "mixed-topology-10",
+      "outcome": "compared"
+    },
+    {
+      "case": "mixed-topology-11",
+      "outcome": "compared"
+    },
+    {
+      "case": "search-fixed-seed-0",
+      "outcome": "compared"
+    },
+    {
+      "case": "search-fixed-seed-1",
+      "outcome": "compared"
+    },
+    {
+      "case": "search-fixed-seed-2",
+      "outcome": "compared"
+    },
+    {
+      "case": "search-fixed-seed-3",
+      "outcome": "compared"
+    },
+    {
+      "case": "search-fixed-seed-4",
+      "outcome": "compared"
+    },
+    {
+      "case": "search-fixed-seed-5",
+      "outcome": "compared"
+    },
+    {
+      "case": "search-fixed-seed-6",
+      "outcome": "compared"
+    },
+    {
+      "case": "search-fixed-seed-7",
+      "outcome": "compared"
+    },
+    {
+      "case": "search-fixed-seed-8",
+      "outcome": "compared"
+    },
+    {
+      "case": "search-fixed-seed-9",
+      "outcome": "compared"
+    },
+    {
+      "case": "search-fixed-seed-10",
+      "outcome": "compared"
+    },
+    {
+      "case": "search-fixed-seed-11",
+      "outcome": "compared"
+    },
+    {
+      "case": "search-fixed-seed-12",
+      "outcome": "compared"
+    },
+    {
+      "case": "search-fixed-seed-13",
+      "outcome": "compared"
+    },
+    {
+      "case": "search-fixed-seed-14",
+      "outcome": "compared"
+    },
+    {
+      "case": "search-fixed-seed-15",
+      "outcome": "compared"
+    },
+    {
+      "case": "search-fixed-seed-16",
+      "outcome": "compared"
+    },
+    {
+      "case": "search-fixed-seed-17",
+      "outcome": "compared"
+    },
+    {
+      "case": "search-fixed-seed-18",
+      "outcome": "compared"
+    },
+    {
+      "case": "search-fixed-seed-19",
+      "outcome": "compared"
+    },
+    {
+      "case": "search-fixed-seed-20",
+      "outcome": "compared"
+    },
+    {
+      "case": "search-fixed-seed-21",
+      "outcome": "compared"
+    },
+    {
+      "case": "search-fixed-seed-22",
+      "outcome": "compared"
+    },
+    {
+      "case": "search-fixed-seed-23",
+      "outcome": "compared"
+    },
+    {
+      "case": "reader-null-live-parser",
+      "outcome": "compared"
+    },
+    {
+      "case": "reader-real-memory-alias-and-rebinding",
+      "outcome": "compared"
+    },
+    {
+      "case": "reader-equal-content-distinct-identity",
+      "outcome": "compared"
+    },
+    {
+      "case": "accounted-unit-scale-constants",
+      "outcome": "compared"
+    },
+    {
+      "case": "private-builder-caller-supplied-real-series-vector",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000000-0000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000000-8000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000000-0000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000000-8000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000000-000fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000000-800fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000000-0010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000000-8010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000000-3ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000000-bff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000000-7fefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000000-ffefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000000-7ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000000-fff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000000-7ff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000000-fff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000000-7ff8000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000000-7ff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000000-7fffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000000-fff8000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000000-fff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000000-ffffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000000-7ff0000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000000-7ff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000000-7ff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000000-fff0000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000000-fff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000000-fff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000000-0000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000000-8000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000000-0000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000000-8000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000000-000fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000000-800fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000000-0010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000000-8010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000000-3ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000000-bff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000000-7fefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000000-ffefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000000-7ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000000-fff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000000-7ff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000000-fff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000000-7ff8000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000000-7ff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000000-7fffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000000-fff8000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000000-fff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000000-ffffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000000-7ff0000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000000-7ff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000000-7ff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000000-fff0000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000000-fff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000000-fff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000001-0000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000001-8000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000001-0000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000001-8000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000001-000fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000001-800fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000001-0010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000001-8010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000001-3ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000001-bff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000001-7fefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000001-ffefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000001-7ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000001-fff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000001-7ff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000001-fff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000001-7ff8000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000001-7ff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000001-7fffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000001-fff8000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000001-fff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000001-ffffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000001-7ff0000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000001-7ff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000001-7ff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000001-fff0000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000001-fff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0000000000000001-fff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000001-0000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000001-8000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000001-0000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000001-8000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000001-000fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000001-800fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000001-0010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000001-8010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000001-3ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000001-bff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000001-7fefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000001-ffefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000001-7ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000001-fff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000001-7ff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000001-fff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000001-7ff8000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000001-7ff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000001-7fffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000001-fff8000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000001-fff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000001-ffffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000001-7ff0000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000001-7ff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000001-7ff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000001-fff0000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000001-fff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8000000000000001-fff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-000fffffffffffff-0000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-000fffffffffffff-8000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-000fffffffffffff-0000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-000fffffffffffff-8000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-000fffffffffffff-000fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-000fffffffffffff-800fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-000fffffffffffff-0010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-000fffffffffffff-8010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-000fffffffffffff-3ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-000fffffffffffff-bff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-000fffffffffffff-7fefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-000fffffffffffff-ffefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-000fffffffffffff-7ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-000fffffffffffff-fff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-000fffffffffffff-7ff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-000fffffffffffff-fff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-000fffffffffffff-7ff8000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-000fffffffffffff-7ff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-000fffffffffffff-7fffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-000fffffffffffff-fff8000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-000fffffffffffff-fff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-000fffffffffffff-ffffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-000fffffffffffff-7ff0000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-000fffffffffffff-7ff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-000fffffffffffff-7ff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-000fffffffffffff-fff0000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-000fffffffffffff-fff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-000fffffffffffff-fff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-800fffffffffffff-0000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-800fffffffffffff-8000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-800fffffffffffff-0000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-800fffffffffffff-8000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-800fffffffffffff-000fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-800fffffffffffff-800fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-800fffffffffffff-0010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-800fffffffffffff-8010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-800fffffffffffff-3ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-800fffffffffffff-bff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-800fffffffffffff-7fefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-800fffffffffffff-ffefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-800fffffffffffff-7ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-800fffffffffffff-fff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-800fffffffffffff-7ff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-800fffffffffffff-fff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-800fffffffffffff-7ff8000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-800fffffffffffff-7ff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-800fffffffffffff-7fffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-800fffffffffffff-fff8000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-800fffffffffffff-fff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-800fffffffffffff-ffffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-800fffffffffffff-7ff0000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-800fffffffffffff-7ff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-800fffffffffffff-7ff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-800fffffffffffff-fff0000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-800fffffffffffff-fff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-800fffffffffffff-fff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0010000000000000-0000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0010000000000000-8000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0010000000000000-0000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0010000000000000-8000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0010000000000000-000fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0010000000000000-800fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0010000000000000-0010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0010000000000000-8010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0010000000000000-3ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0010000000000000-bff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0010000000000000-7fefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0010000000000000-ffefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0010000000000000-7ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0010000000000000-fff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0010000000000000-7ff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0010000000000000-fff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0010000000000000-7ff8000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0010000000000000-7ff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0010000000000000-7fffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0010000000000000-fff8000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0010000000000000-fff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0010000000000000-ffffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0010000000000000-7ff0000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0010000000000000-7ff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0010000000000000-7ff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0010000000000000-fff0000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0010000000000000-fff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-0010000000000000-fff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8010000000000000-0000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8010000000000000-8000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8010000000000000-0000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8010000000000000-8000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8010000000000000-000fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8010000000000000-800fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8010000000000000-0010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8010000000000000-8010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8010000000000000-3ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8010000000000000-bff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8010000000000000-7fefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8010000000000000-ffefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8010000000000000-7ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8010000000000000-fff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8010000000000000-7ff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8010000000000000-fff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8010000000000000-7ff8000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8010000000000000-7ff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8010000000000000-7fffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8010000000000000-fff8000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8010000000000000-fff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8010000000000000-ffffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8010000000000000-7ff0000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8010000000000000-7ff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8010000000000000-7ff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8010000000000000-fff0000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8010000000000000-fff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-8010000000000000-fff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-3ff0000000000000-0000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-3ff0000000000000-8000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-3ff0000000000000-0000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-3ff0000000000000-8000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-3ff0000000000000-000fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-3ff0000000000000-800fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-3ff0000000000000-0010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-3ff0000000000000-8010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-3ff0000000000000-3ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-3ff0000000000000-bff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-3ff0000000000000-7fefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-3ff0000000000000-ffefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-3ff0000000000000-7ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-3ff0000000000000-fff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-3ff0000000000000-7ff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-3ff0000000000000-fff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-3ff0000000000000-7ff8000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-3ff0000000000000-7ff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-3ff0000000000000-7fffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-3ff0000000000000-fff8000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-3ff0000000000000-fff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-3ff0000000000000-ffffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-3ff0000000000000-7ff0000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-3ff0000000000000-7ff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-3ff0000000000000-7ff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-3ff0000000000000-fff0000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-3ff0000000000000-fff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-3ff0000000000000-fff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-bff0000000000000-0000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-bff0000000000000-8000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-bff0000000000000-0000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-bff0000000000000-8000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-bff0000000000000-000fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-bff0000000000000-800fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-bff0000000000000-0010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-bff0000000000000-8010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-bff0000000000000-3ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-bff0000000000000-bff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-bff0000000000000-7fefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-bff0000000000000-ffefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-bff0000000000000-7ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-bff0000000000000-fff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-bff0000000000000-7ff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-bff0000000000000-fff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-bff0000000000000-7ff8000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-bff0000000000000-7ff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-bff0000000000000-7fffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-bff0000000000000-fff8000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-bff0000000000000-fff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-bff0000000000000-ffffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-bff0000000000000-7ff0000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-bff0000000000000-7ff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-bff0000000000000-7ff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-bff0000000000000-fff0000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-bff0000000000000-fff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-bff0000000000000-fff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fefffffffffffff-0000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fefffffffffffff-8000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fefffffffffffff-0000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fefffffffffffff-8000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fefffffffffffff-000fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fefffffffffffff-800fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fefffffffffffff-0010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fefffffffffffff-8010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fefffffffffffff-3ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fefffffffffffff-bff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fefffffffffffff-7fefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fefffffffffffff-ffefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fefffffffffffff-7ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fefffffffffffff-fff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fefffffffffffff-7ff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fefffffffffffff-fff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fefffffffffffff-7ff8000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fefffffffffffff-7ff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fefffffffffffff-7fffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fefffffffffffff-fff8000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fefffffffffffff-fff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fefffffffffffff-ffffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fefffffffffffff-7ff0000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fefffffffffffff-7ff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fefffffffffffff-7ff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fefffffffffffff-fff0000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fefffffffffffff-fff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fefffffffffffff-fff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffefffffffffffff-0000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffefffffffffffff-8000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffefffffffffffff-0000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffefffffffffffff-8000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffefffffffffffff-000fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffefffffffffffff-800fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffefffffffffffff-0010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffefffffffffffff-8010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffefffffffffffff-3ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffefffffffffffff-bff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffefffffffffffff-7fefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffefffffffffffff-ffefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffefffffffffffff-7ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffefffffffffffff-fff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffefffffffffffff-7ff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffefffffffffffff-fff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffefffffffffffff-7ff8000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffefffffffffffff-7ff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffefffffffffffff-7fffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffefffffffffffff-fff8000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffefffffffffffff-fff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffefffffffffffff-ffffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffefffffffffffff-7ff0000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffefffffffffffff-7ff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffefffffffffffff-7ff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffefffffffffffff-fff0000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffefffffffffffff-fff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffefffffffffffff-fff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000000-0000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000000-8000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000000-0000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000000-8000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000000-000fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000000-800fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000000-0010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000000-8010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000000-3ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000000-bff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000000-7fefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000000-ffefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000000-7ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000000-fff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000000-7ff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000000-fff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000000-7ff8000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000000-7ff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000000-7fffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000000-fff8000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000000-fff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000000-ffffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000000-7ff0000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000000-7ff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000000-7ff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000000-fff0000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000000-fff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000000-fff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000000-0000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000000-8000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000000-0000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000000-8000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000000-000fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000000-800fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000000-0010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000000-8010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000000-3ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000000-bff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000000-7fefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000000-ffefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000000-7ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000000-fff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000000-7ff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000000-fff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000000-7ff8000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000000-7ff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000000-7fffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000000-fff8000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000000-fff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000000-ffffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000000-7ff0000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000000-7ff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000000-7ff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000000-fff0000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000000-fff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000000-fff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000000-0000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000000-8000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000000-0000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000000-8000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000000-000fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000000-800fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000000-0010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000000-8010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000000-3ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000000-bff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000000-7fefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000000-ffefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000000-7ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000000-fff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000000-7ff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000000-fff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000000-7ff8000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000000-7ff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000000-7fffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000000-fff8000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000000-fff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000000-ffffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000000-7ff0000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000000-7ff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000000-7ff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000000-fff0000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000000-fff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000000-fff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000000-0000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000000-8000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000000-0000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000000-8000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000000-000fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000000-800fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000000-0010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000000-8010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000000-3ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000000-bff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000000-7fefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000000-ffefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000000-7ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000000-fff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000000-7ff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000000-fff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000000-7ff8000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000000-7ff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000000-7fffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000000-fff8000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000000-fff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000000-ffffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000000-7ff0000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000000-7ff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000000-7ff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000000-fff0000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000000-fff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000000-fff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000001-0000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000001-8000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000001-0000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000001-8000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000001-000fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000001-800fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000001-0010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000001-8010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000001-3ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000001-bff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000001-7fefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000001-ffefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000001-7ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000001-fff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000001-7ff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000001-fff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000001-7ff8000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000001-7ff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000001-7fffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000001-fff8000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000001-fff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000001-ffffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000001-7ff0000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000001-7ff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000001-7ff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000001-fff0000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000001-fff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000001-fff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000003-0000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000003-8000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000003-0000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000003-8000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000003-000fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000003-800fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000003-0010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000003-8010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000003-3ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000003-bff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000003-7fefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000003-ffefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000003-7ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000003-fff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000003-7ff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000003-fff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000003-7ff8000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000003-7ff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000003-7fffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000003-fff8000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000003-fff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000003-ffffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000003-7ff0000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000003-7ff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000003-7ff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000003-fff0000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000003-fff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff8000000000003-fff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fffffffffffffff-0000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fffffffffffffff-8000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fffffffffffffff-0000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fffffffffffffff-8000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fffffffffffffff-000fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fffffffffffffff-800fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fffffffffffffff-0010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fffffffffffffff-8010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fffffffffffffff-3ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fffffffffffffff-bff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fffffffffffffff-7fefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fffffffffffffff-ffefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fffffffffffffff-7ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fffffffffffffff-fff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fffffffffffffff-7ff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fffffffffffffff-fff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fffffffffffffff-7ff8000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fffffffffffffff-7ff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fffffffffffffff-7fffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fffffffffffffff-fff8000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fffffffffffffff-fff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fffffffffffffff-ffffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fffffffffffffff-7ff0000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fffffffffffffff-7ff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fffffffffffffff-7ff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fffffffffffffff-fff0000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fffffffffffffff-fff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7fffffffffffffff-fff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000002-0000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000002-8000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000002-0000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000002-8000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000002-000fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000002-800fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000002-0010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000002-8010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000002-3ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000002-bff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000002-7fefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000002-ffefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000002-7ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000002-fff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000002-7ff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000002-fff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000002-7ff8000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000002-7ff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000002-7fffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000002-fff8000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000002-fff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000002-ffffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000002-7ff0000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000002-7ff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000002-7ff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000002-fff0000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000002-fff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000002-fff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000003-0000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000003-8000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000003-0000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000003-8000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000003-000fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000003-800fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000003-0010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000003-8010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000003-3ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000003-bff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000003-7fefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000003-ffefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000003-7ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000003-fff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000003-7ff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000003-fff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000003-7ff8000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000003-7ff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000003-7fffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000003-fff8000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000003-fff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000003-ffffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000003-7ff0000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000003-7ff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000003-7ff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000003-fff0000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000003-fff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff8000000000003-fff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffffffffffffffff-0000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffffffffffffffff-8000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffffffffffffffff-0000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffffffffffffffff-8000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffffffffffffffff-000fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffffffffffffffff-800fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffffffffffffffff-0010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffffffffffffffff-8010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffffffffffffffff-3ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffffffffffffffff-bff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffffffffffffffff-7fefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffffffffffffffff-ffefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffffffffffffffff-7ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffffffffffffffff-fff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffffffffffffffff-7ff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffffffffffffffff-fff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffffffffffffffff-7ff8000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffffffffffffffff-7ff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffffffffffffffff-7fffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffffffffffffffff-fff8000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffffffffffffffff-fff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffffffffffffffff-ffffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffffffffffffffff-7ff0000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffffffffffffffff-7ff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffffffffffffffff-7ff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffffffffffffffff-fff0000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffffffffffffffff-fff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-ffffffffffffffff-fff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000001-0000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000001-8000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000001-0000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000001-8000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000001-000fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000001-800fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000001-0010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000001-8010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000001-3ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000001-bff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000001-7fefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000001-ffefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000001-7ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000001-fff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000001-7ff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000001-fff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000001-7ff8000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000001-7ff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000001-7fffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000001-fff8000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000001-fff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000001-ffffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000001-7ff0000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000001-7ff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000001-7ff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000001-fff0000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000001-fff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000001-fff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000003-0000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000003-8000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000003-0000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000003-8000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000003-000fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000003-800fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000003-0010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000003-8010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000003-3ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000003-bff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000003-7fefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000003-ffefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000003-7ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000003-fff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000003-7ff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000003-fff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000003-7ff8000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000003-7ff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000003-7fffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000003-fff8000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000003-fff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000003-ffffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000003-7ff0000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000003-7ff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000003-7ff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000003-fff0000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000003-fff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff0000000000003-fff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff7ffffffffffff-0000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff7ffffffffffff-8000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff7ffffffffffff-0000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff7ffffffffffff-8000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff7ffffffffffff-000fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff7ffffffffffff-800fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff7ffffffffffff-0010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff7ffffffffffff-8010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff7ffffffffffff-3ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff7ffffffffffff-bff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff7ffffffffffff-7fefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff7ffffffffffff-ffefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff7ffffffffffff-7ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff7ffffffffffff-fff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff7ffffffffffff-7ff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff7ffffffffffff-fff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff7ffffffffffff-7ff8000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff7ffffffffffff-7ff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff7ffffffffffff-7fffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff7ffffffffffff-fff8000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff7ffffffffffff-fff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff7ffffffffffff-ffffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff7ffffffffffff-7ff0000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff7ffffffffffff-7ff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff7ffffffffffff-7ff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff7ffffffffffff-fff0000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff7ffffffffffff-fff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-7ff7ffffffffffff-fff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000002-0000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000002-8000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000002-0000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000002-8000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000002-000fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000002-800fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000002-0010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000002-8010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000002-3ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000002-bff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000002-7fefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000002-ffefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000002-7ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000002-fff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000002-7ff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000002-fff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000002-7ff8000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000002-7ff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000002-7fffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000002-fff8000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000002-fff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000002-ffffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000002-7ff0000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000002-7ff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000002-7ff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000002-fff0000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000002-fff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000002-fff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000003-0000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000003-8000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000003-0000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000003-8000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000003-000fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000003-800fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000003-0010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000003-8010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000003-3ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000003-bff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000003-7fefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000003-ffefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000003-7ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000003-fff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000003-7ff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000003-fff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000003-7ff8000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000003-7ff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000003-7fffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000003-fff8000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000003-fff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000003-ffffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000003-7ff0000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000003-7ff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000003-7ff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000003-fff0000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000003-fff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff0000000000003-fff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff7ffffffffffff-0000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff7ffffffffffff-8000000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff7ffffffffffff-0000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff7ffffffffffff-8000000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff7ffffffffffff-000fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff7ffffffffffff-800fffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff7ffffffffffff-0010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff7ffffffffffff-8010000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff7ffffffffffff-3ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff7ffffffffffff-bff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff7ffffffffffff-7fefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff7ffffffffffff-ffefffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff7ffffffffffff-7ff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff7ffffffffffff-fff0000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff7ffffffffffff-7ff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff7ffffffffffff-fff8000000000000",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff7ffffffffffff-7ff8000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff7ffffffffffff-7ff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff7ffffffffffff-7fffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff7ffffffffffff-fff8000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff7ffffffffffff-fff8000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff7ffffffffffff-ffffffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff7ffffffffffff-7ff0000000000001",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff7ffffffffffff-7ff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff7ffffffffffff-7ff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff7ffffffffffff-fff0000000000002",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff7ffffffffffff-fff0000000000003",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-ieee-fff7ffffffffffff-fff7ffffffffffff",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-0",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-1",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-2",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-3",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-4",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-5",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-6",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-7",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-8",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-9",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-10",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-11",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-12",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-13",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-14",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-15",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-16",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-17",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-18",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-19",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-20",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-21",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-22",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-23",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-24",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-25",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-26",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-27",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-28",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-29",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-30",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-31",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-32",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-33",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-34",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-35",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-36",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-37",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-38",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-39",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-40",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-41",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-42",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-43",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-44",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-45",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-46",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-47",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-48",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-49",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-50",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-51",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-52",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-53",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-54",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-55",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-56",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-57",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-58",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-59",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-60",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-61",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-62",
+      "outcome": "compared"
+    },
+    {
+      "case": "helpers-generated-nan-payload-63",
+      "outcome": "compared"
+    },
+    {
+      "case": "format-explicit-ieee-classes",
+      "outcome": "compared"
+    },
+    {
+      "case": "literal-integer-minus-zero-format",
+      "outcome": "compared"
+    },
+    {
+      "case": "literal-integer-minus-zero-series",
+      "outcome": "compared"
+    }
+  ],
+  "cases_sha256": "58dd1186c9f10c8efb54bc90102c71508c8e852c0b8c08d437380b112fe3c597",
+  "oracle_output_sha256": "db61789166977ceab4ce628c252c6ed35771cd7a5bb84d0ad7ac0a3ae08e2e9e",
+  "rust_output_sha256": "d86fdf217976cd40b65a162d8f27dec734888ba7b7c952715ecf63bef72ddc95",
+  "oracle_sha256": "aa41eb0957d0a3e7fd831051a7330e015a8403d0893071332a564ed62de0238f",
+  "rust_sha256": "06dd7e9094185b8f8f2c99b1b30db4c7524c9f9964f24b1159ef46046806fea6"
+}
