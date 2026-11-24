@@ -1,82 +1,125 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Synthetic libm ELF files, dispatch facts and traces for the dispatch tests.
+"""Synthetic libm ELF files, with real x86-64 code, for the dispatch tests.
 
-Offsets of the multiarch implementations are the lock's real ones; wrappers,
-PLT stubs, GOT slots and resolvers are synthetic. Nothing here is a runtime
-observation.
+synthetic_libm() builds a small libm and debug file: for every checked
+function an SSE2 and an FMA implementation, an IFUNC resolver, and for the
+wrapped functions a wrapper that reaches its SSE2 implementation through an
+exact .plt.sec stub and an IRELATIVE slot. It returns a lock whose libm
+entries name these files, the facts derived from them and one valid traced
+record per function. Nothing here is a runtime observation.
 """
 
+import copy
+import hashlib
 import struct
+from types import SimpleNamespace
 
 WRAPPED = ("atan2", "exp", "log", "pow")  # FUNC wrappers in glibc 2.39 x86-64
+TAIL_CALL = ("log",)                      # wrappers that jump (not call) to the stub
 PLT_START = 0x10000
-WRAPPER_START = 0x90000
-RESOLVER_START = 0xA0000
-SLOT_START = 0xE0000
-IMPLEMENTATION_SIZE = 0x10
+TEXT_START = 0x20000
+GOT_START = 0xE0000
+BUILD_ID = "5e1f0000c0de0000aa55aa55aa55aa55aa55aa55"
+RETURN = "!/out/bin/primitive_probe+0x1234"
+# endbr64; mov %rax,%rax; ret
+IMPLEMENTATION = bytes.fromhex("f30f1efa" "4889c0" "c3")
+FUNC, IFUNC = 2, 10
 
 
 def hx(value):
     return f"0x{value:x}"
 
 
-def expected(function, lock):
-    table = lock["libm"]["multiarch_symbols"]
-    wanted = {f"__{function}_sse2", f"__ieee754_{function}_sse2"}
-    offset = next(o for o, names in table.items() if wanted.intersection(names))
-    name = next(n for n in table[offset] if n in wanted)
-    return int(offset, 16), name
-
-
 def libm_sha256(lock):
     return next(f["sha256"] for f in lock["toolchain_files"] if f["resolved_path"] == lock["libm"]["path"])
 
 
-def facts_and_records(lock, functions):
-    """Facts consistent with the lock and one passing traced record per function."""
-    table = lock["libm"]["multiarch_symbols"]
-    facts = {
-        "schema": 1, "libm_sha256": libm_sha256(lock), "libm_build_id": lock["libm"]["build_id"],
-        "debug_sha256": lock["libm"]["debug_file_sha256"], "debug_build_id": lock["libm"]["build_id"],
-        "definitions": {}, "plt_sec": {"start": hx(PLT_START), "end": hx(PLT_START + 16 * len(functions))},
-        "plt_stubs": [], "ifuncs": {}, "functions": [], "multiarch_symbols": table,
-        "excluded_suffix_matches": [],
-    }
-    for offset, names in table.items():
-        facts["functions"].append([offset, IMPLEMENTATION_SIZE, names])
-    records = []
+def implementation_name(function, isa):
+    return f"__ieee754_{function}_{isa}" if function in WRAPPED else f"__{function}_{isa}"
+
+
+def synthetic_libm(real_lock, functions):
+    """A synthetic libm, its debug file, a matching lock, derived facts and valid traced records."""
+    import libm_elf  # the probe directory is on sys.path in every test module
+
+    text = bytearray()
+    layout = {}
+
+    def place(code, align=0x20):
+        while len(text) % align:
+            text.append(0xCC)
+        address = TEXT_START + len(text)
+        text.extend(code)
+        return address
+
+    debug_symbols = []
+    dynamic = []
+    stubs = []
+    relocations = []
     for index, function in enumerate(functions):
-        target, target_name = expected(function, lock)
-        resolver = RESOLVER_START + 0x100 * index
-        facts["ifuncs"][hx(resolver)] = [target_name[:-len("_sse2")]]
-        common = {"function": function, "object": lock["libm"]["path"], "linked_object": lock["libm"]["path"],
-                  "inputs": ["3fe0000000000000", "0000000000000000"], "trace_status": "returned"}
+        sse2 = place(IMPLEMENTATION)
+        fma = place(IMPLEMENTATION)
+        resolver = place(b"\xc3")
+        dispatcher = implementation_name(function, "sse2")[:-len("_sse2")]
+        debug_symbols += [(implementation_name(function, "sse2"), sse2, len(IMPLEMENTATION), FUNC, 0, 2),
+                          (implementation_name(function, "fma"), fma, len(IMPLEMENTATION), FUNC, 0, 2),
+                          (dispatcher, resolver, 1, IFUNC, 0, 2)]
+        entry = {"sse2": sse2, "fma": fma, "resolver": resolver}
         if function in WRAPPED:
-            wrapper = WRAPPER_START + 0x100 * index
-            stub = PLT_START + 16 * index
-            slot = SLOT_START + 8 * index
-            facts["definitions"][function] = [
-                {"value": hx(wrapper + 0x80), "size": 0x40, "type": "FUNC", "version": "GLIBC_2.2.5",
-                 "default": False},
-                {"value": hx(wrapper), "size": 0x40, "type": "FUNC", "version": "GLIBC_2.29", "default": True}]
-            facts["functions"].append([hx(wrapper), 0x40, ["__" + function, function]])
-            facts["functions"].append([hx(wrapper + 0x80), 0x40, ["__" + function + "_compat"]])
-            facts["plt_stubs"].append({
-                "stub": hx(stub), "template": True, "slot": hx(slot), "bytes": "synthetic",
-                "relocations": [{"type": "R_X86_64_IRELATIVE", "symbol": 0, "addend": hx(resolver)}]})
-            trace = [hx(wrapper), hx(wrapper + 4), hx(stub), hx(stub + 4), hx(target), hx(target + 4),
-                     hx(wrapper + 9)]
-            records.append({**common, "offset": hx(wrapper), "linked_offset": hx(wrapper), "trace": trace})
+            stub = PLT_START + 16 * len(stubs)
+            slot = GOT_START + 8 * len(stubs)
+            stubs.append((stub, slot))
+            relocations.append((slot, 37, 0, resolver))
+            wrapper_at = TEXT_START + len(text) + (-len(text)) % 0x20
+            if function in TAIL_CALL:
+                code = bytes.fromhex("f30f1efa") + b"\xe9" + struct.pack("<i", stub - (wrapper_at + 9))
+            else:
+                code = bytes.fromhex("f30f1efa") + b"\xe8" + struct.pack("<i", stub - (wrapper_at + 9)) + b"\xc3"
+            wrapper = place(code)
+            assert wrapper == wrapper_at
+            compat = place(code)  # never entered by a valid trace
+            debug_symbols += [("__" + function, wrapper, len(code), FUNC, 0, 2),
+                              (function, wrapper, len(code), FUNC, 1, 2),
+                              ("__" + function + "_compat", compat, len(code), FUNC, 0, 2)]
+            dynamic += [(function, compat, len(code), FUNC, 2 | 0x8000), (function, wrapper, len(code), FUNC, 3)]
+            entry.update(wrapper=wrapper, compat=compat, stub=stub, slot=slot, wrapper_size=len(code))
         else:
-            facts["definitions"][function] = [
-                {"value": hx(resolver), "size": 0x30, "type": "IFUNC", "version": "GLIBC_2.2.5", "default": True}]
-            facts["plt_stubs"].append({
-                "stub": hx(PLT_START + 16 * index), "template": True, "slot": hx(SLOT_START + 8 * index),
-                "bytes": "synthetic", "relocations": [
-                    {"type": "R_X86_64_IRELATIVE", "symbol": 0, "addend": hx(resolver)}]})
-            trace = [hx(target), hx(target + 4), hx(target + 8)]
-            records.append({**common, "offset": hx(target), "linked_offset": hx(target), "trace": trace})
-    return facts, records
+            dynamic.append((function, resolver, 1, IFUNC, 2))
+        layout[function] = entry
+    libm = libm_elf_bytes(BUILD_ID, dynamic, {2: "GLIBC_2.2.5", 3: "GLIBC_2.29"}, stubs, relocations,
+                          text=(TEXT_START, bytes(text)), got=(GOT_START, bytes(8 * max(1, len(stubs)))))
+    debug = debug_elf(BUILD_ID, debug_symbols)
+    table, _excluded = libm_elf.multiarch_symbols(libm_elf.Elf64(debug))
+    lock = copy.deepcopy(real_lock)
+    lock["libm"].update(build_id=BUILD_ID, debug_file_sha256=hashlib.sha256(debug).hexdigest(),
+                        multiarch_symbols=table)
+    for item in lock["toolchain_files"]:
+        if item["resolved_path"] == lock["libm"]["path"]:
+            item["sha256"] = hashlib.sha256(libm).hexdigest()
+            item["size"] = len(libm)
+    facts = libm_elf.dispatch_facts(libm, debug, functions)
+    records = [valid_record(function, layout[function], lock) for function in functions]
+    return SimpleNamespace(libm=libm, debug=debug, lock=lock, facts=facts, records=records, layout=layout,
+                           elf=libm_elf.Elf64(libm))
+
+
+def valid_record(function, entry, lock):
+    """The trace a correct run of the synthetic code produces."""
+    sse2 = entry["sse2"]
+    body = [hx(sse2), hx(sse2 + 4), hx(sse2 + 7)]
+    record = {"function": function, "object": lock["libm"]["path"], "linked_object": lock["libm"]["path"],
+              "inputs": ["3fe0000000000000", "0000000000000000"], "trace_status": "returned",
+              "return_address": RETURN, "return_to": RETURN, "slot_reads": []}
+    if "wrapper" in entry:
+        wrapper, stub = entry["wrapper"], entry["stub"]
+        trace = [hx(wrapper), hx(wrapper + 4), hx(stub), hx(stub + 4)] + body
+        if function not in TAIL_CALL:
+            trace.append(hx(wrapper + 9))
+        record.update(offset=hx(wrapper), linked_offset=hx(wrapper), trace=trace,
+                      slot_reads=[{"at": hx(stub + 4), "slot": hx(entry["slot"]), "value": hx(sse2)}])
+    else:
+        record.update(offset=hx(sse2), linked_offset=hx(sse2), trace=body)
+    return record
 
 
 # --- synthetic ELF files -------------------------------------------------------------------
@@ -150,11 +193,11 @@ def bnd_plt_sec_entry(stub, slot):
     return bytes.fromhex("f30f1efaf2ff25") + struct.pack("<i", slot - (stub + 11)) + bytes.fromhex("0f1f440000")
 
 
-def libm_elf_bytes(build_id, dynamic, versions, plt, relocations):
+def libm_elf_bytes(build_id, dynamic, versions, plt, relocations, text=None, got=None):
     """dynamic: (name, value, size, type, version index | 0x8000 hidden). versions: index -> name.
 
     plt: list of (stub, slot) or raw 16-byte entries at consecutive addresses from the first stub.
-    relocations: (offset, type, symbol, addend).
+    relocations: (offset, type, symbol, addend). text and got: optional (address, bytes).
     """
     symbols = [(name, value, size, kind, 1, 5) for name, value, size, kind, _v in dynamic]
     dynsym, dynstr = symbol_table(symbols)
@@ -183,4 +226,5 @@ def libm_elf_bytes(build_id, dynamic, versions, plt, relocations):
         {"name": ".gnu.version_d", "type": 0x6FFFFFFD, "data": verdef, "link": ".dynstr", "info": len(items)},
         {"name": ".rela.plt", "type": 4, "data": rela, "link": ".dynsym", "entsize": 24},
         {"name": ".plt.sec", "type": 1, "data": code, "addr": first, "flags": 6},
-    ])
+    ] + ([{"name": ".text", "type": 1, "data": text[1], "addr": text[0], "flags": 6}] if text else [])
+      + ([{"name": ".got", "type": 1, "data": got[1], "addr": got[0], "flags": 3}] if got else []))

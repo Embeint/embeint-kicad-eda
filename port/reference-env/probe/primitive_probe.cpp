@@ -6,19 +6,20 @@
 // compare_observations.py report differences without accepting any.
 //
 // libm dispatch is observed by executing each checked function once in a
-// ptrace-traced child and recording every instruction address it runs, from
-// the public entry point until it returns. run_probe.py proves the chain
-// (public symbol, PLT stub, IRELATIVE GOT slot, selected implementation)
-// against the locked libm and debug symbols; this program draws no conclusion.
+// ptrace-traced child (trace_call.h, bounded in steps and wall-clock time) and
+// recording every instruction address it runs from the public entry point until
+// it returns, the return address and target, and every GOT slot read by a
+// RIP-relative jump. dispatch_proof.py validates the chain and every
+// control-flow edge against the locked libm; this program draws no conclusion.
 //
 // Usage: primitive_probe --functions sin,cos,... --sweep-count N --sweep-out FILE
 
 #include "probe_common.h"
+#include "trace_call.h"
 
 #include <cfenv>
 #include <cmath>
 #include <cstdlib>
-#include <csignal>
 #include <dlfcn.h>
 #include <gnu/libc-version.h>
 #include <iomanip>
@@ -26,10 +27,6 @@
 #include <locale>
 #include <sstream>
 #include <string>
-#include <sys/ptrace.h>
-#include <sys/user.h>
-#include <sys/wait.h>
-#include <unistd.h>
 #include <vector>
 #include <xmmintrin.h>
 
@@ -256,107 +253,21 @@ __attribute__( ( noinline ) ) void CallOnce( const LIBM_FUNCTION& aFunction, voi
     }
 }
 
-/// Bounds of one traced call: single steps in total (including the child's
-/// return from raise() before it reaches the entry) and addresses recorded.
-constexpr long   MAX_STEPS = 2000000;
-constexpr size_t MAX_RECORDED = 50000;
-
-/// Execute aFunction once in a traced child, single-stepping from its stop
-/// until it reaches aEntry, then record every instruction address until the
-/// stack pointer rises above its value at the entry (the call returned).
-/// The child makes one untraced call first, so any lazy binding on the path
-/// has happened. Returns "returned" or the reason the trace is incomplete.
-std::string TraceCall( const LIBM_FUNCTION& aFunction, void* aEntry, std::vector<uintptr_t>& aAddresses )
+/// What the traced child calls: one checked function through its entry.
+struct TRACED_CALL
 {
-    std::fflush( nullptr );
-    const pid_t child = fork();
+    const LIBM_FUNCTION* function;
+    void*                entry;
+};
 
-    if( child < 0 )
-        return "fork failed";
-
-    if( child == 0 )
-    {
-        CallOnce( aFunction, aEntry );
-
-        if( ptrace( PTRACE_TRACEME, 0, nullptr, nullptr ) != 0 )
-            _exit( 120 );
-
-        raise( SIGSTOP );
-        CallOnce( aFunction, aEntry );
-        _exit( 0 );
-    }
-
-    int         status = 0;
-    std::string result;
-
-    if( waitpid( child, &status, 0 ) != child || !WIFSTOPPED( status ) || WSTOPSIG( status ) != SIGSTOP )
-    {
-        result = WIFEXITED( status ) && WEXITSTATUS( status ) == 120 ? "PTRACE_TRACEME refused"
-                                                                       : "child did not stop for tracing";
-    }
-    else
-    {
-        bool               entered = false;
-        unsigned long long entryStack = 0;
-
-        for( long step = 0;; ++step )
-        {
-            user_regs_struct regs{};
-
-            if( step >= MAX_STEPS )
-            {
-                result = "step bound exceeded";
-                break;
-            }
-
-            if( ptrace( PTRACE_GETREGS, child, nullptr, &regs ) != 0 )
-            {
-                result = "PTRACE_GETREGS failed";
-                break;
-            }
-
-            if( !entered && regs.rip == reinterpret_cast<uintptr_t>( aEntry ) )
-            {
-                entered = true;
-                entryStack = regs.rsp;
-            }
-
-            if( entered )
-            {
-                if( regs.rsp > entryStack )
-                {
-                    result = "returned";
-                    break;
-                }
-
-                if( aAddresses.size() >= MAX_RECORDED )
-                {
-                    result = "recorded address bound exceeded";
-                    break;
-                }
-
-                aAddresses.push_back( regs.rip );
-            }
-
-            if( ptrace( PTRACE_SINGLESTEP, child, nullptr, nullptr ) != 0 )
-            {
-                result = "PTRACE_SINGLESTEP failed";
-                break;
-            }
-
-            if( waitpid( child, &status, 0 ) != child || !WIFSTOPPED( status )
-                || WSTOPSIG( status ) != SIGTRAP )
-            {
-                result = "child left single-step before the call returned";
-                break;
-            }
-        }
-    }
-
-    kill( child, SIGKILL );
-    waitpid( child, &status, 0 );
-    return result;
+void CallTraced( const void* aContext )
+{
+    const auto* call = static_cast<const TRACED_CALL*>( aContext );
+    CallOnce( *call->function, call->entry );
 }
+
+/// Set when any traced child could not be reaped; the probe then fails.
+bool g_unreaped = false;
 
 /// Object path and offset of an address in the loaded image.
 bool Locate( const void* aAddress, std::string& aObject, uintptr_t& aOffset )
@@ -409,9 +320,26 @@ void Dispatch( JSON& aOut, const std::vector<std::string>& aFunctions )
             std::exit( 1 );
         }
 
-        const uintptr_t        base = reinterpret_cast<uintptr_t>( symbol ) - offset;
-        std::vector<uintptr_t> addresses;
-        const std::string      status = TraceCall( *function, symbol, addresses );
+        const uintptr_t     base = reinterpret_cast<uintptr_t>( symbol ) - offset;
+        const TRACED_CALL   call{ function, symbol };
+        const trace::RESULT traced = trace::TraceCall( CallTraced, &call, reinterpret_cast<uintptr_t>( symbol ),
+                                                       trace::LIMITS() );
+        g_unreaped = g_unreaped || !traced.reaped;
+
+        // Addresses in the entry's mapping are offsets; any other is object-qualified.
+        auto where = [&]( uintptr_t aAddress ) -> std::string
+        {
+            std::string found;
+            uintptr_t   at = 0;
+
+            if( !Locate( reinterpret_cast<const void*>( aAddress ), found, at ) )
+                return "!unmapped+" + HexOffset( aAddress );
+
+            if( found == object && aAddress - at == base )
+                return HexOffset( at );
+
+            return "!" + found + "+" + HexOffset( at );
+        };
 
         aOut.Begin( '{' );
         aOut.Field( "function", name );
@@ -424,22 +352,26 @@ void Dispatch( JSON& aOut, const std::vector<std::string>& aFunctions )
         aOut.Value( HexDouble( function->a ) );
         aOut.Value( HexDouble( function->b ) );
         aOut.End( ']' );
-        aOut.Field( "trace_status", status );
+        aOut.Field( "trace_status", traced.status );
+        aOut.Field( "return_address", where( traced.returnAddress ) );
+        aOut.Field( "return_to", where( traced.returnTo ) );
         aOut.Key( "trace" );
         aOut.Begin( '[' );
 
-        // Addresses in the entry's mapping are offsets; any other is object-qualified.
-        for( uintptr_t address : addresses )
-        {
-            std::string where;
-            uintptr_t   at = 0;
+        for( uintptr_t address : traced.addresses )
+            aOut.Value( where( address ) );
 
-            if( !Locate( reinterpret_cast<const void*>( address ), where, at ) )
-                aOut.Value( "!unmapped+" + HexOffset( address ) );
-            else if( where == object && address - at == base )
-                aOut.Value( HexOffset( at ) );
-            else
-                aOut.Value( "!" + where + "+" + HexOffset( at ) );
+        aOut.End( ']' );
+        aOut.Key( "slot_reads" );
+        aOut.Begin( '[' );
+
+        for( const trace::SLOT_READ& read : traced.slotReads )
+        {
+            aOut.Begin( '{' );
+            aOut.Field( "at", where( read.at ) );
+            aOut.Field( "slot", where( read.slot ) );
+            aOut.Field( "value", where( read.value ) );
+            aOut.End( '}' );
         }
 
         aOut.End( ']' );
@@ -681,5 +613,11 @@ int main( int argc, char** argv )
     Formatting( out );
     out.End( '}' );
     std::fputc( '\n', stdout );
+    if( g_unreaped )
+    {
+        std::fprintf( stderr, "a traced child could not be reaped\n" );
+        return 1;
+    }
+
     return std::fflush( stdout ) == 0 ? 0 : 1;
 }

@@ -8,12 +8,14 @@ import struct
 import subprocess
 import sys
 import tempfile
+import tomllib
 import unittest
 
 ENV = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ENV / "probe"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import artifacts
+import libm_elf
 import libm_fixtures
 import run_probe
 
@@ -25,12 +27,20 @@ def write(path, value):
 def fixture(directory):
     directory.mkdir()
     (directory / "bin").mkdir()
-    for name in ("inputs.lock.json", "candidate.toml"):
-        shutil.copy(ENV / name, directory / name)
-    lock = artifacts.load(directory / "inputs.lock.json")
+    shutil.copy(ENV / "candidate.toml", directory / "candidate.toml")
     import tomllib
 
     candidate = tomllib.loads((directory / "candidate.toml").read_text())
+    # A synthetic libm with real code stands in for the locked one: the lock in
+    # this fixture names its hashes, so the proof re-derives facts from it.
+    syn = libm_fixtures.synthetic_libm(
+        artifacts.load(ENV / "inputs.lock.json"), candidate["dispatch"]["checked_functions"]
+    )
+    write(directory / "inputs.lock.json", syn.lock)
+    (directory / "libm").mkdir()
+    (directory / "libm/libm.so.6").write_bytes(syn.libm)
+    (directory / "libm/libm.debug").write_bytes(syn.debug)
+    lock = artifacts.load(directory / "inputs.lock.json")
     inputs, operands = artifacts.input_tables()
     bit = "3ff0000000000000"
     rust = {
@@ -96,9 +106,8 @@ def fixture(directory):
     }
     primitive["loaded_objects"] = list(loaded)
     primitive["schema"] = 2
-    facts, primitive["libm_dispatch"] = libm_fixtures.facts_and_records(
-        lock, candidate["dispatch"]["checked_functions"]
-    )
+    primitive["libm_dispatch"] = syn.records
+    table, excluded = libm_elf.multiarch_symbols(libm_elf.Elf64(syn.debug))
     stream_inputs = [
         "7ff0000000000000",
         "fff0000000000000",
@@ -164,10 +173,10 @@ def fixture(directory):
         os_release="fixture",
         libm=dict(
             debug_file=lock["libm"]["debug_file"],
-            multiarch_symbols_from_debug_file=lock["libm"]["multiarch_symbols"],
-            excluded_suffix_matches=[],
+            multiarch_symbols_from_debug_file=table,
+            excluded_suffix_matches=excluded,
             matches_lock=True,
-            dispatch_facts=facts,
+            dispatch_facts=syn.facts,
         ),
         loaded_objects=loaded,
     )
@@ -254,6 +263,92 @@ class ArtifactTest(unittest.TestCase):
             capture_output=True,
             text=True,
         )
+
+    def mutate(self, directory, change):
+        """Change one run, then recompute its comparisons and inventory as a forger could."""
+        lock = artifacts.load(directory / "inputs.lock.json")
+        candidate = tomllib.loads((directory / "candidate.toml").read_text())
+        env = artifacts.load(directory / "environment.json")
+        results = {
+            "contract": artifacts.load(directory / "primitive-contract.json"),
+            "host-default": artifacts.load(directory / "primitive-host-default.json"),
+            "rust": artifacts.load(directory / "rust-contract.json"),
+        }
+        change(directory, env, results["contract"]["libm_dispatch"])
+        write(directory / "environment.json", env)
+        write(directory / "primitive-contract.json", results["contract"])
+        summary = artifacts.load(directory / "summary.json")
+        summary["comparisons"] = run_probe.comparison_report(directory, results, lock, candidate, env)
+        summary["output_sha256"] = artifacts.inventory(directory)
+        write(directory / "summary.json", summary)
+
+    def assertComparatorRejects(self, change, fragment):
+        root = self.pair()
+        self.mutate(root / "left", change)
+        result = self.compare(root)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn(fragment, result.stderr)
+
+    def test_contradictory_dispatch_facts_fail_the_comparator(self):
+        def stubs(_directory, env, _rows):
+            for stub in env["libm"]["dispatch_facts"]["plt_stubs"]:
+                stub.update(bytes="cc" * 16, slot="0xdeadbeef")
+                for relocation in stub["relocations"]:
+                    relocation["symbol"] = 17
+
+        def versions(_directory, env, _rows):
+            facts = env["libm"]["dispatch_facts"]
+            facts["schema"] = True
+            for rows in facts["definitions"].values():
+                for row in rows:
+                    row.update(version=None, default=1 if row["default"] else 0)
+
+        def library(directory, _env, _rows):
+            path = directory / "libm/libm.so.6"
+            data = bytearray(path.read_bytes())
+            data[-1] ^= 1
+            path.write_bytes(bytes(data))
+
+        def missing(directory, _env, _rows):
+            (directory / "libm/libm.debug").unlink()
+
+        self.assertComparatorRejects(stubs, "recorded dispatch facts differ from the locked ELF files")
+        self.assertComparatorRejects(versions, "recorded dispatch facts differ from the locked ELF files")
+        self.assertComparatorRejects(library, "libm/libm.so.6 is not the locked file")
+        self.assertComparatorRejects(missing, "unexpected/missing artifact set")
+
+    def test_incomplete_or_impossible_traces_fail_the_comparator(self):
+        wrapped = libm_fixtures.WRAPPED
+
+        def entry_only(_directory, _env, rows):
+            for row in rows:
+                if row["function"] not in wrapped:
+                    row["trace"] = row["trace"][:1]
+
+        def truncated(_directory, _env, rows):
+            for row in rows:
+                if row["function"] in wrapped:
+                    row["trace"] = row["trace"][: row["trace"].index(row["slot_reads"][0]["at"]) + 2]
+
+        def mid_instruction(_directory, _env, rows):
+            rows[0]["trace"].insert(1, f"0x{int(rows[0]['trace'][0], 16) + 1:x}")
+
+        def forged_return(_directory, _env, rows):
+            rows[0]["return_to"] = "!/elsewhere+0x10"
+
+        def forged_slot(_directory, _env, rows):
+            row = next(r for r in rows if r["function"] == "exp")
+            row["slot_reads"][0]["value"] = "0x10"
+
+        def forged_status(_directory, _env, rows):
+            rows[0]["trace_status"] = "returned; child not reaped"
+
+        self.assertComparatorRejects(entry_only, "trace ended before the entry's return")
+        self.assertComparatorRejects(truncated, "trace ended before the entry's return")
+        self.assertComparatorRejects(mid_instruction, "impossible successor")
+        self.assertComparatorRejects(forged_return, "does not reach the recorded return address")
+        self.assertComparatorRejects(forged_slot, "recorded GOT slot read does not match")
+        self.assertComparatorRejects(forged_status, "trace incomplete")
 
     def rehash(self, directory):
         summary = artifacts.load(directory / "summary.json")
