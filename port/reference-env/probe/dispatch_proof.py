@@ -48,6 +48,7 @@ import x86_decode
 LIBM_COPY = "libm/libm.so.6"
 DEBUG_COPY = "libm/libm.debug"
 MAX_ELF_BYTES = 16 << 20
+MAX_PROGRAM_HEADER_BYTES = 65536  # Linux load_elf_phdrs(), including ELF64 executables.
 
 
 def _int(text):
@@ -181,7 +182,8 @@ class Caller:
             raise ValueError("probe is not a supported x86-64 ELF executable")
         entry, phoff = struct.unpack_from("<QQ", data, 0x18)
         ehsize, phsize, phnum = struct.unpack_from("<HHH", data, 0x34)
-        if (ehsize != 64 or phsize != 56 or not 0 < phnum < 65535 or phoff < ehsize
+        if (ehsize != 64 or phsize != 56 or phnum == 0 or phoff < ehsize
+                or phsize * phnum > MAX_PROGRAM_HEADER_BYTES
                 or phoff + phsize * phnum > len(data)):
             raise ValueError("invalid probe ELF program-header table")
         self.loads = []
@@ -224,20 +226,40 @@ class Caller:
         return self.executable(self.base + _int(offset))
 
 
+def object_identity(name):
+    """Guaranteed-equivalent Linux spellings, without resolving historical paths.
+
+    Empty components and '.' are immaterial even through symlinks. Reject '..'
+    rather than folding it: a symlinked parent can change its meaning.
+    """
+    if (type(name) is not str or not name.startswith("/") or "\n" in name or "\0" in name
+            or ".." in name.split("/")):
+        raise ValueError("invalid recorded object path")
+    return "/" + "/".join(part for part in name.split("/") if part not in ("", "."))
+
+
 def recorded_caller(directory, observation, lock, loaded_objects):
     """Bind completion markers to the probe binary, never to a named library."""
     name = observation.get("probe_object")
-    if (type(name) is not str or not name.startswith("/") or "\n" in name or "\0" in name
-            or PurePosixPath(name).name != "primitive_probe" or name == lock["libm"]["path"]):
+    try:
+        identity = object_identity(name)
+    except ValueError as error:
+        return None, [str(error)]
+    if PurePosixPath(identity).name != "primitive_probe" or identity == object_identity(lock["libm"]["path"]):
         return None, ["missing or invalid recorded probe object"]
     # CollectObject deliberately omits the main executable. A caller cannot
     # simultaneously be one of its recorded shared libraries or aliases.
     if type(loaded_objects) is not dict or any(type(item) is not dict for item in loaded_objects.values()):
         return None, ["invalid recorded shared-object map"]
-    shared = set(loaded_objects) | {item.get("resolved") for item in loaded_objects.values()
-                                  if type(item.get("resolved")) is str}
-    if name in shared:
+    try:
+        shared = {object_identity(path) for key, item in loaded_objects.items()
+                  for path in (key, item.get("resolved"))}
+    except ValueError as error:
+        return None, [str(error)]
+    if identity in shared:
         return None, ["probe caller is a recorded shared-object alias"]
+    if name != identity:
+        return None, ["recorded probe object path is not canonical"]
     path = Path(directory) / "bin/primitive_probe"
     if path.is_symlink() or not path.is_file() or path.stat().st_size > MAX_ELF_BYTES:
         return None, ["missing, invalid or oversized retained probe ELF"]
