@@ -668,6 +668,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "kicad-hash"
+version = "0.1.0"
+dependencies = [
+ "kicad-math",
+ "kicad-md5",
+ "serde_json",
+]
+
+[[package]]
+name = "kicad-hash-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-hash",
+ "kicad-math",
+ "serde_json",
+]
+
+[[package]]
 name = "kicad-iec60664"
 version = "0.1.0"
 

@@ -9,6 +9,9 @@
 //! extend those types rather than adding others. `TYPE_SUPPORT.md` records exactly which C++
 //! declarations it covers and which it does not.
 
+mod fp;
 pub mod vector;
 
-pub use vector::{Vector2, Vector2D, Vector2I, Vector2L, Vector3, Vector3D, Vector3I, Vector3U};
+pub use vector::{
+    Vector2, Vector2D, Vector2I, Vector2L, Vector3, Vector3D, Vector3I, Vector3U, VectorDomainError,
+};

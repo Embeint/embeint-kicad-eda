@@ -1,0 +1,25 @@
+{
+  "generation_run": 45348544983,
+  "source_head": "a051ef7c7aaafb42029c9c28aae97b7df832201f",
+  "artifact": 14899532747,
+  "artifact_sha256": "665d7e6d0efe983bf309b894e7c1c74f19c0a4942917ea2268d074acdeec2cf5",
+  "zip_crc": "all members passed",
+  "oracle_sha256": "cec7136ee46e1d26bfa420d77024ceedaa811b9f66e40cccc85185e7ab9df74d",
+  "rust_sha256": "e61a8ebd0e2b5b7cfa21113fdc681b7847b3eb4667631dc87d9f5d54d03e956e",
+  "golden_sha256": "1ef5a58c552ee2898575b7563807e4a8cf5325eae78d226244e7ca58623e08d9",
+  "cases_sha256": "5464c930c65efecf25c50e37f26a20804c50cbb354e4be2f2c947c419674466d",
+  "old_golden_sha256": "e1b95812a96a314af616bb1f7a21a56961df7b0d67a692bffea0f2bec891f4b9",
+  "incremental_changes": 1943,
+  "consolidated_changes": 2641,
+  "removed_requests": "exactly the 15 unchanged permanent refusal fixtures",
+  "native_profiles": {
+    "debug": 2641,
+    "release": 2641
+  },
+  "guard_requests_per_profile": 441,
+  "sensitive_requests_per_profile": 1983,
+  "wasm_digest": "8567687a05ee7d4d",
+  "qualification": "Unit evidence only; no full reference-image adoption",
+  "historical_evidence_preserved": 16,
+  "native_rust_binary_rehash": "Not independently performed; the workflow runner rehashed it at every propose/bless/check"
+}
