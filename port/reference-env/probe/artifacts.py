@@ -132,7 +132,7 @@ def validate_sweeps(paths, count):
 
 def location(value):
     """A libm offset or an object-qualified address recorded by the primitive probe."""
-    return type(value) is str and bool(re.fullmatch(r"0x[0-9a-f]+|![^\n]*\+0x[0-9a-f]+", value))
+    return type(value) is str and bool(re.fullmatch(r"0x[0-9a-f]{1,16}|![^\n\x00]+\+0x[0-9a-f]{1,16}", value))
 
 
 def bits(value):
@@ -162,10 +162,10 @@ def primitive(value, rust, count, candidate):
         (
             common
             if rust
-            else common + " build loaded_objects floating_point_state libm_dispatch stream_format"
+            else common + " build probe_object loaded_objects floating_point_state libm_dispatch stream_format"
         ),
     )
-    integer(value["schema"], *((1, 1) if rust else (2, 2)))
+    integer(value["schema"], *((1, 1) if rust else (3, 3)))
     require(value["probe"] == ("rust" if rust else "primitive"), "wrong probe identity")
     inputs, operands = input_tables()
     require(
@@ -537,6 +537,10 @@ def validate(directory):
             "missing Rust target stdlib",
         )
     contract = results["contract"]
+    command = built["primitive"]["command"]
+    outputs = [command[i + 1] for i, arg in enumerate(command[:-1]) if arg == "-o"]
+    require(outputs == [contract["probe_object"]], "probe object differs from the recorded compiler output")
+    require(results["host-default"]["probe_object"] == contract["probe_object"], "probe object changes between runs")
     state = contract["floating_point_state"]
     require(
         state

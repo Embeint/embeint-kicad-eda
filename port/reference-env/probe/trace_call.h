@@ -10,10 +10,10 @@
 // awaited with sigtimedwait, and waitpid is polled with WNOHANG), as do the
 // whole trace and the final reap. The child dies with the tracer
 // (PR_SET_PDEATHSIG before tracing, PTRACE_O_EXITKILL once traced). On
-// success, timeout or any error, a child that has not been reaped is killed
-// and reaped; the reap state is tracked so an already reaped (and possibly
-// reused) pid is never signalled. No process-wide alarm or signal handler is
-// installed.
+// success, timeout or any error, an owned child that has not been reaped is
+// killed and reaped. Auto-reaping dispositions are rejected before fork; ECHILD
+// means ownership is lost and that pid must never be signalled. No process-wide
+// alarm or signal handler is installed.
 
 #ifndef REFENV_TRACE_CALL_H
 #define REFENV_TRACE_CALL_H
@@ -77,6 +77,7 @@ enum class CHILD
     EXITED,
     SIGNALED,
     TIMEOUT,
+    LOST,
     FAILED
 };
 
@@ -99,6 +100,9 @@ inline CHILD WaitChild( pid_t aChild, long long aDeadline, int& aStatus )
 
             return WIFEXITED( aStatus ) ? CHILD::EXITED : CHILD::SIGNALED;
         }
+
+        if( got < 0 && errno == ECHILD )
+            return CHILD::LOST;
 
         if( got < 0 && errno != EINTR )
             return CHILD::FAILED;
@@ -131,6 +135,7 @@ inline std::string Describe( CHILD aState, int aStatus, const char* aWhen )
         std::snprintf( text, sizeof text, "child stopped by signal %d %s", WSTOPSIG( aStatus ), aWhen );
         break;
     case CHILD::TIMEOUT: std::snprintf( text, sizeof text, "timeout %s", aWhen ); break;
+    case CHILD::LOST: std::snprintf( text, sizeof text, "child no longer owned %s", aWhen ); break;
     case CHILD::FAILED: std::snprintf( text, sizeof text, "waitpid failed %s", aWhen ); break;
     }
 
@@ -155,13 +160,25 @@ inline RESULT TraceCall( void ( *aCall )( const void* ), const void* aContext, u
                          const LIMITS& aLimits )
 {
     RESULT          result;
+    struct sigaction disposition{};
+
+    // Auto-reaping releases a pid without a wait status. Do not create a child
+    // whose lifetime this helper cannot own; leave the caller's disposition alone.
+    if( sigaction( SIGCHLD, nullptr, &disposition ) != 0
+        || disposition.sa_handler == SIG_IGN || ( disposition.sa_flags & SA_NOCLDWAIT ) )
+    {
+        result.status = "unsupported SIGCHLD auto-reaping disposition";
+        return result;
+    }
+
     const long long start = NowMs();
     const long long deadline = start + aLimits.totalMs;
     sigset_t        chld, previous;
     sigemptyset( &chld );
     sigaddset( &chld, SIGCHLD );
     sigprocmask( SIG_BLOCK, &chld, &previous );
-    std::fflush( nullptr );
+    // The child uses _exit on every path, so it cannot flush inherited stdio.
+    // Flushing the parent's streams here could block before any bounded wait.
     const pid_t parent = getpid();
     const pid_t child = fork();
 
@@ -190,6 +207,7 @@ inline RESULT TraceCall( void ( *aCall )( const void* ), const void* aContext, u
     }
 
     result.child = child;
+    bool  owned = true;
     int   status = 0;
     auto  waitFor = [&]( const char* aWhen ) -> CHILD
     {
@@ -199,7 +217,10 @@ inline RESULT TraceCall( void ( *aCall )( const void* ), const void* aContext, u
         if( state == CHILD::EXITED || state == CHILD::SIGNALED )
             result.reaped = true;
 
-        if( state == CHILD::TIMEOUT || state == CHILD::FAILED || state == CHILD::EXITED
+        if( state == CHILD::LOST )
+            owned = false;
+
+        if( state == CHILD::TIMEOUT || state == CHILD::FAILED || state == CHILD::LOST || state == CHILD::EXITED
             || state == CHILD::SIGNALED )
         {
             result.status = Describe( state, status, aWhen );
@@ -311,7 +332,7 @@ inline RESULT TraceCall( void ( *aCall )( const void* ), const void* aContext, u
         }
     }
 
-    if( !result.reaped )
+    if( owned && !result.reaped )
     {
         kill( child, SIGKILL );
         const long long limit = NowMs() + aLimits.reapMs;
@@ -319,6 +340,13 @@ inline RESULT TraceCall( void ( *aCall )( const void* ), const void* aContext, u
         for( ;; )
         {
             const CHILD gone = WaitChild( child, limit, status );
+
+            if( gone == CHILD::LOST )
+            {
+                owned = false;
+                result.status += "; child no longer owned";
+                break;
+            }
 
             if( gone == CHILD::EXITED || gone == CHILD::SIGNALED )
             {
@@ -330,7 +358,7 @@ inline RESULT TraceCall( void ( *aCall )( const void* ), const void* aContext, u
                 break;
         }
 
-        if( !result.reaped )
+        if( owned && !result.reaped )
             result.status += "; child not reaped";
     }
 

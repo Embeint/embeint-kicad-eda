@@ -54,7 +54,9 @@ class ProofTest(unittest.TestCase):
         return self.syn.layout[function][key]
 
     def report(self):
-        return dispatch_proof.dispatch_report(self.observation, self.facts, self.syn.lock, CANDIDATE, self.syn.elf)
+        caller = dispatch_proof.Caller("/out/bin/primitive_probe", libm_elf.Elf64(fx.probe_elf()))
+        return dispatch_proof.dispatch_report(self.observation, self.facts, self.syn.lock, CANDIDATE,
+                                              self.syn.elf, caller=caller)
 
     def reasons(self, function):
         return next((v["reasons"] for v in self.report()[1] if v.get("function") == function), [])
@@ -110,6 +112,13 @@ class ProofTest(unittest.TestCase):
         exp = self.record("exp")
         exp["trace"].append(exp["trace"][-1])  # a step after the entry's return
         self.assertFails("exp", "leaves the call before the end of the trace")
+
+    def test_completion_requires_the_probe_executable_mapping(self):
+        for marker in ("!" + self.syn.lock["libm"]["path"] + "+0x20000", "!+0x0",
+                       "!/out/bin/primitive_probe+0x0", "!/unknown+0x1234", "!unmapped+0x1234"):
+            with self.subTest(marker=marker):
+                self.record("sin")["return_address"] = self.record("sin")["return_to"] = marker
+                self.assertFails("sin", "in executable probe code")
 
     def test_wrong_target_through_slot(self):
         record = self.record("exp")
@@ -243,7 +252,9 @@ class DecoderTest(unittest.TestCase):
         ("eb02", 2, "jmp"), ("721b", 2, "jcc"), ("0f8510000000", 6, "jcc"), ("ff2566000000", 6, "jmp_rip_memory"),
     ]
     REFUSED = ["c5f957c0", "c4e2f1a9c2", "62f1fd4858c0", "0f0b", "0f05", "cc", "ffd0", "ffe0", "ff10", "d9e8",
-               "f3a4", "66e90000", "f4", "0fa2", "0f77", "8f00", "f0f0f0f0f0c3", ""]
+               "f3a4", "66e90000", "f4", "0fa2", "0f77", "8f00", "f0f0f0f0f0c3", "",
+               "0f38ffc0", "0f3affc000", "660f38ffc0", "660f3affc000", "c7f801000000", "c6f801",
+               "0f3800c1", "f30f3800c1", "f2660f3a0bc104"]
 
     def test_lengths_and_kinds(self):
         for code, length, kind in self.CASES:
@@ -274,7 +285,8 @@ class LifecycleTest(unittest.TestCase):
         cls.directory = Path(tempfile.mkdtemp())
         cls.harness = cls.directory / "trace_lifecycle_harness"
         subprocess.run(["g++", "-O2", "-std=gnu++20", "-Wall", "-Wextra", "-I", str(ENV / "probe"), "-o",
-                        str(cls.harness), str(ENV / "tests/trace_lifecycle_harness.cpp")], check=True, timeout=300)
+                        str(cls.harness), str(ENV / "tests/trace_lifecycle_harness.cpp"),
+                        "-Wl,--wrap=waitpid", "-Wl,--wrap=kill"], check=True, timeout=300)
         # Orphaned tracees reparent to this process, so it can prove they were killed.
         libc = ctypes.CDLL(None, use_errno=True)
         cls.subreaper = libc.prctl(36, 1, 0, 0, 0) == 0  # PR_SET_CHILD_SUBREAPER
@@ -302,6 +314,34 @@ class LifecycleTest(unittest.TestCase):
         self.assertEqual(report["return_to"], report["return_address"])
         report, _elapsed = self.run_harness("repeat17")
         self.assertEqual(report["statuses"], ["returned"] * 17)
+
+    def test_auto_reaping_dispositions_are_rejected_without_forking(self):
+        for scenario in ("auto-ignore", "auto-nocldwait"):
+            with self.subTest(scenario=scenario):
+                result = subprocess.run([str(self.harness), scenario, "100"], capture_output=True,
+                                        text=True, timeout=10)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                report = json.loads(result.stdout)
+                self.assertEqual(report["status"], "unsupported SIGCHLD auto-reaping disposition")
+                self.assertEqual(report["child"], -1)
+                self.assertEqual(report["children_left"], [])
+                self.assertEqual(report["kills_after_lost"], 0)
+
+    def test_echild_never_signals_the_released_pid(self):
+        result = subprocess.run([str(self.harness), "lost-child", "500"], capture_output=True,
+                                text=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertIn("child no longer owned", report["status"])
+        self.assertEqual(report["kills_after_lost"], 0)
+        self.assertEqual(report["children_left"], [])
+        self.assertFalse(report["child_exists"])
+
+    def test_full_buffered_output_does_not_block_before_fork(self):
+        result = subprocess.run([str(self.harness), "full-output", "1500"], capture_output=True,
+                                text=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("returned=1 reaped=1 children=0", result.stderr)
 
     def test_blocking_before_entry_is_bounded(self):
         report, elapsed = self.run_harness("block-before-entry", 800)

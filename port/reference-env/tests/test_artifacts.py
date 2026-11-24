@@ -105,7 +105,8 @@ def fixture(directory):
         if p["resolved_path"].endswith((".so.6", ".so.6.0.33", ".so.1"))
     }
     primitive["loaded_objects"] = list(loaded)
-    primitive["schema"] = 2
+    primitive["schema"] = 3
+    primitive["probe_object"] = "/out/bin/primitive_probe"
     primitive["libm_dispatch"] = syn.records
     table, excluded = libm_elf.multiarch_symbols(libm_elf.Elf64(syn.debug))
     stream_inputs = [
@@ -184,8 +185,9 @@ def fixture(directory):
     built = {}
     for name in ("primitive", "rust"):
         binary = directory / "bin" / (name + "_probe")
-        binary.write_bytes(b"synthetic binary")
-        built[name] = dict(sha256=artifacts.sha256(binary), command=["fixture"])
+        binary.write_bytes(libm_fixtures.probe_elf() if name == "primitive" else b"synthetic binary")
+        command = ["fixture", "-o", "/out/bin/primitive_probe"] if name == "primitive" else ["fixture"]
+        built[name] = dict(sha256=artifacts.sha256(binary), command=command)
     comparisons = run_probe.comparison_report(
         directory,
         {"contract": primitive, "host-default": primitive, "rust": rust},
@@ -349,6 +351,21 @@ class ArtifactTest(unittest.TestCase):
         self.assertComparatorRejects(forged_return, "does not reach the recorded return address")
         self.assertComparatorRejects(forged_slot, "recorded GOT slot read does not match")
         self.assertComparatorRejects(forged_status, "trace incomplete")
+
+    def test_invalid_completion_objects_fail_the_full_comparator(self):
+        cases = [
+            ("!" + artifacts.load(ENV / "inputs.lock.json")["libm"]["path"] + "+0x20000",
+             "executable probe code"),
+            ("!+0x0", "invalid dispatch trace"),
+            ("!/out/bin/primitive_probe+0x0", "executable probe code"),
+            ("!/unrecorded/primitive_probe+0x1234", "executable probe code"),
+        ]
+        for marker, reason in cases:
+            def change(_directory, _env, rows):
+                for row in rows:
+                    row["return_address"] = row["return_to"] = marker
+            with self.subTest(marker=marker):
+                self.assertComparatorRejects(change, reason)
 
     def rehash(self, directory):
         summary = artifacts.load(directory / "summary.json")
