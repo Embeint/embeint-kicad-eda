@@ -48,7 +48,7 @@ has no published ports or host bind mounts and the network has IPv6 disabled.
 
 Three local admission-hook tests passed: trusted push/manual admission, refusal of
 PR/PR-target/other events, and wrong-repository refusal. `actionlint` 1.7.7 passed
-for all three edited workflows. Shell syntax and `git diff --check` passed.
+for both edited workflows. Shell syntax and `git diff --check` passed.
 
 The initially installed local image digest was
 `sha256:c14de9f90e9d70f0f725e66b169b9b08f9e6dab7b6c3afdfc8fd7d547c1dd608`.

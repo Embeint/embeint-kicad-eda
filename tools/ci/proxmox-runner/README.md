@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 # Product CI on existing Proxmox build runners
 
-The product MCP/layout workflows can opt into the repository-scoped
+The product MCP contracts and Rust layout workflows can opt into the repository-scoped
 `proxmox-kicad-isolated-01` runner, with the single custom label
 `kicad-ci-isolated-linux-x64`. It has no default labels, so unrelated
 `self-hosted` jobs cannot accidentally select it. This is an additional isolated
@@ -12,7 +12,10 @@ that the runner is online and its isolation tests pass. An absent/false variable
 routes all jobs to GitHub-hosted Ubuntu. Pull requests (including same-repository
 PRs) always select hosted runners. Push and manually dispatched product jobs can
 select the isolated runner. Do not use `pull_request_target` to execute PR code.
-The existing `all_external_contributors` approval policy must remain enabled.
+The long-running Rust MCP protocol parity workflow stays hosted so that its
+roughly 20 minutes of fixture waits cannot monopolize the single isolated worker.
+Its tests/cache policy are unchanged. The existing `all_external_contributors`
+approval policy must remain enabled.
 
 ## Boundaries
 
@@ -40,7 +43,7 @@ PR code here. GitHub recommends hosted runners for public PRs; see
 
 ## Cache and numerical policies
 
-Only the ordinary product MCP/layout jobs use persistent Cargo registries,
+Only ordinary MCP contracts and Rust layout jobs use persistent Cargo registries,
 toolchains, Python downloads and per-job/toolchain Cargo target directories. The
 checkout still cleans source files and does not persist its GitHub credentials.
 Cargo rebuilds changed inputs, and every original test, lint, minimum Rust version,
