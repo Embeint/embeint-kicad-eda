@@ -38,8 +38,12 @@ def fetch_inputs(lock, cache, destination):
     snapshot = lock["snapshot"]
     root = f"{snapshot['url']}/{snapshot['id']}"
     for suite, record in sorted(snapshot["suites"].items()):
-        stage(cache, destination, f"InRelease-{suite}", f"{root}/dists/{suite}/InRelease",
-              record["inrelease_sha256"])
+        release_url = f"{root}/dists/{suite}/InRelease"
+        # A deterministic query gives a separate transport cache key for cached 5xx
+        # responses. The response must still be the original signed, hash-locked file.
+        release_alternate = f"{release_url}?sha256={record['inrelease_sha256']}"
+        stage(cache, destination, f"InRelease-{suite}", release_url,
+              record["inrelease_sha256"], (release_alternate,))
         for component, index in sorted(record["indices"].items()):
             # Same signed index bytes, addressed by their locked digest when the named
             # snapshot endpoint is unavailable. Hash/signature verification is unchanged.

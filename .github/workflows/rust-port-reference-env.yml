@@ -1,8 +1,8 @@
 name: Rust port reference environment (candidate tooling)
 
 # Separate from the phase zero gate (rust-port.yml). The
-# tooling job checks the candidate recipe offline. The probe job runs only on
-# manual dispatch, builds the CANDIDATE image locally on the runner without
+# tooling job checks the candidate recipe offline. The probe job runs for PRs
+# and explicitly requested manual dispatches, builds the CANDIDATE image without
 # pushing it, and uploads unqualified evidence. Neither job qualifies the
 # candidate or changes any golden, pin or unit status.
 
@@ -55,7 +55,7 @@ jobs:
           sh -n port/reference-env/image/verify_chain.sh
 
   candidate-probe:
-    if: github.event_name == 'workflow_dispatch' && inputs.probe
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.probe)
     needs: tooling
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -66,9 +66,9 @@ jobs:
       - name: Build and probe the candidate image (not pushed, not qualification)
         env:
           ORACLE_JOBS: "4"
-          WITH_ORACLE: ${{ inputs.with_oracle }}
-          WITH_DIFFTEST: ${{ inputs.with_difftest }}
-          SWEEP_COUNT: ${{ inputs.sweep_count }}
+          WITH_ORACLE: ${{ github.event_name == 'pull_request' || inputs.with_oracle }}
+          WITH_DIFFTEST: ${{ github.event_name == 'pull_request' || inputs.with_difftest }}
+          SWEEP_COUNT: ${{ github.event_name == 'pull_request' && '2000000' || inputs.sweep_count }}
         run: |
           args=(--revision "$GITHUB_SHA" --work "$RUNNER_TEMP/refenv" --sweep-count "$SWEEP_COUNT" --rebuild-check)
           if test "$WITH_DIFFTEST" = true; then
