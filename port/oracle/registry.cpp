@@ -9,6 +9,7 @@ void RegisterIec60664( REGISTRY& aRegistry );
 void RegisterResistors( REGISTRY& aRegistry );
 void RegisterKimathHeaderHash( REGISTRY& aRegistry );
 void RegisterRtreeNode( REGISTRY& aRegistry );
+void RegisterDynamicRtree( REGISTRY& aRegistry );
 
 
 void REGISTRY::Add( const std::string& aUnit, const std::string& aUpstream, SHIM aShim )
@@ -30,6 +31,7 @@ REGISTRY MakeRegistry()
     RegisterResistors( registry );
     RegisterKimathHeaderHash( registry );
     RegisterRtreeNode( registry );
+    RegisterDynamicRtree( registry );
     return registry;
 }
 
