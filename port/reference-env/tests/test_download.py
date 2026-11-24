@@ -3,7 +3,7 @@
 
 import hashlib
 import io
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 import sys
 import tempfile
 import unittest
@@ -12,6 +12,7 @@ from urllib.error import HTTPError
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 import refenv  # noqa: E402
+import fetch_inputs  # noqa: E402
 
 
 class DownloadTest(unittest.TestCase):
@@ -29,6 +30,27 @@ class DownloadTest(unittest.TestCase):
         with mock.patch.object(refenv.urllib.request, "urlopen") as fetch:
             self.assertFalse(refenv.download("https://primary.invalid/input", self.target, self.digest))
         fetch.assert_not_called()
+
+    def test_index_fallback_urls_remain_posix_on_windows(self):
+        class ReachedIndex(Exception):
+            pass
+
+        sha = "0" * 64
+        lock = {"snapshot": {"url": "https://snapshot.ubuntu.com/ubuntu",
+                             "id": "20261120T000000Z", "suites": {
+                                 "noble": {"inrelease_sha256": sha, "indices": {
+                                     "main": {"path": "main/binary-amd64/Packages.gz", "sha256": sha}
+                                 }}
+                             }}}
+        with mock.patch.object(fetch_inputs, "Path", PureWindowsPath), \
+                mock.patch.object(fetch_inputs, "stage", side_effect=[None, ReachedIndex]) as stage:
+            with self.assertRaises(ReachedIndex):
+                fetch_inputs.fetch_inputs(lock, Path(self.directory.name) / "cache",
+                                          Path(self.directory.name) / "stage")
+        alternate = stage.call_args.args[5][0]
+        self.assertEqual(alternate, "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/"
+                         "dists/noble/main/binary-amd64/by-hash/SHA256/" + sha)
+        self.assertNotIn("\\", alternate)
 
     def test_transient_retry_then_atomic_verified_replacement(self):
         self.target.write_bytes(b"previous bytes")

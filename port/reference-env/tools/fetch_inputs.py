@@ -8,7 +8,7 @@ The image build itself then runs with no network. Downloads are cached in
 
 import argparse
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import shutil
 import sys
 
@@ -47,7 +47,7 @@ def fetch_inputs(lock, cache, destination):
         for component, index in sorted(record["indices"].items()):
             # Same signed index bytes, addressed by their locked digest when the named
             # snapshot endpoint is unavailable. Hash/signature verification is unchanged.
-            by_hash = (f"{root}/dists/{suite}/{Path(index['path']).parent}/by-hash/SHA256/"
+            by_hash = (f"{root}/dists/{suite}/{PurePosixPath(index['path']).parent}/by-hash/SHA256/"
                        f"{index['sha256']}")
             stage(cache, destination, f"Packages-{suite}-{component}.gz",
                   f"{root}/dists/{suite}/{index['path']}", index["sha256"], (by_hash,))
