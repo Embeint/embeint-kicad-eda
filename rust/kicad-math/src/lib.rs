@@ -10,7 +10,12 @@
 //! [`vector`] is the canonical minimal co-port of `VECTOR2`/`VECTOR3` from
 //! `libs.kimath.include.math.application.ui.p002`, which remains that unit's work; later ports
 //! extend those types rather than adding others.
+//!
+//! The private `glibc_trig` module reproduces the reference C library's `sin`, `cos` and
+//! `sincos` (glibc 2.39, baseline SSE2 variants) bit for bit without the host libm, so
+//! `SetRotation` gives the same bits natively and in WebAssembly.
 
+mod glibc_trig;
 pub mod matrix3x3;
 pub mod stream;
 pub mod vector;

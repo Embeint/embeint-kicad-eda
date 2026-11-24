@@ -62,7 +62,7 @@ is called.
 | `set_identity` | `matrix` | `matrix` | `SetIdentity` |
 | `set_translation` | `matrix`, `translation` | `matrix` | `SetTranslation` |
 | `get_translation` | `matrix` | `vector` | `GetTranslation` |
-| `set_rotation` | `matrix`, `angle` (`T`) | `matrix` | `SetRotation` (libm `cos`, `sin`) |
+| `set_rotation` | `matrix`, `angle` (`T`) | `matrix` | `SetRotation` (glibc `sincos`, ported) |
 | `set_scale` | `matrix`, `scale` | `matrix` | `SetScale` |
 | `get_scale` | `matrix` | `vector` | `GetScale` |
 | `determinant` | `matrix` | `value` | `Determinant` |
@@ -165,8 +165,10 @@ These are recorded findings, not tolerances. Each needs a parent/user decision.
   mismatches on 1,824 of 3,500 requests.
 - [libm](../../port/findings/kimath-matrix-libm-sin-cos.md) and its
   [qualified addendum](../../port/findings/kimath-matrix-libm-sin-cos-qualified-addendum.md):
-  `set_rotation` uses the host libm. wasm differs on 24 of 275 angles, and glibc's ifunc
-  variant changes `sin`/`cos` by 1 ulp for some angles.
+  with std's host libm, wasm differed on 24 of 275 angles, and glibc's ifunc variant changes
+  `sin`/`cos` by 1 ulp for some angles. `set_rotation` now uses a portable port of the pinned
+  glibc's SSE2 `sincos` ([addendum](../../port/findings/kimath-matrix-libm-sin-cos-glibc-port.md));
+  the oracle must run with the SSE2 variant, and the genuine native/wasm check is pending.
 - [Stream](../../port/findings/kimath-matrix-stream-libstdcxx-lwg4084.md): libstdc++ 15
   prints `INF`/`NAN` for `uppercase` + `fixed`, while earlier runtimes print `inf`/`nan`. The
   port follows the pre-15 runtime of the hosted CI gate.

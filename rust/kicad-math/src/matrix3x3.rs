@@ -22,6 +22,7 @@
 //!   out-of-range `double` to `int` are undefined behaviour in C++; those inputs return a
 //!   [`MatrixError`] instead of a value. Every defined input returns the C++ result.
 
+use crate::glibc_trig;
 use crate::stream::{insert_str, StreamError, StreamInsert, StreamState};
 use crate::vector::{Vector2, Vector3};
 use core::ops::Mul;
@@ -237,12 +238,12 @@ impl Matrix3x3<f64> {
     /// `SetRotation( T aAngle )`: sets the upper-left 2x2 block for an anti-clockwise rotation
     /// by `angle` radians; the other members are unchanged.
     ///
-    /// `cos` and `sin` are the platform C library's (`f64::cos`/`f64::sin` call the system
-    /// libm natively), matching the oracle's `cos`/`sin` (or fused `sincos`) on the same host.
-    /// See `port/findings/kimath-matrix-libm-sin-cos.md` for the portable limit.
+    /// GCC combines the C++'s `cos( aAngle )` and `sin( aAngle )` into one `sincos` call; the
+    /// reference is glibc 2.39's baseline `__sincos_sse2`, which `glibc_trig::sincos`
+    /// reproduces bit for bit on every target (no host libm). See
+    /// `port/findings/kimath-matrix-libm-sin-cos.md`.
     pub fn set_rotation(&mut self, angle: f64) {
-        let cos_value = angle.cos();
-        let sin_value = angle.sin();
+        let (sin_value, cos_value) = glibc_trig::sincos(angle);
         self.data[0][0] = cos_value;
         self.data[0][1] = -sin_value;
         self.data[1][0] = sin_value;
@@ -402,12 +403,13 @@ const INT_MUL_DOUBLE: &str = "operator*( MATRIX3x3<int>, double )";
 impl Matrix3x3<i32> {
     /// `SetRotation( int aAngle )`: `T cosValue = cos( aAngle )` evaluates the `double`
     /// cosine of the integer angle and truncates it to `int` (always in [-1, 1], so defined);
-    /// likewise for the sine. Other members are unchanged.
+    /// likewise for the sine. As for `double`, the pair is one glibc `sincos` call
+    /// (`glibc_trig::sincos`). Other members are unchanged.
     pub fn set_rotation(&mut self, angle: i32) {
-        let radians = f64::from(angle);
+        let (sin_double, cos_double) = glibc_trig::sincos(f64::from(angle));
         // Truncation of a value in [-1, 1] toward zero.
-        let cos_value = radians.cos() as i32;
-        let sin_value = radians.sin() as i32;
+        let cos_value = cos_double as i32;
+        let sin_value = sin_double as i32;
         self.data[0][0] = cos_value;
         self.data[0][1] = -sin_value;
         self.data[1][0] = sin_value;
