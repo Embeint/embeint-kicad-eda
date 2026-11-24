@@ -164,10 +164,22 @@ limited as above. All meaningful owned algorithms and iterator continuations are
 implemented. No sorted-list or brute-force substitute is used for spatial queries.
 No golden is committed and no case is excluded from native comparison.
 
-Initial implementation-tree evidence: six Rust behavior tests passed; 207 native
-programs / 59,365 steps compared exactly on Linux arm64, GCC 12.2/libstdc++ with
-UBSan and float-cast-overflow checks, versus native Mac Rust. That is **earlier
-working-tree evidence**, not final-head certification. The enlarged final corpus,
-ABI probes, refusal controls, native coverage, wasm runtime and hosted x86-64 checks
-are tracked in the PR and validation evidence. The dedicated workflow and normal
-port workflow execute fresh C++ comparisons; stored outputs do not count as CI.
+At runtime implementation/integration revision
+`48a80874093c78521a826219a0d7227582d252bf`: six portable behavior tests, the
+26-control shim integration test, focused fmt/clippy, portable wasm check, **249
+native programs / 67,713 steps** (249 compared, zero failures/deferrals), **26
+native/Rust refusal controls**, and full import-free wasm runtime replay against
+fresh native replies all pass. Native reference is Linux arm64 GCC 12.2/libstdc++
+with UBSan/float-cast-overflow; Rust is Mac aarch64 1.96.1; wasm runs under Node
+v24.16.0 / V8 13.6.233.17-node.49. Retained source/binary binding and gcov evidence
+is in `../kicad-rtree-shim/validation/2026-11-24-48a80874/`. Native compilation
+used an earlier dirty export whose actual source hashes match that revision;
+this is explicitly not a clean hosted x86-64 build claim. A source-known
+full-domain/near-2^53/INT64_MAX/negative-fraction bulk extension is included.
+
+Initial 207-program / 59,365-step success was earlier working-tree evidence,
+superseded by the complete 249-program run. Native coverage observed 644/660
+executed function instantiations, 6,756/7,256 executed line entries and
+4,159/5,480 taken branches, retaining unexecuted paths. The dedicated hosted
+x86-64 workflow and normal port workflow execute fresh comparisons; hosted CI
+and separate review remain pending. No stored output is counted as CI.
