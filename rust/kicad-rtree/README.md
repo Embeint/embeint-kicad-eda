@@ -12,6 +12,9 @@ The accepted base is `eb4cd4724ff6f5fa2119c86248c1a4beb4847451`, confirmed again
 symbol; neither overlapped. No topic history was imported. This unit uses accepted
 `kicad-rtree-node::{RtreeNode,Payload,SlabArena,AllocatorId,NodeHandle,hilbert_nd}`
 without modifying the node crate, its unit status, or historical evidence.
+During implementation the parent accepted PR #50 into official `rust` at
+`1ac339f229d8ccb8ccb297f489493622903cc468`; this branch merges that official base
+only. The dependency is accepted base history, not an open-topic dependency.
 
 ```rust
 use kicad_rtree::{DynamicRtree, NodeData};

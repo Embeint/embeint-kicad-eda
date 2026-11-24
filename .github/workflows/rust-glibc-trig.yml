@@ -1,0 +1,146 @@
+name: Rust glibc_trig fresh reference
+
+# Targeted check of the kicad_math::glibc_trig prerequisite (port/glibc-trig/README.md): a fresh
+# genuine reference from the locked glibc package, compared bit for bit with the Rust port
+# natively (debug, release), as wasm32-wasip1 tests (debug, release) and through the public
+# SetRotation in wasm32-unknown-unknown (debug, release). It publishes nothing, blesses
+# nothing and does not replace the math unit's corpus gate in rust-port.yml.
+
+on:
+  pull_request:
+    branches: [rust]
+    paths:
+      - "rust/kicad-math/**"
+      - "port/glibc-trig/**"
+      - ".github/workflows/rust-glibc-trig.yml"
+  push:
+    branches: [rust]
+    paths:
+      - "rust/kicad-math/**"
+      - "port/glibc-trig/**"
+      - ".github/workflows/rust-glibc-trig.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rust-glibc-trig-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  RUST_TOOLCHAIN: "1.99.1"
+  CARGO_BUILD_JOBS: "4"
+  KICAD_GLIBC_TRIG_COUNT: "1000000"
+  # Commit holding the reviewed PR55 input lock (port/reference-env/inputs.lock.json).
+  INPUT_LOCK_COMMIT: 33535308d33e019f04af6e089b14ca593ea84ccb
+  HARNESS: port/glibc-trig
+
+jobs:
+  glibc-trig:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      # Node 22 crashes on the optimized WASI test; keep the measured runtime explicit.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24.16.0"
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Prepare the output directory and record tools
+        run: |
+          out="$RUNNER_TEMP/glibc-trig"
+          mkdir -p "$out"
+          echo "OUT=$out" >> "$GITHUB_ENV"
+          test "$(node -p 'process.versions.node')" = "24.16.0" || { echo "::error::Expected the measured Node 24.16.0 runtime"; exit 1; }
+          { echo "head $GITHUB_SHA"; node --version; gcc --version | head -1; uname -srm; python3 --version; } > "$out/tools.txt"
+      - name: Static harness tests
+        run: python -I -B -m unittest discover -s "$HARNESS" -p 'test_*.py' -v
+      - name: Bootstrap pinned sources before any Cargo build
+        shell: bash
+        run: |
+          python port/tools/bootstrap_west.py
+          .port-venv/linux/bin/west update
+          python port/tools/bootstrap_west.py --check
+      - name: Install pinned Rust toolchain and WebAssembly targets
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --target wasm32-wasip1 --target wasm32-unknown-unknown
+          rustup default "$RUST_TOOLCHAIN"
+          { rustc -vV; cargo -V; } >> "$OUT/tools.txt"
+      - name: Bind the reviewed input lock
+        run: |
+          git fetch --no-tags --depth=1 origin "$INPUT_LOCK_COMMIT"
+          git show "$INPUT_LOCK_COMMIT:port/reference-env/inputs.lock.json" > "$OUT/inputs.lock.json"
+          python -I -B "$HARNESS/glibc_trig_reference.py" bind-lock --lock "$HARNESS/reference.lock.json" --source-lock "$OUT/inputs.lock.json"
+      - name: Generate the reference domain (1,602 boundary + 1,000,000 seeded inputs)
+        working-directory: rust
+        run: |
+          KICAD_GLIBC_TRIG_DOMAIN="$OUT/domain.bin" \
+            cargo test --locked -p kicad-math --lib glibc_trig::tests::reference_write_domain -- --ignored --exact
+          cd .. && python -I -B "$HARNESS/glibc_trig_reference.py" check-domain --lock "$HARNESS/reference.lock.json" --domain "$OUT/domain.bin"
+      - name: Fresh genuine reference from the locked package's own loader
+        id: reference
+        run: |
+          python -I -B "$HARNESS/glibc_trig_reference.py" reference --lock "$HARNESS/reference.lock.json" \
+            --domain "$OUT/domain.bin" --probe-source "$HARNESS/probe.c" --out "$OUT"
+      - name: Native debug
+        if: ${{ !cancelled() && steps.reference.outcome == 'success' }}
+        working-directory: rust
+        shell: bash
+        run: |
+          set -o pipefail
+          KICAD_GLIBC_TRIG_REFERENCE="$OUT/reference.bin" \
+            cargo test --locked -p kicad-math --lib glibc_trig -- --include-ignored --skip reference_write_domain --nocapture 2>&1 | tee "$OUT/native-debug.log"
+      - name: Native release
+        if: ${{ !cancelled() && steps.reference.outcome == 'success' }}
+        working-directory: rust
+        shell: bash
+        run: |
+          set -o pipefail
+          KICAD_GLIBC_TRIG_REFERENCE="$OUT/reference.bin" \
+            cargo test --locked --release -p kicad-math --lib glibc_trig -- --include-ignored --skip reference_write_domain --nocapture 2>&1 | tee "$OUT/native-release.log"
+      - name: wasm32-wasip1 debug and release under Node WASI
+        if: ${{ !cancelled() && steps.reference.outcome == 'success' }}
+        working-directory: rust
+        shell: bash
+        run: |
+          set -o pipefail
+          status=0
+          for profile in dev release; do
+            name=$([ "$profile" = dev ] && echo debug || echo release)
+            wasm=$(cargo test --locked -p kicad-math --lib --target wasm32-wasip1 --profile "$profile" --no-run --message-format=json \
+              | python -I -B "../$HARNESS/glibc_trig_reference.py" wasi-test --lock "../$HARNESS/reference.lock.json")
+            echo "wasm $(sha256sum "$wasm")" > "$OUT/wasip1-$name.log"
+            KICAD_GLIBC_TRIG_REFERENCE="$OUT/reference.bin" \
+              node "../$HARNESS/node_wasi_test.mjs" "$wasm" "$OUT" glibc_trig --include-ignored --skip reference_write_domain --nocapture 2>&1 \
+              | tee -a "$OUT/wasip1-$name.log" || status=1
+          done
+          exit $status
+      - name: wasm32-unknown-unknown public SetRotation debug and release
+        if: ${{ !cancelled() && steps.reference.outcome == 'success' }}
+        working-directory: port/glibc-trig/wasm-set-rotation
+        shell: bash
+        run: |
+          set -o pipefail
+          status=0
+          count=$(python3 -c 'import json; d=json.load(open("../reference.lock.json"))["domain"]; print(d["fixed_count"]+d["seeded_count"])')
+          for profile in dev release; do
+            name=$([ "$profile" = dev ] && echo debug || echo release)
+            cargo build --target wasm32-unknown-unknown --profile "$profile" --target-dir "$RUNNER_TEMP/wasm-target"
+            module="$RUNNER_TEMP/wasm-target/wasm32-unknown-unknown/$name/kicad_math_wasm_set_rotation.wasm"
+            echo "wasm $(sha256sum "$module")" > "$OUT/unknown-set-rotation-$name.log"
+            node check.mjs "$module" "$OUT/reference.bin" "$count" 2>&1 | tee -a "$OUT/unknown-set-rotation-$name.log" || status=1
+          done
+          exit $status
+      - name: Report
+        if: ${{ always() }}
+        run: python -I -B "$HARNESS/glibc_trig_reference.py" report --lock "$HARNESS/reference.lock.json" --out "$OUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ always() }}
+        with:
+          name: glibc-trig-reference-${{ github.run_id }}
+          path: ${{ runner.temp }}/glibc-trig/
+          retention-days: 14
+          if-no-files-found: warn

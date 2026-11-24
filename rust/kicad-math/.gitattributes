@@ -1,0 +1,4 @@
+# generated.rs (sha256 d24ff0f2...) and the regression data are bound by their exact bytes.
+src/generated.rs text eol=lf
+tests/data/nan_priority_witnesses.txt text eol=lf
+tests/data/sse2_primitives.txt text eol=lf

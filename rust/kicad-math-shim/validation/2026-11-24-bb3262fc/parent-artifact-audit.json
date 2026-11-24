@@ -1,0 +1,38 @@
+{
+  "revision": "bb3262fc08f7d03303a22846bfcea2b54577c29a",
+  "zip_sha256": "7b559d1277ba523f10415119c7e49b31bfe5e2d6129868e63d119ee7e0d6a27e",
+  "captured_files": 981,
+  "case_count": 7460,
+  "golden_sha256": "5b3e42d65eb6b6126acbbf5d45cfbdcc27d461c25558179a84aa0b1c5dd4525b",
+  "oracle_sha256": "51b6e108774fa7b4b990aa8d7b23ff0ca45be3e6aa76f62d287c2141d4f0a585",
+  "rust_sha256": "4b5a487ba8824b5be1a87481e3f8be3297f51a46ff75fd7ec808e0d9d7402783",
+  "gate_counts": {
+    "schema": {
+      "pass": 30,
+      "fail": 0,
+      "not-run": 0
+    },
+    "eligibility": {
+      "pass": 39,
+      "fail": 0,
+      "not-run": 0
+    },
+    "context": {
+      "pass": 41,
+      "fail": 0,
+      "not-run": 0
+    },
+    "scope": {
+      "pass": 5,
+      "fail": 0,
+      "not-run": 0
+    },
+    "arithmetic": {
+      "pass": 44,
+      "fail": 0,
+      "not-run": 0
+    }
+  },
+  "actual_artifact_files_audited": true,
+  "limits": "No downloaded binary executed locally. Successful reports retain per-case compared statuses and stream hashes, not raw Rust replies. Release executable not retained; its hash is native runner evidence."
+}
