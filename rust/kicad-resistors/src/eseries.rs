@@ -36,8 +36,10 @@ pub fn values(series: i32) -> Vec<u16> {
 
 // Integer powers used by std::pow(10, exponent) in this unit. Decimal
 // literals are correctly rounded by Rust on both native and wasm. The Linux
-// glibc reference differs from correctly rounded decimal conversion at 23 and
-// 210; preserve those two results explicitly, without changing returned bits.
+// pinned glibc 2.39 SSE2 reference differs from correctly rounded decimal
+// conversion at 23, 126 and 210; preserve those results explicitly. The
+// exponent-126 reference migration is documented in
+// port/findings/resistors-sse2-reference-migration.md.
 // The complete exponent domain is exercised live by every E-series case.
 const POWERS: [f64; 632] = [
     1e-323,
@@ -489,7 +491,7 @@ const POWERS: [f64; 632] = [
     1e123,
     1e124,
     1e125,
-    1e126,
+    f64::from_bits(0x5a17_a2ec_c414_a040),
     1e127,
     1e128,
     1e129,
