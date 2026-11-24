@@ -1,0 +1,458 @@
+[
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-src/reference/pcb_calculator -I/work/oracle/oracle-src/overlay/reference -I/work/oracle/oracle-src/reference/thirdparty/fmt/include -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o CMakeFiles/resistor-reference.dir/work/oracle/oracle-src/reference/pcb_calculator/eseries.cpp.o -c /work/oracle/oracle-src/reference/pcb_calculator/eseries.cpp",
+  "file": "/work/oracle/oracle-src/reference/pcb_calculator/eseries.cpp",
+  "output": "CMakeFiles/resistor-reference.dir/work/oracle/oracle-src/reference/pcb_calculator/eseries.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-src/reference/pcb_calculator -I/work/oracle/oracle-src/overlay/reference -I/work/oracle/oracle-src/reference/thirdparty/fmt/include -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o CMakeFiles/resistor-reference.dir/reference/resistors_access.cpp.o -c /work/oracle/oracle-src/overlay/reference/resistors_access.cpp",
+  "file": "/work/oracle/oracle-src/overlay/reference/resistors_access.cpp",
+  "output": "CMakeFiles/resistor-reference.dir/reference/resistors_access.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DJSON_HAS_FILESYSTEM=0 -DPCB_CALCULATOR_BUILD -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build/reader-generated -I/work/oracle/oracle-src/reference/pcb_calculator -I/work/oracle/oracle-src/reference/libs/kiplatform/include -I/work/oracle/oracle-src/reference/thirdparty/fast_float/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/thirdparty/fmt/include -I/work/oracle/oracle-src/reference/thirdparty/nlohmann_json -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -ffunction-sections -fdata-sections -o CMakeFiles/calculator-reader-reference.dir/work/oracle/oracle-src/reference/pcb_calculator/datafile_read_write.cpp.o -c /work/oracle/oracle-src/reference/pcb_calculator/datafile_read_write.cpp",
+  "file": "/work/oracle/oracle-src/reference/pcb_calculator/datafile_read_write.cpp",
+  "output": "CMakeFiles/calculator-reader-reference.dir/work/oracle/oracle-src/reference/pcb_calculator/datafile_read_write.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DJSON_HAS_FILESYSTEM=0 -DPCB_CALCULATOR_BUILD -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build/reader-generated -I/work/oracle/oracle-src/reference/pcb_calculator -I/work/oracle/oracle-src/reference/libs/kiplatform/include -I/work/oracle/oracle-src/reference/thirdparty/fast_float/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/thirdparty/fmt/include -I/work/oracle/oracle-src/reference/thirdparty/nlohmann_json -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -ffunction-sections -fdata-sections -o CMakeFiles/calculator-reader-reference.dir/work/oracle/oracle-src/reference/common/dsnlexer.cpp.o -c /work/oracle/oracle-src/reference/common/dsnlexer.cpp",
+  "file": "/work/oracle/oracle-src/reference/common/dsnlexer.cpp",
+  "output": "CMakeFiles/calculator-reader-reference.dir/work/oracle/oracle-src/reference/common/dsnlexer.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DJSON_HAS_FILESYSTEM=0 -DPCB_CALCULATOR_BUILD -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build/reader-generated -I/work/oracle/oracle-src/reference/pcb_calculator -I/work/oracle/oracle-src/reference/libs/kiplatform/include -I/work/oracle/oracle-src/reference/thirdparty/fast_float/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/thirdparty/fmt/include -I/work/oracle/oracle-src/reference/thirdparty/nlohmann_json -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -ffunction-sections -fdata-sections -o CMakeFiles/calculator-reader-reference.dir/work/oracle/oracle-src/reference/common/richio.cpp.o -c /work/oracle/oracle-src/reference/common/richio.cpp",
+  "file": "/work/oracle/oracle-src/reference/common/richio.cpp",
+  "output": "CMakeFiles/calculator-reader-reference.dir/work/oracle/oracle-src/reference/common/richio.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DJSON_HAS_FILESYSTEM=0 -DPCB_CALCULATOR_BUILD -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build/reader-generated -I/work/oracle/oracle-src/reference/pcb_calculator -I/work/oracle/oracle-src/reference/libs/kiplatform/include -I/work/oracle/oracle-src/reference/thirdparty/fast_float/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/thirdparty/fmt/include -I/work/oracle/oracle-src/reference/thirdparty/nlohmann_json -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -ffunction-sections -fdata-sections -o CMakeFiles/calculator-reader-reference.dir/work/oracle/oracle-src/reference/common/exceptions.cpp.o -c /work/oracle/oracle-src/reference/common/exceptions.cpp",
+  "file": "/work/oracle/oracle-src/reference/common/exceptions.cpp",
+  "output": "CMakeFiles/calculator-reader-reference.dir/work/oracle/oracle-src/reference/common/exceptions.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DJSON_HAS_FILESYSTEM=0 -DPCB_CALCULATOR_BUILD -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build/reader-generated -I/work/oracle/oracle-src/reference/pcb_calculator -I/work/oracle/oracle-src/reference/libs/kiplatform/include -I/work/oracle/oracle-src/reference/thirdparty/fast_float/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/thirdparty/fmt/include -I/work/oracle/oracle-src/reference/thirdparty/nlohmann_json -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -ffunction-sections -fdata-sections -o CMakeFiles/calculator-reader-reference.dir/reader-generated/pcb_calculator_datafile_keywords.cpp.o -c /work/oracle/oracle-build/reader-generated/pcb_calculator_datafile_keywords.cpp",
+  "file": "/work/oracle/oracle-build/reader-generated/pcb_calculator_datafile_keywords.cpp",
+  "output": "CMakeFiles/calculator-reader-reference.dir/reader-generated/pcb_calculator_datafile_keywords.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-src/reference/pcb_calculator/calculator_panels -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o CMakeFiles/iec60664-reference.dir/work/oracle/oracle-src/reference/pcb_calculator/calculator_panels/iec60664.cpp.o -c /work/oracle/oracle-src/reference/pcb_calculator/calculator_panels/iec60664.cpp",
+  "file": "/work/oracle/oracle-src/reference/pcb_calculator/calculator_panels/iec60664.cpp",
+  "output": "CMakeFiles/iec60664-reference.dir/work/oracle/oracle-src/reference/pcb_calculator/calculator_panels/iec60664.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DJSON_HAS_FILESYSTEM=0 -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-src/overlay -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -I/work/oracle/oracle-src/reference/thirdparty/nlohmann_json -I/work/oracle/oracle-src/reference/pcb_calculator/calculator_panels -I/work/oracle/oracle-src/reference/pcb_calculator -I/work/oracle/oracle-src/overlay/reference -I/work/oracle/oracle-src/reference/thirdparty/fmt/include -I/work/oracle/oracle-build/reader-generated -I/work/oracle/oracle-src/reference/libs/kiplatform/include -I/work/oracle/oracle-src/reference/thirdparty/fast_float/include -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o CMakeFiles/kicad-oracle.dir/main.cpp.o -c /work/oracle/oracle-src/overlay/main.cpp",
+  "file": "/work/oracle/oracle-src/overlay/main.cpp",
+  "output": "CMakeFiles/kicad-oracle.dir/main.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DJSON_HAS_FILESYSTEM=0 -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-src/overlay -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -I/work/oracle/oracle-src/reference/thirdparty/nlohmann_json -I/work/oracle/oracle-src/reference/pcb_calculator/calculator_panels -I/work/oracle/oracle-src/reference/pcb_calculator -I/work/oracle/oracle-src/overlay/reference -I/work/oracle/oracle-src/reference/thirdparty/fmt/include -I/work/oracle/oracle-build/reader-generated -I/work/oracle/oracle-src/reference/libs/kiplatform/include -I/work/oracle/oracle-src/reference/thirdparty/fast_float/include -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o CMakeFiles/kicad-oracle.dir/protocol.cpp.o -c /work/oracle/oracle-src/overlay/protocol.cpp",
+  "file": "/work/oracle/oracle-src/overlay/protocol.cpp",
+  "output": "CMakeFiles/kicad-oracle.dir/protocol.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DJSON_HAS_FILESYSTEM=0 -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-src/overlay -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -I/work/oracle/oracle-src/reference/thirdparty/nlohmann_json -I/work/oracle/oracle-src/reference/pcb_calculator/calculator_panels -I/work/oracle/oracle-src/reference/pcb_calculator -I/work/oracle/oracle-src/overlay/reference -I/work/oracle/oracle-src/reference/thirdparty/fmt/include -I/work/oracle/oracle-build/reader-generated -I/work/oracle/oracle-src/reference/libs/kiplatform/include -I/work/oracle/oracle-src/reference/thirdparty/fast_float/include -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o CMakeFiles/kicad-oracle.dir/registry.cpp.o -c /work/oracle/oracle-src/overlay/registry.cpp",
+  "file": "/work/oracle/oracle-src/overlay/registry.cpp",
+  "output": "CMakeFiles/kicad-oracle.dir/registry.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DJSON_HAS_FILESYSTEM=0 -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-src/overlay -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -I/work/oracle/oracle-src/reference/thirdparty/nlohmann_json -I/work/oracle/oracle-src/reference/pcb_calculator/calculator_panels -I/work/oracle/oracle-src/reference/pcb_calculator -I/work/oracle/oracle-src/overlay/reference -I/work/oracle/oracle-src/reference/thirdparty/fmt/include -I/work/oracle/oracle-build/reader-generated -I/work/oracle/oracle-src/reference/libs/kiplatform/include -I/work/oracle/oracle-src/reference/thirdparty/fast_float/include -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o CMakeFiles/kicad-oracle.dir/shims/example_rescale.cpp.o -c /work/oracle/oracle-src/overlay/shims/example_rescale.cpp",
+  "file": "/work/oracle/oracle-src/overlay/shims/example_rescale.cpp",
+  "output": "CMakeFiles/kicad-oracle.dir/shims/example_rescale.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DJSON_HAS_FILESYSTEM=0 -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-src/overlay -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -I/work/oracle/oracle-src/reference/thirdparty/nlohmann_json -I/work/oracle/oracle-src/reference/pcb_calculator/calculator_panels -I/work/oracle/oracle-src/reference/pcb_calculator -I/work/oracle/oracle-src/overlay/reference -I/work/oracle/oracle-src/reference/thirdparty/fmt/include -I/work/oracle/oracle-build/reader-generated -I/work/oracle/oracle-src/reference/libs/kiplatform/include -I/work/oracle/oracle-src/reference/thirdparty/fast_float/include -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o CMakeFiles/kicad-oracle.dir/shims/iec60664.cpp.o -c /work/oracle/oracle-src/overlay/shims/iec60664.cpp",
+  "file": "/work/oracle/oracle-src/overlay/shims/iec60664.cpp",
+  "output": "CMakeFiles/kicad-oracle.dir/shims/iec60664.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DJSON_HAS_FILESYSTEM=0 -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-src/overlay -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -I/work/oracle/oracle-src/reference/thirdparty/nlohmann_json -I/work/oracle/oracle-src/reference/pcb_calculator/calculator_panels -I/work/oracle/oracle-src/reference/pcb_calculator -I/work/oracle/oracle-src/overlay/reference -I/work/oracle/oracle-src/reference/thirdparty/fmt/include -I/work/oracle/oracle-build/reader-generated -I/work/oracle/oracle-src/reference/libs/kiplatform/include -I/work/oracle/oracle-src/reference/thirdparty/fast_float/include -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o CMakeFiles/kicad-oracle.dir/shims/md5.cpp.o -c /work/oracle/oracle-src/overlay/shims/md5.cpp",
+  "file": "/work/oracle/oracle-src/overlay/shims/md5.cpp",
+  "output": "CMakeFiles/kicad-oracle.dir/shims/md5.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DJSON_HAS_FILESYSTEM=0 -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-src/overlay -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -I/work/oracle/oracle-src/reference/thirdparty/nlohmann_json -I/work/oracle/oracle-src/reference/pcb_calculator/calculator_panels -I/work/oracle/oracle-src/reference/pcb_calculator -I/work/oracle/oracle-src/overlay/reference -I/work/oracle/oracle-src/reference/thirdparty/fmt/include -I/work/oracle/oracle-build/reader-generated -I/work/oracle/oracle-src/reference/libs/kiplatform/include -I/work/oracle/oracle-src/reference/thirdparty/fast_float/include -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o CMakeFiles/kicad-oracle.dir/shims/resistors.cpp.o -c /work/oracle/oracle-src/overlay/shims/resistors.cpp",
+  "file": "/work/oracle/oracle-src/overlay/shims/resistors.cpp",
+  "output": "CMakeFiles/kicad-oracle.dir/shims/resistors.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DJSON_HAS_FILESYSTEM=0 -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-src/overlay -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -I/work/oracle/oracle-src/reference/thirdparty/nlohmann_json -I/work/oracle/oracle-src/reference/pcb_calculator/calculator_panels -I/work/oracle/oracle-src/reference/pcb_calculator -I/work/oracle/oracle-src/overlay/reference -I/work/oracle/oracle-src/reference/thirdparty/fmt/include -I/work/oracle/oracle-build/reader-generated -I/work/oracle/oracle-src/reference/libs/kiplatform/include -I/work/oracle/oracle-src/reference/thirdparty/fast_float/include -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o CMakeFiles/kicad-oracle.dir/shims/rtree_node.cpp.o -c /work/oracle/oracle-src/overlay/shims/rtree_node.cpp",
+  "file": "/work/oracle/oracle-src/overlay/shims/rtree_node.cpp",
+  "output": "CMakeFiles/kicad-oracle.dir/shims/rtree_node.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DJSON_HAS_FILESYSTEM=0 -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-src/overlay -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -I/work/oracle/oracle-src/reference/thirdparty/nlohmann_json -I/work/oracle/oracle-src/reference/pcb_calculator/calculator_panels -I/work/oracle/oracle-src/reference/pcb_calculator -I/work/oracle/oracle-src/overlay/reference -I/work/oracle/oracle-src/reference/thirdparty/fmt/include -I/work/oracle/oracle-build/reader-generated -I/work/oracle/oracle-src/reference/libs/kiplatform/include -I/work/oracle/oracle-src/reference/thirdparty/fast_float/include -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o CMakeFiles/oracle-dispatch-test.dir/test_dispatch.cpp.o -c /work/oracle/oracle-src/overlay/test_dispatch.cpp",
+  "file": "/work/oracle/oracle-src/overlay/test_dispatch.cpp",
+  "output": "CMakeFiles/oracle-dispatch-test.dir/test_dispatch.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DJSON_HAS_FILESYSTEM=0 -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-src/overlay -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -I/work/oracle/oracle-src/reference/thirdparty/nlohmann_json -I/work/oracle/oracle-src/reference/pcb_calculator/calculator_panels -I/work/oracle/oracle-src/reference/pcb_calculator -I/work/oracle/oracle-src/overlay/reference -I/work/oracle/oracle-src/reference/thirdparty/fmt/include -I/work/oracle/oracle-build/reader-generated -I/work/oracle/oracle-src/reference/libs/kiplatform/include -I/work/oracle/oracle-src/reference/thirdparty/fast_float/include -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o CMakeFiles/oracle-dispatch-test.dir/protocol.cpp.o -c /work/oracle/oracle-src/overlay/protocol.cpp",
+  "file": "/work/oracle/oracle-src/overlay/protocol.cpp",
+  "output": "CMakeFiles/oracle-dispatch-test.dir/protocol.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DJSON_HAS_FILESYSTEM=0 -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-src/overlay -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -I/work/oracle/oracle-src/reference/thirdparty/nlohmann_json -I/work/oracle/oracle-src/reference/pcb_calculator/calculator_panels -I/work/oracle/oracle-src/reference/pcb_calculator -I/work/oracle/oracle-src/overlay/reference -I/work/oracle/oracle-src/reference/thirdparty/fmt/include -I/work/oracle/oracle-build/reader-generated -I/work/oracle/oracle-src/reference/libs/kiplatform/include -I/work/oracle/oracle-src/reference/thirdparty/fast_float/include -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o CMakeFiles/oracle-dispatch-test.dir/registry.cpp.o -c /work/oracle/oracle-src/overlay/registry.cpp",
+  "file": "/work/oracle/oracle-src/overlay/registry.cpp",
+  "output": "CMakeFiles/oracle-dispatch-test.dir/registry.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DJSON_HAS_FILESYSTEM=0 -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-src/overlay -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -I/work/oracle/oracle-src/reference/thirdparty/nlohmann_json -I/work/oracle/oracle-src/reference/pcb_calculator/calculator_panels -I/work/oracle/oracle-src/reference/pcb_calculator -I/work/oracle/oracle-src/overlay/reference -I/work/oracle/oracle-src/reference/thirdparty/fmt/include -I/work/oracle/oracle-build/reader-generated -I/work/oracle/oracle-src/reference/libs/kiplatform/include -I/work/oracle/oracle-src/reference/thirdparty/fast_float/include -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o CMakeFiles/oracle-dispatch-test.dir/shims/example_rescale.cpp.o -c /work/oracle/oracle-src/overlay/shims/example_rescale.cpp",
+  "file": "/work/oracle/oracle-src/overlay/shims/example_rescale.cpp",
+  "output": "CMakeFiles/oracle-dispatch-test.dir/shims/example_rescale.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DJSON_HAS_FILESYSTEM=0 -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-src/overlay -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -I/work/oracle/oracle-src/reference/thirdparty/nlohmann_json -I/work/oracle/oracle-src/reference/pcb_calculator/calculator_panels -I/work/oracle/oracle-src/reference/pcb_calculator -I/work/oracle/oracle-src/overlay/reference -I/work/oracle/oracle-src/reference/thirdparty/fmt/include -I/work/oracle/oracle-build/reader-generated -I/work/oracle/oracle-src/reference/libs/kiplatform/include -I/work/oracle/oracle-src/reference/thirdparty/fast_float/include -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o CMakeFiles/oracle-dispatch-test.dir/shims/iec60664.cpp.o -c /work/oracle/oracle-src/overlay/shims/iec60664.cpp",
+  "file": "/work/oracle/oracle-src/overlay/shims/iec60664.cpp",
+  "output": "CMakeFiles/oracle-dispatch-test.dir/shims/iec60664.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DJSON_HAS_FILESYSTEM=0 -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-src/overlay -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -I/work/oracle/oracle-src/reference/thirdparty/nlohmann_json -I/work/oracle/oracle-src/reference/pcb_calculator/calculator_panels -I/work/oracle/oracle-src/reference/pcb_calculator -I/work/oracle/oracle-src/overlay/reference -I/work/oracle/oracle-src/reference/thirdparty/fmt/include -I/work/oracle/oracle-build/reader-generated -I/work/oracle/oracle-src/reference/libs/kiplatform/include -I/work/oracle/oracle-src/reference/thirdparty/fast_float/include -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o CMakeFiles/oracle-dispatch-test.dir/shims/md5.cpp.o -c /work/oracle/oracle-src/overlay/shims/md5.cpp",
+  "file": "/work/oracle/oracle-src/overlay/shims/md5.cpp",
+  "output": "CMakeFiles/oracle-dispatch-test.dir/shims/md5.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DJSON_HAS_FILESYSTEM=0 -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-src/overlay -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -I/work/oracle/oracle-src/reference/thirdparty/nlohmann_json -I/work/oracle/oracle-src/reference/pcb_calculator/calculator_panels -I/work/oracle/oracle-src/reference/pcb_calculator -I/work/oracle/oracle-src/overlay/reference -I/work/oracle/oracle-src/reference/thirdparty/fmt/include -I/work/oracle/oracle-build/reader-generated -I/work/oracle/oracle-src/reference/libs/kiplatform/include -I/work/oracle/oracle-src/reference/thirdparty/fast_float/include -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o CMakeFiles/oracle-dispatch-test.dir/shims/resistors.cpp.o -c /work/oracle/oracle-src/overlay/shims/resistors.cpp",
+  "file": "/work/oracle/oracle-src/overlay/shims/resistors.cpp",
+  "output": "CMakeFiles/oracle-dispatch-test.dir/shims/resistors.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DJSON_HAS_FILESYSTEM=0 -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-src/overlay -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -I/work/oracle/oracle-src/reference/thirdparty/nlohmann_json -I/work/oracle/oracle-src/reference/pcb_calculator/calculator_panels -I/work/oracle/oracle-src/reference/pcb_calculator -I/work/oracle/oracle-src/overlay/reference -I/work/oracle/oracle-src/reference/thirdparty/fmt/include -I/work/oracle/oracle-build/reader-generated -I/work/oracle/oracle-src/reference/libs/kiplatform/include -I/work/oracle/oracle-src/reference/thirdparty/fast_float/include -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o CMakeFiles/oracle-dispatch-test.dir/shims/rtree_node.cpp.o -c /work/oracle/oracle-src/overlay/shims/rtree_node.cpp",
+  "file": "/work/oracle/oracle-src/overlay/shims/rtree_node.cpp",
+  "output": "CMakeFiles/oracle-dispatch-test.dir/shims/rtree_node.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-build -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/core/CMakeFiles/core.dir/base64.cpp.o -c /work/oracle/oracle-src/reference/libs/core/base64.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/core/base64.cpp",
+  "output": "reference/core/CMakeFiles/core.dir/base64.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-build -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/core/CMakeFiles/core.dir/observable.cpp.o -c /work/oracle/oracle-src/reference/libs/core/observable.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/core/observable.cpp",
+  "output": "reference/core/CMakeFiles/core.dir/observable.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-build -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/core/CMakeFiles/core.dir/profile.cpp.o -c /work/oracle/oracle-src/reference/libs/core/profile.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/core/profile.cpp",
+  "output": "reference/core/CMakeFiles/core.dir/profile.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-build -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/core/CMakeFiles/core.dir/utf8.cpp.o -c /work/oracle/oracle-src/reference/libs/core/utf8.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/core/utf8.cpp",
+  "output": "reference/core/CMakeFiles/core.dir/utf8.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-build -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/core/CMakeFiles/core.dir/version_compare.cpp.o -c /work/oracle/oracle-src/reference/libs/core/version_compare.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/core/version_compare.cpp",
+  "output": "reference/core/CMakeFiles/core.dir/version_compare.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-build -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/core/CMakeFiles/core.dir/wx_stl_compat.cpp.o -c /work/oracle/oracle-src/reference/libs/core/wx_stl_compat.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/core/wx_stl_compat.cpp",
+  "output": "reference/core/CMakeFiles/core.dir/wx_stl_compat.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -Wall -Wextra -Wpedantic -o reference/clipper2/CMakeFiles/clipper2.dir/Clipper2Lib/src/clipper.engine.cpp.o -c /work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/src/clipper.engine.cpp",
+  "file": "/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/src/clipper.engine.cpp",
+  "output": "reference/clipper2/CMakeFiles/clipper2.dir/Clipper2Lib/src/clipper.engine.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -Wall -Wextra -Wpedantic -o reference/clipper2/CMakeFiles/clipper2.dir/Clipper2Lib/src/clipper.offset.cpp.o -c /work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/src/clipper.offset.cpp",
+  "file": "/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/src/clipper.offset.cpp",
+  "output": "reference/clipper2/CMakeFiles/clipper2.dir/Clipper2Lib/src/clipper.offset.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -Wall -Wextra -Wpedantic -o reference/clipper2/CMakeFiles/clipper2.dir/Clipper2Lib/src/clipper.rectclip.cpp.o -c /work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/src/clipper.rectclip.cpp",
+  "file": "/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/src/clipper.rectclip.cpp",
+  "output": "reference/clipper2/CMakeFiles/clipper2.dir/Clipper2Lib/src/clipper.rectclip.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/bezier_curves.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/bezier_curves.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/bezier_curves.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/bezier_curves.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/convert_basic_shapes_to_polygon.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/convert_basic_shapes_to_polygon.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/convert_basic_shapes_to_polygon.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/convert_basic_shapes_to_polygon.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/md5_hash.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/md5_hash.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/md5_hash.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/md5_hash.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/transform.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/transform.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/transform.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/transform.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/trigo.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/trigo.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/trigo.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/trigo.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/arc_chord_params.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/arc_chord_params.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/arc_chord_params.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/arc_chord_params.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/arc_construction.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/arc_construction.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/arc_construction.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/arc_construction.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/corner_operations.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/corner_operations.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/corner_operations.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/corner_operations.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/distribute.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/distribute.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/distribute.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/distribute.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/eda_angle.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/eda_angle.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/eda_angle.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/eda_angle.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/ellipse.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/ellipse.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/ellipse.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/ellipse.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/circle.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/circle.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/circle.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/circle.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/convex_hull.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/convex_hull.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/convex_hull.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/convex_hull.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/direction_45.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/direction_45.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/direction_45.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/direction_45.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/geometry_utils.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/geometry_utils.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/geometry_utils.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/geometry_utils.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/grid_geometry.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/grid_geometry.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/grid_geometry.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/grid_geometry.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/half_line.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/half_line.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/half_line.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/half_line.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/intersection.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/intersection.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/intersection.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/intersection.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/line.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/line.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/line.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/line.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/nearest.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/nearest.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/nearest.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/nearest.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/oval.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/oval.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/oval.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/oval.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/poisson_disk.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/poisson_disk.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/poisson_disk.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/poisson_disk.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/roundrect.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/roundrect.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/roundrect.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/roundrect.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/seg.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/seg.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/seg.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/seg.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/shape.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/shape.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_arc.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/shape_arc.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/shape_arc.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_arc.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_collisions.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/shape_collisions.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/shape_collisions.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_collisions.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_compound.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/shape_compound.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/shape_compound.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_compound.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_ellipse.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/shape_ellipse.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/shape_ellipse.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_ellipse.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_file_io.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/shape_file_io.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/shape_file_io.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_file_io.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_line_chain.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/shape_line_chain.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/shape_line_chain.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_line_chain.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_nearest_points.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/shape_nearest_points.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/shape_nearest_points.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_nearest_points.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_poly_set.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/shape_poly_set.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/shape_poly_set.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_poly_set.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_rect.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/shape_rect.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/shape_rect.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_rect.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_segment.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/shape_segment.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/shape_segment.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_segment.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/transform_trs.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/transform_trs.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/transform_trs.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/transform_trs.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/vector_utils.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/vector_utils.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/vector_utils.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/vector_utils.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_utils.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/shape_utils.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/shape_utils.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/shape_utils.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/geometry/vertex_set.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/geometry/vertex_set.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/geometry/vertex_set.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/geometry/vertex_set.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DUSINGZ -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-build -I/work/oracle/oracle-src/reference/libs/kimath/include -I/work/oracle/oracle-src/overlay/include -I/work/oracle/oracle-src/reference/libs/core/include -I/work/oracle/oracle-src/reference/thirdparty/clipper2/Clipper2Lib/include -I/work/oracle/oracle-src/reference/thirdparty/rtree -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/kimath/CMakeFiles/kimath.dir/src/math/util.cpp.o -c /work/oracle/oracle-src/reference/libs/kimath/src/math/util.cpp",
+  "file": "/work/oracle/oracle-src/reference/libs/kimath/src/math/util.cpp",
+  "output": "reference/kimath/CMakeFiles/kimath.dir/src/math/util.cpp.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/thirdparty/fmt/include -I/work/oracle/oracle-src/reference/include -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/fmt/CMakeFiles/fmt.dir/src/format.cc.o -c /work/oracle/oracle-src/reference/thirdparty/fmt/src/format.cc",
+  "file": "/work/oracle/oracle-src/reference/thirdparty/fmt/src/format.cc",
+  "output": "reference/fmt/CMakeFiles/fmt.dir/src/format.cc.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/thirdparty/fmt/include -I/work/oracle/oracle-src/reference/include -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/fmt/CMakeFiles/fmt.dir/src/os.cc.o -c /work/oracle/oracle-src/reference/thirdparty/fmt/src/os.cc",
+  "file": "/work/oracle/oracle-src/reference/thirdparty/fmt/src/os.cc",
+  "output": "reference/fmt/CMakeFiles/fmt.dir/src/os.cc.o"
+},
+{
+  "directory": "/work/oracle/oracle-build",
+  "command": "/usr/bin/g++ -DHAVE_STDINT_H -DWXUSINGDLL -D_FILE_OFFSET_BITS=64 -D__WXGTK__ -I/work/oracle/oracle-src/reference/include -I/work/oracle/oracle-src/reference/thirdparty/fmt/include -isystem /usr/lib/x86_64-linux-gnu/wx/include/gtk3-unicode-3.2 -isystem /usr/include/wx-3.2  -pthread -O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -o reference/fmt/CMakeFiles/fmt-c.dir/src/fmt-c.cc.o -c /work/oracle/oracle-src/reference/thirdparty/fmt/src/fmt-c.cc",
+  "file": "/work/oracle/oracle-src/reference/thirdparty/fmt/src/fmt-c.cc",
+  "output": "reference/fmt/CMakeFiles/fmt-c.dir/src/fmt-c.cc.o"
+}
+]
