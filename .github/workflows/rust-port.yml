@@ -6,6 +6,11 @@ on:
   push:
     branches: [rust]
   workflow_dispatch:
+    inputs:
+      migrate_resistor_sse2:
+        description: Generate the reviewed one-time resistor SSE2 golden migration
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -17,9 +22,14 @@ env:
   # check runs with --require-phase0 and fails unless three live green layer-0
   # units and all generated unit records are valid.
   PHASE0_REQUIRED: "true"
+  # Resistor reference migration: select the same locked glibc implementation
+  # on runners with and without FMA. A runtime identity preflight below fails
+  # closed if the selected distribution libraries change.
+  RESISTOR_GLIBC_TUNABLES: "glibc.cpu.hwcaps=-AVX,-AVX2,-FMA,-FMA4,-AVX512F"
 
 jobs:
   rust-port:
+    if: github.event_name != 'workflow_dispatch' || !inputs.migrate_resistor_sse2
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
@@ -57,6 +67,12 @@ jobs:
           cargo build --locked -p kicad-difftest -j8
       - name: Build every portable crate for wasm32-unknown-unknown
         run: python port/tools/check_goldens_policy.py --wasm
+      - name: Execute resistor WebAssembly parity
+        run: |
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-resistors \
+            --example nonfinite_parity --target wasm32-unknown-unknown --release -j8
+          node rust/kicad-resistors/wasm-test.mjs \
+            rust/target/wasm32-unknown-unknown/release/examples/nonfinite_parity.wasm
       - name: Test evidence policy and staged gate
         run: python -m unittest discover -s rust/kicad-difftest/tests -p test_policy.py -v
       - name: Require evidence for changed goldens
@@ -89,11 +105,23 @@ jobs:
         if: steps.oracle.outputs.available == 'true'
         env:
           ORACLE_JOBS: "2"
+          GLIBC_TUNABLES: ${{ env.RESISTOR_GLIBC_TUNABLES }}
         run: |
           python port/oracle/prepare.py --output-dir "$RUNNER_TEMP/oracle-stage"
           bash port/oracle/build.sh "$RUNNER_TEMP/oracle-stage" "$PWD/port/oracle" "$HOME/kicad-port"
           "$HOME/kicad-port/oracle-build/kicad-oracle" --provenance > oracle-provenance.json
+      - name: Verify the resistor reference runtime
+        if: steps.oracle.outputs.available == 'true'
+        env:
+          GLIBC_TUNABLES: ${{ env.RESISTOR_GLIBC_TUNABLES }}
+        run: |
+          python -m unittest discover -s port/oracle -p test_resistor_reference.py -v
+          python port/oracle/check_resistor_reference.py \
+            --oracle "$HOME/kicad-port/oracle-build/kicad-oracle" \
+            --report resistor-runtime.json
       - name: Validate all unit records, goldens and available live cases
+        env:
+          GLIBC_TUNABLES: ${{ env.RESISTOR_GLIBC_TUNABLES }}
         shell: bash
         run: |
           strict=()
@@ -109,8 +137,85 @@ jobs:
           path: |
             difftest-reports/
             oracle-provenance.json
+            resistor-runtime.json
+            resistor-migration/
+            port/goldens/pcb_calculator.application.pure.p001.jsonl
+            port/goldens/evidence/pcb_calculator.application.pure.p001-glibc239-sse2-v1.json
             ~/kicad-port/oracle-build/oracle-provenance.json
             ~/kicad-port/oracle-build/binary.sha256
             ~/kicad-port/oracle-build/compile_commands.json
             ~/kicad-port/oracle-src/reference/source-manifest.json
+          if-no-files-found: warn
+
+  resistor-migration:
+    if: github.event_name == 'workflow_dispatch' && inputs.migrate_resistor_sse2
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          path: source
+      # Measurement tooling only: no topic-branch code/history is merged into
+      # this unit PR. Its image remains an unqualified candidate.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: 33535308d33e019f04af6e089b14ca593ea84ccb
+          fetch-depth: 0
+          path: reference-tools
+      - name: Build and verify the pinned measurement image twice
+        env:
+          ORACLE_JOBS: "2"
+        run: |
+          bash reference-tools/port/reference-env/qualify.sh \
+            --revision 33535308d33e019f04af6e089b14ca593ea84ccb \
+            --work "$HOME/resistor-reference-image" --rebuild-check --sweep-count 200000
+      - name: Seal the exact migration source
+        run: |
+          tool="$PWD/reference-tools/port/reference-env/tools/source_binding.py"
+          python3 "$tool" export --repo "$PWD/source" --revision "$GITHUB_SHA" \
+            --out "$HOME/resistor-source-bundle"
+          digest=$(sha256sum "$HOME/resistor-source-bundle/source.json" | cut -d' ' -f1)
+          python3 "$tool" materialize --bundle "$HOME/resistor-source-bundle" \
+            --revision "$GITHUB_SHA" --source-sha256 "$digest" --out "$HOME/resistor-source"
+          printf '%s\n' "$digest" > "$HOME/resistor-source.sha256"
+      - name: Compare and generate the reviewed migration from the live oracle
+        run: |
+          image_run=$(find "$HOME/resistor-reference-image/runs" -mindepth 1 -maxdepth 1 -type d)
+          test -d "$image_run"
+          image=$(cat "$image_run/image.iid")
+          mkdir -p "$HOME/resistor-migration/work/home" "$PWD/resistor-migration"
+          docker image inspect "$image" > "$PWD/resistor-migration/image-inspect.json"
+          cp "$image_run/image-identity.json" "$image_run/rebuild-identity.json" \
+            "$image_run/rebuild-check.txt" "$PWD/resistor-migration/"
+          cp "$HOME/resistor-source/source.json" "$HOME/resistor-source.sha256" "$PWD/resistor-migration/"
+          docker run --rm --memory=8g --memory-swap=8g --cpus=4 \
+            --user "$(id -u):$(id -g)" -e HOME=/work/home -e CARGO_HOME=/work/home/cargo \
+            -e ORACLE_JOBS=2 -e CARGO_BUILD_JOBS=2 -e PYTHONDONTWRITEBYTECODE=1 \
+            -e "REVISION=$GITHUB_SHA" -e "SOURCE_SHA=$(cat "$HOME/resistor-source.sha256")" \
+            -v "$HOME/resistor-source:/snapshot" -v "$HOME/resistor-migration/work:/work" \
+            -v "$PWD/resistor-migration:/out" -w /snapshot/source "$image" bash -c '
+              set -euo pipefail
+              python3 /opt/refenv/image/verify_image.py --lock /opt/refenv/inputs.lock.json \
+                --candidate /opt/refenv/candidate.toml --expect /opt/refenv/image-identity.json
+              check_source() { python3 /opt/refenv/source_binding.py check --bundle /snapshot \
+                --revision "$REVISION" --source-sha256 "$SOURCE_SHA"; }
+              check_source
+              bash port/oracle/build.sh /snapshot/stage "$PWD/port/oracle" /work/oracle
+              python3 port/tools/bootstrap_west.py
+              python3 port/tools/bootstrap_west.py --check
+              cargo build --locked --manifest-path rust/Cargo.toml -p kicad-difftest -p kicad-resistors-shim -j2
+              check_source
+              mkdir -p /out/proposal/port/cases /out/proposal/port/goldens
+              cp port/cases/pcb_calculator.application.pure.p001.jsonl /out/proposal/port/cases/
+              cp port/goldens/pcb_calculator.application.pure.p001.jsonl /out/proposal/port/goldens/
+              python3 port/tools/migrate_resistor_reference.py --root "$PWD" \
+                --golden-root /out/proposal --oracle /work/oracle/oracle-build/kicad-oracle --out /out/run
+              cp /work/oracle/oracle-build/binary.sha256 /work/oracle/oracle-build/compile_commands.json /out/run/
+              check_source'
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: resistor-reference-migration
+          path: resistor-migration/
           if-no-files-found: warn
