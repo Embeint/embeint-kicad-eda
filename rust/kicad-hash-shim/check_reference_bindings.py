@@ -174,9 +174,12 @@ def main():
     if digest(signature) != binding["bezier"]["sites_sha256"]:
         failures.append("BEZIER<double> site signature sha256 differs from the bound build")
     object_sha = sha256(args.object)
+    if object_sha != binding["bezier"]["object_sha256"]:
+        failures.append("adapter object bytes differ from the measured build; arithmetic-only "
+                        "similarity cannot qualify changed input, control or memory effects")
     notes.append(f"adapter object sha256 {object_sha}"
                  + (" (the measured object)" if object_sha == binding["bezier"]["object_sha256"]
-                    else " (not the measured object; only the site comparison binds it)"))
+                    else " (not the measured object; re-derive and review before use)"))
 
     defined = run(["nm", "--defined-only", args.object]) + run(
         ["nm", "-D", "--defined-only", args.oracle])

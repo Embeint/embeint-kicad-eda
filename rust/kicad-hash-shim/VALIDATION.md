@@ -27,6 +27,22 @@ actual runtime and site bindings, and runs all live/profile/guard/wasm checks. I
 diagnostic artifacts only: it cannot replace the ordinary gate or bless a golden. An unknown
 runtime or compiled-site drift still fails. No successful fresh run is claimed here.
 
+Fresh [run 45345332013](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45345332013)
+at `bf85dbbc25` passed both 2,641-case live comparisons, 441 guards and 1,983
+sensitive requests per profile, actual wasm and all eight oracle CTests. All 78
+compilations passed the strict FP audit. The adapter object was byte-identical to
+the measured `a6b793f5...` object, and linked libstdc++ matched its measured hash.
+The binding guard now requires that full object identity as well as its site
+signature; matching arithmetic alone cannot qualify changed non-FP effects.
+
+The workflow's explicit manual `generate_golden` option can now run live
+propose/bless/check after those checks succeed. Its one-time approval guard
+reconstructs every proposed line from the real old golden and refuses any bytes
+other than the independently audited output SHA-256
+`1ef5a58c552ee2898575b7563807e4a8cf5325eae78d226244e7ca58623e08d9`.
+Ordinary PR runs never generate a golden; the workflow never publishes one.
+Generation and commit of matching evidence remain pending.
+
 ## Previous status: 2026-11-23, clean commit 9bf572d4 (native WSL x86-64)
 
 **Not green and no corrected golden.** 2600 of 2641 corpus cases agree exactly with
