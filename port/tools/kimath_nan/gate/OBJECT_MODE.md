@@ -124,7 +124,7 @@ python -B port/tools/kimath_nan/gate/objcontrols.py --inputs ROOT --objdump objd
 python -B port/tools/kimath_nan/gate/objgate.py verify --phase full --objdump objdump \
   --oracle kicad-oracle --object kimath_math.cpp.o --providers PROVIDERS --compiler-inputs CI \
   --toolchain-identity image-identity.json --oracle-src KICAD_PORT_ROOT \
-  --locks port/tools/kimath_nan/gate/locks --out report.json [--verify-closure "<verify_image.py command>"]
+  --locks port/tools/kimath_nan/gate/locks --out report.json [--verify-closure]
 
 # re-derive the object lock from the reviewed build (reproduces 8202a8af... byte for byte with GNU objdump 2.46)
 python -B port/tools/kimath_nan/gate/objgate.py derive --phase full --objdump objdump \
@@ -136,10 +136,35 @@ python -B port/tools/kimath_nan/gate/objgate.py derive --phase full --objdump ob
 The controls and the derivation were run with GNU objdump 2.46. Other versions may print
 listings differently; the listing parser then fails closed.
 
+### Parent review follow-up
+
+The source review found and fixed two counterexamples before enabling this mode:
+the whole-executable FP scan missed valid prefixed/displacement forms of `ldmxcsr`,
+and `--verify-closure` accepted an arbitrary command (including `true`). The decoder
+now distinguishes actual prefix and ModRM bytes from operand data; the scan checks
+state writes regardless of prefixes. The closure flag invokes only the repository's
+reviewed verifier against the installed image inputs and fails on error or timeout.
+Focused tests cover both paths. These fixes do not sign the pending context review
+or establish current-image closure; full eligibility remains unaccepted.
+
+The object verifier now also invokes the original locks' recursive schemas, validates
+the object lock's nested fields, and counts those schema checks in its inventory.
+Equal-valued floats/booleans cannot stand in for integer fields. A refused emission
+now fails the run and preserves any prior accepted output; successful emission uses
+an atomic replacement. The original reviewed modules and measured lock bytes remain
+unchanged.
+
 ## Gaps and blockers (stated, not worked around)
 
 - **No reviewer.** The object context review is PENDING, so no run can PASS. It must be
   performed and signed by a named reviewer; this checkpoint does not do that.
+- **ELF execution metadata remains a review blocker.** The current proof reads section
+  tables and relocations without validating their relationship to the program headers
+  and loader-consumed dynamic metadata. A header-only `e_phnum=0` mutation leaves all
+  inspected identity fields (apart from the deliberately unbound whole-file hash),
+  sections, symbols, relocation facts and FP scan unchanged. This was a parser/proof-input
+  probe, not a local full-gate or runtime run. The loader mapping must be checked before
+  a context review can be signed; see the parent review finding.
 - **Missing CI captures.**
   - The image build must supply its `image-identity.json`, the gate must run inside the image
     with `--verify-closure`, and CI must capture the provider objects with the link order and

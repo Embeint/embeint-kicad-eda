@@ -88,6 +88,7 @@ def decode(buf, pos, va):
         if buf[pos] == 0x67:
             addr32 = True
         pos += 1
+    prefix_end = pos
     if pos < len(buf) and 0x40 <= buf[pos] <= 0x4F:
         rex = buf[pos]
         pos += 1
@@ -116,6 +117,7 @@ def decode(buf, pos, va):
     has_modrm, imm = info
     rip_disp_at = None
     modrm_reg = None
+    mod = None
     if has_modrm:
         modrm = buf[pos]
         pos += 1
@@ -161,8 +163,9 @@ def decode(buf, pos, va):
     if pos > len(buf):
         raise DecodeError(f'truncated at {va:#x}')
     out = {'va': va, 'len': length, 'bytes': bytes(buf[start:pos]), 'opcode': opcode, 'modrm_reg': modrm_reg,
+           'modrm_mod': mod,
            'rex_w': bool(rex & 8), 'prefix_66': opsize16,
-           'prefixes': bytes(b for b in buf[start:start + length] if b in PREFIXES)}
+           'prefixes': bytes(buf[start:prefix_end])}
     if branch:
         rel = struct.unpack_from('<b' if branch == 1 else '<i', buf, start + imm_at)[0]
         out['branch_target'] = va + length + rel
