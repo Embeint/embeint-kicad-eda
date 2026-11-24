@@ -111,6 +111,17 @@ behave as expected, and the static gate is unchanged. It is `STATIC-PARTIAL`, ne
 schema 30, eligibility 41 plus 5 NOT RUN, context 41, scope 5, arithmetic 44. A callee
 `padding` of `0.0` and a site consumer `count` of `3.0` each fail the real gate's schema stage.
 
+## Object-bound mode (source checkpoint, pending review)
+
+`gate/objgate.py` binds the code the unit executes rather than the whole linked oracle: the exact
+adapter object, its compiler inputs, flags and toolchain closure, and a link proof
+(`gate/linkproof.py`) that every reachable section and selected weak/COMDAT body in the linked
+oracle is that compiler output after independently verified relocations. It translates the
+reviewed context and graph checks into the current layout and requires the reviewed ordered
+graphs. It is not wired into any workflow and cannot pass: its object context review is
+PENDING with no reviewer. Modules, measured results, commands and gaps are in
+`gate/OBJECT_MODE.md`.
+
 ## Frozen per-unit reference (workflow `rust-kimath-nan.yml`, job `frozen-reference`)
 
 Manual dispatch with `frozen_reference: true`:
