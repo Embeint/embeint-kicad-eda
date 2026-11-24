@@ -4,11 +4,14 @@ compiler, no probe run). python -I -B -m unittest discover -s port/glibc-trig"""
 
 import copy
 import hashlib
+import io
 import json
 import struct
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
+from urllib.error import HTTPError
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -158,6 +161,33 @@ class Parsing(unittest.TestCase):
         self.assertEqual(LOCK["dispatch"]["glibc_tunables"], "glibc.cpu.hwcaps=-AVX,-AVX2,-FMA,-FMA4,-AVX512F")
         self.assertEqual(set(LOCK["files"]), {"loader", "libc", "libm"})
         self.assertTrue(LOCK["package"]["url"].startswith("https://snapshot.ubuntu.com/"))
+
+
+class Download(unittest.TestCase):
+    def test_retries_transient_service_error_then_verifies_exact_bytes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "package.deb"
+            target.write_bytes(b"a stale longer download")
+            with patch.object(harness.urllib.request, "urlopen", side_effect=[
+                HTTPError("url", 503, "unavailable", {}, None), io.BytesIO(b"package")
+            ]) as request, patch.object(harness.time, "sleep") as sleep:
+                harness.download("url", 7, target)
+            self.assertEqual(request.call_count, 2)
+            sleep.assert_called_once_with(2)
+            self.assertEqual(target.read_bytes(), b"package")
+            lock = copy.deepcopy(LOCK)
+            lock["package"].update(size=7, sha256=hashlib.sha256(b"package").hexdigest())
+            harness.verify_package(lock, target)
+
+    def test_retry_limit_and_permanent_error(self):
+        for code, calls in [(503, 3), (404, 1)]:
+            with self.subTest(code=code), tempfile.TemporaryDirectory() as directory:
+                with patch.object(harness.urllib.request, "urlopen", side_effect=
+                                  HTTPError("url", code, "failed", {}, None)) as request, \
+                        patch.object(harness.time, "sleep"):
+                    with self.assertRaises(HTTPError):
+                        harness.download("url", 7, Path(directory) / "package.deb")
+                self.assertEqual(request.call_count, calls)
 
 
 if __name__ == "__main__":

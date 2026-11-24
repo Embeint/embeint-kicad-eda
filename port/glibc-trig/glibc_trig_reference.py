@@ -34,6 +34,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -135,14 +137,24 @@ def verify_records(lock, domain_path, records_path):
 
 
 def download(url, size, target):
-    with urllib.request.urlopen(url, timeout=120) as response, open(target, "wb") as out:
-        remaining = size + 1
-        while remaining > 0:
-            chunk = response.read(min(1 << 20, remaining))
-            if not chunk:
-                break
-            out.write(chunk)
-            remaining -= len(chunk)
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(url, timeout=120) as response, open(target, "wb") as out:
+                remaining = size + 1
+                while remaining > 0:
+                    chunk = response.read(min(1 << 20, remaining))
+                    if not chunk:
+                        break
+                    out.write(chunk)
+                    remaining -= len(chunk)
+            return
+        except urllib.error.HTTPError as error:
+            if error.code not in (429, 500, 502, 503, 504) or attempt == 2:
+                raise
+        except (urllib.error.URLError, TimeoutError, ConnectionError):
+            if attempt == 2:
+                raise
+        time.sleep(2 ** (attempt + 1))
 
 
 def tool_version(args):
@@ -167,7 +179,7 @@ def reference(lock, domain_path, probe_source, out_dir):
     loader = root / lock["files"]["loader"]["path"]
     probe = work / "probe"
     subprocess.run(["gcc", "-O0", "-std=c11", "-Wall", "-Wextra", "-Werror", "-o", str(probe),
-                    str(probe_source)], check=True)
+                    str(probe_source), "-Wl,--no-as-needed", "-lm"], check=True)
     records = out_dir / "reference.bin"
     offsets = lock["dispatch"]["offsets"]
     env = {"PATH": "/usr/bin:/bin", "LC_ALL": "C", "GLIBC_TUNABLES": lock["dispatch"]["glibc_tunables"]}

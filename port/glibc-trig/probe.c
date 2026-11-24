@@ -19,7 +19,7 @@
 //
 // Inputs pass through a volatile object and the calls go through the resolved pointers, so
 // the compiler neither folds nor fuses them and signalling-NaN bits reach the library.
-// Build: gcc -O0 -std=c11 -Wall -Wextra -Werror -o probe probe.c
+// Build: gcc -O0 -std=c11 -Wall -Wextra -Werror -o probe probe.c -Wl,--no-as-needed -lm
 
 #define _GNU_SOURCE
 #include <dlfcn.h>
@@ -125,7 +125,7 @@ static void* resolve( const char* aName, const char* aOffset )
 
     if( strcmp( real, g_expected[2] ) != 0 || offset != want )
     {
-        char detail[PATH_MAX + 64];
+        char detail[2 * PATH_MAX + 128];
         snprintf( detail, sizeof detail, "%s at %s+0x%lx, expected %s+0x%lx", aName, real, offset,
                   g_expected[2], want );
         fail( "dispatch", detail );
