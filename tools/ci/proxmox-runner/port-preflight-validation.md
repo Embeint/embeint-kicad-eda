@@ -32,3 +32,17 @@ killed by the memory limit (exit 137): `graph.json.gz` decompresses to
 5.2 GB. The step now runs only on hosted fallback runs, and Proxmox runs record it
 as deferred to `Rust port progress pages`, which validates units on every `rust`
 PR and push. The runner's limits are unchanged.
+
+Warm repeat: run 45400748464 (push of `7ef801df716739dfecd70474f7f63b803914de22`)
+passed on the same runner in 1 min 49 s: checkout 23 s, bootstrap 37 s,
+formatting/clippy/tests 41 s (2 min 05 s cold), wasm32 build under 1 s, unit
+validation recorded as deferred.
+
+Same-source comparison: manual run 45401458902 resolved
+`t3/port-kimath-math-util` to `9f949fa3c3739a07ca39b04ab0a3780a712802cb` (PR59's
+head, which does not contain this workflow) and passed on
+`proxmox-kicad-isolated-01` in 2 min 00 s, formatting/clippy/tests taking 52 s.
+PR59's hosted `rust-port` job (run 45394757102) took 4 min 19 s from job start
+to the end of its wasm32 build, of which checkout was 1 min 53 s and
+formatting/clippy/tests 1 min 39 s, then continued with the oracle and evidence
+checks this preflight does not replace. Queue time is not included in either.

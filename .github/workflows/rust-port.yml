@@ -168,6 +168,33 @@ jobs:
             ~/kicad-port/oracle-src/reference/source-manifest.json
           if-no-files-found: warn
 
+  # rust-version in rust/Cargo.toml stays true for the port crates. rust-layout.yml
+  # checks it for the embeint-* crates and no longer runs on port-only changes, so
+  # the whole workspace is checked here, in parallel with the uncached gate above.
+  msrv:
+    if: github.event_name != 'workflow_dispatch' || !inputs.migrate_resistor_sse2
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      RUST_MSRV: "1.85.0"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Install the declared minimum Rust
+        run: rustup toolchain install "$RUST_MSRV" --profile minimal
+      # A plain compile check, not evidence: caching it cannot certify anything.
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.cargo/registry
+            rust/target
+          key: rust-port-msrv-${{ env.RUST_MSRV }}-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: rust-port-msrv-${{ env.RUST_MSRV }}-
+      - name: Check the workspace with the declared minimum Rust
+        working-directory: rust
+        run: cargo "+$RUST_MSRV" check --locked --workspace --all-targets -j8
+
   resistor-migration:
     if: github.event_name == 'workflow_dispatch' && inputs.migrate_resistor_sse2
     runs-on: ubuntu-24.04
