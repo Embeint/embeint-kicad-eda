@@ -17,7 +17,7 @@ static_assert( sizeof( int ) == 4 && sizeof( int64_t ) == 8 && CHAR_BIT == 8 );
 namespace
 {
 using oracle::JSON;
-constexpr const char* UNIT = "libs.kimath.src.math.util.application.ui.p001";
+constexpr const char* MATH_UTIL_UNIT = "libs.kimath.src.math.util.application.ui.p001";
 
 void Keys( const JSON& aInput, std::initializer_list<const char*> aFields )
 {
@@ -109,7 +109,7 @@ JSON Run( const JSON& aInput )
         (void) Text( aInput, "format" );
         // UNPORTED(libs.kimath.src.math.util.application.ui.p001): kimathLogDebug
         // No wx side effect is simulated or claimed as native evidence.
-        throw oracle::UNPORTED( "kimathLogDebug", UNIT );
+        throw oracle::UNPORTED( "kimathLogDebug", MATH_UTIL_UNIT );
     }
 
     if( op == "log_overflow" )
@@ -122,7 +122,7 @@ JSON Run( const JSON& aInput )
 
         (void) Text( aInput, "type_name" );
         // UNPORTED(libs.kimath.src.math.util.application.ui.p001): kimathLogOverflow
-        throw oracle::UNPORTED( "kimathLogOverflow", UNIT );
+        throw oracle::UNPORTED( "kimathLogOverflow", MATH_UTIL_UNIT );
     }
 
     throw std::invalid_argument( "unknown operation" );
@@ -133,6 +133,6 @@ namespace oracle
 {
 void RegisterMathUtil( REGISTRY& aRegistry )
 {
-    aRegistry.Add( UNIT, "libs/kimath/src/math/util.cpp", Run );
+    aRegistry.Add( MATH_UTIL_UNIT, "libs/kimath/src/math/util.cpp", Run );
 }
 } // namespace oracle
