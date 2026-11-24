@@ -9,6 +9,8 @@ Each request is `{"unit":"libs.kimath.src.math.util.application.ui.p001",
 "case":"name","input":{...}}`; identity and schema checks follow the existing
 strict oracle protocol. Inputs have exactly the fields below. JSON integer
 literals retain all bits; floats, booleans and out-of-range integers are refused.
+Integer `-0` is accepted as zero, including for unsigned inputs; `-0.0` remains a
+floating-point input and is refused. Raw-token tests preserve this distinction.
 
 | op | Other fields | Result |
 | --- | --- | --- |

@@ -37,7 +37,13 @@ fn signed(input: &Value, name: &str, min: i64, max: i64) -> Result<i64, String> 
 fn unsigned(input: &Value, name: &str) -> Result<u64, String> {
     input
         .get(name)
-        .and_then(Value::as_u64)
+        .and_then(|value| {
+            // Arbitrary-precision parsing preserves integer -0. The C++ adapter accepts
+            // signed integer zero too; floating-point spellings must still be refused.
+            value
+                .as_u64()
+                .or_else(|| value.as_i64().and_then(|signed| u64::try_from(signed).ok()))
+        })
         .ok_or_else(|| format!("integer out of range: {name}"))
 }
 fn text<'a>(input: &'a Value, name: &str) -> Result<&'a str, String> {
@@ -166,6 +172,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn literal_integer_negative_zero_is_valid_but_float_zero_is_not() {
+        for (input, value) in [
+            (r#"{"op":"hypot_wide","x":-0,"y":4}"#, 4),
+            (r#"{"op":"hypot_wide","x":3,"y":-0}"#, 3),
+            (r#"{"op":"hypot_wide","x":-0,"y":-0}"#, 0),
+        ] {
+            let request = format!(r#"{{"unit":"{UNIT}","case":"literal","input":{input}}}"#);
+            assert_eq!(
+                dispatch(&request),
+                json!({"unit":UNIT,"case":"literal","result":{"value":value}})
+            );
+        }
+        for input in [
+            r#"{"op":"hypot_wide","x":-0.0,"y":4}"#,
+            r#"{"op":"hypot_wide","x":3,"y":-0.0}"#,
+            r#"{"op":"hypot_wide","x":-1,"y":4}"#,
+            r#"{"op":"hypot_wide","x":3,"y":-1}"#,
+        ] {
+            let request = format!(r#"{{"unit":"{UNIT}","case":"literal","input":{input}}}"#);
+            assert_eq!(dispatch(&request)["error"]["kind"], "invalid_input");
+        }
+    }
+
     #[test]
     fn corpus_success_refusal_and_deferral_counts_are_explicit() -> Result<(), serde_json::Error> {
         let mut counts = [0; 3];
