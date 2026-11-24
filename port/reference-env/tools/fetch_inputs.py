@@ -18,9 +18,9 @@ import refenv  # noqa: E402
 import input_plan  # noqa: E402
 
 
-def stage(cache, destination, name, url, sha256):
+def stage(cache, destination, name, url, sha256, alternate_urls=()):
     cached = cache / sha256[:2] / sha256 / name
-    refenv.download(url, cached, sha256)
+    refenv.download(url, cached, sha256, alternate_urls=alternate_urls)
     target = destination / name
     target.parent.mkdir(parents=True, exist_ok=True)
     if target.exists():
@@ -41,12 +41,17 @@ def fetch_inputs(lock, cache, destination):
         stage(cache, destination, f"InRelease-{suite}", f"{root}/dists/{suite}/InRelease",
               record["inrelease_sha256"])
         for component, index in sorted(record["indices"].items()):
+            # Same signed index bytes, addressed by their locked digest when the named
+            # snapshot endpoint is unavailable. Hash/signature verification is unchanged.
+            by_hash = (f"{root}/dists/{suite}/{Path(index['path']).parent}/by-hash/SHA256/"
+                       f"{index['sha256']}")
             stage(cache, destination, f"Packages-{suite}-{component}.gz",
-                  f"{root}/dists/{suite}/{index['path']}", index["sha256"])
+                  f"{root}/dists/{suite}/{index['path']}", index["sha256"], (by_hash,))
     lines = []
     for entry in lock["packages"]["install"]:
         name = Path(entry["filename"]).name
-        stage(cache, destination / "debs", name, entry["url"], entry["sha256"])
+        mirror = "https://archive.ubuntu.com/ubuntu/" + entry["filename"]
+        stage(cache, destination / "debs", name, entry["url"], entry["sha256"], (mirror,))
         lines.append(" ".join((entry["filename"], entry["sha256"], entry["name"], entry["version"],
                                entry["architecture"])))
     (destination / "debs.list").write_text("\n".join(lines) + "\n", encoding="utf-8")

@@ -5,6 +5,7 @@
 import hashlib
 import base64
 import io
+import http.client
 import json
 import lzma
 from pathlib import Path
@@ -13,6 +14,8 @@ import subprocess
 import sys
 import tarfile
 import tomllib
+import time
+import urllib.error
 import urllib.request
 
 HERE = Path(__file__).resolve().parent
@@ -60,24 +63,40 @@ def fetch(url, headers=None, expected_sha256=None):
     return data
 
 
-def download(url, destination, expected_sha256):
-    """Download to destination unless an identical file is already present."""
+def download(url, destination, expected_sha256, alternate_urls=()):
+    """Fetch locked bytes, retrying transient transport failures without relaxing the hash."""
     destination = Path(destination)
     if destination.is_file() and sha256_file(destination) == expected_sha256:
         return False
     destination.parent.mkdir(parents=True, exist_ok=True)
     partial = destination.with_name(destination.name + ".partial")
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    digest = hashlib.sha256()
-    with urllib.request.urlopen(request, timeout=300) as response, open(partial, "wb") as stream:
-        for chunk in iter(lambda: response.read(1 << 20), b""):
-            digest.update(chunk)
-            stream.write(chunk)
-    if digest.hexdigest() != expected_sha256:
-        partial.unlink()
-        raise ValueError(f"SHA-256 mismatch for {url}")
-    partial.replace(destination)
-    return True
+    urls = (url, *alternate_urls)
+    for url_index, location in enumerate(urls):
+        for attempt in range(3):
+            request = urllib.request.Request(location, headers={"User-Agent": USER_AGENT})
+            digest = hashlib.sha256()
+            try:
+                with urllib.request.urlopen(request, timeout=90) as response, open(partial, "wb") as stream:
+                    for chunk in iter(lambda: response.read(1 << 20), b""):
+                        digest.update(chunk)
+                        stream.write(chunk)
+                if digest.hexdigest() != expected_sha256:
+                    raise ValueError(f"SHA-256 mismatch for {location}")
+                partial.replace(destination)
+                return True
+            except urllib.error.HTTPError as error:
+                if error.code not in (429, 500, 502, 503, 504):
+                    raise
+                if attempt == 2 and url_index == len(urls) - 1:
+                    raise
+            except (urllib.error.URLError, TimeoutError, ConnectionError, http.client.IncompleteRead):
+                if attempt == 2 and url_index == len(urls) - 1:
+                    raise
+            finally:
+                partial.unlink(missing_ok=True)
+            print(f"Transient download failure: {location} (attempt {attempt + 1}/3)", file=sys.stderr)
+            if attempt < 2:
+                time.sleep(2 ** (attempt + 1))
 
 
 def inrelease_sha256(text):
