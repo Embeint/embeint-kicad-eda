@@ -50,10 +50,16 @@ jobs:
         env:
           MANUAL_BRANCH: ${{ inputs.branch }}
           PUSH_DELETED: ${{ github.event.deleted }}
+          # The persistent runner's workspace still holds the previous job's
+          # checkout: resolve outside it, with no inherited Git configuration
+          # and no Python modules from the current directory.
+          GIT_CONFIG_NOSYSTEM: "1"
+          GIT_CONFIG_GLOBAL: /dev/null
         shell: bash
         run: |
           set -euo pipefail
-          /usr/bin/python3 - <<'PY'
+          cd "$RUNNER_TEMP"
+          /usr/bin/python3 -I - <<'PY'
           # BEGIN SOURCE RESOLVER
           import re
           import subprocess
@@ -163,6 +169,12 @@ jobs:
             ~/.cargo/git
             ${{ env.CARGO_TARGET_DIR }}
           key: rust-preflight-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: rust-preflight-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-
+      - name: Test the source resolver and admission rules
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -I -B tools/ci/proxmox-runner/test_port_preflight.py 2>&1 | tee "$PREFLIGHT_REPORT/resolver-tests.log"
       - name: Bootstrap pinned workspace dependencies
         shell: bash
         run: |

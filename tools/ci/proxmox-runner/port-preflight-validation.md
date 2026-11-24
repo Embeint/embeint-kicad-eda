@@ -46,3 +46,15 @@ PR59's hosted `rust-port` job (run 45394757102) took 4 min 19 s from job start
 to the end of its wasm32 build, of which checkout was 1 min 53 s and
 formatting/clippy/tests 1 min 39 s, then continued with the oracle and evidence
 checks this preflight does not replace. Queue time is not included in either.
+
+All 13 PR checks passed at `46c13462d4d57db747f65646bd5eb4d9d86bb1b2`; the new
+`msrv` job took 1 min 37 s in parallel with `rust-port` (8 min 00 s) and the
+Proxmox preflight 2 min 16 s.
+
+Independent review (read-only, no edits) found no blocking defects. Addressed:
+the resolver ran `python3 -` in the persistent runner's leftover workspace,
+so a module or Git `insteadOf` entry left by an earlier job could influence
+it; it now runs from `$RUNNER_TEMP` with Python isolated mode and no global or
+system Git configuration. The resolver tests now run in the workflow, and the
+hosted cache gained restore keys. Documented rather than changed: topic-branch
+code shares the runner's user and `$HOME` with later `rust`/`main` jobs.

@@ -120,6 +120,19 @@ wildcard branch names are refused. This allows checking an existing port topic
 before it has merged the workflow itself. The resulting manual check belongs to
 the workflow run, not to the selected topic's required PR checks.
 
+The runner is persistent, and every job on it shares one user and `$HOME`. The
+per-workflow cache directories are separate paths, not separate trust domains.
+A `t3/**` push runs that branch's build scripts and proc-macros, including any
+new dependency in its `Cargo.lock`, and that code can write the shared
+workspace, `~/.cargo`, `~/.rustup` and the other workflows' caches. So a writer's
+topic branch can change the results of later `rust` or `main` jobs on this
+runner. This is within the trust model (only repository writers' pushed
+branches run here), and hosted checks remain authoritative for every PR. The
+source resolver itself runs outside the leftover workspace, with Python isolated
+mode and no inherited Git configuration, so it cannot pick up files from an
+earlier job. An ephemeral runner, or a separate user for topic branches, would
+remove this cross-job influence; neither is installed.
+
 Read-only preflight artifacts record source identity, runner, cgroup limits,
 tools and actual check logs. They explicitly say numerical qualification is
 false. Per-branch preflight concurrency cancels superseded developer runs. The
