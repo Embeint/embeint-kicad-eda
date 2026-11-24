@@ -2,27 +2,30 @@ name: Rust layout parity
 
 # Portable Rust checks, separate from the MCP unit tests (mcp.yml) so neither slows the other.
 # The parity harness also runs when the authoritative Python layout changes, so a change there
-# that the Rust port does not follow fails here.
+# that the Rust port does not follow fails here.  It covers the embeint-* crates; the kicad-* port
+# crates on the rust branch are formatted, linted, tested and MSRV-checked by rust-port.yml.
 on:
   pull_request:
-    paths:
-      - "rust/**"
+    paths: &layout-paths
+      - "rust/Cargo.toml"
+      - "rust/Cargo.lock"
+      - "rust/embeint-*/**"
+      - "rust/parity/**"
       - "tools/live_schematic_mcp/symbol_layout.py"
       - "tools/live_schematic_mcp/layout_backend.py"
       - "tools/live_schematic_mcp/test_layout_backend.py"
       - ".github/workflows/rust-layout.yml"
   push:
     branches: [main, live-schematic-ipc]
-    paths:
-      - "rust/**"
-      - "tools/live_schematic_mcp/symbol_layout.py"
-      - "tools/live_schematic_mcp/layout_backend.py"
-      - "tools/live_schematic_mcp/test_layout_backend.py"
-      - ".github/workflows/rust-layout.yml"
+    paths: *layout-paths
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: rust-layout-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   # Pinned, so that a new stable release (and its new clippy lints) cannot fail unrelated pull

@@ -450,13 +450,16 @@ Python server (`tools/live_schematic_mcp/qualification/rust_bundle.py`). The fro
 `build_windows.ps1` passes `--rust` when cargo is on PATH, so `install\mcp` gets both servers.
 
 `.github/workflows/release-mcp.yml` builds and checks the package on Windows x86_64, Linux x86_64
-and Linux arm64, after the parity suite has passed on that platform. Each platform's archive, check
+and Linux arm64, after the parity suite has passed on that platform. It runs only when the package's
+inputs change (the `embeint-*` crates it builds, `rust/parity`, the protocol and the Python MCP).
+Pull requests build Windows alone, since Linux x86_64 parity already runs in `rust-mcp.yml`; a push
+to `main`, a tag or a manual run builds all three. Each platform's archive, check
 report, parity report and `build-info.json` are uploaded as artifacts. A tag `mcp-v*`, or a manual
 run with `release_tag`, creates a **draft** GitHub release with the archives and `SHA256SUMS`, for a
 person to review and publish. A manual release builds that existing tag, and the release job
 checks all three packages against the tag's commit and version and requires clean Git provenance.
-An empty manual `release_tag` only builds and checks. Release builds do not restore the PR build
-cache. KiCad itself is not built there: a KiCad build does not fit a hosted
+An empty manual `release_tag` only builds and checks. Release builds do not restore the build
+cache that pushes to `main` save for pull requests. KiCad itself is not built there: a KiCad build does not fit a hosted
 runner. The package is installed beside the Embeint KiCad build it is meant for; a manual run can
 record that version with `application_version`.
 
