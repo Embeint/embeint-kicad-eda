@@ -1,0 +1,133 @@
+{
+ "schema": 1,
+ "unit": "libs.kimath.include.application.pure.p001",
+ "purpose": "Reference-build properties the port reproduces; checked by check_reference_bindings.py. A mismatch means re-derive and review, never re-record to accept drift.",
+ "bezier": {
+  "derived_from": {
+   "source_revision": "a5ceb98984d29ca9420527ce75fa481abd9c3727",
+   "source_tree": "a08c146b60f46cb30d8a0be92f35749e72f77757",
+   "kicad_pin": "4cf939778df04d2b747bb2c4714fc5014a7565c7",
+   "adapter_blob": {
+    "port/oracle/shims/kimath_header_hash.cpp": "f69255e35e2679bebedd6c997d3497e6e2ed4ef2"
+   },
+   "reference_blobs": {
+    "libs/kimath/include/bezier_curves.h": "b5877ceda8e0caa0d1f1559ef0dc6c691e84a143",
+    "libs/kimath/include/math/vector2d.h": "6ca73bdd178dd7b0ed6789c57ff5ce51c88512ed"
+   },
+   "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+   "flags": "-O3 -DNDEBUG -std=gnu++20 -fno-fast-math -ffp-contract=off -pthread (x86-64 baseline: SSE2, no AVX)",
+   "environment": "PR #55 candidate reference image sha256:8b70857a8ca585f2a9893a815b5afdd64b9fff9693257993bf02623f4f4a3597 (environment 1b4aa6a89b920a1a0e3bead16cce7d8c831b1a13)",
+   "oracle_sha256": "5e0a8c3620d69af0b7239be7852d8e26e0bc92e372e82e444613ec9dc3c6610f",
+   "oracle_source_manifest_sha256": "88fc1d1fcdd64e2fc1acc7da081b32e7cad0e7ff4f21ba77e77a87d464e996ff",
+   "objdump": "GNU objdump (GNU Binutils for Ubuntu) 2.46, -d -C -w -M intel --no-show-raw-insn"
+  },
+  "object": "CMakeFiles/kicad-oracle.dir/shims/kimath_header_hash.cpp.o",
+  "object_sha256": "a6b793f510022586dc4b9f9469f2ff9a63f98de51ec33669ec8467bbd6670012",
+  "rust_sites": "rust/kicad-hash/src/bezier_f64_sites.rs",
+  "sites_sha256": "83d47a35864162a5349246b7e90402c7ed35d7669b278b50dfc93b713bd5149d",
+  "sites": {
+   "(anonymous namespace)::KimathHeaderHash(": [
+    "subsd xmm3,xmm0",
+    "mulsd xmm2,xmm0",
+    "mulsd xmm0,xmm6",
+    "mulsd xmm5,xmm3",
+    "mulsd xmm4,xmm2",
+    "mulsd xmm2,xmm6",
+    "mulsd xmm1,xmm5",
+    "mulsd xmm0,xmm5",
+    "mulsd xmm2,xmm3",
+    "mulpd xmm1,XMMWORD PTR [rsp+0x80]",
+    "mulpd xmm0,XMMWORD PTR [rsp+0x60]",
+    "addpd xmm0,xmm1",
+    "mulpd xmm1,XMMWORD PTR [rsp+0x40]",
+    "addpd xmm0,xmm1",
+    "mulpd xmm1,XMMWORD PTR [rsp+0x50]",
+    "addpd xmm0,xmm1",
+    "subsd xmm0,xmm7",
+    "mulsd xmm1,xmm7",
+    "mulsd xmm6,xmm0",
+    "mulsd xmm4,xmm1",
+    "mulsd xmm1,xmm2",
+    "mulsd xmm2,xmm7",
+    "mulsd xmm5,xmm6",
+    "mulsd xmm3,xmm0",
+    "mulsd xmm2,xmm6",
+    "mulsd xmm1,xmm5",
+    "mulsd xmm0,xmm2",
+    "addsd xmm0,xmm1",
+    "mulsd xmm1,xmm3",
+    "addsd xmm0,xmm1",
+    "mulsd xmm1,xmm4",
+    "addsd xmm0,xmm1",
+    "mulsd xmm1,xmm2",
+    "mulsd xmm2,xmm5",
+    "addsd xmm1,xmm2",
+    "mulsd xmm2,xmm3",
+    "addsd xmm1,xmm2",
+    "mulsd xmm2,xmm4",
+    "addsd xmm1,xmm2",
+    "divsd xmm0,xmm1",
+    "divsd xmm2,QWORD PTR [rsp+0x60]",
+    "divsd xmm6,QWORD PTR [rsp+0x40]"
+   ],
+   "BEZIER<double>::PointAt(double) const": [
+    "mulsd xmm1,xmm0",
+    "subsd xmm2,xmm0",
+    "mulsd xmm0,xmm6",
+    "mulsd xmm3,xmm1",
+    "mulsd xmm5,xmm2",
+    "mulsd xmm1,xmm6",
+    "mulsd xmm4,xmm5",
+    "mulsd xmm0,xmm5",
+    "mulsd xmm2,xmm1",
+    "mulpd xmm1,xmm7",
+    "mulpd xmm0,xmm7",
+    "addpd xmm0,xmm1",
+    "mulpd xmm1,xmm6",
+    "addpd xmm0,xmm1",
+    "mulpd xmm1,xmm2",
+    "addpd xmm0,xmm1"
+   ],
+   "BEZIER<double>::Split(double, BEZIER<double>&, BEZIER<double>&) const": [
+    "subpd xmm5,xmm0",
+    "subpd xmm4,xmm6",
+    "mulpd xmm5,xmm1",
+    "mulpd xmm4,xmm1",
+    "addpd xmm5,xmm0",
+    "addpd xmm4,xmm6",
+    "subpd xmm0,xmm2",
+    "subpd xmm3,xmm4",
+    "mulpd xmm0,xmm1",
+    "mulpd xmm3,xmm1",
+    "addpd xmm0,xmm2",
+    "addpd xmm3,xmm4",
+    "subpd xmm2,xmm5",
+    "mulpd xmm2,xmm1",
+    "addpd xmm2,xmm5",
+    "subpd xmm5,xmm3",
+    "mulpd xmm1,xmm5",
+    "addpd xmm1,xmm3"
+   ]
+  }
+ },
+ "locale": {
+  "rule": "num_put<char> applies the caller's numpunct<char>::grouping() bytes up to the first NUL byte (C++11-ABI facet reached through the COW-ABI twin shim; COW numpunct<char>::do_grouping() rebuilds from a NUL-terminated char*)",
+  "rust": "rust/kicad-hash/src/hash_128.rs (CxxNumericGrouping::runtime_grouping)",
+  "runtimes": [
+   {
+    "sha256": "1fd75fe70354a416d75aef22bcae68c47bd25d20e2d0568c30b1a9838cf62f11",
+    "file": "libstdc++.so.6.0.33",
+    "package": "libstdc++6 14.2.0-4ubuntu2~24.04.1 (amd64)",
+    "deb_sha256": "a51f8de7829211db961a31f02158058ad1a95f92ac6d0a5dff6350e2821c54c0",
+    "build_id": "753c6c8608b61d4e67be8f0c890e03e0aa046b8b",
+    "where": "PR #55 candidate reference image (inputs.lock.json toolchain file)"
+   },
+   {
+    "sha256": "5bb0d21308f123b6ad46c6f35b42cedfcb8d6d439a53aa3dae04d880aaffdde3",
+    "file": "libstdc++.so.6.0.35",
+    "package": "libstdc++6 16-20260322-1ubuntu1 (amd64)",
+    "where": "native WSL Ubuntu 26.04 qualification host (GCC 15.2 review oracle)"
+   }
+  ]
+ }
+}

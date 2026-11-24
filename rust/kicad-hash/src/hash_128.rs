@@ -78,15 +78,17 @@ impl Hash128 {
     /// `std::numpunct<char>`; libstdc++'s `num_put` then inserts the thousands
     /// separator according to the grouping (hexadecimal included) before the
     /// `setw( 16 )` zero fill, which is applied on the left of the grouped text
-    /// and never truncates. The bytes need not be UTF-8 (the separator is any
-    /// `char`). Other facets (for example a custom `ctype<char>`) are outside
-    /// this contract and must be classic.
+    /// and never truncates. The grouping `num_put` applies is the runtime's view
+    /// of the caller's bytes, [`CxxNumericGrouping::runtime_grouping`]. The bytes
+    /// need not be UTF-8 (the separator is any `char`). Other facets (for example
+    /// a custom `ctype<char>`) are outside this contract and must be classic.
     pub fn to_string_in(&self, locale: &CxxNumericGrouping) -> Vec<u8> {
+        let grouping = locale.runtime_grouping();
         let mut text = Vec::with_capacity(32);
         for word in self.value64() {
             let digits = format!("{word:X}").into_bytes();
-            let grouped = if locale.use_grouping() {
-                add_grouping(locale.thousands_sep, &locale.grouping, &digits)
+            let grouped = if use_grouping(grouping) {
+                add_grouping(locale.thousands_sep, grouping, &digits)
             } else {
                 digits
             };
@@ -107,8 +109,23 @@ impl core::fmt::Display for Hash128 {
 /// The immutable `std::numpunct<char>` values of a global C++ locale that
 /// affect integer output: `thousands_sep()` and `grouping()`, whose bytes are
 /// interpreted as `char` (signed on the qualified x86-64 platform). A grouping of
-/// any length is accepted, as `numpunct` accepts it; at most one byte per digit
-/// is ever consulted.
+/// any length is accepted and kept unchanged, as `numpunct` accepts it; at most
+/// one byte per digit is ever consulted.
+///
+/// The caller's facet is a `std::__cxx11::numpunct<char>` (the default C++11
+/// string ABI), but the reference's `num_put<char>` is the libstdc++ runtime's
+/// `extern template` instantiation, which looks up the COW-string ABI
+/// `std::numpunct<char>`. Installing the caller's facet installs a COW twin shim
+/// for that id (`locale::_Impl::_M_install_facet`, `_S_twinned_facets`); the
+/// shim copies `grouping()` into a NUL-terminated `char*`, and the COW
+/// `numpunct<char>::do_grouping()` rebuilds a string from that `char*`. The
+/// runtime therefore applies the caller's bytes up to the first NUL byte
+/// ([`CxxNumericGrouping::runtime_grouping`]): `"\1\2\0"` groups like `"\1\2"`
+/// (the last group repeats), not like a grouping ended by its zero group.
+/// Measured and disassembled in the qualified runtimes `libstdc++.so.6.0.33`
+/// (`libstdc++6 14.2.0-4ubuntu2~24.04.1`, the PR #55 candidate image) and
+/// `libstdc++.so.6.0.35` (`libstdc++6 16-20260322-1ubuntu1`, the WSL host);
+/// see `port/findings/kimath-header-hash-tostring-locale.md`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CxxNumericGrouping {
     thousands_sep: u8,
@@ -143,17 +160,29 @@ impl CxxNumericGrouping {
         self.thousands_sep
     }
 
+    /// The caller's `grouping()` bytes, unchanged.
     pub fn grouping(&self) -> &[u8] {
         &self.grouping
     }
 
-    /// libstdc++ `__numpunct_cache::_M_use_grouping`: a nonempty grouping whose
-    /// first group is positive and not `CHAR_MAX`.
-    fn use_grouping(&self) -> bool {
+    /// The grouping the reference runtime's `num_put<char>` applies: the
+    /// caller's bytes before the first NUL byte (all of them when there is
+    /// none), as the COW-ABI `numpunct<char>::do_grouping()` returns them.
+    pub fn runtime_grouping(&self) -> &[u8] {
         self.grouping
-            .first()
-            .is_some_and(|first| (*first as i8) > 0 && *first != 127)
+            .split(|byte| *byte == 0)
+            .next()
+            .unwrap_or_default()
     }
+}
+
+/// libstdc++ `__numpunct_cache::_M_use_grouping`: a nonempty grouping whose
+/// first group is positive and not `CHAR_MAX` (the runtime tests
+/// `(unsigned char)( g[0] - 1 ) <= 125`).
+fn use_grouping(grouping: &[u8]) -> bool {
+    grouping
+        .first()
+        .is_some_and(|first| (*first as i8) > 0 && *first != 127)
 }
 
 /// libstdc++ `std::__add_grouping` (`bits/locale_facets.tcc`) for `char`.

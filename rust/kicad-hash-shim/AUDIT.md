@@ -77,15 +77,17 @@ counts outside 1..63; `getblock64` indexes outside 0..1; `BEZIER<int>` evaluatio
 whose `int` subtraction overflows or that convert a NaN to `int` (325 generated
 requests in `fixtures/bezier-int-undefined.*`).
 
-## Open comparison questions (no deferrals; the unit stays `partial`)
+## Reference-build properties (no deferrals; the unit stays `partial` until a live run)
 
-- Two distinct NaN payloads meeting in one `BEZIER<double>` operation: the compiled
-  reference keeps the left operand in some statements and the right one in others.
-  38 corpus cases fail
+- Two distinct NaN payloads meeting in one `BEZIER<double>` operation: the port
+  follows the bound reference build's operand order per statement
+  (`kicad_hash::bezier_f64_sites`), derived from the disassembly of the candidate
+  oracle object and checked by `check_reference_bindings.py`
   ([record](../../port/findings/kimath-header-hash-bezier-two-nan-payloads.md)).
-- A zero group after a positive group in a `ToString` grouping: the WSL host's
-  libstdc++ 16 runtime truncates the grouping there, while the GCC 15 template and
-  the standard end grouping. 3 corpus cases fail on that host
+- A zero byte in a `ToString` grouping: the qualified libstdc++ runtimes apply the
+  caller's bytes up to the first NUL byte (COW-ABI twin shim); the port does the
+  same and keeps the caller's bytes unchanged
   ([record](../../port/findings/kimath-header-hash-tostring-locale.md)).
 
-Both need a parent decision. Until then no corrected golden is blessed.
+Both reproduce all 41 previously failing replies of the retained genuine oracles
+offline. The live hosted run and a reviewed corrected golden are still to come.

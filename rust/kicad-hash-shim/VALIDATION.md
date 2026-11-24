@@ -1,7 +1,25 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 # Validation: libs.kimath.include.application.pure.p001
 
-## Current status: 2026-11-23, clean commit 9bf572d4 (native WSL x86-64)
+## Pending: per-site NaN order and runtime grouping (static and offline only)
+
+This revision changes the two behaviours behind the 41 failures below. **No live oracle has run
+on it.** What was checked, on retained genuine artifacts only:
+
+| Check | Result |
+| --- | --- |
+| Derivation | `BEZIER<double>` operand order read from the candidate oracle's adapter object (sha256 `a6b793f5...`, oracle `5e0a8c36...`, GCC 13.3 candidate image); libstdc++ grouping path read from `libstdc++.so.6.0.33` (`1fd75fe7...`) and `.6.0.35` (`5bb0d213...`) |
+| Independent Python model vs retained candidate replies | 600/600 `BEZIER<double>` calls; the old left-operand model reproduces exactly the 38 failures |
+| Patched shim (native Windows x86-64) vs retained replies | 2641/2641 candidate and 2641/2641 GCC 15 corpus replies; 10884/10884 adversarial and 3/3 minimal GCC 15 replies; debug and release byte-identical |
+| Refusals | `check_guards.py` 441/441 (debug, release, shim side only); fixtures 15/15 and 325/325 |
+| wasm32 (Node 22, WSL) | every corpus reply reproduces the native digest `8567687a05ee7d4d` |
+| Supplementary sensitive requests (1983) | Rust equals the Python model on all; not yet run against an oracle |
+| `check_reference_bindings.py` | bound for the candidate object with either measured runtime; refuses the GCC 15 binary, an unrelated adapter object, an unmeasured runtime (even one whose grouping path passes the structural diagnostic) and a non-libstdc++ library |
+
+Not run: any live oracle comparison of this revision, `check_goldens_policy.py`, the Linux
+workspace build. The hosted run is `hosted_validation.sh` in the qualified image.
+
+## Previous status: 2026-11-23, clean commit 9bf572d4 (native WSL x86-64)
 
 **Not green and no corrected golden.** 2600 of 2641 corpus cases agree exactly with
 the live oracle, with no deferral. 41 fail on two open questions that need a parent

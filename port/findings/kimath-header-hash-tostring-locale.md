@@ -18,10 +18,12 @@ reproduced, against the pinned header, grouping `"\3"` with `'_'`:
 - `Hash128::to_hex_string()` is the classic-locale result, unchanged.
 - `Hash128::to_string_in( &CxxNumericGrouping )` takes the caller's
   `thousands_sep` byte and `grouping` bytes explicitly, as immutable state, and
-  returns bytes (the separator need not be ASCII). It ports libstdc++'s
-  `_M_use_grouping` (first group positive and not `CHAR_MAX`, `char` signed) and
-  `std::__add_grouping` (groups from the right, last group repeats, a non-positive
-  or `CHAR_MAX` group ends grouping), then the padding.
+  returns bytes (the separator need not be ASCII). It applies the runtime's view
+  of the grouping (the caller's bytes up to the first NUL byte, see below), then
+  ports libstdc++'s `_M_use_grouping` (first group positive and not `CHAR_MAX`,
+  `char` signed) and `std::__add_grouping` (groups from the right, last group
+  repeats, a negative or `CHAR_MAX` group ends grouping), then the padding.
+  `CxxNumericGrouping::grouping()` still returns the caller's bytes unchanged.
 - A grouping of any length is accepted, as `numpunct` accepts it. An earlier
   revision of this PR refused more than 64 bytes with an invented `GroupingTooLong`
   error, which the reference does not have; it is removed. Only the shared
@@ -37,31 +39,52 @@ restore the previous locale. Four of them have groupings of 65, 100, 216 and 409
 bytes. Every `hash128-*` case also checks the classic `ToString`. `check_guards.py`
 covers malformed locale input and the 4097-byte transport refusal.
 
-## Open: a zero group depends on the libstdc++ runtime
+## A zero byte: the runtime applies the grouping up to the first NUL
 
-On the native WSL qualification host the oracle links the distribution
-`libstdc++.so.6.0.35` (`libstdc++6 16-20260322-1ubuntu1`, `__GLIBCXX__` 20260321).
-`num_put<char>` is an `extern template`, so this runtime's compiled code formats
-the value. It cuts the grouping at its first zero byte: `"\1\2\0"` formats like
-`"\1\2"`, and `"\1\0\3"` like `"\1"`. The installed GCC 15 template source
-(`/usr/include/c++/15/bits/locale_facets.tcc:82-98,1292-1327`) and the C++ standard
-([facet.numpunct.virtuals]: a group `<= 0` is unlimited) end grouping at the zero
-instead, and the port follows them. A standalone probe built against the same
-runtime shows this
-(`rust/kicad-hash-shim/validation/2026-11-23-9bf572d4/grouping-probe.cpp` and
-`grouping-probe.txt`).
+History: on the native WSL host (`libstdc++.so.6.0.35`, `libstdc++6 16-20260322-1ubuntu1`)
+the oracle cut the grouping at its first zero byte: `"\1\2\0"` formatted like `"\1\2"`,
+and `"\1\0\3"` like `"\1"`. The port then followed the GCC template source and the
+standard ([facet.numpunct.virtuals]: a group `<= 0` is unlimited), so exactly three corpus
+cases failed: `hash128-locale-one-two-zero`, `hash128-locale-random-4` and
+`hash128-locale-random-7`. The GCC 13.3 candidate image (`libstdc++.so.6.0.33`,
+`libstdc++6 14.2.0-4ubuntu2~24.04.1`) failed the same three, with identical oracle output.
 
-Exactly three corpus cases have a zero after a positive group and digits left to
-group: `hash128-locale-one-two-zero`, `hash128-locale-random-4` and
-`hash128-locale-random-7`. They fail on this host and are kept unchanged. No
-libstdc++ 13 runtime (hosted CI, Ubuntu 24.04) was available here, so whether it
-matches the GCC 15 template or this runtime is not verified.
+Cause, from the runtime binaries and the official GCC 14.2.0 runtime source:
 
-The reference result for such groupings is a property of the C++ runtime build,
-not of the KiCad source. The next step is a parent decision: name the qualified
-libstdc++ runtime, or treat zero groups after a positive group as outside the
-compared domain. Nothing is normalized or dropped meanwhile.
+1. The adapter's facet derives from `std::__cxx11::numpunct<char>` (the default C++11 string
+   ABI). `std::locale( classic, facet )` runs `locale::_Impl::_M_install_facet`, which, for a
+   twinned facet, also installs `_M_cow_shim` for the COW-ABI `std::numpunct<char>::id`
+   (`src/c++98/locale.cc`, `_S_twinned_facets`; in both runtimes the twinned table pairs the
+   two ids, adjacent `R_X86_64_64` relocations).
+2. The shim (`src/c++11/cxx11-shim_facets.cc`, `numpunct_shim`, `__numpunct_fill_cache`)
+   copies the caller's full `grouping()` into a new NUL-terminated `char*` (`__copy`) and does
+   not override `do_grouping()`.
+3. The reference's `num_put<char>` is the runtime's `extern template` instantiation;
+   `_M_insert_int<unsigned long>` reaches `__use_cache<__numpunct_cache<char>>`, which loads
+   the GOT slot bound to the COW `_ZNSt8numpunctIcE2idE` in both runtimes, and
+   `__numpunct_cache<char>::_M_cache` uses the same id.
+4. The COW `numpunct<char>::do_grouping()` returns `_M_data->_M_grouping`, a `char*`
+   (`bits/locale_facets.h:1856-1857` in the image's `libstdc++-13-dev`), so the string is
+   rebuilt with `strlen` (`call strlen@plt` in both runtimes, in `do_grouping` and in the
+   devirtualised path of `_M_cache`). `_M_use_grouping` is then
+   `size && (unsigned char)( g[0] - 1 ) <= 125`.
 
-KiCad itself is not known to install a global C++ locale with grouping; this
-records the reference's actual dependency rather than assuming the classic
-locale.
+So the runtime applies the caller's grouping bytes up to the first NUL byte, and all of them
+when there is none. This is the runtime's actual interpretation, not a correction of it. The
+reviewer's probes agree: the runtime-only probe recovers the oracle result, while a probe that
+instantiates the cache template locally (and keeps it local) retains all three bytes; a
+diagnostic that exports its own instantiation can interpose the runtime, which
+`check_reference_bindings.py` refuses for the adapter and oracle.
+
+The port: `CxxNumericGrouping::runtime_grouping()` returns that prefix, and `to_string_in`
+formats with it. The caller's bytes stay unchanged and any length is accepted. With it the
+three corpus cases, the reviewer's 15 adversarial zero-group mismatches and minimal repro match
+the retained genuine replies, and 192 supplementary locale requests (zero bytes at every
+position, after negative and `CHAR_MAX` groups, long groupings, separators 0/'.'/255) match a
+Python reimplementation; those have not yet run against a live oracle.
+
+Binding: `rust/kicad-hash-shim/reference-bindings.json` lists the measured runtimes by sha256
+(`1fd75fe7...` candidate, `5bb0d213...` WSL host), and `check_reference_bindings.py` refuses an
+oracle linked to any other libstdc++; no option accepts an unmeasured runtime. For such a runtime
+it also reports, as a diagnostic only, whether its grouping path passes the structural checks
+above (`--diagnose-runtime` adds the same report for a measured one).

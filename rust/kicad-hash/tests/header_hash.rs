@@ -187,12 +187,14 @@ fn hash_128_grouping_follows_libstdcxx_num_put() {
             hash.to_hex_string().into_bytes()
         );
     }
-    // A later non-positive group stops grouping; the last group repeats.
-    let mixed = CxxNumericGrouping::new(b'.', &[1, 2, 0]);
-    assert_eq!(
-        Hash128::from_value64([0xABCDEF, 0]).to_string_in(&mixed),
-        b"00000000ABC.DE.F0000000000000000".to_vec()
-    );
+    // A later negative or CHAR_MAX group stops grouping; the last group repeats.
+    for stop in [0x80_u8, 0xFF, 127] {
+        let mixed = CxxNumericGrouping::new(b'.', &[1, 2, stop]);
+        assert_eq!(
+            Hash128::from_value64([0xABCDEF, 0]).to_string_in(&mixed),
+            b"00000000ABC.DE.F0000000000000000".to_vec()
+        );
+    }
     let repeat = CxxNumericGrouping::new(0xC3, &[4]);
     assert_eq!(
         Hash128::from_value64([u64::MAX, 1]).to_string_in(&repeat),
@@ -228,6 +230,65 @@ fn hash_128_grouping_follows_libstdcxx_num_put() {
             b"0000000000000000"
         ]
         .concat()
+    );
+}
+
+#[test]
+fn hash_128_grouping_is_the_runtime_view_up_to_the_first_nul() {
+    // The qualified libstdc++ runtimes reach the caller's numpunct through the COW-ABI twin
+    // shim, whose do_grouping() rebuilds the grouping from a NUL-terminated char*. Genuine
+    // oracle replies: hash128-locale-one-two-zero (separator '.') and the reviewer's
+    // minimal-locale (separator '_'), both grouping 01 02 00.
+    let value = Hash128::from_value64([0xABCDEF, 0]);
+    let one_two_zero = CxxNumericGrouping::new(b'.', &[1, 2, 0]);
+    assert_eq!(
+        value.to_string_in(&one_two_zero),
+        b"0000000A.BC.DE.F0000000000000000".to_vec()
+    );
+    assert_eq!(
+        Hash128::from_value64([0x6BCA_16DC_C6D4_4ADA, 0xD97E_8E25_F39F_24A1])
+            .to_string_in(&one_two_zero),
+        b"6.BC.A1.6D.CC.6D.44.AD.AD.97.E8.E2.5F.39.F2.4A.1".to_vec()
+    );
+    assert_eq!(
+        value.to_string_in(&CxxNumericGrouping::new(b'_', &[1, 2, 0])),
+        b"0000000A_BC_DE_F0000000000000000".to_vec()
+    );
+    // The reviewer's runtime-only probe (locale-runtime-only.txt): 01 00 03 groups like 01,
+    // 03 00 like 03.
+    assert_eq!(
+        value.to_string_in(&CxxNumericGrouping::new(b'_', &[1, 0, 3])),
+        b"00000A_B_C_D_E_F0000000000000000".to_vec()
+    );
+    assert_eq!(
+        value.to_string_in(&CxxNumericGrouping::new(b'_', &[3, 0])),
+        b"000000000ABC_DEF0000000000000000".to_vec()
+    );
+    // The caller's bytes are kept unchanged; only formatting uses the runtime view.
+    let long: Vec<u8> = [1_u8, 2, 0, 5, 0, 127].repeat(700);
+    let kept = CxxNumericGrouping::new(0, &long);
+    assert_eq!(kept.grouping(), long.as_slice());
+    assert_eq!(kept.runtime_grouping(), &[1, 2]);
+    assert_eq!(
+        value.to_string_in(&kept),
+        [
+            b"0000000A".as_slice(),
+            &[0],
+            b"BC",
+            &[0],
+            b"DE",
+            &[0],
+            b"F0000000000000000"
+        ]
+        .concat()
+    );
+    assert!(CxxNumericGrouping::new(b'_', &[0, 3])
+        .runtime_grouping()
+        .is_empty());
+    assert!(CxxNumericGrouping::classic().runtime_grouping().is_empty());
+    assert_eq!(
+        CxxNumericGrouping::new(b'_', &[4, 4]).runtime_grouping(),
+        &[4, 4]
     );
 }
 
@@ -436,6 +497,200 @@ mod bezier {
         assert_eq!(point.x.to_bits(), 0xfff8_0000_0000_0000);
         let point = curve.point_at(f64::from_bits(0x7ff0_0000_0000_0009))?;
         assert_eq!(point.x.to_bits(), 0x7ff8_0000_0000_0009);
+        Ok(())
+    }
+
+    fn curve_from(points: [[u64; 2]; 4]) -> Bezier<f64> {
+        let point = |p: [u64; 2]| Vector2::new(f64::from_bits(p[0]), f64::from_bits(p[1]));
+        Bezier::new(
+            point(points[0]),
+            point(points[1]),
+            point(points[2]),
+            point(points[3]),
+        )
+    }
+
+    fn pair_bits(point: Vector2D) -> [u64; 2] {
+        [point.x.to_bits(), point.y.to_bits()]
+    }
+
+    fn curve_pairs(curve: &Bezier<f64>) -> [[u64; 2]; 4] {
+        [
+            pair_bits(curve.start),
+            pair_bits(curve.c1),
+            pair_bits(curve.c2),
+            pair_bits(curve.end),
+        ]
+    }
+
+    const NAN_CURVE_0: [[u64; 2]; 4] = [
+        [0x7ff8_0000_0000_0011, 0x3ff0_0000_0000_0000],
+        [0x4000_0000_0000_0000, 0x7ff8_0000_0000_0022],
+        [0x4008_0000_0000_0000, 0xfff8_0000_0000_0033],
+        [0x7ff0_0000_0000_0044, 0x4010_0000_0000_0000],
+    ];
+    const NAN_CURVE_1: [[u64; 2]; 4] = [
+        [0xfff8_0000_0000_0055, 0xfff8_0000_0000_0066],
+        [0x7ff8_0000_0000_0077, 0x7ff8_0000_0000_0088],
+        [0x0000_0000_0000_0000, 0x8000_0000_0000_0000],
+        [0x7ff0_0000_0000_0000, 0xfff0_0000_0000_0000],
+    ];
+
+    /// Expectations are genuine replies of the bound candidate oracle (kicad-oracle sha256
+    /// 5e0a8c36...; corpus case IDs given), which the previous left-operand rule failed.
+    #[test]
+    fn two_nan_operands_follow_the_bound_reference_sites() -> Result<(), VectorDomainError> {
+        // bezier-f64-nan-curve-1-point-at-0: the inlined PointAt's first sum keeps the C1 term.
+        let point = curve_from(NAN_CURVE_1).point_at(0.5)?;
+        assert_eq!(
+            pair_bits(point),
+            [0x7ff8_0000_0000_0077, 0x7ff8_0000_0000_0088]
+        );
+        // The reviewer's minimal-nan-point and minimal-nan-split.
+        let minimal = curve_from([
+            [0x7ff8_0000_0000_00aa, 0],
+            [0xfff8_0000_0000_00bb, 0],
+            [0, 0],
+            [0, 0],
+        ]);
+        assert_eq!(
+            pair_bits(minimal.point_at(0.5)?),
+            [0xfff8_0000_0000_00bb, 0]
+        );
+        let (left, right) = minimal.split(0.5)?;
+        let bb = [0xfff8_0000_0000_00bb, 0];
+        assert_eq!(curve_pairs(&left), [[0x7ff8_0000_0000_00aa, 0], bb, bb, bb]);
+        assert_eq!(curve_pairs(&right), [bb, bb, [0, 0], [0, 0]]);
+        // bezier-f64-nan-curve-0-split-6: the first five statements keep the control point's
+        // payload, the last (shared) product keeps aT's.
+        let t = f64::from_bits(0x7ff8_0000_0000_00c3);
+        let (left, right) = curve_from(NAN_CURVE_0).split(t)?;
+        let c3 = 0x7ff8_0000_0000_00c3;
+        assert_eq!(
+            curve_pairs(&left),
+            [
+                [0x7ff8_0000_0000_0011, 0x3ff0_0000_0000_0000],
+                [0x7ff8_0000_0000_0011, 0x7ff8_0000_0000_0022],
+                [c3, 0xfff8_0000_0000_0033],
+                [c3, c3],
+            ]
+        );
+        assert_eq!(
+            curve_pairs(&right),
+            [
+                [c3, c3],
+                [0x7ff8_0000_0000_0044, 0xfff8_0000_0000_0033],
+                [0x7ff8_0000_0000_0044, 0xfff8_0000_0000_0033],
+                [0x7ff0_0000_0000_0044, 0x4010_0000_0000_0000],
+            ]
+        );
+        // bezier-f64-nan-curve-0-sub-curve-3 and bezier-f64-random-111: the out-of-line
+        // PointAt of a reversed range.
+        let degenerate = curve_from(NAN_CURVE_0).sub_curve(
+            f64::from_bits(0x3fe3_3333_3333_3333),
+            f64::from_bits(0x3fd9_9999_9999_999a),
+        )?;
+        assert_eq!(
+            curve_pairs(&degenerate),
+            [[0x7ff8_0000_0000_0011, 0x7ff8_0000_0000_0022]; 4]
+        );
+        let random_111 = curve_from([
+            [0x0000_0000_0000_0000, 0xfff0_0000_0000_0000],
+            [0x8000_0000_0000_0000, 0x7ff8_0000_0000_0001],
+            [0xbff0_0000_0000_0000, 0x8000_0000_0000_0000],
+            [0xbff0_0000_0000_0000, 0x3ff0_0000_0000_0000],
+        ])
+        .sub_curve(
+            f64::from_bits(0x3ff9_727a_1e35_ecf0),
+            f64::from_bits(0x3fdf_6e84_74fe_6d58),
+        )?;
+        assert_eq!(
+            curve_pairs(&random_111),
+            [[0xbff0_0000_0000_0000, 0x7ff8_0000_0000_0001]; 4]
+        );
+        // bezier-f64-nan-curve-1-sub-curve-0: both splits of an interior range.
+        let interior = curve_from(NAN_CURVE_1).sub_curve(0.25, 0.75)?;
+        assert_eq!(
+            curve_pairs(&interior),
+            [[0x7ff8_0000_0000_0077, 0x7ff8_0000_0000_0088]; 4]
+        );
+        Ok(())
+    }
+
+    /// Static controls: expectations derived from the bound object's disassembly (the
+    /// operand order of each site with the SSE2 NaN rules), not from oracle replies. The
+    /// supplementary request set of PR #51 asks the live oracle the same questions.
+    #[test]
+    fn signalling_nans_signed_zeros_and_infinities_at_each_site() -> Result<(), VectorDomainError> {
+        const ONE: u64 = 0x3ff0_0000_0000_0000;
+        const INF: u64 = 0x7ff0_0000_0000_0000;
+        const NEG_INF: u64 = 0xfff0_0000_0000_0000;
+        const NEG_ZERO: u64 = 0x8000_0000_0000_0000;
+        const DEFAULT_NAN: u64 = 0xfff8_0000_0000_0000;
+        // Inlined PointAt: two SNaNs in Start and C1; the C1 term wins, quieted.
+        let curve = curve_from([
+            [0xfff0_0000_0000_0001, 0],
+            [0x7ff0_0000_0000_0002, 0],
+            [0, 0],
+            [0, 0],
+        ]);
+        assert_eq!(pair_bits(curve.point_at(0.5)?), [0x7ff8_0000_0000_0002, 0]);
+        // An SNaN aT against a QNaN C1: the coefficient is dst in the C1 product.
+        let curve = curve_from([[0, 0], [0xfff8_0000_0000_000d, 0], [0, 0], [0, 0]]);
+        let t = f64::from_bits(0x7ff0_0000_0000_000c);
+        assert_eq!(pair_bits(curve.point_at(t)?), [0x7ff8_0000_0000_000c; 2]);
+        // Split with an SNaN aT and an SNaN C2: only the shared product keeps aT.
+        let curve = curve_from([[0, ONE], [ONE, 0], [0xfff0_0000_0000_000f, 0], [ONE, ONE]]);
+        let (left, right) = curve.split(f64::from_bits(0x7ff0_0000_0000_000e))?;
+        let e = 0x7ff8_0000_0000_000e;
+        let f = 0xfff8_0000_0000_000f;
+        assert_eq!(curve_pairs(&left), [[0, ONE], [e, e], [f, e], [e, e]]);
+        assert_eq!(curve_pairs(&right), [[e, e], [f, e], [f, e], [ONE, ONE]]);
+        // Out-of-line PointAt (reversed range): sums keep the C1 term, then the running sum.
+        let curve = curve_from([
+            [0x7ff0_0000_0000_0021, 0],
+            [0xfff0_0000_0000_0022, 0],
+            [0x7ff8_0000_0000_0023, 0],
+            [NEG_ZERO, INF],
+        ]);
+        assert_eq!(
+            curve_pairs(&curve.sub_curve(0.75, 0.25)?),
+            [[0xfff8_0000_0000_0022, INF]; 4]
+        );
+        let curve = curve_from([
+            [ONE, ONE],
+            [ONE, ONE],
+            [0x7ff8_0000_0000_0031, 0],
+            [0xfff0_0000_0000_0032, 0],
+        ]);
+        assert_eq!(
+            curve_pairs(&curve.sub_curve(0.75, 0.25)?),
+            [[0x7ff8_0000_0000_0031, 0x3fc4_0000_0000_0000]; 4]
+        );
+        // A NaN t0 passes the clamps: split at t1, then at t0 / t1 (t0 is dst).
+        let inner = curve.sub_curve(f64::from_bits(0x7ff0_0000_0000_0041), 0.5)?;
+        let q = 0x7ff8_0000_0000_0041;
+        let p = 0xfff8_0000_0000_0032;
+        assert_eq!(
+            curve_pairs(&inner),
+            [[q, q], [p, q], [p, q], [p, 0x3fe0_0000_0000_0000]]
+        );
+        // Signed zeros and an invalid operation without NaN operands.
+        let curve = curve_from([[NEG_ZERO, 0], [0, 0], [0, 0], [0, 0]]);
+        assert_eq!(pair_bits(curve.point_at(0.0)?), [0, 0]);
+        assert_eq!(pair_bits(curve.point_at(-0.0)?), [0, 0]);
+        let curve = curve_from([[INF, 0], [0, 0], [0, 0], [NEG_INF, 0]]);
+        assert_eq!(pair_bits(curve.point_at(0.5)?), [DEFAULT_NAN, 0]);
+        // Extremes: overflow to infinity, then inf - inf.
+        let max = 0x7fef_ffff_ffff_ffff;
+        let neg_max = 0xffef_ffff_ffff_ffff;
+        let curve = curve_from([[max, 1], [neg_max, 0], [max, 0], [neg_max, 0]]);
+        assert_eq!(pair_bits(curve.point_at(0.5)?), [0x7c70_0000_0000_0000, 0]);
+        let (left, _) = curve.split(0.5)?;
+        assert_eq!(
+            curve_pairs(&left),
+            [[max, 1], [NEG_INF, 1], [DEFAULT_NAN, 1], [DEFAULT_NAN, 1]]
+        );
         Ok(())
     }
 

@@ -18,19 +18,72 @@
 //! - storing a `VECTOR2<double>` into a `VECTOR2<T>` is a copy for `double` and the clamping,
 //!   truncating casting constructor for `int` (a NaN component refused).
 //!
-//! The scalar `double` expressions follow the oracle platform's NaN rules (private `fp`), as the
-//! co-ported vector operations do. Every other `BEZIER_POLY` member (the `VECTOR2I`
-//! constructors, `GetPoly` and the private helpers) and `TransformEllipseToBeziers` belong to
+//! `BEZIER<double>` is evaluated with the operand order of the bound reference build, statement by
+//! statement (private `bezier_f64_sites`): IEEE 754 leaves open which NaN an operation with two
+//! NaN operands returns, and the compiled reference answers that per site. `BEZIER<int>` keeps the
+//! generic bodies below: an `int` component converts to a non-NaN `double`, so every NaN of an
+//! `int` evaluation comes from `aT` alone and is refused when stored, whatever the order.
+//!
+//! Every other `BEZIER_POLY` member (the `VECTOR2I` constructors, `GetPoly` and the private
+//! helpers) and `TransformEllipseToBeziers` belong to
 //! `libs.kimath.src.bezier_curves.application.ui.p001` and are not implemented here.
 
 use kicad_math::{Vector2, Vector2D, VectorDomainError};
 
-use crate::fp;
+use crate::bezier_f64_sites::{self, PointAtSite};
+use crate::sse2;
 
 mod sealed {
-    pub trait Sealed {}
-    impl Sealed for i32 {}
-    impl Sealed for f64 {}
+    use super::{Bezier, PointAtSite, Vector2, VectorDomainError};
+
+    /// The per-instantiation bodies behind the generic members (not nameable outside the crate).
+    pub trait Sealed: Sized {
+        /// `PointAt( aT )`, as compiled at `site`.
+        fn point_at_at(
+            curve: &Bezier<Self>,
+            t: f64,
+            site: PointAtSite,
+        ) -> Result<Vector2<Self>, VectorDomainError>;
+        /// `Split( aT, aLeft, aRight )`.
+        fn split_at(
+            curve: &Bezier<Self>,
+            t: f64,
+        ) -> Result<(Bezier<Self>, Bezier<Self>), VectorDomainError>;
+    }
+
+    impl Sealed for i32 {
+        fn point_at_at(
+            curve: &Bezier<i32>,
+            t: f64,
+            _site: PointAtSite,
+        ) -> Result<Vector2<i32>, VectorDomainError> {
+            super::generic_point_at(curve, t)
+        }
+
+        fn split_at(
+            curve: &Bezier<i32>,
+            t: f64,
+        ) -> Result<(Bezier<i32>, Bezier<i32>), VectorDomainError> {
+            super::generic_split(curve, t)
+        }
+    }
+
+    impl Sealed for f64 {
+        fn point_at_at(
+            curve: &Bezier<f64>,
+            t: f64,
+            site: PointAtSite,
+        ) -> Result<Vector2<f64>, VectorDomainError> {
+            Ok(super::bezier_f64_sites::point_at(curve, t, site))
+        }
+
+        fn split_at(
+            curve: &Bezier<f64>,
+            t: f64,
+        ) -> Result<(Bezier<f64>, Bezier<f64>), VectorDomainError> {
+            Ok(super::bezier_f64_sites::split(curve, t))
+        }
+    }
 }
 
 /// A `BEZIER<NumericType>` component type KiCad instantiates: `int` (`i32`) or `double` (`f64`).
@@ -105,20 +158,10 @@ impl<T: BezierCoordinate> Bezier<T> {
     /// `PointAt( double aT )`: the Bernstein form
     /// `( t_m1_3 * Start ) + ( 3.0 * aT * t_m1_2 * C1 ) + ( 3.0 * t2 * t_m1 * C2 ) + ( t3 * End )`,
     /// evaluated left to right in `double` and stored as a `VECTOR2<T>`. `aT` outside `[0, 1]`
-    /// is evaluated as given. For `int`, a NaN component of the sum is refused.
+    /// is evaluated as given. For `int`, a NaN component of the sum is refused. For `double`,
+    /// NaN results follow the reference's inlined `point_at` site.
     pub fn point_at(&self, t: f64) -> Result<Vector2<T>, VectorDomainError> {
-        let t2 = fp::mul(t, t);
-        let t3 = fp::mul(t2, t);
-        let t_m1 = fp::sub(1.0, t);
-        let t_m1_2 = fp::mul(t_m1, t_m1);
-        let t_m1_3 = fp::mul(t_m1_2, t_m1);
-
-        let start = T::scaled(t_m1_3, self.start);
-        let c1 = T::scaled(fp::mul(fp::mul(3.0, t), t_m1_2), self.c1);
-        let c2 = T::scaled(fp::mul(fp::mul(3.0, t2), t_m1), self.c2);
-        let end = T::scaled(t3, self.end);
-
-        T::store(start + c1 + c2 + end)
+        T::point_at_at(self, t, PointAtSite::Inline)
     }
 
     /// `Split( double aT, BEZIER& aLeft, BEZIER& aRight )`: one de Casteljau step at `aT`,
@@ -126,17 +169,7 @@ impl<T: BezierCoordinate> Bezier<T> {
     /// `VECTOR2<T>` before it is used, in the C++ statement order. For `int`, an overflowing
     /// difference or a NaN intermediate is refused and neither output is produced.
     pub fn split(&self, t: f64) -> Result<(Self, Self), VectorDomainError> {
-        let start_c1 = lerp(self.start, self.c1, t)?;
-        let c1_c2 = lerp(self.c1, self.c2, t)?;
-        let c2_end = lerp(self.c2, self.end, t)?;
-        let left_c2 = lerp(start_c1, c1_c2, t)?;
-        let right_c1 = lerp(c1_c2, c2_end, t)?;
-        let shared = lerp(left_c2, right_c1, t)?;
-
-        Ok((
-            Self::new(self.start, start_c1, left_c2, shared),
-            Self::new(shared, right_c1, c2_end, self.end),
-        ))
+        T::split_at(self, t)
     }
 
     /// `SubCurve( double aT0, double aT1 )`: both parameters are clamped to `[0, 1]` (a NaN
@@ -148,7 +181,8 @@ impl<T: BezierCoordinate> Bezier<T> {
         let t1 = clamp_unit(t1);
 
         if t1 <= t0 {
-            let point = self.point_at(t0)?;
+            // The out-of-line PointAt; t0 is clamped and therefore never NaN here.
+            let point = T::point_at_at(self, t0, PointAtSite::OutOfLine)?;
             return Ok(Self::new(point, point, point, point));
         }
 
@@ -167,10 +201,50 @@ impl<T: BezierCoordinate> Bezier<T> {
         }
 
         let (left, _) = self.split(t1)?;
-        let (_, sub_curve) = left.split(fp::div(t0, t1))?;
+        // KimathHeaderHash +0x25077: divsd t0, t1 (the left operand is always dst).
+        let (_, sub_curve) = left.split(sse2::div(t0, t1))?;
 
         Ok(sub_curve)
     }
+}
+
+/// The generic `PointAt` body (used for `int`): scalars in C++ operand order, then the co-ported
+/// `VECTOR2` operators. Every NaN here is a quieted `aT` or the default NaN, so the order of two
+/// NaN operands cannot change a result, and the `int` store refuses any NaN anyway.
+fn generic_point_at<T: BezierCoordinate>(
+    curve: &Bezier<T>,
+    t: f64,
+) -> Result<Vector2<T>, VectorDomainError> {
+    let t2 = sse2::mul(t, t);
+    let t3 = sse2::mul(t2, t);
+    let t_m1 = sse2::sub(1.0, t);
+    let t_m1_2 = sse2::mul(t_m1, t_m1);
+    let t_m1_3 = sse2::mul(t_m1_2, t_m1);
+
+    let start = T::scaled(t_m1_3, curve.start);
+    let c1 = T::scaled(sse2::mul(sse2::mul(3.0, t), t_m1_2), curve.c1);
+    let c2 = T::scaled(sse2::mul(sse2::mul(3.0, t2), t_m1), curve.c2);
+    let end = T::scaled(t3, curve.end);
+
+    T::store(start + c1 + c2 + end)
+}
+
+/// The generic `Split` body (used for `int`).
+fn generic_split<T: BezierCoordinate>(
+    curve: &Bezier<T>,
+    t: f64,
+) -> Result<(Bezier<T>, Bezier<T>), VectorDomainError> {
+    let start_c1 = lerp(curve.start, curve.c1, t)?;
+    let c1_c2 = lerp(curve.c1, curve.c2, t)?;
+    let c2_end = lerp(curve.c2, curve.end, t)?;
+    let left_c2 = lerp(start_c1, c1_c2, t)?;
+    let right_c1 = lerp(c1_c2, c2_end, t)?;
+    let shared = lerp(left_c2, right_c1, t)?;
+
+    Ok((
+        Bezier::new(curve.start, start_c1, left_c2, shared),
+        Bezier::new(shared, right_c1, c2_end, curve.end),
+    ))
 }
 
 /// `if( t < 0.0 ) t = 0.0; else if( t > 1.0 ) t = 1.0;` (a NaN and -0.0 are kept). Spelled

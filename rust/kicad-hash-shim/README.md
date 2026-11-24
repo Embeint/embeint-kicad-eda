@@ -98,12 +98,18 @@ up to 4096 bytes, 1 MiB per case), `int` and `inspect`.
   [reclassification](../../port/findings/kimath-header-hash-mmh3-unwritten-reads.md)).
 - `HASH_128::ToString` depends on the global C++ locale's grouping; the port
   takes it explicitly ([locale record](../../port/findings/kimath-header-hash-tostring-locale.md)).
-  How a zero group after a positive group is handled depends on the libstdc++
-  runtime build (open; three cases).
-- `BEZIER<double>` NaN results follow the oracle platform for one NaN operand and
-  for generated NaNs. Where two distinct NaN payloads meet, the compiled
-  reference is not consistent (open; 38 cases,
-  [record](../../port/findings/kimath-header-hash-bezier-two-nan-payloads.md)).
+  The qualified libstdc++ runtimes apply the caller's grouping bytes up to the
+  first NUL byte (COW-ABI twin shim), and so does the port.
+- `BEZIER<double>` NaN results follow the bound reference build statement by
+  statement: which of two NaN operands survives is the compiled operand order of
+  each site, spelled out in `kicad_hash`'s `bezier_f64_sites`
+  ([record](../../port/findings/kimath-header-hash-bezier-two-nan-payloads.md)).
+- `check_reference_bindings.py` refuses an oracle whose `BEZIER<double>` site
+  instructions or libstdc++ grouping runtime differ from the bound ones
+  (`reference-bindings.json`); `hosted_validation.sh` runs it with the live
+  comparisons, the guards, the supplementary sensitive requests
+  (`generate_sensitive.py`, `supplementary/`; compared by `compare_replies.py`,
+  no golden) and the wasm parity check.
 - `HASH_128` is filled through `Value64` and its `Value32` view is read from
   the object bytes; `ToString` reads `Value64`, as KiCad does.
 - Malformed and undefined-domain requests are refusals

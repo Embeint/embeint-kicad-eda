@@ -71,8 +71,11 @@ result is plain IEEE arithmetic, which Rust computes identically on every target
 explicit rules make the native and wasm builds agree on NaN bits too. With two NaN operands
 the left operand is kept. That is a fixed choice, not a property of the reference: IEEE 754
 leaves it open, and the compiled oracle keeps the left operand in some statements and the
-right in others (`port/findings/kimath-header-hash-bezier-two-nan-payloads.md`). The oracle
-cases where two distinct NaN payloads meet remain recorded failures.
+right in others (`port/findings/kimath-header-hash-bezier-two-nan-payloads.md`). A vector
+operator with one fixed order cannot express that, so `kicad_hash`'s `BEZIER<double>` port
+evaluates its component arithmetic directly in the bound reference's per-site order
+(`bezier_f64_sites`); these operators keep their behaviour and remain the canonical co-ports
+(`BEZIER<int>` still uses them, where only `aT` can be NaN and any NaN is refused).
 
 Evidence: `tests/bezier_operations.rs` (each instantiation; overflow of either component;
 signed zeros; promotion of `INT_MIN`/`INT_MAX`; the clamp boundaries `double( INT_MAX )`,
