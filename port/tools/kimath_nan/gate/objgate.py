@@ -44,6 +44,7 @@ import types
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import contract  # noqa: E402
+import elfexec  # noqa: E402
 import emit  # noqa: E402
 import gate  # noqa: E402
 import graph  # noqa: E402
@@ -297,8 +298,9 @@ def inventory(elock, olock):
           'toolchain identity names the reviewed input lock and compilers',
           'toolchain closure re-verified on this machine (verify_image.py)',
           'linked oracle: ELF64 x86-64 executable, baseline ISA, reviewed DT_NEEDED',
-          'linked oracle .comment names the reviewed compiler',
-          'link proof: reachable units are the relocated reviewed object bytes',
+          'linked oracle .comment names the reviewed compiler']
+    e += list(elfexec.ROWS)
+    e += ['link proof: reachable units are the relocated reviewed object bytes',
           'link proof: home sections equal the reviewed set',
           'link proof: other-object bodies equal the reviewed digests',
           'link proof: dynamic imports equal the reviewed set',
@@ -391,6 +393,9 @@ def run(a):
     ck = gate.Checks()
     locks = pathlib.Path(a.locks)
     raw = {n: (locks / n).read_bytes() for n in ('eligibility.lock.json', 'graphs.lock.json', 'object.lock.json')}
+    ext_path = locks / 'object-elfexec.lock.json'
+    if ext_path.is_file():
+        raw['object-elfexec.lock.json'] = ext_path.read_bytes()
     elock, glock, olock = (json.loads(raw[n]) for n in ('eligibility.lock.json', 'graphs.lock.json', 'object.lock.json'))
     inp = Inputs(a)
     report = {'note': 'EXPERIMENTAL object-bound gate; not a qualification', 'mode': MODE, 'phase': a.phase,
@@ -495,6 +500,13 @@ def run(a):
            (idn['machine'], idn['type']) == (62, 3) and isa == [elock['oracle']['x86_isa_needed_data']]
            and dt_needed(elf) == olock['linked']['needed'], {'isa': isa, 'needed': dt_needed(elf)})
     ck.add(E, 'linked oracle .comment names the reviewed compiler', idn['comment'] == olock['linked']['comment'], idn['comment'])
+    # the section facts used below must be the facts the kernel and the loader use (elfexec.py)
+    try:
+        ext = json.loads(raw['object-elfexec.lock.json']) if 'object-elfexec.lock.json' in raw else None
+    except ValueError:
+        ext = None
+    for name, ok, det in elfexec.check(inp.oracle, ext, olock['link']['imports']):
+        ck.add(E, name, ok, det)
     # link proof
     Lk = Linked(elf)
     objects = {n: (obj if n == HOME_FILE else RelObj(inp.providers[n])) for n in inp.order}

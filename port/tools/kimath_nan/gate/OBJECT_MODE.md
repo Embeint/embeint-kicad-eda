@@ -29,6 +29,9 @@ code the unit executes.
 | `relobj.py` | Strict ELF64 x86-64 relocatable-object reader: sections, symbols, RELA, COMDAT groups | stdlib |
 | `x86len.py` | x86-64 length decoder; every boundary matched the reviewed objdump listings of DoubleOps and Inverse | stdlib |
 | `linkproof.py` | Link proof (below) | `elfbin`, `relobj`, `x86len` |
+| `elfexec.py` | ELF execution mapping: program headers, mappings, entry, interpreter and loader-read dynamic metadata are the section facts the gate uses | stdlib |
+| `locks/object-elfexec.lock.json` | Derived execution-mapping profile (sha256 `ad149028…`), status `DERIVED-PENDING-REVIEW` | — |
+| `elfexec_controls.py` | 30 execution-mapping controls on the genuine oracles | `elfexec` |
 | `objgate.py` | Object-mode gate: `derive` (measure the lock once on the reviewed build) and `verify` | `gate`, `contract`, `emit`, `graph`, `srcexpr`, `symex`, `listing`, `elfbin`, `linkproof`, `relobj`, `x86len` |
 | `locks/object.lock.json` | Derived object lock (sha256 `8202a8af…`), status `DERIVED-PENDING-REVIEW` | — |
 | `object.externals.json` | Input to `derive`: the one external outside every object (`__dso_handle`, address-only) | — |
@@ -94,6 +97,24 @@ code the unit executes.
   - emission only from a full-phase PASS in the same run, and only if the bytes hash to
     `d24ff0f2…`.
 
+## ELF execution mapping (`elfexec.py`)
+
+Section tables are not what the kernel or the loader reads. Before the link proof, object mode
+checks from the raw file that, for the measured current profile, every section fact it uses is
+the runtime fact. Ten rows cover:
+- the program headers;
+- PT_LOAD mappings (offsets, permissions, overlaps);
+- the executable mapping and the entry point;
+- the interpreter and the GNU segments;
+- every DT_* the loader reads, resolved through the program headers to the parsed sections;
+- dynamic relocation types and places;
+- symbol versions of the unit's imports.
+
+The profile is bound by the separately derived, PENDING `locks/object-elfexec.lock.json`.
+Before this module, an oracle with `e_phnum = 0` gave the same gate rows as the genuine one;
+it now fails 8 of these rows. Details and the 30 controls:
+`port/findings/kimath-object-eligibility-elf-mapping.md`.
+
 ## Measured results (private, before this checkpoint)
 
 | Oracle | Phase | Eligibility | Context | Scope | Arithmetic | Decision |
@@ -153,6 +174,15 @@ Equal-valued floats/booleans cannot stand in for integer fields. A refused emiss
 now fails the run and preserves any prior accepted output; successful emission uses
 an atomic replacement. The original reviewed modules and measured lock bytes remain
 unchanged.
+
+Execution-mapping checks (genuine oracles from the same input root):
+
+```bash
+python -B port/tools/kimath_nan/gate/elfexec_controls.py --inputs ROOT --out elfexec-controls.json
+python -B port/tools/kimath_nan/gate/elfexec.py check --oracle kicad-oracle   --object-lock port/tools/kimath_nan/gate/locks/object.lock.json --ext port/tools/kimath_nan/gate/locks/object-elfexec.lock.json
+# re-derive the extension from the reviewed oracle (reproduces ad149028...)
+python -B port/tools/kimath_nan/gate/elfexec.py derive --oracle REVIEWED/kicad-oracle   --object-lock port/tools/kimath_nan/gate/locks/object.lock.json --out object-elfexec.lock.json
+```
 
 ## Gaps and blockers (stated, not worked around)
 
