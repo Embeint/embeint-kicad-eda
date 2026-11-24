@@ -130,6 +130,11 @@ def validate_sweeps(paths, count):
             require(not stream.read(1), "extra sweep record: " + name)
 
 
+def location(value):
+    """A libm offset or an object-qualified address recorded by the primitive probe."""
+    return type(value) is str and bool(re.fullmatch(r"0x[0-9a-f]+|![^\n]*\+0x[0-9a-f]+", value))
+
+
 def bits(value):
     require(type(value) is str and HEX.fullmatch(value), "invalid floating bit string")
 
@@ -236,7 +241,11 @@ def primitive(value, rust, count, candidate):
         "dispatch identities differ",
     )
     for row in value["libm_dispatch"]:
-        keys(row, "function object offset linked_object linked_offset inputs trace_status trace")
+        keys(
+            row,
+            "function object offset linked_object linked_offset inputs trace_status "
+            "return_address return_to trace slot_reads",
+        )
         require(
             type(row["object"]) is str
             and type(row["linked_object"]) is str
@@ -248,9 +257,14 @@ def primitive(value, rust, count, candidate):
         bitlist(row["inputs"], 2)
         strings(row["trace"])
         require(
-            all(re.fullmatch(r"0x[0-9a-f]+", step) or step.startswith("!") for step in row["trace"]),
+            all(location(row[k]) for k in ("return_address", "return_to"))
+            and all(location(step) for step in row["trace"]),
             "invalid dispatch trace",
         )
+        require(type(row["slot_reads"]) is list, "invalid GOT slot reads")
+        for read in row["slot_reads"]:
+            keys(read, "at slot value")
+            require(all(location(read[k]) for k in ("at", "slot", "value")), "invalid GOT slot read")
     stream_inputs = [
         "7ff0000000000000",
         "fff0000000000000",
@@ -343,6 +357,8 @@ def validate(directory):
         "primitive-host-default.sweep.bin",
         "rust-contract.sweep.bin",
         "bin/primitive_probe",
+        dispatch_proof.LIBM_COPY,
+        dispatch_proof.DEBUG_COPY,
         "bin/rust_probe",
     }
     has_matrix = "matrix-contract.json" in actual
@@ -541,15 +557,8 @@ def validate(directory):
         env["libm"],
         "debug_file multiarch_symbols_from_debug_file excluded_suffix_matches matches_lock dispatch_facts",
     )
-    require(
-        not run_probe.dispatch_report(
-            dispatch_proof.resolve_objects(contract, env["loaded_objects"]),
-            env["libm"]["dispatch_facts"],
-            lock,
-            candidate,
-        )[1],
-        "dispatch contract failed",
-    )
+    _report, violations = run_probe.dispatch_report(directory, contract, env, lock, candidate)
+    require(not violations, "dispatch contract failed: " + json.dumps(violations[:1], sort_keys=True)[:400])
     macros = {m["name"]: m["defined"] for m in contract["build"]["macros"]}
     require(
         macros["__SSE2__"]

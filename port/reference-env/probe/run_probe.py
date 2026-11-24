@@ -13,7 +13,8 @@
 
 Exit status 1 means the environment contract does not hold (identity, libm
 dispatch, FP control state, runtime formatting family). libm dispatch is proved
-per function from a traced call against the locked libm (dispatch_proof.py). Exit status 4 means a
+per function from a traced call against copies of the locked libm and debug
+file kept in the output (dispatch_proof.py). Exit status 4 means a
 C++/Rust comparison differs. Host-default dispatch and separate-versus-paired
 libm calls are diagnostic comparisons. Every difference is reported with its
 count and examples; none is accepted. Nothing here qualifies the candidate.
@@ -47,9 +48,14 @@ def sha256(path):
     return digest.hexdigest()
 
 
+# Wall-clock bound of any one command; subprocess kills the command on expiry
+# (a traced grandchild dies with its tracer through PTRACE_O_EXITKILL).
+COMMAND_TIMEOUT = 1800
+
+
 def run(command, env=None, stdout=None):
     print("+ " + shlex.join(command), file=sys.stderr)
-    return subprocess.run(command, check=True, env=env, stdout=stdout, text=True)
+    return subprocess.run(command, check=True, env=env, stdout=stdout, text=True, timeout=COMMAND_TIMEOUT)
 
 
 def shim_flags(build):
@@ -92,7 +98,7 @@ def build(out, oracle_build):
         matrix = out / "bin" / "matrix_probe"
         compile_command = [compiler, *flags, "-I", str(HERE), "-c", str(HERE / "matrix_probe.cpp"),
                            "-o", str(objects)]
-        subprocess.run(compile_command, check=True, cwd=directory)
+        subprocess.run(compile_command, check=True, cwd=directory, timeout=COMMAND_TIMEOUT)
         link_command = [compiler, "-O3", "-fno-fast-math", "-ffp-contract=off", str(objects), "-o", str(matrix)]
         run(link_command)
         built["matrix"] = {"flags_from": reference_file, "compile_command": compile_command,
@@ -122,9 +128,20 @@ def run_probes(out, candidate, sweep_count, has_matrix):
     return results
 
 
-def dispatch_report(observation, facts, lock, candidate):
+def dispatch_report(out, observation, environment, lock, candidate):
     """Per-function dispatch chain proof; see dispatch_proof.py."""
-    return dispatch_proof.dispatch_report(observation, facts, lock, candidate)
+    return dispatch_proof.run_report(out, observation, environment, lock, candidate)
+
+
+def copy_locked_libm(out, lock):
+    """Keep the locked libm and debug file with the run, so its proof can be rechecked."""
+    (out / "libm").mkdir()
+    for source, name in ((lock["libm"]["path"], dispatch_proof.LIBM_COPY),
+                         (lock["libm"]["debug_file"], dispatch_proof.DEBUG_COPY)):
+        shutil.copyfile(source, out / name)
+    _libm, _debug, problems = dispatch_proof.locked_libm(out, lock)
+    if problems:
+        raise SystemExit("installed libm files differ from the lock: " + "; ".join(problems))
 
 
 def sweep_differences(left, right, limit=20):
@@ -174,9 +191,7 @@ def field_differences(left, right, fields, key=("x",)):
 
 def comparison_report(out, results, lock, candidate, environment):
     contract = results["contract"]
-    default_report, _ = dispatch_report(
-        dispatch_proof.resolve_objects(results["host-default"], environment["loaded_objects"]),
-        environment["libm"]["dispatch_facts"], lock, candidate)
+    default_report, _ = dispatch_report(out, results["host-default"], environment, lock, candidate)
     return {
         "contract_vs_host_default_dispatch": {
             "note": "Host CPU dispatch without GLIBC_TUNABLES; informational, not the reference.",
@@ -211,9 +226,7 @@ def analyse(out, results, lock, candidate, built):
         checks.append({"check": name, "passed": bool(passed), "detail": detail})
 
     environment = json.loads((out / "environment.json").read_text(encoding="utf-8"))
-    report, violations = dispatch_report(
-        dispatch_proof.resolve_objects(contract, environment["loaded_objects"]),
-        environment["libm"]["dispatch_facts"], lock, candidate)
+    report, violations = dispatch_report(out, contract, environment, lock, candidate)
     check("every checked libm function executes its locked SSE2 implementation (traced chain)", not violations,
           {"dispatch": report, "violations": violations})
     state = contract["floating_point_state"]
@@ -290,6 +303,7 @@ def main():
     candidate = tomllib.loads((REFENV / "candidate.toml").read_text(encoding="utf-8"))
     run([sys.executable, str(REFENV / "image/verify_image.py"), "--lock", str(REFENV / "inputs.lock.json"),
          "--candidate", str(REFENV / "candidate.toml"), "--expect", str(REFENV / "image-identity.json")])
+    copy_locked_libm(out, lock)
     built = build(out, args.oracle_build.resolve() if args.oracle_build else None)
     results = run_probes(out, candidate, args.sweep_count, args.oracle_build is not None)
     with open(out / "environment.json", "w", encoding="utf-8") as stream:

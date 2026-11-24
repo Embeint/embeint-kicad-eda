@@ -23,6 +23,7 @@ SHT_GNU_VERSYM = 0x6FFFFFFF
 STT_FUNC = 2
 STT_GNU_IFUNC = 10
 SHN_UNDEF = 0
+SHF_EXECINSTR = 4
 SYMBOL_TYPES = {0: "NOTYPE", 1: "OBJECT", 2: "FUNC", 10: "IFUNC"}
 RELOCATION_TYPES = {6: "R_X86_64_GLOB_DAT", 7: "R_X86_64_JUMP_SLOT", 8: "R_X86_64_RELATIVE",
                     37: "R_X86_64_IRELATIVE"}
@@ -172,6 +173,15 @@ class Elf64:
             for offset in range(section[4], section[4] + section[5], entsize):
                 r_offset, info, addend = struct.unpack_from("<QQq", self.data, offset)
                 yield r_offset, info & 0xFFFFFFFF, info >> 32, addend
+
+    def code(self, address, maximum=15):
+        """Up to maximum bytes from address inside one executable PROGBITS section."""
+        for fields in self.sections:
+            start, length = fields[3], fields[5]
+            if fields[1] == 1 and fields[2] & SHF_EXECINSTR and start <= address < start + length:
+                offset = fields[4] + address - start
+                return self.data[offset:offset + min(maximum, start + length - address)]
+        raise ValueError(f"Address {address:#x} is not in executable code")
 
     def read(self, address, size):
         """Bytes at a virtual address inside one PROGBITS section."""
