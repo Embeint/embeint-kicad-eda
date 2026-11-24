@@ -3,25 +3,31 @@ name: Rust MCP parity
 # Roadmap gate 4: the native MCP (rust/embeint-ipc, rust/embeint-mcp) against the Python MCP it
 # ports, on the same protocol fixtures (rust/parity/mcp_parity.py, without KiCad).  It also runs
 # when the protocol or the ported Python code changes, so a change there that the Rust server
-# does not follow fails here.  Formatting and lints for the whole workspace run in rust-layout.yml.
+# does not follow fails here.  Formatting and lints for the embeint-* crates run in rust-layout.yml.
+# The kicad-* port crates on the rust branch are not part of the MCP, so they do not run it.
 on:
   pull_request:
-    paths:
-      - "rust/**"
+    paths: &mcp-paths
+      - "rust/Cargo.toml"
+      - "rust/Cargo.lock"
+      - "rust/embeint-ipc/**"
+      - "rust/embeint-layout/**"
+      - "rust/embeint-mcp/**"
+      - "rust/parity/**"
       - "api/proto/**"
       - "tools/live_schematic_mcp/**"
       - ".github/workflows/rust-mcp.yml"
   push:
     branches: [main, live-schematic-ipc]
-    paths:
-      - "rust/**"
-      - "api/proto/**"
-      - "tools/live_schematic_mcp/**"
-      - ".github/workflows/rust-mcp.yml"
+    paths: *mcp-paths
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: rust-mcp-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   # The same pinned toolchain as rust-layout.yml
