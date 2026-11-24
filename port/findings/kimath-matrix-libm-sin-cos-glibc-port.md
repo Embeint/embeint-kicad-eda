@@ -39,7 +39,7 @@ results. The `__sincostab` table and every constant equal the bytes the locked m
 loads. The glibc files are LGPL-2.1-or-later; `glibc_trig.rs` keeps their IBM and FSF notices
 and, as LGPL-2.1 section 3 permits, is distributed under GPL-3.0-or-later like the crate.
 
-## Evidence (static; runtime NOT RUN in this phase)
+## Evidence
 
 - A Python transliteration of the source equals the genuine outputs on the 2,000,000-angle
   contract sweep, the 37 probe values (`sin`, `cos`, `sincos`) and all 650 set-rotation oracle
@@ -55,13 +55,29 @@ and, as LGPL-2.1 section 3 permits, is distributed under GPL-3.0-or-later like t
   not part of this repository; their results are recorded here and in the data file headers.
   The genuine data came from candidate reference image `8b70857a…` (environment `1b4…`),
   which remains UNQUALIFIED.
-- The Rust module is a line-by-line port of the same source; its unit tests compare it with
-  the genuine data and the emulated domain. **They have not been compiled or run yet.**
+- The Rust module is a line-by-line port of the same source; its unit tests compare it with the
+  retained genuine data and the emulated domain. A parent run at commit `92448b5b` on macOS
+  arm64 (Rust 1.99.1, Node 24.16.0) compiled the package and ran its tests natively in debug
+  and release and as `wasm32-wasip1` tests in debug and release under Node's WASI: each run had
+  17 tests pass and 2 ignored, and clippy `--all-targets -D warnings` was clean. A
+  `wasm32-unknown-unknown` export of the public `SetRotation` (debug and release) matched all
+  325 retained genuine set-rotation replies (285 double, 40 int) and the 37 retained genuine
+  `sincos` values, with 0 mismatches and no host imports. These compare with retained genuine
+  records; the two ignored fresh full-domain reference tests have NOT RUN, and no fresh C++
+  oracle or Linux run is claimed.
+
+The claim that results agree on every target follows from construction: IEEE binary64
+operations in a fixed order, no contraction, no host libm, under the default floating-point
+environment (round to nearest, no flush-to-zero or denormals-are-zero). Only the runs listed
+here measure it.
 
 ## Remaining conditions
 
-- Hosted CI must run the genuine full-domain comparison natively (debug, release) and in wasm
-  (`rust/kicad-math/tests/data/glibc_trig/README.md`).
+- The genuine full-domain comparison (`port/glibc-trig/README.md`, workflow
+  `rust-glibc-trig.yml`) must pass natively (debug, release), as `wasm32-wasip1` tests (debug,
+  release) and through `SetRotation` in `wasm32-unknown-unknown` (debug, release). It is a
+  targeted check of this prerequisite: the math unit's full corpus gate stays as it is and
+  still fails on the known mixed-NaN cases until those are integrated.
 - The live oracle must run with the SSE2 variant (the reference image sets the tunables);
   on an FMA-capable runner without `GLIBC_TUNABLES` the `set-rotation-variant-*` cases differ
   by design.

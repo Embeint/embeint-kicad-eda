@@ -21,22 +21,30 @@
 //! evaluated differently from `sin` and `cos`: for `0.855469 <= |x| < 2.426265` it reduces
 //! the argument differently, and its quadrant handling negates the reduced argument instead
 //! of the result. No input is known where the bits differ, but the three functions are
-//! ported separately so that each is exact by construction.
+//! ported separately so that none relies on that observation.
 //!
-//! Every finite path is the C source's sequence of IEEE binary64 round-to-nearest additions,
-//! subtractions and multiplications, in the source's order, with no fused multiply-add (Rust
-//! never contracts), no division and no host `libm`; table lookups use integer views of the
-//! same values as the C `union`. Results are therefore identical on every target with IEEE
-//! binary64 arithmetic (x86-64 SSE2, AArch64, wasm32). Non-finite inputs never reach
-//! arithmetic: `x / x` is replaced by the result the reference's SSE2 `divsd` produces, so
-//! NaN payloads do not depend on the target's NaN propagation.
+//! Every finite path is the C source's sequence of IEEE binary64 additions, subtractions and
+//! multiplications, in the source's order, with no fused multiply-add (Rust does not contract
+//! floating-point expressions), no division and no host `libm`; table lookups use integer
+//! views of the same values as the C `union`. Non-finite inputs never reach arithmetic:
+//! `x / x` is replaced by the result the reference's SSE2 `divsd` produces, so NaN payloads do
+//! not depend on the target's NaN propagation.
+//!
+//! The port assumes the default floating-point environment: round to nearest, ties to even,
+//! with subnormals neither flushed nor treated as zero. Rust code cannot change that mode
+//! itself, but foreign code in the same thread can (for example by setting MXCSR's rounding,
+//! flush-to-zero or denormals-are-zero bits); results under any other environment are not
+//! defined. Under the default environment the results are designed to be identical on every
+//! target whose `f64` operations are IEEE binary64 (x86-64 SSE2, AArch64, wasm32). That is a
+//! construction argument, not a measurement: what has been compared with the genuine library
+//! on which targets is recorded in `port/findings/kimath-matrix-libm-sin-cos-glibc-port.md`.
 //!
 //! Not modelled, because they do not change the returned value: `errno` (`EDOM` for an
 //! infinite argument), the underflow flag raised for subnormal arguments, and the rounding
 //! mode save/restore (`SET_RESTORE_ROUND_53BIT`), which makes the C functions round to
-//! nearest whatever the caller's mode; Rust arithmetic always rounds to nearest. The
-//! reference process runs with MXCSR `0x1f80` (no flush-to-zero, no denormals-are-zero),
-//! like wasm and Rust's default floating-point environment.
+//! nearest whatever the caller's rounding mode (but keeps its flush-to-zero and
+//! denormals-are-zero bits). The reference probe requires MXCSR control bits `0x1f80`, the
+//! default environment this port assumes; wasm has no other mode.
 
 /// Low 52 bits: the binary64 significand field.
 const SIGNIFICAND_MASK: u64 = 0x000f_ffff_ffff_ffff;

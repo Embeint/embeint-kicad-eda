@@ -25,10 +25,19 @@ PR55 candidate reference image `8b70857a…` (environment `1b4…`), which is no
 `KICAD_GLIBC_TRIG_COUNT` (default 1,000,000) fixed-seed inputs (seed `53696e436f73476c`,
 eight interleaved families: uniform bit patterns, all exponents, the huge-argument reducer,
 near multiples of pi/2, near branch thresholds, near table edges, the principal range, integer
-and tenth-degree angles). A probe linked to the genuine locked glibc (not part of this
-repository; it must refuse unless `sin`, `cos` and `sincos` resolve to the locked SSE2
-implementations) writes `x, sin, cos, sincos_sin, sincos_cos` for each input;
-`reference_records` (ignored) compares every record bit for bit. Running it natively (debug
-and release), as a `wasm32-wasip1` test binary under Node's WASI and through `SetRotation` in
-`wasm32-unknown-unknown` would cover every target the port claims. None of these tests has
-been compiled or run yet.
+and tenth-degree angles). The harness in `port/glibc-trig` (workflow
+`.github/workflows/rust-glibc-trig.yml`) builds a probe against the genuine locked glibc,
+which refuses unless `sin`, `cos` and `sincos` resolve to the locked SSE2 implementations, and
+writes `x, sin, cos, sincos_sin, sincos_cos` for each input; `reference_records` (ignored)
+compares every record bit for bit, natively (debug and release), as a `wasm32-wasip1` test
+binary under Node's WASI, and through `SetRotation` in `wasm32-unknown-unknown`. Emulated rows
+never stand in for that fresh reference.
+
+Status: a parent run at commit `92448b5b` on macOS arm64 (Rust 1.99.1, Node 24.16.0) compiled
+the package and ran its tests natively in debug and release and as `wasm32-wasip1` tests in
+debug and release under Node's WASI: each run had 17 tests pass and 2 ignored, and clippy
+`--all-targets -D warnings` was clean. A `wasm32-unknown-unknown` export of the public
+`SetRotation` (debug and release) matched all 325 retained genuine set-rotation replies (285
+double, 40 int) and the 37 retained genuine `sincos` values, with 0 mismatches and no host
+imports. These compare with retained genuine records; the two ignored fresh full-domain
+reference tests have NOT RUN, and no fresh C++ oracle or Linux run is claimed.
