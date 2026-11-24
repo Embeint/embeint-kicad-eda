@@ -158,19 +158,23 @@ earlier requests never change:
 
 ## Known reference-environment dependence
 
-These are recorded findings, not tolerances. Each needs a parent/user decision.
+These are recorded reference constraints, not comparison tolerances. Native run
+45380617555 supplies the initial scoped baseline described below; older findings
+retain their original measured revisions.
 
 - [Mixed NaNs](../../port/findings/kimath-matrix-mixed-nan-payloads.md): which NaN
   payload survives depends on the compiler's operand order. The qualified Linux run
   mismatched on 1,824 of 3,500 requests before the arithmetic followed the pinned oracle's
-  sites (`generated.rs` on explicit SSE2 rules); machine eligibility of the compared oracle
-  (`port/tools/kimath_nan/README.md`) has not run yet.
+  sites (`generated.rs` on explicit SSE2 rules). The compared oracle subsequently passed
+  full object/context eligibility and exact emission in run 45380617555.
 - [libm](../../port/findings/kimath-matrix-libm-sin-cos.md) and its
   [qualified addendum](../../port/findings/kimath-matrix-libm-sin-cos-qualified-addendum.md):
   with std's host libm, wasm differed on 24 of 275 angles, and glibc's ifunc variant changes
   `sin`/`cos` by 1 ulp for some angles. `set_rotation` now uses a portable port of the pinned
   glibc's SSE2 `sincos` ([addendum](../../port/findings/kimath-matrix-libm-sin-cos-glibc-port.md));
-  the oracle must run with the SSE2 variant, and the genuine native/wasm check is pending.
+  the oracle must run with the SSE2 variant. Fresh genuine-library native/WASI/wasm
+  comparisons passed in the dedicated trig workflow; their revision bindings remain
+  in the addendum and CI artifacts.
 - [Stream](../../port/findings/kimath-matrix-stream-libstdcxx-lwg4084.md): libstdc++ 15
   prints `INF`/`NAN` for `uppercase` + `fixed`, while earlier runtimes print `inf`/`nan`. The
   port follows the pre-15 runtime of the hosted CI gate.
@@ -181,3 +185,7 @@ These are recorded findings, not tolerances. Each needs a parent/user decision.
 ## Validation
 
 See `validation/` for the recorded runs: commands, environment, counts and hashes.
+The initial 7,460-case golden and immutable live blessing evidence come from
+`validation/2026-11-24-bb3262fc/`. That native run passed all 159 gate checks,
+debug/release comparisons and refusal suites before live propose/bless/check.
+The unit remains partial for its documented reference/type/locale scope.
