@@ -23,6 +23,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: rust-mcp-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   # The same pinned toolchain as rust-layout.yml
   RUST_TOOLCHAIN: "1.99.1"

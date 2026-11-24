@@ -1,5 +1,5 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
-# Product CI on existing Proxmox build runners
+# Product and Rust developer CI on existing Proxmox build runners
 
 The product MCP contracts and Rust layout workflows can opt into the repository-scoped
 `proxmox-kicad-isolated-01` runner, with the single custom label
@@ -87,3 +87,48 @@ repository registration only when retiring this runner. Numerical routing remain
 unchanged throughout.
 
 Measured installation details and run evidence are in [validation.md](validation.md).
+
+## Rust-port developer feedback
+
+`rust-port-preflight.yml` adds ordinary cached developer checks on pushes to
+`rust` and repository writers' `t3/**` branches. It uses the existing isolated
+runner while `KICAD_CI_RUNNER_ENABLED=true`, otherwise GitHub Ubuntu 24.04.
+The manual `use_hosted` option supplies a baseline or temporary fallback without
+changing repository settings. The installed admission hook remains unchanged:
+PR events and other repositories are refused. No Docker access, sudo, additional
+memory, private-network access or runner registration is added.
+
+The preflight checks the full workspace's formatting, clippy and tests, builds
+every portable package selected by the existing policy tool for wasm32, and
+validates unit/source accounting. Commands use the pinned Rust toolchain and at
+most two build jobs. A separate ordinary target cache lives under
+`$HOME/build-cache/rust-port-preflight-<toolchain>`; incremental compilation is
+disabled to bound its size. Existing MCP/layout caches are separate. Every check
+still executes; no native oracle, golden or clean image/rebuild qualification
+uses these artifacts. This supplemental feedback does not satisfy or replace
+the hosted `rust-port`, numerical or platform-package checks.
+
+Pushes check their exact event SHA even if the branch subsequently moves. A
+manual run may select another existing `rust`/`t3/` branch in this repository;
+its SHA is resolved once before checkout and recorded separately from the
+workflow revision. Arbitrary SHAs, tags, external repositories, PR refs and
+wildcard branch names are refused. This allows checking an existing port topic
+before it has merged the workflow itself. The resulting manual check belongs to
+the workflow run, not to the selected topic's required PR checks.
+
+Read-only preflight artifacts record source identity, runner, cgroup limits,
+tools and actual check logs. They explicitly say numerical qualification is
+false. Per-branch preflight concurrency cancels superseded developer runs. The
+hosted Rust-port, Rust MCP and package workflows also cancel superseded PR
+heads; tag releases, push qualification and manual migration runs retain their
+existing non-cancelling behavior.
+
+Run the source-resolution/admission regressions with:
+
+```sh
+python3 -B -m unittest discover -s tools/ci/proxmox-runner -p 'test_*.py' -v
+```
+
+The tests execute the actual inline resolver and verify event-SHA pinning,
+manual branch resolution, wrong repository/event refusals and malformed or
+ambiguous remote references. Hosted/native numerical policies remain unchanged.

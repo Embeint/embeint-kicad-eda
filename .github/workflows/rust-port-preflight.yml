@@ -1,0 +1,232 @@
+name: Rust port developer preflight
+
+# Repository writers' topic pushes get early cached feedback while the PR's
+# authoritative hosted checks continue. Never execute pull-request events here.
+on:
+  push:
+    branches: [rust, "t3/**"]
+    paths:
+      - "rust/**"
+      - "port/**"
+      - "west.yml"
+      - "tools/ci/proxmox-runner/**"
+      - ".github/workflows/rust-port-preflight.yml"
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Existing repository rust or t3/ branch; empty uses this workflow branch
+        type: string
+        default: ""
+      use_hosted:
+        description: Use GitHub for a baseline or temporary fallback
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rust-preflight-${{ inputs.branch || github.ref_name }}-${{ inputs.use_hosted && 'hosted' || 'auto' }}
+  cancel-in-progress: true
+
+env:
+  RUST_TOOLCHAIN: "1.99.1"
+  CARGO_BUILD_JOBS: "2"
+  CARGO_INCREMENTAL: "0"
+  PYTHONDONTWRITEBYTECODE: "1"
+
+jobs:
+  rust-preflight:
+    if: >-
+      github.repository == 'Embeint/embeint-kicad-eda' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      (github.ref == 'refs/heads/rust' || startsWith(github.ref, 'refs/heads/t3/')) &&
+      github.event.deleted != true
+    runs-on: ${{ fromJSON(vars.KICAD_CI_RUNNER_ENABLED == 'true' && !inputs.use_hosted && '["kicad-ci-isolated-linux-x64"]' || '["ubuntu-24.04"]') }}
+    timeout-minutes: 30
+    steps:
+      - name: Resolve an exact trusted repository source
+        id: source
+        env:
+          MANUAL_BRANCH: ${{ inputs.branch }}
+          PUSH_DELETED: ${{ github.event.deleted }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          /usr/bin/python3 - <<'PY'
+          # BEGIN SOURCE RESOLVER
+          import re
+          import subprocess
+
+          REPOSITORY = "Embeint/embeint-kicad-eda"
+
+          def checked_branch(branch):
+              if not re.fullmatch(r"(?:rust|t3/[A-Za-z0-9._/-]+)", branch):
+                  raise ValueError("only repository rust and t3/ branches are accepted")
+              subprocess.run(["git", "check-ref-format", "--branch", branch],
+                             check=True, capture_output=True)
+              return branch
+
+          def remote_sha(branch):
+              ref = "refs/heads/" + branch
+              result = subprocess.run(
+                  ["git", "ls-remote", "--exit-code",
+                   "https://github.com/" + REPOSITORY + ".git", ref],
+                  check=True, capture_output=True, text=True, timeout=60)
+              rows = result.stdout.splitlines()
+              if len(rows) != 1:
+                  raise ValueError("expected one existing repository branch")
+              match = re.fullmatch(r"([0-9a-f]{40})\t" + re.escape(ref), rows[0])
+              if match is None:
+                  raise ValueError("remote did not prove the requested branch")
+              return match[1]
+
+          def trusted_source(event, repository, ref, sha, manual_branch="",
+                             deleted="", lookup=remote_sha):
+              if repository != REPOSITORY or event not in ("push", "workflow_dispatch"):
+                  raise ValueError("only trusted repository push/manual events are accepted")
+              if not ref.startswith("refs/heads/"):
+                  raise ValueError("workflow must run from a repository branch")
+              workflow_branch = checked_branch(ref[len("refs/heads/"):])
+              if event == "push":
+                  if deleted == "true" or manual_branch:
+                      raise ValueError("deleted or overridden push source")
+                  branch = workflow_branch
+                  # Pin the actual push event, even if its branch has since advanced.
+              else:
+                  branch = checked_branch(manual_branch or workflow_branch)
+                  sha = lookup(branch)
+              if re.fullmatch(r"[0-9a-f]{40}", sha) is None:
+                  raise ValueError("expected an exact commit SHA")
+              return branch, sha
+          # END SOURCE RESOLVER
+
+          import os
+          branch, sha = trusted_source(
+              os.environ["GITHUB_EVENT_NAME"], os.environ["GITHUB_REPOSITORY"],
+              os.environ["GITHUB_REF"], os.environ["GITHUB_SHA"],
+              os.environ.get("MANUAL_BRANCH", ""), os.environ.get("PUSH_DELETED", ""))
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"branch={branch}\nsha={sha}\n")
+          print(f"Developer preflight source: {branch} at {sha}")
+          PY
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ steps.source.outputs.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Prepare isolated ordinary build cache and record source/tools
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+          SOURCE_BRANCH: ${{ steps.source.outputs.branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          report="$RUNNER_TEMP/rust-preflight-report"
+          mkdir -p "$report"
+          if test "$RUNNER_ENVIRONMENT" = self-hosted; then
+            target="$HOME/build-cache/rust-port-preflight-$RUST_TOOLCHAIN"
+          else
+            target="$RUNNER_TEMP/rust-port-preflight-target"
+          fi
+          mkdir -p "$target"
+          echo "CARGO_TARGET_DIR=$target" >> "$GITHUB_ENV"
+          echo "PREFLIGHT_REPORT=$report" >> "$GITHUB_ENV"
+          /usr/bin/python3 - "$report/source.json" <<'PY'
+          import json, os, platform, sys
+          from pathlib import Path
+          result = {
+              "purpose": "cached developer preflight, not numerical qualification",
+              "source_sha": os.environ["SOURCE_SHA"],
+              "source_branch": os.environ["SOURCE_BRANCH"],
+              "workflow_sha": os.environ["GITHUB_SHA"],
+              "runner": os.environ["RUNNER_NAME"],
+              "runner_environment": os.environ["RUNNER_ENVIRONMENT"],
+              "platform": platform.platform(),
+              "compiled_cache": True,
+              "numerical_qualification": False,
+          }
+          for name in ("memory.max", "memory.swap.max", "cpu.max", "pids.max"):
+              path = Path("/sys/fs/cgroup") / name
+              result[name] = path.read_text().strip() if path.exists() else "unavailable"
+          Path(sys.argv[1]).write_text(json.dumps(result, indent=2) + "\n")
+          PY
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        if: runner.environment == 'github-hosted'
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ${{ env.CARGO_TARGET_DIR }}
+          key: rust-preflight-${{ runner.os }}-${{ env.RUST_TOOLCHAIN }}-${{ hashFiles('rust/Cargo.lock') }}
+      - name: Bootstrap pinned workspace dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python port/tools/bootstrap_west.py
+          python port/tools/bootstrap_west.py --check
+      - name: Install the pinned portable Rust toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component clippy,rustfmt --target wasm32-unknown-unknown
+          rustup default "$RUST_TOOLCHAIN"
+          { rustc --version; cargo --version; python --version; } > "$PREFLIGHT_REPORT/tools.txt"
+      - name: Format, lint and test the complete Rust workspace
+        working-directory: rust
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo fmt --all --check 2>&1 | tee "$PREFLIGHT_REPORT/fmt.log"
+          cargo clippy --locked --workspace --all-targets -j2 -- -D warnings 2>&1 | tee "$PREFLIGHT_REPORT/clippy.log"
+          cargo test --locked --workspace -j2 2>&1 | tee "$PREFLIGHT_REPORT/tests.log"
+      - name: Build every registered portable crate for WebAssembly
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY' 2>&1 | tee "$PREFLIGHT_REPORT/wasm.log"
+          import json, subprocess, sys
+          from pathlib import Path
+          sys.path.insert(0, "port/tools")
+          from check_goldens_policy import portable_packages
+          manifest = str(Path("rust/Cargo.toml"))
+          metadata = json.loads(subprocess.check_output([
+              "cargo", "metadata", "--locked", "--no-deps", "--format-version", "1",
+              "--manifest-path", manifest], text=True))
+          packages = portable_packages(metadata)
+          print("Portable crates:", ", ".join(packages), flush=True)
+          args = ["cargo", "build", "--locked", "--manifest-path", manifest,
+                  "--target", "wasm32-unknown-unknown", "-j2"]
+          for package in packages:
+              args += ["-p", package]
+          subprocess.run(args, check=True)
+          PY
+      - name: Validate unit records and source accounting
+        shell: bash
+        run: |
+          set -euo pipefail
+          python port/tools/validate_units.py 2>&1 | tee "$PREFLIGHT_REPORT/units.log"
+      - name: Retain preflight outcome and its limits
+        if: always()
+        env:
+          CHECK_OUTCOME: ${{ job.status }}
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/rust-preflight-report"
+          mkdir -p "$report"
+          printf 'Source: %s\nStatus: %s\nNot numerical qualification; hosted checks remain authoritative.\n' \
+            "$SOURCE_SHA" "$CHECK_OUTCOME" > "$report/outcome.txt"
+          cat "$report/outcome.txt" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: rust-preflight-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rust-preflight-report/
+          retention-days: 7
+          if-no-files-found: error

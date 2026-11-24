@@ -15,6 +15,12 @@ on:
 permissions:
   contents: read
 
+# Superseded PR heads need not consume another full clean oracle build. Pushes
+# and manual migrations keep unique groups and are never cancelled by this rule.
+concurrency:
+  group: rust-port-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   RUST_TOOLCHAIN: "1.99.1"
   CARGO_BUILD_JOBS: "8"
