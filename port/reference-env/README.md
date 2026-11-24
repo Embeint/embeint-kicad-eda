@@ -777,6 +777,24 @@ locked hash `cdb2f31d809f589719a53c6ad15f255b27569c4059542ada282aaa21b8e164b0`.
 The query cannot authorize different metadata: the original digest and subsequent
 signature verification remain required.
 
+The subsequent integrated [run 45346518074](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45346518074)
+passed at PR head `16992e2c719b760616f45d7d26cf6a0f9b67e926`. Its clean Linux
+CI merge checkout `ab71dc254721c6be2acc005f995d57c793c727e3` has exactly the same
+tree as that head. The image and no-cache rebuild have byte-identical installed
+identity records; all 76 strict oracle compilations, eight CTests, twelve probe
+checks and the 2,000,000-angle C++/Rust comparison passed. The official corpus
+route compared R-tree 1,525, MD5 5,973, resistors 1,050 and IEC 60664 14,190,
+all matching their goldens with zero failures, deferrals or unprocessed cases.
+This supersedes the pending integrated-run statements above, while preserving
+their historical failures. It establishes this exercised candidate scope;
+`asin`/`acos`, wider dispatch branches and second-host qualification remain open.
+It does not adopt or publish an image, or qualify the separate PR #50/#51 units.
+
+The follow-up URL portability fix uses POSIX path components when constructing
+the index's by-hash fallback. Native Windows path separators must never enter a
+URL. Its regression exercises Windows path semantics without a network request;
+the native result above remains evidence for `16992e2`, pending the follow-up's CI.
+
 ## Licences
 
 Primary implementation references: [glibc 2.39 sin/cos selector](https://github.com/bminor/glibc/blob/glibc-2.39/sysdeps/x86_64/fpu/multiarch/ifunc-avx-fma4.h),
