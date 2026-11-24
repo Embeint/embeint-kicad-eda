@@ -42,11 +42,11 @@
   }
  },
  "context_review": {
-  "basis": "Re-derivation of the reviewed binary context (lock contexts and assumptions A1-A5) against the measured object; awaiting an independent reviewer. No reviewer identity is recorded until one signs.",
+  "basis": "Parent source/context assessment and native run 45376487021; review/object-context-review.md SHA-256 cc05c2b72c0062e9fca8e833ad4f55b69a5ddeefc45268061d380edf0ede45cc. A1-A5 and callee contracts are explicit manual assumptions; this is not whole-unit or universal reference qualification.",
   "link_digest": "3f640aed3a1cd89b131ee02108346b266ebad9b108b2b12d52bfc4b8a5911601",
   "object_sha256": "97c5f4527c06760a405a5c2f11b99e1ed1524c9b14c8893cbfdc694f580feeb8",
-  "reviewer": null,
-  "status": "PENDING"
+  "reviewer": "Codex (parent object-context review, 2026-11-24)",
+  "status": "REVIEWED"
  },
  "emission": {
   "generated_rs_sha256": "d24ff0f24a1fae55cc8e9eb85fa783282030083802d58eb0e332be331c6935af",
@@ -1032,7 +1032,7 @@
    "start": 894032
   }
  ],
- "status": "DERIVED-PENDING-REVIEW",
+ "status": "REVIEWED-EXPERIMENTAL-UNQUALIFIED",
  "toolchain": {
   "glibc": "glibc 2.39",
   "gxx": {

@@ -1,5 +1,10 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
-# Object context review: PENDING (not reviewed)
+# Historical object context review request
+
+This is the preserved request from the original source checkpoint. The current
+parent assessment is [object-context-review.md](object-context-review.md), bound
+by hash in the lock's review record. The pending statements below describe the
+original checkpoint and do not override the later review or native run results.
 
 Status: **PENDING**. No reviewer has examined or signed this record. `object.lock.json` carries
 `context_review.status = "PENDING"` and `reviewer = null`. The gate row "object context review

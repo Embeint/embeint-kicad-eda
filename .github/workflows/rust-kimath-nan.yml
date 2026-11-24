@@ -7,7 +7,8 @@ name: Rust kimath NaN sites
 #   commutativity-only finite proof; it is NOT machine eligibility and needs no oracle.
 # object-reference (manual only): builds the current sealed candidate, captures actual
 #   objects/includes/link order and runs object mode in that image. A pending review fails;
-#   no golden or lock is written and no image is pushed.
+#   golden generation is a second explicit opt-in after a full PASS, artifacts only.
+#   No lock, source commit or image is published by the job.
 # frozen-reference (manual dispatch only): builds the oracle from the exact unit source
 #   snapshot in the pinned reference image at the locked /work/kicad-port paths, then runs the
 #   gate's full phase (machine eligibility, context and arithmetic) against the reviewed locks
@@ -19,18 +20,24 @@ on:
     branches: [rust]
     paths:
       - "rust/kicad-math/**"
+      - "rust/kicad-math-shim/**"
       - "port/tools/kimath_nan/**"
       - ".github/workflows/rust-kimath-nan.yml"
   push:
     branches: [rust]
     paths:
       - "rust/kicad-math/**"
+      - "rust/kicad-math-shim/**"
       - "port/tools/kimath_nan/**"
       - ".github/workflows/rust-kimath-nan.yml"
   workflow_dispatch:
     inputs:
       object_reference:
-        description: Capture the current image build and run the pending object gate (no golden)
+        description: Capture the current image build and run the full object gate
+        type: boolean
+        default: false
+      generate_golden:
+        description: After full object eligibility, generate only the exact initial math baseline as artifacts
         type: boolean
         default: false
       frozen_reference:
@@ -77,6 +84,8 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}/port/tools/kimath_nan/gate
         run: python -B -m unittest discover -s "$NANTOOLS/gate/tests" -p 'test_*.py' -v
+      - name: Initial golden authorization controls
+        run: python -B -m unittest discover -s rust/kicad-math-shim -p 'test_approve_golden.py' -v
 
   object-reference:
     if: github.event_name == 'workflow_dispatch' && inputs.object_reference
@@ -148,6 +157,62 @@ jobs:
               check_source
               test "$result" -eq 0
               cmp /out/generated.rs rust/kicad-math/src/generated.rs' 2>&1 | tee "$OUT/gate.log"
+      - name: Generate the exact initial golden after eligible live debug and release agreement
+        if: github.event_name == 'workflow_dispatch' && inputs.generate_golden
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The source guard remains on the sealed, read-only snapshot. Build
+          # dependencies and the new golden live in a separate disposable copy.
+          cp -a "$SNAPSHOT/source" "$OBJECT_WORK/golden-source"
+          mkdir -p "$OUT/golden"
+          docker run --rm --memory=4g --memory-swap=4g --cpus=2 \
+            --user "$(id -u):$(id -g)" -e HOME=/work/home -e CARGO_HOME=/work/home/cargo \
+            -e CARGO_TARGET_DIR=/work/math-golden-target -e CARGO_BUILD_JOBS=2 \
+            -e PYTHONDONTWRITEBYTECODE=1 -e "RUN_ID=$GITHUB_RUN_ID" \
+            -e "REVISION=$GITHUB_SHA" -e "SOURCE_SHA=$SOURCE_SHA" \
+            -v "$SNAPSHOT:/snapshot:ro" -v "$OBJECT_WORK/golden-source:/repo" \
+            -v "$OBJECT_WORK/oracle-work:/work" -v "$OUT:/out" -w /repo \
+            "$IMAGE" bash -c '
+              set -euo pipefail
+              check_source() { python3 /opt/refenv/source_binding.py check --bundle /snapshot \
+                --revision "$REVISION" --source-sha256 "$SOURCE_SHA"; }
+              trap check_source EXIT
+              check_source
+              python3 /opt/refenv/image/verify_image.py --lock /opt/refenv/inputs.lock.json \
+                --candidate /opt/refenv/candidate.toml --expect /out/inputs/image-identity.json
+              oracle=/work/kicad-port/oracle-build/kicad-oracle
+              cmp "$oracle" /out/inputs/kicad-oracle
+              python3 port/tools/bootstrap_west.py
+              .port-venv/linux/bin/west update
+              python3 port/tools/bootstrap_west.py --check
+              cargo build --locked --manifest-path rust/Cargo.toml -p kicad-difftest -p kicad-math-shim -j2
+              cargo build --locked --release --manifest-path rust/Cargo.toml -p kicad-math-shim -j2
+              unit=libs.kimath.include.math.application.pure.p001
+              runner=$CARGO_TARGET_DIR/debug/kicad-difftest
+              shim=$CARGO_TARGET_DIR/debug/kicad-math-shim
+              out=/out/golden
+              common=(--root /repo --unit "$unit" --oracle "$oracle")
+              "$oracle" --provenance > "$out/provenance.json"
+              for profile in debug release; do
+                rust=$CARGO_TARGET_DIR/$profile/kicad-math-shim
+                python3 rust/kicad-math-shim/test_refusals.py "$oracle" "$rust" > "$out/refusals-$profile.json"
+                "$runner" compare "${common[@]}" --rust "$rust" --report "$out/compare-$profile.json"
+              done
+              test ! -e "port/goldens/$unit.jsonl"
+              approval=(--approval "$out/approval.json" --provenance "$out/provenance.json")
+              "$runner" propose "${common[@]}" --rust "$shim" "${approval[@]}" --report "$out/propose.json"
+              python3 rust/kicad-math-shim/approve_golden.py --root /repo --approval "$out/approval.json" \
+                --gate /out/gate-full.json --run "$RUN_ID"
+              evidence="port/goldens/evidence/$unit-sse2-object-baseline-v1.json"
+              "$runner" bless "${common[@]}" --rust "$shim" "${approval[@]}" \
+                --evidence "$evidence" --report "$out/bless.json"
+              "$runner" check "${common[@]}" --rust "$shim" --report "$out/check.json"
+              cp "port/goldens/$unit.jsonl" "$out/golden.jsonl"
+              cp "$evidence" "$out/evidence.json"
+              cp "$shim" "$runner" "$out/"
+              sha256sum "$oracle" "$shim" "$runner" > "$out/binaries.sha256"' \
+            2>&1 | tee "$OUT/golden.log"
       - name: Retain image-stage facts even after failure
         if: ${{ always() }}
         shell: bash

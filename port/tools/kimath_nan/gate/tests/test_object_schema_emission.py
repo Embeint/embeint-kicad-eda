@@ -16,6 +16,8 @@ class ObjectSchemaTests(unittest.TestCase):
         self.digest = self.lock['emission']['generated_rs_sha256']
 
     def test_genuine_pending_shape_and_review_transition(self):
+        self.lock['status'] = 'DERIVED-PENDING-REVIEW'
+        self.lock['context_review'].update(status='PENDING', reviewer=None)
         self.assertEqual(objschema.errors(self.lock, self.digest), [])
         # Synthetic shape only: no gate or review is passed by this fixture.
         self.lock['context_review'].update(status='REVIEWED', reviewer='test fixture')

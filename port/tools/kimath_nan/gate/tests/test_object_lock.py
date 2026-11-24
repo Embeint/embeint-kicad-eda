@@ -33,14 +33,16 @@ class ObjectLockTests(unittest.TestCase):
         self.assertEqual(sha((LOCKS / 'graphs.lock.json').read_bytes()),
                          '2e972c598899483db242e020eeb698c371859a59f875e4771431ade59f0f91a9')
 
-    def test_object_lock_is_derived_and_pending(self):
+    def test_object_lock_has_its_own_recorded_context_review(self):
         o = self.olock
         self.assertEqual(sorted(o), sorted(objgate.OBJECT_LOCK_FIELDS))
         self.assertEqual(o['mode'], objgate.MODE)
-        self.assertEqual(o['status'], 'DERIVED-PENDING-REVIEW')
+        self.assertEqual(o['status'], 'REVIEWED-EXPERIMENTAL-UNQUALIFIED')
         rv = o['context_review']
-        self.assertEqual(rv['status'], 'PENDING')
-        self.assertIsNone(rv['reviewer'])
+        self.assertEqual(rv['status'], 'REVIEWED')
+        self.assertEqual(rv['reviewer'], 'Codex (parent object-context review, 2026-11-24)')
+        review = (GATE / 'review/object-context-review.md').read_bytes()
+        self.assertIn(sha(review), rv['basis'])
         self.assertEqual(rv['object_sha256'], o['home_object']['sha256'])
         link = {k: o['link'][k] for k in ('home_sections', 'provider_units', 'imports', 'externals')}
         self.assertEqual(rv['link_digest'], sha(objgate.canon(link)))

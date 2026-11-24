@@ -212,3 +212,15 @@ python -B port/tools/kimath_nan/gate/elfexec.py derive --oracle REVIEWED/kicad-o
   review.
 - **Scope.** GCC 13.3 with the fixed source, pin and flags and the reviewed ordered graph.
   Any other compiler output changes the object hash or the graph and fails.
+
+## Parent context review and initial baseline
+
+The 2026-11-24 parent assessment in `review/object-context-review.md` records
+clearance for the original object/link digest under the explicit A1-A5/callee
+assumptions. Only review metadata changed in the object lock; every measured
+field is preserved. Native run 45376487021 passed all mechanical rows and
+failed solely the then-pending named-review row. A new full PASS and exact
+emission are still required. Manual golden generation is a second explicit
+opt-in, pins all initial output bytes and uses the same eligible oracle for
+live propose/bless/check. Older pending paragraphs above retain their original
+checkpoint meaning; neither review nor a golden qualifies other toolchains.

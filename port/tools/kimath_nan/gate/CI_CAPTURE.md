@@ -3,8 +3,9 @@
 
 The manual `object-reference` job in `rust-kimath-nan.yml` supplies the inputs that
 ordinary rust-port artifacts lack. Dispatch with `object_reference=true`; all
-generation inputs default false. This job is read-only and never proposes/blesses
-goldens, signs a review, rebinds a lock or publishes an image.
+generation inputs default false. Normal capture never proposes/blesses goldens,
+signs a review, rebinds a lock or publishes an image. A separate explicit
+`generate_golden=true` opt-in generates artifacts only after the full gate passes.
 
 1. The accepted `qualify.sh` seals the exact clean Linux checkout, builds the locked
    image and oracle, compares a no-cache rebuild's installed identity and runs the
@@ -21,10 +22,19 @@ goldens, signs a review, rebinds a lock or publishes an image.
 4. A genuine full PASS must emit exactly the committed generated Rust bytes. A pending
    review or any other failure stays a failed job. Logs, actual objects/includes,
    reports and stage facts are retained even on failure.
+5. Only with `object_reference=true` and `generate_golden=true`, the job builds
+   debug/release Rust shims in a separate source copy. It compares all cases and
+   refusal fixtures with the same eligible oracle, then runs live propose/bless/check.
+   The approval boundary requires the exact initial 7,460-case corpus and previously
+   audited complete output digest, an empty prior golden, full gate/emission success
+   and the matching oracle hash. A changed answer, case, ordering, provenance or
+   binary refuses. Golden/evidence/reports are uploaded for review and import; the
+   job has no repository write permissions. The sealed snapshot is checked again.
 
 The separate frozen-reference job and original reviewed locks are unchanged. Its
 whole-binary/retained-manifest constraints remain explicit. Object mode remains
-unaccepted until the execution-mapping objection and context review are resolved.
+unaccepted until its full current-run checks pass. The parent context review is
+recorded in `review/object-context-review.md`; it grants no automatic gate PASS.
 
 Local verification before a native run: 30 binary-free tests passed (including four
 capture controls with clearly dummy files), every workflow shell block passed
