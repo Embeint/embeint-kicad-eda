@@ -112,4 +112,9 @@ edit vector.rs or claim the header RoundedHypot helper. Header callers needing
 that helper still need owner-approved narrow-path/unsigned-abs/root support;
 calling the source port does not certify those caller continuations. The parent
 must rerun newly enabled vector cases, preserving any remaining header-owned gaps.
+In PR #58's general Resize path, the concrete source-owned deferral is its
+`rescale_i64` helper. Adapt that helper to `rescale_i64_int128`, preserving the
+vector's error conversion and subsequent sqrt/round/sign reconstruction. A newly
+reached KiROUND call remains header-owned and may still defer; do not report it
+as a successful complete Resize solely because rescale is now available.
 PR #50 and other dependency integration remain parent work.
