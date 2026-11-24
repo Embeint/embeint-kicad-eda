@@ -74,7 +74,9 @@ jobs:
           node rust/kicad-resistors/wasm-test.mjs \
             rust/target/wasm32-unknown-unknown/release/examples/nonfinite_parity.wasm
       - name: Test evidence policy and staged gate
-        run: python -m unittest discover -s rust/kicad-difftest/tests -p test_policy.py -v
+        run: |
+          python -m unittest discover -s rust/kicad-difftest/tests -p test_policy.py -v
+          python -m unittest discover -s port/tools -p test_resistor_migration.py -v
       - name: Require evidence for changed goldens
         env:
           POLICY_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
@@ -106,27 +108,33 @@ jobs:
         env:
           ORACLE_JOBS: "2"
           GLIBC_TUNABLES: ${{ env.RESISTOR_GLIBC_TUNABLES }}
+          LD_LIBRARY_PATH: ""
         run: |
-          python port/oracle/prepare.py --output-dir "$RUNNER_TEMP/oracle-stage"
+          # setup-python's library path belongs to that interpreter. Use the
+          # distribution interpreter and loader for the reference toolchain.
+          export PATH="/usr/bin:/bin:$PATH"
+          /usr/bin/python3 port/oracle/prepare.py --output-dir "$RUNNER_TEMP/oracle-stage"
           bash port/oracle/build.sh "$RUNNER_TEMP/oracle-stage" "$PWD/port/oracle" "$HOME/kicad-port"
           "$HOME/kicad-port/oracle-build/kicad-oracle" --provenance > oracle-provenance.json
       - name: Verify the resistor reference runtime
         if: steps.oracle.outputs.available == 'true'
         env:
           GLIBC_TUNABLES: ${{ env.RESISTOR_GLIBC_TUNABLES }}
+          LD_LIBRARY_PATH: ""
         run: |
-          python -m unittest discover -s port/oracle -p test_resistor_reference.py -v
-          python port/oracle/check_resistor_reference.py \
+          /usr/bin/python3 -m unittest discover -s port/oracle -p test_resistor_reference.py -v
+          /usr/bin/python3 port/oracle/check_resistor_reference.py \
             --oracle "$HOME/kicad-port/oracle-build/kicad-oracle" \
             --report resistor-runtime.json
       - name: Validate all unit records, goldens and available live cases
         env:
           GLIBC_TUNABLES: ${{ env.RESISTOR_GLIBC_TUNABLES }}
+          LD_LIBRARY_PATH: ""
         shell: bash
         run: |
           strict=()
           if test "$PHASE0_REQUIRED" = true; then strict=(--require-phase0); fi
-          python port/tools/check_goldens_policy.py --ci \
+          /usr/bin/python3 port/tools/check_goldens_policy.py --ci \
             --runner "$PWD/rust/target/debug/kicad-difftest" \
             --oracle "$HOME/kicad-port/oracle-build/kicad-oracle" \
             --reports difftest-reports "${strict[@]}"
@@ -205,6 +213,7 @@ jobs:
               python3 port/tools/bootstrap_west.py
               python3 port/tools/bootstrap_west.py --check
               cargo build --locked --manifest-path rust/Cargo.toml -p kicad-difftest -p kicad-resistors-shim -j2
+              python3 -m unittest discover -s port/tools -p test_resistor_migration.py -v
               check_source
               mkdir -p /out/proposal/port/cases /out/proposal/port/goldens
               cp port/cases/pcb_calculator.application.pure.p001.jsonl /out/proposal/port/cases/

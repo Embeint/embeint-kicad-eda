@@ -11,6 +11,10 @@ import sys
 UNIT = "pcb_calculator.application.pure.p001"
 CASES_SHA256 = "58dd1186c9f10c8efb54bc90102c71508c8e852c0b8c08d437380b112fe3c597"
 OLD_SHA256 = "8d1cc9e8c280b349294f9d512e450586c892a3170881afbba1c1b78de1a107a2"
+# Exact reviewed output bytes, independently reconstructed from the original
+# golden plus the genuine 33535308 SSE2 oracle's thirteen changed replies.
+# A matching live run is still required; this never supplies oracle results.
+NEW_SHA256 = "db61789166977ceab4ce628c252c6ed35771cd7a5bb84d0ad7ac0a3ae08e2e9e"
 IMAGE_LOCK_SHA256 = "c4d1c9c0aca71985f07bd36ff759301daa88a43e4a17335d31e4446bbd6101d2"
 CHANGED = {*(f"series-{i}" for i in range(9)), "series--1",
            "series--2147483648", "series-2147483647", "format-boundaries-3"}
@@ -30,7 +34,29 @@ def differences(old, new):
     return [] if old == new else [(old, new)]
 
 
-def approve(proposal, runtime, runtime_sha, image_identity_sha):
+def check_replacement(proposal, old_text):
+    if hashlib.sha256(old_text.encode('utf-8')).hexdigest() != OLD_SHA256:
+        raise ValueError('actual original golden does not match the reviewed baseline')
+    if not old_text.endswith('\n') or '\r' in old_text:
+        raise ValueError('original golden must be canonical LF JSONL')
+    lines = old_text.splitlines()
+    seen = set()
+    for change in proposal['changes']:
+        index = change['old_index']
+        if (type(index) is not int or type(change['new_index']) is not int
+                or index != change['new_index'] or index < 0 or index >= len(lines)
+                or index in seen or lines[index] != change['old']
+                or not isinstance(change['new'], str) or '\n' in change['new']
+                or '\r' in change['new']):
+            raise ValueError('replacement does not match actual original lines and positions')
+        seen.add(index)
+        lines[index] = change['new']
+    digest = hashlib.sha256(('\n'.join(lines)+'\n').encode('utf-8')).hexdigest()
+    if digest != NEW_SHA256 or proposal['new_sha256'] != digest:
+        raise ValueError('replacement paths or values differ from the exact authorized output')
+
+
+def approve(proposal, runtime, runtime_sha, image_identity_sha, old_text):
     if (proposal["unit"] != UNIT or proposal["cases_sha256"] != CASES_SHA256
             or proposal["old_sha256"] != OLD_SHA256):
         raise ValueError("unexpected unit or changed corpus")
@@ -46,6 +72,7 @@ def approve(proposal, runtime, runtime_sha, image_identity_sha):
         raise ValueError("unexpected field changes outside the reviewed migration")
     if runtime["oracle_sha256"] != proposal["oracle"]["oracle_sha256"]:
         raise ValueError("runtime preflight belongs to a different oracle")
+    check_replacement(proposal, old_text)
     proposal["reason"] = (
         "User-authorized resistor reference migration to pinned glibc 2.39 SSE2. "
         "Runtime pow(10,126) is 0x5a17a2ecc414a040 rather than the historical "
@@ -88,8 +115,9 @@ def main():
     subprocess.run([str(runner), 'propose', *common, *blessing, '--report', str(out/'propose.json')], check=True)
     approval = json.loads((out/'approval.json').read_bytes())
     runtime_bytes = (out/'runtime.json').read_bytes()
+    old_text = (golden_root/'port/goldens'/f'{UNIT}.jsonl').read_bytes().decode('utf-8')
     approve(approval, json.loads(runtime_bytes), hashlib.sha256(runtime_bytes).hexdigest(),
-            hashlib.sha256(image_identity).hexdigest())
+            hashlib.sha256(image_identity).hexdigest(), old_text)
     (out/'approval.json').write_text(json.dumps(approval, indent=2)+'\n', encoding='utf-8')
     evidence = golden_root/'port/goldens/evidence'/f'{UNIT}-glibc239-sse2-v1.json'
     evidence.parent.mkdir(parents=True, exist_ok=True)
