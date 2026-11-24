@@ -85,13 +85,15 @@ fn run(input: &Value) -> Result<Value, Error> {
         "log_debug" => {
             keys(input, &["op", "format"])?;
             math_util::kimath_log_debug(text(input, "format")?, &[])?;
-            Err(Error::Invalid("host hook unexpectedly returned".into()))
+            // A void hook may return only after the actual host effect completes.
+            Ok(Value::Null)
         }
         "log_overflow" => {
             keys(input, &["op", "bits", "type_name"])?;
             let value = bits(input)?;
             math_util::kimath_log_overflow(value, text(input, "type_name")?)?;
-            Err(Error::Invalid("host hook unexpectedly returned".into()))
+            // A void hook may return only after the actual host effect completes.
+            Ok(Value::Null)
         }
         _ => Err(Error::Invalid("unknown operation".into())),
     }
