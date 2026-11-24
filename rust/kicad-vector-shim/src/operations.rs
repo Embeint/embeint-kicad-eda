@@ -366,7 +366,7 @@ pub fn run(i: &Value) -> Result<Value> {
     };
     result.map_err(|error| match error {
         Error::Domain(VectorDomainError::Unported {
-            upstream: "VECTOR floating arithmetic: NaN result site",
+            upstream: "VECTOR floating arithmetic: distinct NaN operands",
             unit,
         }) => {
             // Attribute the still-unqualified NaN site to the actual upstream call,

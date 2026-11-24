@@ -116,3 +116,43 @@ fn unordered_compare_and_second_reference_ties() {
         f64::MIN_POSITIVE.to_bits()
     );
 }
+
+#[test]
+fn arithmetic_preserves_a_unique_quieted_nan_and_defers_ambiguous_sites() {
+    let n = f64::from_bits(0xfff0_0000_0000_0123);
+    let q = n.to_bits() | 0x0008_0000_0000_0000;
+    assert_eq!(
+        Vector2::new(n, 2.0)
+            .try_add(Vector2::new(1.0, n))
+            .map(|v| (v.x.to_bits(), v.y.to_bits())),
+        Ok((q, q))
+    );
+    assert_eq!(
+        Vector2::new(n, n)
+            .dot(Vector2::new(1.0, 1.0))
+            .map(f64::to_bits),
+        Ok(q)
+    );
+    assert_eq!(
+        Vector2::new(n, n).dot(Vector2::new(n, n)).map(f64::to_bits),
+        Ok(q)
+    );
+    assert_eq!(
+        Vector2::new(0.0, 1.0)
+            .try_mul_scalar(f64::INFINITY)
+            .map(|v| v.x.to_bits()),
+        Ok(0xfff8_0000_0000_0000)
+    );
+    let other = f64::from_bits(0x7ff8_0000_0000_0456);
+    assert!(matches!(
+        Vector2::new(n, 1.0).try_add(Vector2::new(other, 1.0)),
+        Err(E::Unported {
+            unit: "libs.kimath.include.math.application.ui.p002",
+            ..
+        })
+    ));
+    assert_eq!(
+        Vector3::new(n, 0.0, 1.0).euclidean_norm().map(f64::to_bits),
+        Ok(q)
+    );
+}

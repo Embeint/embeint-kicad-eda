@@ -61,10 +61,21 @@ for n,x in enumerate(patterns):
    a=[x,y]+([bits(2)] if dim==3 else []);b=[y,x]+([bits(2)] if dim==3 else [])
    for op in ['new','copy','compare']:
     case(f'bits-{dim}-{n}-{m}-{op}',dim,'f64',op,a,**({'b':b} if op=='compare' else {}))
+  for op in ['mul_scalar','scalar_mul','add_scalar','sub_scalar','divide','add_assign_scalar','sub_assign_scalar','mul_assign_scalar']:
+   for which,scalar in enumerate([x,y]):
+    case(f'fp-scalar-{n}-{m}-{which}-{op}',2,'f64',op,[x,y],scalar=scalar)
+  for op in ['add_assign_scalar','sub_assign_scalar','mul_assign_scalar']:
+   for alias in 'xy':
+    case(f'fp-alias-{n}-{m}-{alias}-{op}',2,'f64',op,[x,y],alias=alias)
   for op in ['neg','perpendicular']:
    case(f'fp-unary-{n}-{m}-{op}',2,'f64',op,[x,y])
   for op in ['add','sub','dot','cross','mul_assign','norm','squared_norm']:
    case(f'fp-sites-{n}-{m}-{op}',2,'f64',op,[x,y],**({'b':[y,x]} if op in ['add','sub','dot','cross','mul_assign'] else {}))
+  for op in ['cross','dot']:
+   case(f'3-fp-{n}-{m}-{op}',3,'f64',op,[x,y,bits(2)],b=[y,x,bits(3)])
+  for op in ['mul_assign_scalar','div_assign_scalar']:
+   for which,scalar in enumerate([x,y]):
+    case(f'3-fp-scalar-{n}-{m}-{which}-{op}',3,'f64',op,[x,y,bits(2)],scalar=scalar)
   for op in ['normalize','norm']:
    case(f'3-fp-{n}-{m}-{op}',3,'f64',op,[x,y,bits(0)])
 for n,x in enumerate(patterns):

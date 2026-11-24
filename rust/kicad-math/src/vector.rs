@@ -56,13 +56,12 @@ pub type Vector3I = Vector3<i32>;
 /// `VECTOR3U`
 pub type Vector3U = Vector3<u32>;
 
-/// A co-ported `VECTOR2` operation whose C++ evaluation is undefined behaviour for these
-/// arguments, so it has no reference result.
+/// A vector operation outside the defined C++ domain or still awaiting reference qualification.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum VectorDomainError {
-    /// `int` component arithmetic overflowed (signed overflow).
+    /// Signed component or extended arithmetic overflowed.
     IntegerOverflow,
-    /// `static_cast<int>` of a NaN component; `std::clamp` passes NaN through unchanged.
+    /// A NaN component converted to an integer; VECTOR2 clamping passes NaN through.
     NanToInteger,
     /// A floating-to-integral cast outside the actual C++ defined interval.
     CastOutOfRange,
@@ -237,14 +236,45 @@ fn round_i32(_value: f64) -> VResult<i32> {
     missing("KiROUND<double, int>", UTIL_HEADER)
 }
 
-// A NaN result has site-specific operand selection in GCC, including mixed payloads.
-// Keep those valid requests as explicit deferrals until each compiled site is measured.
-// UNPORTED(libs.kimath.include.math.application.ui.p002): floating arithmetic NaN sites
-fn qualified_fp(value: f64) -> VResult<f64> {
+// GCC's operand selection varies by compiled site when two quieted NaNs differ.
+// The bound live oracle did establish the unambiguous cases: a single distinct
+// quieted NaN value propagates, and invalid basic arithmetic without a NaN input
+// produces x86's negative indefinite. This is a value rule, never a case lookup.
+// UNPORTED(libs.kimath.include.math.application.ui.p002): distinct NaN operand sites
+fn arithmetic_result(a: f64, b: f64, value: f64) -> VResult<f64> {
+    if !value.is_nan() {
+        return Ok(value);
+    }
+    const EXP: u64 = 0x7ff0_0000_0000_0000;
+    const FRACTION: u64 = 0x000f_ffff_ffff_ffff;
+    const QUIET: u64 = 0x0008_0000_0000_0000;
+    let a = a.to_bits();
+    let b = b.to_bits();
+    let an = a & EXP == EXP && a & FRACTION != 0;
+    let bn = b & EXP == EXP && b & FRACTION != 0;
+    match (an, bn) {
+        (false, false) => Ok(f64::from_bits(0xfff8_0000_0000_0000)),
+        (true, false) => Ok(f64::from_bits(a | QUIET)),
+        (false, true) => Ok(f64::from_bits(b | QUIET)),
+        (true, true) if (a | QUIET) == (b | QUIET) => Ok(f64::from_bits(a | QUIET)),
+        (true, true) => missing(
+            "VECTOR floating arithmetic: distinct NaN operands",
+            VECTOR_UNIT,
+        ),
+    }
+}
+
+fn vector_sqrt(value: f64) -> VResult<f64> {
     if value.is_nan() {
-        missing("VECTOR floating arithmetic: NaN result site", VECTOR_UNIT)
+        // sqrt has one operand: its unique NaN is quieted, with sign/payload retained.
+        return Ok(f64::from_bits(value.to_bits() | 0x0008_0000_0000_0000));
+    }
+    let result = value.sqrt();
+    if result.is_nan() {
+        // UNPORTED(libs.kimath.include.math.application.ui.p002): negative sqrt site qualification
+        missing("VECTOR sqrt: negative operand site", VECTOR_UNIT)
     } else {
-        Ok(value)
+        Ok(result)
     }
 }
 
@@ -418,16 +448,16 @@ impl VectorComponent for f64 {
     const MIN: Self = f64::MIN_POSITIVE;
     const MAX: Self = f64::MAX;
     fn c_add(self, rhs: Self) -> VResult<Self> {
-        qualified_fp(self + rhs)
+        arithmetic_result(self, rhs, self + rhs)
     }
     fn c_sub(self, rhs: Self) -> VResult<Self> {
-        qualified_fp(self - rhs)
+        arithmetic_result(self, rhs, self - rhs)
     }
     fn c_mul(self, rhs: Self) -> VResult<Self> {
-        qualified_fp(self * rhs)
+        arithmetic_result(self, rhs, self * rhs)
     }
     fn c_div(self, rhs: Self) -> VResult<Self> {
-        qualified_fp(self / rhs)
+        arithmetic_result(self, rhs, self / rhs)
     }
     fn c_neg(self) -> VResult<Self> {
         Ok(-self)
@@ -478,7 +508,7 @@ impl VectorComponent for f64 {
             // UNPORTED(libs.kimath.include.math.application.ui.p001): rescale<double>
             let nx = rescale_f64(ns, xs, ls)?;
             let ny = rescale_f64(ns, ys, ls)?;
-            (qualified_fp(nx.sqrt())?, qualified_fp(ny.sqrt())?)
+            (vector_sqrt(nx)?, vector_sqrt(ny)?)
         };
         let nx = if x < 0.0 { -nx } else { nx };
         let ny = if y < 0.0 { -ny } else { ny };
@@ -700,7 +730,7 @@ impl<T: VectorComponent> Vector3<T> {
             .c_mul(self.x.wide())?
             .c_add(self.y.wide().c_mul(self.y.wide())?)?
             .c_add(self.z.wide().c_mul(self.z.wide())?)?;
-        T::from_double(qualified_fp(sum.double().sqrt())?)
+        T::from_double(vector_sqrt(sum.double())?)
     }
     /// wxCHECK_MSG returns unchanged self by value for norm <= 0 or unordered.
     pub fn normalize(&mut self) -> VResult<Self> {
