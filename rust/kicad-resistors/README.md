@@ -43,6 +43,13 @@ resistance values, part order, names, optional presence, mutation order and
 exceptions. There is no difftest tolerance. KiCad's `epsilon = 1e-12` remains
 only in its selection/exclusion/tie algorithm.
 
+The resistor reference now selects the pinned glibc 2.39 SSE2 integer-power
+results. Exponent 126 uses `0x5a17a2ecc414a040`, one ULP above the historical
+host-default table value. The runtime contract, thirteen changed case IDs,
+golden migration and current validation status are documented in
+[`resistors-sse2-reference-migration.md`](../../port/findings/resistors-sse2-reference-migration.md).
+This per-unit choice does not qualify the entire reference-environment candidate.
+
 ## Reference compilation and test access
 
 The CMake `resistor-reference` static library compiles pinned `eseries.cpp`
@@ -100,7 +107,7 @@ FDlibm's general `pow` differs by a bit from the Linux glibc reference for some
 decimal exponents. This unit only uses integer exponents. `eseries::power10`
 therefore uses portable decimal literals covering every representable power,
 preserving glibc's two deviations from correctly rounded decimal conversion at
-23 and 210 explicitly. Exponents outside that range return the same zero/infinity.
+23, 126 and 210 explicitly. Exponents outside that range return the same zero/infinity.
 The corpus compares every returned bit across the whole representable range and
 full-i32 extremes, for all eight series. `str_value` also preserves glibc's
 positive-NaN spelling for a negative logarithm. These are reference compatibility

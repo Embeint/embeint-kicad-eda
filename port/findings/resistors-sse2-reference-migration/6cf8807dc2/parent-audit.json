@@ -1,0 +1,63 @@
+{
+  "source_revision": "6cf8807dc2144a5bf82c4aca9804a75fa19ab4a7",
+  "current_approval_guard_revision": "4e1a387ceeca8b80fe4e9113efca12d2f910029e",
+  "run_url": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45328928252",
+  "artifact_sha256": "7a5876e01b30aacc387c6e876647df26c558baff9f9d8eb26853e66a174ecb29",
+  "whole_artifact_digest_verified": true,
+  "source_membership": 24573,
+  "compiler_relevant_source_hashes_verified": 82,
+  "pinned_reference_hashes_verified": 915,
+  "reports": {
+    "propose": {
+      "cases": 1050,
+      "compared": 1050,
+      "failures": 0,
+      "deferred": 0,
+      "unprocessed": 0
+    },
+    "bless": {
+      "cases": 1050,
+      "compared": 1050,
+      "failures": 0,
+      "deferred": 0,
+      "unprocessed": 0
+    },
+    "check": {
+      "cases": 1050,
+      "compared": 1050,
+      "failures": 0,
+      "deferred": 0,
+      "unprocessed": 0
+    }
+  },
+  "old_golden_sha256": "8d1cc9e8c280b349294f9d512e450586c892a3170881afbba1c1b78de1a107a2",
+  "new_golden_sha256": "db61789166977ceab4ce628c252c6ed35771cd7a5bb84d0ad7ac0a3ae08e2e9e",
+  "changed_cases": [
+    "series-0",
+    "series-1",
+    "series-2",
+    "series-3",
+    "series-4",
+    "series-5",
+    "series-6",
+    "series-7",
+    "series--1",
+    "series--2147483648",
+    "series-2147483647",
+    "series-8",
+    "format-boundaries-3"
+  ],
+  "unchanged_byte_identical_lines": 1037,
+  "changed_numeric_fields": 317,
+  "changed_strings": 3,
+  "image_identity_sha256": "c37568600ebf319225f8e5cb2b152bdfb90f5a8b11d1d08d4a4bb94ba1b85b8b",
+  "rebuild_identity_equal": true,
+  "runtime_sha256": "f1ef9a8a0d0248975dd99446f2d24e8dd12de2f7e4752fd27511d2968026e347",
+  "oracle_sha256": "aa41eb0957d0a3e7fd831051a7330e015a8403d0893071332a564ed62de0238f",
+  "rust_sha256": "06dd7e9094185b8f8f2c99b1b30db4c7524c9f9964f24b1159ef46046806fea6",
+  "limits": [
+    "native generation ran at initial6cf; later guard changes independently revalidated on artifacts",
+    "final current-head ordinary CI/wasm and independent final data review still pending",
+    "no whole PR55 environment adoption or other-unit failure waiver"
+  ]
+}
