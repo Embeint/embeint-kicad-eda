@@ -763,6 +763,20 @@ mismatches and permanent HTTP failures stop immediately. No input lock, runtime
 identity or comparison policy changes follow from this transport fix. A fresh
 integrated run is still required.
 
+The subsequent native [run 45344507572](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45344507572)
+at `2670507157` exhausted the new retries on a snapshot InRelease HTTP 500, also
+before image building. PR events now run the existing candidate job with the
+oracle, full strict corpus gate and 2,000,000-angle sweep, so their results appear
+on the PR instead of being hidden behind a skipped manual job. Manual dispatch
+retains its false defaults; push events do not automatically run the image job.
+The source binding, rebuild, runtime and exact comparison checks are unchanged.
+InRelease downloads also have a deterministic SHA-256 query fallback on the same
+snapshot file after transient failures, giving it a separate transport cache key.
+The noble response from that URL was fetched locally and matched the original
+locked hash `cdb2f31d809f589719a53c6ad15f255b27569c4059542ada282aaa21b8e164b0`.
+The query cannot authorize different metadata: the original digest and subsequent
+signature verification remain required.
+
 ## Licences
 
 Primary implementation references: [glibc 2.39 sin/cos selector](https://github.com/bminor/glibc/blob/glibc-2.39/sysdeps/x86_64/fpu/multiarch/ifunc-avx-fma4.h),
