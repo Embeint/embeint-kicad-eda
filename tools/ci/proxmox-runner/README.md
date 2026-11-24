@@ -99,8 +99,12 @@ PR events and other repositories are refused. No Docker access, sudo, additional
 memory, private-network access or runner registration is added.
 
 The preflight checks the full workspace's formatting, clippy and tests, builds
-every portable package selected by the existing policy tool for wasm32, and
-validates unit/source accounting. Commands use the pinned Rust toolchain and at
+every portable package selected by the existing policy tool for wasm32, and on
+hosted runs validates unit/source accounting. `validate_units.py` loads the
+2.4 GB decompressed call graph, more than the isolated runner's 2.5 GiB
+swapless limit, and gains nothing from the Rust cache; on Proxmox the step is
+recorded as deferred to the hosted `Rust port progress pages` workflow, which
+runs it on every `rust` PR and push. Commands use the pinned Rust toolchain and at
 most two build jobs. A separate ordinary target cache lives under
 `$HOME/build-cache/rust-port-preflight-<toolchain>`; incremental compilation is
 disabled to bound its size. Existing MCP/layout caches are separate. Every check

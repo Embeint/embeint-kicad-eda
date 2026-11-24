@@ -205,11 +205,22 @@ jobs:
               args += ["-p", package]
           subprocess.run(args, check=True)
           PY
+      # validate_units.py holds the 2.4 GB decompressed call graph in memory,
+      # beyond the isolated runner's 2.5 GiB swapless limit. It uses no Rust
+      # cache, and the hosted progress-pages workflow runs it on every rust PR.
       - name: Validate unit records and source accounting
+        if: runner.environment == 'github-hosted'
         shell: bash
         run: |
           set -euo pipefail
           python port/tools/validate_units.py 2>&1 | tee "$PREFLIGHT_REPORT/units.log"
+      - name: Record unit validation deferred to hosted checks
+        if: runner.environment != 'github-hosted'
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Not run: exceeds the isolated runner memory limit; Rust port progress pages validates units on hosted runners." \
+            | tee "$PREFLIGHT_REPORT/units.log" >> "$GITHUB_STEP_SUMMARY"
       - name: Retain preflight outcome and its limits
         if: always()
         env:
