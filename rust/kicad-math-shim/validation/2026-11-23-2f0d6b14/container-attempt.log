@@ -1,0 +1,5 @@
+
+== environment
+Linux ec94da79867f 6.18.37-0-virt #1-Alpine SMP PREEMPT_DYNAMIC 2026-06-29 10:52:25 x86_64 x86_64 x86_64 GNU/Linux
+time="2026-11-23T09:24:13+10:00" level=error msg="error waiting for container: unexpected EOF"
+exit=125

@@ -50,6 +50,23 @@ four raw floating-zero/negative-integer refusals. Scoped all-target clippy with
 warnings denied and workspace formatting passed. The native CTest uses the
 same raw-token process controls; current-head hosted execution remains pending.
 
+## Accepted matrix-port integration
+
+The parent merged accepted `origin/rust@1ac339f229d8ccb8ccb297f489493622903cc468`
+after PR50 landed. Cargo's member/package lists retain both shims, and the math
+module list retains `math_util` alongside every accepted matrix/trig/generated
+module. The real matrix-before-hash oracle link order is preserved. The accepted
+numerical implementations, cases, goldens and evidence are unchanged.
+
+On the integrated working tree, macOS arm64 / Rust 1.96.1, `cargo test --locked`
+for math, math-shim, math-util-shim and hash passed 78 tests, with two full-reference
+tests ignored. Utility/math clippy with all targets and warnings denied, portable
+math wasm32 checking and workspace formatting passed. Broader clippy including
+the accepted matrix shim reports its pre-existing `nonminimal_bool` warning under
+Rust 1.96.1; the same full scoped command passes under Rust 1.99.1, used for the
+accepted matrix implementation. No matrix source was changed to address this
+tool-version difference. Combined current-head native CI remains pending.
+
 The unit stays partial even if every arithmetic comparison succeeds. wx logging,
 MSVC/fallback profiles and downstream vector/header wiring remain unqualified.
 There is no golden. See AUDIT.md for the per-symbol evidence/gap table.

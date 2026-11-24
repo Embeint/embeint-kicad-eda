@@ -7,6 +7,7 @@ void RegisterExample( REGISTRY& aRegistry );
 void RegisterMd5( REGISTRY& aRegistry );
 void RegisterIec60664( REGISTRY& aRegistry );
 void RegisterResistors( REGISTRY& aRegistry );
+void RegisterKimathMath( REGISTRY& aRegistry );
 void RegisterKimathHeaderHash( REGISTRY& aRegistry );
 void RegisterRtreeNode( REGISTRY& aRegistry );
 void RegisterMathUtil( REGISTRY& aRegistry );
@@ -29,6 +30,7 @@ REGISTRY MakeRegistry()
     RegisterMd5( registry );
     RegisterIec60664( registry );
     RegisterResistors( registry );
+    RegisterKimathMath( registry );
     RegisterKimathHeaderHash( registry );
     RegisterRtreeNode( registry );
     RegisterMathUtil( registry );

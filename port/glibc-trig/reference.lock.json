@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "purpose": "Fresh genuine reference records for kicad_math::glibc_trig: the exact locked glibc libm, measured through that package's own loader. Not an image adoption and not a new signature verification.",
+  "lock_binding": {
+    "path": "port/reference-env/inputs.lock.json",
+    "commit": "33535308d33e019f04af6e089b14ca593ea84ccb",
+    "also_identical_at": "00106ffed153ef6422513242c1ab47782c7c956e",
+    "sha256": "c4d1c9c0aca71985f07bd36ff759301daa88a43e4a17335d31e4446bbd6101d2",
+    "note": "The reviewed PR55 candidate input lock. Its Debian packages were verified there through the signed Ubuntu snapshot indices; here only the package SHA-256 it records anchors the binary."
+  },
+  "package": {
+    "name": "libc6",
+    "version": "2.39-0ubuntu8.12",
+    "architecture": "amd64",
+    "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/g/glibc/libc6_2.39-0ubuntu8.12_amd64.deb",
+    "size": 3264258,
+    "sha256": "d821b41fc59cb4978ecd53bc83e5c964ac15d305c8d2ac4c8a35aebe55010fb9"
+  },
+  "files": {
+    "loader": {
+      "path": "usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2",
+      "size": 236616,
+      "sha256": "5fc0940888e9d2e1a00e66d6b1a559c36364ee867683652e1074fa576952cc3f"
+    },
+    "libc": {
+      "path": "usr/lib/x86_64-linux-gnu/libc.so.6",
+      "size": 2129424,
+      "sha256": "755a371e86cc9f564ab54f66140747700fb0a103f698f659f2060f707897e09a"
+    },
+    "libm": {
+      "path": "usr/lib/x86_64-linux-gnu/libm.so.6",
+      "size": 952616,
+      "sha256": "5dcc4d25466e29ca390ed6fabb371c69b65dff6fa4e91c34561057a020d6994a",
+      "build_id": "f772fc0c42a75e38f138f8b66f1ebc8aad060525"
+    }
+  },
+  "dispatch": {
+    "glibc_tunables": "glibc.cpu.hwcaps=-AVX,-AVX2,-FMA,-FMA4,-AVX512F",
+    "offsets": {
+      "sin": "0x2f8e0",
+      "cos": "0x301f0",
+      "sincos": "0x31e10"
+    },
+    "offsets_source": "nm of the build-id debug file f772fc0c... (libc6-dbg 2.39-0ubuntu8.12): __sin_sse2, __cos_sse2, __sincos_sse2",
+    "mxcsr_control": "0x1f80"
+  },
+  "domain": {
+    "fixed_count": 1602,
+    "seeded_count": 1000000,
+    "seed": "53696e436f73476c",
+    "record_bytes": 8,
+    "sha256": "5bb0b5f27bca9ed7e5454bc554191425a30a95f37d75f36561ef59c6595c4f63",
+    "fixed_sha256": "6ad9942e07f1d121db9c35e6d606d1d0a1d1663b7af5c6a5e48c13fbec7b6c7e",
+    "generator": "rust/kicad-math/src/glibc_trig/tests.rs (domain module); test reference_write_domain"
+  },
+  "reference": {
+    "record_words": ["x", "sin", "cos", "sincos_sin", "sincos_cos"],
+    "record_bytes": 40,
+    "byte_order": "little-endian u64"
+  }
+}

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 [package]
 name = "kicad-math"
-description = "Portable port of KiCad kimath: canonical minimal VECTOR2 and VECTOR3 representations"
+description = "Portable port of KiCad kimath: MATRIX3x3, 128-bit wide integers and minimal vectors"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
