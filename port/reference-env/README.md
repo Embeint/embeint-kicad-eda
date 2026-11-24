@@ -5,11 +5,14 @@
 Linux x86-64 environment in which the unchanged pinned KiCad C++ oracle and the
 Rust port can be compared bit for bit and byte for byte. It is a recipe, a lock
 and a validation entrypoint for independent review. It is **not** the accepted
-oracle environment: the pins, goldens, unit statuses, evidence records and the
-hosted phase zero gate (`rust-port.yml`) are unchanged. Candidate images were
-built natively at `1b4aa6a8` (never pushed). That qualification **failed** (two
-probe-tooling defects, since fixed but not re-qualified, and 13 numeric resistor
-mismatches that remain open); see [Validation performed](#validation-performed).
+oracle environment. The pins and candidate input lock are unchanged. Official
+`rust` now includes the separately reviewed resistor reference migration from
+[PR #56](https://github.com/Embeint/embeint-kicad-eda/pull/56), including its golden,
+evidence and hosted reference-step changes. Candidate images were built natively
+at `1b4aa6a8` (never pushed). That historical qualification **failed** (two
+probe-tooling defects, since fixed, and 13 numeric resistor mismatches subsequently
+resolved by PR #56). The integrated candidate still needs its own full run; see
+[Validation performed](#validation-performed).
 
 ## Why
 
@@ -728,6 +731,26 @@ Publication is a separate, authorised step: tag the locally built image as
 `registry.taileef599.ts.net/embeint-kicad/rust-port-reference:noble-20261110.1-gcc13.3-candidate-1`,
 push it, and record the pushed digest; consumers must then pin
 `…/rust-port-reference@sha256:<digest>`. No tool here pushes.
+
+## Accepted resistor migration integration
+
+Official `rust@81750b8953a8f32e699d8e542cccb8f6847db592` contains PR #56.
+It changes the exponent-126 resistor table entry to the measured glibc 2.39 SSE2
+result, updates exactly 13 golden replies through live propose/bless/check, and
+selects and verifies that runtime in the hosted reference steps. Its head CI
+[run 45333022032](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45333022032)
+passed all four current corpora (22,738 comparisons, zero failures or deferrals)
+and executed all 1,050 resistor cases in wasm. These are PR #56 results, not a
+current candidate-image qualification.
+
+The normal merge of official `rust` preserves this directory's reviewed tooling,
+input lock and comparison rules. A fresh manual run with `probe=true`,
+`with_difftest=true` and `sweep_count=2000000` must rebuild and verify the image,
+check rebuild identity, run the probes and oracle audit, and execute the strict
+four-unit corpus gate on the integrated revision. Until those results exist, the
+candidate remains unqualified. Earlier failed runs and their immutable evidence
+remain tied to their original revisions; PR #50/#51 and wider numerical coverage
+are separate work.
 
 ## Licences
 
