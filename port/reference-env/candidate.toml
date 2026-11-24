@@ -1,0 +1,127 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Reviewed selection for the CANDIDATE Linux x86-64 reference environment.
+# tools/lock_inputs.py resolves it into inputs.lock.json. Neither file makes this
+# the accepted oracle environment; see README.md for the qualification status.
+schema_version = 1
+name = "rust-port-reference"
+candidate = "candidate-1"
+platform = "linux/amd64"
+
+[image]
+# Internal reference only. Nothing is pushed by these tools.
+reference = "registry.taileef599.ts.net/embeint-kicad/rust-port-reference"
+tag = "noble-20261110.1-gcc13.3-candidate-1"
+
+[base]
+# Docker Official Image, built from https://git.launchpad.net/cloud-images/+oci/ubuntu-base
+# at revision 3160ed726dafb8da2af14f4a2b3420c9e9886fb6 (image annotation).
+repository = "docker.io/library/ubuntu"
+tag = "noble-20261110.1"
+index_digest = "sha256:882e1e56091c9ffbc70c026ff5935fe85d3c91ad155917865ba2ffa23ede1560"
+manifest_digest = "sha256:9a04f13b3f80ef056361e30868593b1cfd2279fe19e4081cb93a90bf56819d6a"
+
+[snapshot]
+# Immutable Ubuntu archive snapshot (https://snapshot.ubuntu.com). Index files are
+# checked against InRelease, InRelease against the base image's archive keyring.
+url = "https://snapshot.ubuntu.com/ubuntu"
+id = "20261120T000000Z"
+suites = ["noble", "noble-updates", "noble-security"]
+components = ["main", "universe"]
+architecture = "amd64"
+keyring = "/usr/share/keyrings/ubuntu-archive-keyring.gpg"
+
+[packages]
+# Explicit top-level set: the hosted oracle job's apt list, the tools this
+# environment's own checks need, and glibc's detached debug symbols so the libm
+# dispatch target can be named inside the image.
+requested = [
+    "gcc", "g++", "gcc-13", "g++-13", "cpp-13", "binutils", "libc6-dev", "libc6-dbg",
+    "cmake", "ninja-build", "python3", "python3-venv", "rsync", "git",
+    "libboost-dev", "libwxgtk3.2-dev", "xz-utils", "ca-certificates", "gpgv",
+]
+
+# Virtual packages with more than one provider in the snapshot need a recorded choice.
+[packages.providers]
+
+[toolchain]
+# Contract checked by image/verify_image.py; versions are the Ubuntu package versions.
+gcc_version = "13.3.0"
+glibc_version = "2.39"
+libstdcxx_runtime_soname = "libstdc++.so.6.0.33"
+libstdcxx_runtime_family = "GCC 14 (pre-LWG 4084: std::fixed|std::uppercase prints lower-case inf/nan)"
+oracle_flags = ["-fno-fast-math", "-ffp-contract=off"]
+# Ubuntu's GCC 13 defaults to the baseline x86-64 ISA. No -march is added to the
+# oracle; verify_image.py checks the compiler's predefined macros instead.
+required_macros = ["__SSE2__", "__x86_64__"]
+forbidden_macros = ["__AVX__", "__AVX2__", "__FMA__", "__FMA4__", "__AVX512F__", "__FAST_MATH__"]
+flt_eval_method = "0"
+
+[dispatch]
+# glibc 2.39 x86-64 libm selects sin/cos implementations by CPU features
+# (fma > fma4 > avx > sse2; sincos: fma > fma4 > sse2). Masking these features
+# selects the baseline SSE2 code on every x86-64 host that runs the image.
+glibc_tunables = "glibc.cpu.hwcaps=-AVX,-AVX2,-FMA,-FMA4,-AVX512F"
+# libm multiarch implementations whose resolution is checked at run time.
+checked_functions = [
+    "sin", "cos", "sincos", "tan", "atan", "atan2", "exp", "log", "pow",
+    "sinf", "cosf", "sincosf", "expf", "exp2f", "logf", "log2f", "powf",
+]
+forbidden_variant_suffixes = ["_fma", "_fma4", "_avx", "_avx2", "_avx512", "_evex"]
+
+[rust]
+version = "1.99.1"
+# The channel manifest is signed with the Rust release key; the image build
+# verifies the signature with gpgv and this key (fingerprint checked when locking).
+signing_key_url = "https://static.rust-lang.org/rust-key.gpg.ascii"
+signing_key_fingerprint = "108F66205EAEB0AAA8DD5E1C85AB96E6FA1BE5FE"
+components = [
+    { name = "rustc", target = "x86_64-unknown-linux-gnu" },
+    { name = "cargo", target = "x86_64-unknown-linux-gnu" },
+    { name = "rust-std", target = "x86_64-unknown-linux-gnu" },
+    { name = "rust-std", target = "wasm32-unknown-unknown" },
+]
+
+# Files whose bytes identify the compiler, linker and runtime. Paths are inside
+# the image; the owning package is resolved from the lock.
+[[toolchain_file]]
+package = "gcc-13-x86-64-linux-gnu"
+path = "/usr/bin/x86_64-linux-gnu-gcc-13"
+[[toolchain_file]]
+package = "g++-13-x86-64-linux-gnu"
+path = "/usr/bin/x86_64-linux-gnu-g++-13"
+[[toolchain_file]]
+package = "cpp-13-x86-64-linux-gnu"
+path = "/usr/libexec/gcc/x86_64-linux-gnu/13/cc1"
+[[toolchain_file]]
+package = "g++-13-x86-64-linux-gnu"
+path = "/usr/libexec/gcc/x86_64-linux-gnu/13/cc1plus"
+[[toolchain_file]]
+package = "gcc-13-x86-64-linux-gnu"
+path = "/usr/libexec/gcc/x86_64-linux-gnu/13/collect2"
+[[toolchain_file]]
+package = "binutils-x86-64-linux-gnu"
+path = "/usr/bin/x86_64-linux-gnu-as"
+[[toolchain_file]]
+package = "binutils-x86-64-linux-gnu"
+path = "/usr/bin/x86_64-linux-gnu-ld.bfd"
+[[toolchain_file]]
+package = "libc6"
+path = "/usr/lib/x86_64-linux-gnu/libm.so.6"
+[[toolchain_file]]
+package = "libc6"
+path = "/usr/lib/x86_64-linux-gnu/libc.so.6"
+[[toolchain_file]]
+package = "libc6"
+path = "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2"
+[[toolchain_file]]
+package = "libstdc++6"
+path = "/usr/lib/x86_64-linux-gnu/libstdc++.so.6"
+[[toolchain_file]]
+package = "libgcc-s1"
+path = "/usr/lib/x86_64-linux-gnu/libgcc_s.so.1"
+[[toolchain_file]]
+package = "libstdc++-13-dev"
+path = "/usr/lib/gcc/x86_64-linux-gnu/13/libstdc++.a"
+[[toolchain_file]]
+package = "libgcc-13-dev"
+path = "/usr/lib/gcc/x86_64-linux-gnu/13/libgcc.a"
