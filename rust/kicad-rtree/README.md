@@ -23,7 +23,7 @@ are needed. No open topic is a dependency. The claim starts at accepted
 | Remove/removeImpl/reinsertOrphans/condenseRoot | First overlap-guided removal then full-range fallback; swap-last; underflow exemption is based on parent being root; orphan entries retain insertion bounds; roots collapse repeatedly | Present/absent/duplicate and wrong-box removals, packed-tree mutations, full depletion | Native branch coverage of internal orphan path pending measurement |
 | reinsertNode/chooseSubtreeAtLevel | Correct target level, area-growth descent, append or internal split | Removal from packed and incremental multilevel trees | Same internal-orphan coverage gap |
 | Search/searchImpl | Node overlap mask, low-bit-first traversal, count increment before callback, propagate false | stop 1 and unlimited/nonpositive visitor policy; count and hits compared | Pinned header has no max-hit parameter; the adapter implements that policy in the visitor |
-| Iterator (all methods), begin/end | Lazy stack, payload copy, end flag comparison only, retain last current after exhaustion; current None represents default null payload | Empty/nonempty, equality of different non-end positions, repeated increment, prefix limit | Rust references prevent mutation during iterator/range lifetime; native mutation invalidation is not exercised as defined behaviour |
+| Iterator (all methods), begin/end | Lazy stack, default/null-root and standalone-arena constructors, independent cursor copies, payload copy, end flag comparison only, retain last current after exhaustion; current None represents default null payload | Empty/nonempty, equality of different non-end positions, repeated increment, prefix limit | Rust references prevent mutation during iterator/range lifetime; native mutation invalidation is not exercised as defined behaviour |
 | SearchIterator/SearchRange (all methods), Overlapping | Same lazy stack with scalar per-slot overlap, bounds copied by value, empty probes one traversal | Full ordered lazy results vs visitor, range empty | No result-vector stand-in |
 | minDistSq/NearestNeighbors | Checked widened differences/products/sums; clear output first; actual node-distance priority queue | k negative/zero/one/above count, equal distances, seeded output cleared | Queue/sort equivalent-key order targets GCC libstdc++, not libc++/MSVC |
 
@@ -84,7 +84,7 @@ contains only public fixed-seed generated inputs. Goldens are intentionally abse
 The current corpus has 201 cases / 56,023 operations. Status stays partial pending
 hosted live evidence and independent review.
 
-Current local evidence (macOS ARM64, Rust 1.96.1, -j2): 9 tree and 19 existing node
+Current local evidence (macOS ARM64, Rust 1.96.1, -j2): 10 tree and 19 existing node
 tests pass; scoped clippy, format, portable wasm compilation and 47 refusal/47
 following valid requests pass. These results do not qualify GCC ordering.
 

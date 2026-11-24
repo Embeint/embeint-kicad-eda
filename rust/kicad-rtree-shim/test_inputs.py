@@ -3,6 +3,7 @@
 """Separate malformed/undefined conversion controls, followed by valid requests.
 Known signed-overflow controls run only on Rust behaviour tests, never on C++.
 """
+import argparse
 import copy
 import json
 import subprocess
@@ -39,12 +40,19 @@ def main():
     bad=controls();requests=[]
     for i,line in enumerate(bad):
         requests.append(line);v=copy.deepcopy(valid);v['case']=f'after-{i}';requests.append(json.dumps(v))
-    p=subprocess.run(sys.argv[1:],input='\n'.join(requests)+'\n',text=True,capture_output=True,check=True)
+    parser=argparse.ArgumentParser();parser.add_argument('binary');parser.add_argument('--reference');args=parser.parse_args()
+    p=subprocess.run([args.binary],input='\n'.join(requests)+'\n',text=True,capture_output=True,check=True)
     replies=[json.loads(line) for line in p.stdout.splitlines()]
     assert len(replies)==len(requests),(len(replies),len(requests),p.stderr)
     for i,r in enumerate(replies):
         if i%2==0:assert 'error' in r and r['error']['kind'] in ['invalid_request','invalid_input','unknown_unit'],(i,r)
         else:assert 'result' in r and r['case']==f'after-{i//2}',(i,r)
-    print(json.dumps({'probes':len(bad),'requests':len(replies),'failures':0}))
+    if args.reference:
+        ref=subprocess.run([args.reference],input='\n'.join(requests)+'\n',text=True,capture_output=True,check=True)
+        expected=[json.loads(line) for line in ref.stdout.splitlines()]
+        assert len(expected)==len(replies),(len(expected),len(replies))
+        for i,(actual,wanted) in enumerate(zip(replies,expected)):
+            assert actual==wanted,(i,actual,wanted)
+    print(json.dumps({'probes':len(bad),'requests':len(replies),'failures':0,'exact_reference':bool(args.reference)}))
     if p.stderr:print(p.stderr,file=sys.stderr)
 if __name__=='__main__':main()

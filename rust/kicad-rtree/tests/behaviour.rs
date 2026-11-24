@@ -221,3 +221,36 @@ fn node_storage_budget_is_explicit_and_clear_recovers() -> Result<(), Error> {
     assert_eq!(zero.insert([0; 2], [1; 2], Item(0)), Err(Error::Resource));
     Ok(())
 }
+
+#[test]
+fn standalone_node_cursors_default_clone_and_null_payload() -> Result<(), Error> {
+    use kicad_rtree::{SearchRange, TreeIterator};
+    // These are the accepted node/arena types, not a tree-specific substitute.
+    use kicad_rtree_node::{RtreeNode, SlabArena};
+    type Node = RtreeNode<Item, i32, 2, 4>;
+    let mut arena = SlabArena::<Node>::new();
+    let root = arena.new_external()?;
+    let n = arena.node_mut(&root)?;
+    n.count = 2;
+    n.set_child_bounds(0, &[0; 2], &[1; 2])?;
+    n.set_child_bounds(1, &[4; 2], &[5; 2])?;
+    n.set_data(1, Some(Item(7)))?;
+    let mut end = TreeIterator::<Item, i32, 2, 4>::default();
+    assert!(end.at_end());
+    assert_eq!(end.current(), None);
+    end.advance()?;
+    let mut it = TreeIterator::from_root(&arena, Some(&root), None)?;
+    assert!(!it.at_end());
+    assert_eq!(it.current(), None, "null DATATYPE is a valid active entry");
+    let saved = it.clone();
+    it.advance()?;
+    assert!(it == saved);
+    assert_eq!(it.current(), Some(&Item(7)));
+    assert_eq!(saved.current(), None);
+    let range = SearchRange::from_root(&arena, Some(&root), [4; 2], [5; 2]);
+    let copy = range.clone();
+    assert_eq!(copy.begin()?.current(), Some(&Item(7)));
+    assert!(!copy.empty()?);
+    assert!(SearchRange::from_root(&arena, None, [0; 2], [9; 2]).empty()?);
+    Ok(())
+}

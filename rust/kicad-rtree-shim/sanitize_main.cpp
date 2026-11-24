@@ -3,7 +3,10 @@
 // Built separately from the audited oracle, never eligible as golden provenance.
 #include "protocol.h"
 #include <iostream>
-namespace oracle { void RegisterDynamicRtree( REGISTRY& ); }
+namespace oracle
+{
+void RegisterDynamicRtree( REGISTRY& );
+}
 int main()
 {
     oracle::REGISTRY registry;

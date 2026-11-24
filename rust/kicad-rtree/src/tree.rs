@@ -72,7 +72,7 @@ pub struct DynamicRtree<T: NodeData, E: Coord, const D: usize = 2, const F: usiz
     allocator: AllocatorId,
     pub(crate) root: Option<NodeHandle>,
     count: usize,
-    budget: ResourceBudget,
+    pub(crate) budget: ResourceBudget,
     active_nodes: usize,
     failed: bool,
 }

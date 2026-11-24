@@ -17,7 +17,7 @@ cp "$build/oracle-provenance.json" "$out/provenance.json"
 for profile in debug release; do
   rust/target/debug/kicad-difftest compare --partial --unit "$unit" --root "$PWD" \
     --oracle "$build/kicad-oracle" --rust "$PWD/rust/target/$profile/kicad-rtree-shim" --report "$out/compare-$profile.json"
-  python3 rust/kicad-rtree-shim/test_inputs.py "$PWD/rust/target/$profile/kicad-rtree-shim" | tee "$out/guards-$profile.json"
+  python3 rust/kicad-rtree-shim/test_inputs.py "$PWD/rust/target/$profile/kicad-rtree-shim" --reference "$build/kicad-oracle" | tee "$out/guards-$profile.json"
 done
 python3 rust/kicad-rtree-shim/test_inputs.py "$build/kicad-oracle" | tee "$out/guards-oracle.json"
 export RTREE_WASM="$PWD/rust/target/wasm32-wasip1/debug/kicad-rtree-shim.wasm"
@@ -29,7 +29,7 @@ WRAPPER
 chmod +x "$out/wasi-shim"
 rust/target/debug/kicad-difftest compare --partial --unit "$unit" --root "$PWD" \
   --oracle "$build/kicad-oracle" --rust "$out/wasi-shim" --report "$out/compare-wasi.json"
-python3 rust/kicad-rtree-shim/test_inputs.py "$out/wasi-shim" | tee "$out/guards-wasi.json"
+python3 rust/kicad-rtree-shim/test_inputs.py "$out/wasi-shim" --reference "$build/kicad-oracle" | tee "$out/guards-wasi.json"
 bash rust/kicad-rtree-shim/sanitized_validation.sh "$build/../oracle-src/reference" "$out/sanitized"
 sha256sum "$build/kicad-oracle" rust/target/{debug,release}/kicad-rtree-shim "$RTREE_WASM" > "$out/binaries.sha256"
 git rev-parse HEAD > "$out/revision.txt"
