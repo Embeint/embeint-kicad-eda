@@ -51,7 +51,12 @@ The manual `migrate_resistor_sse2` workflow input defaults to false and never
 enables on PR events. The one-time helper uses the existing live
 `propose`/`bless`/`check` sequence. It refuses a changed corpus/old golden,
 unexpected case IDs/positions/types/field counts, or a runtime report for a
-different oracle. The reason records the runtime-preflight digest. Blessing
+different oracle. It reconstructs all replacement bytes from the actual old
+golden and proposed lines, then requires the exact reviewed new-output digest
+`db61789166977ceab4ce628c252c6ed35771cd7a5bb84d0ad7ac0a3ae08e2e9e`.
+Changing a field path, sign or string cannot pass by preserving counts or
+rehashing proposal metadata. The digest only bounds approval; no stored replies
+replace live oracle execution. The reason records the runtime-preflight digest. Blessing
 requires repeated live equality and matching live oracle provenance. A new
 immutable evidence file is written; no historical evidence is edited. The job
 uploads generated files for review and never commits or pushes them.
