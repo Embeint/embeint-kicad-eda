@@ -68,6 +68,26 @@ whose input words, order or count differ. Emulated rows never stand in for this 
 The fresh records, domain, logs, hashes and `report.json` are uploaded as the run's artifact
 (also on failure); nothing is committed or published.
 
+### Node runtime regression
+
+The workflow pins Node **24.16.0** rather than using the runner's ambient Node.
+[Run 45349354578](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45349354578)
+at PR head `559d282a393e9ccb547c2700fb1ab98fe6d7e1d7` used Node 22.23.5 on
+Linux x86-64. Five profiles completed 1,001,602 records with zero mismatches;
+Node segfaulted during the optimized WASI `reference_records` test, leaving its
+profile without a result. That run remains failed.
+
+On macOS arm64, Rust 1.99.1 reproduced exactly the failing WASI module's SHA-256,
+`698062cdf458bfdad2b8be9c94d773beecd5d496b7906731db267a1e39037601`.
+With the same module and genuine reference bytes (SHA-256
+`d3a0a9fb0d0431e08f8365a7ba2a16f310b26234d2e9d9f204ac2a7eca71b63f`),
+Node 22.23.4 also exited 139 during that test, while Node 24.16.0 completed all
+eight selected tests and all 1,001,602 records with zero mismatches. This isolates
+a runtime-version-dependent crash; its underlying engine defect is not diagnosed.
+The pin changes no Rust arithmetic, WebAssembly module, reference input or check.
+Fresh Linux execution of the pinned runtime is required before merge; no retry,
+profile exclusion or fallback turns the crash into a pass.
+
 ## Local checks
 
 `python -I -B -m unittest discover -s port/glibc-trig` runs the static fail-closed tests (no
