@@ -17,7 +17,15 @@ on it.** What was checked, on retained genuine artifacts only:
 | `check_reference_bindings.py` | bound for the candidate object with either measured runtime; refuses the GCC 15 binary, an unrelated adapter object, an unmeasured runtime (even one whose grouping path passes the structural diagnostic) and a non-libstdc++ library |
 
 Not run: any live oracle comparison of this revision, `check_goldens_policy.py`, the Linux
-workspace build. The hosted run is `hosted_validation.sh` in the qualified image.
+workspace build. `hosted_validation.sh` can measure a freshly audited oracle; any candidate
+image it runs in remains subject to separate reference qualification.
+
+The ordinary gate at `ca40b6420a` ([run 45343887968](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45343887968))
+stopped at `stale evidence cases_sha256` before building the oracle. The separate read-only
+`rust-header-hash-live.yml` workflow now builds the pinned oracle on Ubuntu 24.04, checks its
+actual runtime and site bindings, and runs all live/profile/guard/wasm checks. It produces
+diagnostic artifacts only: it cannot replace the ordinary gate or bless a golden. An unknown
+runtime or compiled-site drift still fails. No successful fresh run is claimed here.
 
 ## Previous status: 2026-11-23, clean commit 9bf572d4 (native WSL x86-64)
 

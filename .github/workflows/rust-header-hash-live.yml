@@ -1,0 +1,89 @@
+name: Rust header hash live validation
+
+# Diagnostic prerequisite to the ordinary rust-port gate: stale golden evidence must
+# not prevent measuring the current implementation. This job never blesses, commits,
+# publishes or relaxes the main gate. Binding drift and live mismatches still fail.
+on:
+  pull_request:
+    branches: [rust]
+    paths:
+      - rust/kicad-hash/**
+      - rust/kicad-hash-shim/**
+      - rust/kicad-math/**
+      - port/oracle/**
+      - port/cases/libs.kimath.include.application.pure.p001.jsonl
+      - .github/workflows/rust-header-hash-live.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rust-header-hash-live-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_BUILD_JOBS: "2"
+  RUST_TOOLCHAIN: "1.99.1"
+  REFERENCE_TUNABLES: glibc.cpu.hwcaps=-AVX,-AVX2,-FMA,-FMA4,-AVX512F
+
+jobs:
+  hash-live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Install the native oracle prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++ gcc cmake ninja-build python3 rsync git libboost-dev libwxgtk3.2-dev
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --target wasm32-unknown-unknown
+          rustup default "$RUST_TOOLCHAIN"
+      - name: Bootstrap pinned sources and build the Rust shims
+        run: |
+          python port/tools/bootstrap_west.py
+          .port-venv/linux/bin/west update
+          python port/tools/bootstrap_west.py --check
+          cd rust
+          cargo build --locked -p kicad-difftest -p kicad-hash-shim -j2
+          cargo build --locked --release -p kicad-hash-shim -j2
+      - name: Build and audit the real pinned oracle
+        env:
+          ORACLE_JOBS: "2"
+          GLIBC_TUNABLES: ${{ env.REFERENCE_TUNABLES }}
+          LD_LIBRARY_PATH: ""
+        run: |
+          export PATH="/usr/bin:/bin:$PATH"
+          mkdir -p "$RUNNER_TEMP/hash-live"
+          /usr/bin/python3 port/oracle/prepare.py --output-dir "$RUNNER_TEMP/hash-stage"
+          bash port/oracle/build.sh "$RUNNER_TEMP/hash-stage" "$PWD/port/oracle" "$HOME/kicad-port"
+          "$HOME/kicad-port/oracle-build/kicad-oracle" --provenance > "$RUNNER_TEMP/hash-live/provenance.json"
+          /usr/bin/python3 port/oracle/check_resistor_reference.py \
+            --oracle "$HOME/kicad-port/oracle-build/kicad-oracle" \
+            --report "$RUNNER_TEMP/hash-live/runtime.json"
+      - name: Check bindings, live replies, guards and wasm
+        env:
+          GLIBC_TUNABLES: ${{ env.REFERENCE_TUNABLES }}
+          LD_LIBRARY_PATH: ""
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: |
+          bash rust/kicad-hash-shim/hosted_validation.sh \
+            "$HOME/kicad-port/oracle-build" "$RUNNER_TEMP/hash-live"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: header-hash-live-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/hash-live/
+            ~/kicad-port/oracle-build/oracle-provenance.json
+            ~/kicad-port/oracle-build/compile_commands.json
+            ~/kicad-port/oracle-build/binary.sha256
+            ~/kicad-port/oracle-build/kicad-oracle
+            ~/kicad-port/oracle-build/CMakeFiles/kicad-oracle.dir/shims/kimath_header_hash.cpp.o
+          if-no-files-found: warn
+          retention-days: 14
