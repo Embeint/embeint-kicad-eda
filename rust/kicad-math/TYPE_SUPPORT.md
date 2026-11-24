@@ -1,136 +1,171 @@
-# Supporting types in kicad-math
+# Canonical VECTOR2 / VECTOR3 port and owned-body audit
 
-This crate currently holds one supporting module, [`src/vector.rs`](src/vector.rs): the canonical
-minimal co-port of KiCad's `VECTOR2<T>` and `VECTOR3<T>`. It exists so that several units can share
-one representation before the owning unit is ported. It is not a port of that unit, and the unit's
-record is unchanged.
+The owning unit is `libs.kimath.include.math.application.ui.p002`, status **partial**.
+It owns the complete 57-USR record: 45 VECTOR2-associated and 12 VECTOR3-associated USRs.
+Three extracted scalar +/- signatures cover **six constrained source bodies**; the two
+`equals` USRs describe **one actual body**. Counts alone do not establish implementation or
+branch qualification. This document lists all USRs, including unqualified types and branches.
 
-| | |
+| Source | Verified pinned identity |
 | --- | --- |
-| Owning unit | `libs.kimath.include.math.application.ui.p002` (status `todo`, unclaimed, `tests = []`; record not edited) |
-| Upstream | KiCad `4cf939778df04d2b747bb2c4714fc5014a7565c7` (`port/pins.toml`) |
-| `libs/kimath/include/math/vector2d.h` | 737 lines, Git blob `6ca73bdd178dd7b0ed6789c57ff5ce51c88512ed`, SHA-256 `445e01764e09e6d0b9cfbfe74af553253a09fce5a290e1940c83cb57150e9599` |
-| `libs/kimath/include/math/vector3.h` | 234 lines, Git blob `70f8bb65b08f4397b28b1dcc2183482420a67f95`, SHA-256 `eda25023ca4f79819e9b29d6723d79a6d13becf22a1c3b4967b15b1db8de228e` |
-| Rust source | `src/vector.rs`, Git blob `aaa1438cd25bd9fa1affe15425e1411ac4e48013` |
-| Rust provenance | Byte-identical to `rust/kicad-math/src/vector.rs` at `8ef0c0e846ba8f190080ddf46c77373dcc0e4608` (draft PR #50), read from that Git object |
-| Consumers | Unit `libs.kimath.include.math.application.pure.p001` (PR #50: `MATRIX3x3`, wide integers) and unit `libs.kimath.include.application.pure.p001` (PR #51: header hashing and Bézier support) |
+| KiCad | `4cf939778df04d2b747bb2c4714fc5014a7565c7` |
+| vector2d.h, 737 lines | blob `6ca73bdd178dd7b0ed6789c57ff5ce51c88512ed`; SHA-256 `445e01764e09e6d0b9cfbfe74af553253a09fce5a290e1940c83cb57150e9599` |
+| vector3.h, 234 lines | blob `70f8bb65b08f4397b28b1dcc2183482420a67f95`; SHA-256 `eda25023ca4f79819e9b29d6723d79a6d13becf22a1c3b4967b15b1db8de228e` |
+| Implementation | `src/vector.rs`; one public `Vector2<T>` and one `Vector3<T>` |
+| Validation | `../kicad-vector-shim/README.md`; raw-bit doubles, exact live comparisons with partial deferrals; no golden |
 
-The module text names "the matrix and wide integer unit" because PR #50 introduced it. It is
-deliberately left byte-identical so that both PRs refer to one file with one type identity.
+Sources were read as raw Git blobs, not moving root headers. The supplied `/tmp` exports
+were separately hash-verified. Initial official base was `eb4cd4724ff6f5fa2119c86248c1a4beb4847451`.
 
-## Declarations covered
+## API and instantiation boundary
 
-The function identifiers are the clang USRs in the owning unit's `functions` list (57 in all).
+Directly exercised aliases are `Vector2I` (i32), `Vector2L` (i64), `Vector2D` (f64),
+`Vector3I` (i32), `Vector3U` (u32), `Vector3D` (f64). Representation remains generic and
+existing generic construction/copy/alias tests remain. Rust spells C++'s default `T=int`
+as `Vector2I`/`Vector3I`, not a new duplicate public vector. No Hash implementation is
+provided, preserving the deliberately deleted `std::hash<VECTOR2I>` contract.
 
-| C++ declaration (pinned line) | USR | Rust |
+`VectorComponent::Extended` ports the trait boundary: i32 -> i64; i64/u32/f64 -> themselves.
+ECOORD_MIN/MAX use that extended type; f64 MIN is **MIN_POSITIVE**, not the most negative
+finite value. Defaulted/implicit VECTOR3 construction/copy/assignment are covered by Rust
+Default/Copy/Clone/assignment. coord_type is the generic component T.
+
+Fallible checked operations are named methods. They reject each signed UB intermediate,
+not the final result alone, and preserve x-then-y(-then-z) writes on later Rust failure.
+Such a state is a Rust safety extension, never claimed as observable post-UB C++ behavior.
+Unsigned 3D arithmetic wraps in u32. VECTOR2 norm saturation is independent of Dot.
+Perpendicular negates only y. Distance subtracts in extended_type before double conversion.
+`try_cast` implements each arithmetic conversion branch for supported aliases; VECTOR2 clamps
+before truncation and VECTOR3 directly casts. The actual undefined i64 upper bound is 2^63,
+including after a clamp to double(INT64_MAX). Fractional negative double-to-u32 values above
+-1 truncate validly to zero. Non-arithmetic fallback casts, f32, long double, unsigned64,
+and other user-defined C++ instantiations remain unqualified and are not silently claimed.
+
+The live-scalar-reference API is `Vector2Scalar::{Value,X,Y}` with
+`add/sub/mul_assign_operand`: each component write rereads its operand. This expresses
+C++'s `v *= v.x` without violating Rust's borrowing rules. Value-only convenience methods
+keep copied operands. VECTOR3 takes its scalar by value. Normalize and SetAll return copies;
+compound assignments return mutable self. Normalize's wxCHECK return for <=0/unordered is
+implemented as unchanged self, including original signalling NaN/zero bits.
+
+The prior Bezier co-port implementations (`checked_sub`, f64 Sub/Add/Mul and f64->i32
+TryFrom) remain unchanged. Their historical PR #51/header-hash evidence is not new vector
+qualification. In particular private fp.rs's fixed left-NaN choice is **not generalized**.
+New fallible arithmetic explicitly defers a NaN result until each GCC site is measured;
+valid mixed NaNs remain in the corpus. Pure copies, comparisons, sign changes and failed
+Normalize checks retain the NaN domain. General std::hypot and f64 ostream formatting are
+owned deferrals. Finite arithmetic/sqrt are provisional until exact hosted comparison;
+wasm compilation is not a vector runtime-parity claim.
+
+`vector2_add/sub/dot/mul` and `scalar_mul_vector2` have explicit common-type promotion
+for i32/i64/u32/f64 combinations. The initial native adapter exercises same-type calls;
+**mixed-type bodies remain unqualified**, even though implementation exists. Scalar integral
++/- with a different integral U (including narrowing result conversions) and f32 U are not
+implemented as separate qualified overloads. Floating-RHS +/- for i32/i64 retain default-int
+KiROUND, as do integral /double and Resize. Division by floating zero and KiROUND(NaN) are
+valid paths, deferred to the helper, never rejected as UB.
+
+## Dependency calls and continuations
+
+No helper is co-ported or reclassified under this unit. No other owner record is edited.
+
+| Actual helper | Actual owner (both todo at base) | Vector continuation retained |
 | --- | --- | --- |
-| `template <class T = int> class VECTOR2` with public `T x, y;` (vector2d.h:65-66, 75) | (class) | `pub struct Vector2<T> { pub x: T, pub y: T }` |
-| `constexpr VECTOR2()`, defined `: x{}, y{}` (vector2d.h:78, 266-269) | `c:@ST>1#T@VECTOR2@F@VECTOR2#` | `#[derive(Default)]`: `T::default()` per component, which is value initialisation for the arithmetic types used (+0.0, never -0.0; integer 0) |
-| `constexpr VECTOR2( T x, T y )`, body `x = aX; y = aY;` (vector2d.h:81, 272-277) | `c:@ST>1#T@VECTOR2@F@VECTOR2#t0.0#S0_#` | `pub const fn Vector2::new(x, y)` |
-| `constexpr VECTOR2( const VECTOR2<T>& )`, body `x = aVec.x; y = aVec.y;` (vector2d.h:116-120) | `c:@ST>1#T@VECTOR2@F@VECTOR2#&1>@ST>1#T@VECTOR21t0.0#` | `#[derive(Clone, Copy)]` (memberwise copy) |
-| `constexpr VECTOR2<T>& operator=( const VECTOR2<T>& )`, body `x = aVector.x; y = aVector.y;` (vector2d.h:221, 342-348) | `c:@ST>1#T@VECTOR2@F@operator=#&1>@ST>1#T@VECTOR21t0.0#` | Rust assignment of the `Copy` type (memberwise copy); no separate code |
-| `template <class T = int> class VECTOR3` with public `T x{}; T y{}; T z{};` (vector3.h:53-54, 63-65) | (class) | `pub struct Vector3<T> { pub x: T, pub y: T, pub z: T }` |
-| `VECTOR3() = default;` with the default member initialisers (vector3.h:68) | none (defaulted) | `#[derive(Default)]` |
-| `VECTOR3( T x, T y, T z )`, defined `: x( aX ), y( aY ), z( aZ )` (vector3.h:71, 118-122) | `c:@ST>1#T@VECTOR3@F@VECTOR3#t0.0#S0_#S0_#` | `pub const fn Vector3::new(x, y, z)` |
-| implicit `VECTOR3` copy constructor and copy assignment | none (implicit) | `#[derive(Clone, Copy)]` |
-| `typedef VECTOR2<double> VECTOR2D;` (vector2d.h:707) | (typedef) | `pub type Vector2D = Vector2<f64>` |
-| `typedef VECTOR2<int32_t> VECTOR2I;` (vector2d.h:708) | (typedef) | `pub type Vector2I = Vector2<i32>` |
-| `typedef VECTOR2<int64_t> VECTOR2L;` (vector2d.h:709) | (typedef) | `pub type Vector2L = Vector2<i64>` |
-| `typedef VECTOR3<double> VECTOR3D;` (vector3.h:230) | (typedef) | `pub type Vector3D = Vector3<f64>` |
-| `typedef VECTOR3<int> VECTOR3I;` (vector3.h:231) | (typedef) | `pub type Vector3I = Vector3<i32>` |
-| `typedef VECTOR3<unsigned int> VECTOR3U;` (vector3.h:232) | (typedef) | `pub type Vector3U = Vector3<u32>` |
+| RoundedHypot, UnsignedAbs, ct_sqrt/isqrt | `libs.kimath.include.math.application.ui.p001` | signed norm's min(type max), cast and return; squared norm uses equivalent bounded u128 arithmetic locally for its owned inline saturation body |
+| RoundedHypotWide | `libs.kimath.src.math.util.application.ui.p001` | reached inside missing RoundedHypot; no DotWide/CrossWide dependency invented |
+| scalar KiROUND (NaN -> zero, saturating with logging), sign, generic rescale, scalar equals | `libs.kimath.include.math.application.ui.p001` | vector x/y calls, sign/abs branches, scalar default-int round, equals x-false/y continuation retained; trivial sign expression is inlined at its call site |
+| rescale<int64_t>, kimathLogOverflow | `libs.kimath.src.math.util.application.ui.p001` | general Resize squares then both rescale/sqrt calls and signed reconstruction retained; no invented numerator<=denominator guard |
 
-Each covered body stores its arguments unchanged, with no arithmetic, so every bit is kept: NaN
-payloads (quiet and signalling), signed zeros, infinities, subnormals and integer extremes. The
-aliases are type aliases, so `Vector2D` and `Vector2<f64>` are one type, also through the crate
-root re-exports.
+KiCheckedCast is not called by vectors. RoundedHypotWide's KI_UINT128 implementation belongs
+to the helper owner. The owned squared-norm body uses unsigned magnitudes and saturates
+exactly, including MIN, rather than calling a nonexistent wide-dot implementation.
 
-## Arithmetic and conversion for `BEZIER<T>` (PR #51)
+## Owned function / branch / observation table
 
-Unit `libs.kimath.include.application.pure.p001` owns the inline `BEZIER<T>` constructor,
-`PointAt`, `Split` and `SubCurve` (`libs/kimath/include/bezier_curves.h:95-191`). KiCad
-instantiates `BEZIER` with `double` (`EDA_SHAPE`) and `int` (`TransformEllipseToBeziers`, the
-Altium importer). With the parent's authorization (no claimant for ui.p002), exactly the
-`VECTOR2` definitions those bodies call were co-ported, and only for the instantiations they
-use. Overload resolution was checked against the pinned header: for `VECTOR2 + VECTOR2` and
-`VECTOR2 - VECTOR2` the vector-vector templates are more specialised than the constrained
-vector-scalar ones, and `double * VECTOR2<T>` matches only the scalar-first template.
+Every row is an owned USR. Case prefixes identify fixtures, not a claim that every listed
+branch passed. Hosted evidence is recorded separately; pending/unqualified branches remain
+partial. `vector2d.h` applies except VECTOR3 rows, which use `vector3.h`. Source function
+labels and USRs identify bodies exactly; constrained scalar overloads are audited together.
 
-| C++ definition (pinned lines), USR | Instantiation called by | Branch / body | Rust |
+| Upstream declaration and exact USR | Rust body | Observable cases | Remaining branch/type limit |
 | --- | --- | --- | --- |
-| free `operator-( const VECTOR2<T>&, const VECTOR2<U>& )` (vector2d.h:490-495), `c:@FT@>2#T#Toperator-#&1>@ST>1#T@VECTOR21t0.0#&1>@ST>1#T@VECTOR21t0.1#>@ST>1#T@VECTOR21^common_type<type-parameter-0-0, type-parameter-0-1>:::type#` | `<int, int>`: `BEZIER<int>::Split` (`C1 - Start` and the five later differences) | `VECTOR2<int>( aLHS.x - aRHS.x, aLHS.y - aRHS.y )`; signed overflow is undefined | `Vector2::<i32>::checked_sub` (`Err(IntegerOverflow)`) |
-| the same | `<double, double>`: `BEZIER<double>::Split` | `VECTOR2<double>` component differences | `impl Sub for Vector2<f64>` |
-| free `operator*( const T& aScalar, const VECTOR2<U>& )` (vector2d.h:541-545), `c:@FT@>2#T#Toperator*#&1t0.0#&1>@ST>1#T@VECTOR21t0.1#>@ST>1#T@VECTOR21^common_type<type-parameter-0-0, type-parameter-0-1>:::type#` | `<double, int>`: `BEZIER<int>::PointAt`/`Split`; `<double, double>`: `BEZIER<double>` | `VECTOR2<double>( aScalar * aVector.x, aScalar * aVector.y )`, `int` converted exactly | `impl Mul<Vector2<i32>> for f64`, `impl Mul<Vector2<f64>> for f64` |
-| free `operator+( const VECTOR2<T>&, const VECTOR2<U>& )` (vector2d.h:461-466), `c:@FT@>2#T#Toperator+#&1>@ST>1#T@VECTOR21t0.0#&1>@ST>1#T@VECTOR21t0.1#>@ST>1#T@VECTOR21^common_type<type-parameter-0-0, type-parameter-0-1>:::type#` | `<int, double>`: `BEZIER<int>::Split`; `<double, double>`: both (`PointAt` sums in `double` for both) | `VECTOR2<double>( aLHS.x + aRHS.x, aLHS.y + aRHS.y )` | `impl Add<Vector2<f64>> for Vector2<i32>`, `impl Add<Vector2<f64>> for Vector2<f64>` |
-| casting constructor `template <typename CastingType> VECTOR2( const VECTOR2<CastingType>& )` (vector2d.h:84-113), `c:@ST>1#T@VECTOR2@FT@>1#TVECTOR2#&1>@ST>1#T@VECTOR21t1.0#v#` | `VECTOR2<int>` from `VECTOR2<double>`: every `BEZIER<int>` intermediate and the `PointAt<int>` return | only the `std::is_floating_point<CastingType>` branch (:92-99): `static_cast<int>( std::clamp( v, double( INT_MIN ), double( INT_MAX ) ) )`; `std::clamp` passes NaN through and converting it is undefined | `impl TryFrom<Vector2<f64>> for Vector2<i32>` (`Err(NanToInteger)`) |
+| KiROUND(vector)<br>`c:@F@KiROUND#&1$@S@VECTOR2>#d#` | `ki_round` | `ki_round-*` | scalar KiROUND helper deferred |
+| KiROUND(x,y)<br>`c:@F@KiROUND#d#d#` | `ki_round_xy` | `ki_round_xy-*` | scalar KiROUND helper deferred |
+| LexicographicalCompare<br>`c:@FT@>1#TLexicographicalCompare#&1>@ST>1#T@VECTOR21t0.0#S0_#I#` | `lexicographical_compare` | `bits-*-compare` | none for aliases; unordered x falls through to y |
+| LexicographicalMax<br>`c:@FT@>1#TLexicographicalMax#&1>@ST>1#T@VECTOR21t0.0#S0_#S0_#` | `lexicographical_max` | `bits-*-compare` | second reference on ties/unordered |
+| LexicographicalMin<br>`c:@FT@>1#TLexicographicalMin#&1>@ST>1#T@VECTOR21t0.0#S0_#S0_#` | `lexicographical_min` | `bits-*-compare` | second reference on ties/unordered |
+| equals declaration/body spelling A<br>`c:@FT@>1#Tequals#&1>@ST>1#T@VECTOR21t0.0#S0_#S2_#^enable_if<! std::numeric_limits<type-parameter-0-0>::is_integer, bool>:::type#` | `equals` | `equals-*` | scalar equals deferred; x early false then y continuation retained |
+| equals declaration/body spelling B<br>`c:@FT@>1#Tequals#&1>@ST>1#T@VECTOR21t0.0#S0_#S2_#^enable_if<!std::numeric_limits<type-parameter-0-0>::is_integer, bool>:::type#` | `equals` | `equals-*` | same actual body as preceding USR; not another implementation |
+| VECTOR2 ostream<br>`c:@FT@>1#Toperator<<#&$@N@std@S@basic_ostream>#C#$@N@std@S@char_traits>#C#&1>@ST>1#T@VECTOR21t0.0#S0_#` | `stream` | `2-*-stream` | double/default formatting and custom stream state unqualified |
+| VECTOR3 ostream<br>`c:@FT@>1#Toperator<<#&$@N@std@S@basic_ostream>#C#$@N@std@S@char_traits>#C#&1>@ST>1#T@VECTOR31t0.0#S0_#` | `stream` | `3-*-stream` | double/default formatting and custom stream state unqualified |
+| free vector dot *<br>`c:@FT@>2#T#Toperator*#&1>@ST>1#T@VECTOR21t0.0#&1>@ST>1#T@VECTOR21t0.1# #` | `vector2_dot / dot` | `2-*-operator_dot` | mixed instantiations unqualified; floating NaN arithmetic deferred |
+| vector * scalar<br>`c:@FT@>2#T#Toperator*#&1>@ST>1#T@VECTOR21t0.0#&1t0.1#>@ST>1#T@VECTOR21^common_type<type-parameter-0-0, type-parameter-0-1>:::type#` | `vector2_mul / try_mul_scalar` | `2-*-mul_scalar` | mixed instantiations unqualified; floating NaN arithmetic deferred |
+| scalar * vector<br>`c:@FT@>2#T#Toperator*#&1t0.0#&1>@ST>1#T@VECTOR21t0.1#>@ST>1#T@VECTOR21^common_type<type-parameter-0-0, type-parameter-0-1>:::type#` | `scalar_mul_vector2` | `2-*-scalar_mul` | mixed instantiations unqualified; floating NaN arithmetic deferred |
+| vector + vector<br>`c:@FT@>2#T#Toperator+#&1>@ST>1#T@VECTOR21t0.0#&1>@ST>1#T@VECTOR21t0.1#>@ST>1#T@VECTOR21^common_type<type-parameter-0-0, type-parameter-0-1>:::type#` | `vector2_add / try_add` | `random-*-add` | mixed instantiations unqualified; floating NaN arithmetic deferred |
+| vector + scalar (three constrained bodies)<br>`c:@FT@>2#T#Toperator+#&1>@ST>1#T@VECTOR21t0.0#&1t0.1#S1_#` | `try_add_scalar / add_float` | `2-*-add_scalar, add_float-*` | floating-T / integral-T-integral-U / integral-T-floating-U: same types and f64 RHS implemented; KiROUND deferred; other U unqualified |
+| vector - vector<br>`c:@FT@>2#T#Toperator-#&1>@ST>1#T@VECTOR21t0.0#&1>@ST>1#T@VECTOR21t0.1#>@ST>1#T@VECTOR21^common_type<type-parameter-0-0, type-parameter-0-1>:::type#` | `vector2_sub / try_sub` | `random-*-sub` | mixed instantiations unqualified; floating NaN arithmetic deferred |
+| vector - scalar (integral T, floating U)<br>`c:@FT@>2#T#Toperator-#&1>@ST>1#T@VECTOR21t0.0#&1t0.1#S1_#` | `sub_float` | `2-*-sub_float` | KiROUND helper deferred |
+| vector - scalar (floating T or integral T/U)<br>`c:@FT@>2#T#Toperator-#&1>@ST>1#T@VECTOR21t0.0#t0.1#S1_#` | `try_sub_scalar` | `2-*-sub_scalar` | two constrained bodies; other integral U unqualified |
+| VECTOR2 Cross<br>`c:@ST>1#T@VECTOR2@F@Cross#&1>@ST>1#T@VECTOR21t0.0#1` | `cross` | `random-*-cross` | floating NaN arithmetic deferred |
+| VECTOR2 Distance<br>`c:@ST>1#T@VECTOR2@F@Distance#&1>@ST>1#T@VECTOR21^VECTOR2_TRAITS<type-parameter-0-0>:::extended_type#1` | `distance` | `distance-subtract-before-double, distance-extended-argument` | subtract in extended_type first; general std::hypot deferred |
+| VECTOR2 Dot<br>`c:@ST>1#T@VECTOR2@F@Dot#&1>@ST>1#T@VECTOR21t0.0#1` | `dot` | `random-*-dot` | floating NaN arithmetic deferred; signed intermediates guarded |
+| VECTOR2 EuclideanNorm<br>`c:@ST>1#T@VECTOR2@F@EuclideanNorm#1` | `euclidean_norm / norm2` | `2-*-norm, fp-sites-*-norm` | signed RoundedHypot deferred; double diagonal/axis implemented; general std::hypot deferred; other integral types unqualified |
+| VECTOR2 Format<br>`c:@ST>1#T@VECTOR2@F@Format#1` | `format` | `2-*-format` | fresh classic stream; double formatting deferred |
+| VECTOR2 Perpendicular<br>`c:@ST>1#T@VECTOR2@F@Perpendicular#1` | `perpendicular` | `2-*-perpendicular-min-x` | negates only y; signed-min y refused |
+| VECTOR2 Resize<br>`c:@ST>1#T@VECTOR2@F@Resize#t0.0#1` | `resize` | `2-*-resize-*, floating-resize-*` | zero/diagonal/general branches retained; KiROUND/rescale deferred at actual calls; no naive normalized replacement |
+| VECTOR2 SquaredDistance<br>`c:@ST>1#T@VECTOR2@F@SquaredDistance#&1>@ST>1#T@VECTOR21t0.0#1` | `squared_distance` | `random-*-squared_distance` | each extended subtraction/product/sum guarded; floating NaN arithmetic deferred |
+| VECTOR2 SquaredEuclideanNorm<br>`c:@ST>1#T@VECTOR2@F@SquaredEuclideanNorm#1` | `squared_euclidean_norm` | `2-*-squared_norm` | i32/i64 exact saturation; double NaN arithmetic deferred |
+| VECTOR2 default constructor<br>`c:@ST>1#T@VECTOR2@F@VECTOR2#` | `Default` | `2-*-default` | value initialization; generic non-arithmetic uses T::default |
+| VECTOR2 copy constructor<br>`c:@ST>1#T@VECTOR2@F@VECTOR2#&1>@ST>1#T@VECTOR21t0.0#` | `Copy / Clone` | `bits-*-copy` | all bits preserved |
+| VECTOR2 component constructor<br>`c:@ST>1#T@VECTOR2@F@VECTOR2#t0.0#S0_#` | `new` | `bits-*-new` | all bits preserved |
+| VECTOR2 !=<br>`c:@ST>1#T@VECTOR2@F@operator!=#&1>@ST>1#T@VECTOR21t0.0#1` | `PartialEq::ne` | `bits-*-compare` | short circuit x then y |
+| VECTOR2 *= vector<br>`c:@ST>1#T@VECTOR2@F@operator*=#&1>@ST>1#T@VECTOR21t0.0#` | `mul_assign` | `2-*-mul_assign` | x then y; alias-self vector has independent components |
+| VECTOR2 *= scalar reference<br>`c:@ST>1#T@VECTOR2@F@operator*=#&1t0.0#` | `mul_assign_operand` | `2-*-mul_assign_scalar-alias-*` | live x/y alias reads; copied-value convenience also provided |
+| VECTOR2 += vector<br>`c:@ST>1#T@VECTOR2@F@operator+=#&1>@ST>1#T@VECTOR21t0.0#` | `add_assign` | `2-*-add_assign` | x then y; Rust late failure retains first write |
+| VECTOR2 += scalar reference<br>`c:@ST>1#T@VECTOR2@F@operator+=#&1t0.0#` | `add_assign_operand` | `2-*-add_assign_scalar-alias-*` | live x/y alias reads |
+| VECTOR2 unary -<br>`c:@ST>1#T@VECTOR2@F@operator-#1` | `try_neg` | `2-*-neg` | signed-min component refused; NaN sign bit toggled without arithmetic |
+| VECTOR2 -= vector<br>`c:@ST>1#T@VECTOR2@F@operator-=#&1>@ST>1#T@VECTOR21t0.0#` | `sub_assign` | `2-*-sub_assign` | x then y |
+| VECTOR2 -= scalar reference<br>`c:@ST>1#T@VECTOR2@F@operator-=#&1t0.0#` | `sub_assign_operand` | `2-*-sub_assign_scalar-alias-*` | live x/y alias reads |
+| VECTOR2 / double<br>`c:@ST>1#T@VECTOR2@F@operator/#d#1` | `divide` | `2-*-divide-*` | integral uses default int KiROUND even for i64; zero/NaN valid and deferred to helper |
+| VECTOR2 <<br>`c:@ST>1#T@VECTOR2@F@operator<#&1>@ST>1#T@VECTOR21t0.0#1` | `less` | `bits-*-compare` | x unordered never falls through to y |
+| VECTOR2 <=<br>`c:@ST>1#T@VECTOR2@F@operator<=#&1>@ST>1#T@VECTOR21t0.0#1` | `less_equal` | `bits-*-compare` | same x ordering/eq condition |
+| VECTOR2 assignment<br>`c:@ST>1#T@VECTOR2@F@operator=#&1>@ST>1#T@VECTOR21t0.0#` | `Rust assignment` | `2-*-assign` | memberwise Copy; source bits retained |
+| VECTOR2 ==<br>`c:@ST>1#T@VECTOR2@F@operator==#&1>@ST>1#T@VECTOR21t0.0#1` | `PartialEq::eq` | `bits-*-compare` | short circuit x then y |
+| VECTOR2 ><br>`c:@ST>1#T@VECTOR2@F@operator>#&1>@ST>1#T@VECTOR21t0.0#1` | `greater` | `bits-*-compare` | same x ordering/eq condition |
+| VECTOR2 >=<br>`c:@ST>1#T@VECTOR2@F@operator>=#&1>@ST>1#T@VECTOR21t0.0#1` | `greater_equal` | `bits-*-compare` | same x ordering/eq condition |
+| VECTOR2 converting constructor<br>`c:@ST>1#T@VECTOR2@FT@>1#TVECTOR2#&1>@ST>1#T@VECTOR21t1.0#v#` | `try_cast / Vector2CastFrom` | `2-*-cast-*` | floating target / clamped floating source / clamped integral source implemented for aliases; fallback non-arithmetic unqualified |
+| VECTOR2 operator()<U><br>`c:@ST>1#T@VECTOR2@FT@>1#Toperator()#>@ST>1#T@VECTOR21t1.0#1` | `try_cast / Vector2CastFrom` | `2-*-cast_call-*` | same branches; identity copy bypasses arithmetic; non-alias U unqualified |
+| VECTOR3 Cross<br>`c:@ST>1#T@VECTOR3@F@Cross#&1>@ST>1#T@VECTOR31t0.0#1` | `cross` | `3-*-cross` | T products/subtractions, not extended; cancellation UB refused; u32 wraps; NaN arithmetic deferred |
+| VECTOR3 Dot<br>`c:@ST>1#T@VECTOR3@F@Dot#&1>@ST>1#T@VECTOR31t0.0#1` | `dot` | `3-*-dot` | extended products and left-associated partial sum; u32 wraps; NaN arithmetic deferred |
+| VECTOR3 EuclideanNorm<br>`c:@ST>1#T@VECTOR3@F@EuclideanNorm#1` | `euclidean_norm` | `3-*-norm` | sqrt after extended ordered sum; integral cast truncates; NaN returned result deferred |
+| VECTOR3 Normalize<br>`c:@ST>1#T@VECTOR3@F@Normalize#` | `normalize` | `3-fp-*-normalize, 3-u32-*-normalize` | norm<=0/unordered unchanged copy; +inf divides; finite paths implemented; NaN divisions deferred |
+| VECTOR3 SetAll<br>`c:@ST>1#T@VECTOR3@F@SetAll#t0.0#` | `set_all` | `3-*-set_all` | x/y/z writes and copied return |
+| VECTOR3 component constructor<br>`c:@ST>1#T@VECTOR3@F@VECTOR3#t0.0#S0_#S0_#` | `new` | `bits-*-new` | all bits preserved |
+| VECTOR3 !=<br>`c:@ST>1#T@VECTOR3@F@operator!=#&1>@ST>1#T@VECTOR31t0.0#1` | `PartialEq::ne` | `bits-*-compare` | short circuit x/y/z |
+| VECTOR3 *= scalar value<br>`c:@ST>1#T@VECTOR3@F@operator*=#t0.0#` | `mul_assign_scalar` | `3-*-mul_assign_scalar-alias-*` | scalar copied before first write; x/y/z mutation order |
+| VECTOR3 /= scalar value<br>`c:@ST>1#T@VECTOR3@F@operator/=#t0.0#` | `div_assign_scalar` | `3-*-div_assign_scalar-alias-*` | integer zero and MIN/-1 refused; u32 division; NaN arithmetic deferred |
+| VECTOR3 ==<br>`c:@ST>1#T@VECTOR3@F@operator==#&1>@ST>1#T@VECTOR31t0.0#1` | `PartialEq::eq` | `bits-*-compare` | short circuit x/y/z |
+| VECTOR3 converting constructor<br>`c:@ST>1#T@VECTOR3@FT@>1#TVECTOR3#&1>@ST>1#T@VECTOR31t1.0#v#` | `try_cast / Vector3CastFrom` | `3-*-cast-*` | direct unclamped conversion; i32/u32 narrowing uses measured Linux/GCC modular interpretation; other types unqualified |
 
-`double` NaN results use the private `fp` module: one NaN operand is returned quieted (sign
-and payload kept); an invalid operation without a NaN operand gives x86's negative indefinite
-NaN `0xfff8_0000_0000_0000`; both rules match the live oracle on every case. Every non-NaN
-result is plain IEEE arithmetic, which Rust computes identically on every target, and the
-explicit rules make the native and wasm builds agree on NaN bits too. With two NaN operands
-the left operand is kept. That is a fixed choice, not a property of the reference: IEEE 754
-leaves it open, and the compiled oracle keeps the left operand in some statements and the
-right in others (`port/findings/kimath-header-hash-bezier-two-nan-payloads.md`). A vector
-operator with one fixed order cannot express that, so `kicad_hash`'s `BEZIER<double>` port
-evaluates its component arithmetic directly in the bound reference's per-site order
-(`bezier_f64_sites`); these operators keep their behaviour and remain the canonical co-ports
-(`BEZIER<int>` still uses them, where only `aT` can be NaN and any NaN is refused).
+## Evidence and remaining work
 
-Evidence: `tests/bezier_operations.rs` (each instantiation; overflow of either component;
-signed zeros; promotion of `INT_MIN`/`INT_MAX`; the clamp boundaries `double( INT_MAX )`,
-`2147483647.9`, `2147483648.0`, infinities and `±DBL_MAX` saturating; truncation toward zero of
-positive and negative fractions and subnormals; NaN refusal; operand and generated NaN bits) and
-the unit's oracle cases (`bezier-*` in `port/cases/libs.kimath.include.application.pure.p001.jsonl`
-and the refused `BEZIER<int>` requests in
-`rust/kicad-hash-shim/fixtures/bezier-int-undefined.requests.jsonl`), compared exactly against
-the pinned C++ calling these operators.
+`tests/vector.rs` retains constructor, copy, const, generic-type and alias identity checks.
+`tests/bezier_operations.rs` retains existing consumer regression coverage. New
+`tests/vector_operations.rs` covers scalar aliases, per-intermediate overflow, late-failure
+mutation, cast intervals, extended-before-double Distance, norm saturation, Normalize state
+and return, unordered comparison, second-reference identity and f64 ECOORD_MIN.
 
-The owning unit's record keeps its status (`todo`), claim, tests and every generated field; only
-its `notes` list these co-ports.
+The deterministic generator emits 4,103 valid cases and 29 separate UB refusal controls.
+Every corpus case runs in the real pinned C++ and in Rust; Rust deferrals are explicit error
+envelopes with actual owner, while C++ must return a real result. Refusals are outside the
+success corpus and assert a later request survives. There is no tolerance, lookup table,
+recorded-answer fallback, default success or blessed golden. The initial live report must
+retain exact compared/deferred/failure counts before any qualification claim.
 
-## Not covered
-
-Everything else in the two headers belongs to the owning unit and is absent, not guessed. That is
-48 of the unit's 57 USRs (5 are covered above and 4 partially, for the instantiations and branch
-listed in the previous section), plus the class-level declarations below:
-
-- `VECTOR2`: the other branches of the casting constructor (floating or integral target from
-  other types) and `operator()`, `Cross`, `Dot`, `Distance`, `SquaredDistance`, `EuclideanNorm`,
-  `SquaredEuclideanNorm`, `Perpendicular`, `Resize`, `Format`, the compound assignments, unary `-`,
-  `operator/`, the six comparison operators, `equals`, `LexicographicalCompare`/`Min`/`Max`, the
-  free `+`, `-` and `*` operators at other instantiations and their vector-scalar overloads, the
-  dot-product `operator*( VECTOR2, VECTOR2 )`, `operator<<` and both `KiROUND` overloads.
-- `VECTOR3`: the casting constructor, `Cross`, `Dot`, `EuclideanNorm`, `Normalize`, `SetAll`,
-  `operator==`, `operator!=`, `operator*=`, `operator/=` and `operator<<`.
-- `VECTOR2_TRAITS`/`VECTOR3_TRAITS` and the members derived from them: `extended_type`,
-  `coord_type`, `ECOORD_MAX` and `ECOORD_MIN`.
-- The deleted `std::hash<VECTOR2I>` specialisation (Rust `Hash` is simply not derived).
-- The default template argument `T = int`: Rust has none, so `VECTOR2<>` is spelled `Vector2I`.
-
-The derived `Debug` is a Rust diagnostic aid only. It is not a port of `operator<<` and its output
-must not be compared with KiCad's. No equality (`PartialEq`), ordering, hashing, norm, rounding or
-formatting behaviour is provided, and no arithmetic beyond the instantiations listed above. The
-aliases do not give the generic operations of the C++ templates.
-
-## Evidence
-
-`tests/vector.rs` checks default construction (all bits zero for floats; zero for each integer
-type), component construction in order for every pair and triple of 14 f64 bit patterns,
-integer extremes for each alias, `const` construction, copy, clone and assignment keeping bits
-with the source unchanged, generic component types (f32 NaN payloads, `u8`, `i16`, a non-`Copy`
-`String`), and alias and re-export type identity through `TypeId` and by passing values between
-spellings.
-
-There are no oracle cases or goldens for these representations. Their bodies are memberwise stores,
-which the Rust tests check directly. The operations that would need the oracle are the ones listed
-above as not covered. The owning unit stays `todo` with no tests, and nothing here makes it
-`partial` or `green`.
-
-## Extending these types
-
-Later co-ports add `impl` blocks and functions to `src/vector.rs` for these same types. They do not
-add other public vector types or a second vector crate. A co-port that needs more of `VECTOR2` or
-`VECTOR3` agrees it with the owning unit's claimant (or with the parent while the unit is
-unclaimed), records the added symbols here and in that unit's notes, and checks the added
-operations against the C++ oracle.
+Still missing: the named helper implementations and their downstream continuations' live
+execution, per-site arithmetic NaN payload selection, general double hypot/libm parity,
+default-double stream formatting, supplied stream flags/precision/width/locale/failure and
+chaining, other template types and mixed-type native coverage, vector wasm runtime parity.
+Fresh stream Format differs from supplied-stream insertion; the latter consumes width at the
+first string insertion and never appends a newline. These custom stream states have no
+runner entry yet and are explicitly unimplemented. There is no claim of 57 fully ported USRs.

@@ -144,3 +144,8 @@ add_test( NAME oracle-resistor-private-keys
 set_tests_properties( oracle-protocol oracle-build-guards oracle-iec60664-build-guards
                       oracle-dispatch oracle-resistor-inputs oracle-resistor-private-keys
                       PROPERTIES TIMEOUT 60 )
+
+add_test( NAME oracle-vector-inputs
+    COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_vector_inputs.py"
+            "$<TARGET_FILE:kicad-oracle>" )
+set_tests_properties( oracle-vector-inputs PROPERTIES TIMEOUT 60 )
