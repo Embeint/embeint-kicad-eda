@@ -31,7 +31,8 @@ reserved and multicast destinations and all connections to the host itself.
 IPv6 is disabled on that network. Public DNS/HTTPS remain available for GitHub and
 verified tool/package downloads. Rules affect only this bridge. The runner has no
 Docker restart policy; its systemd service reapplies the firewall before every
-start, including after reboot. If the service/rules fail, leave routing disabled.
+start, including after reboot. The image enables the runner's built-in PID 1
+signal forwarding so an idle stop releases its GitHub session promptly. If the service/rules fail, leave routing disabled.
 
 The image's root-owned pre-job hook rejects PR events and wrong repositories
 before workflow steps. This is defense in depth, not an authorization system for
