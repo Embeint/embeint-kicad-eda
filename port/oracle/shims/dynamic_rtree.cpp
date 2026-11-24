@@ -6,6 +6,7 @@
 #include <array>
 #include <cmath>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -81,12 +82,24 @@ JSON collect( const TREE& aTree, int aLimit )
         result.push_back( ( *it ) ? ( *it )->Tag : -1 );
     return result;
 }
+template <class CURSOR>
+JSON cursorValue( const CURSOR& aCursor, const JSON& aArrowEqual )
+{
+    const CURSOR end;
+    ITEM*        current = *aCursor;
+    return { { "end", aCursor == end }, { "current", current ? current->Tag : -1 }, { "arrow_equal", aArrowEqual } };
+}
+
+
 template <class E, int D, int F>
 JSON runTree( const JSON& aSteps )
 {
     using TREE = KIRTREE::DYNAMIC_RTREE<ITEM*, E, D, F>;
-    TREE              tree;
-    std::vector<ITEM> items( 65536 );
+    TREE                                      tree;
+    typename TREE::Iterator                   allCursor;
+    typename TREE::SearchIterator             queryCursor;
+    std::optional<typename TREE::SearchRange> savedRange;
+    std::vector<ITEM>                         items( 65536 );
     for( int i = 0; i < 65536; ++i )
         items[i].Tag = i;
     auto item = [&]( const JSON& aStep )
@@ -99,7 +112,53 @@ JSON runTree( const JSON& aSteps )
     {
         const std::string op = stringValue( step, "op", "expected op string" );
         JSON              value = nullptr;
-        if( op == "insert" || op == "remove" )
+        if( op == "range_save" )
+        {
+            keys( step, { "op", "min", "max" } );
+            std::array<E, D> min = coords<E, D>( step, "min" ), max = coords<E, D>( step, "max" );
+            savedRange = tree.Overlapping( min.data(), max.data() );
+        }
+        else if( op == "range_begin" )
+        {
+            keys( step, { "op" } );
+            if( !savedRange )
+                refuse( "range not saved" );
+            queryCursor = savedRange->begin();
+            value = cursorValue( queryCursor, nullptr );
+        }
+        else if( op == "cursor_all" )
+        {
+            keys( step, { "op" } );
+            allCursor = tree.begin();
+            value = cursorValue( allCursor, allCursor.operator->() == &*allCursor );
+        }
+        else if( op == "cursor_query" )
+        {
+            keys( step, { "op", "min", "max" } );
+            std::array<E, D> min = coords<E, D>( step, "min" ), max = coords<E, D>( step, "max" );
+            queryCursor = tree.Overlapping( min.data(), max.data() ).begin();
+            value = cursorValue( queryCursor, nullptr );
+        }
+        else if( op == "cursor_next" || op == "cursor_value" )
+        {
+            keys( step, { "op", "kind" } );
+            const std::string kind = stringValue( step, "kind", "expected cursor kind" );
+            if( kind == "all" )
+            {
+                if( op == "cursor_next" )
+                    ++allCursor;
+                value = cursorValue( allCursor, allCursor.operator->() == &*allCursor );
+            }
+            else if( kind == "query" )
+            {
+                if( op == "cursor_next" )
+                    ++queryCursor;
+                value = cursorValue( queryCursor, nullptr );
+            }
+            else
+                refuse( "unknown cursor kind" );
+        }
+        else if( op == "insert" || op == "remove" )
         {
             keys( step, { "op", "min", "max", "data" } );
             std::array<E, D> min = coords<E, D>( step, "min" ), max = coords<E, D>( step, "max" );

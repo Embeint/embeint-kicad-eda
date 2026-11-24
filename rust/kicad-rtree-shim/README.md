@@ -7,13 +7,16 @@ i64.d2.m16 and i64.d3.m8. 1..4096 operations per request, <=65536 items and IDs
 -1..65535 (-1 is a real null pointer). IDs denote real stable ITEM pointers on C++, Item handles on Rust.
 
 Operations: insert/remove `{min,max,data}`, bulk `{entries:[{min,max,data}]}`,
-clear/state `{}`, iter `{limit}` (negative unlimited), query `{min,max,stop}`
+clear/state `{}`, cursor_all `{}`, cursor_query/range_save `{min,max}`,
+range_begin `{}`, cursor_next/cursor_value `{kind:all|query}`, iter `{limit}` (negative unlimited), query `{min,max,stop}`
 (nonpositive unlimited visitor), nearest `{point,k}`, move `{kind}`
 (construct/assign/self). Each operation reports its observable value and current
 size/empty/reference-memory accounting. State includes full traversal order and
 the header's unusual iterator equality. Query returns visitor count/hits plus the
 full lazy range and emptiness. NN starts with a nonempty output vector, so empty
-and k<=0 paths prove clearing. Mutation requests are independent; a per-line
+and k<=0 paths prove clearing. Saved cursors survive defined mutations and saved ranges begin at their saved
+root, even after root splitting or move. Native cases read copied current data
+after clear but never advance a freed node. Requests are independent; a per-line
 refusal is followed by a valid request in the separate guard suite.
 
 Generate/check corpus with `generate_cases.py [--check]`. `test_inputs.py <binary>`

@@ -7,7 +7,11 @@ Owns the complete 1,812-line `dynamic_rtree.h` at KiCad
 R*-tree, using the accepted `RtreeNode` and `SlabArena` without node, allocator or
 vector co-ports. No edits to the node owner, vector worker or numerical util worker
 are needed. No open topic is a dependency. The claim starts at accepted
-`rust@eb4cd4724ff6f5fa2119c86248c1a4beb4847451`.
+`rust@eb4cd4724ff6f5fa2119c86248c1a4beb4847451`. Accepted PR50 was then merged
+from official `rust@1ac339f229d8ccb8ccb297f489493622903cc468`, reviewed tree
+`8586272b3a8a6e9ea4ce66e61b4430a67d53f7cb`. Its matrix adapter stays before hash;
+the dynamic adapter is appended afterwards. Accepted matrix/trig/NaN/golden code
+and evidence have no topic-relative changes.
 
 ## Audit and public surface
 
@@ -17,21 +21,22 @@ are needed. No open topic is a dependency. The claim starts at accepted
 | move constructor/assignment | move_out leaves empty fresh source; move_assign drops destination and transfers complete arena | Construct, occupied assignment, source memory zero, self-move native no-op | Rust borrowing makes self assignment an implicit no-op at caller boundary |
 | Insert/insertImpl/chooseSubtree; overlap helpers | Leaf selection minimizes overlap increase, then area increase, then area; higher levels minimize area increase then area | Incremental vs packed mutations, traversal and query order, duplicate/touching/equal entries | Other coordinate/payload types below |
 | overflowTreatment/forcedReinsert | Per-insertion level mask; descending center-distance sort, per-axis truncation then checked addition; close entries retained and far entries reinserted | Repeated insertion at full leaf; fanout 3 reaches reinsert-count-zero fallback | Internal forced-reinsert branch and level>=32 are unreachable through public API: overflowTreatment is called only on a level-0 leaf. Internal split continuation still exists |
-| splitNode/splitNodeInternal | Full leaf min/max-axis distributions, perimeter axis choice, overlap/area tie breaks, optional max-order winner; internal min-only sort; root creation and recursive propagation | Different fanouts and dimensions, equal keys, deep insertions | Native branch coverage not yet measured; do not infer it from case counts |
+| splitNode/splitNodeInternal | Full leaf min/max-axis distributions, perimeter axis choice, overlap/area tie breaks, optional max-order winner; internal min-only sort; root creation and split propagation | Different fanouts and dimensions, equal keys, deep insertions | Prior-head gcov: leaf split 3,149 calls, internal split 8,889, forced reinsert 3,444. Current-head rerun pending; counts are across eight instantiations |
 | computeSplitPerimeters/findBestSplitIndex/computeSplitOverlap | Exact integer expression order; split-overlap uses >= while node-overlap uses > | Disjoint/touching/overlapping and zero-area groups | Overflow controls are Rust-only, never knowingly executed in C++ |
 | adjustPath/findChildSlot | Update existing child boxes bottom-up | Queries after splits, forced reinsert and removals | Private missing-child no-op cannot be constructed through a valid public tree |
-| Remove/removeImpl/reinsertOrphans/condenseRoot | First overlap-guided removal then full-range fallback; swap-last; underflow exemption is based on parent being root; orphan entries retain insertion bounds; roots collapse repeatedly | Present/absent/duplicate and wrong-box removals, packed-tree mutations, full depletion | Native branch coverage of internal orphan path pending measurement |
-| reinsertNode/chooseSubtreeAtLevel | Correct target level, area-growth descent, append or internal split | Removal from packed and incremental multilevel trees | Same internal-orphan coverage gap |
+| Remove/removeImpl/reinsertOrphans/condenseRoot | First overlap-guided removal then full-range fallback; swap-last; underflow exemption is based on parent being root; orphan entries retain insertion bounds; roots collapse repeatedly | Present/absent/duplicate and wrong-box removals, packed-tree mutations, full depletion | Prior-head gcov: internal orphan reinsertNode 228 calls; full current-head rerun pending |
+| reinsertNode/chooseSubtreeAtLevel | Correct target level, area-growth descent, append or internal split | Removal from packed and incremental multilevel trees | Prior-head chooseSubtreeAtLevel 228 calls, target-full split path 29 calls; current-head rerun pending |
 | Search/searchImpl | Node overlap mask, low-bit-first traversal, count increment before callback, propagate false | stop 1 and unlimited/nonpositive visitor policy; count and hits compared | Pinned header has no max-hit parameter; the adapter implements that policy in the visitor |
-| Iterator (all methods), begin/end | Lazy stack, default/null-root and standalone-arena constructors, independent cursor copies, payload copy, end flag comparison only, retain last current after exhaustion; current None represents default null payload | Empty/nonempty, equality of different non-end positions, repeated increment, prefix limit | Rust references prevent mutation during iterator/range lifetime; native mutation invalidation is not exercised as defined behaviour |
+| Iterator (all methods), begin/end | Lazy stack, default/null-root and standalone-arena constructors, independent cursor copies, payload copy, end flag comparison only, retain last current after exhaustion; current None represents default null payload | Empty/nonempty, equality of different non-end positions, repeated increment, prefix limit | Borrowed form prevents mutation; detached cursors/ranges preserve defined mutation, including saved former roots and move transfer. Freed/foreign-node advancement is refused. Native cursor cases never advance a freed node |
 | SearchIterator/SearchRange (all methods), Overlapping | Same lazy stack with scalar per-slot overlap, bounds copied by value, empty probes one traversal | Full ordered lazy results vs visitor, range empty | No result-vector stand-in |
 | minDistSq/NearestNeighbors | Checked widened differences/products/sums; clear output first; actual node-distance priority queue | k negative/zero/one/above count, equal distances, seeded output cleared | Queue/sort equivalent-key order targets GCC libstdc++, not libc++/MSVC |
 
 `order.rs` ports the observable introsort and heap permutations used by libstdc++
 (GCC 13): equivalent-key permutations affect traversal, duplicate removals and NN
 ties. These are derived from GNU libstdc++ `bits/stl_algo.h` and `bits/stl_heap.h`,
-Copyright Free Software Foundation, GPL-3.0-or-later with GCC Runtime Library
-Exception. No upstream KiCad source is modified. Fixed floating operation order,
+Copyright Free Software Foundation, Hewlett-Packard and Silicon Graphics.
+The original GPL-3.0-or-later and GCC Runtime Library Exception notices are retained
+in NOTICE.libstdc++.txt and COPYING.RUNTIME. No upstream KiCad source is modified. Fixed floating operation order,
 no FMA/reassociation, integer-nanometre coordinates, no unsafe/global state.
 
 ## Domain, resources and failure lifecycle
@@ -73,7 +78,10 @@ MemoryUsage reports the accepted slab's reference accounting, not Rust heap usag
 LP64 Linux x86-64 GCC/libstdc++ node/PAGE layout and modeled free-list capacity.
 The node owner has measured those layouts; this unit additionally compares tree
 allocation/free sequences live. Other allocators/platforms and libc++ vector
-capacity are not certified by that formula.
+capacity are not certified by that formula. Handles retain the accepted node
+owner's lifetime boundary: free/reconstruction within an existing page keeps slot
+identity; destroyed storage is never given a reused logical identity. A stale
+pointer aliasing a new heap allocation at the same address is not reproduced.
 
 ## Validation boundary
 
@@ -81,12 +89,20 @@ The native JSONL shim is `../kicad-rtree-shim`. The registered C++ adapter calls
 real pinned templates with stable pointers to real ITEM objects, not list/search
 stand-ins. Both retain duplicate data identities and insertion boxes. The corpus
 contains only public fixed-seed generated inputs. Goldens are intentionally absent.
-The current corpus has 201 cases / 56,023 operations. Status stays partial pending
-hosted live evidence and independent review.
+The current corpus has 231 cases / 56,613 operations. The current 231-case head is pending its hosted rerun and independent review.
+The prior 201-case head passed hosted native debug/release, WASI execution and
+UBSan exact comparison in run 45394322694. Its tested synthetic merge was
+79e66b5bcc9a1124d65bbb6be5d1e0cff8810b20, tree
+c767bd64813c7a2d33f2c72b99876e257c515abb, exactly the tree of topic 937eaa0dfa.
+Those prior-head results do not certify the later cursor/range cases. Status stays
+partial for the documented template/platform/native-preflight boundaries.
 
-Current local evidence (macOS ARM64, Rust 1.96.1, -j2): 10 tree and 19 existing node
-tests pass; scoped clippy, format, portable wasm compilation and 47 refusal/47
-following valid requests pass. These results do not qualify GCC ordering.
+Current local evidence (macOS ARM64, Rust 1.96.1, -j2): 13 tree and 19 existing node
+tests pass; scoped clippy, format, portable wasm compilation and 49 refusal/49
+following valid requests pass. These results do not qualify GCC ordering. A diagnostic Clang/libc++ run on the
+previous 193-case corpus compared 125 and differed on 68; its first difference was
+nearest-neighbor ordering at the identical squared distance 245. This is not
+Linux reference evidence and is not hidden by a tolerance or result sorting.
 
 Remaining oracle boundary: the C++ adapter validates schema, resource counts and
 exact bulk float-cast preconditions, but has not implemented a complete preflight

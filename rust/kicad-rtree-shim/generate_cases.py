@@ -33,6 +33,7 @@ def generate():
                         steps.append({'op':'query','min':[p]*d,'max':[p+4]*d,'stop':p})
                     for k in [-1,0,1,7,n+3]: steps.append({'op':'nearest','point':[0]*d,'k':k})
                     for limit in [0,1,-1]: steps.append({'op':'iter','limit':limit})
+                steps.append({'op':'remove','min':[0]*d,'max':[0]*d,'data':65534})
                 observe()
                 steps += [{'op':'move','kind':kind} for kind in ['construct','assign','self']]
                 # Identity duplicates, wrong boxes (fallback), absent removals and
@@ -79,6 +80,40 @@ def generate():
                {'op':'bulk','entries':[{'min':[0]*d,'max':[1]*d,'data':-1}]},
                {'op':'move','kind':'assign'},{'op':'clear'}]
         put(config+'.null-pointer',config,steps)
+    for config,d,f in CONFIGS:
+        e=lambda i:{'op':'insert','min':[i*2]*d,'max':[i*2+1]*d,'data':i}
+        steps=[{'op':'cursor_all'},{'op':'cursor_query','min':[0]*d,'max':[9]*d}]
+        steps += [e(i) for i in range(3)]
+        steps += [{'op':'cursor_all'},{'op':'cursor_query','min':[0]*d,'max':[9]*d},e(3),
+                  {'op':'cursor_value','kind':'all'},{'op':'cursor_next','kind':'all'},
+                  {'op':'cursor_next','kind':'query'},
+                  {'op':'remove','min':[0]*d,'max':[1]*d,'data':0},
+                  {'op':'cursor_value','kind':'all'},
+                  {'op':'cursor_next','kind':'all'},{'op':'cursor_next','kind':'query'},
+                  {'op':'move','kind':'construct'},{'op':'cursor_next','kind':'all'},
+                  {'op':'cursor_next','kind':'query'},{'op':'clear'},
+                  {'op':'cursor_value','kind':'all'},{'op':'cursor_value','kind':'query'}]
+        put(config+'.cursor-mutation',config,steps)
+    for config,d,f in CONFIGS:
+        bounds={'min':[-100]*d,'max':[100]*d}
+        steps=[dict(op='range_save',**bounds)]
+        steps += [{'op':'insert','min':[i]*d,'max':[i+1]*d,'data':i} for i in range(f)]
+        steps += [{'op':'range_begin'},dict(op='range_save',**bounds),
+                  {'op':'insert','min':[50]*d,'max':[51]*d,'data':50},
+                  {'op':'range_begin'},{'op':'move','kind':'assign'},
+                  {'op':'cursor_next','kind':'query'},{'op':'cursor_value','kind':'query'},
+                  {'op':'state'},{'op':'clear'}]
+        put(config+'.range-mutation',config,steps)
+    for config,d,f in CONFIGS:
+        wide=config.startswith('i64');lo=-(1<<63) if wide else -(1<<31);hi=-lo-1
+        patterns=[[lo,lo+1,-1,0,1,hi-1,hi]]
+        if wide:patterns += [[hi-64,hi-1,hi],[lo,lo+1,lo+64],[(1<<53)+i for i in [-1,0,1,2,3]]]
+        for index,values in enumerate(patterns):
+            entries=[{'min':[x]+[0]*(d-1),'max':[x]+[0]*(d-1),'data':i} for i,x in enumerate(values*(f+1))]
+            steps=[{'op':'bulk','entries':entries},{'op':'state'},
+                   {'op':'query','min':[lo]*d,'max':[hi]*d,'stop':1},
+                   {'op':'nearest','point':[hi]*d,'k':0},{'op':'clear'}]
+            put(config+f'.wide-bulk-{index}',config,steps)
     return rows
 
 def main():

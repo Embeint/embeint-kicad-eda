@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #![forbid(unsafe_code)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
-use kicad_rtree::{BulkEntry, Coord, DynamicRtree, NodeData};
+use kicad_rtree::{BulkEntry, Coord, DynamicRtree, NodeData, TreeCursor};
 use serde_json::{json, Value};
 use std::io::{self, BufRead, Write};
 const UNIT: &str = "libs.kimath.include.geometry.rtree.application.pure.p001";
@@ -100,9 +100,21 @@ fn collect<E: Coord, const D: usize, const F: usize>(
     }
     Ok(json!(out))
 }
+fn arrow_equal<E: Coord, const D: usize, const F: usize>(
+    cursor: &TreeCursor<Item, E, D, F>,
+) -> bool {
+    match (cursor.current(), cursor.current()) {
+        (Some(a), Some(b)) => core::ptr::eq(a, b),
+        (None, None) => true,
+        _ => false,
+    }
+}
 fn run_tree<E: Coord + Wire, const D: usize, const F: usize>(steps: &[Value]) -> Outcome {
     let mut tree = DynamicRtree::<Item, E, D, F>::with_limit(65536).map_err(|e| e.to_string())?;
     let mut outputs = Vec::new();
+    let mut all_cursor = TreeCursor::<Item, E, D, F>::default();
+    let mut query_cursor = TreeCursor::<Item, E, D, F>::default();
+    let mut saved_range = None;
     for step in steps {
         let op = step
             .get("op")
@@ -110,6 +122,50 @@ fn run_tree<E: Coord + Wire, const D: usize, const F: usize>(steps: &[Value]) ->
             .ok_or("expected op string")?;
         let map = |e: kicad_rtree::Error| e.to_string();
         let output = match op {
+            "range_save" => {
+                keys(step, &["op", "min", "max"])?;
+                saved_range = Some(
+                    tree.overlapping(fixed(step, "min")?, fixed(step, "max")?)
+                        .map_err(map)?
+                        .detach(),
+                );
+                Value::Null
+            }
+            "range_begin" => {
+                keys(step, &["op"])?;
+                query_cursor = tree
+                    .begin_range(saved_range.as_ref().ok_or("range not saved")?)
+                    .map_err(map)?;
+                json!({"end":query_cursor.at_end(),"current":query_cursor.current().map_or(-1,|v|v.0),"arrow_equal":Value::Null})
+            }
+            "cursor_all" => {
+                keys(step, &["op"])?;
+                all_cursor = tree.cursor().map_err(map)?;
+                json!({"end":all_cursor.at_end(),"current":all_cursor.current().map_or(-1,|v|v.0),"arrow_equal":arrow_equal(&all_cursor)})
+            }
+            "cursor_query" => {
+                keys(step, &["op", "min", "max"])?;
+                query_cursor = tree
+                    .overlapping_cursor(fixed(step, "min")?, fixed(step, "max")?)
+                    .map_err(map)?;
+                json!({"end":query_cursor.at_end(),"current":query_cursor.current().map_or(-1,|v|v.0),"arrow_equal":Value::Null})
+            }
+            "cursor_next" | "cursor_value" => {
+                keys(step, &["op", "kind"])?;
+                let kind = step
+                    .get("kind")
+                    .and_then(Value::as_str)
+                    .ok_or("expected cursor kind")?;
+                let cursor = match kind {
+                    "all" => &mut all_cursor,
+                    "query" => &mut query_cursor,
+                    _ => return Err("unknown cursor kind".into()),
+                };
+                if op == "cursor_next" {
+                    tree.advance_cursor(cursor).map_err(map)?;
+                }
+                json!({"end":cursor.at_end(),"current":cursor.current().map_or(-1,|v|v.0),"arrow_equal":if kind=="all"{json!(arrow_equal(cursor))}else{Value::Null}})
+            }
             "insert" => {
                 keys(step, &["op", "min", "max", "data"])?;
                 tree.insert(fixed(step, "min")?, fixed(step, "max")?, item(step)?)

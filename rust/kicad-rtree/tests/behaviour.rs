@@ -254,3 +254,100 @@ fn standalone_node_cursors_default_clone_and_null_payload() -> Result<(), Error>
     assert!(SearchRange::from_root(&arena, None, [0; 2], [9; 2]).empty()?);
     Ok(())
 }
+
+#[test]
+fn detached_cursors_follow_defined_mutation_and_refuse_freed_nodes() -> Result<(), Error> {
+    let mut t = Tree::new()?;
+    t.insert([0; 2], [1; 2], Item(0))?;
+    t.insert([2; 2], [3; 2], Item(1))?;
+    let mut cursor = t.cursor()?;
+    assert_eq!(cursor.current(), Some(&Item(0)));
+    t.insert([4; 2], [5; 2], Item(2))?;
+    t.advance_cursor(&mut cursor)?;
+    assert_eq!(cursor.current(), Some(&Item(1)));
+    assert!(t.remove([0; 2], [1; 2], &Item(0))?);
+    assert_eq!(
+        cursor.current(),
+        Some(&Item(1)),
+        "current is copied, not a slot reference"
+    );
+    t.advance_cursor(&mut cursor)?;
+    assert!(cursor.at_end());
+    assert_eq!(cursor.current(), Some(&Item(1)));
+    let mut cursor = t.cursor()?;
+    let mut query = t.overlapping_cursor([0; 2], [9; 2])?;
+    // A split retains the old root node: advancing a cursor into it is defined,
+    // and follows that old node's slots rather than silently restarting at root.
+    for i in 3..8 {
+        t.insert([i * 2; 2], [i * 2 + 1; 2], Item(i))?;
+    }
+    t.advance_cursor(&mut cursor)?;
+    t.advance_cursor(&mut query)?;
+    let mut freed = t.cursor()?;
+    t.remove_all()?;
+    assert_eq!(
+        t.advance_cursor(&mut freed),
+        Err(Error::Node(kicad_rtree::RtreeError::NodeNotLive))
+    );
+    let mut source = Tree::new()?;
+    source.insert([0; 2], [1; 2], Item(5))?;
+    source.insert([2; 2], [3; 2], Item(6))?;
+    let mut moved_cursor = source.cursor()?;
+    let dest = source.move_out()?;
+    dest.advance_cursor(&mut moved_cursor)?;
+    assert_eq!(moved_cursor.current(), Some(&Item(6)));
+    Ok(())
+}
+
+#[test]
+fn external_cursor_cycles_have_a_resource_bound() -> Result<(), Error> {
+    use kicad_rtree::{RtreeError, TreeCursor};
+    use kicad_rtree_node::{RtreeNode, SlabArena};
+    let mut arena = SlabArena::<RtreeNode<Item, i32, 2, 4>>::new();
+    let h = arena.new_external()?;
+    let n = arena.node_mut(&h)?;
+    n.count = 1;
+    n.level = 1;
+    n.set_child(0, Some(h.clone()))?;
+    assert!(matches!(
+        TreeCursor::from_root(&arena, Some(&h), None, 2),
+        Err(Error::Resource)
+    ));
+    // A null pointer is different from a null payload; descending through it
+    // would dereference null in C++, and is refused without inventing an item.
+    arena.node_mut(&h)?.set_child(0, None)?;
+    assert!(matches!(
+        TreeCursor::from_root(&arena, Some(&h), None, 2),
+        Err(Error::Invariant)
+    ));
+    arena.destroy_external(&h)?;
+    assert!(matches!(
+        TreeCursor::from_root(&arena, Some(&h), None, 2),
+        Err(Error::Node(RtreeError::NodeDestroyed))
+    ));
+    Ok(())
+}
+
+#[test]
+fn saved_ranges_begin_at_the_saved_root_after_mutations() -> Result<(), Error> {
+    let mut t = Tree::new()?;
+    let empty = t.overlapping([-100; 2], [100; 2])?.detach();
+    for i in 0..4 {
+        t.insert([i; 2], [i + 1; 2], Item(i))?;
+    }
+    assert!(t.begin_range(&empty)?.at_end());
+    let saved = t.overlapping([-100; 2], [100; 2])?.detach();
+    t.insert([8; 2], [9; 2], Item(8))?;
+    let mut it = t.begin_range(&saved)?;
+    let mut n = 0;
+    while !it.at_end() {
+        n += 1;
+        t.advance_cursor(&mut it)?;
+    }
+    assert!(
+        n > 0 && n < 5,
+        "saved range follows the former leaf root after splitting"
+    );
+    assert_eq!(t.size()?, 5);
+    Ok(())
+}

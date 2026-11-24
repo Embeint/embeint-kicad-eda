@@ -2,66 +2,48 @@
 use crate::{add, mul, order, sub, Coord, DynamicRtree, Error, NodeData, Result};
 use kicad_rtree_node::{NodeHandle, RtreeNode, SlabArena};
 
-/// Lazy cursor for Iterator and SearchIterator. Both compare only end flags in
-/// the reference (two different non-end positions compare equal). Current is a
-/// copied payload, retained when advance reaches end. Rust's borrow prevents any
-/// tree mutation for the cursor's lifetime instead of exposing dangling pointers.
+/// Owned traversal state, matching the reference's copied payload and node/slot
+/// stack. It can survive defined mutations; advance resolves handles in the live
+/// arena and refuses actual use-after-free instead of dereferencing ended objects.
 #[derive(Clone)]
-pub struct TreeIterator<'a, T: NodeData, E: Coord, const D: usize, const F: usize> {
-    arena: Option<&'a SlabArena<RtreeNode<T, E, D, F>>>,
+pub struct TreeCursor<T: NodeData, E: Coord, const D: usize, const F: usize> {
     stack: Vec<(NodeHandle, usize)>,
     query: Option<([E; D], [E; D])>,
     current: Option<T>,
     at_end: bool,
     max_stack: usize,
 }
-impl<'a, T: NodeData, E: Coord, const D: usize, const F: usize> TreeIterator<'a, T, E, D, F> {
-    fn new(
-        tree: &'a DynamicRtree<T, E, D, F>,
-        query: Option<([E; D], [E; D])>,
-        end: bool,
-    ) -> Result<Self> {
-        tree.ready()?;
-        if end {
-            return Ok(Self::default());
+impl<T: NodeData, E: Coord, const D: usize, const F: usize> Default for TreeCursor<T, E, D, F> {
+    fn default() -> Self {
+        Self {
+            stack: Vec::new(),
+            query: None,
+            current: None,
+            at_end: true,
+            max_stack: 65_536,
         }
-        Self::from_root_with_budget(
-            &tree.arena,
-            tree.root.as_ref(),
-            query,
-            tree.budget.max_nodes,
-        )
     }
-    /// Public Iterator(root)/SearchIterator(root,min,max) constructors, including
-    /// standalone nodes from the accepted arena. None is the null root. Holding
-    /// the arena borrow prevents free/reconstruction while the cursor exists.
+}
+impl<T: NodeData, E: Coord, const D: usize, const F: usize> TreeCursor<T, E, D, F> {
     pub fn from_root(
-        arena: &'a SlabArena<RtreeNode<T, E, D, F>>,
-        root: Option<&NodeHandle>,
-        query: Option<([E; D], [E; D])>,
-    ) -> Result<Self> {
-        Self::from_root_with_budget(arena, root, query, 65_536)
-    }
-    pub fn from_root_with_budget(
-        arena: &'a SlabArena<RtreeNode<T, E, D, F>>,
+        arena: &SlabArena<RtreeNode<T, E, D, F>>,
         root: Option<&NodeHandle>,
         query: Option<([E; D], [E; D])>,
         max_stack: usize,
     ) -> Result<Self> {
         let mut it = Self {
-            arena: Some(arena),
             query,
             max_stack,
             ..Self::default()
         };
         if let Some(root) = root {
             if arena.node(root)?.count > 0 {
-                if it.max_stack == 0 {
+                if max_stack == 0 {
                     return Err(Error::Resource);
                 }
                 it.stack.try_reserve(1).map_err(|_| Error::Resource)?;
                 it.stack.push((root.clone(), 0));
-                it.advance()?;
+                it.advance(arena)?;
             }
         }
         Ok(it)
@@ -69,12 +51,13 @@ impl<'a, T: NodeData, E: Coord, const D: usize, const F: usize> TreeIterator<'a,
     pub fn at_end(&self) -> bool {
         self.at_end
     }
+    /// None represents the default/null DATATYPE. It is a valid current payload
+    /// even when at_end is false, for an external node containing a null pointer.
     pub fn current(&self) -> Option<&T> {
         self.current.as_ref()
     }
-    pub fn advance(&mut self) -> Result<()> {
+    pub fn advance(&mut self, arena: &SlabArena<RtreeNode<T, E, D, F>>) -> Result<()> {
         while let Some((h, i)) = self.stack.last().cloned() {
-            let arena = self.arena.ok_or(Error::Invariant)?;
             let n = arena.node(&h)?;
             if i >= n.count.max(0) as usize {
                 self.stack.pop();
@@ -102,17 +85,78 @@ impl<'a, T: NodeData, E: Coord, const D: usize, const F: usize> TreeIterator<'a,
         Ok(())
     }
 }
+impl<T: NodeData, E: Coord, const D: usize, const F: usize> PartialEq for TreeCursor<T, E, D, F> {
+    fn eq(&self, other: &Self) -> bool {
+        self.at_end == other.at_end
+    }
+}
+/// Borrowed convenience form of Iterator/SearchIterator. The explicit detach()
+/// form permits mutation between increments, as in the reference. Equality tests
+/// only end flags, and exhaustion retains the most recently copied payload.
+#[derive(Clone)]
+pub struct TreeIterator<'a, T: NodeData, E: Coord, const D: usize, const F: usize> {
+    arena: Option<&'a SlabArena<RtreeNode<T, E, D, F>>>,
+    cursor: TreeCursor<T, E, D, F>,
+}
 impl<T: NodeData, E: Coord, const D: usize, const F: usize> Default
     for TreeIterator<'_, T, E, D, F>
 {
     fn default() -> Self {
         Self {
             arena: None,
-            stack: Vec::new(),
-            query: None,
-            current: None,
-            at_end: true,
-            max_stack: 65_536,
+            cursor: TreeCursor::default(),
+        }
+    }
+}
+impl<'a, T: NodeData, E: Coord, const D: usize, const F: usize> TreeIterator<'a, T, E, D, F> {
+    fn new(
+        tree: &'a DynamicRtree<T, E, D, F>,
+        query: Option<([E; D], [E; D])>,
+        end: bool,
+    ) -> Result<Self> {
+        tree.ready()?;
+        if end {
+            return Ok(Self::default());
+        }
+        Self::from_root_with_budget(
+            &tree.arena,
+            tree.root.as_ref(),
+            query,
+            tree.budget.max_nodes,
+        )
+    }
+    pub fn from_root(
+        arena: &'a SlabArena<RtreeNode<T, E, D, F>>,
+        root: Option<&NodeHandle>,
+        query: Option<([E; D], [E; D])>,
+    ) -> Result<Self> {
+        Self::from_root_with_budget(arena, root, query, 65_536)
+    }
+    pub fn from_root_with_budget(
+        arena: &'a SlabArena<RtreeNode<T, E, D, F>>,
+        root: Option<&NodeHandle>,
+        query: Option<([E; D], [E; D])>,
+        max_stack: usize,
+    ) -> Result<Self> {
+        Ok(Self {
+            arena: Some(arena),
+            cursor: TreeCursor::from_root(arena, root, query, max_stack)?,
+        })
+    }
+    pub fn detach(self) -> TreeCursor<T, E, D, F> {
+        self.cursor
+    }
+    pub fn at_end(&self) -> bool {
+        self.cursor.at_end()
+    }
+    pub fn current(&self) -> Option<&T> {
+        self.cursor.current()
+    }
+    pub fn advance(&mut self) -> Result<()> {
+        if let Some(arena) = self.arena {
+            self.cursor.advance(arena)
+        } else {
+            Ok(())
         }
     }
 }
@@ -120,7 +164,36 @@ impl<T: NodeData, E: Coord, const D: usize, const F: usize> PartialEq
     for TreeIterator<'_, T, E, D, F>
 {
     fn eq(&self, other: &Self) -> bool {
-        self.at_end == other.at_end
+        self.cursor == other.cursor
+    }
+}
+/// Owned SearchRange state. Saving a range does not traverse its root; begin()
+/// after a defined mutation sees that saved root, including when it is no longer
+/// the tree's current root. A null saved root stays an empty range after inserts.
+#[derive(Clone)]
+pub struct SearchRangeSnapshot<E: Coord, const D: usize> {
+    root: Option<NodeHandle>,
+    min: [E; D],
+    max: [E; D],
+    max_stack: usize,
+}
+impl<E: Coord, const D: usize> SearchRangeSnapshot<E, D> {
+    pub fn begin<T: NodeData, const F: usize>(
+        &self,
+        arena: &SlabArena<RtreeNode<T, E, D, F>>,
+    ) -> Result<TreeCursor<T, E, D, F>> {
+        TreeCursor::from_root(
+            arena,
+            self.root.as_ref(),
+            Some((self.min, self.max)),
+            self.max_stack,
+        )
+    }
+    pub fn empty<T: NodeData, const F: usize>(
+        &self,
+        arena: &SlabArena<RtreeNode<T, E, D, F>>,
+    ) -> Result<bool> {
+        Ok(self.begin(arena)?.at_end())
     }
 }
 /// A lazy borrowed SearchRange; constructing it copies bounds, without searching.
@@ -145,6 +218,14 @@ impl<'a, T: NodeData, E: Coord, const D: usize, const F: usize> SearchRange<'a, 
             max_stack: 65_536,
             min,
             max,
+        }
+    }
+    pub fn detach(self) -> SearchRangeSnapshot<E, D> {
+        SearchRangeSnapshot {
+            root: self.root,
+            min: self.min,
+            max: self.max,
+            max_stack: self.max_stack,
         }
     }
     pub fn begin(&self) -> Result<TreeIterator<'a, T, E, D, F>> {
@@ -174,6 +255,20 @@ impl<T: NodeData, E: Coord, const D: usize, const F: usize> DynamicRtree<T, E, D
         let mut range = SearchRange::from_root(&self.arena, self.root.as_ref(), min, max);
         range.max_stack = self.budget.max_nodes;
         Ok(range)
+    }
+    pub fn begin_range(&self, range: &SearchRangeSnapshot<E, D>) -> Result<TreeCursor<T, E, D, F>> {
+        self.ready()?;
+        range.begin(&self.arena)
+    }
+    pub fn cursor(&self) -> Result<TreeCursor<T, E, D, F>> {
+        Ok(self.begin()?.detach())
+    }
+    pub fn overlapping_cursor(&self, min: [E; D], max: [E; D]) -> Result<TreeCursor<T, E, D, F>> {
+        Ok(self.overlapping(min, max)?.begin()?.detach())
+    }
+    pub fn advance_cursor(&self, cursor: &mut TreeCursor<T, E, D, F>) -> Result<()> {
+        self.ready()?;
+        cursor.advance(&self.arena)
     }
     /// Counts the stopping hit too. Any maximum-hit policy belongs in the visitor;
     /// this pinned header has no separate max-hit Search overload.

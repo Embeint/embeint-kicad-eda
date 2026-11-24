@@ -32,6 +32,8 @@ def controls():
         add(lambda v,x=value:v['input']['steps'][0].update(data=x))
     for op,fields in [('iter',{'limit':2147483648}),('nearest',{'point':[0,0],'k':2147483648}),('query',{'min':[0,0],'max':[1,1],'stop':1.5}),('move',{'kind':'other'}),('move',{'kind':1}),('bulk',{'entries':None}),('bulk',{'entries':[{'min':[10,10],'max':[-10,-10],'data':1}]})]:
         add(lambda v,o=op,f=fields:v['input'].update(steps=[dict(op=o,**f)]))
+    add(lambda v:v['input'].update(steps=[{'op':'clear'}]*4097))
+    add(lambda v:v['input'].update(steps=[{'op':'bulk','entries':[{'min':[0,0],'max':[1,1],'data':0}]*65537}]))
     out += ['{"unit":"x","unit":"y","case":"c","input":{}}', '{', '[]',
             json.dumps(dict(valid,case='',extra=1)),json.dumps(dict(valid,unit='unknown'))]
     return out

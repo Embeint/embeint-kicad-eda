@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2001-2023 Free Software Foundation, Inc.
+// Copyright (c) 1994 Hewlett-Packard Company; 1996, 1997 Silicon Graphics.
+// See NOTICE.libstdc++.txt and COPYING.RUNTIME for retained upstream notices.
 // Port of libstdc++'s introsort and heap ordering (GCC runtime exception applies
 // to the original implementation). See README for the measured ABI boundary.
 use crate::{Error, Result};
