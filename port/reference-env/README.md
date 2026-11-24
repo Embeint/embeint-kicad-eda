@@ -331,7 +331,7 @@ The exit status is 1 when the environment contract fails, or 4 when the native
 C++/Rust bit comparisons differ. Contract-versus-host-default and paired-versus-
 separate-call comparisons are diagnostic; all differences are listed with counts
 and examples. Nothing updates expected results or accepts differences.
-Probe output schema 2 includes the exact lock/candidate files and hashes every
+Summary schema 2 includes the exact lock/candidate files and hashes every
 artifact, including built probes. Before comparison the reader rejects duplicate
 keys, floating/nonfinite JSON numbers, malformed schemas, missing/extra files,
 wrong types/counts/identities and any binary sweep not exactly `24 * count` bytes.
@@ -586,6 +586,18 @@ the fixed head, its probe and the official `--with-difftest` route. A passing
 probe would not resolve the resistor (13/1050), PR51 (41) or PR50 (2273 debug,
 2687 release of 7460) failures, which remain open.
 
+The `fead6cdc` review found two remaining validation/lifecycle gaps. Completion
+markers now name the recorded probe object and must fall inside executable
+sections of its retained ELF; artifact validation also binds that object name
+to the compiler's recorded `-o` output. The primitive observation is schema 3;
+older observations remain historical, not upgraded. Cleanup rejects inherited
+SIGCHLD auto-reaping dispositions before forking, and treats ECHILD as loss of
+PID ownership, never as permission to signal that PID. The helper no longer
+flushes parent stdio before forking: all child exits use `_exit`, so inherited
+buffers need not be flushed and a full pipe cannot block that startup step.
+The decoder rejects unlisted three-byte encodings and C6/C7 groups, including
+XBEGIN/XABORT. These fixes still need independent review and native validation.
+
 ## Native WSL qualification handoff
 
 On the shared WSL Ubuntu host with a native x86-64 Docker engine (not the Rancher
@@ -637,7 +649,11 @@ In WSL, consume that digest-bound bundle without running Git on the Windows
 checkout:
 
 ```bash
-bash /mnt/c/path/to/checkout/port/reference-env/qualify.sh \
+# Python tolerates the Windows checkout's CRLF; Bash needs canonical LF bytes.
+python3 /mnt/c/path/to/checkout/port/reference-env/tools/source_binding.py materialize \
+    --bundle /mnt/c/Temp/refenv-source --revision <HEAD-SHA> \
+    --source-sha256 <EXPORTED-SHA256> --out ~/refenv-bootstrap
+bash ~/refenv-bootstrap/source/port/reference-env/qualify.sh \
     --revision <HEAD-SHA> --source-bundle /mnt/c/Temp/refenv-source \
     --source-sha256 <EXPORTED-SHA256> --work ~/refenv-work \
     --with-oracle --rebuild-check
@@ -658,9 +674,10 @@ or used by this qualification route. Other absolute/escaping source links fail.
 `rebuild-check.txt`, `oracle/` (provenance, binary hash, compile database, source
 manifest), `probe/` and `difftest/`. To compare with a second host or the hosted
 dispatch job, run `python3 port/reference-env/probe/compare_observations.py
-RUN_A/probe RUN_B/probe`. Expected and still unknown: whether the existing goldens
-match in this environment (the phase zero pilots are integer or text based, so a
-difference would itself be a finding to record, not to bless).
+RUN_A/probe RUN_B/probe`. The historical `1b4` run matched the R-tree, MD5 and
+supplementary IEC corpora but retained 13 resistor mismatches. The controlled
+SSE2/FMA `pow(10,126)` difference is recorded above; it is not a golden-update
+or comparison exemption.
 
 Publication is a separate, authorised step: tag the locally built image as
 `registry.taileef599.ts.net/embeint-kicad/rust-port-reference:noble-20261110.1-gcc13.3-candidate-1`,

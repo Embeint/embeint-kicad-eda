@@ -145,6 +145,15 @@ int CollectObject( struct dl_phdr_info* aInfo, size_t, void* aData )
 
 void Runtime( JSON& aOut )
 {
+    Dl_info self{};
+
+    if( !dladdr( reinterpret_cast<const void*>( &Runtime ), &self ) || !self.dli_fname )
+    {
+        std::fprintf( stderr, "cannot locate the probe object\n" );
+        std::exit( 1 );
+    }
+
+    aOut.Field( "probe_object", self.dli_fname );
     std::vector<std::string> names;
     dl_iterate_phdr( CollectObject, &names );
     aOut.Key( "loaded_objects" );
@@ -602,7 +611,7 @@ int main( int argc, char** argv )
 
     JSON out( stdout );
     out.Begin( '{' );
-    out.FieldRaw( "schema", "2" );
+    out.FieldRaw( "schema", "3" );
     out.Field( "probe", "primitive" );
     Build( out );
     Runtime( out );

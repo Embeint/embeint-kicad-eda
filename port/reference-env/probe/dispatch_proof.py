@@ -26,7 +26,8 @@ passes only if all of these hold:
   every successor is the instruction's fall-through, its direct target, the
   return address pushed by a traced call, or (only for the stub's jump) the
   slot value; the trace ends with the entry's own return, whose target equals
-  the return address read at the entry, outside libm;
+  the return address read at the entry, inside the retained probe's executable
+  code and qualified by the recorded compiler output object;
 * only the expected multiarch implementation executed (no forbidden or
   other variant).
 
@@ -37,7 +38,9 @@ evidence to the locked files; they do not authenticate a run.
 
 import hashlib
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+import re
+import struct
 
 import libm_elf
 import x86_decode
@@ -166,11 +169,42 @@ def default_definition(facts, function):
     return rows[0] if len(rows) == 1 else None
 
 
-def outside_libm(text):
-    return type(text) is str and text.startswith("!") and not text.startswith("!unmapped")
+class Caller:
+    """The recorded probe object and its retained executable bytes."""
+
+    def __init__(self, name, elf):
+        self.name = name
+        self.elf = elf
+
+    def contains(self, text):
+        prefix = "!" + self.name + "+"
+        if type(text) is not str or not text.startswith(prefix):
+            return False
+        offset = text[len(prefix):]
+        if not re.fullmatch(r"0x[0-9a-f]{1,16}", offset):
+            return False
+        try:
+            return bool(self.elf.code(_int(offset)))
+        except ValueError:
+            return False
 
 
-def walk(record, index, libm, table, target, wrapper, row, reasons):
+def recorded_caller(directory, observation, lock):
+    """Bind completion markers to the probe binary, never to a named library."""
+    name = observation.get("probe_object")
+    if (type(name) is not str or not name.startswith("/") or "\n" in name or "\0" in name
+            or PurePosixPath(name).name != "primitive_probe" or name == lock["libm"]["path"]):
+        return None, ["missing or invalid recorded probe object"]
+    path = Path(directory) / "bin/primitive_probe"
+    if path.is_symlink() or not path.is_file() or path.stat().st_size > MAX_ELF_BYTES:
+        return None, ["missing, invalid or oversized retained probe ELF"]
+    try:
+        return Caller(name, libm_elf.Elf64(path.read_bytes())), []
+    except (ValueError, IndexError, KeyError, struct.error) as error:
+        return None, ["retained probe ELF cannot be read: " + str(error)]
+
+
+def walk(record, index, libm, table, target, wrapper, row, reasons, caller):
     """Validate every control-flow edge of the trace against the locked code; collect hops."""
     trace = record["trace"]
     reads = record["slot_reads"]
@@ -191,8 +225,9 @@ def walk(record, index, libm, table, target, wrapper, row, reasons):
             if following is not None:
                 reasons.append(f"return at {step} leaves the call before the end of the trace")
                 return
-            if not (outside_libm(record["return_to"]) and record["return_to"] == record["return_address"]):
-                reasons.append("the entry's return does not reach the recorded return address outside libm")
+            if not (caller is not None and caller.contains(record["return_to"])
+                    and record["return_to"] == record["return_address"]):
+                reasons.append("the entry's return does not reach the recorded return address in executable probe code")
             row["returned_at"] = step
             break
         if following is None:
@@ -269,7 +304,7 @@ def hop(record, index, instruction, position, read, table, target, wrapper, row,
     return True
 
 
-def prove(record, facts, index, lock, libm):
+def prove(record, facts, index, lock, libm, caller):
     """Check one traced function; return its report row (with its violations)."""
     function = record["function"]
     table = lock["libm"]["multiarch_symbols"]
@@ -336,7 +371,7 @@ def prove(record, facts, index, lock, libm):
     if libm is None:
         reasons.append("locked libm code is unavailable for control-flow validation")
     elif trace and trace[0] == record["offset"]:
-        walk(record, index, libm, table, target, wrapper, row, reasons)
+        walk(record, index, libm, table, target, wrapper, row, reasons, caller)
     if row["path"] == "wrapped" and not row["hops"]:
         reasons.append("wrapper returned without reaching an implementation through an IRELATIVE slot")
     if row["path"] == "direct" and row["hops"]:
@@ -348,7 +383,7 @@ def prove(record, facts, index, lock, libm):
     return row
 
 
-def dispatch_report(observation, facts, lock, candidate, libm, problems=()):
+def dispatch_report(observation, facts, lock, candidate, libm, problems=(), caller=None):
     """Report rows and violations for every checked function in one probe run.
 
     facts and libm come from verified_facts(); problems are its findings.
@@ -369,7 +404,7 @@ def dispatch_report(observation, facts, lock, candidate, libm, problems=()):
     index = Facts(facts)
     forbidden = tuple(candidate["dispatch"]["forbidden_variant_suffixes"])
     for record in observation["libm_dispatch"]:
-        row = prove(record, facts, index, lock, libm)
+        row = prove(record, facts, index, lock, libm, caller)
         forbidden_seen = [name for name in row["executed_variants"] if name.endswith(forbidden)]
         if forbidden_seen:
             row["violations"].append("forbidden variant executed: " + ", ".join(forbidden_seen))
@@ -384,7 +419,8 @@ def run_report(directory, observation, environment, lock, candidate):
     facts, libm, problems = verified_facts(directory, environment, lock,
                                            candidate["dispatch"]["checked_functions"])
     resolved = resolve_objects(observation, environment.get("loaded_objects", {}))
-    return dispatch_report(resolved, facts, lock, candidate, libm, problems)
+    caller, caller_problems = recorded_caller(directory, observation, lock)
+    return dispatch_report(resolved, facts, lock, candidate, libm, problems + caller_problems, caller)
 
 
 def resolve_objects(observation, loaded_objects):

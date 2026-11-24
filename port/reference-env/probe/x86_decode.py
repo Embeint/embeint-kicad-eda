@@ -88,6 +88,8 @@ def _two_byte(opcode):
 
 def _modrm_length(code, offset):
     """Bytes taken by ModRM, SIB and displacement starting at code[offset]; RIP-relative flag."""
+    if offset >= len(code):
+        raise Unsupported("truncated ModRM")
     modrm = code[offset]
     mod, rm = modrm >> 6, modrm & 7
     if mod == 3:
@@ -150,6 +152,11 @@ def decode(code, address):
         if second in (0x38, 0x3A):
             if position >= len(code):
                 raise Unsupported("truncated three-byte opcode")
+            # Only these two legacy SSE encodings are in this decoder's scope.
+            # The rest of either map is not a generic ModRM instruction family.
+            third = code[position]
+            if prefixes != {0x66} or (second, third) not in ((0x38, 0x00), (0x3A, 0x0B)):
+                raise Unsupported("unlisted three-byte opcode or prefix")
             position += 1
             used, _rip = _modrm_length(code, position)
             return finish(position + used + (1 if second == 0x3A else 0))
@@ -194,6 +201,8 @@ def decode(code, address):
         if group in (0, 1, 6):
             return finish(end)
         if group == 4 and rip and code[position] >> 6 == 0:
+            if end > len(code):
+                raise Unsupported("truncated RIP-relative displacement")
             (displacement,) = struct.unpack_from("<i", code, position + 1)
             return finish(end, JMP_RIP_MEMORY, memory=address + end + displacement)
         raise Unsupported("unsupported indirect transfer or FF group")
@@ -204,6 +213,8 @@ def decode(code, address):
     if has_modrm:
         if position >= len(code):
             raise Unsupported("truncated ModRM")
+        if opcode in (0xC6, 0xC7) and (code[position] >> 3) & 7:
+            raise Unsupported("unsupported C6/C7 group (including XABORT/XBEGIN)")
         used, _rip = _modrm_length(code, position)
         position += used
     if immediate == "z":

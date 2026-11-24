@@ -26,6 +26,12 @@ IMPLEMENTATION = bytes.fromhex("f30f1efa" "4889c0" "c3")
 FUNC, IFUNC = 2, 10
 
 
+def probe_elf():
+    """Synthetic caller with executable bytes at RETURN, not at the ELF header."""
+    return build_elf([{"name": ".text", "type": 1, "flags": 6, "addr": 0x1200,
+                       "data": b"\x90" * 0x40}])
+
+
 def hx(value):
     return f"0x{value:x}"
 
