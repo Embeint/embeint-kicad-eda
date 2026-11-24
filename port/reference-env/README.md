@@ -752,6 +752,17 @@ candidate remains unqualified. Earlier failed runs and their immutable evidence
 remain tied to their original revisions; PR #50/#51 and wider numerical coverage
 are separate work.
 
+The integrated native [run 45342184410](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45342184410)
+at `55e63972fb` stopped on a snapshot HTTP 502 while staging a locked package
+index, before any image, oracle or corpus measurement. Downloads now retry
+transient network/service failures three times. A package index may fall back to
+its SHA256-addressed URL in the same snapshot; a `.deb` may fall back to the same
+package path on Ubuntu's official archive. Every transport still requires the
+original locked SHA-256, with the same later signature/inventory checks. Hash
+mismatches and permanent HTTP failures stop immediately. No input lock, runtime
+identity or comparison policy changes follow from this transport fix. A fresh
+integrated run is still required.
+
 ## Licences
 
 Primary implementation references: [glibc 2.39 sin/cos selector](https://github.com/bminor/glibc/blob/glibc-2.39/sysdeps/x86_64/fpu/multiarch/ifunc-avx-fma4.h),
