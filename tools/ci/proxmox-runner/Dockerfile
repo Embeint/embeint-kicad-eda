@@ -35,3 +35,6 @@ ENTRYPOINT ["/runner/run.sh"]
 USER root
 RUN ln -s /home/runner/toolcache /opt/hostedtoolcache
 USER runner
+# Use the runner's built-in process-group signal trap when it is container PID 1.
+# This lets an idle stop release its GitHub session before the next start.
+ENV RUNNER_MANUALLY_TRAP_SIG=1

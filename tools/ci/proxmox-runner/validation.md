@@ -67,28 +67,52 @@ copied to the host or container; registration used a short-lived token on stdin.
 
 ## End-to-end measurements
 
-Measurements run the same product source/test commands at infrastructure revision
-`8d5bd9e24ec8d5493a4aed43e182f0f9355b8ebf`. PR jobs use GitHub's computed merge
-commit (base main unchanged); manual jobs use that exact branch revision.
-The runner/job identities were obtained from the Actions jobs API, rather than
-inferred from workflow configuration.
+The first paired measurements used infrastructure workflow revision
+`8d5bd9e24ec8d5493a4aed43e182f0f9355b8ebf`; the warm repeat used
+`7587f0e985e193250a0fc4f16866c99e21f9537b`. Rust sources, fixtures, test commands
+and requirements were identical. PR jobs used GitHub's computed merge commit
+against unchanged base `04ad4449043a8af3f6d8530deb9f2124e08c450b`; manual jobs
+used the branch revision. Actions jobs API confirmed the actual runner names and
+labels. Times are `completed_at - started_at` for execution and
+`started_at - created_at` for the job's queue, including the rerun's own creation.
 
-- [Hosted PR MCP contracts](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45356217409)
-  selected `ubuntu-latest` / `GitHub Actions 1000019102`.
-- [Isolated manual MCP contracts](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45356257351)
-  selected `kicad-ci-isolated-linux-x64` / `proxmox-kicad-isolated-01`.
-- [Hosted PR Rust layout](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45356217343)
-  and [isolated manual Rust layout](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45356263430)
-  provide the paired ordinary Rust/WASM/cache measurement.
+| Run | Result | Queue | Execution | Cache state |
+| --- | --- | ---: | ---: | --- |
+| [Hosted contracts](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45356217409) | pass | 2 s | 62 s | Fresh checkout/interpreter job |
+| [Isolated contracts, attempt 2](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45356257351/attempts/2) | pass | 159 s | 27 s | Warm tools/checkout after loader correction |
+| [Isolated contracts repeat](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45356858505) | pass | 123 s | 26 s | Warm |
+| [Hosted layout](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45356217343) | pass | 1 s | 228 s | Actions target cache miss, confirmed in log |
+| [Isolated layout, cold target](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45356263430) | pass | 84 s | 221 s | Empty Cargo target; toolchains preinstalled |
+| [Isolated layout repeat](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45356852823) | pass | 64 s | 27 s | Persistent Cargo target/tool/checkout cache |
 
-The initial contracts run failed two stdio subprocess tests: the relocated
-`setup-python` tool cache needed `LD_LIBRARY_PATH`, which MCP subprocesses
-intentionally sanitize. The container now provides the Python archive's canonical
-`/opt/hostedtoolcache` path through a symlink to the persistent tool cache.
-Executing that interpreter with `LD_LIBRARY_PATH` removed then succeeded. No test,
-subprocess environment policy or Python version requirement was relaxed. The
-original failed attempt is retained; its rerun and layout measurements are pending.
+The single worker serialized this deliberately queued batch. Queue time can
+offset execution savings under load. These are observed workflow/cache timings,
+not a controlled CPU comparison or a claim about overall numerical CI speed.
+Cold layout execution was similar; the substantial improvement appeared with
+warm caches. The long Rust MCP protocol fixture suite therefore stays hosted so
+it cannot monopolize this worker.
 
-No speed improvement or numerical certification is claimed until completed
-successful timings/results are recorded. The isolated runner intentionally
-serializes its jobs, so queue time must be reported separately from execution time.
+Contracts rerun: **639 passed, 57 skipped** (same existing KiCad-dependent skips
+as hosted). Initial attempt: **637 passed, 2 failed, 57 skipped**. The two failures
+were stdio subprocesses loading GitHub's relocated Python archive after MCP
+intentionally sanitized `LD_LIBRARY_PATH`. The corrected image supplies the
+canonical `/opt/hostedtoolcache` alias, and the unchanged full contracts suite
+passed on rerun. No test or subprocess environment rule was weakened.
+
+All original Rust layout steps passed in cold and warm runs: formatting/clippy,
+MSRV 1.85.0, workspace unit tests (84 passed), WASM build and loader tests,
+**872/872 native and 872/872 WASM results identical to Python**, and **77 MCP
+backend tests**. The parity artifact was uploaded in both runs.
+
+The Python alias was first verified in the running initial container, then built
+into final image
+`sha256:74475157d253b3107f97a0ef2234eb3f750a4517b45ff90aa814d60f2788a64f`.
+An idle refresh also exposed the runner shell's default PID 1 signal behavior:
+Docker termination did not reach the listener, leaving a stale GitHub session
+until its lease expired. The final image enables the runner's built-in
+`RUNNER_MANUALLY_TRAP_SIG=1` process-group trap. Its image digest is
+`sha256:3a841869408d000d8a58ce82acfb6be385ccba90c26cbffde983aec8a66be461`.
+It was installed after all queued measurements completed, retaining the two
+named volumes and checking no `Runner.Worker` was active. Clean-container
+warm-cache and graceful restart verification are pending.
+No numerical unit status, golden, reference identity or certification is changed.
