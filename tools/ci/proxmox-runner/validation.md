@@ -113,6 +113,20 @@ until its lease expired. The final image enables the runner's built-in
 `RUNNER_MANUALLY_TRAP_SIG=1` process-group trap. Its image digest is
 `sha256:3a841869408d000d8a58ce82acfb6be385ccba90c26cbffde983aec8a66be461`.
 It was installed after all queued measurements completed, retaining the two
-named volumes and checking no `Runner.Worker` was active. Clean-container
-warm-cache and graceful restart verification are pending.
+named volumes and checking no `Runner.Worker` was active. The recreated container then passed both full workflows at exact code revision
+`c8ba92778ceea273b9156284f09a623aae8176ff`:
+
+| Final-image run | Queue | Execution | Result |
+| --- | ---: | ---: | --- |
+| [MCP contracts](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45358135608) | 43 s | 26 s | pass |
+| [Rust layout](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45358140576) | 69 s | 28 s | pass |
+
+These first queued jobs included reconnection/scheduler delay after image
+replacement. After both completed, the final container's idle-only service stop
+took **1 second**, then it restarted with the retained registration/caches. The
+original HTF service remained active; Docker reported `OOMKilled=false`. Final
+image tests repeated public HTTPS success, private/CGNAT/host-gateway refusal and
+Python execution with `LD_LIBRARY_PATH` absent. Subsequent commits change evidence
+and documentation only; the two routing workflows and installed image are the
+ones tested at the exact revision above.
 No numerical unit status, golden, reference identity or certification is changed.
