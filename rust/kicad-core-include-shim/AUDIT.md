@@ -31,7 +31,7 @@ all 669 succeeded on both sides, none deferred. Controls are refusals both sides
 | Upstream symbol(s) | Rust | Branches implemented and checked | Remaining gap |
 | --- | --- | --- | --- |
 | `PROF_TIMER` ctors (named with/without `aAutostart`, default), `Start`, `Stop` (running and not), `SinceStart<D>` (running/stopped, since start/last, `m_lasttime` update), `msecs`, `Show`, `to_string`, `GetName` | `profile::ProfTimer`, `ChronoDuration` for eight `std::chrono` durations | 132 `profile` scripts: unit selection at 999/1000/999999/1e6/1e9 boundaries, negative and huge counts, `%g` precision-6 rounding and ties, `µs` bytes, empty and multibyte names, default argument and explicit `false` for `since_last`, every duration's `duration_cast` (float division, integer truncation toward zero), epoch values of a never-started timer, restart and double stop | `to_string`'s `"none"` branch is reachable only through the uninitialised `m_started` (control `indeterminate m_started`; [upstream issue](../../port/upstream-issues/core-prof-timer-uninitialised-started.md)); streams other than a default-state `std::ostream` |
-| `SCOPED_PROF_TIMER<D>` ctor/dtor | `profile::ScopedProfTimer::{new, finish}` | Construction order (base then `m_counter`, two clock reads), destructor read, base operations that do not affect the result, all eight durations | none |
+| `SCOPED_PROF_TIMER<D>` ctor/dtor | `profile::ScopedProfTimer::{new, finish}` | Construction order (base then `m_counter`, two clock reads), destructor read, base operations that do not affect the result, all eight durations | Explicit finish only; ordinary drop/early return does not report the duration. A host scope wrapper is still required |
 | `PROF_COUNTER` ctors, `Count`, `Reset`, `operator++( int )`, `Show` | `profile::ProfCounter` | `"Anonymous"`, empty and other names, wrap from 2^64 - 1 (count set through the private member) | Atomicity (no threads in portable code) |
 | `LATENCY_PROBE` ctor (default and explicit `aStages`), `Reset`, `Checkpoint`, `AddTimer`, `delta_ms` | `profile::LatencyProbe::{new, reset, checkpoint, add_timer, delta_ms}` | Negative stages throw `length_error("vector::reserve")`; `AddTimer` of stopped/never-started/running timers (`msecs()` side effects); `delta_ms` over the int64 range incl. both limits; `to_string` with negative, tie and far-apart checkpoints; wired into `libs.core.application.pure.p001`'s `to_string` (its 25 former deferrals now compare) | Overflowing differences are controls |
 | `OBSERVABLE<T>` ctor, copy ctor, `SubscribeUnmanaged`, `Subscribe`, `Unsubscribe`, `Notify`, `NotifyIgnore` | `observable_template::{Observable, notify, notify_ignore, NotifyHost}` | 13 own scripts (null observers, copies, ignore of null and of a subscriber, throws from `Notify`/`NotifyIgnore` incl. nested and after removals: both `catch` blocks' `leave_iteration`, the wrap through `UINT_MAX` on the exception path) plus all 428 `observable` cases of `libs.core.application.pure.p001`, whose Rust driver now drives this port | Iterator invalidation and use of a destroyed `this` are typed errors (`ListInvalidated`, `Destroyed`, `UnwoundDestroyed`) and controls |
@@ -64,11 +64,25 @@ See [the finding](../../port/findings/core-include-libstdcxx-algorithms.md).
   `KISPINLOCK` and `SYNC_QUEUE` are owned exclusively (`&mut`). A host sharing them across
   threads supplies its own synchronisation.
 - Checked arithmetic where the reference is undefined (time point differences), modular
-  where it is unsigned (`ComponentCount`, `PROF_COUNTER`, iteration counts); fallible
-  allocation for every caller-sized buffer; bounded recursion (introsort depth limit,
-  FilterKruskal halving).
+  where it is unsigned (`ComponentCount`, `PROF_COUNTER`, iteration counts); bounded
+  recursion (introsort depth limit, FilterKruskal halving). Collection reservations are
+  fallible, but profile name copies/formatting and queue element cloning still use
+  infallible allocation. Those failures can abort rather than return the advertised
+  allocation error; allocation-failure equivalence remains unfinished.
 - `kicad-core` builds for `wasm32-unknown-unknown`; the live workflow replays this corpus
   there against native C++ replies.
+
+## Remaining public contracts
+
+This unit stays partial even after hosted comparison passes. Exclusive-owner state does
+not implement concurrent union-find updates, atomic counter operations, a shared spinlock
+or a concurrent queue. Host synchronisation/integration is still required. The String
+sink models only default formatting: nondefault ostream flags, flushing and stream
+failures are not implemented. ScopedProfTimer requires explicit finish; ordinary drop
+and early returns do not perform the C++ destructor measurement. Profile name copies
+and formatting and queue element cloning do not yet provide fallible allocation on all
+paths. See [the review finding](../../port/findings/core-include-review-contract-gaps.md).
+These gaps are not covered by successful single-threaded/default-stream corpus results.
 
 ## Defined domain and controls
 

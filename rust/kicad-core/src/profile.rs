@@ -15,7 +15,10 @@
 //! `PROF_COUNTER` is atomic in the reference; portable code has no threads, so its
 //! owner has exclusive access and the count is a plain integer with the same modular
 //! arithmetic. Output streams (`std::ostream&`, default `std::cerr`) are a host-supplied
-//! `String` sink in its default formatting state.
+//! `String` sink in its default formatting state. Nondefault stream state and concurrent
+//! operations remain unfinished. Scoped timers require explicit finish; ordinary drop
+//! does not report a duration. Name copies and formatting still allocate infallibly, so
+//! ProfileError::Allocation does not cover every allocation path.
 
 use core::fmt::Write as _;
 
