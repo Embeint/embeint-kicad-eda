@@ -114,6 +114,18 @@ for n in range(64):
   aa=floats(a) if typ=='f64' else a;bb=floats(b) if typ=='f64' else b
   for op in ['add','sub','dot','cross','compare','squared_distance']:
    case(f'random-{n}-{typ}-{op}',2,typ,op,aa,b=bb)
+# Resize's general branch now runs the accepted rescale<int64_t> before the KiROUND call:
+# signs, half-away rounding, an __int128-only product and int64 square overflow (refused).
+for typ in ['i32','i64']:
+ for a,length in [([-3,4],-10),([3,-4],10),([-1,2],3),([2,-1],-1),([1,2],1),([5,0],-7),([0,-6],2)]:
+  case(f'2-{typ}-resize-general-{a}-{length}',2,typ,'resize',a,scalar=length)
+ for n in range(16):
+  a=[rng.randrange(-100000,100001) for _ in range(2)];length=rng.randrange(-100000,100001)
+  case(f'random-{n}-{typ}-resize-general',2,typ,'resize',a,scalar=length)
+case('2-i64-resize-general-int128-product',2,'i64','resize',[3_037_000_499,1],scalar=3_037_000_499)
+case('2-i64-resize-general-int128-negative',2,'i64','resize',[-3_037_000_499,-2],scalar=-3_037_000_499)
+case('2-i32-resize-general-max-length',2,'i32','resize',[2**31-1,1],scalar=2**31-1)
+case('2-i64-resize-square-overflow',2,'i64','resize',[3_037_000_500,1],scalar=1,refuse=True)
 assert len({c['case'] for c in CASES+REFUSALS})==len(CASES)+len(REFUSALS)
 for p,rs in [(ROOT/f'port/cases/{UNIT}.jsonl',CASES),(ROOT/'port/oracle/vector-refusals.jsonl',REFUSALS)]:
  p.write_text(''.join(json.dumps(r,separators=(',',':'))+'\n' for r in rs))

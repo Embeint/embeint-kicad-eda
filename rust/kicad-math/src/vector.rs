@@ -13,6 +13,7 @@
 use core::ops::{Add, Mul, Sub};
 
 use crate::fp;
+use crate::math_util::{self, MathUtilError};
 
 /// `VECTOR2<T>`: a general 2D vector or point. Coordinates keep the C++ component type.
 #[derive(Clone, Copy, Debug, Default)]
@@ -216,11 +217,22 @@ fn clamp_to_i32(value: f64) -> Result<i32, VectorDomainError> {
 
 const VECTOR_UNIT: &str = "libs.kimath.include.math.application.ui.p002";
 const UTIL_HEADER: &str = "libs.kimath.include.math.application.ui.p001";
-const UTIL_SOURCE: &str = "libs.kimath.src.math.util.application.ui.p001";
 type VResult<T> = Result<T, VectorDomainError>;
 
 fn missing<T>(upstream: &'static str, unit: &'static str) -> VResult<T> {
     Err(VectorDomainError::Unported { upstream, unit })
+}
+
+/// Errors from the accepted util source bodies keep their meaning: a zero denominator is the
+/// integral division the C++ would perform, and a deferred host call keeps its owner.
+impl From<MathUtilError> for VectorDomainError {
+    fn from(error: MathUtilError) -> Self {
+        match error {
+            MathUtilError::ZeroDenominator => Self::DivisionByZero,
+            MathUtilError::IntermediateOverflow => Self::IntegerOverflow,
+            MathUtilError::Unported { upstream, unit } => Self::Unported { upstream, unit },
+        }
+    }
 }
 
 /// Arithmetic for the pinned aliases. Extension to other C++ template types is unqualified.
@@ -359,14 +371,7 @@ macro_rules! signed_component {
                         VectorComponent::c_abs(length)? as f64 * core::f64::consts::FRAC_1_SQRT_2;
                     (n, n)
                 } else {
-                    let xs = (x as i64).c_mul(x as i64)?;
-                    let ys = (y as i64).c_mul(y as i64)?;
-                    let ls = xs.c_add(ys)?;
-                    let ns = (length as i64).c_mul(length as i64)?;
-                    // UNPORTED(libs.kimath.src.math.util.application.ui.p001): rescale<int64_t>
-                    let nx = rescale_i64(ns, xs, ls)?;
-                    let ny = rescale_i64(ns, ys, ls)?;
-                    ((nx as f64).sqrt(), (ny as f64).sqrt())
+                    resize_general_lengths(x as i64, y as i64, length as i64)?
                 };
                 let nx = round_i32(nx)?;
                 let ny = round_i32(ny)?;
@@ -384,9 +389,19 @@ macro_rules! signed_component {
 signed_component!(i32);
 signed_component!(i64);
 
-// UNPORTED(libs.kimath.src.math.util.application.ui.p001): rescale<int64_t>
-fn rescale_i64(_n: i64, _v: i64, _d: i64) -> VResult<i64> {
-    missing("rescale<int64_t>", UTIL_SOURCE)
+/// Resize's general branch for both signed aliases, whose `extended_type` is `int64_t`:
+/// `std::sqrt( rescale( newLength_sq, x_sq, l_sq ) )` for x and then y, in source order.
+/// The squares and their sum are checked because signed overflow is undefined in C++; the
+/// accepted Linux `__int128` `rescale<int64_t>` body rounds the quotient half away from zero.
+/// Its non-negative result converts exactly as the integral `std::sqrt` overload does.
+fn resize_general_lengths(x: i64, y: i64, length: i64) -> VResult<(f64, f64)> {
+    let xs = x.c_mul(x)?;
+    let ys = y.c_mul(y)?;
+    let ls = xs.c_add(ys)?;
+    let ns = length.c_mul(length)?;
+    let new_x = (math_util::rescale_i64_int128(ns, xs, ls)? as f64).sqrt();
+    let new_y = (math_util::rescale_i64_int128(ns, ys, ls)? as f64).sqrt();
+    Ok((new_x, new_y))
 }
 
 fn cast_signed(v: f64, min: f64, upper: f64) -> VResult<i64> {
@@ -1062,3 +1077,34 @@ macro_rules! integer_order {
 }
 integer_order!(i32);
 integer_order!(i64);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Resize's general continuation now runs through the accepted `rescale<int64_t>`; KiROUND
+    /// (util.h) still defers afterwards, so its intermediate lengths are checked here.
+    #[test]
+    fn resize_general_lengths_use_the_accepted_rescale() {
+        // rescale( 100, 9, 25 ) = ( 900 + 12 ) / 25 = 36 and ( 1600 + 12 ) / 25 = 64.
+        assert_eq!(resize_general_lengths(3, 4, 10), Ok((6.0, 8.0)));
+        // Signs only enter through the squares; rounding is half away from zero: 1 * 1 / 2.
+        assert_eq!(resize_general_lengths(-1, 1, -1).map(|v| v.0), Ok(1.0));
+        assert_eq!(
+            resize_general_lengths(-3, 4, -10),
+            resize_general_lengths(3, -4, 10)
+        );
+        // A product beyond int64 needs the __int128 intermediate: rescale( s, s, s + 1 ) with
+        // s = 3037000499^2 is ( s * s + ( s + 1 ) / 2 ) / ( s + 1 ) = s - 1 exactly.
+        let s = 3_037_000_499_i64 * 3_037_000_499;
+        assert_eq!(
+            resize_general_lengths(3_037_000_499, 1, 3_037_000_499),
+            Ok((((s - 1) as f64).sqrt(), 1.0))
+        );
+        // int64 squares overflow before rescale; that undefined C++ path is refused.
+        assert_eq!(
+            resize_general_lengths(3_037_000_500, 1, 1),
+            Err(VectorDomainError::IntegerOverflow)
+        );
+    }
+}

@@ -71,13 +71,17 @@ valid paths, deferred to the helper, never rejected as UB.
 ## Dependency calls and continuations
 
 No helper is co-ported or reclassified under this unit. No other owner record is edited.
+The util source unit was accepted on `rust` by #59 (`kicad_math::math_util`, status partial);
+its implemented `rescale<int64_t>` body is now called directly. The util.h header unit
+remains `todo`, so its helpers keep their owner deferrals.
 
-| Actual helper | Actual owner (both todo at base) | Vector continuation retained |
+| Actual helper | Actual owner | Vector continuation retained |
 | --- | --- | --- |
 | RoundedHypot, UnsignedAbs, ct_sqrt/isqrt | `libs.kimath.include.math.application.ui.p001` | signed norm's min(type max), cast and return; squared norm uses equivalent bounded u128 arithmetic locally for its owned inline saturation body |
-| RoundedHypotWide | `libs.kimath.src.math.util.application.ui.p001` | reached inside missing RoundedHypot; no DotWide/CrossWide dependency invented |
+| RoundedHypotWide | `libs.kimath.src.math.util.application.ui.p001` (accepted: `math_util::rounded_hypot_wide`) | reached only inside RoundedHypot, whose header body (narrow isqrt path and wide dispatch) is still missing, so it is not called directly; no DotWide/CrossWide dependency invented |
 | scalar KiROUND (NaN -> zero, saturating with logging), sign, generic rescale, scalar equals | `libs.kimath.include.math.application.ui.p001` | vector x/y calls, sign/abs branches, scalar default-int round, equals x-false/y continuation retained; sign call has its own precise owner deferral |
-| rescale<int64_t>, kimathLogOverflow | `libs.kimath.src.math.util.application.ui.p001` | general Resize squares then both rescale/sqrt calls and signed reconstruction retained; no invented numerator<=denominator guard |
+| rescale<int64_t> | `libs.kimath.src.math.util.application.ui.p001` | **wired**: general Resize squares, then `math_util::rescale_i64_int128` (Linux `__int128` profile, matching the oracle) and sqrt for x then y; the following KiROUND call still defers; no invented numerator<=denominator guard |
+| kimathLogOverflow | `libs.kimath.src.math.util.application.ui.p001` (accepted as a host-boundary deferral) | not called by vector bodies directly; reached only inside the missing KiROUND |
 
 KiCheckedCast is not called by vectors. RoundedHypotWide's KI_UINT128 implementation belongs
 to the helper owner. The owned squared-norm body uses unsigned magnitudes and saturates
@@ -115,7 +119,7 @@ labels and USRs identify bodies exactly; constrained scalar overloads are audite
 | VECTOR2 EuclideanNorm<br>`c:@ST>1#T@VECTOR2@F@EuclideanNorm#1` | `euclidean_norm / norm2` | `2-*-norm, fp-sites-*-norm` | signed RoundedHypot deferred; double diagonal/axis implemented; general std::hypot deferred; other integral types unqualified |
 | VECTOR2 Format<br>`c:@ST>1#T@VECTOR2@F@Format#1` | `format` | `2-*-format` | fresh classic stream; double formatting deferred |
 | VECTOR2 Perpendicular<br>`c:@ST>1#T@VECTOR2@F@Perpendicular#1` | `perpendicular` | `2-*-perpendicular-min-x` | negates only y; signed-min y refused |
-| VECTOR2 Resize<br>`c:@ST>1#T@VECTOR2@F@Resize#t0.0#1` | `resize` | `2-*-resize-*, floating-resize-*` | zero/diagonal/general branches retained; KiROUND/sign/rescale deferred at actual calls; no naive normalized replacement |
+| VECTOR2 Resize<br>`c:@ST>1#T@VECTOR2@F@Resize#t0.0#1` | `resize` | `2-*-resize-*, floating-resize-*` | zero/diagonal/general branches retained; integral general branch runs the accepted rescale<int64_t>/sqrt (`2-*-resize-general-*`, `random-*-resize-general`); KiROUND, sign and rescale<double> deferred at actual calls; no naive normalized replacement |
 | VECTOR2 SquaredDistance<br>`c:@ST>1#T@VECTOR2@F@SquaredDistance#&1>@ST>1#T@VECTOR21t0.0#1` | `squared_distance` | `random-*-squared_distance` | each extended subtraction/product/sum guarded; distinct quieted NaN operands deferred |
 | VECTOR2 SquaredEuclideanNorm<br>`c:@ST>1#T@VECTOR2@F@SquaredEuclideanNorm#1` | `squared_euclidean_norm` | `2-*-squared_norm` | i32/i64 exact saturation; double distinct quieted NaN operands deferred |
 | VECTOR2 default constructor<br>`c:@ST>1#T@VECTOR2@F@VECTOR2#` | `Default` | `2-*-default` | value initialization; generic non-arithmetic uses T::default |
@@ -156,9 +160,11 @@ labels and USRs identify bodies exactly; constrained scalar overloads are audite
 `tests/bezier_operations.rs` retains existing consumer regression coverage. New
 `tests/vector_operations.rs` covers unique/ambiguous quieted NaNs, scalar aliases, per-intermediate overflow, late-failure
 mutation, cast intervals, extended-before-double Distance, norm saturation, Normalize state
-and return, unordered comparison, second-reference identity and f64 ECOORD_MIN.
+and return, unordered comparison, second-reference identity and f64 ECOORD_MIN. It also checks
+that integral Resize now runs the accepted `rescale<int64_t>` and reaches the KiROUND deferral;
+an in-module test checks the exact rescale/sqrt lengths, including an `__int128`-only product.
 
-The deterministic generator emits 9,533 valid cases and 29 separate UB refusal controls.
+The deterministic generator emits 9,582 valid cases and 30 separate UB refusal controls.
 Every corpus case runs in the real pinned C++ and in Rust; Rust deferrals are explicit error
 envelopes with actual owner, while C++ must return a real result. Refusals are outside the
 success corpus and assert a later request survives. There is no tolerance, lookup table,

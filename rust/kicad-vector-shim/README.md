@@ -48,9 +48,9 @@ floating division by zero is allowed and reaches KiROUND, unlike integral VECTOR
 The adapter does not impose the rescale comment's numerator <= denominator as a precondition.
 
 `generate_cases.py` regenerates the fixed-seed synthetic corpus and separate UB controls.
-The 9,533 corpus cases include all exposed operations, signed extremes, cast boundaries,
+The 9,582 corpus cases include all exposed operations, signed extremes, cast boundaries,
 scalar aliases, signed zeros, tiny/huge floats, infinities and payload-bearing sNaN/qNaN pairs.
-It computes inputs only. `port/oracle/vector-refusals.jsonl` has 29 UB controls; they are not
+It computes inputs only. `port/oracle/vector-refusals.jsonl` has 30 UB controls; they are not
 success cases or goldens. Both guard tests require each refusal and a succeeding next request. The shared 12 malformed-input controls also check component ranges, alias types and strict input shape.
 Rust direct tests separately check partial mutation when a later checked component fails;
 there is no claim about a C++ post-UB state.
@@ -72,7 +72,7 @@ execution or per-site floating qualification is claimed in this unit yet.
 
 The initial 4,103-case hosted pass is retained under
 `validation/2026-11-24-f98485d7/`: 3,173 exact comparisons, 930 deferrals, zero failures.
-It is tied to that historical head. The expanded 9,533-case corpus and later changes require
+It is tied to that historical head. The expanded 9,582-case corpus and later changes require
 a fresh hosted result; no count from the initial run certifies them.
 
 The later `validation/2026-11-24-ff389f87/` snapshot records 9,186 native cases,

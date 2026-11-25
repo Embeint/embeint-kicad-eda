@@ -27,3 +27,4 @@
 {"unit":"libs.kimath.include.math.application.ui.p002","case":"3-i32-norm-cast-overflow","input":{"dim":3,"type":"i32","op":"norm","a":[2147483647,2147483647,0]}}
 {"unit":"libs.kimath.include.math.application.ui.p002","case":"3-i32-div-zero","input":{"dim":3,"type":"i32","op":"div_assign_scalar","a":[1,2,3],"scalar":0}}
 {"unit":"libs.kimath.include.math.application.ui.p002","case":"3-i32-div-min-negative-one","input":{"dim":3,"type":"i32","op":"div_assign_scalar","a":[-2147483648,2,3],"scalar":-1}}
+{"unit":"libs.kimath.include.math.application.ui.p002","case":"2-i64-resize-square-overflow","input":{"dim":2,"type":"i64","op":"resize","a":[3037000500,1],"scalar":1}}
