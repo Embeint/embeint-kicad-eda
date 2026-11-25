@@ -19,6 +19,8 @@ ROOT = Path(__file__).resolve().parents[2]
 UNIT = "libs.core.application.pure.p001"
 CASES = ROOT / "port/cases" / (UNIT + ".jsonl")
 CONTROLS = ROOT / "port/oracle/fixtures/core-p001-controls.jsonl"
+EXPECTED = ROOT / "rust/kicad-core-shim/expected-replies.json"
+HEADER_UNIT = "libs.core.include.core.application.pure.p001"
 I64_MIN, I64_MAX, U64_MAX = -(1 << 63), (1 << 63) - 1, (1 << 64) - 1
 
 
@@ -338,6 +340,53 @@ def scenarios():
     for depth in range(9, 0, -1):
         inner = [notify(0, depth, {0: inner})]
     s.append([step("new", obs=0), step("subscribe", obs=0, observer=0, link=0)] + inner + [notify(0, 0)])
+    # An unpaired leave_iteration leaves the unsigned count at UINT_MAX; each Notify
+    # wraps it to 0 inside its loop and back afterwards (defined modular arithmetic).
+    # Removals outside the loop null entries; a loop over only nulls calls nobody.
+    s.append([step("new", obs=0), step("subscribe", obs=0, observer=0, link=0), step("leave_iteration", obs=0),
+              notify(0, 1), notify(0, 2), step("link_reset", link=0), notify(0, 3),
+              step("enter_iteration", obs=0), step("leave_iteration", obs=0), notify(0, 4, ignore=True)])
+    # A wrapped count in one list and a nested notification of it from another list's
+    # loop (formerly a refusal control): nothing is erased, so it is defined.
+    s.append([step("new", obs=0), step("subscribe", obs=0, observer=0, link=0), step("leave_iteration", obs=0),
+              step("new", obs=1), step("subscribe", obs=1, observer=1, link=1), notify(1, 1, {1: [notify(0, 2)]})])
+    # Inside a wrapped loop (count 0): removals with no match change nothing, guarded
+    # erasing removals are skipped, a nested Notify of the same list compacts nothing
+    # (no nulls; links keep it), and a nested NotifyIgnore makes the count nonzero so a
+    # removal nulls. The null is collected when the outer loop leaves.
+    s.append([step("new", obs=0)] + [step("subscribe", obs=0, observer=o, link=o) for o in range(3)]
+             + [step("leave_iteration", obs=0),
+                notify(0, 1, {0: [step("unsubscribe", obs=0, observer=5), step("unsubscribe", obs=0, observer=None),
+                                  step("unsubscribe", obs=0, observer=1, guard=True),
+                                  step("link_reset", link=1, guard=True),
+                                  step("link_assign", link=2, from_=0, guard=True),
+                                  step("link_assign", link=2, from_=2),
+                                  step("link_drop", link=2, guard=True), notify(0, 2),
+                                  notify(0, 3, {1: [step("unsubscribe", obs=0, observer=1)]}, ignore=True)]}),
+                notify(0, 4)])
+    # Base operations inside callbacks (formerly refusal controls): enter, leave to a
+    # zero count with nothing to collect, and on_observers_empty while a link keeps the
+    # list alive. The loop keeps reading the list it started with.
+    sub = [step("new", obs=0), step("subscribe", obs=0, observer=0, link=0)]
+    for op in ("leave_iteration", "on_observers_empty", "enter_iteration"):
+        s.append(sub + [notify(0, 1, {0: [step(op, obs=0)]}), notify(0, 2)])
+    # on_observers_empty inside the loop, then a new list for the same observable: the
+    # nested notification and the outer Notify's leave_iteration act on the new list,
+    # while the outer loop finishes the old one, whose count stays raised.
+    s.append([step("new", obs=0), step("subscribe", obs=0, observer=0, link=0),
+              step("subscribe", obs=0, observer=1, link=1),
+              notify(0, 1, {0: [step("on_observers_empty", obs=0), step("subscribe", obs=0, observer=2, link=2),
+                                notify(0, 2), step("enter_iteration", obs=0)]}), notify(0, 3)])
+    # Dropping an observable inside its own NotifyIgnore is defined while links keep the
+    # list: NotifyIgnore does not touch the observable after its loop.
+    s.append([step("new", obs=0), step("subscribe", obs=0, observer=0, link=0),
+              step("subscribe", obs=0, observer=1, link=1),
+              notify(0, 1, {0: [step("drop", obs=0), step("new", obs=0),
+                                step("subscribe", obs=0, observer=3, link=3)]}, ignore=True, ignored=None),
+              notify(0, 2), step("link_reset", link=0)])
+    # The first live failure (random script 142 before the precise guard): its erasing
+    # removal in a wrapped loop is guarded, so it is skipped and the script is defined.
+    s.append([{"op": "new", "obs": 5}, {"op": "subscribe_unmanaged", "obs": 5, "observer": 3}, {"op": "unsubscribe", "obs": 5, "observer": None, "guard": True}, {"op": "new", "obs": 6}, {"op": "unsubscribe", "obs": 6, "observer": 0, "guard": True}, {"op": "subscribe", "obs": 5, "observer": 1, "link": 4}, {"op": "copy", "obs": 1, "from": 5}, {"op": "link_assign", "link": 4, "from": 4}, {"op": "notify", "obs": 6, "event": 930, "reactions": []}, {"op": "link_move", "link": 13, "from": 4}, {"op": "copy", "obs": 7, "from": 1}, {"op": "new", "obs": 0}, {"op": "subscribe_unmanaged", "obs": 5, "observer": 7}, {"op": "leave_iteration", "obs": 5}, {"op": "notify_ignore", "obs": 7, "event": 220, "reactions": [{"observer": 1, "steps": [{"op": "unsubscribe", "obs": 7, "observer": 3, "guard": True}, {"op": "link_reset", "link": 4}]}], "ignore": 5}, {"op": "unsubscribe", "obs": 7, "observer": 1, "guard": True}, {"op": "link_token", "link": 5, "obs": 7, "observer": 5}, {"op": "copy", "obs": 2, "from": 7}, {"op": "link_move", "link": 9, "from": 4}])
     # Every slot.
     s.append([step("new", obs=k) for k in range(8)]
              + [step("subscribe", obs=k % 8, observer=k % 8, link=k) for k in range(16)]
@@ -355,7 +404,16 @@ def fix_from(value):
 
 
 def random_script(rng):
-    """Random scripts; tracks only slot occupancy (script bookkeeping, not reference state)."""
+    """Random scripts; tracks only slot occupancy (script bookkeeping, not reference state).
+
+    A third of the scripts leave iterations unpaired, so counts wrap through
+    UINT_MAX and later loops run with a count of 0. Those scripts guard every removal
+    inside callbacks (an erase from an active list is skipped, not refused) and nest
+    only NotifyIgnore, which never calls leave_iteration; with base operations at top
+    level only, no loop's list can then be compacted or destroyed while it is read.
+    """
+    wrap = rng.below(3) == 0
+    removal_guard = {"guard": True} if wrap else {}
     obs_present = [False] * 8
     link_present = [False] * 16
     steps = []
@@ -377,9 +435,9 @@ def random_script(rng):
             if kind == 0 and observables:
                 out.append(step("unsubscribe", obs=rng.choice(observables), observer=observer(), guard=True))
             elif kind == 1 and links:
-                out.append(step("link_reset", link=rng.choice(links)))
+                out.append(step("link_reset", link=rng.choice(links), **removal_guard))
             elif kind == 2 and len(links) >= 1:
-                out.append(step("link_assign", link=rng.choice(links), from_=rng.choice(links)))
+                out.append(step("link_assign", link=rng.choice(links), from_=rng.choice(links), **removal_guard))
             elif kind == 3 and observables and depth < 3:
                 out.append(nested(rng.choice(observables), depth))
             elif kind == 4 and observables and rng.below(3) == 0:
@@ -392,7 +450,7 @@ def random_script(rng):
         reactions = {}
         for o in sorted({rng.below(8) for _ in range(rng.below(3))}):
             reactions[o] = reaction_steps(depth + 1)
-        ignore = rng.below(4) == 0
+        ignore = rng.below(4) == 0 or (wrap and depth > 0)
         return notify(obs, rng.below(2001) - 1000, reactions, ignore, observer() if ignore else None)
 
     for _ in range(4 + rng.below(20)):
@@ -438,9 +496,11 @@ def random_script(rng):
             steps.append(step("link_token", link=l, obs=rng.choice(observables), observer=observer()))
             link_present[l] = True
         elif kind == 13 and observables:
-            # Unpaired leave_iteration (count wrap) is covered by a scenario and a control.
-            steps.append(step(rng.choice(["enter_iteration", "on_observers_empty"]),
-                              obs=rng.choice(observables)))
+            ops = ["leave_iteration", "leave_iteration", "enter_iteration", "on_observers_empty"] if wrap \
+                else ["enter_iteration", "on_observers_empty"]
+            steps.append(step(rng.choice(ops), obs=rng.choice(observables)))
+        if wrap and rng.below(3) == 0 and present(obs_present):
+            steps.append(step("leave_iteration", obs=rng.choice(present(obs_present))))
     return steps
 
 
@@ -516,7 +576,10 @@ def refusals(c):
 
     base = [step("new", obs=0)]
     sub = base + [step("subscribe", obs=0, observer=0, link=0)]
-    # Undefined in the reference: null impl_ dereference and adds to an active range-for.
+    unmanaged = base + [step("subscribe_unmanaged", obs=0, observer=0)]
+    # Undefined in the reference: null impl_ dereference, a dangling `this`, and any
+    # use of a range-for iterator its list has invalidated (adds; erases, compaction
+    # or destruction of the list while its loop is active).
     obs_refuse(base + [step("unsubscribe", obs=0, observer=0)], "unsubscribe without impl")
     obs_refuse(base + [step("subscribe_unmanaged", obs=0, observer=0), notify(0, 1),
                        step("unsubscribe", obs=0, observer=0)], "unsubscribe without impl")
@@ -531,16 +594,47 @@ def refusals(c):
     obs_refuse(sub + [step("new", obs=1), step("subscribe", obs=1, observer=1, link=1),
                       notify(0, 1, {0: [notify(1, 2, {1: [step("subscribe_unmanaged", obs=0, observer=2)]})]})],
                "subscribe during active iteration")
-    obs_refuse(sub + [step("subscribe", obs=0, observer=1, link=1), step("leave_iteration", obs=0),
-                      notify(0, 1, {0: [step("unsubscribe", obs=0, observer=0)]})],
-               "iteration count wraps during notification")
-    obs_refuse(sub + [step("leave_iteration", obs=0), step("new", obs=1),
-                      step("subscribe", obs=1, observer=1, link=1),
-                      notify(1, 1, {1: [notify(0, 2)]})], "iteration count wraps during notification")
+    # A wrapped count (0 inside the loop) makes removals erase from the active list.
+    wrapped = sub + [step("subscribe", obs=0, observer=1, link=1), step("leave_iteration", obs=0)]
+    obs_refuse(wrapped + [notify(0, 1, {0: [step("unsubscribe", obs=0, observer=0)]})],
+               "remove during active iteration")
+    for removal in (step("link_reset", link=1), step("link_assign", link=1, from_=0), step("link_drop", link=1),
+                    step("unsubscribe", obs=0, observer=1, guard=False)):
+        obs_refuse(wrapped + [notify(0, 1, {0: [removal]})], "remove during active iteration")
+    obs_refuse(base + [step("subscribe_unmanaged", obs=0, observer=None), step("subscribe_unmanaged", obs=0, observer=1),
+                       step("leave_iteration", obs=0), notify(0, 1, {1: [step("unsubscribe", obs=0, observer=None)]})],
+               "remove during active iteration")
+    obs_refuse(wrapped + [step("leave_iteration", obs=0),
+                          notify(0, 1, {0: [notify(0, 2, {1: [step("unsubscribe", obs=0, observer=0)]},
+                                                   ignore=True, ignored=None)]})],
+               "remove during active iteration")
+    # A nested leave_iteration reaching 0 compacts nulls out of the list being read.
+    obs_refuse(wrapped + [step("link_reset", link=1), notify(0, 1, {0: [notify(0, 2)]})],
+               "list compacted during active iteration")
+    obs_refuse(sub + [step("subscribe", obs=0, observer=1, link=1),
+                      notify(0, 1, {0: [step("unsubscribe", obs=0, observer=1), step("leave_iteration", obs=0)]})],
+               "list compacted during active iteration")
+    # The list being read loses its last reference.
+    obs_refuse(unmanaged + [step("leave_iteration", obs=0), notify(0, 1, {0: [notify(0, 2)]})],
+               "list destroyed during active iteration")
+    obs_refuse(unmanaged + [notify(0, 1, {0: [step("leave_iteration", obs=0)]})],
+               "list destroyed during active iteration")
+    obs_refuse(unmanaged + [notify(0, 1, {0: [step("on_observers_empty", obs=0)]})],
+               "list destroyed during active iteration")
+    obs_refuse(sub + [notify(0, 1, {0: [step("on_observers_empty", obs=0), step("link_reset", link=0)]})],
+               "list destroyed during active iteration")
+    obs_refuse(unmanaged + [notify(0, 1, {0: [step("drop", obs=0)]}, ignore=True, ignored=None)],
+               "list destroyed during active iteration")
+    # The two live failures before the precise guard. Script 142 is shown with the
+    # guard removed from its erasing removal (guarded, it is a corpus scenario).
+    script142 = fix_from([{"op": "new", "obs": 5}, {"op": "subscribe_unmanaged", "obs": 5, "observer": 3}, {"op": "unsubscribe", "obs": 5, "observer": None, "guard": True}, {"op": "new", "obs": 6}, {"op": "unsubscribe", "obs": 6, "observer": 0, "guard": True}, {"op": "subscribe", "obs": 5, "observer": 1, "link": 4}, {"op": "copy", "obs": 1, "from": 5}, {"op": "link_assign", "link": 4, "from": 4}, {"op": "notify", "obs": 6, "event": 930, "reactions": []}, {"op": "link_move", "link": 13, "from": 4}, {"op": "copy", "obs": 7, "from": 1}, {"op": "new", "obs": 0}, {"op": "subscribe_unmanaged", "obs": 5, "observer": 7}, {"op": "leave_iteration", "obs": 5}, {"op": "notify_ignore", "obs": 7, "event": 220, "reactions": [{"observer": 1, "steps": [{"op": "unsubscribe", "obs": 7, "observer": 3, "guard": True}, {"op": "link_reset", "link": 4}]}], "ignore": 5}, {"op": "unsubscribe", "obs": 7, "observer": 1, "guard": True}, {"op": "link_token", "link": 5, "obs": 7, "observer": 5}, {"op": "copy", "obs": 2, "from": 7}, {"op": "link_move", "link": 9, "from": 4}])
+    del script142[14]["reactions"][0]["steps"][0]["guard"]
+    obs_refuse(script142, "remove during active iteration")
+    obs_refuse([{"op": "new", "obs": 4}, {"op": "notify", "obs": 4, "event": -414, "reactions": [{"observer": 6, "steps": [{"op": "unsubscribe", "obs": 4, "observer": 2, "guard": True}]}]}, {"op": "subscribe", "obs": 4, "observer": 0, "link": 15}, {"op": "link_token", "link": 13, "obs": 4, "observer": 5}, {"op": "leave_iteration", "obs": 4}, {"op": "copy", "obs": 5, "from": 4}, {"op": "subscribe", "obs": 5, "observer": 4, "link": 7}, {"op": "subscribe", "obs": 5, "observer": 4, "link": 8}, {"op": "link_assign", "link": 8, "from": 15}, {"op": "link_reset", "link": 13}, {"op": "link_move", "link": 12, "from": 7}, {"op": "notify", "obs": 4, "event": 251, "reactions": [{"observer": 2, "steps": [{"op": "link_reset", "link": 12}, {"op": "unsubscribe", "obs": 5, "observer": 7, "guard": True}, {"op": "link_reset", "link": 13}]}]}, {"op": "notify", "obs": 5, "event": 54, "reactions": [{"observer": 0, "steps": [{"op": "notify", "obs": 5, "event": -494, "reactions": []}, {"op": "notify_ignore", "obs": 5, "event": -237, "reactions": [], "ignore": 5}]}]}], "list compacted during active iteration")
+    # Notify calls leave_iteration() on the observable after its loop.
     obs_refuse(sub + [notify(0, 1, {0: [step("drop", obs=0)]})], "drop during own notification")
-    obs_refuse(sub + [notify(0, 1, {0: [step("leave_iteration", obs=0)]})], "base operation inside notification")
-    obs_refuse(sub + [notify(0, 1, {0: [step("on_observers_empty", obs=0)]})], "base operation inside notification")
-    obs_refuse(sub + [notify(0, 1, {0: [step("enter_iteration", obs=0)]})], "base operation inside notification")
+    obs_refuse(sub + [notify(0, 1, {0: [notify(0, 2, {0: [step("drop", obs=0)]}, ignore=True, ignored=None)]})],
+               "drop during own notification")
     # Harness bounds and script errors.
     deep = []
     for depth in range(10, 0, -1):
@@ -566,6 +660,9 @@ def refusals(c):
     obs_refuse(sub + [step("subscribe", obs=0, observer=0, link=16)], "integer out of range: link")
     obs_refuse(sub + [step("subscribe", obs=8, observer=0, link=1)], "integer out of range: obs")
     obs_refuse(sub + [step("subscribe", obs=0, observer=0, link=1, guard=1)], "expected boolean: guard")
+    obs_refuse(sub + [step("link_reset", link=0, guard="yes")], "expected boolean: guard")
+    obs_refuse(sub + [step("link_new", link=1, guard=True)], "unexpected or missing field")
+    obs_refuse(sub + [step("link_move", link=1, from_=0, guard=True)], "unexpected or missing field")
     obs_refuse(sub + [{"op": "notify_ignore", "obs": 0, "event": 1, "ignore": -1, "reactions": []}],
                "integer out of range: ignore")
     obs_refuse(sub + [{"op": "notify_ignore", "obs": 0, "event": 1, "reactions": []}], "unexpected or missing field")
@@ -607,19 +704,32 @@ def generate():
     def encode(items):
         return "".join(json.dumps(r, separators=(",", ":"), ensure_ascii=False, allow_nan=False) + "\n"
                        for r in items)
-    return encode(c.cases), encode(c.controls), c.counts
+    return encode(c.cases), encode(c.controls), expected_replies(c.cases), c.counts
+
+
+def expected_replies(cases):
+    """The Rust reply each case must give, derived from the inputs: a latency probe
+    with any non-timer checkpoint prints a `chp:` line through the header-owned
+    LATENCY_PROBE::delta_ms, a typed deferral; every other case is compared exactly."""
+    deferred = [case["case"] for case in cases if case["input"]["op"] == "latency_probe"
+                and any(not checkpoint["timer"] for checkpoint in case["input"]["checkpoints"])]
+    value = {"cases": len(cases), "compared": len(cases) - len(deferred),
+             "deferred": {"cases": deferred,
+                          "error": {"kind": "unported", "unit": HEADER_UNIT, "upstream": "LATENCY_PROBE::delta_ms"}}}
+    return json.dumps(value, indent=1, sort_keys=True) + "\n"
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
-    data, controls, counts = generate()
+    data, controls, expected, counts = generate()
+    outputs = [(CASES, data), (CONTROLS, controls), (EXPECTED, expected)]
     if args.check:
-        if CASES.read_text(encoding="utf-8") != data or CONTROLS.read_text(encoding="utf-8") != controls:
+        if any(not path.exists() or path.read_text(encoding="utf-8") != text for path, text in outputs):
             raise SystemExit("corpus differs from deterministic generator")
     else:
-        CASES.write_text(data, encoding="utf-8")
-        CONTROLS.write_text(controls, encoding="utf-8")
+        for path, text in outputs:
+            path.write_text(text, encoding="utf-8")
     cases = sum(v for k, v in counts.items() if not k.startswith("refuse-"))
     print(json.dumps({"cases": cases, "controls": len(controls.splitlines()), **counts}, sort_keys=True))

@@ -63,14 +63,24 @@ links; `null` for a null `shared_ptr`), `size()`, each link's `operator bool`, p
 `token_` and `observer_`, and each live `IMPL`'s `observers_`, `iteration_count_`,
 `is_shared()` and `use_count()`.
 
-Undefined in the reference, refused (or skipped and logged with `guard: true`): adding to
-a list an active `Notify` loop is ranging over, `unsubscribe` with a null `impl_`. A
-notification whose `enter_iteration` would wrap the count from `UINT_MAX` (left by an
-unpaired `leave_iteration`) to 0 is refused, since removals inside it would erase from the
-vector being ranged over. Script
-limits: no `drop` of an observable inside its own notification, base operations
-(`enter_iteration`, `leave_iteration`, `on_observers_empty`) only at top level, 2,048
-steps, 100,000 executed steps and callbacks.
+Everything the reference defines runs, including an unsigned count wrapped through
+`UINT_MAX` by an unpaired `leave_iteration`, base operations inside callbacks, and
+`drop` of an observable inside its own `notify_ignore`. The refusals are exactly the
+undefined points:
+
+| Refusal | Undefined because |
+| --- | --- |
+| `drop during own notification` | `Notify` calls `leave_iteration()` on the destroyed observable after its loop (`NotifyIgnore` does not, so dropping there is allowed) |
+| `unsubscribe without impl` | `OBSERVABLE_BASE::remove_observer` dereferences a null `impl_` |
+| `subscribe during active iteration` | `push_back` into a list an active `Notify`/`NotifyIgnore` range-for is reading invalidates its iterators |
+| `remove during active iteration` | `unsubscribe`, `link_reset`, `link_drop` or `link_assign` (not self-assignment) would erase from a list an active loop is reading: `IMPL::remove_observer` erases instead of nulling when the count is 0, which inside a loop means the count wrapped. Checked before the removal |
+| `list compacted during active iteration` | after a step inside a callback, a list an active loop is reading has a different size: `collect()` erased nulls when a nested `leave_iteration` brought the count to 0. Checked when the step returns, before the loop reads again |
+| `list destroyed during active iteration` | after a step inside a callback, a list an active loop is reading has lost its last reference (`leave_iteration`'s release, `on_observers_empty`, a link reset, a drop) |
+
+`subscribe`, `subscribe_unmanaged`, `unsubscribe`, `link_reset`, `link_drop` and
+`link_assign` accept `guard: true`, which turns their refusal above (and `unsubscribe`
+without `impl_`) into a skip logged as `{"skipped": op}`. The post-step refusals have no
+guarded form. Script limits: depth 8, 2,048 steps, 100,000 executed steps and callbacks.
 
 The C++ adapter runs the real `OBSERVABLE<T>` template. That template is a header body
 owned by `libs.core.include.core.application.pure.p001`; the Rust driver

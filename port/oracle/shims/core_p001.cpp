@@ -593,6 +593,8 @@ private:
             Fields( aInput, { "op", "obs" } );
             step.obs = Index( aInput, "obs", OBSERVABLES );
 
+            // Notify calls leave_iteration() on itself after its loop; NotifyIgnore does
+            // not touch the observable again, so only an enclosing notify is undefined.
             if( std::find( m_notifying.begin(), m_notifying.end(), step.obs ) != m_notifying.end() )
                 Fail( "drop during own notification" );
         }
@@ -629,7 +631,8 @@ private:
             if( !aInput.at( "reactions" ).is_array() )
                 Fail( "expected array: reactions" );
 
-            m_notifying.push_back( step.obs );
+            if( !ignoreVariant )
+                m_notifying.push_back( step.obs );
 
             for( const JSON& reaction : aInput.at( "reactions" ) )
             {
@@ -646,20 +649,24 @@ private:
                 step.reactions.emplace_back( observer, std::move( steps ) );
             }
 
-            m_notifying.pop_back();
+            if( !ignoreVariant )
+                m_notifying.pop_back();
         }
         else if( op == "enter_iteration" || op == "leave_iteration" || op == "on_observers_empty" )
         {
             Fields( aInput, { "op", "obs" } );
             step.obs = Index( aInput, "obs", OBSERVABLES );
-
-            if( aDepth > 0 )
-                Fail( "base operation inside notification" );
         }
-        else if( op == "link_new" || op == "link_reset" || op == "link_drop" )
+        else if( op == "link_new" )
         {
             Fields( aInput, { "op", "link" } );
             step.link = Index( aInput, "link", LINKS );
+        }
+        else if( op == "link_reset" || op == "link_drop" )
+        {
+            Fields( aInput, { "op", "link" }, { "guard" } );
+            step.link = Index( aInput, "link", LINKS );
+            step.guard = Guard( aInput );
         }
         else if( op == "link_token" )
         {
@@ -668,11 +675,18 @@ private:
             step.obs = Index( aInput, "obs", OBSERVABLES );
             step.observer = Pointer( aInput, "observer" );
         }
-        else if( op == "link_move" || op == "link_assign" )
+        else if( op == "link_move" )
         {
             Fields( aInput, { "op", "link", "from" } );
             step.link = Index( aInput, "link", LINKS );
             step.from = Index( aInput, "from", LINKS );
+        }
+        else if( op == "link_assign" )
+        {
+            Fields( aInput, { "op", "link", "from" }, { "guard" } );
+            step.link = Index( aInput, "link", LINKS );
+            step.from = Index( aInput, "from", LINKS );
+            step.guard = Guard( aInput );
         }
         else
         {
@@ -683,7 +697,7 @@ private:
     }
 
     size_t           m_count = 0;
-    std::vector<int> m_notifying;
+    std::vector<int> m_notifying; ///< Observables with an enclosing notify (not notify_ignore).
 };
 
 
@@ -772,16 +786,76 @@ private:
         return *m_links[aLink];
     }
 
+    using IMPL = TEST_OBSERVABLE::IMPL_PTR::element_type;
+
+    /// A list an active Notify/NotifyIgnore range-for is reading. The weak pointer
+    /// leaves use_count() unchanged; the size is the loop's fixed end.
+    struct ACTIVE
+    {
+        const IMPL*         impl;
+        std::weak_ptr<IMPL> alive;
+        size_t              size;
+    };
+
+    bool IsActive( const IMPL* aImpl ) const
+    {
+        return aImpl && std::any_of( m_active.begin(), m_active.end(),
+                                     [&]( const ACTIVE& aActive ) { return aActive.impl == aImpl; } );
+    }
+
     /// Adding to a list that an active Notify range-for is reading is undefined.
     bool AddsDuringIteration( TEST_OBSERVABLE& aObservable )
     {
-        const void* impl = aObservable.Impl().get();
-        return impl && std::find( m_active.begin(), m_active.end(), impl ) != m_active.end();
+        return IsActive( aObservable.Impl().get() );
+    }
+
+    /// IMPL::remove_observer erases the first match (instead of nulling it) when the
+    /// count is 0, and does nothing without a match. Erasing from a list an active
+    /// range-for is reading is undefined; inside a loop the count is 0 only after the
+    /// unsigned count wrapped.
+    bool ErasesDuringIteration( const IMPL* aImpl, const void* aObserver ) const
+    {
+        if( !IsActive( aImpl ) || aImpl->iteration_count_ != 0 )
+            return false;
+
+        return std::find( aImpl->observers_.begin(), aImpl->observers_.end(), aObserver )
+               != aImpl->observers_.end();
+    }
+
+    /// The removal LINK::reset would make on this link.
+    bool LinkErasesDuringIteration( UTIL::LINK& aLink ) const
+    {
+        return ErasesDuringIteration( ( aLink.*Get( LINK_TOKEN{} ) ).get(),
+                                      aLink.*Get( LINK_OBSERVER{} ) );
+    }
+
+    /// After a step inside a callback: an active loop's list that was destroyed, or
+    /// compacted by collect(), would next be read through an invalidated iterator.
+    /// Refuse before control returns to that loop (the exception unwinds through the
+    /// template's catch, which only calls leave_iteration).
+    void CheckActive() const
+    {
+        for( const ACTIVE& active : m_active )
+        {
+            const std::shared_ptr<IMPL> impl = active.alive.lock();
+
+            if( !impl )
+                Fail( "list destroyed during active iteration" );
+
+            if( impl->observers_.size() != active.size )
+                Fail( "list compacted during active iteration" );
+        }
     }
 
     void Skipped( const char* aOp ) { m_calls.push_back( { { "skipped", aOp } } ); }
 
     void Exec( const STEP& aStep, int aDepth )
+    {
+        ExecStep( aStep, aDepth );
+        CheckActive();
+    }
+
+    void ExecStep( const STEP& aStep, int aDepth )
     {
         Tick();
         const std::string& op = aStep.op;
@@ -799,8 +873,22 @@ private:
         }
         else if( op == "drop" )
         {
-            Observable( aStep.obs );
-            m_observables[aStep.obs].reset();
+            TEST_OBSERVABLE& observable = Observable( aStep.obs );
+
+            // Dropped inside its own NotifyIgnore (the parser refuses its own Notify).
+            // The template does not touch the observable after the loop, so this is
+            // defined, but a later refusal would unwind through its catch block, which
+            // calls leave_iteration() on it. Do what ~OBSERVABLE_BASE does to state
+            // (release impl_) and keep the storage until the run ends.
+            if( std::find( m_notifiers.begin(), m_notifiers.end(), &observable ) != m_notifiers.end() )
+            {
+                observable.Empty();
+                m_retired.push_back( std::move( m_observables[aStep.obs] ) );
+            }
+            else
+            {
+                m_observables[aStep.obs].reset();
+            }
         }
         else if( op == "subscribe" || op == "subscribe_unmanaged" )
         {
@@ -835,29 +923,37 @@ private:
                 Fail( "unsubscribe without impl" );
             }
 
+            if( ErasesDuringIteration( observable.Impl().get(), Ptr( aStep.observer ) ) )
+            {
+                if( aStep.guard )
+                    return Skipped( "unsubscribe" );
+
+                Fail( "remove during active iteration" );
+            }
+
             observable.Unsubscribe( Ptr( aStep.observer ) );
         }
         else if( op == "notify" || op == "notify_ignore" )
         {
             TEST_OBSERVABLE& observable = Observable( aStep.obs );
-            const void*      impl = observable.Impl().get();
+            const IMPL*      impl = observable.Impl().get();
 
-            // Notify's enter_iteration would wrap UINT_MAX (left by an unpaired
-            // leave_iteration) to 0 inside the loop; a removal or collect would then
-            // erase from the vector the range-for is reading. Undefined: refuse.
-            if( impl && observable.Impl()->iteration_count_ == UINT_MAX )
-                Fail( "iteration count wraps during notification" );
-
+            // enter_iteration is modular: a count left at UINT_MAX by an unpaired
+            // leave_iteration wraps to 0 inside the loop, which is defined. Only a
+            // later erase, compaction or destruction of this list during the loop is
+            // undefined; the removal checks and CheckActive refuse exactly those.
             if( impl )
-                m_active.push_back( impl );
+                m_active.push_back( ACTIVE{ impl, observable.Impl(), impl->observers_.size() } );
 
             m_frames.push_back( FRAME{ &aStep.reactions, aDepth } );
+            m_notifiers.push_back( &observable );
 
             if( op == "notify" )
                 observable.Notify( &OBSERVER::OnEvent, aStep.event );
             else
                 observable.NotifyIgnore( &OBSERVER::OnEvent, Ptr( aStep.ignore ), aStep.event );
 
+            m_notifiers.pop_back();
             m_frames.pop_back();
 
             if( impl )
@@ -896,16 +992,34 @@ private:
         {
             UTIL::LINK& target = Link( aStep.link );
             UTIL::LINK& source = Link( aStep.from );
+
+            // Self-assignment returns before reset().
+            if( &target != &source && LinkErasesDuringIteration( target ) )
+            {
+                if( aStep.guard )
+                    return Skipped( "link_assign" );
+
+                Fail( "remove during active iteration" );
+            }
+
             target = std::move( source );
         }
-        else if( op == "link_reset" )
+        else if( op == "link_reset" || op == "link_drop" )
         {
-            Link( aStep.link ).reset();
-        }
-        else if( op == "link_drop" )
-        {
-            Link( aStep.link );
-            m_links[aStep.link].reset();
+            UTIL::LINK& link = Link( aStep.link );
+
+            if( LinkErasesDuringIteration( link ) )
+            {
+                if( aStep.guard )
+                    return Skipped( op.c_str() );
+
+                Fail( "remove during active iteration" );
+            }
+
+            if( op == "link_reset" )
+                link.reset();
+            else
+                m_links[aStep.link].reset();
         }
     }
 
@@ -994,7 +1108,9 @@ private:
     OBSERVER                                       m_observers[OBSERVERS];
     std::unique_ptr<TEST_OBSERVABLE>               m_observables[OBSERVABLES];
     std::optional<UTIL::LINK>                      m_links[LINKS];
-    std::vector<const void*>                       m_active;
+    std::vector<ACTIVE>                            m_active;
+    std::vector<const TEST_OBSERVABLE*>            m_notifiers; ///< Observables in Notify/NotifyIgnore.
+    std::vector<std::unique_ptr<TEST_OBSERVABLE>>  m_retired;   ///< Dropped in own NotifyIgnore; impl_ null.
     std::vector<FRAME>                             m_frames;
     JSON                                           m_calls = JSON::array();
     size_t                                         m_budget = 0;

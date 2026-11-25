@@ -9,6 +9,10 @@
 //! * one [`ImplRef`] is one `shared_ptr<IMPL>` copy. It is neither `Clone` nor
 //!   `Copy`; copies are made with the arena and released with it, which is where the
 //!   reference's constructors and destructors adjust `use_count()`;
+//! * a handle is branded with its arena's caller-supplied [`ArenaId`] and with the
+//!   generation of its slot, so a handle from another arena, or one that outlived its
+//!   `IMPL`, is refused with a typed error before anything is changed. The reference
+//!   cannot express either mistake (a `shared_ptr` carries its own control block);
 //! * an observer pointer is an [`ObserverPtr`], `None` being `nullptr`.
 //!
 //! The release (`NDEBUG`) behaviour of the reference is ported: `assert` is a no-op
@@ -34,25 +38,38 @@ pub enum ObservableError {
     /// `OBSERVABLE_BASE::remove_observer` with a null `impl_` (the reference
     /// asserts, then dereferences null).
     NoImpl,
-    /// The handle does not refer to a live `IMPL` of this arena.
+    /// The handle belongs to this arena but its `IMPL` no longer exists.
     StaleHandle,
+    /// The handle was issued by a different arena.
+    ForeignHandle,
     /// The subscription list could not grow (the reference throws `bad_alloc`).
     Allocation,
 }
 
-/// Stable identity of a live `IMPL` (the reference's `IMPL*`), for comparisons only.
+/// Identity of an [`ObservableArena`], chosen by whoever creates it. Arenas whose
+/// handles may meet must be given distinct identities; nothing global allocates them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ImplId(usize);
+pub struct ArenaId(pub u32);
+
+/// Stable identity of a live `IMPL` (the reference's `IMPL*`), for comparisons only.
+/// It names the arena, the slot and the slot's generation, so an `IMPL` created
+/// later in a reused slot never compares equal to a destroyed one.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ImplId {
+    arena: ArenaId,
+    index: usize,
+    generation: u32,
+}
 
 /// One `std::shared_ptr<OBSERVABLE_BASE::IMPL>` copy owned by an observable or link.
 #[derive(Debug, PartialEq, Eq)]
 #[must_use = "an ImplRef is a counted reference; release it through the arena"]
-pub struct ImplRef(usize);
+pub struct ImplRef(ImplId);
 
 impl ImplRef {
     /// The identity of the referenced `IMPL`.
     pub fn id(&self) -> ImplId {
-        ImplId(self.0)
+        self.0
     }
 }
 
@@ -128,10 +145,18 @@ impl Impl {
     }
 }
 
+/// One arena slot: the `IMPL` it holds, if any, and how many `IMPL`s it has held.
+#[derive(Debug)]
+struct Slot {
+    generation: u32,
+    value: Option<Impl>,
+}
+
 /// Storage for every `IMPL`, replacing the reference's heap and reference counts.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ObservableArena {
-    slots: Vec<Option<Impl>>,
+    id: ArenaId,
+    slots: Vec<Slot>,
     /// Freed slots, reused last-in first-out so identities are deterministic.
     free: Vec<usize>,
 }
@@ -203,23 +228,49 @@ impl Link {
 }
 
 impl ObservableArena {
-    /// An empty arena.
-    pub fn new() -> Self {
-        Self::default()
+    /// An empty arena identified by `id`, which brands every handle it issues.
+    pub fn new(id: ArenaId) -> Self {
+        Self {
+            id,
+            slots: Vec::new(),
+            free: Vec::new(),
+        }
+    }
+
+    /// The identity this arena brands its handles with.
+    pub fn id(&self) -> ArenaId {
+        self.id
+    }
+
+    /// The slot `id` names, refusing a foreign or stale handle.
+    fn slot(&self, id: ImplId) -> Result<&Slot, ObservableError> {
+        if id.arena != self.id {
+            return Err(ObservableError::ForeignHandle);
+        }
+        match self.slots.get(id.index) {
+            Some(slot) if slot.generation == id.generation && slot.value.is_some() => Ok(slot),
+            _ => Err(ObservableError::StaleHandle),
+        }
     }
 
     fn get(&self, id: ImplId) -> Result<&Impl, ObservableError> {
-        self.slots
-            .get(id.0)
-            .and_then(Option::as_ref)
+        self.slot(id)?
+            .value
+            .as_ref()
             .ok_or(ObservableError::StaleHandle)
     }
 
     fn get_mut(&mut self, id: ImplId) -> Result<&mut Impl, ObservableError> {
+        self.slot(id)?;
         self.slots
-            .get_mut(id.0)
-            .and_then(Option::as_mut)
+            .get_mut(id.index)
+            .and_then(|slot| slot.value.as_mut())
             .ok_or(ObservableError::StaleHandle)
+    }
+
+    /// True when `id` names a live `IMPL` of this arena.
+    pub fn is_live(&self, id: ImplId) -> bool {
+        self.slot(id).is_ok()
     }
 
     /// `std::make_shared<IMPL>( owned_by )`.
@@ -231,18 +282,31 @@ impl ObservableArena {
             use_count: 1,
         };
 
+        let arena = self.id;
+
         if let Some(index) = self.free.pop() {
             if let Some(slot) = self.slots.get_mut(index) {
-                *slot = Some(value);
-                return Ok(ImplRef(index));
+                slot.value = Some(value);
+                return Ok(ImplRef(ImplId {
+                    arena,
+                    index,
+                    generation: slot.generation,
+                }));
             }
         }
 
         self.slots
             .try_reserve(1)
             .map_err(|_| ObservableError::Allocation)?;
-        self.slots.push(Some(value));
-        Ok(ImplRef(self.slots.len() - 1))
+        self.slots.push(Slot {
+            generation: 0,
+            value: Some(value),
+        });
+        Ok(ImplRef(ImplId {
+            arena,
+            index: self.slots.len() - 1,
+            generation: 0,
+        }))
     }
 
     /// Copy a `shared_ptr<IMPL>`.
@@ -254,19 +318,25 @@ impl ObservableArena {
     }
 
     /// Destroy a `shared_ptr<IMPL>` copy, destroying the `IMPL` with the last one.
-    fn release(&mut self, reference: ImplRef) {
-        let index = reference.0;
+    /// A foreign or stale handle is refused before anything changes.
+    fn release(&mut self, reference: ImplRef) -> Result<(), ObservableError> {
+        let id = reference.id();
+        let value = self.get_mut(id)?;
+        value.use_count = value.use_count.saturating_sub(1);
 
-        if let Some(slot) = self.slots.get_mut(index) {
-            if let Some(value) = slot.as_mut() {
-                value.use_count = value.use_count.saturating_sub(1);
-
-                if value.use_count == 0 {
-                    *slot = None;
-                    self.free.push(index);
+        if value.use_count == 0 {
+            if let Some(slot) = self.slots.get_mut(id.index) {
+                slot.value = None;
+                // A slot whose generation would wrap is retired instead of reused, so
+                // an old handle can never name a newer `IMPL`.
+                if let Some(next) = slot.generation.checked_add(1) {
+                    slot.generation = next;
+                    self.free.push(id.index);
                 }
             }
         }
+
+        Ok(())
     }
 
     // ---- OBSERVABLE_BASE ------------------------------------------------------------
@@ -275,7 +345,8 @@ impl ObservableArena {
     /// shared (allocating a shared one if `other` has none).
     ///
     /// # Errors
-    /// [`ObservableError::StaleHandle`] or [`ObservableError::Allocation`].
+    /// [`ObservableError::ForeignHandle`], [`ObservableError::StaleHandle`] or
+    /// [`ObservableError::Allocation`].
     pub fn copy_observable(
         &mut self,
         other: &mut ObservableBase,
@@ -286,9 +357,13 @@ impl ObservableArena {
     }
 
     /// `~OBSERVABLE_BASE()`: release `impl_`.
-    pub fn drop_observable(&mut self, base: ObservableBase) {
-        if let Some(reference) = base.impl_ {
-            self.release(reference);
+    ///
+    /// # Errors
+    /// [`ObservableError::ForeignHandle`] or [`ObservableError::StaleHandle`].
+    pub fn drop_observable(&mut self, base: ObservableBase) -> Result<(), ObservableError> {
+        match base.impl_ {
+            Some(reference) => self.release(reference),
+            None => Ok(()),
         }
     }
 
@@ -308,7 +383,8 @@ impl ObservableArena {
     /// mark the existing list shared.
     ///
     /// # Errors
-    /// [`ObservableError::StaleHandle`] or [`ObservableError::Allocation`].
+    /// [`ObservableError::ForeignHandle`], [`ObservableError::StaleHandle`] or
+    /// [`ObservableError::Allocation`].
     pub fn allocate_shared_impl(
         &mut self,
         base: &mut ObservableBase,
@@ -322,9 +398,18 @@ impl ObservableArena {
     }
 
     /// `OBSERVABLE_BASE::deallocate_impl`: `impl_.reset()`.
-    pub fn deallocate_impl(&mut self, base: &mut ObservableBase) {
-        if let Some(reference) = base.impl_.take() {
-            self.release(reference);
+    ///
+    /// # Errors
+    /// [`ObservableError::ForeignHandle`] or [`ObservableError::StaleHandle`]; `impl_`
+    /// is then left unchanged.
+    pub fn deallocate_impl(&mut self, base: &mut ObservableBase) -> Result<(), ObservableError> {
+        if let Some(reference) = &base.impl_ {
+            self.get(reference.id())?;
+        }
+
+        match base.impl_.take() {
+            Some(reference) => self.release(reference),
+            None => Ok(()),
         }
     }
 
@@ -332,7 +417,8 @@ impl ObservableArena {
     /// `impl_`.
     ///
     /// # Errors
-    /// [`ObservableError::StaleHandle`] or [`ObservableError::Allocation`].
+    /// [`ObservableError::ForeignHandle`], [`ObservableError::StaleHandle`] or
+    /// [`ObservableError::Allocation`].
     pub fn get_shared_impl(
         &mut self,
         base: &mut ObservableBase,
@@ -348,7 +434,7 @@ impl ObservableArena {
     /// `Subscribe`'s `LINK( impl_, ... )`). `None` when `impl_` is null.
     ///
     /// # Errors
-    /// [`ObservableError::StaleHandle`].
+    /// [`ObservableError::ForeignHandle`] or [`ObservableError::StaleHandle`].
     pub fn share_impl(
         &mut self,
         base: &ObservableBase,
@@ -362,7 +448,8 @@ impl ObservableArena {
     /// `OBSERVABLE_BASE::add_observer`: `allocate_impl()`, then append.
     ///
     /// # Errors
-    /// [`ObservableError::StaleHandle`] or [`ObservableError::Allocation`].
+    /// [`ObservableError::ForeignHandle`], [`ObservableError::StaleHandle`] or
+    /// [`ObservableError::Allocation`].
     pub fn add_observer(
         &mut self,
         base: &mut ObservableBase,
@@ -380,7 +467,8 @@ impl ObservableArena {
     /// `OBSERVABLE_BASE::remove_observer`.
     ///
     /// # Errors
-    /// [`ObservableError::NoImpl`] when `impl_` is null (undefined in the reference).
+    /// [`ObservableError::NoImpl`] when `impl_` is null (undefined in the reference);
+    /// [`ObservableError::ForeignHandle`] or [`ObservableError::StaleHandle`].
     pub fn remove_observer(
         &mut self,
         base: &ObservableBase,
@@ -398,7 +486,7 @@ impl ObservableArena {
     /// `OBSERVABLE_BASE::enter_iteration`.
     ///
     /// # Errors
-    /// [`ObservableError::StaleHandle`].
+    /// [`ObservableError::ForeignHandle`] or [`ObservableError::StaleHandle`].
     pub fn enter_iteration(&mut self, base: &ObservableBase) -> Result<(), ObservableError> {
         if let Some(reference) = &base.impl_ {
             self.get_mut(reference.id())?.enter_iteration();
@@ -412,7 +500,7 @@ impl ObservableArena {
     /// is released, even if it still holds observers.
     ///
     /// # Errors
-    /// [`ObservableError::StaleHandle`].
+    /// [`ObservableError::ForeignHandle`] or [`ObservableError::StaleHandle`].
     pub fn leave_iteration(&mut self, base: &mut ObservableBase) -> Result<(), ObservableError> {
         let Some(id) = base.impl_.as_ref().map(ImplRef::id) else {
             return Ok(());
@@ -421,7 +509,7 @@ impl ObservableArena {
         value.leave_iteration();
 
         if !value.is_iterating() && !value.is_shared() && value.use_count == 1 {
-            self.deallocate_impl(base);
+            self.deallocate_impl(base)?;
         }
 
         Ok(())
@@ -430,7 +518,7 @@ impl ObservableArena {
     /// `OBSERVABLE_BASE::size`: entries in the list, including nulled ones.
     ///
     /// # Errors
-    /// [`ObservableError::StaleHandle`].
+    /// [`ObservableError::ForeignHandle`] or [`ObservableError::StaleHandle`].
     pub fn size(&self, base: &ObservableBase) -> Result<usize, ObservableError> {
         match &base.impl_ {
             Some(reference) => Ok(self.get(reference.id())?.observers.len()),
@@ -439,8 +527,11 @@ impl ObservableArena {
     }
 
     /// `OBSERVABLE_BASE::on_observers_empty`: `deallocate_impl()`.
-    pub fn on_observers_empty(&mut self, base: &mut ObservableBase) {
-        self.deallocate_impl(base);
+    ///
+    /// # Errors
+    /// [`ObservableError::ForeignHandle`] or [`ObservableError::StaleHandle`].
+    pub fn on_observers_empty(&mut self, base: &mut ObservableBase) -> Result<(), ObservableError> {
+        self.deallocate_impl(base)
     }
 
     // ---- IMPL introspection (impl_->observers_ etc.) -----------------------------------
@@ -448,7 +539,7 @@ impl ObservableArena {
     /// `impl_->observers_` of a live list.
     ///
     /// # Errors
-    /// [`ObservableError::StaleHandle`].
+    /// [`ObservableError::ForeignHandle`] or [`ObservableError::StaleHandle`].
     pub fn observers(&self, id: ImplId) -> Result<&[ObserverPtr], ObservableError> {
         Ok(&self.get(id)?.observers)
     }
@@ -456,7 +547,7 @@ impl ObservableArena {
     /// `IMPL::iteration_count_`.
     ///
     /// # Errors
-    /// [`ObservableError::StaleHandle`].
+    /// [`ObservableError::ForeignHandle`] or [`ObservableError::StaleHandle`].
     pub fn iteration_count(&self, id: ImplId) -> Result<u32, ObservableError> {
         Ok(self.get(id)?.iteration_count)
     }
@@ -464,7 +555,7 @@ impl ObservableArena {
     /// `IMPL::is_shared`.
     ///
     /// # Errors
-    /// [`ObservableError::StaleHandle`].
+    /// [`ObservableError::ForeignHandle`] or [`ObservableError::StaleHandle`].
     pub fn is_shared(&self, id: ImplId) -> Result<bool, ObservableError> {
         Ok(self.get(id)?.is_shared())
     }
@@ -472,7 +563,7 @@ impl ObservableArena {
     /// `IMPL::is_iterating`.
     ///
     /// # Errors
-    /// [`ObservableError::StaleHandle`].
+    /// [`ObservableError::ForeignHandle`] or [`ObservableError::StaleHandle`].
     pub fn is_iterating(&self, id: ImplId) -> Result<bool, ObservableError> {
         Ok(self.get(id)?.is_iterating())
     }
@@ -480,7 +571,7 @@ impl ObservableArena {
     /// `shared_ptr<IMPL>::use_count()`.
     ///
     /// # Errors
-    /// [`ObservableError::StaleHandle`].
+    /// [`ObservableError::ForeignHandle`] or [`ObservableError::StaleHandle`].
     pub fn use_count(&self, id: ImplId) -> Result<usize, ObservableError> {
         Ok(self.get(id)?.use_count)
     }
@@ -491,12 +582,16 @@ impl ObservableArena {
     /// copy the observer. The moved-from link keeps its `observer_` value.
     ///
     /// # Errors
-    /// [`ObservableError::StaleHandle`].
+    /// [`ObservableError::ForeignHandle`] or [`ObservableError::StaleHandle`] for
+    /// either link's token, before either link changes.
     pub fn move_assign_link(
         &mut self,
         this: &mut Link,
         other: &mut Link,
     ) -> Result<(), ObservableError> {
+        if let Some(token) = &other.token {
+            self.get(token.id())?;
+        }
         self.reset_link(this)?;
         this.token = other.token.take();
         this.observer = other.observer;
@@ -508,7 +603,7 @@ impl ObservableArena {
     /// of range are a stale handle.
     ///
     /// # Errors
-    /// [`ObservableError::StaleHandle`].
+    /// [`ObservableError::ForeignHandle`] or [`ObservableError::StaleHandle`].
     pub fn move_assign_link_in(
         &mut self,
         links: &mut [Link],
@@ -540,23 +635,24 @@ impl ObservableArena {
     /// nulled while iterating) and release the token.
     ///
     /// # Errors
-    /// [`ObservableError::StaleHandle`].
+    /// [`ObservableError::ForeignHandle`] or [`ObservableError::StaleHandle`]; the link
+    /// and every list are then left unchanged.
     pub fn reset_link(&mut self, link: &mut Link) -> Result<(), ObservableError> {
-        if let Some(token) = link.token.take() {
-            let removed = self
-                .get_mut(token.id())
-                .map(|value| value.remove_observer(link.observer));
-            self.release(token);
-            removed?;
-        }
+        let Some(id) = link.token.as_ref().map(ImplRef::id) else {
+            return Ok(());
+        };
+        self.get_mut(id)?.remove_observer(link.observer);
 
-        Ok(())
+        match link.token.take() {
+            Some(token) => self.release(token),
+            None => Ok(()),
+        }
     }
 
     /// `~LINK()`: `reset()`.
     ///
     /// # Errors
-    /// [`ObservableError::StaleHandle`].
+    /// [`ObservableError::ForeignHandle`] or [`ObservableError::StaleHandle`].
     pub fn drop_link(&mut self, mut link: Link) -> Result<(), ObservableError> {
         self.reset_link(&mut link)
     }
@@ -571,7 +667,7 @@ mod tests {
     /// qa/tests/common/test_observable.cpp: MoveAssignedLinkLeavesOldObservable.
     #[test]
     fn move_assigned_link_leaves_old_observable() -> Result<(), ObservableError> {
-        let mut arena = ObservableArena::new();
+        let mut arena = ObservableArena::new(ArenaId(0));
         let mut first = ObservableBase::new();
         let mut second = ObservableBase::new();
 
@@ -586,9 +682,9 @@ mod tests {
         assert_eq!(arena.size(&second)?, 1);
 
         arena.drop_link(link)?;
-        arena.drop_observable(first);
-        arena.drop_observable(second);
-        assert!(arena.slots.iter().all(Option::is_none));
+        arena.drop_observable(first)?;
+        arena.drop_observable(second)?;
+        assert!(arena.slots.iter().all(|slot| slot.value.is_none()));
         Ok(())
     }
 
@@ -596,7 +692,7 @@ mod tests {
     /// still has an unmanaged subscriber.
     #[test]
     fn leave_iteration_releases_unshared_unlinked_list() -> Result<(), ObservableError> {
-        let mut arena = ObservableArena::new();
+        let mut arena = ObservableArena::new(ArenaId(0));
         let mut base = ObservableBase::new();
         arena.add_observer(&mut base, A)?;
         arena.enter_iteration(&base)?;
@@ -611,7 +707,7 @@ mod tests {
 
     #[test]
     fn removal_while_iterating_nulls_then_collects() -> Result<(), ObservableError> {
-        let mut arena = ObservableArena::new();
+        let mut arena = ObservableArena::new(ArenaId(0));
         let mut base = ObservableBase::new();
         arena.add_observer(&mut base, A)?;
         arena.add_observer(&mut base, Some(ObserverId(2)))?;
@@ -627,10 +723,94 @@ mod tests {
             .ok_or(ObservableError::StaleHandle)?;
         assert!(arena.is_shared(id)?);
         assert_eq!(arena.use_count(id)?, 2);
-        arena.on_observers_empty(&mut copy);
+        arena.on_observers_empty(&mut copy)?;
         assert_eq!(arena.use_count(id)?, 1);
-        arena.drop_observable(copy);
-        arena.drop_observable(base);
+        arena.drop_observable(copy)?;
+        arena.drop_observable(base)?;
+        Ok(())
+    }
+
+    /// Two arenas each hold a list in slot 0. A link of arena `a` handed to arena `b`
+    /// is refused before anything changes: `b`'s live list is not freed and `a`'s
+    /// count is untouched (review reproduction).
+    #[test]
+    fn foreign_handles_are_refused_before_any_change() -> Result<(), ObservableError> {
+        let mut a = ObservableArena::new(ArenaId(1));
+        let mut b = ObservableArena::new(ArenaId(2));
+        let mut base_a = ObservableBase::new();
+        let mut base_b = ObservableBase::new();
+        a.add_observer(&mut base_a, A)?;
+        b.add_observer(&mut base_b, A)?;
+        let mut link_a = Link::with_token(a.share_impl(&base_a)?, A);
+        let id_a = link_a
+            .token()
+            .map(ImplRef::id)
+            .ok_or(ObservableError::StaleHandle)?;
+        let id_b = base_b
+            .impl_ref()
+            .map(ImplRef::id)
+            .ok_or(ObservableError::StaleHandle)?;
+
+        assert_eq!(
+            b.reset_link(&mut link_a),
+            Err(ObservableError::ForeignHandle)
+        );
+        assert!(link_a.is_linked());
+        assert_eq!(a.use_count(id_a)?, 2);
+        assert_eq!(a.observers(id_a)?, &[A]);
+        assert_eq!(b.use_count(id_b)?, 1);
+        assert_eq!(b.observers(id_b)?, &[A]);
+        assert_eq!(b.use_count(id_a), Err(ObservableError::ForeignHandle));
+        assert_eq!(
+            b.deallocate_impl(&mut base_a),
+            Err(ObservableError::ForeignHandle)
+        );
+        assert!(base_a.impl_ref().is_some());
+        assert_eq!(
+            b.remove_observer(&base_a, A),
+            Err(ObservableError::ForeignHandle)
+        );
+        assert_eq!(
+            b.add_observer(&mut base_a, A),
+            Err(ObservableError::ForeignHandle)
+        );
+        let mut empty = Link::new();
+        assert_eq!(
+            b.move_assign_link(&mut empty, &mut link_a),
+            Err(ObservableError::ForeignHandle)
+        );
+        assert!(link_a.is_linked());
+        assert_eq!(a.observers(id_a)?, &[A]);
+
+        a.drop_link(link_a)?;
+        assert_eq!(a.use_count(id_a)?, 1);
+        a.drop_observable(base_a)?;
+        b.drop_observable(base_b)?;
+        Ok(())
+    }
+
+    /// A handle that outlived its list is stale even after the slot is reused.
+    #[test]
+    fn stale_handles_are_refused_after_slot_reuse() -> Result<(), ObservableError> {
+        let mut arena = ObservableArena::new(ArenaId(0));
+        let mut first = ObservableBase::new();
+        arena.add_observer(&mut first, A)?;
+        let old = first
+            .impl_ref()
+            .map(ImplRef::id)
+            .ok_or(ObservableError::StaleHandle)?;
+        arena.on_observers_empty(&mut first)?;
+        assert!(!arena.is_live(old));
+        let mut second = ObservableBase::new();
+        arena.add_observer(&mut second, A)?;
+        let new = second
+            .impl_ref()
+            .map(ImplRef::id)
+            .ok_or(ObservableError::StaleHandle)?;
+        assert_ne!(old, new);
+        assert_eq!(arena.use_count(old), Err(ObservableError::StaleHandle));
+        assert_eq!(arena.use_count(new)?, 1);
+        arena.drop_observable(second)?;
         Ok(())
     }
 }

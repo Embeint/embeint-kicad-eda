@@ -1,0 +1,38 @@
+{
+ "cases": 6225,
+ "compared": 6200,
+ "deferred": {
+  "cases": [
+   "latency_probe-00071",
+   "latency_probe-00072",
+   "latency_probe-00073",
+   "latency_probe-00074",
+   "latency_probe-00075",
+   "latency_probe-00076",
+   "latency_probe-00077",
+   "latency_probe-00078",
+   "latency_probe-00079",
+   "latency_probe-00080",
+   "latency_probe-00081",
+   "latency_probe-00082",
+   "latency_probe-00083",
+   "latency_probe-00084",
+   "latency_probe-00086",
+   "latency_probe-00087",
+   "latency_probe-00088",
+   "latency_probe-00089",
+   "latency_probe-00090",
+   "latency_probe-00091",
+   "latency_probe-00092",
+   "latency_probe-00093",
+   "latency_probe-00094",
+   "latency_probe-00095",
+   "latency_probe-00096"
+  ],
+  "error": {
+   "kind": "unported",
+   "unit": "libs.core.include.core.application.pure.p001",
+   "upstream": "LATENCY_PROBE::delta_ms"
+  }
+ }
+}

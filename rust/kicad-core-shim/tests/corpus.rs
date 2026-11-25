@@ -9,24 +9,33 @@ use serde_json::Value;
 
 const CASES: &str = include_str!("../../../port/cases/libs.core.application.pure.p001.jsonl");
 const CONTROLS: &str = include_str!("../../../port/oracle/fixtures/core-p001-controls.jsonl");
+const EXPECTED: &str = include_str!("../expected-replies.json");
 
 #[test]
-fn corpus_success_and_deferral_counts_are_explicit() {
-    let (mut results, mut deferred, mut refused) = (0, 0, Vec::new());
+fn corpus_success_and_deferral_counts_are_explicit() -> Result<(), serde_json::Error> {
+    let expected: Value = serde_json::from_str(EXPECTED)?;
+    let error = &expected["deferred"]["error"];
+    assert_eq!(error["kind"], "unported");
+    assert_eq!(error["upstream"], "LATENCY_PROBE::delta_ms");
+    assert_eq!(error["unit"], kicad_core::HEADER_UNIT);
+    let (mut cases, mut results, mut deferred, mut refused) = (0, 0, Vec::new(), Vec::new());
     for line in CASES.lines() {
         let reply = dispatch(line);
+        cases += 1;
         if reply.get("result").is_some() {
             results += 1;
-        } else if reply["error"]["kind"] == "unported" {
-            assert_eq!(reply["error"]["upstream"], "LATENCY_PROBE::delta_ms");
-            assert_eq!(reply["error"]["unit"], kicad_core::HEADER_UNIT);
-            deferred += 1;
+        } else if reply["error"] == *error {
+            deferred.push(reply["case"].clone());
         } else {
             refused.push(reply);
         }
     }
     assert!(refused.is_empty(), "{refused:?}");
-    assert_eq!((results, deferred), (6191, 25));
+    assert_eq!(Some(cases), expected["cases"].as_u64());
+    assert_eq!(Some(results), expected["compared"].as_u64());
+    assert_eq!(Some(&deferred), expected["deferred"]["cases"].as_array());
+    assert_eq!((cases, results, deferred.len()), (6225, 6200, 25));
+    Ok(())
 }
 
 #[test]
@@ -42,7 +51,7 @@ fn controls_are_refused_with_the_recorded_message() -> Result<(), serde_json::Er
         );
         count += 1;
     }
-    assert_eq!(count, 112);
+    assert_eq!(count, 127);
     Ok(())
 }
 

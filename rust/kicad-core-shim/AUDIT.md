@@ -40,7 +40,7 @@ Minimum type co-ports, recorded in this unit's notes for the header owner:
 | `compareVersionStrings` | `version_compare::compare_version_strings` | First differing component either way; equal prefix with `size() >=` both ways; empty strings | none |
 | `GetRunningMicroSecs` | `profile::get_running_micro_secs` + `micro_secs_from_{timespec,file_time,timeval}` | Linux `HAVE_CLOCK_GETTIME` body: `tv_sec * 1000000 + tv_nsec / 1000` over the full defined range incl. both `int64` limits; the oracle reports one `CLOCK_MONOTONIC` (id 1) read per call | `_WIN32` and `HAVE_GETTIMEOFDAY_FUNC` bodies ported and unit-tested only (inactive configurations at the pin) |
 | `LATENCY_PROBE::to_string` | `profile::LatencyProbe::to_string` | Header line; `tmr:` lines with `std::left << setw(30)` byte padding (0, 29, 30, 31, 200 byte and multibyte names, NUL) and `fixed << setprecision(3)`: zeros, ties (0.0625), subnormals, negative zero rounding, 1e300, max finite, glibc `inf`/`-inf`/`nan`/`-nan`, 278 random finite doubles | `chp:` lines call header-owned `delta_ms`: **typed deferral**, 25 corpus cases; their continuation is implemented but unreached |
-| `OBSERVABLE_BASE` ctor/copy ctor/dtor, `allocate_impl`, `allocate_shared_impl` (both branches), `deallocate_impl`, `get_shared_impl`, `add_observer`, `remove_observer`, `enter_iteration`, `leave_iteration` (incl. release of an unshared single-owner list), `size`, `on_observers_empty` | `observable::ObservableArena` methods on `ObservableBase` | 17 scripted scenarios (the QA case; order; unmanaged release; removal of later/self/earlier entries during notification; link reset/drop/assign in callbacks; nested notification of the same list and of a shared copy; NotifyIgnore's unbalanced iteration; copies from an empty and an owned list; duplicate and null observers; `on_observers_empty` with live links; unsigned count wrap through unpaired `leave_iteration`; depth 8 nesting; all slots) plus 400 fixed-seed random scripts. Every step's full state is compared | Null `impl_` dereference is a refusal |
+| `OBSERVABLE_BASE` ctor/copy ctor/dtor, `allocate_impl`, `allocate_shared_impl` (both branches), `deallocate_impl`, `get_shared_impl`, `add_observer`, `remove_observer`, `enter_iteration`, `leave_iteration` (incl. release of an unshared single-owner list), `size`, `on_observers_empty` | `observable::ObservableArena` methods on `ObservableBase` | 26 scripted scenarios (the QA case; order; unmanaged release; removal of later/self/earlier entries during notification; link reset/drop/assign in callbacks; nested notification of the same list and of a shared copy; NotifyIgnore's unbalanced iteration; copies from an empty and an owned list; duplicate and null observers; `on_observers_empty` with live links; unsigned count wrap through unpaired `leave_iteration` at top level, through repeated Notify and inside loops (no-match removals, guarded erasing removals skipped, a nested Notify that compacts nothing, a nested NotifyIgnore); `enter_iteration`, `leave_iteration` and `on_observers_empty` inside callbacks, including a new list allocated mid-loop that the outer `leave_iteration` then acts on; `drop` inside its own NotifyIgnore; the first live failure script with its guarded erase skipped; depth 8 nesting; all slots) plus 400 fixed-seed random scripts, a third of which leave iterations unpaired (71 wrap a count; 31 notify from a wrapped count). Every step's full state is compared | Null `impl_` dereference and the iterator-invalidating points are refusals |
 | `IMPL` ctor/dtor, `is_shared`, `set_shared`, `enter/leave_iteration`, `is_iterating`, `add_observer`, `remove_observer` (null during iteration, erase otherwise, missing = release no-op), `collect`, `equals` | private `Impl`; `use_count` tracked by the arena | As above; `iteration_count_`, `observers_` order and nulls, `is_shared()` and `use_count()` are in every snapshot | Debug-build asserts are not modelled (release semantics) |
 | `LINK` ctors, move ctor, move assignment (incl. self), `operator bool`, `reset`, dtor | `observable::Link`, `ObservableArena::{move_assign_link, move_assign_link_in, reset_link, drop_link}` | Moved-from links keep `observer_`; reset on an orphan list after `on_observers_empty`/observable destruction; reset of an observer not in the list; null-token links | none |
 
@@ -60,7 +60,10 @@ Minimum type co-ports, recorded in this unit's notes for the header owner:
 - `LATENCY_PROBE` time points are data (nanosecond counts); the probe is built with the
   upstream constructor and its private members set through explicit-instantiation access.
 - Observables are an arena of counted `ImplRef`s instead of `shared_ptr`; no globals,
-  pointers or `unsafe`. Allocation is bounded by input sizes (`try_reserve`); arithmetic is
+  pointers or `unsafe`. Each handle carries its arena's caller-supplied `ArenaId` and its
+  slot's generation; a foreign or stale handle is refused (`ForeignHandle`,
+  `StaleHandle`) before any list, count or handle changes, and a slot whose generation
+  would wrap is retired rather than reused. Allocation is bounded by input sizes (`try_reserve`); arithmetic is
   checked or explicitly modular where the reference is unsigned.
 - The crate builds for `wasm32-unknown-unknown`; the live workflow replays the whole
   corpus there against native C++ replies. Native and wasm use identical `u64` length
@@ -68,16 +71,50 @@ Minimum type co-ports, recorded in this unit's notes for the header owner:
 
 ## Defined domain and controls
 
-`port/oracle/fixtures/core-p001-controls.jsonl` (112 requests) holds every refusal:
-undefined reference behaviour (null `impl_` dereference, adding into an active
-range-for, an iteration count wrapped from `UINT_MAX` to 0 by a notification so that
-removals inside it erase from the vector being ranged over, signed overflow,
-overflowing time point differences), non-termination
-(`parseVersionString`), harness limits and malformed requests. The oracle ctest
-`oracle-core-p001-inputs` and `rust/kicad-core-shim/tests/corpus.rs` replay them with a
-successful continuation after each. Release (`NDEBUG`) semantics are ported: the
-`assert`s in `add_observer`, `remove_observer` and `OBSERVABLE_BASE::remove_observer` are
-no-ops in the oracle and in KiCad releases.
+`port/oracle/fixtures/core-p001-controls.jsonl` (127 requests) holds every refusal:
+undefined reference behaviour, non-termination (`parseVersionString`), harness limits and
+malformed requests. The oracle ctest `oracle-core-p001-inputs` and
+`rust/kicad-core-shim/tests/corpus.rs` replay them with a successful continuation after
+each. Release (`NDEBUG`) semantics are ported: the `assert`s in `add_observer`,
+`remove_observer` and `OBSERVABLE_BASE::remove_observer` are no-ops in the oracle and in
+KiCad releases.
+
+The observable refusals are derived from the pinned code paths, at the operation that
+makes the reference undefined and nowhere else (both adapters apply the same rules):
+
+- `Notify`/`NotifyIgnore` range over `impl_->observers_` with iterators fixed when the
+  loop starts. `IMPL::add_observer` always `push_back`s (refused into an active list).
+  `IMPL::remove_observer` nulls the entry while `iteration_count_ != 0` and erases it
+  otherwise; `IMPL::leave_iteration` runs `collect()` (`remove_if` + `erase`) when the
+  count reaches 0; `OBSERVABLE_BASE::leave_iteration` and `deallocate_impl` drop
+  references that may destroy the list.
+- The unsigned count is modular, so an unpaired `leave_iteration` (0 -> `UINT_MAX`)
+  followed by `Notify` (`UINT_MAX` -> 0 -> `UINT_MAX`) is defined and compared. Only once
+  the count is 0 inside a loop can a removal erase, or a nested `leave_iteration` compact
+  or release, the list that loop is reading. A removal that would erase from an active
+  list is refused before it runs (`remove during active iteration`); a step after which
+  an active list has a different size or no longer exists is refused when it returns,
+  before the loop reads again (`list compacted/destroyed during active iteration`). An
+  erase from a list no loop is reading, and a compaction that removes nothing, are
+  defined and run.
+- `Notify` calls `leave_iteration()` on itself after its loop, so dropping an observable
+  inside its own `notify` is refused; `NotifyIgnore` does not touch it again, so a drop
+  there runs (refused only if it destroys the list being read). Because a refusal then
+  unwinds through the template's `catch`, which does call `leave_iteration()`, the C++
+  adapter performs such a drop by releasing `impl_` (the destructor's only effect on
+  state) and keeps the object's storage until the run ends.
+
+An earlier revision refused every notification that started at `UINT_MAX`, which also
+refused defined sequences, and kept base operations and drops inside notifications out
+of scripts. Those sequences are now corpus scenarios: the wrapped count with an empty
+or harmless loop (formerly control `refuse-observable-00008`) and `enter_iteration`,
+`leave_iteration` and `on_observers_empty` inside callbacks (formerly the three
+`base operation inside notification` controls). The undefined sequences stay controls,
+including both live failures that exposed the wrap: random script 142 (an erasing
+`unsubscribe` in a wrapped `NotifyIgnore`; recorded with that step's guard removed,
+while the guarded original is a corpus scenario whose erase is skipped) and random
+script 405 (a nested `Notify` whose `collect()` compacted the list the outer loop was
+reading).
 
 Upstream issues recorded: [non-terminating version parse](../../port/upstream-issues/core-version-parse-nonterminating.md),
 [unmanaged release and NotifyIgnore](../../port/upstream-issues/core-observable-unmanaged-release.md).

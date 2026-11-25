@@ -9,20 +9,34 @@
 //! `leave_iteration` for `Notify`, the same without `leave_iteration` for
 //! `NotifyIgnore`). It is harness code, not a port of those bodies.
 //!
-//! Script domain (identical on both sides):
-//! * steps are validated completely before anything runs;
-//! * a step may not drop an observable that an enclosing `notify` is notifying, and
-//!   `enter_iteration`, `leave_iteration` and `on_observers_empty` are top-level only
-//!   (both would destroy or rewire state an active range-for is reading);
-//! * adding to a list that an active `Notify` loop is ranging over invalidates the
-//!   loop's iterators in the reference. It is refused, or skipped and logged with
-//!   `guard: true`; likewise `unsubscribe` with a null `impl_` (a null dereference);
-//! * a notification whose `enter_iteration` would wrap the count from `UINT_MAX` to 0
-//!   is refused: removals inside it would erase from the vector being ranged over.
+//! Script domain (identical on both sides). Steps are validated completely before
+//! anything runs. Everything the reference defines runs; the refusals are exactly the
+//! undefined points, where the reference would use a dangling `this`, dereference a
+//! null `impl_`, or keep using a range-for iterator its own list has invalidated:
+//! * `drop` of an observable inside its own `notify`: `Notify` calls
+//!   `leave_iteration()` on the destroyed object after its loop. (`NotifyIgnore`
+//!   never touches `this` after the loop, so dropping there is defined.)
+//! * `unsubscribe` with a null `impl_` (a null dereference);
+//! * adding to a list an active `Notify`/`NotifyIgnore` loop is ranging over
+//!   (`push_back` invalidates at least that loop's end iterator);
+//! * a removal that erases from a list an active loop is ranging over. The list's
+//!   `remove_observer` erases instead of nulling only when its count is 0, which
+//!   inside a loop happens only after the unsigned count wrapped (an unpaired
+//!   `leave_iteration` left it at `UINT_MAX`). Checked before the removal;
+//! * a step after which an active loop's list has been compacted (`collect` erased
+//!   nulls when a nested `leave_iteration` brought the count to 0) or destroyed (its
+//!   last reference went, e.g. `leave_iteration`'s release or `on_observers_empty`
+//!   inside the loop). Checked when the step returns, before the loop reads again.
+//!
+//! The wrap itself, nested notifications in a wrapped loop that compact nothing,
+//! and the base operations inside callbacks are defined and run. The adding and
+//! removing refusals become a skip logged as `{"skipped": op}` when the step carries
+//! `guard: true`; the post-step refusals have no guarded form.
 
 use crate::operations::{boolean, fields, signed, text, Error, Result};
 use kicad_core::observable::{
-    ImplId, Link, ObservableArena, ObservableBase, ObservableError, ObserverId, ObserverPtr,
+    ArenaId, ImplId, Link, ObservableArena, ObservableBase, ObservableError, ObserverId,
+    ObserverPtr,
 };
 use serde_json::{json, Value};
 
@@ -91,12 +105,15 @@ enum Step {
     LinkAssign {
         link: usize,
         from: usize,
+        guard: bool,
     },
     LinkReset {
         link: usize,
+        guard: bool,
     },
     LinkDrop {
         link: usize,
+        guard: bool,
     },
 }
 
@@ -130,6 +147,7 @@ fn guard(input: &Value) -> Result<bool> {
 
 struct Parser {
     count: usize,
+    /// Observables with an enclosing `notify` (not `notify_ignore`).
     notifying: Vec<usize>,
 }
 
@@ -152,11 +170,7 @@ impl Parser {
         let op = text(input, "op")?;
         let base_op = |input: &Value| -> Result<usize> {
             fields(input, &["op", "obs"], &[])?;
-            let obs = index(input, "obs", OBSERVABLES)?;
-            if depth > 0 {
-                return Err("base operation inside notification".into());
-            }
-            Ok(obs)
+            index(input, "obs", OBSERVABLES)
         };
         Ok(match op {
             "new" => {
@@ -227,7 +241,9 @@ impl Parser {
                     .and_then(Value::as_array)
                     .ok_or("expected array: reactions")?;
                 let mut reactions: Vec<(ObserverId, Vec<Step>)> = Vec::new();
-                self.notifying.push(obs);
+                if !ignore_variant {
+                    self.notifying.push(obs);
+                }
                 for reaction in list {
                     fields(reaction, &["observer", "steps"], &[])?;
                     let observer = observer_id(reaction, "observer")?;
@@ -237,7 +253,9 @@ impl Parser {
                     let steps = self.steps(reaction.get("steps"), depth + 1)?;
                     reactions.push((observer, steps));
                 }
-                self.notifying.pop();
+                if !ignore_variant {
+                    self.notifying.pop();
+                }
                 Step::Notify {
                     obs,
                     event,
@@ -254,13 +272,20 @@ impl Parser {
             "on_observers_empty" => Step::OnObserversEmpty {
                 obs: base_op(input)?,
             },
-            "link_new" | "link_reset" | "link_drop" => {
+            "link_new" => {
                 fields(input, &["op", "link"], &[])?;
+                Step::LinkNew {
+                    link: index(input, "link", LINKS)?,
+                }
+            }
+            "link_reset" | "link_drop" => {
+                fields(input, &["op", "link"], &["guard"])?;
                 let link = index(input, "link", LINKS)?;
-                match op {
-                    "link_new" => Step::LinkNew { link },
-                    "link_reset" => Step::LinkReset { link },
-                    _ => Step::LinkDrop { link },
+                let guard = guard(input)?;
+                if op == "link_reset" {
+                    Step::LinkReset { link, guard }
+                } else {
+                    Step::LinkDrop { link, guard }
                 }
             }
             "link_token" => {
@@ -271,14 +296,19 @@ impl Parser {
                     observer: pointer(input, "observer")?,
                 }
             }
-            "link_move" | "link_assign" => {
+            "link_move" => {
                 fields(input, &["op", "link", "from"], &[])?;
-                let link = index(input, "link", LINKS)?;
-                let from = index(input, "from", LINKS)?;
-                if op == "link_move" {
-                    Step::LinkMove { link, from }
-                } else {
-                    Step::LinkAssign { link, from }
+                Step::LinkMove {
+                    link: index(input, "link", LINKS)?,
+                    from: index(input, "from", LINKS)?,
+                }
+            }
+            "link_assign" => {
+                fields(input, &["op", "link", "from"], &["guard"])?;
+                Step::LinkAssign {
+                    link: index(input, "link", LINKS)?,
+                    from: index(input, "from", LINKS)?,
+                    guard: guard(input)?,
                 }
             }
             _ => return Err("unknown operation".into()),
@@ -290,6 +320,7 @@ fn handle(error: ObservableError) -> Error {
     match error {
         ObservableError::NoImpl => "unsubscribe without impl".into(),
         ObservableError::StaleHandle => "stale observable handle".into(),
+        ObservableError::ForeignHandle => "foreign observable handle".into(),
         ObservableError::Allocation => "allocation failed".into(),
     }
 }
@@ -299,8 +330,9 @@ struct Driver {
     observables: Vec<Option<ObservableBase>>,
     links: Vec<Link>,
     present: [bool; LINKS],
-    /// Lists ranged over by active `Notify`/`NotifyIgnore` loops.
-    active: Vec<ImplId>,
+    /// Lists ranged over by active `Notify`/`NotifyIgnore` loops, outermost first, with
+    /// each list's size when its loop began (the range-for's fixed end).
+    active: Vec<(ImplId, usize)>,
     calls: Vec<Value>,
     budget: usize,
 }
@@ -360,10 +392,52 @@ impl Driver {
         Ok(())
     }
 
+    fn is_active(&self, id: ImplId) -> bool {
+        self.active.iter().any(|(active, _)| *active == id)
+    }
+
     /// True when adding to `obs`'s list would push into a list an active loop ranges over.
     fn adds_during_iteration(&mut self, obs: usize) -> Result<bool> {
         let id = self.observable(obs)?.impl_ref().map(|r| r.id());
-        Ok(id.is_some_and(|id| self.active.contains(&id)))
+        Ok(id.is_some_and(|id| self.is_active(id)))
+    }
+
+    /// True when `IMPL::remove_observer( observer )` on list `id` would erase from a
+    /// list an active loop ranges over: it erases (rather than nulls) the first match
+    /// when the count is 0, and does nothing when there is no match.
+    fn erases_during_iteration(&self, id: Option<ImplId>, observer: ObserverPtr) -> Result<bool> {
+        let Some(id) = id.filter(|id| self.is_active(*id)) else {
+            return Ok(false);
+        };
+        Ok(self.arena.iteration_count(id).map_err(handle)? == 0
+            && self
+                .arena
+                .observers(id)
+                .map_err(handle)?
+                .contains(&observer))
+    }
+
+    /// The removal `LINK::reset` on `link` would make, checked like
+    /// [`Self::erases_during_iteration`].
+    fn link_erases_during_iteration(&self, link: usize) -> Result<bool> {
+        let value = self.links.get(link).ok_or("link slot empty")?;
+        self.erases_during_iteration(value.token().map(|r| r.id()), value.observer())
+    }
+
+    /// After a step inside a callback: every active loop's list must still exist with
+    /// the size it had when its loop began, or the loop would next read through an
+    /// invalidated iterator.
+    fn check_active(&self) -> Result<()> {
+        for (id, size) in &self.active {
+            match self.arena.observers(*id) {
+                Err(_) => return Err("list destroyed during active iteration".into()),
+                Ok(list) if list.len() != *size => {
+                    return Err("list compacted during active iteration".into())
+                }
+                Ok(_) => {}
+            }
+        }
+        Ok(())
     }
 
     fn skipped(&mut self, op: &str) {
@@ -371,6 +445,11 @@ impl Driver {
     }
 
     fn exec(&mut self, step: &Step, depth: usize) -> Result<()> {
+        self.exec_step(step, depth)?;
+        self.check_active()
+    }
+
+    fn exec_step(&mut self, step: &Step, depth: usize) -> Result<()> {
         self.tick()?;
         match step {
             Step::New { obs } => {
@@ -401,7 +480,7 @@ impl Driver {
                     .get_mut(*obs)
                     .and_then(Option::take)
                     .ok_or("observable slot empty")?;
-                self.arena.drop_observable(base);
+                self.arena.drop_observable(base).map_err(handle)?;
             }
             Step::Subscribe {
                 obs,
@@ -456,6 +535,22 @@ impl Driver {
                 observer,
                 guard,
             } => {
+                let id = match self.observable(*obs)?.impl_ref() {
+                    Some(reference) => reference.id(),
+                    // OBSERVABLE_BASE::remove_observer dereferences a null impl_.
+                    None if *guard => {
+                        self.skipped("unsubscribe");
+                        return Ok(());
+                    }
+                    None => return Err(handle(ObservableError::NoImpl)),
+                };
+                if self.erases_during_iteration(Some(id), *observer)? {
+                    if *guard {
+                        self.skipped("unsubscribe");
+                        return Ok(());
+                    }
+                    return Err("remove during active iteration".into());
+                }
                 let Driver {
                     arena, observables, ..
                 } = self;
@@ -463,10 +558,7 @@ impl Driver {
                     .get(*obs)
                     .and_then(Option::as_ref)
                     .ok_or("observable slot empty")?;
-                match arena.remove_observer(base, *observer) {
-                    Err(ObservableError::NoImpl) if *guard => self.skipped("unsubscribe"),
-                    result => result.map_err(handle)?,
-                }
+                arena.remove_observer(base, *observer).map_err(handle)?;
             }
             Step::Notify {
                 obs,
@@ -502,7 +594,7 @@ impl Driver {
                     .get_mut(*obs)
                     .and_then(Option::as_mut)
                     .ok_or("observable slot empty")?;
-                arena.on_observers_empty(base);
+                arena.on_observers_empty(base).map_err(handle)?;
             }
             Step::LinkNew { link } => {
                 self.link_vacant(*link)?;
@@ -530,21 +622,43 @@ impl Driver {
                 let moved = Link::move_from(self.link(*from)?);
                 self.set_link(*link, moved)?;
             }
-            Step::LinkAssign { link, from } => {
+            Step::LinkAssign { link, from, guard } => {
                 self.link_present(*link)?;
                 self.link_present(*from)?;
+                // Self-assignment returns before reset().
+                if link != from && self.link_erases_during_iteration(*link)? {
+                    if *guard {
+                        self.skipped("link_assign");
+                        return Ok(());
+                    }
+                    return Err("remove during active iteration".into());
+                }
                 self.arena
                     .move_assign_link_in(&mut self.links, *link, *from)
                     .map_err(handle)?;
             }
-            Step::LinkReset { link } => {
+            Step::LinkReset { link, guard } => {
                 self.link_present(*link)?;
+                if self.link_erases_during_iteration(*link)? {
+                    if *guard {
+                        self.skipped("link_reset");
+                        return Ok(());
+                    }
+                    return Err("remove during active iteration".into());
+                }
                 let Driver { arena, links, .. } = self;
                 let value = links.get_mut(*link).ok_or("link slot empty")?;
                 arena.reset_link(value).map_err(handle)?;
             }
-            Step::LinkDrop { link } => {
+            Step::LinkDrop { link, guard } => {
                 self.link_present(*link)?;
+                if self.link_erases_during_iteration(*link)? {
+                    if *guard {
+                        self.skipped("link_drop");
+                        return Ok(());
+                    }
+                    return Err("remove during active iteration".into());
+                }
                 let value = core::mem::take(self.link(*link)?);
                 if let Some(flag) = self.present.get_mut(*link) {
                     *flag = false;
@@ -567,13 +681,10 @@ impl Driver {
         let Some(id) = self.observable(obs)?.impl_ref().map(|r| r.id()) else {
             return Ok(());
         };
-        // An unpaired leave_iteration can leave the unsigned count at UINT_MAX; this
-        // enter_iteration would wrap it to 0 inside the active loop, after which a
-        // removal or collect erases from the vector the reference range-for is
-        // reading (iterator invalidation). No other path reaches 0 during a loop.
-        if self.arena.iteration_count(id).map_err(handle)? == u32::MAX {
-            return Err("iteration count wraps during notification".into());
-        }
+        // enter_iteration is modular: a count left at UINT_MAX by an unpaired
+        // leave_iteration becomes 0 here, which is defined. Only a later erase,
+        // compaction or destruction of this list during the loop is undefined; the
+        // removal checks and check_active refuse exactly those.
         {
             let Driver {
                 arena, observables, ..
@@ -584,9 +695,9 @@ impl Driver {
                 .ok_or("observable slot empty")?;
             arena.enter_iteration(base).map_err(handle)?;
         }
-        self.active.push(id);
         // The range-for end is fixed when the loop starts; entries are re-read each step.
         let end = self.arena.observers(id).map_err(handle)?.len();
+        self.active.push((id, end));
         for position in 0..end {
             let entry = self
                 .arena
@@ -676,7 +787,7 @@ pub fn run(input: &Value) -> Result<Value> {
     };
     let steps = parser.steps(input.get("steps"), 0)?;
     let mut driver = Driver {
-        arena: ObservableArena::new(),
+        arena: ObservableArena::new(ArenaId(0)),
         observables: (0..OBSERVABLES).map(|_| None).collect(),
         links: (0..LINKS).map(|_| Link::new()).collect(),
         present: [false; LINKS],
@@ -690,15 +801,16 @@ pub fn run(input: &Value) -> Result<Value> {
         let calls = core::mem::take(&mut driver.calls);
         events.push(json!({"calls": calls, "state": driver.snapshot()?}));
     }
-    // Destroy everything like the C++ adapter's scope exit, so the arena's lifetime
-    // accounting is exercised too; nothing further is observable.
-    for base in driver.observables.into_iter().flatten() {
-        driver.arena.drop_observable(base);
-    }
+    // Destroy everything in the C++ adapter's scope-exit order (links, then
+    // observables), so the arena's lifetime accounting is exercised too; nothing
+    // further is observable.
     for (link, present) in driver.links.into_iter().zip(driver.present) {
         if present {
             driver.arena.drop_link(link).map_err(handle)?;
         }
+    }
+    for base in driver.observables.into_iter().flatten() {
+        driver.arena.drop_observable(base).map_err(handle)?;
     }
     Ok(json!({"events": events}))
 }
