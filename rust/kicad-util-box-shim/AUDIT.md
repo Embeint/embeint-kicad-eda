@@ -61,8 +61,10 @@ clamping. VECTOR2 converting constructors independently clamp. Rotation code als
 distinguishes implicit scalar narrowing from converting vector construction.
 
 `hypot.rs` is a shared finite-input backend derived from glibc tag glibc-2.39,
-`sysdeps/ieee754/dbl-64/e_hypot.c`, non-FMA branches, LGPL-2.1-or-later (GPLv3 compatible).
+`sysdeps/ieee754/dbl-64/e_hypot.c`, non-FMA branches, originally LGPL-2.1-or-later. The derived Rust file is
+distributed as GPL-3.0-or-later under LGPL section 3, as in the accepted glibc_trig port.
 Source: https://github.com/bminor/glibc/blob/glibc-2.39/sysdeps/ieee754/dbl-64/e_hypot.c.
+Original bytes SHA-256: `5bb30147cb13eade6e28eddac0a69b04de71d2850090166e36c94236ac9c514e`.
 It is used for minmax diameter's finite converted integer differences. It does
 not change the separate worker's glibc_trig or angle libm functions, and does not
 claim to qualify the wider floating vector hypot domain. No host hypot is used.
@@ -95,3 +97,19 @@ replies, including deferrals, in import-free wasm. Other units stay partial.
 Local macOS arm64 Rust tests/clippy/wasm build are useful portability checks, not
 Linux x86-64 oracle evidence. Hosted reports and exact tested revision are added
 under validation after successful live comparison. No separate review is claimed.
+
+## Retained live result
+
+[Snapshot](validation/2026-11-25-d7a17b8e4c/README.md) binds the implementation head,
+tested merge, source manifest, full reports, runtime and compiler provenance.
+Hosted run 45607429865 passed 15,828 cases: **14,221 exact / 1,607 deferred / zero
+failures**. Vector: **9,639 exact / 647 deferred** of 10,286. Geometry: **13,814 exact /
+4,620 deferred** of 18,434. All have zero unprocessed cases, faults and extra replies.
+All 11 UB controls and wasm replay passed. Every previously passing case remains
+compared; 139 accepted vector and 997 geometry deferrals now compare exactly.
+
+The owned corpus defers 1,447 calls to util.cpp kimathLogOverflow, 78 to header
+RotatePoint wrappers, 63 to source SegmentIntersectsSegment, 15 to the vector
+unit's float formatting/general hypot, and four to SHAPE_ARC::BBox. The caller
+reports enumerate their remaining owners. This is an implemented partial unit,
+not green or complete native qualification of arbitrary template instantiations.

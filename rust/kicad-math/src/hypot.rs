@@ -1,6 +1,8 @@
-// SPDX-License-Identifier: LGPL-2.1-or-later
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2021-2024 Free Software Foundation, Inc.
 // Derived from glibc 2.39 sysdeps/ieee754/dbl-64/e_hypot.c (non-FMA backend).
+// The original is LGPL-2.1-or-later. As section 3 of that licence permits, this
+// derived file is distributed under GPL-3.0-or-later, like the rest of this crate.
 //! Shared finite-input reference hypot. This preserves the operation order of the
 //! glibc 2.39 scalar backend. errno/FP exception flags are outside the portable API.
 pub(crate) fn finite(x: f64, y: f64) -> f64 {
