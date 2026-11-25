@@ -102,6 +102,10 @@ if( MATRIX_SHIM IN_LIST ORACLE_SHIMS AND HASH_SHIM IN_LIST ORACLE_SHIMS )
     math( EXPR HASH_SHIM_INDEX "${MATRIX_SHIM_INDEX} + 1" )
     list( INSERT ORACLE_SHIMS ${HASH_SHIM_INDEX} "${HASH_SHIM}" )
 endif()
+# Add the utility/box adapter after already qualified weak template definitions.
+set( UTIL_BOX_SHIM "${ORACLE_OVERLAY}/shims/util_box.cpp" )
+list( REMOVE_ITEM ORACLE_SHIMS "${UTIL_BOX_SHIM}" )
+list( APPEND ORACLE_SHIMS "${UTIL_BOX_SHIM}" )
 # Keep previously qualified adapters first when selecting weak template bodies: the
 # Clipper2 header adapter follows them, and the geometry adapter stays last.
 set( CLIPPER2_SHIM "${ORACLE_OVERLAY}/shims/clipper2_core_engine.cpp" )
