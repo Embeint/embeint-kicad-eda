@@ -30,7 +30,7 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 | --- | --- | --- |
 | Geometry | SEG PR #74 in reference CI after Sol review; Opus investigating/fixing the geometry-to-VRML extractor collision | `circle.cpp` after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. Use ellipse or transform if acceptance/regeneration blocks the chain. |
 | Polygon operations | Opus implementing Clipper2 source pure p001 | Source p002 after accepted p001; rectclip p003 is independent fallback; then public wrapper headers. |
-| Core and general utilities | Opus implementing pure core headers in draft PR #73 | Independent small-unit queue below; audit UI core headers before line-chain work, rather than assuming the pure headers provide them. |
+| Core and general utilities | Opus rate-limited during delivery of draft PR #73; parent preserving the completed working tree and arranging Sol review/reference CI | Resume Opus implementation when the provider is available; independent small-unit queue follows. Audit UI core headers before line-chain work. |
 | Numeric backends and spatial follow-ups | Opus implementing pinned glibc `pow` | R-tree depth-limit removal; further measured math/backend gaps, with explicit ownership and source-derived scope. |
 
 On each implementation completion, immediately inspect the result, start the
@@ -56,6 +56,18 @@ when bringing results together and preserve all owners' changes. Heavy WSL build
 still share the build lock and job cap: four streams do not mean four unrestricted
 builds. Main-branch planning updates use their own topic/PR, separate from port
 implementation PRs against `rust`.
+
+Provider interruption, 26 November: the core implementer received an HTTP 429
+at 23:50 UTC on 25 November, with a reported reset in 4h10m13s (approximately
+14:00 AEST on 26 November). It had finished the source and local comparison but
+had not committed delivery. Preserve and publish its scoped work for review;
+do not confuse the claim-only PR's earlier checks with implementation evidence.
+Keep Opus 5.5 as the implementation model and Sol 6.1 as the review model.
+Do not silently switch models/providers, hammer the limited account with retries,
+or claim four active implementers while the provider is unavailable. Continue
+available reviews, validation and integration; refill implementation slots once
+the requested provider can run again. Other running workers report their own
+outcomes through completion events.
 
 ## Recommended next assignments
 
