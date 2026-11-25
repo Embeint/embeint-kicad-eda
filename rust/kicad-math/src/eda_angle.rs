@@ -20,7 +20,7 @@ pub(crate) fn missing<T>(upstream: &'static str, unit: &'static str) -> Geometry
     Err(GeometryError::Unported { upstream, unit })
 }
 // Division has the same single-NaN/invalid rules as the accepted FP helpers.
-fn div(a: f64, b: f64) -> f64 {
+pub(crate) fn div(a: f64, b: f64) -> f64 {
     let result = a / b;
     if a.is_nan() {
         f64::from_bits(a.to_bits() | 0x8000000000000)
