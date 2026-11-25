@@ -102,7 +102,11 @@ if( MATRIX_SHIM IN_LIST ORACLE_SHIMS AND HASH_SHIM IN_LIST ORACLE_SHIMS )
     math( EXPR HASH_SHIM_INDEX "${MATRIX_SHIM_INDEX} + 1" )
     list( INSERT ORACLE_SHIMS ${HASH_SHIM_INDEX} "${HASH_SHIM}" )
 endif()
-# Keep previously qualified adapters first when selecting weak template bodies.
+# Keep previously qualified adapters first when selecting weak template bodies: the
+# Clipper2 header adapter follows them, and the geometry adapter stays last.
+set( CLIPPER2_SHIM "${ORACLE_OVERLAY}/shims/clipper2_core_engine.cpp" )
+list( REMOVE_ITEM ORACLE_SHIMS "${CLIPPER2_SHIM}" )
+list( APPEND ORACLE_SHIMS "${CLIPPER2_SHIM}" )
 set( GEOMETRY_SHIM "${ORACLE_OVERLAY}/shims/geometry_headers.cpp" )
 list( REMOVE_ITEM ORACLE_SHIMS "${GEOMETRY_SHIM}" )
 list( APPEND ORACLE_SHIMS "${GEOMETRY_SHIM}" )
