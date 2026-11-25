@@ -48,3 +48,23 @@ The original 2,216 scalar deferrals removed consist of 928 atan2 and 322 each of
 atan/tan/asin/acos. These are local execution counts until the C++ gate passes.
 The complete new corpus also agrees with newly executed macOS arm64 native
 replies in import-free wasm release, Node 24.16.0 / V8 13.6.233.17-node.49.
+
+## Public inverse-wrapper correction
+
+Fresh locked-loader run [45605514610](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45605514610)
+on `afb4cbe9b7eaac8a128a7f7010fa48f7c899cfd8` measured zero mismatches for atan,
+atan2 and tan across all 1,517,520 inputs on native debug, WASI debug and
+import-free unknown-unknown debug. Asin and acos each had 497,021 mismatches:
+the port returned negative indefinite for ordered `|x|>1`, while the **public**
+glibc wrappers returned positive `NAN`. Valid-domain values had no mismatch.
+The profiles stopped on failure, so release was not measured by that run.
+
+This is diagnosed from `w_asin_compat.c` / `w_acos_compat.c`,
+`k_standard.c` cases 2/1 and the default `_LIB_VERSION == _POSIX_` in
+`s_lib_version.c`. The public wrappers bypass the IEEE kernel for these domain
+inputs; matching only e_asin.c's last branch is insufficient. The implementation
+now returns that positive constant on the same ordered domain path, keeping
+quieted NaN payloads unchanged. Source hashes and the Sun permission notice are
+recorded; the probe additionally refuses unless the actual versioned
+`_LIB_VERSION` symbol at `libm+0xe8008` equals 2. No input, expected record or
+comparison criterion changed. A fresh complete six-configuration rerun is required.

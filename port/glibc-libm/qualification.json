@@ -22,6 +22,11 @@
       "wrapper": "0x129a0",
       "got": "0xe7f38",
       "kernel": "0x26780"
+    },
+    "lib_version": {
+      "offset": "0xe8008",
+      "value": 2,
+      "mode": "_POSIX_"
     }
   }
 }

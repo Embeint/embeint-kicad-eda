@@ -10,8 +10,8 @@ fn specials_and_identities() {
         assert_eq!(asin(x).to_bits(), x.to_bits());
     }
     for x in [f64::INFINITY, f64::NEG_INFINITY, 2.0, -2.0] {
-        assert_eq!(asin(x).to_bits(), super::INVALID.to_bits());
-        assert_eq!(acos(x).to_bits(), super::INVALID.to_bits());
+        assert_eq!(asin(x).to_bits(), 0x7ff8_0000_0000_0000);
+        assert_eq!(acos(x).to_bits(), 0x7ff8_0000_0000_0000);
     }
     for b in [0x7ff0000000000001, 0xfff80000deadbeef, 0x7fffffffffffffff] {
         let x = f64::from_bits(b);
