@@ -17,7 +17,11 @@
   C++ adapter validates the nearest arithmetic using widened intermediates on the
   same evaluated queue path before calling the reference. Bulk conversion has
   analogous `bulk-conversion-*` refusal controls. The undefined operations are
-  deliberately not executed to produce an alleged native result.
+  deliberately not executed to produce an alleged native result. The adapter
+  guards only nearest-neighbour arithmetic and bulk conversion: Insert and Remove
+  (forced-reinsert conversions and sums, chooseSubtree overlap/enlargement/area
+  sums, split perimeter/area products) are unguarded, so those Rust refusals are
+  checked on the Rust side only and are not native-compared.
 - **Evidence:** source-derived arithmetic proof and checked Rust tests; native
   refusal controls verify the guards. Valid full-domain containing boxes are
   successful native corpus cases, proving there is no blanket coordinate fence.

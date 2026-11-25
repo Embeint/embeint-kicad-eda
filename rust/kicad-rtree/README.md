@@ -101,9 +101,21 @@ component to `i64` before summing. Bulk conversion accepts negative fractions
 in `(-1,0)` because C++ truncates those to zero. Floating contraction stays off.
 
 The sealed accepted `Coord` trait supports `i32` and `i64`. Templates require
-positive dimensions and fanout >= 2; budgeted operations use at most 64 levels.
-The public constructor takes an explicit maximum entry count. This is a host
-resource budget, not an assertion that larger native trees are undefined.
+positive dimensions and fanout >= 2. The public constructor takes an explicit
+maximum entry count. This is a host resource budget, not an assertion that
+larger native trees are undefined.
+
+Traversal, mutation paths and cursors also have a **fixed 64-level depth
+limit** (literal 64/65 checks on paths in `src/lib.rs` and the cursor stack in
+`src/iter.rs`). It is a constant, not a host-configurable budget, and it is a
+known gap: with fanout 3 or 4 the minimum fill is 1, so monotone insertion grows
+height roughly linearly (fanout 4, 1,200 sorted boxes refuses at insert 1,051
+near level 63), whereas C++ simply recurses deeper. The refusal is discovered
+after splits have changed nodes, so it marks the tree interrupted like
+undefined arithmetic below. KiCad's own `int,2,16`/`int,3,16` instantiations
+reach height 4 after 8,192 sorted inserts and cannot hit it. Replacing the
+fixed limit with explicit unbounded stacks plus a separate active-node budget
+(as the closed PR #60 did) is follow-up work.
 `ResourceLimit`, `Conversion`, `Overflow`, node errors and
 `InterruptedMutation` are distinct typed refusals; no missing dependency is
 silently converted into a successful empty result. There are currently **zero
@@ -113,8 +125,8 @@ A mutation that encounters undefined reference arithmetic after changing nodes
 marks the tree interrupted. Further spatial reads/edits refuse; `clear` then
 releases the entire arena and restores a usable empty tree. This avoids reporting
 success on partially changed topology. C++ defines no resulting state after that
-undefined operation. Budget and bulk-conversion failures discovered before
-mutation preserve the old tree. Read-only distance failure does not poison the
+undefined operation. Entry-budget and bulk-conversion failures discovered before
+mutation preserve the old tree; the depth limit above does not. Read-only distance failure does not poison the
 index; output has already been cleared, matching the evaluated native lifecycle.
 This is not a strong exception guarantee for actual allocation exhaustion.
 
