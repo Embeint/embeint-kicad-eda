@@ -6,7 +6,7 @@
 //!
 //! The C++ links engine records with raw pointers. This port keeps them in arenas owned by
 //! [`ClipperBase`] and links them with typed indices ([`VertexId`], [`OutPtId`], ...); a null
-//! pointer is `None`. [`PolyTree`] is an arena whose node 0 is the tree root. Members whose
+//! pointer is `None`. [`PolyTree`] is a slot arena whose first slot is the tree root. Members whose
 //! bodies are written in `clipper.engine.cpp` are owned by the engine source units: the
 //! inline bodies here call them and return [`ClipperError::Unported`] at that call.
 
@@ -14,7 +14,9 @@ use crate::clipper_core::{
     area, check_precision_range, scale_path, scale_paths, FillRule, Path, Path64, PathD, Paths64,
     PathsD, Point64, PointD, PointInPolygonResult, Rect64,
 };
-use crate::{ClipperError, Coord, Result, ENGINE_SRC_P001, ENGINE_SRC_P002};
+use crate::{
+    copy_of, push, reserve, Budget, ClipperError, Coord, Result, ENGINE_SRC_P001, ENGINE_SRC_P002,
+};
 use std::collections::BinaryHeap;
 
 /// `ClipType`. "All clipping operations except for Difference are commutative."
@@ -103,10 +105,14 @@ arena_id!(
     /// A `HorzSegment*` into [`ClipperBase::horz_seg_list`].
     HorzSegmentId
 );
-arena_id!(
-    /// A `PolyPath*` (a node of the [`PolyTree`] being built).
-    PolyPathId
-);
+/// A `PolyPath*` (a node of a [`PolyTree`]). A destroyed node's slot is reused, so the
+/// handle carries the slot's generation: a handle to a node that `Clear` destroyed never
+/// aliases a later node, and its use is refused.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct PolyPathId {
+    slot: usize,
+    generation: u64,
+}
 
 /// `struct Vertex`.
 #[derive(Clone, Copy, Debug, Default)]
@@ -565,26 +571,40 @@ impl ClipperBase {
 
 // --- PolyPath / PolyTree -----------------------------------------------------------------
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 struct PolyNode<T> {
     parent: Option<PolyPathId>,
     childs: Vec<PolyPathId>,
     polygon: Path<T>,
     /// `PolyPathD::scale_` (1.0 and unused for `PolyPath64`).
     scale: f64,
-    /// False once the node's owning `childs_` vector has destroyed it.
-    live: bool,
+}
+
+/// One arena slot: `node` is `None` once the owning `childs_` vector destroyed it, and
+/// `generation` advances at each destruction so stale handles stay detectable.
+#[derive(Debug)]
+struct Slot<T> {
+    generation: u64,
+    node: Option<PolyNode<T>>,
 }
 
 /// A `PolyPath64`/`PolyPathD` tree: "intended as a READ-ONLY data structure for CLOSED paths
 /// returned by clipping operations", preserving which paths contain (own) others.
 ///
 /// Node [`PolyTree::ROOT`] is the object the caller constructed; `AddChild` appends nodes.
-/// Using a node after an ancestor's `Clear` destroyed it is undefined in the C++ (a dangling
-/// pointer) and is refused here.
-#[derive(Clone, Debug)]
+/// `Clear` destroys every descendant as the C++ does: their polygons are dropped and their
+/// slots are reused by later children. Using a node after an ancestor's `Clear` destroyed it
+/// is undefined in the C++ (a dangling pointer) and is refused here. The live nodes and their
+/// points are bounded by the host's [`Budget`].
+#[derive(Debug)]
 pub struct PolyTree<T> {
-    nodes: Vec<PolyNode<T>>,
+    slots: Vec<Slot<T>>,
+    /// Destroyed slots available for reuse. Its capacity always covers every slot, so `Clear`
+    /// never allocates.
+    free: Vec<usize>,
+    budget: Budget,
+    live_nodes: usize,
+    live_points: usize,
 }
 
 /// `PolyTree64` (= `PolyPath64`).
@@ -594,45 +614,60 @@ pub type PolyTreeD = PolyTree<f64>;
 
 const DESTROYED: &str = "use of a destroyed PolyPath";
 
-impl<T: Coord> Default for PolyTree<T> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl<T: Coord> PolyTree<T> {
     /// The constructed object itself.
-    pub const ROOT: PolyPathId = PolyPathId(0);
+    pub const ROOT: PolyPathId = PolyPathId {
+        slot: 0,
+        generation: 0,
+    };
 
-    /// `explicit PolyPath64(PolyPath64* parent = nullptr)` / `PolyPathD(nullptr)` (scale 1).
-    pub fn new() -> Self {
-        Self::with_polygon(Vec::new())
+    /// `explicit PolyPath64(PolyPath64* parent = nullptr)` / `PolyPathD(nullptr)` (scale 1),
+    /// within the host's `budget`.
+    pub fn new(budget: Budget) -> Result<Self> {
+        Self::with_polygon(budget, Vec::new())
     }
 
     /// `explicit PolyPath64(nullptr, const Path64& path)` / `PolyPathD(nullptr, const PathD&)`.
-    pub fn with_polygon(polygon: Path<T>) -> Self {
-        Self {
-            nodes: vec![PolyNode {
+    pub fn with_polygon(budget: Budget, polygon: Path<T>) -> Result<Self> {
+        if budget.nodes < 1 || polygon.len() > budget.points {
+            return Err(ClipperError::ResourceLimit);
+        }
+        let mut slots = Vec::new();
+        reserve(&mut slots, 1)?;
+        let mut free = Vec::new();
+        reserve(&mut free, 1)?;
+        let live_points = polygon.len();
+        slots.push(Slot {
+            generation: 0,
+            node: Some(PolyNode {
                 parent: None,
                 childs: Vec::new(),
                 polygon,
                 scale: 1.0,
-                live: true,
-            }],
-        }
+            }),
+        });
+        Ok(Self {
+            slots,
+            free,
+            budget,
+            live_nodes: 1,
+            live_points,
+        })
     }
 
     fn node(&self, id: PolyPathId) -> Result<&PolyNode<T>> {
-        self.nodes
-            .get(id.0)
-            .filter(|node| node.live)
+        self.slots
+            .get(id.slot)
+            .filter(|slot| slot.generation == id.generation)
+            .and_then(|slot| slot.node.as_ref())
             .ok_or(ClipperError::Undefined(DESTROYED))
     }
 
     fn node_mut(&mut self, id: PolyPathId) -> Result<&mut PolyNode<T>> {
-        self.nodes
-            .get_mut(id.0)
-            .filter(|node| node.live)
+        self.slots
+            .get_mut(id.slot)
+            .filter(|slot| slot.generation == id.generation)
+            .and_then(|slot| slot.node.as_mut())
             .ok_or(ClipperError::Undefined(DESTROYED))
     }
 
@@ -682,29 +717,107 @@ impl<T: Coord> PolyTree<T> {
         Ok(&self.node(id)?.polygon)
     }
 
-    /// `void Clear() override`: `childs_.resize(0)` destroys every descendant.
+    /// `void Clear() override`: `childs_.resize(0)` destroys every descendant. Each destroyed
+    /// node's polygon is dropped and its slot freed for reuse, without allocating: the walk
+    /// descends through the remaining children and climbs back by parent links.
     pub fn clear(&mut self, id: PolyPathId) -> Result<()> {
-        let mut stack = ::core::mem::take(&mut self.node_mut(id)?.childs);
-        while let Some(child) = stack.pop() {
-            let node = self.node_mut(child)?;
-            node.live = false;
-            stack.append(&mut node.childs);
+        let mut current = match self.node_mut(id)?.childs.pop() {
+            Some(child) => child,
+            None => return Ok(()),
+        };
+        loop {
+            while let Some(child) = self.node_mut(current)?.childs.pop() {
+                current = child;
+            }
+            let parent = self.node(current)?.parent;
+            self.destroy(current)?;
+            current = match parent {
+                Some(parent) if parent != id => parent,
+                _ => match self.node_mut(id)?.childs.pop() {
+                    Some(child) => child,
+                    None => return Ok(()),
+                },
+            };
         }
-        // Destroyed nodes keep their slots so a later use of one is refused rather than
-        // aliasing a new node (memory grows with AddChild calls only).
+    }
+
+    /// Destroy one childless node: drop its payload, advance its generation and free its slot.
+    fn destroy(&mut self, id: PolyPathId) -> Result<()> {
+        let slot = self
+            .slots
+            .get_mut(id.slot)
+            .filter(|slot| slot.generation == id.generation)
+            .ok_or(ClipperError::Undefined(DESTROYED))?;
+        let node = slot.node.take().ok_or(ClipperError::Undefined(DESTROYED))?;
+        self.live_nodes = self.live_nodes.saturating_sub(1);
+        self.live_points = self.live_points.saturating_sub(node.polygon.len());
+        // A slot whose generation cannot advance is retired rather than reused.
+        if let Some(next) = slot.generation.checked_add(1) {
+            slot.generation = next;
+            if self.free.len() < self.free.capacity() {
+                self.free.push(id.slot);
+            }
+        }
         Ok(())
     }
 
+    /// Admit one more node holding `points` points under the budget, before any allocation.
+    fn admit(&self, id: PolyPathId, points: usize) -> Result<()> {
+        self.node(id)?;
+        let nodes = self.live_nodes.checked_add(1);
+        let total = self.live_points.checked_add(points);
+        match (nodes, total) {
+            (Some(nodes), Some(total))
+                if nodes <= self.budget.nodes && total <= self.budget.points =>
+            {
+                Ok(())
+            }
+            _ => Err(ClipperError::ResourceLimit),
+        }
+    }
+
     fn push_child(&mut self, id: PolyPathId, polygon: Path<T>, scale: f64) -> Result<PolyPathId> {
-        let child = PolyPathId(self.nodes.len());
-        self.node_mut(id)?.childs.push(child);
-        self.nodes.push(PolyNode {
+        self.admit(id, polygon.len())?;
+        reserve(&mut self.node_mut(id)?.childs, 1)?;
+        let points = polygon.len();
+        let node = PolyNode {
             parent: Some(id),
             childs: Vec::new(),
             polygon,
             scale,
-            live: true,
-        });
+        };
+        let child = match self.free.pop() {
+            Some(index) => {
+                let slot = self
+                    .slots
+                    .get_mut(index)
+                    .ok_or(ClipperError::Undefined(DESTROYED))?;
+                slot.node = Some(node);
+                PolyPathId {
+                    slot: index,
+                    generation: slot.generation,
+                }
+            }
+            None => {
+                reserve(&mut self.slots, 1)?;
+                // Keep room to free every slot, so `Clear` never allocates.
+                let room = self.slots.len().saturating_add(1);
+                let additional = room.saturating_sub(self.free.len());
+                reserve(&mut self.free, additional)?;
+                let index = self.slots.len();
+                self.slots.push(Slot {
+                    generation: 0,
+                    node: Some(node),
+                });
+                PolyPathId {
+                    slot: index,
+                    generation: 0,
+                }
+            }
+        };
+        self.node_mut(id)?.childs.push(child);
+        self.live_nodes = self.live_nodes.saturating_add(1);
+        self.live_points = self.live_points.saturating_add(points);
         Ok(child)
     }
 
@@ -712,7 +825,8 @@ impl<T: Coord> PolyTree<T> {
     /// polygon's area, adding each child's (recursive) area in order.
     pub fn area(&self, id: PolyPathId) -> Result<f64> {
         // Explicit post-order stack: (node, running sum, next child index).
-        let mut stack = vec![(id, area(&self.node(id)?.polygon)?, 0usize)];
+        let mut stack = Vec::new();
+        push(&mut stack, (id, area(&self.node(id)?.polygon)?, 0usize))?;
         loop {
             let Some(top) = stack.last_mut() else {
                 return Err(ClipperError::Undefined(DESTROYED));
@@ -721,7 +835,7 @@ impl<T: Coord> PolyTree<T> {
             let childs = &self.node(node)?.childs;
             if let Some(&child) = childs.get(next) {
                 top.2 = next + 1;
-                stack.push((child, area(&self.node(child)?.polygon)?, 0));
+                push(&mut stack, (child, area(&self.node(child)?.polygon)?, 0))?;
                 continue;
             }
             let Some((_, sum, _)) = stack.pop() else {
@@ -738,19 +852,19 @@ impl<T: Coord> PolyTree<T> {
 impl PolyTree<i64> {
     /// `PolyPath64* AddChild(const Path64& path) override`.
     pub fn add_child(&mut self, id: PolyPathId, path: &Path64) -> Result<PolyPathId> {
-        self.push_child(id, path.clone(), 1.0)
+        self.admit(id, path.len())?;
+        self.push_child(id, copy_of(path)?, 1.0)
     }
 }
 
 impl PolyTree<f64> {
     /// `explicit PolyPathD(nullptr, const Path64& path)`: the root keeps scale 1.0.
-    pub fn with_polygon64(path: &Path64) -> Result<Self> {
+    pub fn with_polygon64(budget: Budget, path: &Path64) -> Result<Self> {
+        if path.len() > budget.points {
+            return Err(ClipperError::ResourceLimit);
+        }
         let mut error_code = 0;
-        Ok(Self::with_polygon(scale_path::<f64, i64>(
-            path,
-            1.0,
-            &mut error_code,
-        )?))
+        Self::with_polygon(budget, scale_path::<f64, i64>(path, 1.0, &mut error_code)?)
     }
 
     /// `void SetScale(double value)`.
@@ -769,6 +883,7 @@ impl PolyTree<f64> {
     /// throws from the child's constructor, so no child is added.
     pub fn add_child(&mut self, id: PolyPathId, path: &Path64) -> Result<PolyPathId> {
         let scale = self.node(id)?.scale;
+        self.admit(id, path.len())?;
         let mut error_code = 0;
         let polygon = scale_path::<f64, i64>(path, scale, &mut error_code)?;
         self.push_child(id, polygon, scale)
@@ -777,7 +892,8 @@ impl PolyTree<f64> {
     /// `PolyPathD* AddChild(const PathD& path)`.
     pub fn add_child_d(&mut self, id: PolyPathId, path: &PathD) -> Result<PolyPathId> {
         let scale = self.node(id)?.scale;
-        self.push_child(id, path.clone(), scale)
+        self.admit(id, path.len())?;
+        self.push_child(id, copy_of(path)?, scale)
     }
 }
 
@@ -1147,9 +1263,66 @@ mod tests {
         assert!(matches!(ClipperD::new(9), Err(ClipperError::Exception(_))));
     }
 
+    const BUDGET: Budget = Budget {
+        nodes: 8,
+        points: 64,
+    };
+
+    #[test]
+    fn polytree_clear_releases_nodes_and_refuses_stale_handles() {
+        let square = vec![
+            Point64::xy(0, 0),
+            Point64::xy(10, 0),
+            Point64::xy(10, 10),
+            Point64::xy(0, 10),
+        ];
+        let tree = PolyTree64::new(BUDGET);
+        assert!(tree.is_ok());
+        let Ok(mut tree) = tree else { return };
+        let mut stale = Vec::new();
+        // Far more add/clear rounds than the budget admits live nodes: destroyed nodes are
+        // released and their slots reused, so the arena stays at its peak.
+        for _ in 0..1000 {
+            let child = tree.add_child(PolyTree64::ROOT, &square);
+            assert!(child.is_ok());
+            if let Ok(child) = child {
+                assert!(tree.add_child(child, &square).is_ok());
+                stale.push(child);
+            }
+            assert!(tree.clear(PolyTree64::ROOT).is_ok());
+            assert_eq!((tree.live_nodes, tree.live_points), (1, 0));
+        }
+        assert!(tree.slots.len() <= 3);
+        for child in stale {
+            assert_eq!(tree.level(child), Err(ClipperError::Undefined(DESTROYED)));
+            assert_eq!(
+                tree.add_child(child, &square),
+                Err(ClipperError::Undefined(DESTROYED))
+            );
+        }
+        // The budget bounds live nodes and points; nothing changes on refusal.
+        for _ in 1..BUDGET.nodes {
+            assert!(tree.add_child(PolyTree64::ROOT, &Vec::new()).is_ok());
+        }
+        assert_eq!(
+            tree.add_child(PolyTree64::ROOT, &Vec::new()),
+            Err(ClipperError::ResourceLimit)
+        );
+        assert_eq!(tree.count(PolyTree64::ROOT), Ok(BUDGET.nodes - 1));
+        assert!(tree.clear(PolyTree64::ROOT).is_ok());
+        let many = vec![Point64::xy(0, 0); BUDGET.points + 1];
+        assert_eq!(
+            tree.add_child(PolyTree64::ROOT, &many),
+            Err(ClipperError::ResourceLimit)
+        );
+        assert!(PolyTree64::with_polygon(BUDGET, many).is_err());
+    }
+
     #[test]
     fn polytree_area_accumulates_in_child_order() {
-        let mut tree = PolyTree64::new();
+        let tree = PolyTree64::new(BUDGET);
+        assert!(tree.is_ok());
+        let Ok(mut tree) = tree else { return };
         let square = vec![
             Point64::xy(0, 0),
             Point64::xy(10, 0),

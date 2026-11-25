@@ -18,8 +18,8 @@
 //! - `USINGZ` is a public compile definition of the `clipper2` target, so every point carries
 //!   a `z` coordinate.
 //! - KiCad compiles with C++ exceptions, so `DoError` throws a `Clipper2Exception`
-//!   ([`ClipperError::Exception`]); the "non-fatal" continuations after `DoError` are not
-//!   compiled in that configuration and are therefore not reachable.
+//!   ([`ClipperError::Exception`]). The "non-fatal" continuations after each `DoError` call
+//!   are still compiled, but they are unreachable because `DoError` throws first.
 //! - `CLIPPER2_HI_PRECISION` and `CLIPPER2_MAX_DECIMAL_PRECISION` are not defined.
 //! - The 64-bit GCC/Clang oracle takes the `__int128_t` branches of `ProductsAreEqual` and
 //!   `CrossProductSign`. The portable `MultiplyUInt64` branches are ported too
@@ -31,6 +31,10 @@
 //! [`ClipperError::Undefined`] and never fabricates a value. Floating point follows the
 //! oracle's `-ffp-contract=off`: binary64 operations in source order, no fused multiply-add,
 //! no host libm.
+//!
+//! Retained state is bounded by a host-supplied [`Budget`] ([`ClipperError::ResourceLimit`]);
+//! every allocation sized by caller input is fallible ([`ClipperError::Allocation`]). Neither
+//! changes the result of a valid input within the budget.
 //!
 //! Engine bodies written in `clipper.engine.cpp` belong to the
 //! `thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p001`/`p002` units; header bodies
@@ -56,10 +60,17 @@ pub struct Clipper2Exception {
 }
 
 impl Clipper2Exception {
-    /// `explicit Clipper2Exception(const char* description)`.
+    /// `explicit Clipper2Exception(const char* description)`: `descr_` is built by
+    /// `std::string(const char*)`, which stops at the first NUL, so a description with an
+    /// embedded NUL keeps only the text before it.
     pub fn new(description: &str) -> Self {
+        // '\0' is ASCII, so its byte index is a character boundary.
+        let c_string = match description.find('\0') {
+            Some(end) => &description[..end],
+            None => description,
+        };
         Self {
-            descr: description.to_owned(),
+            descr: c_string.to_owned(),
         }
     }
 
@@ -87,6 +98,48 @@ pub enum ClipperError {
     },
     /// A modelled `std::ostream` request exceeded the portable formatting budget.
     Stream(kicad_math::StreamError),
+    /// Retained state would exceed the host's [`Budget`]; nothing was changed.
+    ResourceLimit,
+    /// A fallible allocation sized by caller input failed; nothing was changed.
+    Allocation,
+}
+
+/// Host limits on the state a ported object retains across calls, so repeated caller
+/// operations cannot grow memory without bound. Exceeding a limit is
+/// [`ClipperError::ResourceLimit`], distinct from undefined reference input.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Budget {
+    /// Live `PolyPath` nodes in one tree, including its root.
+    pub nodes: usize,
+    /// Points held by the live nodes' polygons in one tree.
+    pub points: usize,
+}
+
+/// Reserve room for `additional` more elements without aborting on failure.
+pub(crate) fn reserve<T>(v: &mut Vec<T>, additional: usize) -> Result<()> {
+    v.try_reserve(additional)
+        .map_err(|_| ClipperError::Allocation)
+}
+
+/// `Vec::push` after a fallible reservation.
+pub(crate) fn push<T>(v: &mut Vec<T>, value: T) -> Result<()> {
+    reserve(v, 1)?;
+    v.push(value);
+    Ok(())
+}
+
+/// An empty vector with fallible room for `capacity` elements.
+pub(crate) fn with_capacity<T>(capacity: usize) -> Result<Vec<T>> {
+    let mut v = Vec::new();
+    reserve(&mut v, capacity)?;
+    Ok(v)
+}
+
+/// A fallible copy of a caller slice.
+pub(crate) fn copy_of<T: Clone>(items: &[T]) -> Result<Vec<T>> {
+    let mut v = with_capacity(items.len())?;
+    v.extend_from_slice(items);
+    Ok(v)
 }
 
 impl From<kicad_math::StreamError> for ClipperError {
@@ -105,6 +158,8 @@ impl ::core::fmt::Display for ClipperError {
             Self::Undefined(what) => write!(formatter, "undefined behaviour: {what}"),
             Self::Unported { upstream, unit } => write!(formatter, "unported {upstream} ({unit})"),
             Self::Stream(error) => write!(formatter, "{error}"),
+            Self::ResourceLimit => formatter.write_str("resource limit"),
+            Self::Allocation => formatter.write_str("allocation failed"),
         }
     }
 }

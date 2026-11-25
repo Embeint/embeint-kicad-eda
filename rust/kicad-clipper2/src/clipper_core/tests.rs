@@ -115,3 +115,23 @@ fn stream_insertion() {
         )
     );
 }
+
+#[test]
+fn exception_description_is_a_c_string() {
+    // `std::string(const char*)` stops at the first NUL.
+    assert_eq!(Clipper2Exception::new("a\0b").what(), "a");
+    assert_eq!(Clipper2Exception::new("\0").what(), "");
+    assert_eq!(Clipper2Exception::new("ab").what(), "ab");
+}
+
+#[test]
+fn strip_duplicates_keeps_the_first_of_each_run() {
+    let mut path = vec![
+        Point64 { x: 1, y: 1, z: 1 },
+        Point64 { x: 1, y: 1, z: 2 },
+        Point64 { x: 2, y: 2, z: 3 },
+        Point64 { x: 1, y: 1, z: 4 },
+    ];
+    strip_duplicates_path(&mut path, true);
+    assert_eq!(path.iter().map(|p| p.z).collect::<Vec<_>>(), vec![1, 3]);
+}

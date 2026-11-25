@@ -20,6 +20,12 @@ pub use kicad_clipper2::UNIT;
 
 const STREAM_BOUND: (i64, i64) = (-64, 512);
 const MAX_TREE_OPS: usize = 1024;
+/// The host budget for every tree the shim builds: the root plus one node per operation, and
+/// far more points than one request line carries in practice.
+const TREE_BUDGET: Budget = Budget {
+    nodes: MAX_TREE_OPS + 1,
+    points: 1 << 22,
+};
 
 enum E {
     Invalid(String),
@@ -834,10 +840,13 @@ impl TreeOps for Tree64 {
     type T = i64;
     fn make(root: &Value, root_type: &str) -> R<PolyTree64> {
         if root.is_null() {
-            return Ok(PolyTree64::new());
+            return Ok(PolyTree64::new(TREE_BUDGET)?);
         }
         match root_type {
-            "i64" => Ok(PolyTree64::with_polygon(read_path::<i64>(root)?)),
+            "i64" => Ok(PolyTree64::with_polygon(
+                TREE_BUDGET,
+                read_path::<i64>(root)?,
+            )?),
             _ => invalid("root_type"),
         }
     }
@@ -869,11 +878,17 @@ impl TreeOps for TreeD {
     type T = f64;
     fn make(root: &Value, root_type: &str) -> R<PolyTreeD> {
         if root.is_null() {
-            return Ok(PolyTreeD::new());
+            return Ok(PolyTreeD::new(TREE_BUDGET)?);
         }
         match root_type {
-            "i64" => Ok(PolyTreeD::with_polygon64(&read_path::<i64>(root)?)?),
-            "f64" => Ok(PolyTreeD::with_polygon(read_path::<f64>(root)?)),
+            "i64" => Ok(PolyTreeD::with_polygon64(
+                TREE_BUDGET,
+                &read_path::<i64>(root)?,
+            )?),
+            "f64" => Ok(PolyTreeD::with_polygon(
+                TREE_BUDGET,
+                read_path::<f64>(root)?,
+            )?),
             _ => invalid("root_type"),
         }
     }
@@ -903,6 +918,15 @@ impl TreeOps for TreeD {
     }
 }
 
+/// The creation number of a live node. Destroyed nodes' slots are reused by later children,
+/// as freed addresses are in the C++, so the lookup considers live nodes only.
+fn number_of(ids: &[PolyPathId], live: &[bool], id: PolyPathId) -> R<usize> {
+    ids.iter()
+        .zip(live)
+        .position(|(candidate, alive)| *alive && *candidate == id)
+        .ok_or_else(|| E::Invalid("unknown PolyPath".into()))
+}
+
 fn run_tree<K: TreeOps>(v: &Value) -> R<Value> {
     let Some(ops) = at(v, "ops")?
         .as_array()
@@ -912,10 +936,12 @@ fn run_tree<K: TreeOps>(v: &Value) -> R<Value> {
     };
     let root_type = text(v, "root_type")?;
     let mut tree = K::make(&v["root"], root_type)?;
+    // Nodes are numbered by creation; `ids[n]` is node n's handle.
+    let mut ids = vec![PolyTree::<K::T>::ROOT];
     let mut parents: Vec<Option<usize>> = vec![None];
     let mut live = vec![true];
     let mut events = Vec::new();
-    let node_of = |index: &Value, live: &[bool]| -> R<PolyPathId> {
+    let node_of = |index: &Value, ids: &[PolyPathId], live: &[bool]| -> R<(usize, PolyPathId)> {
         let index = u64_of(index)?;
         let Some(index) = usize::try_from(index).ok().filter(|i| *i < live.len()) else {
             return invalid("node");
@@ -923,42 +949,43 @@ fn run_tree<K: TreeOps>(v: &Value) -> R<Value> {
         if !live[index] {
             return Err(E::Clip(ClipperError::Undefined("destroyed PolyPath")));
         }
-        Ok(PolyPathId(index))
+        Ok((index, ids[index]))
     };
     for op in ops {
         match text(op, "op")? {
             "add" => {
                 keys(op, &["op", "node", "path_type", "path"])?;
-                let parent = node_of(&op["node"], &live)?;
+                let (index, parent) = node_of(&op["node"], &ids, &live)?;
                 let path_type = text(op, "path_type")?;
                 match K::add(&mut tree, parent, path_type, &op["path"])? {
                     Ok(child) => {
-                        parents.push(Some(parent.0));
+                        ids.push(child);
+                        parents.push(Some(index));
                         live.push(true);
-                        events.push(json!({"added": child.0}));
+                        events.push(json!({"added": ids.len() - 1}));
                     }
                     Err(e) => events.push(thrown(&e)),
                 }
             }
             "clear" => {
                 keys(op, &["op", "node"])?;
-                let node = node_of(&op["node"], &live)?;
+                let (index, node) = node_of(&op["node"], &ids, &live)?;
                 tree.clear(node)?;
                 for i in 1..live.len() {
                     let mut p = parents[i];
                     while let Some(ancestor) = p {
-                        if ancestor == node.0 {
+                        if ancestor == index {
                             live[i] = false;
                             break;
                         }
                         p = parents[ancestor];
                     }
                 }
-                events.push(json!({"cleared": node.0}));
+                events.push(json!({"cleared": index}));
             }
             "child" => {
                 keys(op, &["op", "node", "index", "subscript"])?;
-                let node = node_of(&op["node"], &live)?;
+                let (_, node) = node_of(&op["node"], &ids, &live)?;
                 let index = u64_of(&op["index"])?;
                 let _subscript = boolean(&op["subscript"])?;
                 let Ok(index) = usize::try_from(index) else {
@@ -966,33 +993,39 @@ fn run_tree<K: TreeOps>(v: &Value) -> R<Value> {
                 };
                 // `operator[]` and `Child` share one body.
                 let child = tree.child(node, index)?;
-                events.push(json!({"child": child.0}));
+                events.push(json!({"child": number_of(&ids, &live, child)?}));
             }
             "set_scale" => {
                 keys(op, &["op", "node", "scale"])?;
                 if !K::D {
                     return invalid("op");
                 }
-                let node = node_of(&op["node"], &live)?;
+                let (index, node) = node_of(&op["node"], &ids, &live)?;
                 K::set_scale(&mut tree, node, f64_of(&op["scale"])?)?;
-                events.push(json!({"scaled": node.0}));
+                events.push(json!({"scaled": index}));
             }
             _ => return invalid("op"),
         }
     }
     let mut report = Vec::new();
-    for (i, alive) in live.iter().enumerate() {
+    for (&id, &alive) in ids.iter().zip(&live) {
         if !alive {
             report.push(Value::Null);
             continue;
         }
-        let id = PolyPathId(i);
-        let children: Vec<usize> = tree.children(id)?.iter().map(|c| c.0).collect();
+        let mut children = Vec::new();
+        for &child in tree.children(id)? {
+            children.push(number_of(&ids, &live, child)?);
+        }
+        let parent = match tree.parent(id)? {
+            Some(parent) => Some(number_of(&ids, &live, parent)?),
+            None => None,
+        };
         let mut entry = json!({
             "area": bits(tree.area(id)?),
             "level": tree.level(id)?,
             "is_hole": tree.is_hole(id)?,
-            "parent": tree.parent(id)?.map(|p| p.0),
+            "parent": parent,
             "count": tree.count(id)?,
             "children": children,
             "polygon": write_path(tree.polygon(id)?),
@@ -1003,6 +1036,128 @@ fn run_tree<K: TreeOps>(v: &Value) -> R<Value> {
         report.push(entry);
     }
     Ok(json!({"events": events, "nodes": report}))
+}
+
+/// The C++ adapter's `Tree64`/`TreeD` serialization of an Execute output tree:
+/// `{"polygon", "children"}` per node (and `"scale"` for `PolyPathD`), built with an explicit
+/// post-order stack so deep trees cannot exhaust the native stack.
+fn write_tree<K: TreeOps>(tree: &PolyTree<K::T>) -> R<Value> {
+    let mut stack: Vec<(PolyPathId, usize, Vec<Value>)> =
+        vec![(PolyTree::<K::T>::ROOT, 0, Vec::new())];
+    loop {
+        let Some(top) = stack.last_mut() else {
+            return invalid("tree");
+        };
+        if let Some(&child) = tree.children(top.0)?.get(top.1) {
+            top.1 += 1;
+            stack.push((child, 0, Vec::new()));
+            continue;
+        }
+        let Some((id, _, children)) = stack.pop() else {
+            return invalid("tree");
+        };
+        let mut node = json!({"polygon": write_path(tree.polygon(id)?), "children": children});
+        if let Some(scale) = K::scale(tree, id)? {
+            node["scale"] = bits(scale);
+        }
+        match stack.last_mut() {
+            Some(parent) => parent.2.push(node),
+            None => return Ok(node),
+        }
+    }
+}
+
+/// Harness guard mirroring `GUARD::StripeIndex` in the C++ adapter. `StripeIndex::BuildFromPath`
+/// and `PointInPolygon` belong to the engine source unit and stay deferred in the port; the
+/// adapter refuses the inputs on which their pinned arithmetic is undefined before calling them,
+/// so this shim refuses the same inputs for the same reason. It computes no result.
+fn stripe_index_guard(path: &[Point64], query: Option<&Point64>) -> R<()> {
+    const OVERFLOW: E = E::Clip(ClipperError::Undefined("StripeIndex int64_t overflow"));
+    let mut edges = Vec::new();
+    if path.len() >= 3 {
+        let mut j = path.len() - 1;
+        for i in 0..path.len() {
+            if path[j].x != path[i].x || path[j].y != path[i].y {
+                edges.push((path[j], path[i]));
+            }
+            j = i;
+        }
+    }
+    let Some(first) = edges.first() else {
+        return Ok(());
+    };
+    let (mut y_min, mut y_max) = (first.0.y, first.0.y);
+    for (a, b) in &edges {
+        y_min = y_min.min(a.y.min(b.y));
+        y_max = y_max.max(a.y.max(b.y));
+    }
+    // `static_cast<int>(std::sqrt(static_cast<double>(edges_.size())))`, clamped to 1..65536.
+    let count = ((edges.len() as f64).sqrt() as i64).clamp(1, 65536);
+    let range = y_max.checked_sub(y_min).ok_or(OVERFLOW)?;
+    let height = if range <= 0 {
+        1
+    } else {
+        range
+            .checked_add(count)
+            .and_then(|sum| sum.checked_sub(1))
+            .ok_or(OVERFLOW)?
+            / count
+    };
+    let stripe = |y: i64| -> R<i64> {
+        let s = y.checked_sub(y_min).ok_or(OVERFLOW)? / height;
+        Ok(if s < 0 {
+            0
+        } else if s >= count {
+            count - 1
+        } else {
+            s
+        })
+    };
+    let mut total: i64 = 0;
+    for (a, b) in &edges {
+        let refs = stripe(a.y.max(b.y))?
+            .checked_sub(stripe(a.y.min(b.y))?)
+            .and_then(|span| span.checked_add(1))
+            .ok_or(OVERFLOW)?;
+        total = total.checked_add(refs).ok_or(OVERFLOW)?;
+    }
+    let declined = i64::try_from(edges.len())
+        .ok()
+        .and_then(|n| n.checked_mul(8))
+        .is_none_or(|limit| total > limit);
+    let Some(query) = query.filter(|_| !declined) else {
+        return Ok(());
+    };
+    let s = stripe(query.y)?;
+    for (a, b) in &edges {
+        if s < stripe(a.y.min(b.y))? || s > stripe(a.y.max(b.y))? {
+            continue;
+        }
+        let cross = cross_product_sign(a, b, query)?;
+        if cross == 0
+            && query.x >= a.x.min(b.x)
+            && query.x <= a.x.max(b.x)
+            && query.y >= a.y.min(b.y)
+            && query.y <= a.y.max(b.y)
+        {
+            return Ok(());
+        }
+    }
+    Ok(())
+}
+
+/// Harness domain mirroring `GUARD::EngineDomain` in the C++ adapter: Clipper64 hands caller
+/// coordinates straight to the pinned engine, so the adapter runs it only within Clipper2's
+/// declared range `MIN_COORD..MAX_COORD`. This is not a claim that every coordinate outside it
+/// is undefined; the engine units own the precise guards.
+fn engine_domain(op: &str, paths: &Paths64) -> R<()> {
+    let outside = |v: i64| !(MIN_COORD..=MAX_COORD).contains(&v);
+    if paths.iter().flatten().any(|p| outside(p.x) || outside(p.y)) {
+        return Err(E::Invalid(format!(
+            "outside the guarded engine domain: {op}"
+        )));
+    }
+    Ok(())
 }
 
 fn run_engine(op: &str, v: &Value) -> R<Value> {
@@ -1086,13 +1241,16 @@ fn run_engine(op: &str, v: &Value) -> R<Value> {
         "stripe_index" => {
             keys(v, &["op", "path", "query"])?;
             let path = read_path::<i64>(&v["path"])?;
+            let query = match v["query"].is_null() {
+                true => None,
+                false => Some(read_point::<i64>(&v["query"])?),
+            };
+            stripe_index_guard(&path, query.as_ref())?;
             let mut index = StripeIndex::default();
             index.build_from_path(&path)?;
             let mut result = json!({"edge_count": index.edge_count(), "empty": index.empty()});
-            if !v["query"].is_null() {
-                result["query"] = json!(pip_name(
-                    index.point_in_polygon(&read_point::<i64>(&v["query"])?)?
-                ));
+            if let Some(query) = query {
+                result["query"] = json!(pip_name(index.point_in_polygon(&query)?));
             }
             Ok(result)
         }
@@ -1235,30 +1393,43 @@ fn run_engine(op: &str, v: &Value) -> R<Value> {
                 if !v["precision"].is_null() {
                     return invalid("precision");
                 }
-                // A null path group skips that Add call.
+                // A null path group skips that Add call. Every group is checked against the
+                // guarded engine domain before the engine sees any of them.
+                let mut groups = Vec::new();
+                for field in ["subjects", "open_subjects", "clips"] {
+                    let group = match v[field].is_null() {
+                        true => None,
+                        false => Some(read_paths::<i64>(&v[field])?),
+                    };
+                    if let Some(paths) = &group {
+                        engine_domain(op, paths)?;
+                    }
+                    groups.push(group);
+                }
                 let mut clipper = Clipper64::default();
-                if !v["subjects"].is_null() {
-                    clipper.add_subject(&read_paths::<i64>(&v["subjects"])?)?;
-                }
-                if !v["open_subjects"].is_null() {
-                    clipper.add_open_subject(&read_paths::<i64>(&v["open_subjects"])?)?;
-                }
-                if !v["clips"].is_null() {
-                    clipper.add_clip(&read_paths::<i64>(&v["clips"])?)?;
+                for (kind, group) in groups.iter().enumerate() {
+                    if let Some(paths) = group {
+                        match kind {
+                            0 => clipper.add_subject(paths)?,
+                            1 => clipper.add_open_subject(paths)?,
+                            _ => clipper.add_clip(paths)?,
+                        }
+                    }
                 }
                 let mut closed = vec![vec![Point64::xy(7, 7)]];
                 let mut open = vec![vec![Point64::xy(8, 8)]];
-                let mut tree = PolyTree64::new();
+                let mut tree = PolyTree64::new(TREE_BUDGET)?;
                 let ok = match output {
                     "paths" => clipper.execute(ct, fr, &mut closed)?,
                     "paths_open" => clipper.execute_with_open(ct, fr, &mut closed, &mut open)?,
                     "tree" => clipper.execute_tree(ct, fr, &mut tree)?,
                     _ => clipper.execute_tree_with_open(ct, fr, &mut tree, &mut open)?,
                 };
-                // Reached only once the engine units land; the shape follows the C++ adapter.
+                // Reached only once the engine units land; the shape follows the C++ adapter,
+                // which reports the tree for every output kind.
                 return Ok(
                     json!({"succeeded": ok, "closed": write_paths(&closed), "open": write_paths(&open),
-                                 "error_code": clipper.base.error_code()}),
+                           "tree": write_tree::<Tree64>(&tree)?, "error_code": clipper.base.error_code()}),
                 );
             }
             let mut clipper = match make_d(&v["precision"])? {
@@ -1283,7 +1454,7 @@ fn run_engine(op: &str, v: &Value) -> R<Value> {
             }
             let mut closed = PathsD::new();
             let mut open = PathsD::new();
-            let mut tree = PolyTreeD::new();
+            let mut tree = PolyTreeD::new(TREE_BUDGET)?;
             let ok = match output {
                 "paths" => clipper.execute(ct, fr, &mut closed)?,
                 "paths_open" => clipper.execute_with_open(ct, fr, &mut closed, &mut open)?,
@@ -1292,7 +1463,7 @@ fn run_engine(op: &str, v: &Value) -> R<Value> {
             };
             Ok(
                 json!({"succeeded": ok, "closed": write_paths(&closed), "open": write_paths(&open),
-                      "error_code": clipper.base.error_code()}),
+                      "tree": write_tree::<TreeD>(&tree)?, "error_code": clipper.base.error_code()}),
             )
         }
         "polytree" => {
@@ -1305,7 +1476,7 @@ fn run_engine(op: &str, v: &Value) -> R<Value> {
         }
         "polypath_base_count" => {
             keys(v, &["op"])?;
-            let mut tree = PolyTree64::new();
+            let mut tree = PolyTree64::new(TREE_BUDGET)?;
             tree.add_child(PolyTree64::ROOT, &Vec::new())?;
             Ok(json!({"base": poly_path_base_count(), "derived": tree.count(PolyTree64::ROOT)?}))
         }
@@ -1413,7 +1584,7 @@ fn run(v: &Value) -> R<Value> {
             fn append<T: Wire>(v: &Value) -> R<Value> {
                 let mut paths = read_paths::<T>(&v["paths"])?;
                 let path = read_path::<T>(&v["path"])?;
-                append_path(&mut paths, &path);
+                append_path(&mut paths, &path)?;
                 Ok(json!({"paths": write_paths(&paths), "returns_self": true}))
             }
             match text(v, "type")? {
@@ -1503,5 +1674,37 @@ pub fn dispatch(line: &str) -> Value {
             failure(unit, case, "execution_error", e.what())
         }
         Err(E::Clip(other)) => failure(unit, case, "execution_error", &other.to_string()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The Execute reply's `"tree"` has the C++ adapter's `Tree64`/`TreeD` shape, nested in
+    /// child order, so the envelope matches once the engine units build real trees.
+    #[test]
+    fn execute_trees_serialize_like_the_adapter() -> Result<(), String> {
+        let fail = |_| String::from("tree operation failed");
+        let mut tree = PolyTreeD::new(TREE_BUDGET).map_err(fail)?;
+        let first = tree
+            .add_child(PolyTreeD::ROOT, &vec![Point64::xy(1, 2)])
+            .map_err(fail)?;
+        tree.add_child_d(first, &vec![PointD::xy(0.5, -0.0)])
+            .map_err(fail)?;
+        tree.add_child(PolyTreeD::ROOT, &Vec::new()).map_err(fail)?;
+        let written = write_tree::<TreeD>(&tree).map_err(|_| String::from("write failed"))?;
+        let one = bits(1.0);
+        let expected = json!({"polygon": [], "scale": one, "children": [
+            {"polygon": [[bits(1.0), bits(2.0), 0]], "scale": one, "children": [
+                {"polygon": [[bits(0.5), bits(-0.0), 0]], "scale": one, "children": []}]},
+            {"polygon": [], "scale": one, "children": []}]});
+        assert_eq!(written, expected);
+        let empty = PolyTree64::new(TREE_BUDGET).map_err(fail)?;
+        assert_eq!(
+            write_tree::<Tree64>(&empty).map_err(|_| String::from("write failed"))?,
+            json!({"polygon": [], "children": []})
+        );
+        Ok(())
     }
 }

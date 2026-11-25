@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Undefined-behaviour controls never enter the public corpus: both programs must refuse each
-one with the identical error envelope, and neither may return a result or a deferral."""
+"""Controls (undefined behaviour and the Clipper64 engine domain) never enter the public
+corpus: both programs must refuse each one with the identical error envelope, and neither may
+return a result or a deferral."""
 import argparse
 import json
 import subprocess
@@ -25,4 +26,4 @@ for binary in [args.oracle, args.rust]:
         assert reply["case"] == control["request"]["case"], (binary, reply)
         assert set(reply) == {"unit", "case", "error"}, (binary, control["request"]["case"], reply)
         assert reply["error"] == control["error"], (binary, control["request"]["case"], reply)
-print(f"{len(controls)} undefined-behaviour controls refused identically by the oracle and the Rust shim")
+print(f"{len(controls)} controls refused identically by the oracle and the Rust shim")

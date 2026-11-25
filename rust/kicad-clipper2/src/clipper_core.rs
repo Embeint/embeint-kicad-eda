@@ -8,7 +8,7 @@
 //! those two coordinate types, including the exact C++ conversions between them.
 
 use crate::stream::{endl, insert_f64, insert_i64, insert_text};
-use crate::{Clipper2Exception, ClipperError, Result};
+use crate::{copy_of, push, reserve, with_capacity, Clipper2Exception, ClipperError, Result};
 use kicad_math::StreamState;
 
 // --- error reporting ---------------------------------------------------------------------
@@ -57,7 +57,7 @@ pub const MAX_DBL: f64 = f64::MAX;
 
 /// `DoError(error_code)`. KiCad compiles Clipper2 with exceptions, so this always throws;
 /// the result is the exception to propagate. The exception-free branch (`++error_code`) is
-/// not compiled in that configuration.
+/// excluded by the preprocessor in that configuration.
 pub fn do_error(error_code: i32) -> ClipperError {
     let description = match error_code {
         PRECISION_ERROR_I => PRECISION_ERROR,
@@ -466,13 +466,14 @@ impl<T: Coord> PartialEq for Point<T> {
 /// `poly.emplace_back(p)` through the explicit converting constructor.
 pub fn append_point<T: Coord, S: Coord>(poly: &mut Path<T>, p: &Point<S>) -> Result<()> {
     let point = Point::<T>::from_point(p)?;
-    poly.push(point);
-    Ok(())
+    push(poly, point)
 }
 
 /// `template <typename T> Paths<T>& operator<<(Paths<T>& polys, const Path<T>& p)`.
-pub fn append_path<T: Coord>(polys: &mut Paths<T>, p: &Path<T>) {
-    polys.push(p.clone());
+pub fn append_path<T: Coord>(polys: &mut Paths<T>, p: &Path<T>) -> Result<()> {
+    reserve(polys, 1)?;
+    polys.push(copy_of(p)?);
+    Ok(())
 }
 
 /// `InvalidPoint64`.
@@ -744,11 +745,11 @@ pub fn insert_path<T: Coord>(path: &[Point<T>], state: &mut StreamState) -> Resu
     let mut text = String::new();
     if let Some((last, rest)) = path.split_last() {
         for pt in rest {
-            text += &pt.insert(state)?;
-            text += &insert_text(", ", state)?;
+            append_text(&mut text, &pt.insert(state)?)?;
+            append_text(&mut text, &insert_text(", ", state)?)?;
         }
-        text += &last.insert(state)?;
-        text += endl();
+        append_text(&mut text, &last.insert(state)?)?;
+        append_text(&mut text, endl())?;
     }
     Ok(text)
 }
@@ -757,16 +758,24 @@ pub fn insert_path<T: Coord>(path: &[Point<T>], state: &mut StreamState) -> Resu
 pub fn insert_paths<T: Coord>(paths: &[Path<T>], state: &mut StreamState) -> Result<String> {
     let mut text = String::new();
     for p in paths {
-        text += &insert_path(p, state)?;
+        append_text(&mut text, &insert_path(p, state)?)?;
     }
     Ok(text)
+}
+
+/// Stream text grows with the caller's path length: append it fallibly.
+fn append_text(text: &mut String, piece: &str) -> Result<()> {
+    text.try_reserve(piece.len())
+        .map_err(|_| ClipperError::Allocation)?;
+    text.push_str(piece);
+    Ok(())
 }
 
 /// `template <typename T1, typename T2> Path<T1> ScalePath(const Path<T2>& path,
 /// double scale_x, double scale_y, int& error_code)`.
 ///
 /// A zero scale sets `scale_error_i` in `error_code` and throws (`DoError`). The following
-/// replacement of a zero scale by 1.0 only runs without exceptions, which KiCad does not use.
+/// replacement of a zero scale by 1.0 is compiled but unreachable, because `DoError` throws.
 pub fn scale_path_xy<T1: Coord, T2: Coord>(
     path: &[Point<T2>],
     scale_x: f64,
@@ -777,7 +786,7 @@ pub fn scale_path_xy<T1: Coord, T2: Coord>(
         *error_code |= SCALE_ERROR_I;
         return Err(do_error(SCALE_ERROR_I));
     }
-    let mut result = Vec::with_capacity(path.len());
+    let mut result = with_capacity(path.len())?;
     for pt in path {
         result.push(Point::<T1>::new(
             pt.x.to_f64() * scale_x,
@@ -819,7 +828,7 @@ pub fn scale_paths_xy<T1: Coord, T2: Coord>(
             return Err(do_error(RANGE_ERROR_I));
         }
     }
-    let mut result = Vec::with_capacity(paths.len());
+    let mut result = with_capacity(paths.len())?;
     for path in paths {
         result.push(scale_path_xy::<T1, T2>(path, scale_x, scale_y, error_code)?);
     }
@@ -837,7 +846,7 @@ pub fn scale_paths<T1: Coord, T2: Coord>(
 
 /// `template <typename T1, typename T2> Path<T1> TransformPath(const Path<T2>& path)`.
 pub fn transform_path<T1: Coord, T2: Coord>(path: &[Point<T2>]) -> Result<Path<T1>> {
-    let mut result = Vec::with_capacity(path.len());
+    let mut result = with_capacity(path.len())?;
     for pt in path {
         result.push(Point::<T1>::from_point(pt)?);
     }
@@ -846,7 +855,7 @@ pub fn transform_path<T1: Coord, T2: Coord>(path: &[Point<T2>]) -> Result<Path<T
 
 /// `template <typename T1, typename T2> Paths<T1> TransformPaths(const Paths<T2>& paths)`.
 pub fn transform_paths<T1: Coord, T2: Coord>(paths: &[Path<T2>]) -> Result<Paths<T1>> {
-    let mut result = Vec::new();
+    let mut result = with_capacity(paths.len())?;
     for path in paths {
         result.push(transform_path::<T1, T2>(path)?);
     }
@@ -872,7 +881,7 @@ pub fn strip_near_equal_path<T: Coord>(
     let Some((&first_pt, rest)) = path.split_first() else {
         return Ok(Vec::new());
     };
-    let mut result = Vec::with_capacity(path.len());
+    let mut result = with_capacity(path.len())?;
     let mut last_pt = first_pt;
     result.push(first_pt);
     for pt in rest {
@@ -900,7 +909,7 @@ pub fn strip_near_equal_paths<T: Coord>(
     max_dist_sqrd: f64,
     is_closed_path: bool,
 ) -> Result<Paths<T>> {
-    let mut result = Vec::with_capacity(paths.len());
+    let mut result = with_capacity(paths.len())?;
     for path in paths {
         result.push(strip_near_equal_path(path, max_dist_sqrd, is_closed_path)?);
     }
@@ -912,14 +921,8 @@ pub fn strip_near_equal_paths<T: Coord>(
 /// ignores `z`; the first point of a run is kept), then trailing points equal to the front
 /// are removed from a closed path.
 pub fn strip_duplicates_path<T: Coord>(path: &mut Path<T>, is_closed_path: bool) {
-    let mut kept: Path<T> = Vec::with_capacity(path.len());
-    for pt in path.iter() {
-        match kept.last() {
-            Some(last) if last.point_eq(pt) => {}
-            _ => kept.push(*pt),
-        }
-    }
-    *path = kept;
+    // In place, as `std::unique`: `dedup_by` compares each candidate with the last kept point.
+    path.dedup_by(|candidate, kept| kept.point_eq(candidate));
     if is_closed_path {
         while path.len() > 1 {
             match (path.last(), path.first()) {
@@ -944,7 +947,7 @@ pub fn strip_duplicates_paths<T: Coord>(paths: &mut Paths<T>, is_closed_path: bo
 /// `void CheckPrecisionRange(int& precision, int& error_code)`.
 ///
 /// Out of range, `precision_error_i` is set and `DoError` throws; the clamp that follows in
-/// the C++ only runs without exceptions and is not reachable in KiCad's build.
+/// the C++ is compiled but unreachable in KiCad's build, because `DoError` throws first.
 pub fn check_precision_range(precision: &mut i32, error_code: &mut i32) -> Result<()> {
     if *precision >= -CLIPPER2_MAX_DEC_PRECISION && *precision <= CLIPPER2_MAX_DEC_PRECISION {
         return Ok(());

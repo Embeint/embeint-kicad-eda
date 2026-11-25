@@ -645,6 +645,101 @@ struct GUARD
             (void) CrossProductSign( polygon[prev], polygon[curr], pt );
         }
     }
+
+    // StripeIndex::BuildFromPath, Build, YToStripe and PointInPolygon (clipper.engine.cpp):
+    // the pinned y range, stripe height and stripe arithmetic, the decline test, and every
+    // CrossProductSign the query reaches, in the pinned order. Nothing is returned.
+    void StripeIndex( const c2::Path64& path, const c2::Point64* query ) const
+    {
+        std::vector<std::pair<c2::Point64, c2::Point64>> edges;
+
+        if( path.size() >= 3 )
+        {
+            for( size_t i = 0, j = path.size() - 1; i < path.size(); j = i++ )
+            {
+                if( path[j].x != path[i].x || path[j].y != path[i].y )
+                    edges.emplace_back( path[j], path[i] );
+            }
+        }
+
+        // Build's empty branch sets no range; PointInPolygon then returns IsOutside.
+        if( edges.empty() )
+            return;
+
+        int64_t yMin = edges[0].first.y, yMax = edges[0].first.y;
+
+        for( const auto& [a, b] : edges )
+        {
+            yMin = std::min( yMin, std::min( a.y, b.y ) );
+            yMax = std::max( yMax, std::max( a.y, b.y ) );
+        }
+
+        int count = static_cast<int>( std::sqrt( static_cast<double>( edges.size() ) ) );
+
+        if( count < 1 )
+            count = 1;
+
+        if( count > 65536 )
+            count = 65536;
+
+        // y_range = y_max - y_min_; stripe_height_ = (y_range + stripe_count_ - 1) / stripe_count_.
+        const int64_t range = Sub( yMax, yMin );
+        const int64_t height = range <= 0 ? 1 : Sub( Add( range, int64_t( count ) ), int64_t( 1 ) ) / count;
+        auto          stripe = [&]( int64_t y ) -> int64_t
+        {
+            const int64_t s = Sub( y, yMin ) / height;
+            return s < 0 ? 0 : ( s >= count ? count - 1 : s );
+        };
+        int64_t total = 0;
+
+        for( const auto& [a, b] : edges )
+        {
+            total = Add( total, Add( Sub( stripe( std::max( a.y, b.y ) ), stripe( std::min( a.y, b.y ) ) ),
+                                     int64_t( 1 ) ) );
+        }
+
+        // A declined ring keeps no edges: PointInPolygon returns IsOutside without arithmetic.
+        if( total > Mul( static_cast<int64_t>( edges.size() ), int64_t( 8 ) ) || !query )
+            return;
+
+        const int64_t s = stripe( query->y );
+
+        // The stripe lists its edges in ascending index order.
+        for( const auto& [a, b] : edges )
+        {
+            if( s < stripe( std::min( a.y, b.y ) ) || s > stripe( std::max( a.y, b.y ) ) )
+                continue;
+
+            const int cross = CrossProductSign( a, b, *query );
+
+            if( cross == 0 && query->x >= std::min( a.x, b.x ) && query->x <= std::max( a.x, b.x )
+                && query->y >= std::min( a.y, b.y ) && query->y <= std::max( a.y, b.y ) )
+            {
+                return;
+            }
+        }
+    }
+
+    // Clipper64 runs the pinned engine (clipper.engine.cpp, owned by the engine source units)
+    // directly on caller coordinates: its int64_t edge differences (GetDx, TopX, ...) are
+    // undefined for coordinates whose differences overflow. The adapter executes it only within
+    // Clipper2's declared coordinate range, MIN_COORD..MAX_COORD, which is the range ClipperD's
+    // ScalePaths range check admits. This is a harness domain limit, not a claim that every
+    // coordinate outside it is undefined; the engine units own the precise guards.
+    void EngineDomain( const c2::Paths64& paths ) const
+    {
+        for( const auto& path : paths )
+        {
+            for( const auto& pt : path )
+            {
+                if( pt.x < c2::MIN_COORD || pt.x > c2::MAX_COORD || pt.y < c2::MIN_COORD
+                    || pt.y > c2::MAX_COORD )
+                {
+                    throw std::invalid_argument( "outside the guarded engine domain: " + op );
+                }
+            }
+        }
+    }
 };
 
 
@@ -1589,6 +1684,19 @@ std::unique_ptr<PROBED> MakeD( const JSON& aPrecision )
 }
 
 
+// ClipperD's private scale_, recovered exactly on a separate clipper of the same precision as
+// the reciprocal of the descale its ZCB reports (the measured clipper keeps its own callback).
+double ScaleOf( const JSON& aPrecision )
+{
+    std::unique_ptr<PROBED> probe = MakeD( aPrecision );
+    RECORDER                recorder;
+    probe->SetZCallback( recorder.Callback() );
+    c2::Point64 unit( 1, 1 );
+    probe->ZCB( unit, unit, unit, unit, unit );
+    return 1 / F64( recorder.calls[0][0][0] );
+}
+
+
 void ReadPoints5( const JSON& aValue, c2::Point64 ( &aOut )[5] )
 {
     const c2::Path64 pts = ReadPath<int64_t>( aValue );
@@ -1902,12 +2010,19 @@ JSON RunEngine( const std::string& aOp, const JSON& aIn, const GUARD& g )
     if( aOp == "stripe_index" )
     {
         Keys( aIn, { "op", "path", "query" } );
-        c2::StripeIndex index;
-        index.BuildFromPath( ReadPath<int64_t>( aIn.at( "path" ) ) );
-        JSON result{ { "edge_count", index.EdgeCount() }, { "empty", index.Empty() } };
+        const c2::Path64 path = ReadPath<int64_t>( aIn.at( "path" ) );
+        std::optional<c2::Point64> query;
 
         if( !aIn.at( "query" ).is_null() )
-            result["query"] = PipName( index.PointInPolygon( ReadPoint<int64_t>( aIn.at( "query" ) ) ) );
+            query = ReadPoint<int64_t>( aIn.at( "query" ) );
+
+        g.StripeIndex( path, query ? &*query : nullptr );
+        c2::StripeIndex index;
+        index.BuildFromPath( path );
+        JSON result{ { "edge_count", index.EdgeCount() }, { "empty", index.Empty() } };
+
+        if( query )
+            result["query"] = PipName( index.PointInPolygon( *query ) );
 
         return result;
     }
@@ -2048,12 +2163,8 @@ JSON RunEngine( const std::string& aOp, const JSON& aIn, const GUARD& g )
             return Thrown( error );
         }
 
-        // The scale is the reciprocal of the descale ZCB reports: recover it exactly.
-        RECORDER recorder;
-        clipper->SetZCallback( recorder.Callback() );
-        c2::Point64 unit( 1, 1 );
-        clipper->ZCB( unit, unit, unit, unit, unit );
-        const double scale = 1 / F64( recorder.calls[0][0][0] );
+        // ScalePaths<int64_t, double>( paths, scale_, error_code_ ) runs before AddPaths.
+        const double scale = ScaleOf( aIn.at( "precision" ) );
         g.ScalePaths<int64_t>( paths, scale, scale );
 
         try
@@ -2091,17 +2202,30 @@ JSON RunEngine( const std::string& aOp, const JSON& aIn, const GUARD& g )
             if( !aIn.at( "precision" ).is_null() )
                 Invalid( "precision" );
 
-            // A null path group skips that Add call.
+            // A null path group skips that Add call. Every group is checked against the
+            // guarded engine domain before the engine sees any of them.
+            std::optional<c2::Paths64> groups[3];
+            const char*                fields[3] = { "subjects", "open_subjects", "clips" };
+
+            for( int i = 0; i < 3; ++i )
+            {
+                if( !aIn.at( fields[i] ).is_null() )
+                {
+                    groups[i] = ReadPaths<int64_t>( aIn.at( fields[i] ) );
+                    g.EngineDomain( *groups[i] );
+                }
+            }
+
             c2::Clipper64 clipper;
 
-            if( !aIn.at( "subjects" ).is_null() )
-                clipper.AddSubject( ReadPaths<int64_t>( aIn.at( "subjects" ) ) );
+            if( groups[0] )
+                clipper.AddSubject( *groups[0] );
 
-            if( !aIn.at( "open_subjects" ).is_null() )
-                clipper.AddOpenSubject( ReadPaths<int64_t>( aIn.at( "open_subjects" ) ) );
+            if( groups[1] )
+                clipper.AddOpenSubject( *groups[1] );
 
-            if( !aIn.at( "clips" ).is_null() )
-                clipper.AddClip( ReadPaths<int64_t>( aIn.at( "clips" ) ) );
+            if( groups[2] )
+                clipper.AddClip( *groups[2] );
             c2::Paths64 closed{ { c2::Point64( 7, 7 ) } }, open{ { c2::Point64( 8, 8 ) } };
             c2::PolyTree64 tree;
             bool           ok;
@@ -2124,19 +2248,39 @@ JSON RunEngine( const std::string& aOp, const JSON& aIn, const GUARD& g )
         try
         {
             clipper = MakeD( aIn.at( "precision" ) );
-
-            if( !aIn.at( "subjects" ).is_null() )
-                clipper->AddSubject( ReadPaths<double>( aIn.at( "subjects" ) ) );
-
-            if( !aIn.at( "open_subjects" ).is_null() )
-                clipper->AddOpenSubject( ReadPaths<double>( aIn.at( "open_subjects" ) ) );
-
-            if( !aIn.at( "clips" ).is_null() )
-                clipper->AddClip( ReadPaths<double>( aIn.at( "clips" ) ) );
         }
         catch( const c2::Clipper2Exception& error )
         {
             return Thrown( error );
+        }
+
+        // Each Add* runs ScalePaths<int64_t, double>( paths, scale_, error_code_ ) before
+        // AddPaths: guard it exactly as clipperd_add does, group by group in call order, so a
+        // range exception from an earlier group still stops before a later group is scaled.
+        const double scale = ScaleOf( aIn.at( "precision" ) );
+        const char*  fields[3] = { "subjects", "open_subjects", "clips" };
+
+        for( int i = 0; i < 3; ++i )
+        {
+            if( aIn.at( fields[i] ).is_null() )
+                continue;
+
+            const c2::PathsD paths = ReadPaths<double>( aIn.at( fields[i] ) );
+            g.ScalePaths<int64_t>( paths, scale, scale );
+
+            try
+            {
+                if( i == 0 )
+                    clipper->AddSubject( paths );
+                else if( i == 1 )
+                    clipper->AddOpenSubject( paths );
+                else
+                    clipper->AddClip( paths );
+            }
+            catch( const c2::Clipper2Exception& error )
+            {
+                return Thrown( error );
+            }
         }
 
         c2::PathsD     closed, open;

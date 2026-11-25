@@ -7,7 +7,9 @@ The corpus (port/cases/<unit>.jsonl) holds only inputs inside the reference's de
 every case must yield a C++ result. Inputs on which the reference expression is undefined
 (signed overflow, out-of-range double to integer conversion, out-of-range indexing, use of a
 destroyed node) go to port/oracle/fixtures/clipper2-core-engine-controls.jsonl, where both
-programs must refuse them identically. `--check` verifies both files are current.
+programs must refuse them identically. The same file holds the Clipper64 engine-domain
+controls: coordinates outside Clipper2's declared range, which the adapter refuses as a harness
+limit before the pinned engine runs. `--check` verifies both files are current.
 """
 import argparse
 import json
@@ -127,12 +129,18 @@ class Corpus:
         message = "undefined behaviour: " + inp["op"]
         self.controls.append({"request": request, "error": {"kind": "invalid_input", "message": message}})
 
+    def domain(self, name, **inp):
+        request = {"unit": UNIT, "case": self._id(name), "input": inp}
+        message = "outside the guarded engine domain: " + inp["op"]
+        self.controls.append({"request": request, "error": {"kind": "invalid_input", "message": message}})
+
 
 def core(c, rng):
     c.add("constants", op="constants")
     for code in [1, 2, 4, 32, 64, 0, 3, -1, 128, 2**31 - 1]:
         c.add(f"do-error-{code}", op="do_error", code=code)
-    for i, message in enumerate(["", "Values exceed permitted range", "Ω unicode \"quoted\""]):
+    # The last message has an embedded NUL: `std::string(const char*)` keeps only "a".
+    for i, message in enumerate(["", "Values exceed permitted range", "Ω unicode \"quoted\"", "a\u0000b"]):
         c.add(f"exception-{i}", op="exception", message=message)
 
     # Point construction and conversion (Init rounding with std::round, ties away from zero).
@@ -558,6 +566,22 @@ def engine(c, rng):
     square = path("i64", [(0, 0), (10, 0), (10, 10), (0, 10)])
     c.add("stripe-index-build", op="stripe_index", path=square, query=p64(5, 5))
     c.add("stripe-index-empty-path", op="stripe_index", path=[], query=None)
+    # StripeIndex::Build's y range, (y_range + stripe_count_ - 1) and YToStripe(pt.y) at their
+    # defined limits, then one past each, and an overflowing CrossProductSign in the stripe.
+    c.add("stripe-index-height-limit", op="stripe_index", path=[p64(0, -1), p64(1, I64_MAX - 2), p64(2, 0)],
+          query=None)
+    c.add("stripe-index-query-limit", op="stripe_index", path=[p64(0, -1), p64(10, -1), p64(10, 10)],
+          query=p64(5, I64_MAX - 1))
+    c.add("stripe-index-declined-far-query", op="stripe_index",
+          path=[p64(x, 0 if x % 2 else 10**6) for x in range(100)], query=p64(4, I64_MIN))
+    c.ub("ub-stripe-index-y-range", op="stripe_index", path=[p64(0, I64_MIN), p64(1, I64_MAX), p64(2, 0)],
+         query=None)
+    c.ub("ub-stripe-index-height", op="stripe_index", path=[p64(0, -1), p64(1, I64_MAX - 1), p64(2, 0)],
+         query=None)
+    c.ub("ub-stripe-index-query-stripe", op="stripe_index", path=[p64(0, 1), p64(10, 1), p64(10, 10)],
+         query=p64(5, I64_MIN))
+    c.ub("ub-stripe-index-cross-product", op="stripe_index", path=[p64(I64_MIN, 0), p64(I64_MAX, 0), p64(0, 10)],
+         query=p64(0, 5))
     for cls, precision in [("64", None), ("D", None), ("D", -8), ("D", 8), ("D", 9), ("D", -9), ("D", 0)]:
         for j, (pc, rs, th) in enumerate([(None, None, None), (False, True, 0), (True, False, U64_MAX)]):
             c.add(f"settings-{cls}-{precision}-{j}", op="clipper_settings", **{"class": cls}, precision=precision,
@@ -597,6 +621,26 @@ def engine(c, rng):
           clips=[], clip_type="Xor", fill_rule="Negative", output="tree")
     c.add("clipperd-execute-precision", op="clipperd_execute", precision=-12, subjects=[], open_subjects=[],
           clips=[], clip_type="Difference", fill_rule="EvenOdd", output="paths")
+    # Each ClipperD Add* scales its group (ScalePaths) before AddPaths: a NaN coordinate passes
+    # the range check and then converts to int64_t, which is undefined, in every group.
+    for i, field in enumerate(["subjects", "open_subjects", "clips"]):
+        groups = {f: None for f in ["subjects", "open_subjects", "clips"]}
+        groups[field] = [[pd(NAN, 0.0)]]
+        c.ub(f"ub-clipperd-execute-{field}", op="clipperd_execute", precision=None, **groups,
+             clip_type="Union", fill_rule="NonZero", output=["paths", "tree", "tree_open"][i])
+    # A range exception from an earlier group stops before a later group is scaled.
+    c.add("clipperd-execute-range-before-nan", op="clipperd_execute", precision=None, subjects=[[pd(1e300, 0.0)]],
+          open_subjects=None, clips=[[pd(NAN, 0.0)]], clip_type="Union", fill_rule="NonZero", output="paths")
+    # Clipper64 runs the pinned engine only within MIN_COORD..MAX_COORD (a harness domain).
+    edge = path("i64", [(-MAX_COORD, -MAX_COORD), (MAX_COORD, -MAX_COORD), (MAX_COORD, MAX_COORD), (-MAX_COORD, MAX_COORD)])
+    c.add("clipper64-execute-domain-limit", op="clipper64_execute", precision=None, subjects=[edge], open_subjects=None,
+          clips=None, clip_type="Union", fill_rule="NonZero", output="paths")
+    for i, (field, point) in enumerate([("subjects", p64(MAX_COORD + 1, 0)), ("open_subjects", p64(0, -MAX_COORD - 1)),
+                                        ("clips", p64(I64_MIN, I64_MAX))]):
+        groups = {f: [square] for f in ["subjects", "open_subjects", "clips"]}
+        groups[field] = [[point, p64(0, 0), p64(1, 1)]]
+        c.domain(f"domain-clipper64-execute-{field}", op="clipper64_execute", precision=None, **groups,
+                 clip_type="Union", fill_rule="NonZero", output=["paths", "paths_open", "tree"][i])
 
     def tri(t, s, x=0):
         return path(t, [(x, 0), (x + s, 0), (x + s, s), (x, s)])
@@ -662,7 +706,7 @@ def main():
     if stale:
         print("stale generated files: " + ", ".join(stale), file=sys.stderr)
         return 1
-    print(f"{cases.count(chr(10))} cases, {controls.count(chr(10))} undefined-behaviour controls")
+    print(f"{cases.count(chr(10))} cases, {controls.count(chr(10))} controls")
     return 0
 
 
