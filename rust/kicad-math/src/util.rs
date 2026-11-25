@@ -340,3 +340,45 @@ impl CheckedCast<f32> for f64 {
         Ok(self as f32)
     }
 }
+
+/// Keep the Linux C++ `long long` identity distinct from int64_t (`long`) when
+/// the deferred logger eventually observes typeid(ret_type).name().
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub struct LongLong(pub i64);
+impl RoundInteger for LongLong {
+    const LOW: i128 = i64::MIN as i128;
+    const HIGH: i128 = i64::MAX as i128;
+    const TYPE_NAME: &'static str = "x";
+    fn from_bounded(v: i128) -> Self {
+        Self(v as i64)
+    }
+}
+impl RoundSource for LongLong {
+    fn round_to<R: RoundInteger>(self, quiet: bool) -> Result<R> {
+        self.0.round_to(quiet)
+    }
+}
+impl CheckedCast<i32> for LongLong {
+    fn checked_cast(self) -> Result<i32> {
+        checked_cast_long_long_to_int(self.0)
+    }
+}
+impl Rescale for LongLong {
+    fn rescale(n: Self, v: Self, d: Self) -> Result<Self> {
+        let product =
+            n.0.checked_mul(v.0)
+                .ok_or(VectorDomainError::IntegerOverflow)?;
+        if d.0 == 0 {
+            return Err(VectorDomainError::DivisionByZero);
+        }
+        Ok(Self(
+            product
+                .checked_div(d.0)
+                .ok_or(VectorDomainError::IntegerOverflow)?,
+        ))
+    }
+}
+/// Omitted ret_type and aQuiet arguments of KiROUND.
+pub fn ki_round_default<S: RoundSource>(value: S) -> Result<i32> {
+    ki_round(value, false)
+}

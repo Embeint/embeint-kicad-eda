@@ -85,6 +85,14 @@ impl Scalar for f32 {
         json!(format!("{:08x}", self.to_bits()))
     }
 }
+impl Scalar for util::LongLong {
+    fn read(v: &Value) -> R<Self> {
+        Ok(Self(i64::read(v)?))
+    }
+    fn out(self) -> Value {
+        self.0.out()
+    }
+}
 fn point<T: Scalar>(v: &Value) -> R<Vector2<T>> {
     let a = v
         .as_array()
@@ -349,6 +357,7 @@ fn round<S: util::RoundSource + Scalar>(v: &Value) -> R<Value> {
         "i32" => util::ki_round::<_, i32>(x, quiet)?.out(),
         "u32" => util::ki_round::<_, u32>(x, quiet)?.out(),
         "i64" => util::ki_round::<_, i64>(x, quiet)?.out(),
+        "ll" => util::ki_round::<_, util::LongLong>(x, quiet)?.out(),
         _ => return Err(Error::Input("unknown target".into())),
     })
 }
@@ -474,6 +483,17 @@ fn run(v: &Value) -> R<Value> {
             ki_round_box(&a)?
         }));
     }
+    if op == "round_default" {
+        shape(v, &["op", "type", "a"], &[])?;
+        return Ok(match text(v, "type")? {
+            "f64" => util::ki_round_default(f64::read(&v["a"])?)?.out(),
+            "f32" => util::ki_round_default(f32::read(&v["a"])?)?.out(),
+            "i32" => util::ki_round_default(i32::read(&v["a"])?)?.out(),
+            "i64" => util::ki_round_default(i64::read(&v["a"])?)?.out(),
+            "ll" => util::ki_round_default(util::LongLong::read(&v["a"])?)?.out(),
+            _ => return Err(Error::Input("unknown type".into())),
+        });
+    }
     let extra = match op {
         "round" => vec!["target", "quiet"],
         "equals" => vec!["b", "epsilon"],
@@ -554,6 +574,7 @@ fn run(v: &Value) -> R<Value> {
         "i32" => integers::<i32>(v),
         "u32" => integers::<u32>(v),
         "i64" => integers::<i64>(v),
+        "ll" if op == "round" => round::<util::LongLong>(v),
         "u64" => integers::<u64>(v),
         _ => Err(Error::Input("unknown type".into())),
     }
@@ -619,7 +640,7 @@ mod tests {
                 counts[1] += 1;
             }
         }
-        assert_eq!(counts, [14162, 1591]);
+        assert_eq!(counts, [14221, 1607]);
     }
     #[test]
     fn undefined_controls_refuse_and_next_request_survives() -> Result<(), serde_json::Error> {

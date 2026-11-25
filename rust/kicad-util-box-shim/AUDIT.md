@@ -21,7 +21,7 @@ live reports; a mapping is not proof of complete qualification.
 
 | Owned body/overloads | Rust body and source branches | Corpus evidence and remaining limits |
 | --- | --- | --- |
-| KiROUND<S,R> | util::ki_round/RoundSource: integer comparisons without double conversion; NaN, upper/lower pre-saturation; llround; final clamp; quiet bypass and nonquiet logging; clamp return after call | round-*; f32/f64 and 8/16/32/64-bit signed/unsigned sources, targets through signed64/unsigned32; logging retains util.cpp owner; C++ long double/custom types unqualified |
+| KiROUND<S,R> | util::ki_round/RoundSource: integer comparisons without double conversion; NaN, upper/lower pre-saturation; llround; final clamp; quiet bypass and nonquiet logging; clamp return after call | round-* / round-default-*; f32/f64 and 8/16/32/64-bit signed/unsigned sources plus distinct C++ long long, targets through signed64/unsigned32 and explicit long long; logging retains util.cpp owner; C++ long double/custom types unqualified |
 | KiCheckedCast<S,R> | ki_checked_cast/CheckedCast generic numeric casts; checked_cast_long_long_to_int special logging/clamp | cast-* directly exercises long long->int; Linux generic long->int is exercised by box extremes; other generic pairs have Rust implementation but no complete native qualification |
 | rescale<T> | generic multiplication then division, promoted small ints/unsigned wrapping, f32/f64; i32/i64 dispatch to accepted source owner | rescale-*; native i32/i64/f32/f64; other integer types implemented but not native-qualified |
 | sign<T> | comparison subtraction, including unordered/-0 | sign-* for all adapter types |
@@ -86,7 +86,7 @@ full type/branch coverage is made. Rust checks its arithmetic independently.
 ## Validation
 
 Fixed-seed public corpora are additive and deterministic. The owned corpus has
-15,753 inputs and 11 separate UB controls. Vector has 10,286 inputs (+704),
+15,828 inputs and 11 separate UB controls. Vector has 10,286 inputs (+704),
 geometry 18,434 (+384). No prior corpus case is deleted or excluded. Native
 comparison reports must show zero previously passing regressions. The scoped
 workflow runs all three corpora and replays this unit's freshly executed native

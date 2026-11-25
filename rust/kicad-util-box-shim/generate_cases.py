@@ -112,6 +112,12 @@ def generate():
         for i in range(20):
             a=dict(mode='raw',pos=[bits(rng.uniform(-1e10,1e10)) for _ in range(2)],size=[bits(rng.uniform(-1e10,1e10)) for _ in range(2)])
             add(f'{op}-{i}',op=op,a=a)
+    # Explicit long long type identity and actual omitted-argument KiROUND calls.
+    for t,values in [('i64',[-2**63,-2**31-1,-1,0,1,2**31,2**63-1]),('ll',[-2**63,-1,0,1,2**63-1]),('i32',[-2**31,0,2**31-1]),('f64',[bits(x) for x in [-.5,.5,-0.,float('nan'),float('inf'),2.**63]]),('f32',[bits(x,'f32') for x in [-.5,.5,float('nan'),float('inf')]])]:
+        for i,a in enumerate(values):
+            add(f'round-default-{t}-{i}',op='round_default',type=t,a=a)
+            for quiet in [False,True]:
+                add(f'round-longlong-target-{t}-{i}-{quiet}',op='round',type=t,a=a,target='ll',quiet=quiet)
     assert len({c['case'] for c in cases})==len(cases)
     return ''.join(json.dumps(c,separators=(',',':'),allow_nan=False)+'\n' for c in cases)
 def controls():

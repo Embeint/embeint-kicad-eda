@@ -638,8 +638,9 @@ JSON rounded( const JSON& v )
     TARGET( "i32", int )
     TARGET( "u32", unsigned )
     TARGET( "i64", int64_t )
+    TARGET( "ll", long long )
 #undef TARGET
-    throw std::invalid_argument( "unknown target" );
+            throw std::invalid_argument( "unknown target" );
 }
 template <class T>
 JSON scalar( const JSON& v )
@@ -763,6 +764,22 @@ JSON run( const JSON& v )
         }
         return state( KiROUND( b ) );
     }
+    if( op == "round_default" )
+    {
+        keys( v, { "op", "type", "a" } );
+        auto t = text( v, "type" );
+        if( t == "f64" )
+            return out( KiROUND( read<double>( v.at( "a" ) ) ) );
+        if( t == "f32" )
+            return out( KiROUND( read<float>( v.at( "a" ) ) ) );
+        if( t == "i32" )
+            return out( KiROUND( read<int>( v.at( "a" ) ) ) );
+        if( t == "i64" )
+            return out( KiROUND( read<int64_t>( v.at( "a" ) ) ) );
+        if( t == "ll" )
+            return out( KiROUND( read<long long>( v.at( "a" ) ) ) );
+        throw std::invalid_argument( "unknown type" );
+    }
     std::vector<std::string> fields = { "op", "type", "a" };
     if( op == "round" )
     {
@@ -824,7 +841,8 @@ JSON run( const JSON& v )
     TYPE( "i16", int16_t )
     TYPE( "u16", uint16_t )
     TYPE( "i32", int )
-    TYPE( "u32", unsigned ) TYPE( "i64", int64_t ) TYPE( "u64", uint64_t )
+    TYPE( "u32", unsigned )
+    TYPE( "i64", int64_t ) TYPE( "ll", long long ) TYPE( "u64", uint64_t )
 #undef TYPE
             throw std::invalid_argument( "unknown type" );
 }
