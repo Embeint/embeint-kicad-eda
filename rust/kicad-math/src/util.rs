@@ -369,6 +369,11 @@ impl CheckedCast<f64> for f32 {
 }
 impl CheckedCast<f32> for f64 {
     fn checked_cast(self) -> Result<f32> {
+        // A finite source outside the destination range is undefined in C++.
+        // Infinity is itself representable and must remain a successful cast.
+        if self.is_finite() && self.abs() > f64::from(f32::MAX) {
+            return Err(VectorDomainError::CastOutOfRange);
+        }
         Ok(self as f32)
     }
 }

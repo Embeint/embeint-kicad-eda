@@ -12,7 +12,8 @@ hex strings (16 digits for f64, eight for f32). Results preserve those encodings
 Input or undefined-arithmetic refusals are distinct from typed `unported` replies.
 
 Scalar operations: `round` (`type,a,target,quiet`), `round_default` (`type,a`),
-`checked_cast` (the long long->int specialization), `sign`, `isqrt`, `ct_sqrt`,
+`checked_cast` (the long long->int specialization),
+`narrow_float` (generic double->float), `sign`, `isqrt`, `ct_sqrt`,
 `ct_sqrt_helper` (`lo,hi`), `clamp` (`lo,hi`), `equals` (`b,epsilon`; null means
 omitted default), `rescale` (`b,d`), `abs`, and `hypot` (`b`). `ll` preserves C++
 long long's distinct type identity; `i64` names Linux int64_t=long. Rounding covers

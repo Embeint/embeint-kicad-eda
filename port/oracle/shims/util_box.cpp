@@ -891,6 +891,13 @@ JSON run( const JSON& v )
     keys( v, fields );
     if( op == "checked_cast" )
         return out( KiCheckedCast<long long, int>( read<int64_t>( v.at( "a" ) ) ) );
+    if( op == "narrow_float" )
+    {
+        double a = read<double>( v.at( "a" ) );
+        if( std::isfinite( a ) && std::abs( a ) > double( std::numeric_limits<float>::max() ) )
+            undefined();
+        return out( KiCheckedCast<double, float>( a ) );
+    }
     if( op == "abs" )
         return out( UnsignedAbs( read<int64_t>( v.at( "a" ) ) ) );
     if( op == "hypot" )

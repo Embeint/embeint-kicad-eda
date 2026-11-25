@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Fixed-seed public inputs only. Undefined controls remain outside the live corpus."""
-import argparse,json,random,struct
+import argparse,json,math,random,struct
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
 UNIT='libs.kimath.include.math.application.ui.p001'
@@ -148,11 +148,21 @@ def generate():
     for alias in ['origin','size']:
         add(f'box-alias-narrow-{alias}',op='box',type='i32',kind='merge_point_alias',a=dict(mode='raw',pos=[-2**31,0],size=[-2,0]),alias=alias)
     add('farthest-unused-overflow-edge',op='box',type='i64',kind='farthest',a=dict(mode='raw',pos=[2**63-1,0],size=[1,0]),p=[2**63-1,0])
+    # Actual generic double -> float conversion, including rounding and NaN transport.
+    float_max=struct.unpack('>f',bytes.fromhex('7f7fffff'))[0]
+    cast_values=[0.,-0.,1.,-1.,1.+2**-24,1.+3*2**-24,float_max,-float_max,
+                 math.nextafter(float_max,0.),-math.nextafter(float_max,0.),
+                 2**-126,-2**-126,2**-149,-2**-149,2**-150,-2**-150,
+                 float('inf'),-float('inf')]
+    cast_bits=[bits(x) for x in cast_values]+['7ff0000000000001','fff0000000000001','7ff8123456789abc','fff8123456789abc']
+    for i,a in enumerate(cast_bits):add(f'narrow-float-{i}',op='narrow_float',type='f64',a=a)
     assert len({c['case'] for c in cases})==len(cases)
     return ''.join(json.dumps(c,separators=(',',':'),allow_nan=False)+'\n' for c in cases)
 def controls():
     cs=[]
     def add(name,**v):cs.append(dict(request=dict(unit=UNIT,case=name,input=v),error=dict(kind='invalid_input',message='undefined box/util operation')))
+    for negative in [False,True]:
+        add(f'ub-narrow-float-{negative}',op='narrow_float',type='f64',a=bits(-2.**129 if negative else 2.**129))
     add('ub-center-size-max-cast',op='box',type='f64',kind='getters',a=dict(mode='center',pos=[bits(10.),bits(20.)],size=[bits(4294967296.),bits(0.)]))
     add('ub-ct-helper-add',op='ct_sqrt_helper',type='i32',a=0,lo=2**31-2,hi=2**31-1)
     add('ub-ct-helper-divide',op='ct_sqrt_helper',type='i32',a=-2**31,lo=-3,hi=0)

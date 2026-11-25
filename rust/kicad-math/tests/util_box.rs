@@ -98,3 +98,32 @@ fn merge_reads_live_size_after_normalizing_but_captures_converting_temporaries()
     assert_eq!(i.size(), Vector2::new(0, 0));
     Ok(())
 }
+
+#[test]
+fn float_narrowing_distinguishes_defined_infinity_from_finite_overflow() -> util::Result<()> {
+    assert_eq!(
+        util::ki_checked_cast::<_, f32>(f64::from(f32::MAX))?,
+        f32::MAX
+    );
+    assert_eq!(
+        util::ki_checked_cast::<_, f32>(f64::INFINITY)?,
+        f32::INFINITY
+    );
+    assert_eq!(
+        util::ki_checked_cast::<_, f32>(-f64::INFINITY)?,
+        -f32::INFINITY
+    );
+    assert_eq!(
+        util::ki_checked_cast::<_, f32>(2.0_f64.powi(129)),
+        Err(VectorDomainError::CastOutOfRange)
+    );
+    assert_eq!(
+        util::ki_checked_cast::<_, f32>(-2.0_f64.powi(129)),
+        Err(VectorDomainError::CastOutOfRange)
+    );
+    assert_eq!(
+        util::ki_checked_cast::<_, f32>(1.0 + 2.0_f64.powi(-24))?,
+        1.0
+    );
+    Ok(())
+}

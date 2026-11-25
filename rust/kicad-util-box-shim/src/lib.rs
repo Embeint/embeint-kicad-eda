@@ -517,6 +517,9 @@ fn run(v: &Value) -> R<Value> {
     if op == "checked_cast" {
         return Ok(util::checked_cast_long_long_to_int(i64::read(&v["a"])?)?.out());
     }
+    if op == "narrow_float" {
+        return Ok(util::ki_checked_cast::<f64, f32>(f64::read(&v["a"])?)?.out());
+    }
     if op == "abs" {
         return Ok(util::unsigned_abs(i64::read(&v["a"])?).out());
     }
@@ -649,7 +652,7 @@ mod tests {
                 counts[1] += 1;
             }
         }
-        assert_eq!(counts, [14298, 1607]);
+        assert_eq!(counts, [14320, 1607]);
     }
     #[test]
     fn undefined_controls_refuse_and_next_request_survives() -> Result<(), serde_json::Error> {
