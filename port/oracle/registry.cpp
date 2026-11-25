@@ -17,6 +17,7 @@ void RegisterVector( REGISTRY& aRegistry );
 void RegisterDynamicRtree( REGISTRY& aRegistry );
 void RegisterCowPackedRtree( REGISTRY& aRegistry );
 void RegisterEdaAngleSource( REGISTRY& aRegistry );
+void RegisterArcChordParams( REGISTRY& aRegistry );
 void RegisterClipper2CoreEngine( REGISTRY& aRegistry );
 
 
@@ -47,6 +48,7 @@ REGISTRY MakeRegistry()
     RegisterDynamicRtree( registry );
     RegisterCowPackedRtree( registry );
     RegisterEdaAngleSource( registry );
+    RegisterArcChordParams( registry );
     RegisterClipper2CoreEngine( registry );
     return registry;
 }
