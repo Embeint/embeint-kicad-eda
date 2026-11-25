@@ -72,7 +72,7 @@ jobs:
           for profile in dev release; do
             name=$([ "$profile" = dev ] && echo debug || echo release)
             wasm=$(cargo test --locked --manifest-path rust/Cargo.toml -p kicad-math --lib --target wasm32-wasip1 --profile "$profile" --no-run --message-format=json | python3 port/glibc-libm/reference.py wasi-test)
-            node port/glibc-trig/node_wasi_test.mjs "$wasm" "$OUT" glibc_libm --include-ignored --nocapture 2>&1 | tee "$OUT/wasip1-$name.log"
+            node port/glibc-libm/node_wasi_test.mjs "$wasm" "$OUT" glibc_libm --include-ignored --nocapture 2>&1 | tee "$OUT/wasip1-$name.log"
           done
       - name: Import-free wasm32-unknown-unknown debug and release
         if: ${{ !cancelled() && steps.reference.outcome == 'success' }}
