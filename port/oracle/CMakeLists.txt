@@ -106,6 +106,15 @@ endif()
 set( UTIL_BOX_SHIM "${ORACLE_OVERLAY}/shims/util_box.cpp" )
 list( REMOVE_ITEM ORACLE_SHIMS "${UTIL_BOX_SHIM}" )
 list( APPEND ORACLE_SHIMS "${UTIL_BOX_SHIM}" )
+# Adapters for out-of-line kimath sources (shims/kimath_src_*.cpp) follow every
+# previously qualified adapter, in name order, so their weak template copies are
+# never selected ahead of an earlier adapter's.
+file( GLOB KIMATH_SRC_SHIMS CONFIGURE_DEPENDS "${ORACLE_OVERLAY}/shims/kimath_src_*.cpp" )
+if( KIMATH_SRC_SHIMS )
+    list( SORT KIMATH_SRC_SHIMS )
+    list( REMOVE_ITEM ORACLE_SHIMS ${KIMATH_SRC_SHIMS} )
+    list( APPEND ORACLE_SHIMS ${KIMATH_SRC_SHIMS} )
+endif()
 # Keep previously qualified adapters first when selecting weak template bodies.
 set( GEOMETRY_SHIM "${ORACLE_OVERLAY}/shims/geometry_headers.cpp" )
 list( REMOVE_ITEM ORACLE_SHIMS "${GEOMETRY_SHIM}" )

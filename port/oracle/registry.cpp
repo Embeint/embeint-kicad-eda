@@ -16,6 +16,7 @@ void RegisterMathUtil( REGISTRY& aRegistry );
 void RegisterVector( REGISTRY& aRegistry );
 void RegisterDynamicRtree( REGISTRY& aRegistry );
 void RegisterCowPackedRtree( REGISTRY& aRegistry );
+void RegisterEdaAngleSource( REGISTRY& aRegistry );
 
 
 void REGISTRY::Add( const std::string& aUnit, const std::string& aUpstream, SHIM aShim )
@@ -44,6 +45,7 @@ REGISTRY MakeRegistry()
     RegisterVector( registry );
     RegisterDynamicRtree( registry );
     RegisterCowPackedRtree( registry );
+    RegisterEdaAngleSource( registry );
     return registry;
 }
 

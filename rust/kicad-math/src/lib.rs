@@ -18,7 +18,9 @@
 //!
 //! Unit `libs.kimath.include.geometry.application.ui.p001` owns [`eda_angle`]
 //! (`geometry/eda_angle.h`), [`geometry_headers`] (`geometry/ellipse.h`, `grid_geometry.h`)
-//! and [`poly_ystripes`] (`geometry/poly_ystripes_index.h`).
+//! and [`poly_ystripes`] (`geometry/poly_ystripes_index.h`). Unit
+//! `libs.kimath.src.geometry.eda_angle.application.pure.p001` adds the out-of-line
+//! `geometry/eda_angle.cpp` bodies to that type in [`eda_angle_source`].
 //!
 //! The `MATRIX3x3<double>` arithmetic is evaluated through private per-site code generated
 //! from the pinned oracle binary (`generated`) on explicit SSE2 NaN selection (`sse2`); see
@@ -29,6 +31,7 @@
 extern crate self as kicad_math;
 
 pub mod eda_angle;
+pub mod eda_angle_source;
 mod fp;
 pub mod geometry_headers;
 mod hypot;
