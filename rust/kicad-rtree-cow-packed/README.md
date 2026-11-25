@@ -17,7 +17,8 @@ nearest-neighbor API; that algorithm remains in p001 and is not copied here.
 
 `Option<T>` models the pointer DATATYPE, including null. As with the accepted
 node crate, `NodeData` must model non-owning pointer identity, not payloads with
-externally visible clone/drop side effects. Coordinates use the accepted sealed
+externally visible clone/drop side effects. The supported template interface uses positive dimensions and fanout >=2.
+Coordinates use the accepted sealed
 `Coord` (`i32` and `i64`), without a magnitude fence or bound normalization.
 
 ## Ownership and API
@@ -113,5 +114,6 @@ node topologies are not exposed. No tolerance, lookup, exclusions or golden.
 | packed iterator constructor/operators/begin/end | `PackedCursor` | position equality, skip, postfix old value, arrow read, exhaustion | end dereference/increment are undefined in C++ and refused |
 
 See the sibling shim README for commands, corpus counts and revision-specific
-native/wasm evidence. Five portable behavior tests additionally check lifetime,
+native/wasm evidence. All 49 extracted USRs are included in this full-header audit.
+Five portable behavior tests additionally check lifetime,
 stopping, deep paths, exact arithmetic refusal and move/budget contracts.

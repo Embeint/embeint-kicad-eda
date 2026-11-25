@@ -1,0 +1,34 @@
+{
+  "pin": "4cf939778df04d2b747bb2c4714fc5014a7565c7",
+  "source_sha256": {
+    "libs/kimath/include/geometry/rtree/dynamic_rtree_cow.h": "3be0e8fae298da528e16a865bc76e76004527092b1572c993efc8c6ad62b4cb9",
+    "libs/kimath/include/geometry/rtree/packed_rtree.h": "7f461faf39cea8c51eb531377e27622dcaecc4f031e2d462ba8dce28d70b3650",
+    "libs/kimath/include/geometry/rtree/dynamic_rtree.h": "82a116ed5908a9e50ff079ccc0dbfd21780a6f8c8633e01cc9c5ff0087f77e6a",
+    "libs/kimath/include/geometry/rtree/rtree_node.h": "448e32c2beb20dabd1e8d98b98b3e430fd6ea1c58de440cae78e48a13e359587",
+    "thirdparty/nlohmann_json/nlohmann/json.hpp": "9bea4c8066ef4a1c206b2be5a36302f8926f7fdc6087af5d20b417d0cf103ea6"
+  },
+  "overlay_sha256": {
+    "port/oracle/shims/cow_packed_rtree.cpp": "d1bc1246af25ee51bf73c8fad70d95bd7ddb6a1617645da76ec1f7f7738c3104",
+    "port/oracle/protocol.cpp": "481ff37223bce228d2ed35b8afac14eb9f92ef8b7a5a944432b233c29f7c47ca",
+    "port/oracle/protocol.h": "e55856a73b3aad95d46f843fc1ca5047454ec2ffd0d37630f39e9d07464de652",
+    "port/oracle/registry.h": "687b5d51b8e5c3855ad06ff6468ee1bae424111718133f7cc95ca3de89fda3b1",
+    "rust/kicad-rtree-cow-packed-shim/native/main.cpp": "363093d588323eca7a8f4d45f9a56fb799f7d38e76f22dacd8847cba39b5cbad"
+  },
+  "revision": "a189f6fe4a87d78d69fa802b8cf567b22e7d0a1f",
+  "dirty": false,
+  "platform": "Linux-6.18.60-0-virt-aarch64-with-glibc2.36",
+  "machine": "aarch64",
+  "compiler": "g++",
+  "compiler_version": "g++ (Debian 12.2.0-14+deb12u1) 12.2.0\nCopyright (C) 2022 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+  "flags": [
+    "-std=c++20",
+    "-O0",
+    "-g0",
+    "--coverage",
+    "-fno-fast-math",
+    "-ffp-contract=off",
+    "-fsanitize=undefined,float-cast-overflow",
+    "-fno-sanitize-recover=all"
+  ],
+  "binary_sha256": "42d0ef43b59f83607bb3673182a8c431b5c68f2e95316649994d0d18c975dd71"
+}
