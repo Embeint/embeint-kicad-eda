@@ -7,7 +7,8 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 mod error;
 mod iter;
-mod order;
+/// Shared libstdc++ ordering contract for the COW/packed sibling unit.
+pub mod order;
 pub use error::Error;
 use error::{add, mul, push, reserve, sub};
 pub use iter::{Cursor, SearchRange};

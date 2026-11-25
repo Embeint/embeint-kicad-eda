@@ -13,6 +13,7 @@ void RegisterRtreeNode( REGISTRY& aRegistry );
 void RegisterMathUtil( REGISTRY& aRegistry );
 void RegisterVector( REGISTRY& aRegistry );
 void RegisterDynamicRtree( REGISTRY& aRegistry );
+void RegisterCowPackedRtree( REGISTRY& aRegistry );
 
 
 void REGISTRY::Add( const std::string& aUnit, const std::string& aUpstream, SHIM aShim )
@@ -38,6 +39,7 @@ REGISTRY MakeRegistry()
     RegisterMathUtil( registry );
     RegisterVector( registry );
     RegisterDynamicRtree( registry );
+    RegisterCowPackedRtree( registry );
     return registry;
 }
 

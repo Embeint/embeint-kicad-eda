@@ -762,6 +762,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "kicad-rtree-cow-packed"
+version = "0.1.0"
+dependencies = [
+ "kicad-rtree",
+ "kicad-rtree-node",
+]
+
+[[package]]
+name = "kicad-rtree-cow-packed-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-rtree",
+ "kicad-rtree-cow-packed",
+ "kicad-rtree-node",
+ "serde_json",
+]
+
+[[package]]
 name = "kicad-rtree-node"
 version = "0.1.0"
 
