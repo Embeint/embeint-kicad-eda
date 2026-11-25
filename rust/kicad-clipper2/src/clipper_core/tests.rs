@@ -119,9 +119,15 @@ fn stream_insertion() {
 #[test]
 fn exception_description_is_a_c_string() {
     // `std::string(const char*)` stops at the first NUL.
-    assert_eq!(Clipper2Exception::new("a\0b").what(), "a");
-    assert_eq!(Clipper2Exception::new("\0").what(), "");
-    assert_eq!(Clipper2Exception::new("ab").what(), "ab");
+    assert_eq!(
+        Clipper2Exception::new("a\0b").map(|e| e.what().len()),
+        Ok(1)
+    );
+    assert_eq!(Clipper2Exception::new("\0").map(|e| e.what().len()), Ok(0));
+    assert_eq!(
+        Clipper2Exception::new("ab").map(|e| e.what() == "ab"),
+        Ok(true)
+    );
 }
 
 #[test]

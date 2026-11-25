@@ -40,6 +40,8 @@
 //! `thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p001`/`p002` units; header bodies
 //! that call them return [`ClipperError::Unported`] at that call, naming the owning unit.
 
+use std::borrow::Cow;
+
 pub mod clipper_core;
 pub mod clipper_engine;
 pub mod stream;
@@ -54,24 +56,40 @@ pub const ENGINE_SRC_P001: &str = "thirdparty.clipper2.clipper2lib.src.thirdpart
 pub const ENGINE_SRC_P002: &str = "thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p002";
 
 /// `Clipper2Lib::Clipper2Exception`: `what()` returns the description it was built with.
-#[derive(Clone, Debug, PartialEq, Eq)]
+///
+/// Not `Clone`: copying a caller-sized description would be an infallible allocation.
+/// The reference's own `DoError` messages are borrowed and never allocate.
+#[derive(Debug, PartialEq, Eq)]
 pub struct Clipper2Exception {
-    descr: String,
+    descr: Cow<'static, str>,
 }
 
 impl Clipper2Exception {
+    /// `DoError`'s fixed reference messages, which contain no NUL.
+    pub(crate) const fn from_static(description: &'static str) -> Self {
+        Self {
+            descr: Cow::Borrowed(description),
+        }
+    }
+
     /// `explicit Clipper2Exception(const char* description)`: `descr_` is built by
     /// `std::string(const char*)`, which stops at the first NUL, so a description with an
-    /// embedded NUL keeps only the text before it.
-    pub fn new(description: &str) -> Self {
+    /// embedded NUL keeps only the text before it. The copy is sized by the caller, so it
+    /// is reserved fallibly and fails with [`ClipperError::Allocation`] instead of aborting.
+    pub fn new(description: &str) -> Result<Self> {
         // '\0' is ASCII, so its byte index is a character boundary.
         let c_string = match description.find('\0') {
             Some(end) => &description[..end],
             None => description,
         };
-        Self {
-            descr: c_string.to_owned(),
-        }
+        let mut descr = String::new();
+        descr
+            .try_reserve_exact(c_string.len())
+            .map_err(|_| ClipperError::Allocation)?;
+        descr.push_str(c_string);
+        Ok(Self {
+            descr: Cow::Owned(descr),
+        })
     }
 
     /// `what() const noexcept`.
@@ -81,7 +99,7 @@ impl Clipper2Exception {
 }
 
 /// Every way a ported operation can end other than with its normal result.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ClipperError {
     /// A `Clipper2Exception` thrown by `DoError`. Any reference parameter the C++ updated
     /// before throwing (such as `error_code`) has been updated here too.

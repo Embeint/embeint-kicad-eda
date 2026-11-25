@@ -1510,7 +1510,7 @@ fn run(v: &Value) -> R<Value> {
         }
         "exception" => {
             keys(v, &["op", "message"])?;
-            let error = Clipper2Exception::new(text(v, "message")?);
+            let error = Clipper2Exception::new(text(v, "message")?)?;
             Ok(json!({"what": error.what()}))
         }
         "check_precision" => {

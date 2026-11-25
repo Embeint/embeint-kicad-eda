@@ -68,7 +68,7 @@ pub fn do_error(error_code: i32) -> ClipperError {
         // "Should never happen, but adding this to stop a compiler warning"
         _ => "Unknown error",
     };
-    ClipperError::Exception(Clipper2Exception::new(description))
+    ClipperError::Exception(Clipper2Exception::from_static(description))
 }
 
 /// `FillRule`.
