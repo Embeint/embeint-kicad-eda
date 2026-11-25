@@ -15,339 +15,481 @@ namespace
 {
 using oracle::JSON;
 constexpr const char* GEOMETRY_UNIT = "libs.kimath.include.geometry.application.ui.p001";
-void Keys( const JSON& v, std::initializer_list<const char*> fields )
+void checkKeys( const JSON& aInput, std::initializer_list<const char*> aFields )
 {
-    if( !v.is_object() ) throw std::invalid_argument( "expected object" );
-    if( v.size() != fields.size() ) throw std::invalid_argument( "unexpected or missing field" );
-    for( const char* field : fields )
-        if( !v.contains( field ) ) throw std::invalid_argument( "unexpected or missing field" );
+    if( !aInput.is_object() )
+        throw std::invalid_argument( "expected object" );
+    if( aInput.size() != aFields.size() )
+        throw std::invalid_argument( "unexpected or missing field" );
+    for( const char* field : aFields )
+        if( !aInput.contains( field ) )
+            throw std::invalid_argument( "unexpected or missing field" );
 }
-std::string Text( const JSON& v, const char* name )
+
+
+std::string readText( const JSON& aInput, const char* aName )
 {
-    if( !v.contains( name ) || !v.at( name ).is_string() )
-        throw std::invalid_argument( std::string( "expected string: " ) + name );
-    return v.at( name ).get<std::string>();
+    if( !aInput.contains( aName ) || !aInput.at( aName ).is_string() )
+        throw std::invalid_argument( std::string( "expected string: " ) + aName );
+    return aInput.at( aName ).get<std::string>();
 }
-double Number( const JSON& v, const char* name )
+
+
+double readNumber( const JSON& aInput, const char* aName )
 {
-    const std::string text = Text( v, name );
+    const std::string text = readText( aInput, aName );
     if( text.size() != 16 || text.find_first_not_of( "0123456789abcdef" ) != std::string::npos )
-        throw std::invalid_argument( std::string( "invalid hex: " ) + name );
+        throw std::invalid_argument( std::string( "invalid hex: " ) + aName );
     return std::bit_cast<double>( std::stoull( text, nullptr, 16 ) );
 }
-JSON Bits( double value )
+
+
+JSON bits( double aValue )
 {
     std::ostringstream s;
     s.imbue( std::locale::classic() );
-    s << std::hex << std::setw( 16 ) << std::setfill( '0' ) << std::bit_cast<uint64_t>( value );
+    s << std::hex << std::setw( 16 ) << std::setfill( '0' ) << std::bit_cast<uint64_t>( aValue );
     return s.str();
 }
-int Int( const JSON& v, const char* name ) { return oracle::Integer( v, name, INT_MIN, INT_MAX ); }
-const JSON& Array( const JSON& v, const char* name )
+
+
+int readInteger( const JSON& aInput, const char* aName )
 {
-    if( !v.contains( name ) || !v.at( name ).is_array() )
-        throw std::invalid_argument( std::string( "expected array: " ) + name );
-    return v.at( name );
+    return oracle::Integer( aInput, aName, INT_MIN, INT_MAX );
 }
-VECTOR2I Point( const JSON& v )
+
+
+const JSON& readArray( const JSON& aInput, const char* aName )
 {
-    if( !v.is_array() || v.size() != 2 ) throw std::invalid_argument( "expected point" );
+    if( !aInput.contains( aName ) || !aInput.at( aName ).is_array() )
+        throw std::invalid_argument( std::string( "expected array: " ) + aName );
+    return aInput.at( aName );
+}
+
+
+VECTOR2I readPoint( const JSON& aInput )
+{
+    if( !aInput.is_array() || aInput.size() != 2 )
+        throw std::invalid_argument( "expected point" );
     int values[2];
     for( int i = 0; i < 2; ++i )
     {
-        if( !v[i].is_number_integer() || ( v[i].is_number_unsigned() && v[i].get<uint64_t>() > INT_MAX )
-            || v[i].get<int64_t>() < INT_MIN || v[i].get<int64_t>() > INT_MAX )
+        if( !aInput[i].is_number_integer() || ( aInput[i].is_number_unsigned() && aInput[i].get<uint64_t>() > INT_MAX )
+            || aInput[i].get<int64_t>() < INT_MIN || aInput[i].get<int64_t>() > INT_MAX )
             throw std::invalid_argument( "point out of range" );
-        values[i] = v[i].get<int>();
+        values[i] = aInput[i].get<int>();
     }
     return VECTOR2I( values[0], values[1] );
 }
-void CheckInt( int64_t value )
+
+
+void checkInt( int64_t aValue )
 {
-    if( value < INT_MIN || value > INT_MAX ) throw std::invalid_argument( "intermediate overflow" );
+    if( aValue < INT_MIN || aValue > INT_MAX )
+        throw std::invalid_argument( "intermediate overflow" );
 }
+
+
 // Every edge straddling the query belongs to its stripe. These are exactly the
 // subtractions executed by Contains, independent of whether it ends inside.
-void CheckRay( const SHAPE_POLY_SET& poly, const VECTOR2I& point )
+void checkRay( const SHAPE_POLY_SET& aPoly, const VECTOR2I& aPoint )
 {
     auto ring = [&]( const SHAPE_LINE_CHAIN& chain )
     {
-        if( chain.PointCount() < 3 ) return;
+        if( chain.PointCount() < 3 )
+            return;
         for( int j = 0; j < chain.PointCount(); ++j )
         {
-            const auto& a = chain.CPoint( j );
-            const auto& b = chain.CPoint( ( j + 1 ) % chain.PointCount() );
-            if( ( a.y >= point.y ) == ( b.y >= point.y ) ) continue;
-            CheckInt( int64_t( b.x ) - a.x ); CheckInt( int64_t( b.y ) - a.y );
-            CheckInt( int64_t( point.y ) - a.y ); CheckInt( int64_t( point.x ) - a.x );
+            const VECTOR2I& a = chain.CPoint( j );
+            const VECTOR2I& b = chain.CPoint( ( j + 1 ) % chain.PointCount() );
+            if( ( a.y >= aPoint.y ) == ( b.y >= aPoint.y ) )
+                continue;
+            checkInt( int64_t( b.x ) - a.x );
+            checkInt( int64_t( b.y ) - a.y );
+            checkInt( int64_t( aPoint.y ) - a.y );
+            checkInt( int64_t( aPoint.x ) - a.x );
         }
     };
-    for( int o = 0; o < poly.OutlineCount(); ++o )
+    for( int o = 0; o < aPoly.OutlineCount(); ++o )
     {
-        ring( poly.COutline( o ) );
-        for( int h = 0; h < poly.HoleCount( o ); ++h ) ring( poly.CHole( o, h ) );
+        ring( aPoly.COutline( o ) );
+        for( int h = 0; h < aPoly.HoleCount( o ); ++h )
+            ring( aPoly.CHole( o, h ) );
     }
 }
+
+
 // SEG's 64-bit dot/norm intermediates are checked individually, in evaluation
 // order. The cross-product branch is widened by the pinned source itself.
-int64_t CheckLong( __int128 value )
+int64_t checkLong( __int128 aValue )
 {
-    if( value < INT64_MIN || value > INT64_MAX ) throw std::invalid_argument( "intermediate overflow" );
-    return static_cast<int64_t>( value );
+    if( aValue < INT64_MIN || aValue > INT64_MAX )
+        throw std::invalid_argument( "intermediate overflow" );
+    return static_cast<int64_t>( aValue );
 }
-int64_t CheckDot( const VECTOR2L& a, const VECTOR2L& b )
+
+
+int64_t checkDot( const VECTOR2L& aFirst, const VECTOR2L& aSecond )
 {
-    const int64_t x = CheckLong( __int128( a.x ) * b.x );
-    const int64_t y = CheckLong( __int128( a.y ) * b.y );
-    return CheckLong( __int128( x ) + y );
+    const int64_t x = checkLong( __int128( aFirst.x ) * aSecond.x );
+    const int64_t y = checkLong( __int128( aFirst.y ) * aSecond.y );
+    return checkLong( __int128( x ) + y );
 }
-void CheckDistance( const VECTOR2I& a, const VECTOR2I& b, const VECTOR2I& p )
+
+
+void checkDistance( const VECTOR2I& aStart, const VECTOR2I& aEnd, const VECTOR2I& aPoint )
 {
-    const VECTOR2L ab( int64_t( b.x ) - a.x, int64_t( b.y ) - a.y );
-    const VECTOR2L ap( int64_t( p.x ) - a.x, int64_t( p.y ) - a.y );
-    const int64_t e = CheckDot( ap, ab );
-    if( e <= 0 ) { CheckDot( ap, ap ); return; }
-    const int64_t f = CheckDot( ab, ab );
+    const VECTOR2L ab( int64_t( aEnd.x ) - aStart.x, int64_t( aEnd.y ) - aStart.y );
+    const VECTOR2L ap( int64_t( aPoint.x ) - aStart.x, int64_t( aPoint.y ) - aStart.y );
+    const int64_t  e = checkDot( ap, ab );
+    if( e <= 0 )
+    {
+        checkDot( ap, ap );
+        return;
+    }
+    const int64_t f = checkDot( ab, ab );
     if( e >= f )
     {
-        const VECTOR2L bp( int64_t( p.x ) - b.x, int64_t( p.y ) - b.y );
-        CheckDot( bp, bp );
+        const VECTOR2L bp( int64_t( aPoint.x ) - aEnd.x, int64_t( aPoint.y ) - aEnd.y );
+        checkDot( bp, bp );
     }
 }
-void CheckAccuracy( const SHAPE_POLY_SET& poly, const VECTOR2I& point, int accuracy )
+
+
+void checkAccuracy( const SHAPE_POLY_SET& aPoly, const VECTOR2I& aPoint, int aAccuracy )
 {
-    if( accuracy <= 1 ) return;
-    struct Edge { VECTOR2I a, b; bool hole; };
-    std::vector<Edge> edges;
-    int64_t yMin = INT_MAX, yMax = INT_MIN;
-    auto ring = [&]( const SHAPE_LINE_CHAIN& chain, bool hole )
+    if( aAccuracy <= 1 )
+        return;
+    struct EDGE
     {
-        if( chain.PointCount() < 3 ) return;
+        VECTOR2I A, B;
+        bool     Hole;
+    };
+    std::vector<EDGE> edges;
+    int64_t           yMin = INT_MAX, yMax = INT_MIN;
+    auto              ring = [&]( const SHAPE_LINE_CHAIN& chain, bool hole )
+    {
+        if( chain.PointCount() < 3 )
+            return;
         for( int j = 0; j < chain.PointCount(); ++j )
         {
-            const auto& a = chain.CPoint( j );
-            const auto& b = chain.CPoint( ( j + 1 ) % chain.PointCount() );
-            if( a.y == b.y ) continue;
+            const VECTOR2I& a = chain.CPoint( j );
+            const VECTOR2I& b = chain.CPoint( ( j + 1 ) % chain.PointCount() );
+            if( a.y == b.y )
+                continue;
             edges.push_back( { a, b, hole } );
             yMin = std::min( yMin, int64_t( std::min( a.y, b.y ) ) );
             yMax = std::max( yMax, int64_t( std::max( a.y, b.y ) ) );
         }
     };
-    for( int o = 0; o < poly.OutlineCount(); ++o )
+    for( int o = 0; o < aPoly.OutlineCount(); ++o )
     {
-        ring( poly.COutline( o ), false );
-        for( int h = 0; h < poly.HoleCount( o ); ++h ) ring( poly.CHole( o, h ), true );
+        ring( aPoly.COutline( o ), false );
+        for( int h = 0; h < aPoly.HoleCount( o ); ++h )
+            ring( aPoly.CHole( o, h ), true );
     }
-    if( edges.empty() ) return;
-    const int count = std::clamp( int( std::sqrt( double( edges.size() ) ) ), 1, 65536 );
+    if( edges.empty() )
+        return;
+    const int     count = std::clamp( int( std::sqrt( double( edges.size() ) ) ), 1, 65536 );
     const int64_t height = ( yMax - yMin + count - 1 ) / count;
-    auto stripe = [&]( int64_t y ) { return std::clamp( int( ( y - yMin ) / height ), 0, count - 1 ); };
+    auto          stripe = [&]( int64_t y )
+    {
+        return std::clamp( int( ( y - yMin ) / height ), 0, count - 1 );
+    };
     // Reconstruct only the execution domain of the distance calls. A later edge
     // must not be pre-rejected after the actual reference would already return.
-    for( int s = stripe( int64_t( point.y ) - accuracy ); s <= stripe( int64_t( point.y ) + accuracy ); ++s )
+    for( int s = stripe( int64_t( aPoint.y ) - aAccuracy ); s <= stripe( int64_t( aPoint.y ) + aAccuracy ); ++s )
     {
-        for( const auto& e : edges )
+        for( const EDGE& e : edges )
         {
-            if( e.hole || s < stripe( std::min( e.a.y, e.b.y ) ) || s > stripe( std::max( e.a.y, e.b.y ) ) ) continue;
-            CheckDistance( e.a, e.b, point );
-            if( SEG( e.a, e.b ).SquaredDistance( point ) <= SEG::Square( accuracy ) ) return;
+            if( e.Hole || s < stripe( std::min( e.A.y, e.B.y ) ) || s > stripe( std::max( e.A.y, e.B.y ) ) )
+                continue;
+            checkDistance( e.A, e.B, aPoint );
+            if( SEG( e.A, e.B ).SquaredDistance( aPoint ) <= SEG::Square( aAccuracy ) )
+                return;
         }
     }
 }
-GRID_GEOMETRY Grid( const JSON& v )
+
+
+GRID_GEOMETRY readGrid( const JSON& aInput )
 {
-    Keys( v, { "priority", "kind", "x", "y" } );
-    const auto& p = v.at( "priority" );
-    if( !p.is_number_integer() || ( !p.is_number_unsigned() && p.get<int64_t>() < 0 )
-        || p.get<uint64_t>() > UINT_MAX ) throw std::invalid_argument( "priority out of range" );
+    checkKeys( aInput, { "priority", "kind", "x", "y" } );
+    const auto& p = aInput.at( "priority" );
+    if( !p.is_number_integer() || ( !p.is_number_unsigned() && p.get<int64_t>() < 0 ) || p.get<uint64_t>() > UINT_MAX )
+        throw std::invalid_argument( "priority out of range" );
     GRID_GEOMETRY grid;
     grid.priority = p.get<unsigned>();
-    std::string kind = Text( v, "kind" );
-    if( kind == "cartesian" ) grid.kind = GRID_GEOMETRY::KIND::CARTESIAN;
-    else if( kind == "polar" ) grid.kind = GRID_GEOMETRY::KIND::POLAR;
-    else throw std::invalid_argument( "unknown grid kind" );
-    grid.extent = VECTOR2D( Number( v, "x" ), Number( v, "y" ) );
+    std::string kind = readText( aInput, "kind" );
+    if( kind == "cartesian" )
+        grid.kind = GRID_GEOMETRY::KIND::CARTESIAN;
+    else if( kind == "polar" )
+        grid.kind = GRID_GEOMETRY::KIND::POLAR;
+    else
+        throw std::invalid_argument( "unknown grid kind" );
+    grid.extent = VECTOR2D( readNumber( aInput, "x" ), readNumber( aInput, "y" ) );
     return grid;
 }
-template<typename T> JSON Ellipse( const std::string& endpoint )
+
+
+template <typename T>
+JSON ellipse( const std::string& aEndpoint )
 {
     ELLIPSE<T> e;
-    if( endpoint == "default" ) return JSON{ { "center", { e.Center.x, e.Center.y } },
-        { "radii", { e.MajorRadius, e.MinorRadius } },
-        { "angles", { Bits( e.Rotation.AsDegrees() ), Bits( e.StartAngle.AsDegrees() ), Bits( e.EndAngle.AsDegrees() ) } } };
-    VECTOR2<T> point;
-    if( endpoint == "start" ) point = e.GetArcStartPoint();
-    else if( endpoint == "end" ) point = e.GetArcEndPoint();
-    else throw std::invalid_argument( "unknown endpoint" );
-    if constexpr( std::is_same_v<T, double> ) return JSON{ Bits( point.x ), Bits( point.y ) };
-    else return JSON{ point.x, point.y };
+    if( aEndpoint == "default" )
+        return JSON{ { "center", { e.Center.x, e.Center.y } },
+                     { "radii", { e.MajorRadius, e.MinorRadius } },
+                     { "angles",
+                       { bits( e.Rotation.AsDegrees() ), bits( e.StartAngle.AsDegrees() ),
+                         bits( e.EndAngle.AsDegrees() ) } } };
+    VECTOR2<T> aPoint;
+    if( aEndpoint == "start" )
+        aPoint = e.GetArcStartPoint();
+    else if( aEndpoint == "end" )
+        aPoint = e.GetArcEndPoint();
+    else
+        throw std::invalid_argument( "unknown endpoint" );
+    if constexpr( std::is_same_v<T, double> )
+        return JSON{ bits( aPoint.x ), bits( aPoint.y ) };
+    else
+        return JSON{ aPoint.x, aPoint.y };
 }
-JSON Run( const JSON& v )
+
+
+JSON run( const JSON& aInput )
 {
-    const std::string op = Text( v, "op" );
+    const std::string op = readText( aInput, "op" );
     if( op == "default" )
     {
-        Keys( v, { "op" } );
+        checkKeys( aInput, { "op" } );
         JSON constants = JSON::array();
-        for( EDA_ANGLE a : { ANGLE_HORIZONTAL, ANGLE_VERTICAL, FULL_CIRCLE, ANGLE_0, ANGLE_45,
-                             ANGLE_90, ANGLE_135, ANGLE_180, ANGLE_270, ANGLE_360 } )
-            constants.push_back( Bits( a.AsDegrees() ) );
-        return JSON{ { "angle", Bits( EDA_ANGLE().AsDegrees() ) },
-                     { "orientation", Bits( EDA_ORIENTATION().GetAngle().AsDegrees() ) },
-                     { "constants", constants }, { "conversion", Bits( EDA_ANGLE::DEGREES_TO_RADIANS ) } };
+        for( EDA_ANGLE a : { ANGLE_HORIZONTAL, ANGLE_VERTICAL, FULL_CIRCLE, ANGLE_0, ANGLE_45, ANGLE_90, ANGLE_135,
+                             ANGLE_180, ANGLE_270, ANGLE_360 } )
+            constants.push_back( bits( a.AsDegrees() ) );
+        return JSON{ { "angle", bits( EDA_ANGLE().AsDegrees() ) },
+                     { "orientation", bits( EDA_ORIENTATION().GetAngle().AsDegrees() ) },
+                     { "constants", constants },
+                     { "conversion", bits( EDA_ANGLE::DEGREES_TO_RADIANS ) } };
     }
     if( op == "construct" )
     {
-        Keys( v, { "op", "a", "unit" } );
-        auto unit = Text( v, "unit" );
+        checkKeys( aInput, { "op", "a", "unit" } );
+        auto        unit = readText( aInput, "unit" );
         EDA_ANGLE_T type;
-        if( unit == "degrees" ) type = DEGREES_T;
-        else if( unit == "radians" ) type = RADIANS_T;
-        else if( unit == "tenths" ) type = TENTHS_OF_A_DEGREE_T;
-        else throw std::invalid_argument( "unknown angle unit" );
-        return Bits( EDA_ANGLE( Number( v, "a" ), type ).AsDegrees() );
+        if( unit == "degrees" )
+            type = DEGREES_T;
+        else if( unit == "radians" )
+            type = RADIANS_T;
+        else if( unit == "tenths" )
+            type = TENTHS_OF_A_DEGREE_T;
+        else
+            throw std::invalid_argument( "unknown angle unit" );
+        return bits( EDA_ANGLE( readNumber( aInput, "a" ), type ).AsDegrees() );
     }
     if( op == "vector" )
     {
-        Keys( v, { "op", "x", "y" } );
-        return Bits( EDA_ANGLE( VECTOR2D( Number( v, "x" ), Number( v, "y" ) ) ).AsDegrees() );
+        checkKeys( aInput, { "op", "x", "y" } );
+        return bits( EDA_ANGLE( VECTOR2D( readNumber( aInput, "x" ), readNumber( aInput, "y" ) ) ).AsDegrees() );
     }
     if( op == "normalize" )
     {
-        Keys( v, { "op", "a", "mode" } );
-        EDA_ANGLE a( Number( v, "a" ), DEGREES_T ), result;
-        auto mode = Text( v, "mode" );
-        if( mode == "positive" ) result = a.Normalize();
-        else if( mode == "negative" ) result = a.NormalizeNegative();
-        else if( mode == "90" ) result = a.Normalize90();
-        else if( mode == "180" ) result = a.Normalize180();
-        else if( mode == "720" ) result = a.Normalize720();
-        else if( mode == "copy" ) result = a.Normalized();
-        else throw std::invalid_argument( "unknown normalization" );
-        return JSON{ { "state", Bits( a.AsDegrees() ) }, { "returned", Bits( result.AsDegrees() ) } };
+        checkKeys( aInput, { "op", "a", "mode" } );
+        EDA_ANGLE a( readNumber( aInput, "a" ), DEGREES_T ), result;
+        auto      mode = readText( aInput, "mode" );
+        if( mode == "positive" )
+            result = a.Normalize();
+        else if( mode == "negative" )
+            result = a.NormalizeNegative();
+        else if( mode == "90" )
+            result = a.Normalize90();
+        else if( mode == "180" )
+            result = a.Normalize180();
+        else if( mode == "720" )
+            result = a.Normalize720();
+        else if( mode == "copy" )
+            result = a.Normalized();
+        else
+            throw std::invalid_argument( "unknown normalization" );
+        return JSON{ { "state", bits( a.AsDegrees() ) }, { "returned", bits( result.AsDegrees() ) } };
     }
     if( op == "unary" )
     {
-        Keys( v, { "op", "a", "kind" } );
-        double x = Number( v, "a" ); EDA_ANGLE a( x, DEGREES_T ); auto kind = Text( v, "kind" );
-        if( kind == "sin" ) return Bits( a.Sin() );
-        if( kind == "cos" ) return Bits( a.Cos() );
-        if( kind == "tan" ) return Bits( a.Tan() );
-        if( kind == "acos" ) return Bits( EDA_ANGLE::Arccos( x ).AsDegrees() );
-        if( kind == "asin" ) return Bits( EDA_ANGLE::Arcsin( x ).AsDegrees() );
-        if( kind == "atan" ) return Bits( EDA_ANGLE::Arctan( x ).AsDegrees() );
-        if( kind == "radians" ) return Bits( a.AsRadians() );
-        if( kind == "negate" ) return Bits( ( -a ).AsDegrees() );
-        if( kind == "invert" ) return Bits( a.Invert().AsDegrees() );
-        if( kind == "abs" ) return Bits( std::abs( a ).AsDegrees() );
-        if( kind == "predicates" ) return JSON{ a.IsZero(), a.IsHorizontal(), a.IsVertical() };
-        if( kind == "tenths" ) return a.AsTenthsOfADegree();
+        checkKeys( aInput, { "op", "a", "kind" } );
+        double    x = readNumber( aInput, "a" );
+        EDA_ANGLE a( x, DEGREES_T );
+        auto      kind = readText( aInput, "kind" );
+        if( kind == "sin" )
+            return bits( a.Sin() );
+        if( kind == "cos" )
+            return bits( a.Cos() );
+        if( kind == "tan" )
+            return bits( a.Tan() );
+        if( kind == "acos" )
+            return bits( EDA_ANGLE::Arccos( x ).AsDegrees() );
+        if( kind == "asin" )
+            return bits( EDA_ANGLE::Arcsin( x ).AsDegrees() );
+        if( kind == "atan" )
+            return bits( EDA_ANGLE::Arctan( x ).AsDegrees() );
+        if( kind == "radians" )
+            return bits( a.AsRadians() );
+        if( kind == "negate" )
+            return bits( ( -a ).AsDegrees() );
+        if( kind == "invert" )
+            return bits( a.Invert().AsDegrees() );
+        if( kind == "abs" )
+            return bits( std::abs( a ).AsDegrees() );
+        if( kind == "predicates" )
+            return JSON{ a.IsZero(), a.IsHorizontal(), a.IsVertical() };
+        if( kind == "tenths" )
+            return a.AsTenthsOfADegree();
         throw std::invalid_argument( "unknown unary operation" );
     }
     if( op == "binary" )
     {
-        Keys( v, { "op", "a", "b", "kind" } );
-        EDA_ANGLE a( Number( v, "a" ), DEGREES_T ), b( Number( v, "b" ), DEGREES_T );
-        auto kind = Text( v, "kind" );
-        if( kind == "add" ) return Bits( ( a + b ).AsDegrees() );
-        if( kind == "sub" ) return Bits( ( a - b ).AsDegrees() );
-        if( kind == "mul" ) return Bits( ( a * b.AsDegrees() ).AsDegrees() );
-        if( kind == "div" ) return Bits( ( a / b.AsDegrees() ).AsDegrees() );
-        if( kind == "ratio" ) return Bits( a / b );
-        if( kind == "add_assign" ) { a += b; return Bits( a.AsDegrees() ); }
-        if( kind == "sub_assign" ) { a -= b; return Bits( a.AsDegrees() ); }
-        if( kind == "reflect" ) return Bits( a.Reflect( b ).AsDegrees() );
-        if( kind == "atan2" ) return Bits( EDA_ANGLE::Arctan2( a.AsDegrees(), b.AsDegrees() ).AsDegrees() );
-        if( kind == "compare" ) return JSON{ a == b, a != b, a < b, a > b, a <= b, a >= b };
-        if( kind == "parallel" ) return a.IsParallelTo( b );
-        if( kind == "snapped" ) return Bits( a.Snapped( b ).AsDegrees() );
+        checkKeys( aInput, { "op", "a", "b", "kind" } );
+        EDA_ANGLE a( readNumber( aInput, "a" ), DEGREES_T ), b( readNumber( aInput, "b" ), DEGREES_T );
+        auto      kind = readText( aInput, "kind" );
+        if( kind == "add" )
+            return bits( ( a + b ).AsDegrees() );
+        if( kind == "sub" )
+            return bits( ( a - b ).AsDegrees() );
+        if( kind == "mul" )
+            return bits( ( a * b.AsDegrees() ).AsDegrees() );
+        if( kind == "div" )
+            return bits( ( a / b.AsDegrees() ).AsDegrees() );
+        if( kind == "ratio" )
+            return bits( a / b );
+        if( kind == "add_assign" )
+        {
+            EDA_ANGLE* returned = &( a += b );
+            return JSON{ { "value", bits( a.AsDegrees() ) }, { "same", returned == &a } };
+        }
+        if( kind == "sub_assign" )
+        {
+            EDA_ANGLE* returned = &( a -= b );
+            return JSON{ { "value", bits( a.AsDegrees() ) }, { "same", returned == &a } };
+        }
+        if( kind == "reflect" )
+            return bits( a.Reflect( b ).AsDegrees() );
+        if( kind == "atan2" )
+            return bits( EDA_ANGLE::Arctan2( a.AsDegrees(), b.AsDegrees() ).AsDegrees() );
+        if( kind == "compare" )
+            return JSON{ a == b, a != b, a < b, a > b, a <= b, a >= b };
+        if( kind == "parallel" )
+            return a.IsParallelTo( b );
+        if( kind == "snapped" )
+            return bits( a.Snapped( b ).AsDegrees() );
         throw std::invalid_argument( "unknown binary operation" );
     }
     if( op == "round" )
     {
-        Keys( v, { "op", "a", "digits" } );
-        return Bits( EDA_ANGLE( Number( v, "a" ), DEGREES_T ).Round( Int( v, "digits" ) ).AsDegrees() );
+        checkKeys( aInput, { "op", "a", "digits" } );
+        return bits( EDA_ANGLE( readNumber( aInput, "a" ), DEGREES_T ).Round( readInteger( aInput, "digits" ) ).AsDegrees() );
     }
     if( op == "orientation" )
     {
-        Keys( v, { "op", "a", "b", "axis" } );
-        EDA_ANGLE a( Number( v, "a" ), DEGREES_T ), b( Number( v, "b" ), DEGREES_T );
+        checkKeys( aInput, { "op", "a", "b", "axis" } );
+        EDA_ANGLE       a( readNumber( aInput, "a" ), DEGREES_T ), b( readNumber( aInput, "b" ), DEGREES_T );
         EDA_ORIENTATION o( a ), p( b ), x( o ), y( o ), assigned;
-        x += b; y -= b; assigned = a;
+        x += b;
+        y -= b;
+        assigned = a;
         JSON values = JSON::array();
-        for( EDA_ANGLE angle : { o.GetAngle(), ( -o ).GetAngle(), ( o + b ).GetAngle(),
-            ( o - b ).GetAngle(), ( a + p ).GetAngle(), ( a - p ).GetAngle(), o - p,
-            x.GetAngle(), y.GetAngle(), assigned.GetAngle(), o.Reflect( EDA_ANGLE( Number( v, "axis" ), DEGREES_T ) ).GetAngle() } )
-            values.push_back( Bits( angle.AsDegrees() ) );
+        for( EDA_ANGLE angle :
+             { o.GetAngle(), ( -o ).GetAngle(), ( o + b ).GetAngle(), ( o - b ).GetAngle(), ( a + p ).GetAngle(),
+               ( a - p ).GetAngle(), o - p, x.GetAngle(), y.GetAngle(), assigned.GetAngle(),
+               o.Reflect( EDA_ANGLE( readNumber( aInput, "axis" ), DEGREES_T ) ).GetAngle() } )
+            values.push_back( bits( angle.AsDegrees() ) );
         return JSON{ { "values", values }, { "equal", o == p } };
     }
     if( op == "stream" )
     {
-        Keys( v, { "op", "a", "orientation", "precision", "width", "fill", "format", "showpos", "uppercase" } );
-        int precision = Int( v, "precision" ), width = Int( v, "width" );
-        if( precision > 512 || width > 512 ) throw std::invalid_argument( "resource limit" );
-        std::ostringstream s; s.imbue( std::locale::classic() );
-        s.precision( precision ); s.width( width );
-        auto fill = Text( v, "fill" ); if( fill.empty() ) throw std::invalid_argument( "invalid fill" );
-        s.fill( fill[0] ); auto format = Text( v, "format" );
-        if( format == "fixed" ) s << std::fixed;
-        if( format == "scientific" ) s << std::scientific;
-        if( format == "hex" ) s << std::hexfloat;
-        if( v.at( "showpos" ).get<bool>() ) s << std::showpos;
-        if( v.at( "uppercase" ).get<bool>() ) s << std::uppercase;
-        EDA_ANGLE a( Number( v, "a" ), DEGREES_T );
-        if( v.at( "orientation" ).get<bool>() ) s << EDA_ORIENTATION( a ); else s << a;
+        checkKeys( aInput, { "op", "a", "orientation", "precision", "width", "fill", "format", "showpos", "uppercase" } );
+        int precision = readInteger( aInput, "precision" ), width = readInteger( aInput, "width" );
+        if( precision > 512 || width > 512 )
+            throw std::invalid_argument( "resource limit" );
+        std::ostringstream s;
+        s.imbue( std::locale::classic() );
+        s.precision( precision );
+        s.width( width );
+        auto fill = readText( aInput, "fill" );
+        if( fill.empty() )
+            throw std::invalid_argument( "invalid fill" );
+        s.fill( fill[0] );
+        auto format = readText( aInput, "format" );
+        if( format == "fixed" )
+            s << std::fixed;
+        if( format == "scientific" )
+            s << std::scientific;
+        if( format == "hex" )
+            s << std::hexfloat;
+        if( aInput.at( "showpos" ).get<bool>() )
+            s << std::showpos;
+        if( aInput.at( "uppercase" ).get<bool>() )
+            s << std::uppercase;
+        EDA_ANGLE a( readNumber( aInput, "a" ), DEGREES_T );
+        if( aInput.at( "orientation" ).get<bool>() )
+            s << EDA_ORIENTATION( a );
+        else
+            s << a;
         return JSON{ { "text", s.str() }, { "width", s.width() } };
     }
     if( op == "ellipse" )
     {
-        Keys( v, { "op", "type", "endpoint" } );
-        if( Text( v, "type" ) == "i32" ) return Ellipse<int>( Text( v, "endpoint" ) );
-        if( Text( v, "type" ) == "f64" ) return Ellipse<double>( Text( v, "endpoint" ) );
+        checkKeys( aInput, { "op", "type", "endpoint" } );
+        if( readText( aInput, "type" ) == "i32" )
+            return ellipse<int>( readText( aInput, "endpoint" ) );
+        if( readText( aInput, "type" ) == "f64" )
+            return ellipse<double>( readText( aInput, "endpoint" ) );
         throw std::invalid_argument( "unknown ellipse type" );
     }
     if( op == "grid" )
     {
-        Keys( v, { "op", "a", "b" } );
-        return Grid( v.at( "a" ) ).TakesPrecedenceOver( Grid( v.at( "b" ) ) );
+        checkKeys( aInput, { "op", "a", "b" } );
+        return readGrid( aInput.at( "a" ) ).TakesPrecedenceOver( readGrid( aInput.at( "b" ) ) );
     }
     if( op == "poly" )
     {
-        Keys( v, { "op", "builds" } );
+        checkKeys( aInput, { "op", "builds" } );
         POLY_YSTRIPES_INDEX index;
-        JSON results = JSON::array();
-        for( const auto& build : Array( v, "builds" ) )
+        JSON                results = JSON::array();
+        for( const auto& build : readArray( aInput, "builds" ) )
         {
-            Keys( build, { "polygons", "point", "accuracy" } );
-            SHAPE_POLY_SET poly;
-            int64_t total = 0;
-            for( const auto& p : Array( build, "polygons" ) )
+            checkKeys( build, { "polygons", "point", "accuracy" } );
+            SHAPE_POLY_SET aPoly;
+            int64_t        total = 0;
+            for( const auto& p : readArray( build, "polygons" ) )
             {
-                Keys( p, { "outline", "holes" } );
-                int o = poly.NewOutline();
+                checkKeys( p, { "outline", "holes" } );
+                int  o = aPoly.NewOutline();
                 auto append = [&]( const JSON& points, int hole )
                 {
-                    if( !points.is_array() ) throw std::invalid_argument( "expected hole" );
-                    total += points.size(); CheckInt( total );
+                    if( !points.is_array() )
+                        throw std::invalid_argument( "expected hole" );
+                    total += points.size();
+                    checkInt( total );
                     // Do not remove repeated vertices: PointCount is part of Build.
-                    for( const auto& point : points )
+                    for( const auto& aPoint : points )
                     {
-                        const auto pt = Point( point );
-                        poly.Append( pt.x, pt.y, o, hole, true );
+                        const auto pt = readPoint( aPoint );
+                        aPoly.Append( pt.x, pt.y, o, hole, true );
                     }
                 };
-                append( Array( p, "outline" ), -1 );
-                for( const auto& h : Array( p, "holes" ) ) append( h, poly.NewHole( o ) );
+                append( readArray( p, "outline" ), -1 );
+                for( const auto& h : readArray( p, "holes" ) )
+                    append( h, aPoly.NewHole( o ) );
             }
-            index.Build( poly );
-            const auto point = Point( build.at( "point" ) );
-            CheckRay( poly, point );
-            if( build.at( "accuracy" ).is_null() ) results.push_back( index.Contains( point ) );
+            index.Build( aPoly );
+            const auto aPoint = readPoint( build.at( "point" ) );
+            checkRay( aPoly, aPoint );
+            if( build.at( "accuracy" ).is_null() )
+                results.push_back( index.Contains( aPoint ) );
             else
             {
-                const int accuracy = Int( build, "accuracy" );
-                if( accuracy > 1 && !index.Contains( point, 0 ) ) CheckAccuracy( poly, point, accuracy );
-                results.push_back( index.Contains( point, accuracy ) );
+                const int aAccuracy = readInteger( build, "accuracy" );
+                if( aAccuracy > 1 && !index.Contains( aPoint, 0 ) )
+                    checkAccuracy( aPoly, aPoint, aAccuracy );
+                results.push_back( index.Contains( aPoint, aAccuracy ) );
             }
         }
         return results;
@@ -357,8 +499,8 @@ JSON Run( const JSON& v )
 } // namespace
 namespace oracle
 {
-void RegisterGeometryHeaders( REGISTRY& registry )
+void RegisterGeometryHeaders( REGISTRY& aRegistry )
 {
-    registry.Add( GEOMETRY_UNIT, "geometry/{eda_angle,ellipse,grid_geometry,poly_ystripes_index}.h", Run );
+    aRegistry.Add( GEOMETRY_UNIT, "geometry/{eda_angle,ellipse,grid_geometry,poly_ystripes_index}.h", run );
 }
-}
+} // namespace oracle

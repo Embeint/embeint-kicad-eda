@@ -145,13 +145,15 @@ fn run(v: &Value) -> Result<Value, Error> {
                 "ratio" => bits(a / b),
                 "add_assign" => {
                     let mut x = a;
-                    x += b;
-                    bits(x.as_degrees())
+                    let original = core::ptr::from_ref(&x);
+                    let returned = core::ptr::from_mut(x.add_assign(b));
+                    json!({"value":bits(x.as_degrees()),"same":core::ptr::eq(original,returned)})
                 }
                 "sub_assign" => {
                     let mut x = a;
-                    x -= b;
-                    bits(x.as_degrees())
+                    let original = core::ptr::from_ref(&x);
+                    let returned = core::ptr::from_mut(x.sub_assign(b));
+                    json!({"value":bits(x.as_degrees()),"same":core::ptr::eq(original,returned)})
                 }
                 "reflect" => bits(a.reflect(b).as_degrees()),
                 "atan2" => bits(EdaAngle::arctan2(a.as_degrees(), b.as_degrees())?.as_degrees()),

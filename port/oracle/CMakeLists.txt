@@ -106,7 +106,8 @@ endif()
 set( GEOMETRY_SHIM "${ORACLE_OVERLAY}/shims/geometry_headers.cpp" )
 list( REMOVE_ITEM ORACLE_SHIMS "${GEOMETRY_SHIM}" )
 list( APPEND ORACLE_SHIMS "${GEOMETRY_SHIM}" )
-add_executable( kicad-oracle main.cpp protocol.cpp registry.cpp ${ORACLE_SHIMS} )
+add_executable( kicad-oracle main.cpp protocol.cpp registry.cpp ${ORACLE_SHIMS}
+                reference/geometry_unreachable_config.cpp )
 target_include_directories( kicad-oracle PRIVATE "${ORACLE_OVERLAY}" "${CMAKE_BINARY_DIR}" )
 target_link_libraries( kicad-oracle PRIVATE kimath nlohmann_json iec60664-reference resistor-reference
                        calculator-reader-reference )
@@ -134,7 +135,7 @@ add_test( NAME oracle-build-guards
 add_test( NAME oracle-iec60664-build-guards
     COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_iec60664_guards.py" )
 add_executable( oracle-dispatch-test EXCLUDE_FROM_ALL test_dispatch.cpp protocol.cpp registry.cpp
-                ${ORACLE_SHIMS} )
+                ${ORACLE_SHIMS} reference/geometry_unreachable_config.cpp )
 target_include_directories( oracle-dispatch-test PRIVATE "${ORACLE_OVERLAY}" )
 target_link_libraries( oracle-dispatch-test PRIVATE kimath nlohmann_json iec60664-reference
                        resistor-reference calculator-reader-reference )

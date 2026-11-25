@@ -11,10 +11,10 @@ The canonical `Vector2<T>` and source-unit `rescale_i32` are reused.
 
 | Operation / upstream symbols | Implemented bodies / branches | Observable evidence | Remaining gap |
 | --- | --- | --- | --- |
-| EDA_ANGLE constructors, accessors, constants | Default, explicit degrees, radians division, tenths division; vector zero, axes, diagonals and atan2; exact constant bits | Raw-bit construction and vector cases, signed zeros, extremes, NaN/inf | AsTenthsOfADegree calls unported KiROUND |
+| EDA_ANGLE constructors, accessors, constants | Default, explicit degrees, radians division, tenths division; vector zero, axes, diagonals and atan2; exact constant bits | Raw-bit construction and vector cases, signed zeros, extremes, NaN/inf | AsTenthsOfADegree calls unported KiROUND; non-axis/diagonal vectors defer at owned atan2 backend |
 | Normalize, Normalized, NormalizeNegative/90/180/720, foldToTwoPeriods | Finite/abs threshold/fmod+copysign; each inclusive/exclusive loop and returned mutation; copy form | Six modes at wrap boundaries and adjacent doubles, random exponent sweep, huge/tiny, nonfinite | Degenerate >two-loop cases intentionally absent because source fold bounds them |
 | IsZero/Horizontal/Vertical, Invert, abs; all arithmetic/comparison and assignment operators | Exact comparisons without implicit normalization; expression order and units preserved | Unary/binary cases, raw return bits; NaN comparisons | Mixed-NaN selection still needs native qualification |
-| Sin/Cos/Tan, Arccos/Arcsin/Arctan/Arctan2 | Every cardinal/diagonal shortcut, original unnormalized radian fallback; scalar inverse wrappers (typed runtime deferral) | Shortcuts, ordinary scalar libm and domain/NaN cases | sin/cos reuse accepted portable glibc kernel; tan/inverse/atan2 runtime calls explicitly defer to this unit |
+| Sin/Cos/Tan, Arccos/Arcsin/Arctan/Arctan2 | Every cardinal/diagonal shortcut, original unnormalized radian fallback; scalar inverse wrappers (typed runtime deferral) | Shortcuts, raw sine/cosine bits; inverse/tan/atan2 cases explicitly deferred | sin/cos reuse accepted portable glibc kernel; tan/inverse/atan2 runtime calls explicitly defer to this unit |
 | IsParallelTo | Both Normalize90 and -90-to-90 substitutions, final equals | Native reference returns bool; Rust explicitly defers at equals | `libs.kimath.include.math.application.ui.p001`: equals<double> |
 | Snapped, Round, AsTenthsOfADegree | Nonpositive-step identity; surrounding multiplication, divisions, both pow calls, result construction | Nonpositive snap succeeds, positive snap/round/tenths reach typed dependency errors | `libs.kimath.include.math.application.ui.p001`: KiROUND<double,int> |
 | Reflect and EDA_ORIENTATION (all operators, SetAngle/GetAngle, default, equality) | Reflection arithmetic; normalization; signed-zero canonicalization; angle-left forms and orientation difference | Raw bits of all outputs, mutation and assigned state, equality in each orientation case | Native mixed-NaN qualification pending |
@@ -63,3 +63,24 @@ acos mismatch; see port/findings/geometry-angle-libm-portability.md. The corpus 
 12,433 Rust results succeed and 5,617 defer. Of the controls, three are actual Rust
 overflow refusals and four stop at an earlier SEG::Square dependency; C++ refuses
 all seven undefined inputs. These are not successful geometry operations.
+
+## Pinned source identities
+
+| Path | Lines | SHA-256 |
+| --- | --- | --- |
+| `libs/kimath/include/geometry/eda_angle.h` | 603 | `d1ee4f40c0ad417635dbf57d7677e2c7ade53e689d14cd1c2435d49fbb215e8f` |
+| `libs/kimath/include/geometry/ellipse.h` | 110 | `939dda7508d6898e4fc75b39f2a093da9306f3c9d487c59128b165b3accc4c6b` |
+| `libs/kimath/include/geometry/grid_geometry.h` | 82 | `f082d18565b270efcb56d82d935ae95f5c2a1cbb0a3c0c6c2a6bdb86bd869f1a` |
+| `libs/kimath/include/geometry/poly_ystripes_index.h` | 280 | `92aaa53992b8128bc2226a2478d98a4d1397cf59f44b29260c1c686e7b3ddb9a` |
+
+## Native application-configuration link boundary
+
+Constructing a genuine SHAPE_POLY_SET retains its full vtable, including unrelated
+triangulation/fracture entry points that reference ADVANCED_CFG::GetCfg. The small
+own-library oracle does not link the application settings/filesystem closure.
+`port/oracle/reference/geometry_unreachable_config.cpp` is a link-only fail-closed
+guard: GetCfg always throws execution_error, never returns a stand-in config.
+The pinned classes, contour accessors, stripe algorithm and segment/math bodies are
+unmodified. A successful whole-corpus comparison therefore also proves that no
+compared operation required application config. This oracle does not qualify
+triangulation/fracture or any future operation that reaches that guard.

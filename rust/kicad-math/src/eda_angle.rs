@@ -252,6 +252,16 @@ impl EdaAngle {
             10.0_f64.powf(f64::from(digits)),
         )))
     }
+    /// Named forms retain the C++ mutable-self return contract; the Rust traits
+    /// below discard that reference because their language signature returns ().
+    pub fn add_assign(&mut self, angle: Self) -> &mut Self {
+        *self = Self::degrees(fp::add(self.value, angle.value));
+        self
+    }
+    pub fn sub_assign(&mut self, angle: Self) -> &mut Self {
+        *self = Self::degrees(fp::sub(self.value, angle.value));
+        self
+    }
     pub fn abs(self) -> Self {
         Self::degrees(self.value.abs())
     }
@@ -302,12 +312,12 @@ impl Div for EdaAngle {
 }
 impl AddAssign for EdaAngle {
     fn add_assign(&mut self, rhs: Self) {
-        *self = *self + rhs;
+        Self::add_assign(self, rhs);
     }
 }
 impl SubAssign for EdaAngle {
     fn sub_assign(&mut self, rhs: Self) {
-        *self = *self - rhs;
+        Self::sub_assign(self, rhs);
     }
 }
 impl StreamInsert for EdaAngle {
@@ -347,6 +357,18 @@ impl EdaOrientation {
             self.angle = ANGLE_0;
         }
     }
+    pub fn assign_angle(&mut self, angle: EdaAngle) -> &mut Self {
+        self.set_angle(angle);
+        self
+    }
+    pub fn add_assign(&mut self, angle: EdaAngle) -> &mut Self {
+        self.set_angle(self.angle + angle);
+        self
+    }
+    pub fn sub_assign(&mut self, angle: EdaAngle) -> &mut Self {
+        self.set_angle(self.angle - angle);
+        self
+    }
     pub fn reflect(self, axis: EdaAngle) -> Self {
         Self::new(self.angle.reflect(axis))
     }
@@ -377,12 +399,12 @@ impl Sub for EdaOrientation {
 }
 impl AddAssign<EdaAngle> for EdaOrientation {
     fn add_assign(&mut self, rhs: EdaAngle) {
-        self.set_angle(self.angle + rhs);
+        Self::add_assign(self, rhs);
     }
 }
 impl SubAssign<EdaAngle> for EdaOrientation {
     fn sub_assign(&mut self, rhs: EdaAngle) {
-        self.set_angle(self.angle - rhs);
+        Self::sub_assign(self, rhs);
     }
 }
 impl Add<EdaOrientation> for EdaAngle {

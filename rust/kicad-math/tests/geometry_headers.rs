@@ -144,3 +144,36 @@ fn stripes_refuse_the_actual_signed_difference_overflow() -> GeometryResult<()> 
     );
     Ok(())
 }
+
+#[test]
+fn named_assignments_return_the_mutated_destination() {
+    let mut a = ANGLE_45;
+    let original = core::ptr::from_ref(&a);
+    assert!(core::ptr::eq(
+        original,
+        core::ptr::from_mut(a.add_assign(ANGLE_90))
+    ));
+    assert_eq!(a, ANGLE_135);
+    assert!(core::ptr::eq(
+        original,
+        core::ptr::from_mut(a.sub_assign(ANGLE_45))
+    ));
+    assert_eq!(a, ANGLE_90);
+    let mut o = EdaOrientation::default();
+    let original = core::ptr::from_ref(&o);
+    assert!(core::ptr::eq(
+        original,
+        core::ptr::from_mut(o.assign_angle(EdaAngle::degrees(-90.)))
+    ));
+    assert_eq!(o.get_angle(), ANGLE_270);
+    assert!(core::ptr::eq(
+        original,
+        core::ptr::from_mut(o.add_assign(ANGLE_180))
+    ));
+    assert_eq!(o.get_angle(), ANGLE_90);
+    assert!(core::ptr::eq(
+        original,
+        core::ptr::from_mut(o.sub_assign(ANGLE_180))
+    ));
+    assert_eq!(o.get_angle(), ANGLE_270);
+}
