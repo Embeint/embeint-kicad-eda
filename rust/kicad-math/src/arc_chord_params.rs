@@ -12,11 +12,24 @@
 //! Arithmetic follows the source expression order without contraction. Binary operations use
 //! the accepted reference NaN selection (`fp` and the angle division), so the NaN results that a
 //! default-constructed or partially updated object produces are the same natively and in wasm.
+//!
+//! `GetArcAngle` passes `m_halfChord / m_radius` to `std::clamp`. C++20 [alg.clamp] requires a
+//! `Cpp17LessThanComparable` value, which NaN is not, so that call is outside the defined domain
+//! whenever the quotient is NaN (a default-constructed object, or one whose every `Compute` so far
+//! was refused, has `0 / 0`). `get_arc_angle` refuses exactly those states with
+//! [`ArcChordError::UndefinedClamp`] before the clamp; every other getter is defined for them.
 use crate::eda_angle::{div, EdaAngle, GeometryResult};
 use crate::{fp, glibc_libm, Vector2, Vector2D, Vector2I};
 
 pub const UNIT: &str = "libs.kimath.src.geometry.arc_chord_params.application.pure.p001";
 pub const HEADER_UNIT: &str = "libs.kimath.include.geometry.application.pure.p001";
+
+/// A getter whose pinned C++ evaluation would leave the defined domain; no value exists.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ArcChordError {
+    /// `GetArcAngle` would call `std::clamp` with a NaN value (C++20 [alg.clamp]).
+    UndefinedClamp,
+}
 
 /// Arc geometry in a chord-based coordinate system: `u` along the chord from start to end and
 /// `n` perpendicular to it, toward the arc centre. Fields keep their values across a failed
@@ -137,15 +150,24 @@ impl ArcChordParams {
     }
 
     /// `ARC_CHORD_PARAMS::GetArcAngle`: the swept angle in radians.
-    pub fn get_arc_angle(&self) -> f64 {
-        let ratio = clamp(div(self.half_chord, self.radius), 0.0, 1.0);
+    ///
+    /// Refused with [`ArcChordError::UndefinedClamp`] when `m_halfChord / m_radius` is NaN, where
+    /// the C++ `std::clamp` call is undefined. Every other state returns the reference result.
+    pub fn get_arc_angle(&self) -> Result<f64, ArcChordError> {
+        let quotient = div(self.half_chord, self.radius);
+
+        if quotient.is_nan() {
+            return Err(ArcChordError::UndefinedClamp);
+        }
+
+        let ratio = clamp(quotient, 0.0, 1.0);
         let base_angle = fp::mul(2.0, glibc_libm::asin(ratio));
 
         if self.sagitta > self.radius {
-            return fp::sub(2.0 * core::f64::consts::PI, base_angle);
+            return Ok(fp::sub(2.0 * core::f64::consts::PI, base_angle));
         }
 
-        base_angle
+        Ok(base_angle)
     }
 
     // Header-owned inline accessors (minimum co-port of arc_chord_params.h).
@@ -196,8 +218,9 @@ impl ArcChordParams {
     }
 }
 
-/// `std::clamp( v, lo, hi )` for `double` with lo <= hi, as libstdc++ evaluates it
-/// (`min( max( v, lo ), hi )`, each a single `<`): a NaN or -0 `v` passes through unchanged.
+/// `std::clamp( v, lo, hi )` for `double` with lo <= hi and a non-NaN `v` (the caller refuses a
+/// NaN, for which the C++ call is undefined), as libstdc++ evaluates it (`min( max( v, lo ), hi )`,
+/// each a single `<`): a -0 `v` passes through unchanged.
 fn clamp(value: f64, lo: f64, hi: f64) -> f64 {
     let raised = if value < lo { lo } else { value };
     if hi < raised {
@@ -247,14 +270,14 @@ mod tests {
         assert!(ok);
         assert_eq!(params.get_radius(), 10.0);
         assert_eq!(params.get_center_offset(), 0.0);
-        assert_eq!(params.get_arc_angle(), core::f64::consts::PI);
+        assert_eq!(params.get_arc_angle(), Ok(core::f64::consts::PI));
         assert_eq!(params.get_start_angle()?.as_degrees(), -180.0);
         assert_eq!(params.get_end_angle()?.as_degrees(), 0.0);
         let center = params.get_center_point();
         assert_eq!((center.x, center.y), (0.0, 0.0));
         let (ok, reflex) = arc([(-10, 0), (0, -30), (10, 0)]);
         assert!(ok && reflex.get_sagitta() > reflex.get_radius());
-        assert!(reflex.get_arc_angle() > core::f64::consts::PI);
+        assert!(matches!(reflex.get_arc_angle(), Ok(a) if a > core::f64::consts::PI));
         Ok(())
     }
 
@@ -263,10 +286,37 @@ mod tests {
         let params = ArcChordParams::default();
         let center = params.get_center_point();
         assert_eq!((center.x.to_bits(), center.y.to_bits()), (0, 0));
-        assert_eq!(params.get_arc_angle().to_bits(), 0xfff8_0000_0000_0000);
         assert!(params.get_start_angle()?.as_degrees().is_nan());
+        assert!(params.get_end_angle()?.as_degrees().is_nan());
         assert_eq!(clamp(-0.0, 0.0, 1.0).to_bits(), (-0.0_f64).to_bits());
         assert_eq!(clamp(1.5, 0.0, 1.0), 1.0);
         Ok(())
+    }
+
+    #[test]
+    fn arc_angle_refuses_only_a_nan_clamp_argument() {
+        // Default state: 0 / 0 would reach std::clamp as NaN.
+        assert_eq!(
+            ArcChordParams::default().get_arc_angle(),
+            Err(ArcChordError::UndefinedClamp)
+        );
+        // Refusals before any success keep half chord and radius at zero.
+        let mut params = ArcChordParams::default();
+        for (s, m, e) in [((3, 3), (1, 1), (3, 3)), ((0, 0), (2, 2), (4, 4))] {
+            let [s, m, e] = [s, m, e].map(|(x, y)| Vector2::new(x, y));
+            assert!(!params.compute(&s, &m, &e));
+            assert_eq!(params.get_arc_angle(), Err(ArcChordError::UndefinedClamp));
+        }
+        // After one success the stale half chord and radius stay defined across refusals.
+        let (ok, mut params) = arc([(0, 0), (5, 5), (10, 0)]);
+        assert!(ok);
+        let angle = params.get_arc_angle();
+        assert!(angle.is_ok());
+        assert!(!params.compute(
+            &Vector2::new(3, 3),
+            &Vector2::new(1, 1),
+            &Vector2::new(3, 3)
+        ));
+        assert_eq!(params.get_arc_angle(), angle);
     }
 }

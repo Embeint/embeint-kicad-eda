@@ -4,7 +4,7 @@
 //! every observable value out as exact IEEE bits.
 #![forbid(unsafe_code)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
-use kicad_math::arc_chord_params::{ArcChordParams, UNIT};
+use kicad_math::arc_chord_params::{ArcChordError, ArcChordParams, UNIT};
 use kicad_math::eda_angle::GeometryError;
 use kicad_math::{Vector2, Vector2D, Vector2I};
 use serde_json::{json, Value};
@@ -69,6 +69,18 @@ fn point(v: &Value) -> Result<Vector2I, String> {
         values.next().ok_or("expected point")??,
     ))
 }
+/// An observation whose pinned C++ evaluation is undefined, reported in place of its value with
+/// the same refusal object as the C++ adapter; every other observation of the state is kept.
+fn undefined_observation() -> Value {
+    json!({"error": {"kind": "invalid_input", "message": UNDEFINED}})
+}
+const UNDEFINED: &str = "undefined arc chord operation";
+fn arc_angle(p: &ArcChordParams) -> Value {
+    match p.get_arc_angle() {
+        Ok(v) => bits(v),
+        Err(ArcChordError::UndefinedClamp) => undefined_observation(),
+    }
+}
 fn state(p: &ArcChordParams) -> Result<Value, Error> {
     Ok(json!({
         "valid": p.is_valid(),
@@ -85,7 +97,7 @@ fn state(p: &ArcChordParams) -> Result<Value, Error> {
         "center": vector(p.get_center_point()),
         "start_angle": bits(p.get_start_angle()?.as_degrees()),
         "end_angle": bits(p.get_end_angle()?.as_degrees()),
-        "arc_angle": bits(p.get_arc_angle()),
+        "arc_angle": arc_angle(p),
     }))
 }
 fn run(v: &Value) -> Result<Value, Error> {
@@ -173,9 +185,16 @@ pub fn dispatch(line: &str) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
-    const CASES: usize = 1612;
+    const CASES: usize = 1611;
+    const CONTROLS: usize = 79;
+    fn states(reply: &Value) -> Vec<&Value> {
+        match &reply["result"] {
+            Value::Array(steps) => steps.iter().map(|s| &s["state"]).collect(),
+            state => vec![state],
+        }
+    }
     #[test]
-    fn every_public_case_succeeds_without_deferral() {
+    fn every_public_case_succeeds_without_deferral_or_refusal() {
         let mut count = 0;
         for line in include_str!(
             "../../../port/cases/libs.kimath.src.geometry.arc_chord_params.application.pure.p001.jsonl"
@@ -184,9 +203,38 @@ mod tests {
         {
             let reply = dispatch(line);
             assert!(reply.get("result").is_some(), "{reply}");
+            // The public corpus holds defined observations only.
+            assert!(
+                states(&reply).iter().all(|s| s["arc_angle"].is_string()),
+                "{reply}"
+            );
             count += 1;
         }
         assert_eq!(count, CASES);
+    }
+    #[test]
+    fn controls_refuse_exactly_the_undefined_arc_angles() -> Result<(), serde_json::Error> {
+        let mut count = 0;
+        for line in include_str!("../../../port/oracle/fixtures/arc-chord-controls.jsonl").lines() {
+            let control: Value = serde_json::from_str(line)?;
+            let reply = dispatch(&control["request"].to_string());
+            assert_eq!(reply["case"], control["request"]["case"], "{reply}");
+            let undefined = control["undefined_steps"].as_array().cloned();
+            for (i, state) in states(&reply).into_iter().enumerate() {
+                let refused = undefined
+                    .as_ref()
+                    .is_some_and(|u| u.iter().any(|s| s.as_u64() == u64::try_from(i).ok()));
+                if refused {
+                    assert_eq!(state["arc_angle"], json!({"error": control["error"]}));
+                } else {
+                    assert!(state["arc_angle"].is_string(), "{reply}");
+                }
+                assert!(state["start_angle"].is_string() && state["center"].is_array());
+            }
+            count += 1;
+        }
+        assert_eq!(count, CONTROLS);
+        Ok(())
     }
     #[test]
     fn malformed_inputs_are_refused_before_any_operation() {

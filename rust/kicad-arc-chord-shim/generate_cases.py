@@ -7,6 +7,14 @@ mirror below follows Compute's member updates and decides which source branch ea
 request reaches (including the branch EDA_ANGLE( VECTOR2D ) takes for the start and
 end directions). It labels branches for the evidence table and checks that every
 reachable branch is hit; it never writes a result.
+
+GetArcAngle calls std::clamp( m_halfChord / m_radius, 0.0, 1.0 ), which is undefined
+for a NaN value (C++20 [alg.clamp] requires Cpp17LessThanComparable). A request that
+observes such a state (the default object, or one whose every Compute so far was
+refused) is an undefined-domain control: it is written to the separate controls
+fixture with the steps whose arc angle both programs must refuse, never to the
+public corpus. The public corpus keeps each such Compute sequence after one valid
+Compute ("primed-"), so the refusal families still run with defined observations.
 """
 import argparse
 from collections import Counter
@@ -19,9 +27,13 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 UNIT = 'libs.kimath.src.geometry.arc_chord_params.application.pure.p001'
 CASES = ROOT / 'port' / 'cases' / f'{UNIT}.jsonl'
+CONTROLS = ROOT / 'port' / 'oracle' / 'fixtures' / 'arc-chord-controls.jsonl'
+UNDEFINED = {'kind': 'invalid_input', 'message': 'undefined arc chord operation'}
 SEED = 0xA4C0C9F
 INT_MIN, INT_MAX = -2 ** 31, 2 ** 31 - 1
 MAX_COMPUTES = 8
+# The valid Compute that primes a public copy of each undefined-domain control.
+PRIMER = ((0, 0), (5, 5), (10, 0))
 
 
 def div(a, b):
@@ -116,7 +128,7 @@ def vector_branch(x, y):
 
 
 REQUIRED = {'compute-zero-chord', 'compute-collinear', 'compute-valid', 'normal-flipped',
-            'normal-kept', 'observe-valid', 'observe-invalid', 'clamp-nan', 'clamp-inside',
+            'normal-kept', 'observe-valid', 'observe-invalid', 'clamp-inside',
             'clamp-upper', 'arc-reflex', 'arc-minor'}
 REQUIRED |= {f'{w}-{b}' for w in ('start', 'end')
              for b in ('x-axis', 'y-axis', 'diagonal', 'antidiagonal', 'atan2')}
@@ -127,9 +139,30 @@ REQUIRED |= {f'{w}-{b}' for w in ('start', 'end')
 UNREACHABLE = {'compute-sagitta-nonpositive', 'compute-radius-nonpositive', 'clamp-lower'}
 
 
+def label_steps(computes):
+    """Branch labels of a Compute sequence and the steps whose arc angle is undefined."""
+    mirror = Mirror()
+    seen = set()
+    undefined = []
+    for i, (s, m, e) in enumerate(computes):
+        mirror.compute(s, m, e, seen)
+        step = set()
+        mirror.observe(step)
+        if 'clamp-nan' in step:
+            undefined.append(i)
+        seen |= step
+    return seen, undefined
+
+
 def generate():
     cases = []
+    controls = []
     labels = Counter()
+    control_labels = Counter()
+
+    def request(name, computes):
+        return {'unit': UNIT, 'case': name,
+                'input': {'op': 'compute', 'computes': [[list(p) for p in t] for t in computes]}}
 
     def add(name, computes):
         if not 1 <= len(computes) <= MAX_COMPUTES:
@@ -138,18 +171,32 @@ def generate():
             for p in triple:
                 if not all(INT_MIN <= c <= INT_MAX for c in p):
                     raise SystemExit(f'{name}: point out of range')
-        mirror = Mirror()
-        seen = set()
-        for s, m, e in computes:
-            mirror.compute(s, m, e, seen)
-            mirror.observe(seen)
+        seen, undefined = label_steps(computes)
+        if not undefined:
+            labels.update(seen)
+            cases.append(request(name, computes))
+            return
+        # An undefined observation makes the whole request a control; the same refusals
+        # after one valid Compute keep their stale, defined observations in the corpus.
+        control_labels.update(seen)
+        controls.append({'request': request(name, computes), 'undefined_steps': undefined,
+                         'error': UNDEFINED})
+        primed = [PRIMER] + list(computes)
+        if len(primed) > MAX_COMPUTES:
+            raise SystemExit(f'{name}: primed compute count')
+        seen, undefined = label_steps(primed)
+        if undefined:
+            raise SystemExit(f'{name}: primed sequence still undefined')
         labels.update(seen)
-        cases.append({'unit': UNIT, 'case': name,
-                      'input': {'op': 'compute', 'computes': [[list(p) for p in t] for t in computes]}})
+        cases.append(request(f'primed-{name}', primed))
 
-    cases.append({'unit': UNIT, 'case': 'default-state', 'input': {'op': 'default'}})
-    Mirror().observe(seen := set())
-    labels.update(seen)
+    default = set()
+    Mirror().observe(default)
+    if 'clamp-nan' not in default:
+        raise SystemExit('default state no longer reaches the NaN clamp')
+    control_labels.update(default)
+    controls.append({'request': {'unit': UNIT, 'case': 'default-state', 'input': {'op': 'default'}},
+                     'undefined_steps': [0], 'error': UNDEFINED})
 
     # Degenerate: zero chord (any mid) and collinear mids, including mid at an endpoint.
     for i, (s, m) in enumerate([((0, 0), (0, 0)), ((0, 0), (5, 5)), ((7, -3), (1, 2)),
@@ -245,7 +292,9 @@ def generate():
         raise SystemExit(f'corpus misses branches {sorted(missing)}')
     if UNREACHABLE & set(labels):
         raise SystemExit(f'reached a branch recorded as unreachable: {UNREACHABLE & set(labels)}')
-    return cases, labels
+    if 'clamp-nan' in labels:
+        raise SystemExit('public corpus observes an undefined clamp')
+    return cases, labels, controls, control_labels
 
 
 def main():
@@ -253,18 +302,22 @@ def main():
     parser.add_argument('--check', action='store_true', help='verify the committed corpus')
     parser.add_argument('--branches', action='store_true', help='print branch evidence counts')
     args = parser.parse_args()
-    cases, labels = generate()
-    text = ''.join(json.dumps(c, separators=(',', ':'), sort_keys=True) + '\n' for c in cases)
+    cases, labels, controls, control_labels = generate()
+    outputs = [(CASES, cases, 'cases'), (CONTROLS, controls, 'undefined-domain controls')]
     if args.branches:
-        for label, count in sorted(labels.items()):
-            print(f'{label}\t{count}')
-    if args.check:
-        if CASES.read_text(encoding='utf-8') != text:
-            sys.exit(f'{CASES} differs from the deterministic generator')
-        print(f'{len(cases)} cases match')
-    elif not args.branches:
-        CASES.write_text(text, encoding='utf-8', newline='\n')
-        print(f'wrote {len(cases)} cases to {CASES}')
+        for title, counts in (('public corpus', labels), ('controls', control_labels)):
+            print(f'# {title}')
+            for label, count in sorted(counts.items()):
+                print(f'{label}\t{count}')
+    for path, rows, what in outputs:
+        text = ''.join(json.dumps(c, separators=(',', ':'), sort_keys=True) + '\n' for c in rows)
+        if args.check:
+            if path.read_text(encoding='utf-8') != text:
+                sys.exit(f'{path} differs from the deterministic generator')
+            print(f'{len(rows)} {what} match')
+        elif not args.branches:
+            path.write_text(text, encoding='utf-8', newline='\n')
+            print(f'wrote {len(rows)} {what} to {path}')
 
 
 if __name__ == '__main__':

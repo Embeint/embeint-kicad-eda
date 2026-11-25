@@ -6,6 +6,7 @@
 #include <geometry/arc_chord_params.h>
 #include <bit>
 #include <climits>
+#include <cmath>
 #include <cstdint>
 #include <iomanip>
 #include <locale>
@@ -79,6 +80,29 @@ VECTOR2I readPoint( const JSON& aInput )
 }
 
 
+// An observation whose pinned evaluation is undefined is reported in place of its value; the
+// other observations of the same state are kept.
+JSON undefinedObservation()
+{
+    return JSON{ { "error", { { "kind", "invalid_input" }, { "message", "undefined arc chord operation" } } } };
+}
+
+
+// GetArcAngle passes m_halfChord / m_radius to std::clamp, which C++20 [alg.clamp] defines only
+// for Cpp17LessThanComparable values; NaN is not (libstdc++ happens to pass it through, which does
+// not make the call defined). The quotient is NaN when both members are still 0 (a default object,
+// or one whose every Compute so far was refused). The guard evaluates the same IEEE quotient from
+// the header accessors and never calls the pinned getter for those states. No other getter or
+// Compute makes an ordering-dependent library call on a NaN: comparisons are built-in operators,
+// and atan2/asin of NaN are IEC 60559 defined.
+JSON arcAngle( const ARC_CHORD_PARAMS& aParams )
+{
+    if( std::isnan( aParams.GetHalfChord() / aParams.GetRadius() ) )
+        return undefinedObservation();
+    return bits( aParams.GetArcAngle() );
+}
+
+
 // Every public observation of the object: the header accessors and the out-of-line getters.
 JSON state( const ARC_CHORD_PARAMS& aParams )
 {
@@ -98,7 +122,7 @@ JSON state( const ARC_CHORD_PARAMS& aParams )
     out["center"] = vector( aParams.GetCenterPoint() );
     out["start_angle"] = bits( aParams.GetStartAngle().AsDegrees() );
     out["end_angle"] = bits( aParams.GetEndAngle().AsDegrees() );
-    out["arc_angle"] = bits( aParams.GetArcAngle() );
+    out["arc_angle"] = arcAngle( aParams );
     return out;
 }
 
