@@ -1,0 +1,59 @@
+$ cargo test --locked --manifest-path rust/Cargo.toml -p kicad-math -p kicad-math-util-shim --release -j2
+
+running 2 tests
+test fp::tests::invalid_operations_generate_the_indefinite_nan ... ok
+test fp::tests::operand_nans_are_quieted_and_the_left_one_wins ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 6 tests
+test double_operations_are_componentwise_ieee ... ok
+test double_to_int_clamps_then_truncates ... ok
+test int_difference_is_an_int_subtraction_with_overflow_refused ... ok
+test int_components_promote_exactly_to_double ... ok
+test nan_results_follow_the_explicit_rules ... ok
+test nan_to_int_is_refused ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 4 tests
+test hypot_rounds_and_preserves_both_unsigned_wraps ... ok
+test rescale_negative_halfways_odd_divisors_and_amplification ... ok
+test signed_narrowing_is_observable_not_saturated_or_refused ... ok
+test undefined_divisions_and_missing_host_effects_are_typed ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 7 tests
+test aliases_are_the_generic_types ... ok
+test constructors_are_const ... ok
+test constructors_keep_float_bits_in_component_order ... ok
+test copy_clone_and_assignment_keep_bits ... ok
+test default_value_initialises_every_component ... ok
+test components_keep_the_type_parameter ... ok
+test constructors_keep_integer_extremes ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test tests::corpus_success_refusal_and_deferral_counts_are_explicit ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Compiling kicad-math-util-shim v0.1.0 (/Users/karl/.t3/worktrees/embeint-kicad-eda/t3-e45a8392-7a8d887bd0d2d5d5/rust/kicad-math-util-shim)
+    Finished `release` profile [optimized] target(s) in 5.72s
+     Running unittests src/lib.rs (rust/target/release/deps/kicad_math-58fbebbb8d5e5393)
+     Running tests/bezier_operations.rs (rust/target/release/deps/bezier_operations-b6f88813bc22db8a)
+     Running tests/math_util.rs (rust/target/release/deps/math_util-4d4392278b683cb2)
+     Running tests/vector.rs (rust/target/release/deps/vector-9bdbcb7830743d80)
+     Running unittests src/main.rs (rust/target/release/deps/kicad_math_util_shim-1e87a86c08feb1f5)
+   Doc-tests kicad_math

@@ -1,0 +1,2 @@
+$ cargo check --locked --manifest-path rust/Cargo.toml -p kicad-math --target wasm32-unknown-unknown -j2
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.03s

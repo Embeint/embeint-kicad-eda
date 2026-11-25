@@ -1,0 +1,1 @@
+$ git diff --exit-code origin/rust -- rust/kicad-math/src/vector.rs rust/kicad-hash port/units/libs.kimath.include.math.application.ui.p001.toml

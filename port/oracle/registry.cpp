@@ -10,6 +10,7 @@ void RegisterResistors( REGISTRY& aRegistry );
 void RegisterKimathMath( REGISTRY& aRegistry );
 void RegisterKimathHeaderHash( REGISTRY& aRegistry );
 void RegisterRtreeNode( REGISTRY& aRegistry );
+void RegisterMathUtil( REGISTRY& aRegistry );
 
 
 void REGISTRY::Add( const std::string& aUnit, const std::string& aUpstream, SHIM aShim )
@@ -32,6 +33,7 @@ REGISTRY MakeRegistry()
     RegisterKimathMath( registry );
     RegisterKimathHeaderHash( registry );
     RegisterRtreeNode( registry );
+    RegisterMathUtil( registry );
     return registry;
 }
 
