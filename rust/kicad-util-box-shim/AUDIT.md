@@ -2,15 +2,15 @@
 
 Unit `libs.kimath.include.math.application.ui.p001` owns the complete pinned
 `math/util.h` (299 lines), `box2.h` (990), and `box2_minmax.h` (116) at
-`4cf939778df04d2b747bb2c4714fc5014a7565c7`. Base: `37f4bc0a32`. It remains **partial**.
+`4cf939778df04d2b747bb2c4714fc5014a7565c7`. Initial base: `37f4bc0a32`; accepted `origin/rust` `4b18bdb371` is integrated by merge. It remains **partial**.
 No source header or util.cpp is modified; the oracle compiles the actual pinned headers.
 No golden, tolerance, stored-answer fallback, filtered case or exclusion is used.
 
 `src/util.rs` and `src/box2.rs` in kicad-math are the canonical implementation.
 Vectors remain the accepted `Vector2<T>`; util.cpp integer rescale and
 RoundedHypotWide are called, not duplicated. `eda_angle.rs` only changes the two
-header-helper wrappers. Its scalar_libm/scalar_atan2/scalar_pow stubs and
-`glibc_trig` are unchanged. Portable crates continue to forbid unsafe code.
+header-helper wrappers. Its accepted scalar_libm/scalar_atan2/scalar_pow and
+`glibc_trig`/`glibc_libm` bodies match the integrated base. Portable crates continue to forbid unsafe code.
 
 ## Body/branch evidence map
 
@@ -89,7 +89,7 @@ full type/branch coverage is made. Rust checks its arithmetic independently.
 
 Fixed-seed public corpora are additive and deterministic. The owned corpus has
 15,905 inputs and 16 separate UB controls. Vector has 10,286 inputs (+704),
-geometry 18,434 (+384). No prior corpus case is deleted or excluded. Native
+geometry 21,538 (+384 from the accepted backend corpus). No prior corpus case is deleted or excluded. Native
 comparison reports must show zero previously passing regressions. The scoped
 workflow runs all three corpora and replays this unit's freshly executed native
 replies, including deferrals, in import-free wasm. Other units stay partial.
@@ -100,25 +100,33 @@ under validation after successful live comparison. No separate review is claimed
 
 ## Retained live result
 
-[Snapshot](validation/2026-11-25-d7a17b8e4c/README.md) binds the implementation head,
-tested merge, source manifest, full reports, runtime and compiler provenance.
-Hosted run 45607429865 passed 15,828 cases: **14,221 exact / 1,607 deferred / zero
-failures**. Vector: **9,639 exact / 647 deferred** of 10,286. Geometry: **13,814 exact /
-4,620 deferred** of 18,434. All have zero unprocessed cases, faults and extra replies.
-All 11 UB controls and wasm replay passed. Every previously passing case remains
-compared; 139 accepted vector and 997 geometry deferrals now compare exactly.
+[Current snapshot](validation/2026-11-25-5b6d689175/README.md) binds implementation
+head `5b6d689175a9f80a58814bb094d68b2956184b3e`, its tested PR merge, source
+manifest, original full reports and runtime/compiler provenance. Hosted run
+45618853377 passed **14,298 exact / 1,607 deferred** of 15,905 owned inputs;
+vector **9,639 / 647** of 10,286; geometry **19,102 / 2,436** of 21,538. All have
+zero failures, unprocessed cases, faults and extra replies. All 16 separate UB
+controls and all 15,905 native replies in import-free wasm passed.
 
-The owned corpus defers 1,447 calls to util.cpp kimathLogOverflow, 78 to header
-RotatePoint wrappers, 63 to source SegmentIntersectsSegment, 15 to the vector
-unit's float formatting/general hypot, and four to SHAPE_ARC::BBox. The caller
-reports enumerate their remaining owners. This is an implemented partial unit,
-not green or complete native qualification of arbitrary template instantiations.
+Caller checks retain every accepted passing case: 8,860 vector and 17,721 current
+geometry comparisons (including the original 12,433). Utility wiring unlocks
+139/997 accepted deferrals. Accepted angle backend gains belong to integrated
+base `4b18bdb371`, not this PR. Geometry adds 384 deterministic cases to its
+21,154-case accepted corpus. The [earlier snapshot](validation/2026-11-25-d7a17b8e4c/README.md)
+remains historical and is not evidence for subsequent code changes.
 
-The current generator additionally includes 36 successful box-level KiROUND
-continuations and 12 explicit Linux generic narrowing constructor/getter/
-Normalize cases. Together with eight promotion/wrapping helper cases, these extend the retained 15,828-case snapshot to 15,884;
-fresh live evidence is required for the additions rather than treating the
-logging-only round_box cases as successful continuation coverage.
+Owned deferrals: util.cpp kimathLogOverflow 1,447; header RotatePoint 78; source
+SegmentIntersectsSegment 63; vector float formatting/general hypot 15; arc BBox
+four. Vector defers 607 of its own arithmetic/hypot/formatting cases and 40 logs.
+Geometry defers pow 1,642, util.cpp logging 189, SEG::Square 553, ellipse source
+four and grid source 48. Full owner tags are in summary.json. Every unit stays
+partial; native template qualification is limited as described above.
+
+The current evidence includes 36 successful box-level KiROUND continuations and
+12 Linux generic narrowing constructor/getter/Normalize cases, plus eight
+promotion/wrapping helper cases and 21 live-alias/selected-edge cases. These
+additions ran against C++; logging-only round_box cases are not presented as
+successful continuation coverage.
 
 Small-type ct_sqrt_helper arithmetic is performed in promoted signed int, with
 narrowing only at the declared T assignment/recursive argument. Unsigned 32/64-bit
@@ -133,8 +141,8 @@ VECTOR2I from its VECTOR2L size, so that operand is captured before Normalize.
 Native alias cases invoke actual `Merge(GetOrigin())`/`Merge(GetSize())` calls,
 including a defined narrowing edge. A farthest-point case proves an unused
 end getter is not pre-rejected. Two extra UB controls check the signed final
-union span, separately from valid alias behavior. The current corpus is 15,905
-cases with 16 separate UB controls; the earlier snapshot remains historical.
+union span, separately from valid alias behavior. The live run passed all 15,905
+cases (including deferrals) and 16 separate UB controls; the earlier snapshot remains historical.
 
 KiCad's `equals` adaptation retains Bruce Dawson's Apache-2.0 attribution from
 AlmostEqualRelativeAndAbs; the repository's LICENSE.APACHE-2.0 supplies the licence.
