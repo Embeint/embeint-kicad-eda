@@ -293,7 +293,7 @@ fn arithmetic_result(a: f64, b: f64, value: f64) -> VResult<f64> {
     }
 }
 
-fn vector_sqrt(value: f64) -> VResult<f64> {
+pub(crate) fn vector_sqrt(value: f64) -> VResult<f64> {
     if value.is_nan() {
         // sqrt has one operand: its unique NaN is quieted, with sign/payload retained.
         return Ok(f64::from_bits(value.to_bits() | 0x0008_0000_0000_0000));

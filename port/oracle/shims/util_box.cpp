@@ -11,7 +11,7 @@
 namespace
 {
 using oracle::JSON;
-constexpr const char* UNIT = "libs.kimath.include.math.application.ui.p001";
+constexpr const char* UTIL_BOX_UNIT = "libs.kimath.include.math.application.ui.p001";
 std::string           text( const JSON& v, const char* k )
 {
     if( !v.contains( k ) || !v.at( k ).is_string() )
@@ -168,6 +168,14 @@ JSON state( const BOX2<VECTOR2<T>>& b )
 {
     return JSON{ { "pos", vec( b.GetOrigin() ) }, { "size", vec( b.GetSize() ) }, { "valid", b.IsValid() } };
 }
+template <class T>
+JSON mutState( BOX2<VECTOR2<T>>& a, BOX2<VECTOR2<T>>& returned )
+{
+    JSON result = state( a );
+    result["same_ref"] = &a == &returned;
+    return result;
+}
+
 template <class T>
 BOX2<VECTOR2<T>> boxRead( const JSON& v )
 {
@@ -364,8 +372,7 @@ JSON boxes( const JSON& v )
     if( k == "normalize" )
     {
         normalizeDomain( a );
-        a.Normalize();
-        return state( a );
+        return mutState( a, a.Normalize() );
     }
     if( k == "getters" )
     {
@@ -402,8 +409,7 @@ JSON boxes( const JSON& v )
         auto b = boxRead<T>( v.at( "b" ) );
         if( k == "merge" && !a.IsValid() )
         {
-            a.Merge( b );
-            return state( a );
+            return mutState( a, a.Merge( b ) );
         }
         normalizeDomain( a );
         normalizeDomain( b );
@@ -418,8 +424,7 @@ JSON boxes( const JSON& v )
             return a.Intersects( b );
         if( k == "intersect" )
             return state( a.Intersect( b ) );
-        a.Merge( b );
-        return state( a );
+        return mutState( a, a.Merge( b ) );
     }
     if( k == "merge_point" )
     {
@@ -431,8 +436,7 @@ JSON boxes( const JSON& v )
             n.Normalize();
             endsDomain( n );
         }
-        a.Merge( p );
-        return state( a );
+        return mutState( a, a.Merge( p ) );
     }
     if( k == "segment" )
     {
@@ -522,8 +526,7 @@ JSON boxes( const JSON& v )
         inflateDomain( a, p.x, p.y );
         if( k == "inflated" )
             return state( a.GetInflated( p.x, p.y ) );
-        a.Inflate( p.x, p.y );
-        return state( a );
+        return mutState( a, a.Inflate( p.x, p.y ) );
     }
     if( k == "inflate_uniform" || k == "inflated_uniform" )
     {
@@ -531,8 +534,7 @@ JSON boxes( const JSON& v )
         inflateDomain( a, d, d );
         if( k == "inflated_uniform" )
             return state( a.GetInflated( d ) );
-        a.Inflate( d );
-        return state( a );
+        return mutState( a, a.Inflate( d ) );
     }
     if( k == "offset" || k == "offset_xy" || k == "move" || k == "with_offset" )
     {
@@ -630,10 +632,12 @@ JSON rounded( const JSON& v )
         return out( KiROUND<S, type>( x, q ) );
     TARGET( "i8", int8_t )
     TARGET( "u8", uint8_t )
-    TARGET( "i16", int16_t ) TARGET( "u16", uint16_t ) TARGET( "i32", int ) TARGET( "u32", unsigned )
-            TARGET( "i64", int64_t )
+    TARGET( "i16", int16_t )
+    TARGET( "u16", uint16_t )
+    TARGET( "i32", int )
+    TARGET( "u32", unsigned ) TARGET( "i64", int64_t )
 #undef TARGET
-                    throw std::invalid_argument( "unknown target" );
+            throw std::invalid_argument( "unknown target" );
 }
 template <class T>
 JSON scalar( const JSON& v )
@@ -803,25 +807,28 @@ JSON run( const JSON& v )
     }
         SCALE( "i32", int )
         SCALE( "i64", int64_t )
-        SCALE( "f64", double ) SCALE( "f32", float )
+        SCALE( "f64", double )
+        SCALE( "f32", float )
 #undef SCALE
-                throw std::invalid_argument( "unknown type" );
+        throw std::invalid_argument( "unknown type" );
     }
 #define TYPE( name, T )                                                                                                \
     if( t == name )                                                                                                    \
         return scalar<T>( v );
     TYPE( "f64", double )
     TYPE( "f32", float )
-    TYPE( "i8", int8_t ) TYPE( "u8", uint8_t ) TYPE( "i16", int16_t ) TYPE( "u16", uint16_t ) TYPE( "i32", int )
-            TYPE( "u32", unsigned ) TYPE( "i64", int64_t ) TYPE( "u64", uint64_t )
+    TYPE( "i8", int8_t )
+    TYPE( "u8", uint8_t )
+    TYPE( "i16", int16_t )
+    TYPE( "u16", uint16_t ) TYPE( "i32", int ) TYPE( "u32", unsigned ) TYPE( "i64", int64_t ) TYPE( "u64", uint64_t )
 #undef TYPE
-                    throw std::invalid_argument( "unknown type" );
+            throw std::invalid_argument( "unknown type" );
 }
 } // namespace
 namespace oracle
 {
 void RegisterUtilBox( REGISTRY& registry )
 {
-    registry.Add( UNIT, "math/{util,box2,box2_minmax}.h", run );
+    registry.Add( UTIL_BOX_UNIT, "math/{util,box2,box2_minmax}.h", run );
 }
 } // namespace oracle

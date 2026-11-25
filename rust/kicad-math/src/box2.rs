@@ -582,7 +582,9 @@ impl<T: BoxCoord> Box2<T> {
         dx.c_mul(dx)?.c_add(dy.c_mul(dy)?)
     }
     pub fn distance(&self, p: Vector2<T>) -> Result<T::Extended> {
-        T::distance(sqrt(self.squared_distance(p)?.double()))
+        T::distance(crate::vector::vector_sqrt(
+            self.squared_distance(p)?.double(),
+        )?)
     }
     pub fn squared_distance_box(&self, b: &Self) -> Result<T::Extended> {
         let mut s = T::Extended::default();
@@ -601,7 +603,9 @@ impl<T: BoxCoord> Box2<T> {
         Ok(s)
     }
     pub fn distance_box(&self, b: &Self) -> Result<T::Extended> {
-        T::distance(sqrt(self.squared_distance_box(b)?.double()))
+        T::distance(crate::vector::vector_sqrt(
+            self.squared_distance_box(b)?.double(),
+        )?)
     }
     pub fn nearest_point(&self, p: Vector2<T>) -> Result<Vector2<T>> {
         let mut b = *self;
@@ -650,18 +654,6 @@ impl<T: BoxCoord> Box2<T> {
             && self.top().double() >= -2_147_483_647.0
             && self.right()?.double() <= 2_147_483_647.0
             && self.bottom()?.double() <= 2_147_483_647.0)
-    }
-}
-fn sqrt(v: f64) -> f64 {
-    if v.is_nan() {
-        f64::from_bits(v.to_bits() | 0x8000000000000)
-    } else {
-        let r = v.sqrt();
-        if r.is_nan() {
-            f64::from_bits(0xfff8000000000000)
-        } else {
-            r
-        }
     }
 }
 fn inflate_axis<T: BoxCoord>(p: &mut T, s: &mut T::Extended, d: T) -> Result<()> {

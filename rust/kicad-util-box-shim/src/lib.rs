@@ -165,6 +165,15 @@ where
         _ => Err(Error::Input("unknown box mode".into())),
     }
 }
+macro_rules! mutate {
+    ($a:ident,$call:expr) => {{
+        let original = core::ptr::from_ref(&$a);
+        let returned = core::ptr::from_mut($call?);
+        let mut result = state($a);
+        result["same_ref"] = json!(core::ptr::eq(original, returned));
+        result
+    }};
+}
 fn boxes<T: BoxCoord + Scalar>(v: &Value) -> R<Value>
 where
     T::Extended: Scalar,
@@ -201,8 +210,7 @@ where
     Ok(match k {
         "state" => state(a),
         "normalize" => {
-            a.normalize()?;
-            state(a)
+            mutate!(a, a.normalize())
         }
         "maximum" => {
             a.set_maximum();
@@ -220,12 +228,10 @@ where
         "intersects" => json!(a.intersects(&box_read(&v["b"])?)?),
         "intersect" => state(a.intersect(&box_read(&v["b"])?)?),
         "merge" => {
-            a.merge(&box_read(&v["b"])?)?;
-            state(a)
+            mutate!(a, a.merge(&box_read(&v["b"])?))
         }
         "merge_point" => {
-            a.merge_point(point(&v["p"])?)?;
-            state(a)
+            mutate!(a, a.merge_point(point(&v["p"])?))
         }
         "compare" => {
             let b = box_read(&v["b"])?;
@@ -259,16 +265,14 @@ where
         "format" => json!(a.format()?),
         "inflate" => {
             let s = point(&v["s"])?;
-            a.inflate(s.x, s.y)?;
-            state(a)
+            mutate!(a, a.inflate(s.x, s.y))
         }
         "inflated" => {
             let s = point(&v["s"])?;
             state(a.inflated(s.x, s.y)?)
         }
         "inflate_uniform" => {
-            a.inflate_uniform(T::read(&v["n"])?)?;
-            state(a)
+            mutate!(a, a.inflate_uniform(T::read(&v["n"])?))
         }
         "inflated_uniform" => state(a.inflated_uniform(T::read(&v["n"])?)?),
         "offset" | "move" | "with_offset" | "offset_xy" => {
