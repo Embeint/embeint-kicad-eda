@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Derived from KiCad math/util.h, copyright Michael Niedermayer, CERN and KiCad Developers.
+// Derived from KiCad math/util.h.
+// Copyright (c) 2005 Michael Niedermayer <michaelni@gmx.at>.
+// Copyright (C) CERN and The KiCad Developers, see AUTHORS.txt.
+// KiCad's equals adaptation retains the original AlmostEqualRelativeAndAbs credit:
+// Copyright (C) Bruce Dawson, Apache-2.0 (LICENSE.APACHE-2.0 at the repository root).
+// https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/
 //! Header utilities at pin 4cf939778df04d2b747bb2c4714fc5014a7565c7.
 use crate::math_util;
 use crate::vector::{VectorComponent, VectorDomainError};

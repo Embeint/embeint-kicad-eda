@@ -139,6 +139,15 @@ def generate():
         if lo<0:add(f'ct-helper-promoted-negative-{t}',op='ct_sqrt_helper',type=t,a=0,lo=lo,hi=lo+1)
     for t,hi in [('u32',2**32-1),('u64',2**64-1)]:
         add(f'ct-helper-unsigned-wrap-{t}',op='ct_sqrt_helper',type=t,a=hi,lo=hi-1,hi=hi)
+    for t in ['i32','i64','f64']:
+        cv=lambda x:bits(float(x)) if t=='f64' else x
+        states=[dict(mode='default')]+[dict(mode='raw',pos=[cv(x) for x in p],size=[cv(x) for x in sz]) for p,sz in [([10,20],[-4,-8]),([-5,-6],[-7,-8])]]
+        for i,a in enumerate(states):
+            for alias in ['origin','size']:
+                add(f'box-alias-{t}-{i}-{alias}',op='box',type=t,kind='merge_point_alias',a=a,alias=alias)
+    for alias in ['origin','size']:
+        add(f'box-alias-narrow-{alias}',op='box',type='i32',kind='merge_point_alias',a=dict(mode='raw',pos=[-2**31,0],size=[-2,0]),alias=alias)
+    add('farthest-unused-overflow-edge',op='box',type='i64',kind='farthest',a=dict(mode='raw',pos=[2**63-1,0],size=[1,0]),p=[2**63-1,0])
     assert len({c['case'] for c in cases})==len(cases)
     return ''.join(json.dumps(c,separators=(',',':'),allow_nan=False)+'\n' for c in cases)
 def controls():
@@ -148,6 +157,8 @@ def controls():
     add('ub-ct-helper-add',op='ct_sqrt_helper',type='i32',a=0,lo=2**31-2,hi=2**31-1)
     add('ub-ct-helper-divide',op='ct_sqrt_helper',type='i32',a=-2**31,lo=-3,hi=0)
     add('ub-ct-helper-zero',op='ct_sqrt_helper',type='i32',a=0,lo=0,hi=-1)
+    add('ub-merge-point-span',op='box',type='i64',kind='merge_point',a=dict(mode='raw',pos=[-2**63,0],size=[1,0]),p=[2**63-1,0])
+    add('ub-merge-box-span',op='box',type='i64',kind='merge',a=dict(mode='raw',pos=[-2**63,0],size=[1,0]),b=dict(mode='raw',pos=[2**63-1,0],size=[0,0]))
     add('ub-offset',op='box',type='i32',kind='offset',a=dict(mode='raw',pos=[2**31-1,0],size=[0,0]),p=[1,0])
     add('ub-long-add',op='box',type='i64',kind='state',a=dict(mode='new',pos=[2**63-1,0],size=[1,0]))
     add('ub-corners',op='box',type='i32',kind='state',a=dict(mode='corners',pos=[-2**31,0],end=[2**31-1,0]))

@@ -88,7 +88,7 @@ full type/branch coverage is made. Rust checks its arithmetic independently.
 ## Validation
 
 Fixed-seed public corpora are additive and deterministic. The owned corpus has
-15,884 inputs and 14 separate UB controls. Vector has 10,286 inputs (+704),
+15,905 inputs and 16 separate UB controls. Vector has 10,286 inputs (+704),
 geometry 18,434 (+384). No prior corpus case is deleted or excluded. Native
 comparison reports must show zero previously passing regressions. The scoped
 workflow runs all three corpora and replays this unit's freshly executed native
@@ -126,3 +126,15 @@ addition/subtraction wraps. New cases exercise defined narrow-type helpers with
 bounds near both signed extrema and full-width unsigned wrapping. Three separate
 controls refuse signed addition overflow, MIN/-1 division, and division by zero
 at the actual helper operation; they do not reclassify defined promotions as UB.
+
+`BoxPointOperand::{Origin,Size}` models live const-reference Merge point operands.
+BOX2L/D read their size after Normalize; BOX2I first constructs a temporary
+VECTOR2I from its VECTOR2L size, so that operand is captured before Normalize.
+Native alias cases invoke actual `Merge(GetOrigin())`/`Merge(GetSize())` calls,
+including a defined narrowing edge. A farthest-point case proves an unused
+end getter is not pre-rejected. Two extra UB controls check the signed final
+union span, separately from valid alias behavior. The current corpus is 15,905
+cases with 16 separate UB controls; the earlier snapshot remains historical.
+
+KiCad's `equals` adaptation retains Bruce Dawson's Apache-2.0 attribution from
+AlmostEqualRelativeAndAbs; the repository's LICENSE.APACHE-2.0 supplies the licence.

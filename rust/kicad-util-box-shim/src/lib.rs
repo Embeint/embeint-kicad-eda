@@ -207,6 +207,7 @@ where
         "set_x" | "set_y" => vec!["n"],
         "rotated_bbox" => vec!["p", "angle"],
         "compute" => vec!["points"],
+        "merge_point_alias" => vec!["alias"],
         "contains" | "contains_xy" | "merge_point" | "nearest" | "farthest" | "distance"
         | "squared_distance" | "offset" | "offset_xy" | "move" | "with_offset" | "set_end"
         | "set_end_xy" | "set_origin" | "set_origin_xy" => vec!["p"],
@@ -240,6 +241,14 @@ where
         }
         "merge_point" => {
             mutate!(a, a.merge_point(point(&v["p"])?))
+        }
+        "merge_point_alias" => {
+            let p = match text(v, "alias")? {
+                "origin" => BoxPointOperand::Origin,
+                "size" => BoxPointOperand::Size,
+                _ => return Err(Error::Input("unknown point alias".into())),
+            };
+            mutate!(a, a.merge_point_operand(p))
         }
         "compare" => {
             let b = box_read(&v["b"])?;
@@ -640,7 +649,7 @@ mod tests {
                 counts[1] += 1;
             }
         }
-        assert_eq!(counts, [14277, 1607]);
+        assert_eq!(counts, [14298, 1607]);
     }
     #[test]
     fn undefined_controls_refuse_and_next_request_survives() -> Result<(), serde_json::Error> {

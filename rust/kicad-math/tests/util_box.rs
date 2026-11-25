@@ -74,3 +74,27 @@ fn by_center_uses_vector_division_rounding_not_scalar_truncation() -> util::Resu
     ));
     Ok(())
 }
+
+#[test]
+fn merge_reads_live_size_after_normalizing_but_captures_converting_temporaries() -> util::Result<()>
+{
+    let mut l = Box2L::default();
+    l.set_origin(Vector2::new(10, 20));
+    l.set_size(Vector2::new(-4, -8));
+    l.merge_point_operand(BoxPointOperand::Size)?;
+    assert_eq!(l.origin(), Vector2::new(4, 8));
+    assert_eq!(l.size(), Vector2::new(6, 12));
+    let mut i = Box2I::default();
+    i.set_origin(Vector2::new(10, 20));
+    i.set_size(Vector2::new(-4, -8));
+    i.merge_point_operand(BoxPointOperand::Size)?;
+    assert_eq!(i.origin(), Vector2::new(-4, -8));
+    assert_eq!(i.size(), Vector2::new(14, 28));
+    let mut i = Box2I::default();
+    i.set_origin(Vector2::new(i32::MIN, 0));
+    i.set_size(Vector2::new(-2, 0));
+    i.merge_point_operand(BoxPointOperand::Origin)?;
+    assert_eq!(i.origin(), Vector2::new(i32::MAX - 1, 0));
+    assert_eq!(i.size(), Vector2::new(0, 0));
+    Ok(())
+}

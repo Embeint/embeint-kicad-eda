@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Derived from KiCad box2.h/box2_minmax.h, copyright SoftPLC, CERN, Alex Shvartzkop and KiCad Developers.
+// Derived from KiCad box2.h/box2_minmax.h.
+// Copyright (C) 2012 SoftPLC Corporation, Dick Hollenbeck.
+// Copyright (C) 2013 CERN; Copyright (C) 2024 Alex Shvartzkop.
+// Copyright The KiCad Developers, see AUTHORS.txt.
 //! Canonical BOX2 port. Linux's int64_t=long generic KiCheckedCast semantics are explicit.
 use crate::eda_angle::EdaAngle;
 use crate::util::{self, clamp, max, min, Result};
@@ -7,6 +10,7 @@ use crate::vector::{VectorComponent, VectorDomainError};
 use crate::{Vector2, Vector2D, Vector2I, Vector2L};
 
 pub trait BoxCoord: VectorComponent {
+    const SIZE_CONVERTS: bool;
     const LOWEST: Self;
     fn narrow(value: Self::Extended) -> Result<Self>;
     fn vector_cast(value: Self::Extended) -> Result<Self>;
@@ -17,6 +21,7 @@ pub trait BoxCoord: VectorComponent {
     fn size_int(v: Self::Extended) -> Result<i32>;
 }
 impl BoxCoord for i32 {
+    const SIZE_CONVERTS: bool = true;
     fn implicit_int(self) -> Result<i32> {
         Ok(self)
     }
@@ -41,6 +46,7 @@ impl BoxCoord for i32 {
     }
 }
 impl BoxCoord for i64 {
+    const SIZE_CONVERTS: bool = false;
     fn implicit_int(self) -> Result<i32> {
         Ok(self as i32)
     }
@@ -65,6 +71,7 @@ impl BoxCoord for i64 {
     }
 }
 impl BoxCoord for f64 {
+    const SIZE_CONVERTS: bool = false;
     fn implicit_int(self) -> Result<i32> {
         <i32 as VectorComponent>::from_double(self)
     }
@@ -97,6 +104,13 @@ pub struct Box2<T: BoxCoord = i32> {
 pub type Box2I = Box2<i32>;
 pub type Box2L = Box2<i64>;
 pub type Box2D = Box2<f64>;
+/// Express a C++ const-reference argument that may alias this box's fields.
+#[derive(Clone, Copy, Debug)]
+pub enum BoxPointOperand<T: BoxCoord> {
+    Value(Vector2<T>),
+    Origin,
+    Size,
+}
 impl<T: BoxCoord> Default for Box2<T> {
     fn default() -> Self {
         Self {
@@ -504,18 +518,35 @@ impl<T: BoxCoord> Box2<T> {
         Ok(self)
     }
     pub fn merge_point(&mut self, p: Vector2<T>) -> Result<&mut Self> {
+        self.merge_point_operand(BoxPointOperand::Value(p))
+    }
+    fn point_operand(&self, p: BoxPointOperand<T>) -> Result<Vector2<T>> {
+        Ok(match p {
+            BoxPointOperand::Value(p) => p,
+            BoxPointOperand::Origin => self.pos,
+            BoxPointOperand::Size => {
+                Vector2::new(T::vector_cast(self.size.x)?, T::vector_cast(self.size.y)?)
+            }
+        })
+    }
+    pub fn merge_point_operand(&mut self, mut p: BoxPointOperand<T>) -> Result<&mut Self> {
+        // BOX2I::GetSize is VECTOR2L: C++ constructs a temporary VECTOR2I before
+        // entering Merge. BOX2L/D bind the size reference and read it after Normalize.
+        if matches!(p, BoxPointOperand::Size) && T::SIZE_CONVERTS {
+            p = BoxPointOperand::Value(self.point_operand(p)?);
+        }
         if !self.init {
-            self.pos = p;
+            self.pos = self.point_operand(p)?;
             self.size = Vector2::default();
             self.init = true;
             return Ok(self);
         }
         self.normalize()?;
         let mut end = self.end()?;
-        self.pos.x = min(self.pos.x, p.x);
-        self.pos.y = min(self.pos.y, p.y);
-        end.x = max(end.x, p.x);
-        end.y = max(end.y, p.y);
+        self.pos.x = min(self.pos.x, self.point_operand(p)?.x);
+        self.pos.y = min(self.pos.y, self.point_operand(p)?.y);
+        end.x = max(end.x, self.point_operand(p)?.x);
+        end.y = max(end.y, self.point_operand(p)?.y);
         self.set_end(end)?;
         Ok(self)
     }

@@ -230,6 +230,8 @@ BOX2<VECTOR2<T>> boxRead( const JSON& v )
         b.Compute( points );
         return b;
     }
+    if( mode != "new" && mode != "raw" && mode != "center" )
+        throw std::invalid_argument( "unknown box mode" );
     keys( v, { "mode", "pos", "size" } );
     auto p = point<T>( v.at( "pos" ) );
     auto s = point<E>( v.at( "size" ) );
@@ -325,6 +327,27 @@ void distanceDomain( const BOX2<VECTOR2<T>>& a, VECTOR2<T> p )
     add( mul( dx, dx ), mul( dy, dy ) );
 }
 template <class T>
+void mergePointDomain( const BOX2<VECTOR2<T>>& a, VECTOR2<T> point, int alias = 0 )
+{
+    using E = typename VECTOR2<T>::extended_type;
+    if( !a.IsValid() )
+        return;
+    normalizeDomain( a );
+    auto n = a;
+    n.Normalize();
+    endsDomain( n );
+    if( alias == 1 )
+        point = n.GetOrigin();
+    if( alias == 2 )
+    {
+        if constexpr( std::is_same_v<T, E> )
+            point = n.GetSize();
+    }
+    const auto end = n.GetEnd();
+    sub( E( std::max( end.x, point.x ) ), E( std::min( n.GetX(), point.x ) ) );
+    sub( E( std::max( end.y, point.y ) ), E( std::min( n.GetY(), point.y ) ) );
+}
+template <class T>
 JSON boxes( const JSON& v )
 {
     using B = BOX2<VECTOR2<T>>;
@@ -357,6 +380,8 @@ JSON boxes( const JSON& v )
         extra( { "p", "angle" } );
     else if( k == "compute" )
         extra( { "points" } );
+    else if( k == "merge_point_alias" )
+        extra( { "alias" } );
     else if( k == "contains" || k == "contains_xy" || k == "merge_point" || k == "nearest" || k == "farthest"
              || k == "distance" || k == "squared_distance" || k == "offset" || k == "offset_xy" || k == "move"
              || k == "with_offset" || k == "set_end" || k == "set_end_xy" || k == "set_origin" || k == "set_origin_xy" )
@@ -424,19 +449,31 @@ JSON boxes( const JSON& v )
             return a.Intersects( b );
         if( k == "intersect" )
             return state( a.Intersect( b ) );
+        const auto ae = na.GetEnd(), be = nb.GetEnd();
+        sub( E( std::max( ae.x, be.x ) ), E( std::min( na.GetX(), nb.GetX() ) ) );
+        sub( E( std::max( ae.y, be.y ) ), E( std::min( na.GetY(), nb.GetY() ) ) );
         return mutState( a, a.Merge( b ) );
     }
     if( k == "merge_point" )
     {
         auto p = point<T>( v.at( "p" ) );
-        if( a.IsValid() )
-        {
-            normalizeDomain( a );
-            auto n = a;
-            n.Normalize();
-            endsDomain( n );
-        }
+        mergePointDomain( a, p );
         return mutState( a, a.Merge( p ) );
+    }
+    if( k == "merge_point_alias" )
+    {
+        auto alias = text( v, "alias" );
+        if( alias == "origin" )
+        {
+            mergePointDomain( a, a.GetOrigin(), 1 );
+            return mutState( a, a.Merge( a.GetOrigin() ) );
+        }
+        if( alias == "size" )
+        {
+            mergePointDomain( a, VECTOR2<T>( a.GetSize() ), 2 );
+            return mutState( a, a.Merge( a.GetSize() ) );
+        }
+        throw std::invalid_argument( "unknown point alias" );
     }
     if( k == "segment" )
     {
@@ -464,13 +501,22 @@ JSON boxes( const JSON& v )
         normalizeDomain( a );
         auto n = a;
         n.Normalize();
+        if( k == "farthest" )
+        {
+            add( E( n.GetX() ), n.GetWidth() / 2 );
+            add( E( n.GetY() ), n.GetHeight() / 2 );
+            auto center = n.GetCenter();
+            if( p.x < center.x )
+                add( E( n.GetX() ), n.GetWidth() );
+            if( p.y < center.y )
+                add( E( n.GetY() ), n.GetHeight() );
+            return vec( a.FarthestPointTo( p ) );
+        }
         endsDomain( n );
-        if( k != "farthest" && ( n.GetRight() < n.GetLeft() || n.GetBottom() < n.GetTop() ) )
+        if( n.GetRight() < n.GetLeft() || n.GetBottom() < n.GetTop() )
             undefined();
         if( k == "nearest" )
             return vec( a.NearestPoint( p ) );
-        if( k == "farthest" )
-            return vec( a.FarthestPointTo( p ) );
         int r = read<int>( v.at( "radius" ) );
         if( k == "circle" )
             return a.IntersectsCircle( p, r );
@@ -882,9 +928,10 @@ JSON run( const JSON& v )
     TYPE( "i32", int )
     TYPE( "u32", unsigned )
     TYPE( "i64", int64_t )
-    TYPE( "ll", long long ) TYPE( "u64", uint64_t )
+    TYPE( "ll", long long )
+    TYPE( "u64", uint64_t )
 #undef TYPE
-            throw std::invalid_argument( "unknown type" );
+    throw std::invalid_argument( "unknown type" );
 }
 } // namespace
 namespace oracle

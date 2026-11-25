@@ -43,3 +43,7 @@ with their original input objects. No golden or tolerance is used.
 The scoped workflow rebuilds the full audited oracle, compares this unit and both
 rewired callers, then embeds this revision's newly executed native JSON replies
 in an import-free wasm runtime replay. It does not use checked-in answers.
+
+`merge_point_alias` takes `alias:origin/size`, not a copied `p`. It invokes the
+actual C++ self-reference call and the portable `BoxPointOperand`, preserving
+Normalize's effect on live size references and the BOX2I converting temporary.
