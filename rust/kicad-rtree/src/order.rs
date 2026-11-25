@@ -168,7 +168,7 @@ fn intro<T: Clone, F: Fn(&T, &T) -> bool>(
 }
 /// The final insertion pass is guarded here. After introsort its sentinel means
 /// this has the same moves/comparisons as libstdc++'s unguarded tail pass.
-pub(crate) fn sort<T: Clone, F: Fn(&T, &T) -> bool>(v: &mut [T], less: F) -> Result<(), Error> {
+pub fn sort<T: Clone, F: Fn(&T, &T) -> bool>(v: &mut [T], less: F) -> Result<(), Error> {
     if v.is_empty() {
         return Ok(());
     }
