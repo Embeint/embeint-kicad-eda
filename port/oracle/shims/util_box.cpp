@@ -379,7 +379,7 @@ JSON boxes( const JSON& v )
         endsDomain( a );
         add( E( a.GetX() ), a.GetWidth() / 2 );
         add( E( a.GetY() ), a.GetHeight() / 2 );
-        castInt( std::max( a.GetWidth(), a.GetHeight() ) );
+        castInt( a.GetWidth() > a.GetHeight() ? a.GetWidth() : a.GetHeight() );
         return JSON{ { "origin", vec( a.GetOrigin() ) }, { "position", vec( a.GetPosition() ) },
                      { "end", vec( a.GetEnd() ) },       { "center", vec( a.GetCenter() ) },
                      { "centre", vec( a.Centre() ) },    { "left", out( a.GetLeft() ) },
@@ -443,8 +443,11 @@ JSON boxes( const JSON& v )
         auto p = point<T>( v.at( "p" ) );
         auto q = point<T>( v.at( "q" ) );
         containsDomain( a, p );
-        if( !a.Contains( p ) )
-            containsDomain( a, q );
+        if( a.Contains( p ) )
+            return a.Intersects( p, q );
+        containsDomain( a, q );
+        if( a.Contains( q ) )
+            return a.Intersects( p, q );
         endsDomain( a );
         return a.Intersects( p, q );
     }
@@ -462,12 +465,10 @@ JSON boxes( const JSON& v )
         auto n = a;
         n.Normalize();
         endsDomain( n );
+        if( k != "farthest" && ( n.GetRight() < n.GetLeft() || n.GetBottom() < n.GetTop() ) )
+            undefined();
         if( k == "nearest" )
-        {
-            if( n.GetRight() < n.GetLeft() || n.GetBottom() < n.GetTop() )
-                undefined();
             return vec( a.NearestPoint( p ) );
-        }
         if( k == "farthest" )
             return vec( a.FarthestPointTo( p ) );
         int r = read<int>( v.at( "radius" ) );
@@ -638,7 +639,7 @@ JSON rounded( const JSON& v )
     TARGET( "u32", unsigned )
     TARGET( "i64", int64_t )
 #undef TARGET
-            throw std::invalid_argument( "unknown target" );
+    throw std::invalid_argument( "unknown target" );
 }
 template <class T>
 JSON scalar( const JSON& v )
@@ -822,7 +823,8 @@ JSON run( const JSON& v )
     TYPE( "u8", uint8_t )
     TYPE( "i16", int16_t )
     TYPE( "u16", uint16_t )
-    TYPE( "i32", int ) TYPE( "u32", unsigned ) TYPE( "i64", int64_t ) TYPE( "u64", uint64_t )
+    TYPE( "i32", int )
+    TYPE( "u32", unsigned ) TYPE( "i64", int64_t ) TYPE( "u64", uint64_t )
 #undef TYPE
             throw std::invalid_argument( "unknown type" );
 }

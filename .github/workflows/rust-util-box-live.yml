@@ -60,6 +60,10 @@ jobs:
               --oracle "$RUNNER_TEMP/util-box-native/oracle-build/kicad-oracle" \
               --rust "$PWD/rust/target/debug/$2" --report "$RUNNER_TEMP/util-box-native/$2.json"
           done
+          python3 rust/kicad-util-box-shim/check_caller_regressions.py \
+            --vector "$RUNNER_TEMP/util-box-native/kicad-vector-shim.json" \
+            --geometry "$RUNNER_TEMP/util-box-native/kicad-geometry-shim.json" \
+            --output "$RUNNER_TEMP/util-box-native/caller-continuations.json"
       - name: Execute all portable paths in import-free WebAssembly
         run: |
           out="$RUNNER_TEMP/util-box-native"
