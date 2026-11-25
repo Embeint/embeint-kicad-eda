@@ -681,6 +681,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "kicad-eda-angle-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-math",
+ "serde_json",
+]
+
+[[package]]
 name = "kicad-geometry-shim"
 version = "0.1.0"
 dependencies = [
@@ -822,6 +831,15 @@ dependencies = [
  "kicad-difftest",
  "kicad-rtree",
  "kicad-rtree-node",
+ "serde_json",
+]
+
+[[package]]
+name = "kicad-util-box-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-math",
  "serde_json",
 ]
 

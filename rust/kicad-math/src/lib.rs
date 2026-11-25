@@ -18,7 +18,9 @@
 //!
 //! Unit `libs.kimath.include.geometry.application.ui.p001` owns [`eda_angle`]
 //! (`geometry/eda_angle.h`), [`geometry_headers`] (`geometry/ellipse.h`, `grid_geometry.h`)
-//! and [`poly_ystripes`] (`geometry/poly_ystripes_index.h`).
+//! and [`poly_ystripes`] (`geometry/poly_ystripes_index.h`). Unit
+//! `libs.kimath.src.geometry.eda_angle.application.pure.p001` adds the out-of-line
+//! `geometry/eda_angle.cpp` bodies to that type in [`eda_angle_source`].
 //!
 //! The `MATRIX3x3<double>` arithmetic is evaluated through private per-site code generated
 //! from the pinned oracle binary (`generated`) on explicit SSE2 NaN selection (`sse2`); see
@@ -29,8 +31,10 @@
 extern crate self as kicad_math;
 
 pub mod eda_angle;
+pub mod eda_angle_source;
 mod fp;
 pub mod geometry_headers;
+mod hypot;
 pub mod math_util;
 pub mod poly_ystripes;
 
@@ -41,14 +45,17 @@ pub mod poly_ystripes;
 // would remove; fixing that belongs in the emitter and a reviewed re-emission, not here.
 #[rustfmt::skip]
 mod generated;
+pub mod box2;
 mod glibc_libm;
 mod glibc_trig;
 pub mod matrix3x3;
 mod sse2;
 pub mod stream;
+pub mod util;
 pub mod vector;
 pub mod wide_int;
 
+pub use box2::{Box2, Box2D, Box2I, Box2IMinMax, Box2L, BoxPointOperand, OptBox2I};
 pub use matrix3x3::{Matrix3x3, Matrix3x3D, MatrixElement, MatrixError};
 pub use stream::{FmtFlags, StreamError, StreamInsert, StreamState, MAX_STREAM_FIELD};
 pub use vector::{

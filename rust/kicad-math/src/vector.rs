@@ -216,7 +216,6 @@ fn clamp_to_i32(value: f64) -> Result<i32, VectorDomainError> {
 }
 
 const VECTOR_UNIT: &str = "libs.kimath.include.math.application.ui.p002";
-const UTIL_HEADER: &str = "libs.kimath.include.math.application.ui.p001";
 type VResult<T> = Result<T, VectorDomainError>;
 
 fn missing<T>(upstream: &'static str, unit: &'static str) -> VResult<T> {
@@ -264,17 +263,14 @@ fn overflow<T>(value: Option<T>) -> VResult<T> {
     value.ok_or(VectorDomainError::IntegerOverflow)
 }
 
-// UNPORTED(libs.kimath.include.math.application.ui.p001): KiROUND<fp_type, int>
-fn round_i32(_value: f64) -> VResult<i32> {
-    missing("KiROUND<double, int>", UTIL_HEADER)
-}
+use crate::util::{round_i32, rounded_hypot};
 
 // GCC's operand selection varies by compiled site when two quieted NaNs differ.
 // The bound live oracle did establish the unambiguous cases: a single distinct
 // quieted NaN value propagates, and invalid basic arithmetic without a NaN input
 // produces x86's negative indefinite. This is a value rule, never a case lookup.
 // UNPORTED(libs.kimath.include.math.application.ui.p002): distinct NaN operand sites
-fn arithmetic_result(a: f64, b: f64, value: f64) -> VResult<f64> {
+pub(crate) fn arithmetic_result(a: f64, b: f64, value: f64) -> VResult<f64> {
     if !value.is_nan() {
         return Ok(value);
     }
@@ -297,7 +293,7 @@ fn arithmetic_result(a: f64, b: f64, value: f64) -> VResult<f64> {
     }
 }
 
-fn vector_sqrt(value: f64) -> VResult<f64> {
+pub(crate) fn vector_sqrt(value: f64) -> VResult<f64> {
     if value.is_nan() {
         // sqrt has one operand: its unique NaN is quieted, with sign/payload retained.
         return Ok(f64::from_bits(value.to_bits() | 0x0008_0000_0000_0000));
@@ -348,7 +344,6 @@ macro_rules! signed_component {
                 cast_signed(v, <$t>::MIN as f64, -(<$t>::MIN as f64)).map(|x| x as $t)
             }
             fn norm2(x: Self, y: Self) -> VResult<Self> {
-                // UNPORTED(libs.kimath.include.math.application.ui.p001): RoundedHypot
                 let n = rounded_hypot(x as i64, y as i64)?;
                 Ok(n.min(<$t>::MAX as u64) as Self)
             }
@@ -541,7 +536,6 @@ impl VectorComponent for f64 {
             let ys = y.c_mul(y)?;
             let ls = xs.c_add(ys)?;
             let ns = length.c_mul(length)?;
-            // UNPORTED(libs.kimath.include.math.application.ui.p001): rescale<double>
             let nx = rescale_f64(ns, xs, ls)?;
             let ny = rescale_f64(ns, ys, ls)?;
             (vector_sqrt(nx)?, vector_sqrt(ny)?)
@@ -733,9 +727,8 @@ impl Vector2<f64> {
         Ok(Vector2::new(round_i32(self.x)?, round_i32(self.y)?))
     }
 }
-// UNPORTED(libs.kimath.include.math.application.ui.p001): equals<double>
-fn scalar_equals(_a: f64, _b: f64, _e: f64) -> VResult<bool> {
-    missing("equals<double>", UTIL_HEADER)
+fn scalar_equals(a: f64, b: f64, e: f64) -> VResult<bool> {
+    Ok(crate::util::equals_f64(a, b, Some(e)))
 }
 pub fn ki_round_xy(x: f64, y: f64) -> VResult<Vector2<i32>> {
     Vector2::new(x, y).ki_round()
@@ -1030,18 +1023,11 @@ impl<T: VectorComponent> Vector2<T> {
     }
 }
 
-// UNPORTED(libs.kimath.include.math.application.ui.p001): RoundedHypot
-fn rounded_hypot(_x: i64, _y: i64) -> VResult<u64> {
-    missing("RoundedHypot(int64_t, int64_t)", UTIL_HEADER)
+fn rescale_f64(n: f64, v: f64, d: f64) -> VResult<f64> {
+    crate::util::rescale(n, v, d)
 }
-// UNPORTED(libs.kimath.include.math.application.ui.p001): rescale<double>
-fn rescale_f64(_n: f64, _v: f64, _d: f64) -> VResult<f64> {
-    missing("rescale<double>", UTIL_HEADER)
-}
-
-// UNPORTED(libs.kimath.include.math.application.ui.p001): sign<T>
-fn scalar_sign<T: VectorComponent>(_value: T) -> VResult<i32> {
-    missing("sign<T>", UTIL_HEADER)
+fn scalar_sign<T: VectorComponent>(value: T) -> VResult<i32> {
+    Ok(crate::util::sign(value))
 }
 
 impl<T: Eq> Eq for Vector2<T> {}

@@ -3,6 +3,7 @@
 
 namespace oracle
 {
+void RegisterUtilBox( REGISTRY& aRegistry );
 void RegisterGeometryHeaders( REGISTRY& aRegistry );
 void RegisterExample( REGISTRY& aRegistry );
 void RegisterMd5( REGISTRY& aRegistry );
@@ -15,6 +16,7 @@ void RegisterMathUtil( REGISTRY& aRegistry );
 void RegisterVector( REGISTRY& aRegistry );
 void RegisterDynamicRtree( REGISTRY& aRegistry );
 void RegisterCowPackedRtree( REGISTRY& aRegistry );
+void RegisterEdaAngleSource( REGISTRY& aRegistry );
 void RegisterCoreP001( REGISTRY& aRegistry );
 
 
@@ -31,6 +33,7 @@ void REGISTRY::Add( const std::string& aUnit, const std::string& aUpstream, SHIM
 REGISTRY MakeRegistry()
 {
     REGISTRY registry;
+    RegisterUtilBox( registry );
     RegisterGeometryHeaders( registry );
     RegisterExample( registry );
     RegisterMd5( registry );
@@ -43,6 +46,7 @@ REGISTRY MakeRegistry()
     RegisterVector( registry );
     RegisterDynamicRtree( registry );
     RegisterCowPackedRtree( registry );
+    RegisterEdaAngleSource( registry );
     RegisterCoreP001( registry );
     return registry;
 }
