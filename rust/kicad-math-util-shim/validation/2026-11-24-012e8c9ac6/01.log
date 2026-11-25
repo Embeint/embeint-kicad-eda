@@ -1,0 +1,2 @@
+$ cargo clippy --locked --manifest-path rust/Cargo.toml -p kicad-math -p kicad-math-util-shim --all-targets -j2 -- -D warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.06s

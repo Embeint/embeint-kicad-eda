@@ -161,3 +161,8 @@ add_test( NAME oracle-vector-inputs
     COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_vector_inputs.py"
             "$<TARGET_FILE:kicad-oracle>" )
 set_tests_properties( oracle-vector-inputs PROPERTIES TIMEOUT 60 )
+
+add_test( NAME oracle-math-util-inputs
+    COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_math_util_inputs.py"
+            "$<TARGET_FILE:kicad-oracle>" )
+set_tests_properties( oracle-math-util-inputs PROPERTIES TIMEOUT 60 )
