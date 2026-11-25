@@ -1,0 +1,66 @@
+name: Rust geometry headers live validation
+on:
+  pull_request:
+    branches: [rust]
+    paths:
+      - rust/kicad-geometry-shim/**
+      - rust/kicad-math/**
+      - port/oracle/**
+      - port/cases/libs.kimath.include.geometry.application.ui.p001.jsonl
+      - port/units/libs.kimath.include.geometry.application.ui.p001.toml
+      - .github/workflows/rust-geometry-live.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  geometry-live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CARGO_BUILD_JOBS: "2"
+      ORACLE_JOBS: "2"
+      GLIBC_TUNABLES: "glibc.cpu.hwcaps=-AVX,-AVX2,-FMA,-FMA4,-AVX512F"
+      LD_LIBRARY_PATH: ""
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - name: Install toolchain and oracle dependencies
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal --component clippy,rustfmt --target wasm32-unknown-unknown
+          rustup default 1.99.1
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++ gcc cmake ninja-build python3 rsync git libboost-dev libwxgtk3.2-dev
+      - name: Check portable implementation and generated corpus
+        run: |
+          cargo fmt --manifest-path rust/Cargo.toml -p kicad-math -p kicad-geometry-shim --check
+          cargo clippy --locked --manifest-path rust/Cargo.toml -p kicad-math -p kicad-geometry-shim --all-targets -j2 -- -D warnings
+          cargo test --locked --manifest-path rust/Cargo.toml -p kicad-math -p kicad-geometry-shim -j2
+          cargo check --locked --manifest-path rust/Cargo.toml -p kicad-math --target wasm32-unknown-unknown -j2
+          python3 rust/kicad-geometry-shim/generate_cases.py --check
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-geometry-shim -p kicad-difftest -j2
+      - name: Build genuine pinned own-library oracle
+        run: |
+          python3 port/oracle/prepare.py --output-dir "$RUNNER_TEMP/geometry-stage"
+          bash port/oracle/build.sh "$RUNNER_TEMP/geometry-stage" "$PWD/port/oracle" "$RUNNER_TEMP/geometry-native"
+      - name: Compare every public case and separate undefined-domain controls
+        run: |
+          out="$RUNNER_TEMP/geometry-native"
+          rust/target/debug/kicad-difftest compare --partial \
+            --unit libs.kimath.include.geometry.application.ui.p001 --root "$PWD" \
+            --oracle "$out/oracle-build/kicad-oracle" --rust "$PWD/rust/target/debug/kicad-geometry-shim" \
+            --report "$out/compare.json"
+          python3 rust/kicad-geometry-shim/compare_controls.py \
+            --oracle "$out/oracle-build/kicad-oracle" --rust "$PWD/rust/target/debug/kicad-geometry-shim"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: geometry-headers-live-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/geometry-native/compare.json
+            ${{ runner.temp }}/geometry-native/oracle-build/oracle-provenance.json
+            ${{ runner.temp }}/geometry-native/oracle-build/compile_commands.json
+            ${{ runner.temp }}/geometry-native/oracle-build/binary.sha256
+            ${{ runner.temp }}/geometry-native/oracle-build/kicad-oracle
+            ${{ runner.temp }}/geometry-stage/source-manifest.json
+          retention-days: 14

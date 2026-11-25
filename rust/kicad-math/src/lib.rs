@@ -23,8 +23,11 @@
 // exactly as the generator emits it, so the generated file stays byte-identical.
 extern crate self as kicad_math;
 
+pub mod eda_angle;
 mod fp;
+pub mod geometry_headers;
 pub mod math_util;
+pub mod poly_ystripes;
 
 // `generated.rs` is emitter output (sha256 d24ff0f2..., from the reviewed graph locks of the
 // pinned oracle; port/tools/kimath_nan/README.md). It is bound byte for byte by

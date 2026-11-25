@@ -102,6 +102,10 @@ if( MATRIX_SHIM IN_LIST ORACLE_SHIMS AND HASH_SHIM IN_LIST ORACLE_SHIMS )
     math( EXPR HASH_SHIM_INDEX "${MATRIX_SHIM_INDEX} + 1" )
     list( INSERT ORACLE_SHIMS ${HASH_SHIM_INDEX} "${HASH_SHIM}" )
 endif()
+# Keep previously qualified adapters first when selecting weak template bodies.
+set( GEOMETRY_SHIM "${ORACLE_OVERLAY}/shims/geometry_headers.cpp" )
+list( REMOVE_ITEM ORACLE_SHIMS "${GEOMETRY_SHIM}" )
+list( APPEND ORACLE_SHIMS "${GEOMETRY_SHIM}" )
 add_executable( kicad-oracle main.cpp protocol.cpp registry.cpp ${ORACLE_SHIMS} )
 target_include_directories( kicad-oracle PRIVATE "${ORACLE_OVERLAY}" "${CMAKE_BINARY_DIR}" )
 target_link_libraries( kicad-oracle PRIVATE kimath nlohmann_json iec60664-reference resistor-reference
