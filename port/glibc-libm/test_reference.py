@@ -45,3 +45,19 @@ class ReferenceTests(unittest.TestCase):
             self.assertFalse(ref.report(d))
 
 if __name__=='__main__':unittest.main()
+
+class SourceTransportTests(unittest.TestCase):
+    def test_mirror_fallback_keeps_hash_mandatory(self):
+        import check_sources as source
+        from unittest.mock import patch
+        import hashlib,io,urllib.error
+        data=b'pinned source'
+        spec={'mirrors':['https://mirror.invalid/source'],'url':'https://archive.invalid/source',
+              'size':len(data),'sha256':hashlib.sha256(data).hexdigest()}
+        denied=urllib.error.HTTPError(spec['mirrors'][0],403,'Forbidden',None,None)
+        with tempfile.TemporaryDirectory() as d:
+            archive=Path(d)/'source'
+            with patch.object(source.urllib.request,'urlopen',side_effect=[denied,io.BytesIO(data)]):
+                self.assertEqual(source.fetch_archive(spec,archive),spec['url'])
+            with patch.object(source.urllib.request,'urlopen',return_value=io.BytesIO(b'wrong bytes')):
+                with self.assertRaisesRegex(ValueError,'archive hash'):source.fetch_archive(spec,archive)

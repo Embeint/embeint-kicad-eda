@@ -15,6 +15,8 @@ import struct
 import tarfile
 import tempfile
 import urllib.request
+import urllib.error
+import time
 
 HERE=Path(__file__).resolve().parent
 ROOT=HERE.parents[1]
@@ -56,6 +58,28 @@ def check(get):
         need(actual is not None and int(actual[1],16)==bits(v),f'constant {name}')
     return manifest
 
+def fetch_archive(spec, archive):
+    # Transport mirrors may fail (archive.ubuntu.com refused hosted CI with
+    # HTTP 403). Every successful transport must still return the pinned bytes.
+    errors=[]
+    for url in spec.get('mirrors',[])+[spec['url']]:
+        for attempt in range(3):
+            try:
+                with urllib.request.urlopen(url,timeout=60) as response, archive.open('wb') as out:
+                    remaining=spec['size']+1
+                    while remaining:
+                        b=response.read(min(1<<20,remaining))
+                        if not b: break
+                        out.write(b);remaining-=len(b)
+            except (urllib.error.URLError,TimeoutError,ConnectionError) as error:
+                errors.append(f'{url}: {error}')
+                if isinstance(error,urllib.error.HTTPError) and error.code in (403,404): break
+                if attempt<2: time.sleep(2**attempt)
+            else:
+                need(archive.stat().st_size==spec['size'] and hashlib.sha256(archive.read_bytes()).hexdigest()==spec['sha256'],'archive hash')
+                return url
+    raise ValueError('all pinned source transports failed: '+'; '.join(errors))
+
 def main():
     p=argparse.ArgumentParser();p.add_argument('--source');p.add_argument('--out',required=True);a=p.parse_args()
     if a.source: result=check(lambda path:(Path(a.source)/path).read_bytes())
@@ -63,8 +87,7 @@ def main():
         m=json.loads((HERE/'source.json').read_text())['archive']
         with tempfile.TemporaryDirectory(prefix='glibc-angle-source-') as d:
             archive=Path(d)/'glibc.tar.xz'
-            urllib.request.urlretrieve(m['url'],archive)
-            need(archive.stat().st_size==m['size'] and hashlib.sha256(archive.read_bytes()).hexdigest()==m['sha256'],'archive hash')
+            fetch_archive(m,archive)
             with tarfile.open(archive) as t:
                 def get(path):
                     f=t.extractfile('glibc-2.39/'+path);need(f is not None,'source member');return f.read()

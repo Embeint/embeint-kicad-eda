@@ -2,7 +2,11 @@
   "archive": {
     "url": "https://archive.ubuntu.com/ubuntu/pool/main/g/glibc/glibc_2.39.orig.tar.xz",
     "size": 18520988,
-    "sha256": "f77bd47cf8170c57365ae7bf86696c118adb3b120d3259c64c502d3dc1e2d926"
+    "sha256": "f77bd47cf8170c57365ae7bf86696c118adb3b120d3259c64c502d3dc1e2d926",
+    "mirrors": [
+      "https://ftp.gnu.org/gnu/glibc/glibc-2.39.tar.xz",
+      "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/g/glibc/glibc_2.39.orig.tar.xz"
+    ]
   },
   "files": {
     "sysdeps/ieee754/dbl-64/s_atan.c": "a3349485e285d3fba5d1af04a29cc6edc7c808372a4e548ee605bc0fa5a2e1d7",

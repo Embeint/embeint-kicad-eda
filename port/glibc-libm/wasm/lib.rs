@@ -4,6 +4,8 @@
 #[path = "../../../rust/kicad-math/src/glibc_libm.rs"]
 #[forbid(unsafe_code)]
 mod glibc_libm;
+#[cfg(test)]
+use kicad_math::matrix3x3;
 #[path = "../../../rust/kicad-math/src/glibc_trig.rs"]
 #[forbid(unsafe_code)]
 #[allow(dead_code)]
