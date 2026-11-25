@@ -43,6 +43,7 @@ pub mod poly_ystripes;
 #[rustfmt::skip]
 mod generated;
 pub mod box2;
+mod glibc_libm;
 mod glibc_trig;
 pub mod matrix3x3;
 mod sse2;
@@ -51,6 +52,7 @@ pub mod util;
 pub mod vector;
 pub mod wide_int;
 
+pub use box2::{Box2, Box2D, Box2I, Box2IMinMax, Box2L, BoxPointOperand, OptBox2I};
 pub use matrix3x3::{Matrix3x3, Matrix3x3D, MatrixElement, MatrixError};
 pub use stream::{FmtFlags, StreamError, StreamInsert, StreamState, MAX_STREAM_FIELD};
 pub use vector::{

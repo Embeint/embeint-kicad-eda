@@ -1,0 +1,308 @@
+{
+  "result": "PASS",
+  "comparisons": {
+    "native-debug": {
+      "atan": {
+        "status": "PASS",
+        "reported": [
+          [
+            "1517520",
+            "0"
+          ]
+        ]
+      },
+      "atan2": {
+        "status": "PASS",
+        "reported": [
+          [
+            "1517520",
+            "0"
+          ]
+        ]
+      },
+      "tan": {
+        "status": "PASS",
+        "reported": [
+          [
+            "1517520",
+            "0"
+          ]
+        ]
+      },
+      "asin": {
+        "status": "PASS",
+        "reported": [
+          [
+            "1517520",
+            "0"
+          ]
+        ]
+      },
+      "acos": {
+        "status": "PASS",
+        "reported": [
+          [
+            "1517520",
+            "0"
+          ]
+        ]
+      }
+    },
+    "native-release": {
+      "atan": {
+        "status": "PASS",
+        "reported": [
+          [
+            "1517520",
+            "0"
+          ]
+        ]
+      },
+      "atan2": {
+        "status": "PASS",
+        "reported": [
+          [
+            "1517520",
+            "0"
+          ]
+        ]
+      },
+      "tan": {
+        "status": "PASS",
+        "reported": [
+          [
+            "1517520",
+            "0"
+          ]
+        ]
+      },
+      "asin": {
+        "status": "PASS",
+        "reported": [
+          [
+            "1517520",
+            "0"
+          ]
+        ]
+      },
+      "acos": {
+        "status": "PASS",
+        "reported": [
+          [
+            "1517520",
+            "0"
+          ]
+        ]
+      }
+    },
+    "wasip1-debug": {
+      "atan": {
+        "status": "PASS",
+        "reported": [
+          [
+            "1517520",
+            "0"
+          ]
+        ]
+      },
+      "atan2": {
+        "status": "PASS",
+        "reported": [
+          [
+            "1517520",
+            "0"
+          ]
+        ]
+      },
+      "tan": {
+        "status": "PASS",
+        "reported": [
+          [
+            "1517520",
+            "0"
+          ]
+        ]
+      },
+      "asin": {
+        "status": "PASS",
+        "reported": [
+          [
+            "1517520",
+            "0"
+          ]
+        ]
+      },
+      "acos": {
+        "status": "PASS",
+        "reported": [
+          [
+            "1517520",
+            "0"
+          ]
+        ]
+      }
+    },
+    "wasip1-release": {
+      "atan": {
+        "status": "PASS",
+        "reported": [
+          [
+            "1517520",
+            "0"
+          ]
+        ]
+      },
+      "atan2": {
+        "status": "PASS",
+        "reported": [
+          [
+            "1517520",
+            "0"
+          ]
+        ]
+      },
+      "tan": {
+        "status": "PASS",
+        "reported": [
+          [
+            "1517520",
+            "0"
+          ]
+        ]
+      },
+      "asin": {
+        "status": "PASS",
+        "reported": [
+          [
+            "1517520",
+            "0"
+          ]
+        ]
+      },
+      "acos": {
+        "status": "PASS",
+        "reported": [
+          [
+            "1517520",
+            "0"
+          ]
+        ]
+      }
+    },
+    "unknown-debug": {
+      "atan": {
+        "status": "PASS",
+        "reported": [
+          [
+            "1517520",
+            "0"
+          ]
+        ]
+      },
+      "atan2": {
+        "status": "PASS",
+        "reported": [
+          [
+            "1517520",
+            "0"
+          ]
+        ]
+      },
+      "tan": {
+        "status": "PASS",
+        "reported": [
+          [
+            "1517520",
+            "0"
+          ]
+        ]
+      },
+      "asin": {
+        "status": "PASS",
+        "reported": [
+          [
+            "1517520",
+            "0"
+          ]
+        ]
+      },
+      "acos": {
+        "status": "PASS",
+        "reported": [
+          [
+            "1517520",
+            "0"
+          ]
+        ]
+      }
+    },
+    "unknown-release": {
+      "atan": {
+        "status": "PASS",
+        "reported": [
+          [
+            "1517520",
+            "0"
+          ]
+        ]
+      },
+      "atan2": {
+        "status": "PASS",
+        "reported": [
+          [
+            "1517520",
+            "0"
+          ]
+        ]
+      },
+      "tan": {
+        "status": "PASS",
+        "reported": [
+          [
+            "1517520",
+            "0"
+          ]
+        ]
+      },
+      "asin": {
+        "status": "PASS",
+        "reported": [
+          [
+            "1517520",
+            "0"
+          ]
+        ]
+      },
+      "acos": {
+        "status": "PASS",
+        "reported": [
+          [
+            "1517520",
+            "0"
+          ]
+        ]
+      }
+    }
+  },
+  "domain": {
+    "fixed_count": 517520,
+    "seeded_count": 1000000,
+    "count": 1517520,
+    "sha256": "4c9c2f84ce8174a35ba9c6fba3bfdb3d713576923670896783280edda2e0d7f4"
+  },
+  "sha256": {
+    "domain.bin": "4c9c2f84ce8174a35ba9c6fba3bfdb3d713576923670896783280edda2e0d7f4",
+    "inputs.lock.json": "c4d1c9c0aca71985f07bd36ff759301daa88a43e4a17335d31e4446bbd6101d2",
+    "native-debug.log": "79d929dfa1809229451af2830830ef48215e9cb665147306ff1dc4d5a2140af4",
+    "native-release.log": "6ef38e4ec12f27d8e0bb34b179788153bdc03c7508bed5f516afcf8e8cf33a9a",
+    "probe.log": "872f575815456d69873b083599e2fdcc8e2118048e5a00977009429facb7094c",
+    "reference-identity.json": "99cd807601e0e657e2ce2c0f6b58e9ff531105b109034924b79dd356dd5e9f79",
+    "reference.bin": "4e4c22b8bf31caa70e3ce07f2f7dca631dd76c48563d43188a3be3ccc1ddaf02",
+    "source-verified.json": "520e04ae29b742943e0a3891841e89e44209ea61fc0c2c29b3d6e43171f450a0",
+    "tools.txt": "8c32ac94a7a4fbd78c78ed69b7248d8b5077ba3a8c807cc6a097b45b386c1335",
+    "unknown-debug.log": "3613ffb655ea9e574d71567c26b1d0af173cc2f3c03a61265f1de52a94c0a659",
+    "unknown-release.log": "3613ffb655ea9e574d71567c26b1d0af173cc2f3c03a61265f1de52a94c0a659",
+    "wasip1-debug.log": "2ffd5ba2c82edbfe22c86ae83e22b151e3ace35c1abd4df87d137c4d21db253e",
+    "wasip1-release.log": "fcdc68828a5e527e943b4821a96a4b6c77e4eb032082d838f4d9494b491afb42"
+  }
+}

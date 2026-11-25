@@ -1,6 +1,9 @@
 # Geometry header port audit
 
 Unit: `libs.kimath.include.geometry.application.ui.p001` (partial).
+The original #65 audit/evidence below is historical. The angle libm backend
+addendum at the end describes this follow-up; current qualification is in
+`port/findings/geometry-angle-libm-backends-addendum.md`.
 Reference: KiCad `4cf939778df04d2b747bb2c4714fc5014a7565c7`.
 Official base: `98cbf0b63eb68541eb5b4ba7d5cc2d03b71d2cf2` on `origin/rust`.
 No upstream or open topic branch was merged. No golden is supplied.
@@ -118,3 +121,23 @@ They run through both native adapters and import-free wasm.
 The archived d221593095 evidence predates this transport fix. It remains historical
 evidence for the unchanged 18,050-case corpus, not a substitute for final-head CI.
 The PR links current-head native and registered-main reports.
+
+## Angle libm backend addendum
+
+The private glibc 2.39 SSE2 atan/atan2/tan/asin/acos backends replace the five
+owned scalar stubs. Pow, KiROUND and equals retain their typed deferrals and
+continuations. The historical evidence above is unchanged. Current-head
+qualification and exact geometry counts belong to
+`port/findings/geometry-angle-libm-backends-addendum.md`; provenance and the
+1,517,520-input-per-function native/wasm harness are in `port/glibc-libm/README.md`.
+The additive geometry corpus has 21,154 requests. The unit remains partial.
+
+All five backends passed the fresh locked glibc comparison on 8d5db2ee29:
+1,517,520 inputs per function in native/WASI/import-free wasm debug and release,
+zero mismatches. Public asin/acos POSIX wrappers return positive NAN for ordered
+|x|>1; the internal IEEE kernels would return negative indefinite. The probe
+pins that mode as well as the actual kernel dispatch. Hosted C++ run 45606399762 on the same head compared 17,721 of 21,154 cases,
+deferred 3,433, with zero failures/unprocessed and all controls/wasm passed.
+The original subset has 14,649 compared / 3,401 deferred (2,216 removed).
+Raw compressed evidence is under `validation/2026-11-25-8d5db2ee29/`.
+The draft PR links final-head evidence.

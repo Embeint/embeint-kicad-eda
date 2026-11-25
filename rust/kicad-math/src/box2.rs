@@ -104,6 +104,8 @@ pub struct Box2<T: BoxCoord = i32> {
 pub type Box2I = Box2<i32>;
 pub type Box2L = Box2<i64>;
 pub type Box2D = Box2<f64>;
+/// OPT_BOX2I: engagement is independent of BOX2::IsValid.
+pub type OptBox2I = Option<Box2I>;
 /// Express a C++ const-reference argument that may alias this box's fields.
 #[derive(Clone, Copy, Debug)]
 pub enum BoxPointOperand<T: BoxCoord> {

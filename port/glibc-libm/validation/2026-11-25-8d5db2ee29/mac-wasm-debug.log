@@ -1,0 +1,5 @@
+glibc_libm atan: 1517520 records, 0 mismatches
+glibc_libm atan2: 1517520 records, 0 mismatches
+glibc_libm tan: 1517520 records, 0 mismatches
+glibc_libm asin: 1517520 records, 0 mismatches
+glibc_libm acos: 1517520 records, 0 mismatches

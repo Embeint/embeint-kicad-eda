@@ -1,0 +1,13 @@
+head 8e4d84c58bd46bbbce2c2fe8b4d1bfaef322d21f
+v24.16.0
+gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+Linux 7.0.0-1014-aws x86_64
+Python 3.12.3
+rustc 1.99.1 (58cf8f9c3 2026-10-13)
+binary: rustc
+commit-hash: 58cf8f9c35b355199727627d07ae34a4e2846d67
+commit-date: 2026-10-13
+host: x86_64-unknown-linux-gnu
+release: 1.99.1
+LLVM version: 23.1.1
+cargo 1.99.1 (5f94df478 2026-08-27)

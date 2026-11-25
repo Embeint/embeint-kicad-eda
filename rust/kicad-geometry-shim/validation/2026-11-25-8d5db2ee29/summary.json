@@ -1,0 +1,87 @@
+{
+  "unit": "libs.kimath.include.geometry.application.ui.p001",
+  "status": "partial",
+  "action": "compare",
+  "mode": "partial",
+  "cases": 21154,
+  "compared": 17721,
+  "deferred": 3433,
+  "failures": 0,
+  "unprocessed": 0,
+  "golden_checked": false,
+  "golden": {
+    "status": "not_requested"
+  },
+  "run_faults": [],
+  "extra_replies": [],
+  "cases_sha256": "16a561cc30d8c092a4fd2b28c1f743277c707981191eacc1685858312dc1e061",
+  "oracle_output_sha256": "605eae004442ac8f477edcd903a4e8b8a41b36495a8843a9f77e189b283f23cf",
+  "rust_output_sha256": "3432581ecd7f1d474e2e4409f0f8f0ecdb2030eb0e7536ff5226e4241a34a816",
+  "oracle_sha256": "b981fa83a716c51dceb656b57c4704295511157a8901c7c567df0c970961d132",
+  "rust_sha256": "f38d7353d8dbe0025ac74bc5d7a2d4b4b68eb6b90f5977db2a7e0eb205726b22",
+  "tested_head": "8d5db2ee2965c480211cf0b58c4518b4201632c1",
+  "ci_revision": "8e4d84c58bd46bbbce2c2fe8b4d1bfaef322d21f",
+  "base": "37f4bc0a32f0dc874236f95058803b096c457a96",
+  "run": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45606399762",
+  "raw_compare_sha256": "b68e5970bfaea259c99e9675c265241e404cb09402b7001d7d9f24093f84d3c3",
+  "original_cases_after_wiring": {
+    "compared": 14649,
+    "deferred": 3401
+  },
+  "additive_cases": {
+    "compared": 3072,
+    "deferred": 32
+  },
+  "deferrals": [
+    {
+      "unit": "libs.kimath.include.geometry.application.ui.p001",
+      "upstream": "libc::pow",
+      "count": 1642
+    },
+    {
+      "unit": "libs.kimath.include.geometry.application.ui.p003",
+      "upstream": "SEG::Square",
+      "count": 553
+    },
+    {
+      "unit": "libs.kimath.include.math.application.ui.p001",
+      "upstream": "KiROUND<double, int>",
+      "count": 626
+    },
+    {
+      "unit": "libs.kimath.include.math.application.ui.p001",
+      "upstream": "equals<double>",
+      "count": 560
+    },
+    {
+      "unit": "libs.kimath.src.geometry.ellipse.application.ui.p001",
+      "upstream": "ELLIPSE::GetPointAtAngle",
+      "count": 4
+    },
+    {
+      "unit": "libs.kimath.src.geometry.grid_geometry.application.ui.p001",
+      "upstream": "GRID_GEOMETRY::Area",
+      "count": 48
+    }
+  ],
+  "controls": {
+    "undefined": 7,
+    "priority_integer_successes": 4,
+    "priority_float_refusals": 2,
+    "result": "PASS"
+  },
+  "wasm": {
+    "target": "wasm32-unknown-unknown",
+    "imports": 0,
+    "profile": "release",
+    "node": "22.23.5",
+    "v8": "12.4.254.21-node.57",
+    "result": "PASS",
+    "compared_with": "newly executed native Rust replies (including deferrals)"
+  },
+  "local_wasm": {
+    "node": "24.16.0",
+    "v8": "13.6.233.17-node.49",
+    "result": "PASS"
+  }
+}
