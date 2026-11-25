@@ -133,15 +133,18 @@ impl<T: BoxCoord> Box2<T> {
         )
     }
     pub fn by_center(c: Vector2<T>, s: Vector2<T::Extended>) -> Result<Self> {
-        let two = e::<T::Extended>(2.0)?;
+        // SizeVec / 2 selects VECTOR2::operator/(double), which rounds integral
+        // components through KiROUND<double,int>; scalar integer /2 would be wrong.
+        let half = s.divide(2.0)?;
         Self::new(
             Vector2::new(
-                T::vector_cast(c.x.wide().c_sub(s.x.c_div(two)?)?)?,
-                T::vector_cast(c.y.wide().c_sub(s.y.c_div(two)?)?)?,
+                T::vector_cast(c.x.wide().c_sub(half.x)?)?,
+                T::vector_cast(c.y.wide().c_sub(half.y)?)?,
             ),
             s,
         )
     }
+
     pub fn set_maximum(&mut self) {
         let (p, s) = T::maximum();
         self.pos = Vector2::new(p, p);

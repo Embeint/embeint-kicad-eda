@@ -635,7 +635,8 @@ JSON rounded( const JSON& v )
     TARGET( "i16", int16_t )
     TARGET( "u16", uint16_t )
     TARGET( "i32", int )
-    TARGET( "u32", unsigned ) TARGET( "i64", int64_t )
+    TARGET( "u32", unsigned )
+    TARGET( "i64", int64_t )
 #undef TARGET
             throw std::invalid_argument( "unknown target" );
 }
@@ -820,7 +821,8 @@ JSON run( const JSON& v )
     TYPE( "i8", int8_t )
     TYPE( "u8", uint8_t )
     TYPE( "i16", int16_t )
-    TYPE( "u16", uint16_t ) TYPE( "i32", int ) TYPE( "u32", unsigned ) TYPE( "i64", int64_t ) TYPE( "u64", uint64_t )
+    TYPE( "u16", uint16_t )
+    TYPE( "i32", int ) TYPE( "u32", unsigned ) TYPE( "i64", int64_t ) TYPE( "u64", uint64_t )
 #undef TYPE
             throw std::invalid_argument( "unknown type" );
 }

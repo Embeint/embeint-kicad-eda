@@ -270,7 +270,7 @@ use crate::util::{round_i32, rounded_hypot};
 // quieted NaN value propagates, and invalid basic arithmetic without a NaN input
 // produces x86's negative indefinite. This is a value rule, never a case lookup.
 // UNPORTED(libs.kimath.include.math.application.ui.p002): distinct NaN operand sites
-fn arithmetic_result(a: f64, b: f64, value: f64) -> VResult<f64> {
+pub(crate) fn arithmetic_result(a: f64, b: f64, value: f64) -> VResult<f64> {
     if !value.is_nan() {
         return Ok(value);
     }

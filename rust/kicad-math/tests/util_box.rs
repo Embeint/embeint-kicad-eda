@@ -58,3 +58,19 @@ fn outward_saturation_and_unsigned_box_domain_are_not_cast_ub() -> util::Result<
     );
     Ok(())
 }
+
+#[test]
+fn by_center_uses_vector_division_rounding_not_scalar_truncation() -> util::Result<()> {
+    let b = Box2I::by_center(Vector2::new(10, 20), Vector2::new(3, 5))?;
+    assert_eq!(b.origin(), Vector2::new(8, 17));
+    let b = Box2I::by_center(Vector2::new(10, 20), Vector2::new(-3, -5))?;
+    assert_eq!(b.origin(), Vector2::new(9, 18));
+    assert!(matches!(
+        Box2L::by_center(Vector2::new(10, 20), Vector2::new(4294967296, 0)),
+        Err(VectorDomainError::Unported {
+            unit: "libs.kimath.src.math.util.application.ui.p001",
+            ..
+        })
+    ));
+    Ok(())
+}

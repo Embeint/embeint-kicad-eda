@@ -75,6 +75,10 @@ def generate():
                     if k=='circle_edge':v['width']=w
                     add(f'box-{t}-{i}-{k}-{j}',**v)
             for j,points in enumerate([[],[[1,2]],[[1,2],[-5,20],[100,50]]]):add(f'box-{t}-{i}-compute-{j}',op='box',type=t,kind='compute',a=a,points=list(map(pt,points)))
+        for i,s in enumerate([[3,5],[-3,-5],[1,-1],[4294967296,0]]):
+            a=box('center',p=(10,20),s=s)
+            for k in (['state'] if t=='f64' and s[0]>2**31-1 else ['state','getters']):
+                add(f'box-center-half-{t}-{i}-{k}',op='box',type=t,kind=k,a=a)
         for i in range(80):
             a=box('raw',[rng.randrange(-100000,100000) for _ in range(2)],[rng.randrange(-1000,1000) for _ in range(2)])
             for k in ['inflate','inflated']:add(f'box-random-{t}-{i}-{k}',op='box',type=t,kind=k,a=a,s=pt([rng.randrange(-2000,2000) for _ in range(2)]))
@@ -113,6 +117,7 @@ def generate():
 def controls():
     cs=[]
     def add(name,**v):cs.append(dict(request=dict(unit=UNIT,case=name,input=v),error=dict(kind='invalid_input',message='undefined box/util operation')))
+    add('ub-center-size-max-cast',op='box',type='f64',kind='getters',a=dict(mode='center',pos=[bits(10.),bits(20.)],size=[bits(4294967296.),bits(0.)]))
     add('ub-offset',op='box',type='i32',kind='offset',a=dict(mode='raw',pos=[2**31-1,0],size=[0,0]),p=[1,0])
     add('ub-long-add',op='box',type='i64',kind='state',a=dict(mode='new',pos=[2**63-1,0],size=[1,0]))
     add('ub-corners',op='box',type='i32',kind='state',a=dict(mode='corners',pos=[-2**31,0],end=[2**31-1,0]))

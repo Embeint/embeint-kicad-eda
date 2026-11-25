@@ -29,7 +29,7 @@ live reports; a mapping is not proof of complete qualification.
 | isqrt<T> | negative sqrt_max return, double estimate, upward/downward corrections | isqrt-* including signed minima and u64 max |
 | UnsignedAbs, RoundedHypot | exact unsigned magnitude incl MIN, narrowMax branch, isqrt rounding, accepted wide callee | abs-*, hypot-* at all dispatch boundaries and MIN/MAX |
 | equals<T> | abs-difference strict absolute check; largest abs branch; inclusive relative check; default epsilon | equals-* including epsilon zero/negative/default, inf, NaN and -0; f32/f64 |
-| BOX2 default, pos/size default, ByCorners, ByCenter, Normalize | validity, constructor range checks, y-before-x normalization, promoted/coordinate subtraction, truncated half sizes | box-*-ctor-* includes inverted/raw/zero/default/maximum; scalar type i32/i64/f64 |
+| BOX2 default, pos/size default, ByCorners, ByCenter, Normalize | validity, constructor range checks, y-before-x normalization, promoted/coordinate subtraction, vector half-size rounding through default-int KiROUND | box-*-ctor-* includes inverted/raw/zero/default/maximum; scalar type i32/i64/f64 |
 | SetMaximum | floating lowest/2; same-width long max/2; widened int twice max | ctor maximum and maximum operations |
 | Compute | empty preserves old state, first point init, full min/max scan, origin before size writes | ctor compute and *-compute-* on default and initialized boxes |
 | getters and aliases, Centre/GetCenter, GetSizeMax | cast and operation order; size max returns int | *-getters, box-extreme-*; float GetSizeMax out-of-range casts refused |
@@ -86,7 +86,7 @@ full type/branch coverage is made. Rust checks its arithmetic independently.
 ## Validation
 
 Fixed-seed public corpora are additive and deterministic. The owned corpus has
-15,730 inputs and 10 separate UB controls. Vector has 10,286 inputs (+704),
+15,753 inputs and 11 separate UB controls. Vector has 10,286 inputs (+704),
 geometry 18,434 (+384). No prior corpus case is deleted or excluded. Native
 comparison reports must show zero previously passing regressions. The scoped
 workflow runs all three corpora and replays this unit's freshly executed native

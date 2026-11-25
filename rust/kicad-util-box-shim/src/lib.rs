@@ -619,7 +619,7 @@ mod tests {
                 counts[1] += 1;
             }
         }
-        assert_eq!(counts, [14143, 1587]);
+        assert_eq!(counts, [14162, 1591]);
     }
     #[test]
     fn undefined_controls_refuse_and_next_request_survives() -> Result<(), serde_json::Error> {

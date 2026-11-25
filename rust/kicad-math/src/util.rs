@@ -54,8 +54,34 @@ impl Rescale for f64 {
 }
 impl Rescale for f32 {
     fn rescale(n: Self, v: Self, d: Self) -> Result<Self> {
-        Ok((n * v) / d)
+        let product = fp32_binary(n, v, n * v)?;
+        fp32_binary(product, d, product / d)
     }
+}
+
+// Transport f32 NaN payloads to the canonical vector arithmetic rule, then back.
+// Finite arithmetic still rounds after each f32 operation, exactly as the template does.
+fn fp32_binary(a: f32, b: f32, result: f32) -> Result<f32> {
+    let widen = |v: f32| {
+        if v.is_nan() {
+            let bits = v.to_bits();
+            f64::from_bits(
+                (u64::from(bits & 0x80000000) << 32)
+                    | 0x7ff0000000000000
+                    | (u64::from(bits & 0x007fffff) << 29),
+            )
+        } else {
+            f64::from(v)
+        }
+    };
+    let selected = crate::vector::arithmetic_result(widen(a), widen(b), widen(result))?;
+    if !result.is_nan() {
+        return Ok(result);
+    }
+    let bits = selected.to_bits();
+    Ok(f32::from_bits(
+        ((bits >> 32) as u32 & 0x80000000) | 0x7f800000 | ((bits >> 29) as u32 & 0x007fffff),
+    ))
 }
 
 // Small integer operands undergo the C++ integral promotions before multiplication.
