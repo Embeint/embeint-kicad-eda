@@ -224,33 +224,33 @@ void guardVector2( const std::string& aOp, VECTOR2<T> aVector, const VECTOR2<T>&
     {
         bool scalarOp = isOperation( aOp, { "add_scalar", "sub_scalar", "mul_scalar", "scalar_mul", "add_assign_scalar",
                                             "sub_assign_scalar", "mul_assign_scalar" } );
-        auto rhs = [&]( bool aX )
+        auto rhs = [&]( bool aUseX )
         {
-            return scalarOp ? ( aAlias == "x"   ? aVector.aX
-                                : aAlias == "y" ? aVector.aY
+            return scalarOp ? ( aAlias == "x"   ? aVector.x
+                                : aAlias == "y" ? aVector.y
                                                 : aScalar )
-                            : ( aX ? aOther.aX : aOther.aY );
+                            : ( aUseX ? aOther.x : aOther.y );
         };
-        auto calc = [&]( T aX, T aY )
+        auto calc = [&]( T aLeft, T aRight )
         {
-            return aOp.starts_with( "add" )   ? checkedAdd( aX, aY )
-                   : aOp.starts_with( "sub" ) ? checkedSub( aX, aY )
-                                              : checkedMul( aX, aY );
+            return aOp.starts_with( "add" )   ? checkedAdd( aLeft, aRight )
+                   : aOp.starts_with( "sub" ) ? checkedSub( aLeft, aRight )
+                                              : checkedMul( aLeft, aRight );
         };
-        aVector.aX = calc( aVector.aX, rhs( true ) );
-        aVector.aY = calc( aVector.aY, rhs( false ) );
+        aVector.x = calc( aVector.x, rhs( true ) );
+        aVector.y = calc( aVector.y, rhs( false ) );
     }
     if( aOp == "neg" )
     {
-        checkNegation( aVector.aX );
-        checkNegation( aVector.aY );
+        checkNegation( aVector.x );
+        checkNegation( aVector.y );
     }
     if( aOp == "perpendicular" )
-        checkNegation( aVector.aY );
+        checkNegation( aVector.y );
     if( isOperation( aOp, { "dot", "operator_dot", "cross" } ) )
     {
-        E p = checkedMul( E( aVector.aX ), E( aOp == "cross" ? aOther.aY : aOther.aX ) );
-        E q = checkedMul( E( aVector.aY ), E( aOp == "cross" ? aOther.aX : aOther.aY ) );
+        E p = checkedMul( E( aVector.x ), E( aOp == "cross" ? aOther.y : aOther.x ) );
+        E q = checkedMul( E( aVector.y ), E( aOp == "cross" ? aOther.x : aOther.y ) );
         if( aOp == "cross" )
             checkedSub( p, q );
         else
@@ -258,19 +258,19 @@ void guardVector2( const std::string& aOp, VECTOR2<T> aVector, const VECTOR2<T>&
     }
     if( aOp == "squared_distance" )
     {
-        E aX = checkedSub( E( aVector.aX ), E( aOther.aX ) ), aY = checkedSub( E( aVector.aY ), E( aOther.aY ) );
-        checkedAdd( checkedMul( aX, aX ), checkedMul( aY, aY ) );
+        E dx = checkedSub( E( aVector.x ), E( aOther.x ) ), dy = checkedSub( E( aVector.y ), E( aOther.y ) );
+        checkedAdd( checkedMul( dx, dx ), checkedMul( dy, dy ) );
     }
-    if( aOp == "resize" && !( aVector.aX == 0 && aVector.aY == 0 ) )
+    if( aOp == "resize" && !( aVector.x == 0 && aVector.y == 0 ) )
     {
-        checkNegation( aVector.aX );
-        checkNegation( aVector.aY ); // std::abs signed minimum is undefined
-        if( std::abs( aVector.aX ) == std::abs( aVector.aY ) )
+        checkNegation( aVector.x );
+        checkNegation( aVector.y ); // std::abs signed minimum is undefined
+        if( std::abs( aVector.x ) == std::abs( aVector.y ) )
             checkNegation( aScalar );
         else
         {
-            E aX = checkedMul( E( aVector.aX ), E( aVector.aX ) ), aY = checkedMul( E( aVector.aY ), E( aVector.aY ) );
-            E l = checkedAdd( aX, aY );
+            E xSq = checkedMul( E( aVector.x ), E( aVector.x ) ), ySq = checkedMul( E( aVector.y ), E( aVector.y ) );
+            E l = checkedAdd( xSq, ySq );
             checkedMul( E( aScalar ), E( aScalar ) );
             if constexpr( std::is_integral_v<T> )
                 if( l == 0 )
