@@ -1,0 +1,13 @@
+loaded /tmp/angle-reference-kx4z4fd7/root/usr/lib/x86_64-linux-gnu/libm.so.6
+loaded /tmp/angle-reference-kx4z4fd7/root/usr/lib/x86_64-linux-gnu/libc.so.6
+loaded /tmp/angle-reference-kx4z4fd7/root/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+_LIB_VERSION _POSIX_ (2) at libm+0xe8008
+atan /tmp/angle-reference-kx4z4fd7/root/usr/lib/x86_64-linux-gnu/libm.so.6+0x2d840
+tan /tmp/angle-reference-kx4z4fd7/root/usr/lib/x86_64-linux-gnu/libm.so.6+0x30b80
+asin /tmp/angle-reference-kx4z4fd7/root/usr/lib/x86_64-linux-gnu/libm.so.6+0x12a40
+acos /tmp/angle-reference-kx4z4fd7/root/usr/lib/x86_64-linux-gnu/libm.so.6+0x129a0
+atan2 /tmp/angle-reference-kx4z4fd7/root/usr/lib/x86_64-linux-gnu/libm.so.6+0x12aa0
+asin GOT+0xe7f20 -> libm+0x25f70
+acos GOT+0xe7f38 -> libm+0x26780
+atan2 GOT+0xe7ed0 -> libm+0x26fe0
+records 1517520

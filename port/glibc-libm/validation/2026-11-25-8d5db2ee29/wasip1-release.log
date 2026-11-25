@@ -1,0 +1,14 @@
+(node:3343) ExperimentalWarning: WASI is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+running 2 tests
+test glibc_libm::tests::reference_records ... glibc_libm atan: 1517520 records, 0 mismatches
+glibc_libm atan2: 1517520 records, 0 mismatches
+glibc_libm tan: 1517520 records, 0 mismatches
+glibc_libm asin: 1517520 records, 0 mismatches
+glibc_libm acos: 1517520 records, 0 mismatches
+ok
+test glibc_libm::tests::specials_and_identities ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.13s
+

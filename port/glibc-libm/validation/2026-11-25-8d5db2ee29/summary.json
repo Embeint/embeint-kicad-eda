@@ -1,0 +1,38 @@
+{
+  "tested_head": "8d5db2ee2965c480211cf0b58c4518b4201632c1",
+  "run": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45606399707",
+  "records_per_function": 1517520,
+  "functions": [
+    "atan",
+    "atan2",
+    "tan",
+    "asin",
+    "acos"
+  ],
+  "configurations": [
+    "native-debug",
+    "native-release",
+    "wasip1-debug",
+    "wasip1-release",
+    "unknown-debug",
+    "unknown-release"
+  ],
+  "result": "PASS",
+  "report_sha256": "7414d739d7f230f67ea4c653657b31b828896d1e973efeddf41e0a646bb3b8fb",
+  "reference_sha256": "4e4c22b8bf31caa70e3ce07f2f7dca631dd76c48563d43188a3be3ccc1ddaf02",
+  "local_checks": {
+    "platform": "macOS 26.5 arm64",
+    "rust": "1.96.1",
+    "node": "24.16.0",
+    "note": "Corrected numerical function bodies compared with genuine records from prior afb4 run; hosted rerun independently verifies the wrapper-mode probe. Local debug log predates unused-import cleanup.",
+    "log_sha256": {
+      "mac-reference-debug.log": "d98f88f7cea2a549e0ff8fbf28fb3c52c43efc26ee0c62f0a27913cf5a424938",
+      "mac-reference-release.log": "c6e225fb8c59dd7b63491c3f35664b3317ed4cc92d8b282070d6ddd4ce8c0565",
+      "mac-wasm-debug.log": "3613ffb655ea9e574d71567c26b1d0af173cc2f3c03a61265f1de52a94c0a659",
+      "mac-wasm-release.log": "3613ffb655ea9e574d71567c26b1d0af173cc2f3c03a61265f1de52a94c0a659"
+    }
+  },
+  "ci_revision": "8e4d84c58bd46bbbce2c2fe8b4d1bfaef322d21f",
+  "base": "37f4bc0a32f0dc874236f95058803b096c457a96",
+  "ci_tree_equals_head_tree": "15cb6b24612bdc099f7834cce91ce8ee498417e7"
+}
