@@ -1,0 +1,79 @@
+{
+  "unit": "libs.kimath.include.geometry.application.ui.p001",
+  "status": "partial",
+  "action": "compare",
+  "mode": "partial",
+  "cases": 18050,
+  "compared": 12433,
+  "deferred": 5617,
+  "failures": 0,
+  "unprocessed": 0,
+  "golden_checked": false,
+  "golden": {
+    "status": "not_requested"
+  },
+  "run_faults": [],
+  "extra_replies": [],
+  "cases_sha256": "71a224295c7b7ff223a2f7cca5a49518bff3bdb5839ca97a0ec396730a87da7f",
+  "oracle_output_sha256": "523c64cb656079a883908cf3b4ea416ecf9a1b7e3ae954e83de283fe4edd2b61",
+  "rust_output_sha256": "f427da30431f44c6da84a56aeb46068ce6424a8f5d6b0dd8ada198b662a0e257",
+  "oracle_sha256": "57099660267f1439eb31b3747d3f512904ffd3f64894040fe4eecdb66d7b4224",
+  "rust_sha256": "502ae751b4bc69d01a2d47712b41e96ead6680df8dfc1a42ce66332da932dcc8",
+  "ci_run": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45585616158",
+  "head": "d2215930955ec09c7a27bf7ebe5ff615a59a5e2d",
+  "tested_merge_revision": "1d251be432bd952c6ad1472929b7c9eb7ddff755",
+  "report_sha256": "f936e375a8f31c9df3d552cdb096c7ecb7475d0e48e1416ab0d35b4447db154d",
+  "provenance_sha256": "03e8d5bcca736ae8f5aca95006da0bb43578e4373874c86f6f3607014962df55",
+  "deferral_owners": [
+    {
+      "unit": "libs.kimath.include.geometry.application.ui.p001",
+      "upstream": "libc::acos",
+      "cases": 322
+    },
+    {
+      "unit": "libs.kimath.include.geometry.application.ui.p001",
+      "upstream": "libc::asin",
+      "cases": 322
+    },
+    {
+      "unit": "libs.kimath.include.geometry.application.ui.p001",
+      "upstream": "libc::atan",
+      "cases": 322
+    },
+    {
+      "unit": "libs.kimath.include.geometry.application.ui.p001",
+      "upstream": "libc::atan2",
+      "cases": 928
+    },
+    {
+      "unit": "libs.kimath.include.geometry.application.ui.p001",
+      "upstream": "libc::tan",
+      "cases": 322
+    },
+    {
+      "unit": "libs.kimath.include.geometry.application.ui.p003",
+      "upstream": "SEG::Square",
+      "cases": 553
+    },
+    {
+      "unit": "libs.kimath.include.math.application.ui.p001",
+      "upstream": "KiROUND<double, int>",
+      "cases": 2236
+    },
+    {
+      "unit": "libs.kimath.include.math.application.ui.p001",
+      "upstream": "equals<double>",
+      "cases": 560
+    },
+    {
+      "unit": "libs.kimath.src.geometry.ellipse.application.ui.p001",
+      "upstream": "ELLIPSE::GetPointAtAngle",
+      "cases": 4
+    },
+    {
+      "unit": "libs.kimath.src.geometry.grid_geometry.application.ui.p001",
+      "upstream": "GRID_GEOMETRY::Area",
+      "cases": 48
+    }
+  ]
+}

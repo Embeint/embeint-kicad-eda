@@ -13,11 +13,11 @@ The canonical `Vector2<T>` and source-unit `rescale_i32` are reused.
 | --- | --- | --- | --- |
 | EDA_ANGLE constructors, accessors, constants | Default, explicit degrees, radians division, tenths division; vector zero, axes, diagonals and atan2; exact constant bits | Raw-bit construction and vector cases, signed zeros, extremes, NaN/inf | AsTenthsOfADegree calls unported KiROUND; non-axis/diagonal vectors defer at owned atan2 backend |
 | Normalize, Normalized, NormalizeNegative/90/180/720, foldToTwoPeriods | Finite/abs threshold/fmod+copysign; each inclusive/exclusive loop and returned mutation; copy form | Six modes at wrap boundaries and adjacent doubles, random exponent sweep, huge/tiny, nonfinite | Degenerate >two-loop cases intentionally absent because source fold bounds them |
-| IsZero/Horizontal/Vertical, Invert, abs; all arithmetic/comparison and assignment operators | Exact comparisons without implicit normalization; expression order and units preserved | Unary/binary cases, raw return bits; NaN comparisons | Mixed-NaN selection still needs native qualification |
+| IsZero/Horizontal/Vertical, Invert, abs; all arithmetic/comparison and assignment operators | Exact comparisons without implicit normalization; expression order and units preserved | Unary/binary cases, raw return bits; NaN comparisons | Mixed-NaN outputs checked exactly in the pinned native build |
 | Sin/Cos/Tan, Arccos/Arcsin/Arctan/Arctan2 | Every cardinal/diagonal shortcut, original unnormalized radian fallback; scalar inverse wrappers (typed runtime deferral) | Shortcuts, raw sine/cosine bits; inverse/tan/atan2 cases explicitly deferred | sin/cos reuse accepted portable glibc kernel; tan/inverse/atan2 runtime calls explicitly defer to this unit |
 | IsParallelTo | Both Normalize90 and -90-to-90 substitutions, final equals | Native reference returns bool; Rust explicitly defers at equals | `libs.kimath.include.math.application.ui.p001`: equals<double> |
 | Snapped, Round, AsTenthsOfADegree | Nonpositive-step identity; surrounding multiplication, divisions, both pow calls, result construction | Nonpositive snap succeeds, positive snap/round/tenths reach typed dependency errors | `libs.kimath.include.math.application.ui.p001`: KiROUND<double,int> |
-| Reflect and EDA_ORIENTATION (all operators, SetAngle/GetAngle, default, equality) | Reflection arithmetic; normalization; signed-zero canonicalization; angle-left forms and orientation difference | Raw bits of all outputs, mutation and assigned state, equality in each orientation case | Native mixed-NaN qualification pending |
+| Reflect and EDA_ORIENTATION (all operators, SetAngle/GetAngle, default, equality) | Reflection arithmetic; normalization; signed-zero canonicalization; angle-left forms and orientation difference | Raw bits of all outputs, mutation and assigned state, equality in each orientation case | Native outputs, including NaNs, checked exactly |
 | Angle/orientation ostream operators | Delegate to accepted f64 StreamInsert with caller state; width mutation retained | general/fixed/scientific/hex, precision/width/fill/showpos/uppercase; normalized orientation output | Existing StreamState resource budget is explicit |
 | ELLIPSE<T> default and GetArcStart/EndPoint | Generic canonical Vector2 fields; default radii/angles zero; wrappers forward actual start/end angles | i32/f64 defaults observed; C++ calls real endpoint APIs | `libs.kimath.src.geometry.ellipse.application.ui.p001`: GetPointAtAngle. Out-of-line constructors/mirror/evaluation are not owned here |
 | GRID_GEOMETRY default members and TakesPrecedenceOver | Cartesian default, zero fields; priority unequal branch; both Area calls and strict comparison continuation | Higher/lower unsigned priorities including UINT_MAX; equal-priority reference executes real Area | `libs.kimath.src.geometry.grid_geometry.application.ui.p001`: Area; Snap/Contains are out of line |
@@ -49,7 +49,7 @@ by the eda_angle.cpp source unit, and are not silently implemented here.
 The full registered own-library oracle compiles pinned, unmodified source with
 `-fno-fast-math -ffp-contract=off`. Hosted `geometry-live` and the main `rust-port`
 job compare every record exactly in partial mode and enumerate dependency deferrals.
-No lookup, tolerance, exclusions or golden. See the PR for head-specific native counts.
+No lookup, tolerance, exclusions or golden. Head-specific evidence is retained under `validation/2026-11-25-d221593095/`.
 
 Local Mac validation: cargo fmt, clippy with warnings denied, kicad-math tests,
 geometry safety/continuation tests, portable wasm build, unit-record validation.
@@ -59,8 +59,9 @@ Portable runtime qualification is enforced, not inferred from build success: the
 corpus runs import-free wasm against newly executed native Rust replies. Scalar
 tan/inverse/atan2 backends remain owned runtime deferrals after an observed local
 acos mismatch; see port/findings/geometry-angle-libm-portability.md. The corpus has
-18,050 defined-domain cases plus seven separate controls. Before native comparison,
-12,433 Rust results succeed and 5,617 defer. Of the controls, three are actual Rust
+18,050 defined-domain cases plus seven separate controls. The hosted native comparison checks
+12,433 successful results exactly and enumerates 5,617 deferrals, with zero
+failures/unprocessed cases. Of the controls, three are actual Rust
 overflow refusals and four stop at an earlier SEG::Square dependency; C++ refuses
 all seven undefined inputs. These are not successful geometry operations.
 
@@ -84,3 +85,22 @@ The pinned classes, contour accessors, stripe algorithm and segment/math bodies 
 unmodified. A successful whole-corpus comparison therefore also proves that no
 compared operation required application config. This oracle does not qualify
 triangulation/fracture or any future operation that reaches that guard.
+
+## Executed native evidence
+
+[Hosted run 45585616158](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45585616158)
+tested head d2215930955ec09c7a27bf7ebe5ff615a59a5e2d via merge revision
+1d251be432bd952c6ad1472929b7c9eb7ddff755 on Ubuntu 24.04 x86-64, GCC 13.3.0,
+glibc 2.39, wxWidgets 3.2.4. Result: 18,050 cases, **12,433 compared, 5,617 deferred,
+0 failures, 0 unprocessed, 0 run faults, 0 extra replies**. The seven separate
+undefined-domain controls passed. Complete import-free wasm execution passed
+against newly executed native Rust replies, including all dependency errors.
+
+`validation/2026-11-25-d221593095/compare.json.gz` is the complete unmodified
+runner report, compressed only for storage. `summary.json` records its raw SHA-256,
+executables, case/reply hashes and deferral counts; `oracle-provenance.json` records
+compiler flags, source closure and overlay hashes. These are validation artifacts;
+the implementation and case generator never read them. No golden was proposed.
+
+This evidence does not make the unit green: the scalar libc backends owned here
+and the enumerated KiCad dependencies still return typed Unported errors.
