@@ -15,6 +15,8 @@ for binary in [a.oracle,a.rust]:
     assert len(replies)==len(controls),(binary,r.stdout)
     for control,reply in zip(controls,replies):
         assert reply['case']==control['request']['case']
+        assert reply['unit']==control['request']['unit']
+        assert set(reply)=={'unit','case','error'}
         expected=control.get('rust_error',control['error']) if binary==a.rust else control['error']
         assert reply.get('error')==expected,(binary,control,reply)
 print(f'{len(controls)} undefined-domain controls checked (earlier Rust dependencies remain deferred)')
@@ -27,5 +29,10 @@ for binary in [a.oracle,a.rust]:
     assert len(replies)==len(priority)
     for control,reply in zip(priority,replies):
         key='result' if 'result' in control else 'error'
+        request=json.loads(control['request_text'])
+        assert reply['unit']==request['unit'] and reply['case']==request['case']
+        assert set(reply)=={'unit','case',key},(binary,control,reply)
+        # Python bool compares equal to integer 0/1; the protocol must not.
+        assert type(reply.get(key)) is type(control[key]),(binary,control,reply)
         assert reply.get(key)==control[key],(binary,control,reply)
 print('Priority lexical controls: four successful integer -0 results and two floating-input refusals agree')
