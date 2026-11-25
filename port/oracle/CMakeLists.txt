@@ -115,7 +115,11 @@ if( KIMATH_SRC_SHIMS )
     list( REMOVE_ITEM ORACLE_SHIMS ${KIMATH_SRC_SHIMS} )
     list( APPEND ORACLE_SHIMS ${KIMATH_SRC_SHIMS} )
 endif()
-# Keep previously qualified adapters first when selecting weak template bodies.
+# Keep previously qualified adapters first when selecting weak template bodies: the
+# Clipper2 header adapter follows them, and the geometry adapter stays last.
+set( CLIPPER2_SHIM "${ORACLE_OVERLAY}/shims/clipper2_core_engine.cpp" )
+list( REMOVE_ITEM ORACLE_SHIMS "${CLIPPER2_SHIM}" )
+list( APPEND ORACLE_SHIMS "${CLIPPER2_SHIM}" )
 set( GEOMETRY_SHIM "${ORACLE_OVERLAY}/shims/geometry_headers.cpp" )
 list( REMOVE_ITEM ORACLE_SHIMS "${GEOMETRY_SHIM}" )
 list( APPEND ORACLE_SHIMS "${GEOMETRY_SHIM}" )
