@@ -168,6 +168,8 @@ def controls():
     for negative in [False,True]:
         add(f'ub-narrow-float-{negative}',op='narrow_float',type='f64',a=bits(-2.**129 if negative else 2.**129))
     add('ub-center-size-max-cast',op='box',type='f64',kind='getters',a=dict(mode='center',pos=[bits(10.),bits(20.)],size=[bits(4294967296.),bits(0.)]))
+    # ByCenter subtracts KiROUND( 3 / 2.0 ) = 2, not 3 / 2 = 1: INT64_MIN + 1 - 2 underflows.
+    add('ub-center-rounded-half',op='box',type='i64',kind='getters',a=dict(mode='center',pos=[-2**63+1,0],size=[3,0]))
     add('ub-ct-helper-add',op='ct_sqrt_helper',type='i32',a=0,lo=2**31-2,hi=2**31-1)
     add('ub-ct-helper-divide',op='ct_sqrt_helper',type='i32',a=-2**31,lo=-3,hi=0)
     add('ub-ct-helper-zero',op='ct_sqrt_helper',type='i32',a=0,lo=0,hi=-1)

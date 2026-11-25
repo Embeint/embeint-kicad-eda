@@ -243,8 +243,13 @@ BOX2<VECTOR2<T>> boxRead( const JSON& v )
     }
     if( mode == "center" )
     {
-        auto       x = sub( E( p.x ), s.x / 2 );
-        auto       y = sub( E( p.y ), s.y / 2 );
+        // ByCenter computes aSize / 2 with VECTOR2::operator/( double ), which rounds
+        // integral components through KiROUND (defined clamping, never UB). Guard the
+        // subtraction with that same rounded half, not scalar integer division: for
+        // size 3 the call subtracts 2, not 1.
+        const VECTOR2<E> half = s / 2;
+        auto             x = sub( E( p.x ), half.x );
+        auto             y = sub( E( p.y ), half.y );
         VECTOR2<T> pos( VECTOR2<E>( x, y ) );
         add( E( pos.x ), s.x );
         add( E( pos.y ), s.y );
