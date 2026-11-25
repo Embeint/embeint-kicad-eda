@@ -10,6 +10,11 @@ port is [`kicad-core`](../kicad-core) (`kicad_core::include_core`); the C++ coun
 which compiles the unmodified pinned headers. Both adapters validate in the same order and
 refuse with the same messages. The source audit and evidence are in [AUDIT.md](AUDIT.md).
 
+The unit remains partial after CI: concurrent operations and nondefault ostream state
+are unfinished, scoped timers require explicit finish instead of automatic drop, and
+profile string allocation/queue element cloning can still allocate infallibly. Collection
+reservation errors do not establish complete allocation-failure equivalence.
+
 ```text
 python3 rust/kicad-core-include-shim/generate_cases.py [--check]
 cargo test -p kicad-core -p kicad-core-include-shim

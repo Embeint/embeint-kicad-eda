@@ -30,7 +30,9 @@ impl<T> SyncQueue<T> {
     /// `push( T const& aValue )`: append a copy.
     ///
     /// # Errors
-    /// [`AllocationError`]; the queue is then unchanged.
+    /// Collection growth returns [`AllocationError`]; the queue is then unchanged.
+    /// The caller type's Clone implementation is infallible and can still allocate or
+    /// panic; allocation-failure equivalence for copied elements remains unfinished.
     pub fn push(&mut self, value: &T) -> Result<(), AllocationError>
     where
         T: Clone,
