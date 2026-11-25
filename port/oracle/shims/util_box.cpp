@@ -562,7 +562,15 @@ JSON boxes( const JSON& v )
         return out( a.SquaredDiagonal() );
     if( k == "safe" )
     {
-        endsDomain( a );
+        constexpr double low = -std::numeric_limits<int>::max();
+        constexpr double high = std::numeric_limits<int>::max();
+        // IsBOX2Safe only evaluates the end getters after the preceding tests pass.
+        if( a.GetLeft() >= low && a.GetTop() >= low )
+        {
+            add( E( a.GetX() ), a.GetWidth() );
+            if( a.GetRight() <= high )
+                add( E( a.GetY() ), a.GetHeight() );
+        }
         return IsBOX2Safe( a );
     }
     if( k == "format" )

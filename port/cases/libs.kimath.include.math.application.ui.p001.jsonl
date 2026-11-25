@@ -15925,3 +15925,7 @@
 {"unit":"libs.kimath.include.math.application.ui.p001","case":"narrow-float-19","input":{"op":"narrow_float","type":"f64","a":"fff0000000000001"}}
 {"unit":"libs.kimath.include.math.application.ui.p001","case":"narrow-float-20","input":{"op":"narrow_float","type":"f64","a":"7ff8123456789abc"}}
 {"unit":"libs.kimath.include.math.application.ui.p001","case":"narrow-float-21","input":{"op":"narrow_float","type":"f64","a":"fff8123456789abc"}}
+{"unit":"libs.kimath.include.math.application.ui.p001","case":"safe-unused-overflow-0","input":{"op":"box","type":"i64","kind":"safe","a":{"mode":"raw","pos":[-9223372036854775808,0],"size":[-1,0]}}}
+{"unit":"libs.kimath.include.math.application.ui.p001","case":"safe-unused-overflow-1","input":{"op":"box","type":"i64","kind":"safe","a":{"mode":"raw","pos":[9223372036854775807,-9223372036854775808],"size":[1,0]}}}
+{"unit":"libs.kimath.include.math.application.ui.p001","case":"safe-unused-overflow-2","input":{"op":"box","type":"i64","kind":"safe","a":{"mode":"raw","pos":[9223372036854775807,1],"size":[0,9223372036854775807]}}}
+{"unit":"libs.kimath.include.math.application.ui.p001","case":"safe-unused-overflow-3","input":{"op":"box","type":"i64","kind":"safe","a":{"mode":"raw","pos":[0,-1],"size":[9223372036854775807,-9223372036854775808]}}}

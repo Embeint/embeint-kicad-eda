@@ -156,6 +156,10 @@ def generate():
                  float('inf'),-float('inf')]
     cast_bits=[bits(x) for x in cast_values]+['7ff0000000000001','fff0000000000001','7ff8123456789abc','fff8123456789abc']
     for i,a in enumerate(cast_bits):add(f'narrow-float-{i}',op='narrow_float',type='f64',a=a)
+    # IsBOX2Safe must not evaluate end getters skipped by its short circuits.
+    for i,(p,sz) in enumerate([([-2**63,0],[-1,0]),([2**63-1,-2**63],[1,0]),
+                               ([2**63-1,1],[0,2**63-1]),([0,-1],[2**63-1,-2**63])]):
+        add(f'safe-unused-overflow-{i}',op='box',type='i64',kind='safe',a=dict(mode='raw',pos=p,size=sz))
     assert len({c['case'] for c in cases})==len(cases)
     return ''.join(json.dumps(c,separators=(',',':'),allow_nan=False)+'\n' for c in cases)
 def controls():

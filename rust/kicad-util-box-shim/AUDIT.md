@@ -88,7 +88,7 @@ full type/branch coverage is made. Rust checks its arithmetic independently.
 ## Validation
 
 Fixed-seed public corpora are additive and deterministic. The owned corpus has
-15,927 inputs and 18 separate UB controls. Vector has 10,286 inputs (+704),
+15,931 inputs and 18 separate UB controls. Vector has 10,286 inputs (+704),
 geometry 21,538 (+384 from the accepted backend corpus). No prior corpus case is deleted or excluded. Native
 comparison reports must show zero previously passing regressions. The scoped
 workflow runs all three corpora and replays this unit's freshly executed native
@@ -153,4 +153,5 @@ maximum, separately from representable infinities. This follows C++ [conv.double
 finite endpoints, halfway rounding, subnormals, signed zero, infinity and NaN
 transport; two additional separate UB controls exercise finite overflow. The
 15,905-case retained snapshot predates this correction; current-head scoped CI
-qualifies the 15,927-case corpus and 18 controls.
+qualifies the 15,931-case corpus and 18 controls. Four safe-helper cases also verify that end
+getters skipped by IsBOX2Safe are not pre-rejected for otherwise-unused overflow.
