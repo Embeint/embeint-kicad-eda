@@ -18,7 +18,9 @@
 //!
 //! Unit `libs.kimath.include.geometry.application.ui.p001` owns [`eda_angle`]
 //! (`geometry/eda_angle.h`), [`geometry_headers`] (`geometry/ellipse.h`, `grid_geometry.h`)
-//! and [`poly_ystripes`] (`geometry/poly_ystripes_index.h`).
+//! and [`poly_ystripes`] (`geometry/poly_ystripes_index.h`). Unit
+//! `libs.kimath.src.geometry.eda_angle.application.pure.p001` adds the out-of-line
+//! `geometry/eda_angle.cpp` bodies to that type in [`eda_angle_source`].
 //!
 //! Unit `libs.kimath.src.geometry.arc_chord_params.application.pure.p001` owns
 //! [`arc_chord_params`] (`geometry/arc_chord_params.cpp`).
@@ -33,6 +35,7 @@ extern crate self as kicad_math;
 
 pub mod arc_chord_params;
 pub mod eda_angle;
+pub mod eda_angle_source;
 mod fp;
 pub mod geometry_headers;
 mod hypot;

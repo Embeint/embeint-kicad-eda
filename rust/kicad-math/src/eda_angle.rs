@@ -167,7 +167,7 @@ impl EdaAngle {
     pub fn arctan2(y: f64, x: f64) -> GeometryResult<Self> {
         Ok(Self::new(glibc_libm::atan2(y, x), AngleUnit::Radians))
     }
-    fn fold_to_two_periods(value: f64, period: f64) -> f64 {
+    pub(crate) fn fold_to_two_periods(value: f64, period: f64) -> f64 {
         if !value.is_finite() {
             return 0.0;
         }
