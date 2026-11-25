@@ -22,7 +22,8 @@
 //! returns [`ObservableError::NoImpl`] here.
 //!
 //! The `OBSERVABLE<T>` template (`Subscribe`, `Notify`, ...) is a header body owned by
-//! [`crate::HEADER_UNIT`]; it is not ported here. [`ObservableArena::observers`] and
+//! [`crate::HEADER_UNIT`] and ported in [`crate::observable_template`].
+//! [`ObservableArena::observers`], [`ObservableArena::structure_revision`] and
 //! [`ImplRef::id`] expose the `impl_->observers_` access that template needs.
 
 /// Identity of an observer object: the reference's `void*` value.
@@ -82,6 +83,11 @@ struct Impl {
     owned: bool,
     /// `shared_ptr::use_count()`.
     use_count: usize,
+    /// Count of changes to the number of entries of `observers` (a `push_back`, or an
+    /// `erase` that removed at least one entry). Not reference state: it lets the
+    /// `OBSERVABLE<T>` loop detect the iterator invalidation the reference leaves
+    /// undefined.
+    revision: u64,
 }
 
 impl Impl {
@@ -120,6 +126,7 @@ impl Impl {
             .try_reserve(1)
             .map_err(|_| ObservableError::Allocation)?;
         self.observers.push(observer);
+        self.revision = self.revision.wrapping_add(1);
         Ok(())
     }
 
@@ -136,12 +143,18 @@ impl Impl {
             }
         } else {
             self.observers.remove(index);
+            self.revision = self.revision.wrapping_add(1);
         }
     }
 
     /// `IMPL::collect`: drop null entries, preserving order (`remove_if` + `erase`).
     fn collect(&mut self) {
+        let before = self.observers.len();
         self.observers.retain(Option::is_some);
+
+        if self.observers.len() != before {
+            self.revision = self.revision.wrapping_add(1);
+        }
     }
 }
 
@@ -280,6 +293,7 @@ impl ObservableArena {
             iteration_count: 0,
             owned,
             use_count: 1,
+            revision: 0,
         };
 
         let arena = self.id;
@@ -566,6 +580,15 @@ impl ObservableArena {
     /// [`ObservableError::ForeignHandle`] or [`ObservableError::StaleHandle`].
     pub fn is_iterating(&self, id: ImplId) -> Result<bool, ObservableError> {
         Ok(self.get(id)?.is_iterating())
+    }
+
+    /// The structural revision of a live list: it changes whenever an entry is
+    /// appended or erased (nulling an entry leaves it unchanged). Not reference state.
+    ///
+    /// # Errors
+    /// [`ObservableError::ForeignHandle`] or [`ObservableError::StaleHandle`].
+    pub fn structure_revision(&self, id: ImplId) -> Result<u64, ObservableError> {
+        Ok(self.get(id)?.revision)
     }
 
     /// `shared_ptr<IMPL>::use_count()`.
