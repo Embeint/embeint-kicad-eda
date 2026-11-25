@@ -48,7 +48,17 @@ Each newly built binary passed the process controls (411 refusals, seven host
 deferrals and 418 continuations), three raw literal integer `-0` successes and
 four raw floating-zero/negative-integer refusals. Scoped all-target clippy with
 warnings denied and workspace formatting passed. The native CTest uses the
-same raw-token process controls; current-head hosted execution remains pending.
+same raw-token process controls.
+
+## Hosted execution
+
+Hosted run 45394757102 (Ubuntu x86-64, `rust-port`) at head
+`9f949fa3c3739a07ca39b04ab0a3780a712802cb` passed CTest `oracle-math-util-inputs`
+and the live comparison: mode `partial`, 10,656 of 10,656 cases compared, zero
+failures. Oracle and Rust output SHA-256 both equal the locally recorded
+`db9fe1117b870099b21d457e108643017a91a819cf5eec665fcd3bf637b688de`. An independent re-review at that head found no defects.
+The later base sync (`rust@1313250cd0`) brings only CI workflows and runner/MCP
+documentation; its own hosted run is the merge gate.
 
 ## Accepted matrix-port integration
 
