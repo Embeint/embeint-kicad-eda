@@ -13,7 +13,12 @@
 //!
 //! The private `glibc_trig` module reproduces the reference C library's `sin`, `cos` and
 //! `sincos` (glibc 2.39, baseline SSE2 variants) bit for bit without the host libm, so
-//! `SetRotation` gives the same bits natively and in WebAssembly.
+//! `SetRotation` and the general `EDA_ANGLE::Sin`/`Cos` fallbacks in [`eda_angle`] give the
+//! same bits natively and in WebAssembly.
+//!
+//! Unit `libs.kimath.include.geometry.application.ui.p001` owns [`eda_angle`]
+//! (`geometry/eda_angle.h`), [`geometry_headers`] (`geometry/ellipse.h`, `grid_geometry.h`)
+//! and [`poly_ystripes`] (`geometry/poly_ystripes_index.h`).
 //!
 //! The `MATRIX3x3<double>` arithmetic is evaluated through private per-site code generated
 //! from the pinned oracle binary (`generated`) on explicit SSE2 NaN selection (`sse2`); see
@@ -23,8 +28,11 @@
 // exactly as the generator emits it, so the generated file stays byte-identical.
 extern crate self as kicad_math;
 
+pub mod eda_angle;
 mod fp;
+pub mod geometry_headers;
 pub mod math_util;
+pub mod poly_ystripes;
 
 // `generated.rs` is emitter output (sha256 d24ff0f2..., from the reviewed graph locks of the
 // pinned oracle; port/tools/kimath_nan/README.md). It is bound byte for byte by
