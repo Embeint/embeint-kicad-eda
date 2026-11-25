@@ -1,0 +1,26 @@
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p001","case":"bad-min-[0]","error":{"kind":"invalid_input","message":"invalid coordinates"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p001","case":"bad-min-[0, 1.5]","error":{"kind":"invalid_input","message":"invalid coordinates"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p001","case":"bad-min-[0, 9223372036854775808]","error":{"kind":"invalid_input","message":"invalid coordinates"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p001","case":"bad-min-[True, 0]","error":{"kind":"invalid_input","message":"invalid coordinates"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p001","case":"bad-a-2","error":{"kind":"invalid_input","message":"integer out of range: a"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p001","case":"bad-item-8192","error":{"kind":"invalid_input","message":"invalid item"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p001","case":"bad-item--1","error":{"kind":"invalid_input","message":"invalid item"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p001","case":"bad-item-True","error":{"kind":"invalid_input","message":"invalid item"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p001","case":"unknown-config","error":{"kind":"invalid_input","message":"unknown config"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p001","case":"empty-steps","error":{"kind":"invalid_input","message":"steps outside 1..4096"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p001","case":"too-many-steps","error":{"kind":"invalid_input","message":"steps outside 1..4096"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p001","case":"unknown-op","error":{"kind":"invalid_input","message":"unknown op"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p001","case":"extra-field","error":{"kind":"invalid_input","message":"unexpected or missing field"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p001","case":"missing-item","error":{"kind":"invalid_input","message":"unexpected or missing field"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p001","case":"missing-a","error":{"kind":"invalid_input","message":"integer out of range: a"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p001","case":"bad-seed","error":{"kind":"invalid_input","message":"invalid seed"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p001","case":"bad-stop","error":{"kind":"invalid_input","message":"integer out of range: stop"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p001","case":"bad-nearest-k","error":{"kind":"invalid_input","message":"integer out of range: k"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p001","case":"distance-overflow-i32.d2.m16","error":{"kind":"invalid_input","message":"signed arithmetic overflow"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p001","case":"bulk-conversion-i32.d2.m16","error":{"kind":"invalid_input","message":"floating conversion outside reference domain"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p001","case":"distance-overflow-i64.d2.m16","error":{"kind":"invalid_input","message":"signed arithmetic overflow"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p001","case":"bulk-conversion-i64.d2.m16","error":{"kind":"invalid_input","message":"floating conversion outside reference domain"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p001","case":"distance-overflow-i64.d3.m8","error":{"kind":"invalid_input","message":"signed arithmetic overflow"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p001","case":"bulk-conversion-i64.d3.m8","error":{"kind":"invalid_input","message":"floating conversion outside reference domain"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p001","case":"tree-resource-limit","error":{"kind":"invalid_input","message":"resource limit"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p001","case":"bulk-entry-limit","error":{"kind":"invalid_input","message":"invalid entries"}}
