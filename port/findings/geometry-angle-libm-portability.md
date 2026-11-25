@@ -16,9 +16,9 @@ this unit, at exactly the missing call. The enclosing wrapper, radians conversio
 and vector construction continuation remain implemented. Existing accepted glibc
 sin/cos kernels are reused and stay active; vector axes/diagonals remain exact.
 No result lookup, tolerance or narrowed valid-input domain is introduced.
-`Round`'s pow calls cannot produce a successful returned value until the KiROUND
-owner is wired; exact portable pow must also be qualified before that barrier is
-removed.
+`Round`'s pow calls are owned typed `libc::pow` deferrals at the first pow, which
+C++ evaluates before KiROUND, so wiring KiROUND alone cannot expose host pow
+results; exact portable pow must be qualified before that deferral is removed.
 
 The full public corpus is now executed in import-free wasm against newly executed
 native Rust replies, including every typed deferral. Hosted native exact C++
