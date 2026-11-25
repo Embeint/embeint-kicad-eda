@@ -265,13 +265,16 @@ impl EdaAngle {
         Self::degrees(self.value.abs())
     }
 }
-// UNPORTED(libs.kimath.include.math.application.ui.p001): KiROUND<double, int>
-fn round_i32(_value: f64) -> GeometryResult<i32> {
-    missing("KiROUND<double, int>", UTIL_HEADER)
+fn round_i32(value: f64) -> GeometryResult<i32> {
+    crate::util::round_i32(value).map_err(|e| match e {
+        crate::VectorDomainError::Unported { upstream, unit } => {
+            GeometryError::Unported { upstream, unit }
+        }
+        _ => GeometryError::IntegerOverflow,
+    })
 }
-// UNPORTED(libs.kimath.include.math.application.ui.p001): equals<double>
-fn equals(_a: f64, _b: f64) -> GeometryResult<bool> {
-    missing("equals<double>", UTIL_HEADER)
+fn equals(a: f64, b: f64) -> GeometryResult<bool> {
+    Ok(crate::util::equals_f64(a, b, None))
 }
 impl Neg for EdaAngle {
     type Output = Self;

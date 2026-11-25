@@ -102,6 +102,10 @@ if( MATRIX_SHIM IN_LIST ORACLE_SHIMS AND HASH_SHIM IN_LIST ORACLE_SHIMS )
     math( EXPR HASH_SHIM_INDEX "${MATRIX_SHIM_INDEX} + 1" )
     list( INSERT ORACLE_SHIMS ${HASH_SHIM_INDEX} "${HASH_SHIM}" )
 endif()
+# Add the utility/box adapter after already qualified weak template definitions.
+set( UTIL_BOX_SHIM "${ORACLE_OVERLAY}/shims/util_box.cpp" )
+list( REMOVE_ITEM ORACLE_SHIMS "${UTIL_BOX_SHIM}" )
+list( APPEND ORACLE_SHIMS "${UTIL_BOX_SHIM}" )
 # Adapters for out-of-line kimath sources (shims/kimath_src_*.cpp) follow every
 # previously qualified adapter, in name order, so their weak template copies are
 # never selected ahead of an earlier adapter's.

@@ -179,24 +179,18 @@ fn assignment_returns_the_destination_and_keeps_source_bits() {
 }
 
 #[test]
-fn integral_resize_runs_the_accepted_rescale_before_the_kiround_deferral() {
-    fn kiround<T>() -> Result<Vector2<T>, E> {
-        Err(E::Unported {
-            upstream: "KiROUND<double, int>",
-            unit: "libs.kimath.include.math.application.ui.p001",
-        })
-    }
-    // General branch: both rescale<int64_t> calls and sqrt run; KiROUND (util.h) still defers.
-    assert_eq!(Vector2::new(3_i32, 4).resize(10), kiround());
-    assert_eq!(Vector2::new(-3_i64, 4).resize(-10), kiround());
-    assert_eq!(
+fn integral_resize_runs_the_accepted_rescale_and_rounding() {
+    assert_eq!(Vector2::new(3_i32, 4).resize(10), Ok(Vector2::new(6, 8)));
+    assert_eq!(Vector2::new(-3_i64, 4).resize(-10), Ok(Vector2::new(6, -8)));
+    assert!(matches!(
         Vector2::new(3_037_000_499_i64, 1).resize(3_037_000_499),
-        kiround()
-    );
-    // Diagonal branch reaches KiROUND directly; zero returns before either helper.
-    assert_eq!(Vector2::new(1_i32, -1).resize(5), kiround());
+        Err(E::Unported {
+            unit: "libs.kimath.src.math.util.application.ui.p001",
+            ..
+        })
+    ));
+    assert_eq!(Vector2::new(1_i32, -1).resize(5), Ok(Vector2::new(4, -4)));
     assert_eq!(Vector2::new(0_i64, 0).resize(7), Ok(Vector2::new(0, 0)));
-    // int64 squares overflow before rescale, which C++ leaves undefined.
     assert_eq!(
         Vector2::new(3_037_000_500_i64, 1).resize(1),
         Err(E::IntegerOverflow)

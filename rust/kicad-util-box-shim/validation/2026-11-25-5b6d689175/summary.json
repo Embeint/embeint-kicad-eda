@@ -1,0 +1,238 @@
+{
+  "tested_head": "5b6d689175a9f80a58814bb094d68b2956184b3e",
+  "tested_merge": "2eb388a0cebfd176b096bad6e92f56c705e39c39",
+  "initial_base": "37f4bc0a32f0dc874236f95058803b096c457a96",
+  "integrated_base": "4b18bdb371bd4e624df1942c110302af0eb9bd51",
+  "run": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45618853377",
+  "kicad_pin": "4cf939778df04d2b747bb2c4714fc5014a7565c7",
+  "platform": "Ubuntu 24.04 x86-64, GCC 13.3, glibc 2.39; baseline non-FMA",
+  "units": {
+    "owned": {
+      "unit": "libs.kimath.include.math.application.ui.p001",
+      "status": "partial",
+      "action": "compare",
+      "mode": "partial",
+      "cases": 15905,
+      "compared": 14298,
+      "deferred": 1607,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": false,
+      "golden": {
+        "status": "not_requested"
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "2e5542f1f0386705e34f80b880d33b1a7265bc48a746f1aeb880f299f3047d80",
+      "oracle_output_sha256": "10f5ebc353b96abb5f745a03a5891a617d6381a3c4699bc0c9f6fa14aa3cea63",
+      "rust_output_sha256": "a08a102fbcaca33101fc0481585255a9821c9d3be2471fe66d86b48468fd887d",
+      "oracle_sha256": "d32de58fe2bfa03603ad562696cac3637cc3dca90f742969e8b48f50fa14754d",
+      "rust_sha256": "7c811fc408fe01687abf594d2382d7b323c37fba23387a62c9b8e34924bba1e4",
+      "deferrals": [
+        {
+          "unit": "libs.kimath.include.application.ui.p001",
+          "upstream": "RotatePoint(VECTOR2I&, EDA_ANGLE)",
+          "cases": 48
+        },
+        {
+          "unit": "libs.kimath.include.application.ui.p001",
+          "upstream": "RotatePoint(VECTOR2I&, VECTOR2I, EDA_ANGLE)",
+          "cases": 30
+        },
+        {
+          "unit": "libs.kimath.include.math.application.ui.p002",
+          "upstream": "VECTOR stream<double> defaultfloat",
+          "cases": 10
+        },
+        {
+          "unit": "libs.kimath.include.math.application.ui.p002",
+          "upstream": "VECTOR2<double>::EuclideanNorm std::hypot",
+          "cases": 5
+        },
+        {
+          "unit": "libs.kimath.src.geometry.shape_arc.application.ui.p001",
+          "upstream": "SHAPE_ARC::BBox",
+          "cases": 4
+        },
+        {
+          "unit": "libs.kimath.src.math.util.application.ui.p001",
+          "upstream": "kimathLogOverflow",
+          "cases": 1447
+        },
+        {
+          "unit": "libs.kimath.src.trigo.application.ui.p001",
+          "upstream": "SegmentIntersectsSegment",
+          "cases": 63
+        }
+      ]
+    },
+    "vector": {
+      "unit": "libs.kimath.include.math.application.ui.p002",
+      "status": "partial",
+      "action": "compare",
+      "mode": "partial",
+      "cases": 10286,
+      "compared": 9639,
+      "deferred": 647,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": false,
+      "golden": {
+        "status": "not_requested"
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "af8bb5814b09dc4991cca282f4eda212c23ae7c36764c32909f45cbdb8249b8d",
+      "oracle_output_sha256": "7d7fa452d69e61a6b0d9dec9e455eca8bf0ad979f016ab54af9044dcaa10e48b",
+      "rust_output_sha256": "dff702c1fab0449d7e07fc8e930977428f23e72469901cc1c4e4673bf77d52d8",
+      "oracle_sha256": "d32de58fe2bfa03603ad562696cac3637cc3dca90f742969e8b48f50fa14754d",
+      "rust_sha256": "60283567484c2436fb6596e23919fda9faf082a42096bdbd0b4b3650641f18f6",
+      "deferrals": [
+        {
+          "unit": "libs.kimath.include.math.application.ui.p002",
+          "upstream": "VECTOR stream<double> defaultfloat",
+          "cases": 3
+        },
+        {
+          "unit": "libs.kimath.include.math.application.ui.p002",
+          "upstream": "VECTOR2<T>::Cross",
+          "cases": 12
+        },
+        {
+          "unit": "libs.kimath.include.math.application.ui.p002",
+          "upstream": "VECTOR2<T>::Dot",
+          "cases": 12
+        },
+        {
+          "unit": "libs.kimath.include.math.application.ui.p002",
+          "upstream": "VECTOR2<T>::SquaredEuclideanNorm",
+          "cases": 12
+        },
+        {
+          "unit": "libs.kimath.include.math.application.ui.p002",
+          "upstream": "VECTOR2<T>::operator*=",
+          "cases": 60
+        },
+        {
+          "unit": "libs.kimath.include.math.application.ui.p002",
+          "upstream": "VECTOR2<T>::operator+=",
+          "cases": 48
+        },
+        {
+          "unit": "libs.kimath.include.math.application.ui.p002",
+          "upstream": "VECTOR2<T>::operator-=",
+          "cases": 56
+        },
+        {
+          "unit": "libs.kimath.include.math.application.ui.p002",
+          "upstream": "VECTOR2<T>::operator/",
+          "cases": 24
+        },
+        {
+          "unit": "libs.kimath.include.math.application.ui.p002",
+          "upstream": "VECTOR2<double>::EuclideanNorm std::hypot",
+          "cases": 176
+        },
+        {
+          "unit": "libs.kimath.include.math.application.ui.p002",
+          "upstream": "VECTOR3<T>::Cross",
+          "cases": 12
+        },
+        {
+          "unit": "libs.kimath.include.math.application.ui.p002",
+          "upstream": "VECTOR3<T>::Dot",
+          "cases": 12
+        },
+        {
+          "unit": "libs.kimath.include.math.application.ui.p002",
+          "upstream": "VECTOR3<T>::EuclideanNorm",
+          "cases": 12
+        },
+        {
+          "unit": "libs.kimath.include.math.application.ui.p002",
+          "upstream": "VECTOR3<T>::operator*=",
+          "cases": 24
+        },
+        {
+          "unit": "libs.kimath.include.math.application.ui.p002",
+          "upstream": "VECTOR3<T>::operator/=",
+          "cases": 24
+        },
+        {
+          "unit": "libs.kimath.include.math.application.ui.p002",
+          "upstream": "operator*(T, VECTOR2<U>)",
+          "cases": 24
+        },
+        {
+          "unit": "libs.kimath.include.math.application.ui.p002",
+          "upstream": "operator*(VECTOR2<T>, U)",
+          "cases": 24
+        },
+        {
+          "unit": "libs.kimath.include.math.application.ui.p002",
+          "upstream": "operator+(VECTOR2<T>, U)",
+          "cases": 36
+        },
+        {
+          "unit": "libs.kimath.include.math.application.ui.p002",
+          "upstream": "operator-(VECTOR2<T>, U)",
+          "cases": 36
+        },
+        {
+          "unit": "libs.kimath.src.math.util.application.ui.p001",
+          "upstream": "kimathLogOverflow",
+          "cases": 40
+        }
+      ]
+    },
+    "geometry": {
+      "unit": "libs.kimath.include.geometry.application.ui.p001",
+      "status": "partial",
+      "action": "compare",
+      "mode": "partial",
+      "cases": 21538,
+      "compared": 19102,
+      "deferred": 2436,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": false,
+      "golden": {
+        "status": "not_requested"
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "807016707f50665d6639f32fb9091ea1508377984a8c31753b587e2dec8d5aa0",
+      "oracle_output_sha256": "d273424637a76405517ba35b1e575c2f11c6776b868a57a835c30bb20e9aea2e",
+      "rust_output_sha256": "8abbede42099ee8de28e1bb72f69a39001df4cab41c51a391ec339a8ab0125e5",
+      "oracle_sha256": "d32de58fe2bfa03603ad562696cac3637cc3dca90f742969e8b48f50fa14754d",
+      "rust_sha256": "3a892e44c2ba457f601a515e7bc989ccc4c564be8eef26ebcd1346ec3f2c74a2",
+      "deferrals": [
+        {
+          "unit": "libs.kimath.include.geometry.application.ui.p001",
+          "upstream": "libc::pow",
+          "cases": 1642
+        },
+        {
+          "unit": "libs.kimath.include.geometry.application.ui.p003",
+          "upstream": "SEG::Square",
+          "cases": 553
+        },
+        {
+          "unit": "libs.kimath.src.geometry.ellipse.application.ui.p001",
+          "upstream": "ELLIPSE::GetPointAtAngle",
+          "cases": 4
+        },
+        {
+          "unit": "libs.kimath.src.geometry.grid_geometry.application.ui.p001",
+          "upstream": "GRID_GEOMETRY::Area",
+          "cases": 48
+        },
+        {
+          "unit": "libs.kimath.src.math.util.application.ui.p001",
+          "upstream": "kimathLogOverflow",
+          "cases": 189
+        }
+      ]
+    }
+  }
+}
