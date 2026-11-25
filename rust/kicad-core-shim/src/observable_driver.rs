@@ -147,8 +147,6 @@ fn guard(input: &Value) -> Result<bool> {
 
 struct Parser {
     count: usize,
-    /// Observables with an enclosing `notify` (not `notify_ignore`).
-    notifying: Vec<usize>,
 }
 
 impl Parser {
@@ -188,11 +186,9 @@ impl Parser {
             }
             "drop" => {
                 fields(input, &["op", "obs"], &[])?;
-                let obs = index(input, "obs", OBSERVABLES)?;
-                if self.notifying.contains(&obs) {
-                    return Err("drop during own notification".into());
+                Step::Drop {
+                    obs: index(input, "obs", OBSERVABLES)?,
                 }
-                Step::Drop { obs }
             }
             "subscribe" => {
                 fields(input, &["op", "obs", "observer", "link"], &["guard"])?;
@@ -241,9 +237,6 @@ impl Parser {
                     .and_then(Value::as_array)
                     .ok_or("expected array: reactions")?;
                 let mut reactions: Vec<(ObserverId, Vec<Step>)> = Vec::new();
-                if !ignore_variant {
-                    self.notifying.push(obs);
-                }
                 for reaction in list {
                     fields(reaction, &["observer", "steps"], &[])?;
                     let observer = observer_id(reaction, "observer")?;
@@ -252,9 +245,6 @@ impl Parser {
                     }
                     let steps = self.steps(reaction.get("steps"), depth + 1)?;
                     reactions.push((observer, steps));
-                }
-                if !ignore_variant {
-                    self.notifying.pop();
                 }
                 Step::Notify {
                     obs,
@@ -333,6 +323,9 @@ struct Driver {
     /// Lists ranged over by active `Notify`/`NotifyIgnore` loops, outermost first, with
     /// each list's size when its loop began (the range-for's fixed end).
     active: Vec<(ImplId, usize)>,
+    /// Observable slots whose `Notify` (not `NotifyIgnore`) loop is executing. A slot
+    /// cannot be emptied while listed, so it still holds the notifying object.
+    notifying: Vec<usize>,
     calls: Vec<Value>,
     budget: usize,
 }
@@ -475,6 +468,13 @@ impl Driver {
                 }
             }
             Step::Drop { obs } => {
+                self.observable(*obs)?;
+                // Notify calls leave_iteration() on itself after its loop, so a drop that
+                // is reached inside the object's own Notify is undefined. Drops in
+                // reactions that never run are never executed and so are not refused.
+                if self.notifying.contains(obs) {
+                    return Err("drop during own notification".into());
+                }
                 let base = self
                     .observables
                     .get_mut(*obs)
@@ -698,6 +698,9 @@ impl Driver {
         // The range-for end is fixed when the loop starts; entries are re-read each step.
         let end = self.arena.observers(id).map_err(handle)?.len();
         self.active.push((id, end));
+        if ignore.is_none() {
+            self.notifying.push(obs);
+        }
         for position in 0..end {
             let entry = self
                 .arena
@@ -720,6 +723,9 @@ impl Driver {
             }
         }
         self.active.pop();
+        if ignore.is_none() {
+            self.notifying.pop();
+        }
         if ignore.is_none() {
             let Driver {
                 arena, observables, ..
@@ -781,10 +787,7 @@ impl Driver {
 /// Run an `observable` operation.
 pub fn run(input: &Value) -> Result<Value> {
     fields(input, &["op", "steps"], &[])?;
-    let mut parser = Parser {
-        count: 0,
-        notifying: Vec::new(),
-    };
+    let mut parser = Parser { count: 0 };
     let steps = parser.steps(input.get("steps"), 0)?;
     let mut driver = Driver {
         arena: ObservableArena::new(ArenaId(0)),
@@ -792,6 +795,7 @@ pub fn run(input: &Value) -> Result<Value> {
         links: (0..LINKS).map(|_| Link::new()).collect(),
         present: [false; LINKS],
         active: Vec::new(),
+        notifying: Vec::new(),
         calls: Vec::new(),
         budget: 0,
     };

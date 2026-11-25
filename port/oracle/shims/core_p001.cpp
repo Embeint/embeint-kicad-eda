@@ -592,11 +592,6 @@ private:
         {
             Fields( aInput, { "op", "obs" } );
             step.obs = Index( aInput, "obs", OBSERVABLES );
-
-            // Notify calls leave_iteration() on itself after its loop; NotifyIgnore does
-            // not touch the observable again, so only an enclosing notify is undefined.
-            if( std::find( m_notifying.begin(), m_notifying.end(), step.obs ) != m_notifying.end() )
-                Fail( "drop during own notification" );
         }
         else if( op == "subscribe" )
         {
@@ -631,9 +626,6 @@ private:
             if( !aInput.at( "reactions" ).is_array() )
                 Fail( "expected array: reactions" );
 
-            if( !ignoreVariant )
-                m_notifying.push_back( step.obs );
-
             for( const JSON& reaction : aInput.at( "reactions" ) )
             {
                 Fields( reaction, { "observer", "steps" } );
@@ -649,8 +641,6 @@ private:
                 step.reactions.emplace_back( observer, std::move( steps ) );
             }
 
-            if( !ignoreVariant )
-                m_notifying.pop_back();
         }
         else if( op == "enter_iteration" || op == "leave_iteration" || op == "on_observers_empty" )
         {
@@ -697,7 +687,6 @@ private:
     }
 
     size_t           m_count = 0;
-    std::vector<int> m_notifying; ///< Observables with an enclosing notify (not notify_ignore).
 };
 
 
@@ -875,12 +864,29 @@ private:
         {
             TEST_OBSERVABLE& observable = Observable( aStep.obs );
 
-            // Dropped inside its own NotifyIgnore (the parser refuses its own Notify).
+            // Notify calls leave_iteration() on itself after its loop, so a drop that is
+            // actually reached inside this object's own Notify is undefined. A drop in a
+            // reaction that never runs (an observer that is not called, or a Notify with
+            // no list) is never executed and so is not refused.
+            if( std::any_of( m_notifiers.begin(), m_notifiers.end(),
+                             [&]( const NOTIFIER& aNotifier )
+                             {
+                                 return aNotifier.observable == &observable && aNotifier.notify;
+                             } ) )
+            {
+                Fail( "drop during own notification" );
+            }
+
+            // Dropped inside its own NotifyIgnore.
             // The template does not touch the observable after the loop, so this is
             // defined, but a later refusal would unwind through its catch block, which
             // calls leave_iteration() on it. Do what ~OBSERVABLE_BASE does to state
             // (release impl_) and keep the storage until the run ends.
-            if( std::find( m_notifiers.begin(), m_notifiers.end(), &observable ) != m_notifiers.end() )
+            if( std::any_of( m_notifiers.begin(), m_notifiers.end(),
+                             [&]( const NOTIFIER& aNotifier )
+                             {
+                                 return aNotifier.observable == &observable;
+                             } ) )
             {
                 observable.Empty();
                 m_retired.push_back( std::move( m_observables[aStep.obs] ) );
@@ -946,7 +952,7 @@ private:
                 m_active.push_back( ACTIVE{ impl, observable.Impl(), impl->observers_.size() } );
 
             m_frames.push_back( FRAME{ &aStep.reactions, aDepth } );
-            m_notifiers.push_back( &observable );
+            m_notifiers.push_back( NOTIFIER{ &observable, op == "notify" } );
 
             if( op == "notify" )
                 observable.Notify( &OBSERVER::OnEvent, aStep.event );
@@ -1109,7 +1115,14 @@ private:
     std::unique_ptr<TEST_OBSERVABLE>               m_observables[OBSERVABLES];
     std::optional<UTIL::LINK>                      m_links[LINKS];
     std::vector<ACTIVE>                            m_active;
-    std::vector<const TEST_OBSERVABLE*>            m_notifiers; ///< Observables in Notify/NotifyIgnore.
+    /// An observable whose Notify (notify) or NotifyIgnore (!notify) is executing.
+    struct NOTIFIER
+    {
+        const TEST_OBSERVABLE* observable;
+        bool                   notify;
+    };
+
+    std::vector<NOTIFIER>                          m_notifiers; ///< Executing Notify/NotifyIgnore calls.
     std::vector<std::unique_ptr<TEST_OBSERVABLE>>  m_retired;   ///< Dropped in own NotifyIgnore; impl_ null.
     std::vector<FRAME>                             m_frames;
     JSON                                           m_calls = JSON::array();

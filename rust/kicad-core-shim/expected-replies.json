@@ -1,6 +1,6 @@
 {
- "cases": 6225,
- "compared": 6200,
+ "cases": 6227,
+ "compared": 6202,
  "deferred": {
   "cases": [
    "latency_probe-00071",

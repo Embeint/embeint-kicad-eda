@@ -70,7 +70,7 @@ undefined points:
 
 | Refusal | Undefined because |
 | --- | --- |
-| `drop during own notification` | `Notify` calls `leave_iteration()` on the destroyed observable after its loop (`NotifyIgnore` does not, so dropping there is allowed) |
+| `drop during own notification` | A drop actually executed inside the observable's own `Notify`: `Notify` calls `leave_iteration()` on the destroyed observable after its loop (`NotifyIgnore` does not, so dropping there is allowed). Checked when the drop runs, so a drop in a reaction that is never reached is not refused |
 | `unsubscribe without impl` | `OBSERVABLE_BASE::remove_observer` dereferences a null `impl_` |
 | `subscribe during active iteration` | `push_back` into a list an active `Notify`/`NotifyIgnore` range-for is reading invalidates its iterators |
 | `remove during active iteration` | `unsubscribe`, `link_reset`, `link_drop` or `link_assign` (not self-assignment) would erase from a list an active loop is reading: `IMPL::remove_observer` erases instead of nulling when the count is 0, which inside a loop means the count wrapped. Checked before the removal |

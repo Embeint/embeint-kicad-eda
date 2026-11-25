@@ -392,6 +392,11 @@ def scenarios():
              + [step("subscribe", obs=k % 8, observer=k % 8, link=k) for k in range(16)]
              + [notify(k, k) for k in range(8)] + [step("link_drop", link=k) for k in range(16)]
              + [step("drop", obs=k) for k in range(8)])
+    # A drop of the notifying observable in a reaction that never runs is defined: the
+    # reaction belongs to an observer that is not called, or the observable has no list.
+    s.append([step("new", obs=0), step("subscribe", obs=0, observer=0, link=0),
+              notify(0, 1, {1: [step("drop", obs=0)]}), notify(0, 2), step("drop", obs=0)])
+    s.append([step("new", obs=0), notify(0, 1, {0: [step("drop", obs=0)]}), step("drop", obs=0)])
     return s
 
 
