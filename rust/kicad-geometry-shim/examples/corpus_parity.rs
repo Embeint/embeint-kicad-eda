@@ -16,6 +16,24 @@ fn main() -> Result<(), String> {
             return Err(format!("native/wasm mismatch: {}", actual["case"]));
         }
     }
+    for line in
+        include_str!("../../../port/oracle/fixtures/geometry-priority-controls.jsonl").lines()
+    {
+        let control: Value = serde_json::from_str(line).map_err(|e| e.to_string())?;
+        let actual = dispatch(
+            control["request_text"]
+                .as_str()
+                .ok_or("missing literal priority request")?,
+        );
+        let key = if control.get("result").is_some() {
+            "result"
+        } else {
+            "error"
+        };
+        if actual.get(key) != control.get(key) {
+            return Err("wasm priority input contract mismatch".into());
+        }
+    }
     if reference.next().is_some() {
         return Err("extra native reply".into());
     }

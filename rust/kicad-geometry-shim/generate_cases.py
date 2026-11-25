@@ -128,9 +128,28 @@ def controls():
         result.append(dict(request=request,error=dict(kind='invalid_input',message='intermediate overflow'),rust_error=dict(kind='unported',unit='libs.kimath.include.geometry.application.ui.p003',upstream='SEG::Square')))
     return ''.join(json.dumps(v,separators=(',',':'))+'\n' for v in result)
 
+def priority_controls():
+    result=[]
+    for name,a,b,expected in [
+        ('a-negative-zero','-0','1',False),
+        ('b-negative-zero','1','-0',True),
+        ('a-negative-zero-uint-max','-0','4294967295',False),
+        ('b-negative-zero-uint-max','4294967295','-0',True),
+        ('a-float-negative-zero','-0.0','1',None),
+        ('b-float-zero','1','0.0',None),
+    ]:
+        def grid(priority): return dict(priority=priority,kind='cartesian',x=bits(0.),y=bits(0.))
+        request=dict(unit=UNIT,case='priority-'+name,input=dict(op='grid',a=grid('__A__'),b=grid('__B__')))
+        line=json.dumps(request,separators=(',',':')).replace('"__A__"',a).replace('"__B__"',b)
+        control=dict(request_text=line)
+        if expected is None: control['error']=dict(kind='invalid_input',message='priority out of range')
+        else: control['result']=expected
+        result.append(control)
+    return ''.join(json.dumps(c,separators=(',',':'))+'\n' for c in result)
+
 def main():
     p=argparse.ArgumentParser();p.add_argument('--check',action='store_true');a=p.parse_args()
-    for path,data in [(ROOT/'port/cases'/f'{UNIT}.jsonl',generate()),(ROOT/'port/oracle/fixtures/geometry-controls.jsonl',controls())]:
+    for path,data in [(ROOT/'port/cases'/f'{UNIT}.jsonl',generate()),(ROOT/'port/oracle/fixtures/geometry-controls.jsonl',controls()),(ROOT/'port/oracle/fixtures/geometry-priority-controls.jsonl',priority_controls())]:
         if a.check:
             if path.read_text()!=data: raise SystemExit(f'stale corpus: {path}')
         else: path.write_text(data)

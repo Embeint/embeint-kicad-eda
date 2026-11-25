@@ -18,3 +18,14 @@ for binary in [a.oracle,a.rust]:
         expected=control.get('rust_error',control['error']) if binary==a.rust else control['error']
         assert reply.get('error')==expected,(binary,control,reply)
 print(f'{len(controls)} undefined-domain controls checked (earlier Rust dependencies remain deferred)')
+
+priority=[json.loads(s) for s in (ROOT/'port/oracle/fixtures/geometry-priority-controls.jsonl').read_text().splitlines()]
+requests=''.join(c['request_text']+'\n' for c in priority)
+for binary in [a.oracle,a.rust]:
+    r=subprocess.run([binary],input=requests,text=True,capture_output=True,check=True,timeout=30)
+    replies=[json.loads(s) for s in r.stdout.splitlines()]
+    assert len(replies)==len(priority)
+    for control,reply in zip(priority,replies):
+        key='result' if 'result' in control else 'error'
+        assert reply.get(key)==control[key],(binary,control,reply)
+print('Priority lexical controls: four successful integer -0 results and two floating-input refusals agree')

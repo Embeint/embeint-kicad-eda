@@ -104,3 +104,17 @@ the implementation and case generator never read them. No golden was proposed.
 
 This evidence does not make the unit green: the scalar libc backends owned here
 and the enumerated KiCad dependencies still return typed Unported errors.
+
+## Grid priority input contract
+
+The unsigned priority transport accepts the JSON integer spelling `-0` as zero,
+matching nlohmann's signed integer zero. Arbitrary-precision serde_json preserves
+that spelling, so as_u64 alone is insufficient; the reader also accepts a checked
+nonnegative as_i64 value. Floating `-0.0` and `0.0` remain invalid integer inputs.
+Six literal-request controls are separate from the UB controls and successful
+geometry corpus: four genuine priority comparisons and two input-type refusals.
+They run through both native adapters and import-free wasm.
+
+The archived d221593095 evidence predates this transport fix. It remains historical
+evidence for the unchanged 18,050-case corpus, not a substitute for final-head CI.
+The PR links current-head native and registered-main reports.

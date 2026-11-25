@@ -247,6 +247,9 @@ fn run(v: &Value) -> Result<Value, Error> {
                 keys(v, &["priority", "kind", "x", "y"])?;
                 let p = v["priority"]
                     .as_u64()
+                    // Arbitrary-precision JSON preserves integer -0. The C++
+                    // unsigned reader accepts signed integer zero as well.
+                    .or_else(|| v["priority"].as_i64().and_then(|n| u64::try_from(n).ok()))
                     .and_then(|p| u32::try_from(p).ok())
                     .ok_or("priority out of range")?;
                 Ok(GridGeometry {
@@ -397,6 +400,35 @@ mod tests {
             count += 1;
         }
         assert_eq!(count, 7);
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod priority_tests {
+    use super::*;
+    #[test]
+    fn integer_negative_zero_is_unsigned_zero_but_float_spellings_are_refused(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut counts = [0; 2];
+        for line in
+            include_str!("../../../port/oracle/fixtures/geometry-priority-controls.jsonl").lines()
+        {
+            let control: Value = serde_json::from_str(line)?;
+            let reply = dispatch(
+                control["request_text"]
+                    .as_str()
+                    .ok_or("missing literal request")?,
+            );
+            if let Some(expected) = control.get("result") {
+                assert_eq!(reply.get("result"), Some(expected), "{reply}");
+                counts[0] += 1;
+            } else {
+                assert_eq!(reply["error"], control["error"]);
+                counts[1] += 1;
+            }
+        }
+        assert_eq!(counts, [4, 2]);
         Ok(())
     }
 }
