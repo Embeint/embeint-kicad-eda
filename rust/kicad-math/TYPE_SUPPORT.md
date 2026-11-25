@@ -196,3 +196,15 @@ Rust const-evaluation of arithmetic/assignment beyond the existing constructors 
 unqualified. Mixed scalar +/- with a different integral U, f32 scalar specializations and
 non-arithmetic fallback casts are not implemented as separate public overloads; they are
 explicit missing instantiations, not certified by same-type cases.
+
+## Utility dependency wiring (PR #68)
+
+The historical snapshots and missing-helper descriptions above describe their
+recorded revisions. The util/box unit now supplies the real shared KiROUND,
+equals, sign, rescale<double> and RoundedHypot implementations. Vector's private
+rounding/equality stubs were replaced; overflowing nonquiet rounding now reaches
+util.cpp's actual kimathLogOverflow owner. Integral Resize, norm, floating Resize,
+equality, division and the vector KiROUND continuations can run. The additive
+corpus has 10,286 cases. General floating hypot, formatting and ambiguous NaN
+sites remain deferred. Fresh hosted counts and input-preserving caller regression
+evidence are recorded with `../kicad-util-box-shim/AUDIT.md`; status stays partial.

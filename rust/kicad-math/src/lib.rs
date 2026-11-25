@@ -34,6 +34,7 @@ pub mod eda_angle;
 pub mod eda_angle_source;
 mod fp;
 pub mod geometry_headers;
+mod hypot;
 pub mod math_util;
 pub mod poly_ystripes;
 
@@ -44,14 +45,17 @@ pub mod poly_ystripes;
 // would remove; fixing that belongs in the emitter and a reviewed re-emission, not here.
 #[rustfmt::skip]
 mod generated;
+pub mod box2;
 mod glibc_libm;
 mod glibc_trig;
 pub mod matrix3x3;
 mod sse2;
 pub mod stream;
+pub mod util;
 pub mod vector;
 pub mod wide_int;
 
+pub use box2::{Box2, Box2D, Box2I, Box2IMinMax, Box2L, BoxPointOperand, OptBox2I};
 pub use matrix3x3::{Matrix3x3, Matrix3x3D, MatrixElement, MatrixError};
 pub use stream::{FmtFlags, StreamError, StreamInsert, StreamState, MAX_STREAM_FIELD};
 pub use vector::{

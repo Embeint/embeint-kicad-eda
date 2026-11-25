@@ -127,6 +127,13 @@ def generate(include_undefined=False):
             add(f'libm-{kind}-{i}', op='unary', kind=kind, a=bits(value))
         if i < 32:
             add(f'libm-round-{i}', op='round', a=bits(angle), digits=i-16)
+    # Additive util.h continuations, with their own seed to preserve earlier inputs.
+    util_rng=random.Random(0xB02EDA)
+    for i in range(128):
+        a=util_rng.uniform(-10000,10000)
+        add(f'ut-wired-tenths-{i}',op='unary',a=bits(a),kind='tenths')
+        add(f'ut-wired-snapped-{i}',op='binary',a=bits(a),b=bits(util_rng.choice([1.,5.,45.,90.])),kind='snapped')
+        add(f'ut-wired-parallel-{i}',op='binary',a=bits(a),b=bits(a+util_rng.choice([0.,90.,180.,360.])),kind='parallel')
     assert len({c['case'] for c in cases}) == len(cases)
     if include_undefined: return undefined
     return ''.join(json.dumps(c,separators=(',',':'),allow_nan=False)+'\n' for c in cases)
