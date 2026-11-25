@@ -3,6 +3,7 @@
 
 namespace oracle
 {
+void RegisterUtilBox( REGISTRY& aRegistry );
 void RegisterGeometryHeaders( REGISTRY& aRegistry );
 void RegisterExample( REGISTRY& aRegistry );
 void RegisterMd5( REGISTRY& aRegistry );
@@ -30,6 +31,7 @@ void REGISTRY::Add( const std::string& aUnit, const std::string& aUpstream, SHIM
 REGISTRY MakeRegistry()
 {
     REGISTRY registry;
+    RegisterUtilBox( registry );
     RegisterGeometryHeaders( registry );
     RegisterExample( registry );
     RegisterMd5( registry );

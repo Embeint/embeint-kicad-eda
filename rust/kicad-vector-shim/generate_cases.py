@@ -126,6 +126,18 @@ case('2-i64-resize-general-int128-product',2,'i64','resize',[3_037_000_499,1],sc
 case('2-i64-resize-general-int128-negative',2,'i64','resize',[-3_037_000_499,-2],scalar=-3_037_000_499)
 case('2-i32-resize-general-max-length',2,'i32','resize',[2**31-1,1],scalar=2**31-1)
 case('2-i64-resize-square-overflow',2,'i64','resize',[3_037_000_500,1],scalar=1,refuse=True)
+# Additive util.h wiring continuations; seed is isolated from the accepted corpus.
+ut_rng=random.Random(0xB02EDA)
+for n in range(64):
+ a=[ut_rng.randrange(-10000,10001),ut_rng.randrange(-10000,10001)]
+ for typ in ['i32','i64','f64']:
+  aa=floats(a) if typ=='f64' else a
+  length=ut_rng.randrange(-10000,10001)
+  case(f'ut-wired-{n}-{typ}-resize',2,typ,'resize',aa,scalar=bits(length) if typ=='f64' else length)
+  case(f'ut-wired-{n}-{typ}-norm',2,typ,'norm',aa)
+  case(f'ut-wired-{n}-{typ}-divide',2,typ,'divide',aa,scalar=bits(3.0))
+ case(f'ut-wired-{n}-equals-default',2,'f64','equals',floats(a),b=floats(a))
+ case(f'ut-wired-{n}-round',2,'f64','ki_round',floats([a[0]+0.5,a[1]-0.5]))
 assert len({c['case'] for c in CASES+REFUSALS})==len(CASES)+len(REFUSALS)
 for p,rs in [(ROOT/f'port/cases/{UNIT}.jsonl',CASES),(ROOT/'port/oracle/vector-refusals.jsonl',REFUSALS)]:
  p.write_text(''.join(json.dumps(r,separators=(',',':'))+'\n' for r in rs))
