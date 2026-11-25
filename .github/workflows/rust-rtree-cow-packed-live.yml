@@ -1,0 +1,72 @@
+name: Rust cow and packed rtree live validation
+
+on:
+  pull_request:
+    branches: [rust]
+    paths:
+      - rust/kicad-rtree-cow-packed/**
+      - rust/kicad-rtree/**
+      - rust/kicad-rtree-cow-packed-shim/**
+      - rust/kicad-rtree-node/**
+      - rust/Cargo.toml
+      - rust/Cargo.lock
+      - port/oracle/shims/cow_packed_rtree.cpp
+      - port/cases/libs.kimath.include.geometry.rtree.application.pure.p002.jsonl
+      - port/units/libs.kimath.include.geometry.rtree.application.pure.p002.toml
+      - .github/workflows/rust-rtree-cow-packed-live.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cow-packed-live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CARGO_BUILD_JOBS: "2"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - name: Install the repository Rust toolchain and wasm target
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal --component clippy,rustfmt --target wasm32-unknown-unknown
+          rustup default 1.99.1
+      - name: Check the implementation and deterministic corpus
+        run: |
+          cargo fmt --manifest-path rust/Cargo.toml -p kicad-rtree-cow-packed -p kicad-rtree-cow-packed-shim --check
+          cargo clippy --locked --manifest-path rust/Cargo.toml -p kicad-rtree-cow-packed -p kicad-rtree-cow-packed-shim --all-targets -j2 -- -D warnings
+          cargo test --locked --manifest-path rust/Cargo.toml -p kicad-rtree-cow-packed -p kicad-rtree-cow-packed-shim -j2 -- --nocapture
+          cargo check --locked --manifest-path rust/Cargo.toml -p kicad-rtree-cow-packed --target wasm32-unknown-unknown -j2
+          python3 rust/kicad-rtree-cow-packed-shim/generate_cases.py --check
+          python3 rust/kicad-rtree-cow-packed-shim/generate_refusals.py --check
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-difftest -p kicad-rtree-cow-packed-shim -j2
+      - name: Compile the genuine pinned header with arithmetic sanitizers
+        run: |
+          python3 rust/kicad-rtree-cow-packed-shim/native/prepare.py --out "$RUNNER_TEMP/rtree-stage"
+          bash rust/kicad-rtree-cow-packed-shim/native/build.sh "$RUNNER_TEMP/rtree-stage" "$RUNNER_TEMP/cow-packed-live"
+      - name: Compare every case live, including sharing and packed layout
+        run: |
+          out="$RUNNER_TEMP/cow-packed-live"
+          rust/target/debug/kicad-difftest compare \
+            --unit libs.kimath.include.geometry.rtree.application.pure.p002 --root "$PWD" \
+            --oracle "$out/rtree-oracle" --rust "$PWD/rust/target/debug/kicad-rtree-cow-packed-shim" \
+            --timeout-secs 240 --report "$out/compare.json"
+          python3 rust/kicad-rtree-cow-packed-shim/native/coverage.py --out "$out"
+          "$out/rtree-oracle" < port/cases/libs.kimath.include.geometry.rtree.application.pure.p002.jsonl > "$out/native.jsonl"
+          python3 rust/kicad-rtree-cow-packed-shim/compare_refusals.py --oracle "$out/rtree-oracle" --rust "$PWD/rust/target/debug/kicad-rtree-cow-packed-shim"
+      - name: Execute the complete corpus in import-free WebAssembly
+        run: |
+          export KICAD_COW_PACKED_WASM_REFERENCE="$RUNNER_TEMP/cow-packed-live/native.jsonl"
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-rtree-cow-packed-shim \
+            --example corpus_parity --features live-wasm --target wasm32-unknown-unknown --release -j2
+          node rust/kicad-rtree-cow-packed-shim/wasm-test.mjs rust/target/wasm32-unknown-unknown/release/examples/corpus_parity.wasm
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: cow-packed-rtree-live-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/cow-packed-live/
+            ${{ runner.temp }}/rtree-stage/source-manifest.json
+          if-no-files-found: warn

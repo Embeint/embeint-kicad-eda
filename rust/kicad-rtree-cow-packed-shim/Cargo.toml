@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[package]
+name = "kicad-rtree-cow-packed-shim"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[package.metadata.kicad]
+portable = false
+
+[dependencies]
+kicad-rtree-cow-packed = { path = "../kicad-rtree-cow-packed" }
+kicad-rtree = { path = "../kicad-rtree" }
+kicad-rtree-node = { path = "../kicad-rtree-node" }
+kicad-difftest = { path = "../kicad-difftest" }
+serde_json.workspace = true
+
+[features]
+live-wasm = []
+
+[[example]]
+name = "corpus_parity"
+required-features = ["live-wasm"]

@@ -1,0 +1,27 @@
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p002","case":"bad-min-[0]","error":{"kind":"invalid_input","message":"invalid coordinates"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p002","case":"bad-max-[0, 1.5]","error":{"kind":"invalid_input","message":"invalid coordinates"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p002","case":"bad-min-[True, 0]","error":{"kind":"invalid_input","message":"invalid coordinates"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p002","case":"bad-max-[9223372036854775808, 0]","error":{"kind":"invalid_input","message":"invalid coordinates"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p002","case":"bad-a-4","error":{"kind":"invalid_input","message":"integer out of range: a"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p002","case":"bad-item-8192","error":{"kind":"invalid_input","message":"invalid item"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p002","case":"bad-item--1","error":{"kind":"invalid_input","message":"invalid item"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p002","case":"bad-item-True","error":{"kind":"invalid_input","message":"invalid item"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p002","case":"unknown-config","error":{"kind":"invalid_input","message":"unknown config"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p002","case":"unknown-tree","error":{"kind":"invalid_input","message":"unknown tree"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p002","case":"empty-steps","error":{"kind":"invalid_input","message":"steps outside 1..4096"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p002","case":"too-many-steps","error":{"kind":"invalid_input","message":"steps outside 1..4096"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p002","case":"unknown-op","error":{"kind":"invalid_input","message":"unknown op"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p002","case":"missing-op","error":{"kind":"invalid_input","message":"expected op string"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p002","case":"extra-field","error":{"kind":"invalid_input","message":"unexpected or missing field"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p002","case":"missing-item","error":{"kind":"invalid_input","message":"unexpected or missing field"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p002","case":"missing-a","error":{"kind":"invalid_input","message":"integer out of range: a"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p002","case":"bad-stop","error":{"kind":"invalid_input","message":"integer out of range: stop"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p002","case":"bad-batch","error":{"kind":"invalid_input","message":"invalid entries"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p002","case":"large-batch","error":{"kind":"invalid_input","message":"invalid entries"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p002","case":"bad-src","error":{"kind":"invalid_input","message":"integer out of range: src"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p002","case":"destroyed-tree","error":{"kind":"invalid_input","message":"missing tree"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p002","case":"moved-insert","error":{"kind":"invalid_input","message":"tree invariant violation"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p002","case":"one-dimensional-bulk","error":{"kind":"invalid_input","message":"invalid template parameters"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p002","case":"negative-reserve","error":{"kind":"invalid_input","message":"integer out of range: count"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p002","case":"large-reserve","error":{"kind":"invalid_input","message":"integer out of range: count"}}
+{"unit":"libs.kimath.include.geometry.rtree.application.pure.p002","case":"iterator-outside-data","error":{"kind":"invalid_input","message":"iterator outside data"}}
