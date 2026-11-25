@@ -71,13 +71,7 @@ fn default_ellipse_is_zero_length_and_callee_owners_are_preserved() {
         EdaAngle::degrees(1.).snapped(EdaAngle::degrees(-1.)),
         Ok(EdaAngle::degrees(1.))
     );
-    assert!(matches!(
-        ANGLE_90.is_parallel_to(-ANGLE_90),
-        Err(GeometryError::Unported {
-            unit: UTIL_HEADER,
-            ..
-        })
-    ));
+    assert_eq!(ANGLE_90.is_parallel_to(-ANGLE_90), Ok(true));
 }
 #[test]
 fn stripes_preserve_holes_union_and_rebuild_early_returns() -> GeometryResult<()> {

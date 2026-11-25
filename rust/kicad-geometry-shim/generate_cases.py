@@ -113,6 +113,13 @@ def generate(include_undefined=False):
         holes=[[[rng.randrange(-10000,10000),rng.randrange(-10000,10000)] for _ in range(7)]] if i%3==0 else []
         pt=[rng.randrange(-1000000,1000000),rng.randrange(-1000000,1000000)]
         add(f'random-slanted-poly-{i}',op='poly',builds=[dict(polygons=[poly(points,holes)],point=pt,accuracy=i%4)])
+    # Additive util.h continuations, with their own seed to preserve earlier inputs.
+    util_rng=random.Random(0xB02EDA)
+    for i in range(128):
+        a=util_rng.uniform(-10000,10000)
+        add(f'ut-wired-tenths-{i}',op='unary',a=bits(a),kind='tenths')
+        add(f'ut-wired-snapped-{i}',op='binary',a=bits(a),b=bits(util_rng.choice([1.,5.,45.,90.])),kind='snapped')
+        add(f'ut-wired-parallel-{i}',op='binary',a=bits(a),b=bits(a+util_rng.choice([0.,90.,180.,360.])),kind='parallel')
     assert len({c['case'] for c in cases}) == len(cases)
     if include_undefined: return undefined
     return ''.join(json.dumps(c,separators=(',',':'),allow_nan=False)+'\n' for c in cases)
