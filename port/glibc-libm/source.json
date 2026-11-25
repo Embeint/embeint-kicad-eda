@@ -28,6 +28,11 @@
     "sysdeps/x86_64/fpu/multiarch/s_tan.c": "02dfb70dff3008f3afc7ae4b8a44400477e1fc5bf14fb41bce0fda28424a6454",
     "sysdeps/x86_64/fpu/multiarch/e_asin.c": "96101fd86692b616b880b102d4c2bc66150a77a99d607db7b3a055c566bac0bb",
     "sysdeps/x86_64/fpu/multiarch/ifunc-avx-fma4.h": "9e526ff82a36d22699d948b9f6a65e6077bf5b8ec88deee86376ac5492fb9f81",
-    "sysdeps/x86_64/fpu/multiarch/ifunc-fma4.h": "087e7774c28e9f278f5beba1915224ef31aa767f92c3faa46122a3cb8b070021"
+    "sysdeps/x86_64/fpu/multiarch/ifunc-fma4.h": "087e7774c28e9f278f5beba1915224ef31aa767f92c3faa46122a3cb8b070021",
+    "math/w_asin_compat.c": "00f2b636313d2a78b45cad103d651bdc78ad75f96e7599add270c719568e00da",
+    "math/w_acos_compat.c": "d6188af1c2c038567818a22e7b64e957105a6a964f5395fef3936c957719cc97",
+    "sysdeps/ieee754/k_standard.c": "a2d5977f0f2e6f165ebc12fcdc14cea6880c349f1a7895f0d77a87b28d17f1b6",
+    "sysdeps/ieee754/s_lib_version.c": "746112a21263269e9cf60f6cbf5e83170e5bc8c20bd5928834781c8b9f2d9220",
+    "math/math-svid-compat.h": "9a89bdba16d6ab8918573120690d5327fa32c4bc1db8a80fde8a09d7eb815902"
   }
 }

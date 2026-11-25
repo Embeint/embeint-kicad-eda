@@ -147,6 +147,17 @@ int main( int argc, char** argv )
     if( g_bad || !g_seen[0] || !g_seen[1] || !g_seen[2] )
         fail( "loaded objects", "expected only locked loader/libc/libm" );
     check_control( "before" );
+    // The public asin/acos wrappers use k_standard's positive NAN in POSIX
+    // mode. Pin the packaged default mode rather than assuming IEEE bypass.
+    void* libVersion = dlvsym( RTLD_DEFAULT, "_LIB_VERSION", "GLIBC_2.2.5" );
+    Dl_info modeInfo;
+    int mode = -99;
+    if( !libVersion || !dladdr( libVersion, &modeInfo )
+        || (uintptr_t) libVersion - (uintptr_t) modeInfo.dli_fbase != 0xe8008 )
+        fail( "_LIB_VERSION symbol", NULL );
+    memcpy( &mode, libVersion, sizeof mode );
+    if( mode != 2 ) fail( "_LIB_VERSION", "expected _POSIX_ (2)" );
+    printf( "_LIB_VERSION _POSIX_ (2) at libm+0xe8008\n" );
     UNARY atanPtr = (UNARY) resolve( "atan", "0x2d840" );
     UNARY tanPtr = (UNARY) resolve( "tan", "0x30b80" );
     UNARY asinPtr = (UNARY) resolve( "asin", "0x12a40" );

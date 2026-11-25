@@ -1,11 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // IBM Accurate Mathematical Library, written by International Business Machines Corp.
 // Copyright (C) 2001-2024 Free Software Foundation, Inc.
-// Port of glibc 2.39 e_asin.c, uasncs.h and powtwo.tbl. LGPL-2.1-or-later
+// Port of glibc 2.39 e_asin.c, uasncs.h, powtwo.tbl and the public
+// w_asin_compat.c / w_acos_compat.c value wrappers. LGPL-2.1-or-later
 // converted to GPL-3.0-or-later under LGPL-2.1 section 3.
+// k_standard.c wrapper domain cases:
+// Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+// Developed at SunPro, a Sun Microsystems, Inc. business.
+// Permission to use, copy, modify, and distribute this software is freely
+// granted, provided that this notice is preserved.
+// Public w_asin_compat.c / w_acos_compat.c at the pinned default
+// _LIB_VERSION == _POSIX_ call k_standard.c cases 2/1 for |x|>1.
+// They return the positive NAN constant, rather than the IEEE kernels
+// negative indefinite (x-x)/(x-x). NaNs bypass that ordered comparison.
+const DOMAIN_NAN: f64 = f64::from_bits(0x7ff8000000000000);
+
 use super::{
     asin_table::{ASNCS, INROOT},
-    quiet, INVALID,
+    quiet,
 };
 const F1: f64 = f64::from_bits(0x3fc55555555554f9);
 const F2: f64 = f64::from_bits(0x3fb333333336127d);
@@ -105,7 +117,7 @@ pub(crate) fn asin(x: f64) -> f64 {
     } else if x.is_nan() {
         quiet(x)
     } else {
-        INVALID
+        DOMAIN_NAN
     }
 }
 
@@ -151,6 +163,6 @@ pub(crate) fn acos(x: f64) -> f64 {
     } else if x.is_nan() {
         quiet(x)
     } else {
-        INVALID
+        DOMAIN_NAN
     }
 }

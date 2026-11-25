@@ -44,8 +44,6 @@ class ReferenceTests(unittest.TestCase):
             path.write_text(lines.replace('0 mismatches','1 mismatches',1))
             self.assertFalse(ref.report(d))
 
-if __name__=='__main__':unittest.main()
-
 class SourceTransportTests(unittest.TestCase):
     def test_mirror_fallback_keeps_hash_mandatory(self):
         import check_sources as source
@@ -61,3 +59,5 @@ class SourceTransportTests(unittest.TestCase):
                 self.assertEqual(source.fetch_archive(spec,archive),spec['url'])
             with patch.object(source.urllib.request,'urlopen',return_value=io.BytesIO(b'wrong bytes')):
                 with self.assertRaisesRegex(ValueError,'archive hash'):source.fetch_archive(spec,archive)
+
+if __name__=='__main__':unittest.main()
