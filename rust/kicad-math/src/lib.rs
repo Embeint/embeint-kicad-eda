@@ -22,6 +22,9 @@
 //! `libs.kimath.src.geometry.eda_angle.application.pure.p001` adds the out-of-line
 //! `geometry/eda_angle.cpp` bodies to that type in [`eda_angle_source`].
 //!
+//! Unit `libs.kimath.src.geometry.arc_chord_params.application.pure.p001` owns
+//! [`arc_chord_params`] (`geometry/arc_chord_params.cpp`).
+//!
 //! The `MATRIX3x3<double>` arithmetic is evaluated through private per-site code generated
 //! from the pinned oracle binary (`generated`) on explicit SSE2 NaN selection (`sse2`); see
 //! `port/findings/kimath-matrix-mixed-nan-payloads.md`.
@@ -30,6 +33,7 @@
 // exactly as the generator emits it, so the generated file stays byte-identical.
 extern crate self as kicad_math;
 
+pub mod arc_chord_params;
 pub mod eda_angle;
 pub mod eda_angle_source;
 mod fp;
