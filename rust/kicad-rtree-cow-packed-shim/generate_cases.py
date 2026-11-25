@@ -58,6 +58,10 @@ for c,d,m in CONFIGS:
    steps += [op('bulk',0,entries=[]),state(0),state(1),state(2),op('bulk',1,entries=list(reversed(es[:m+1]))),state(1),iterate(1)]
    steps += [op('destroy',2),op('clone',1,src=1),state(1),op('clear',1),state(1)]
    addcase('cow',c,f'bulk-{mode}',steps)
+# Nonempty 1D bulk is undefined, but its empty-input clearing branch is defined.
+for c,d,m in CONFIGS:
+ if d==1:
+  addcase('cow',c,'empty-bulk',[op('insert',**entry(70,d)),op('clone',1,src=0),op('bulk',entries=[]),state(),state(1),op('bulk',1,entries=[]),state(1),iterate(),iterate(1)])
 # Pathological COW depth is linear; exercise >64 levels without recursive JSON
 # topology serialization obscuring that independent implementation boundary.
 for c,d,m in [('i32.d1.m3',1,3),('i32.d2.m4',2,4)]:

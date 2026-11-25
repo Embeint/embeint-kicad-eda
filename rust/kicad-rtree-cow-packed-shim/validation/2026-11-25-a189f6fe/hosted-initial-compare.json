@@ -1,0 +1,628 @@
+{
+  "unit": "libs.kimath.include.geometry.rtree.application.pure.p002",
+  "status": "green",
+  "action": "compare",
+  "mode": "strict",
+  "cases": 151,
+  "compared": 151,
+  "deferred": 0,
+  "failures": 0,
+  "unprocessed": 0,
+  "golden_checked": false,
+  "golden": {
+    "status": "not_requested"
+  },
+  "run_faults": [],
+  "extra_replies": [],
+  "outcomes": [
+    {
+      "case": "packed.i32.d2.m4.random",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m4.equal",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m4.touch",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m4.inverted",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m4.boundary-0",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m4.boundary-1",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m4.boundary-4",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m4.boundary-5",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m4.random",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m4.equal",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m4.touch",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m4.inverted",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m4.bulk-random",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m4.bulk-equal",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m4.bulk-touch",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m8.random",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m8.equal",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m8.touch",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m8.inverted",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m8.boundary-0",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m8.boundary-1",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m8.boundary-8",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m8.boundary-9",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m8.random",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m8.equal",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m8.touch",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m8.inverted",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m8.bulk-random",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m8.bulk-equal",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m8.bulk-touch",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m16.random",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m16.equal",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m16.touch",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m16.inverted",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m16.boundary-0",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m16.boundary-1",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m16.boundary-16",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m16.boundary-17",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m16.random",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m16.equal",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m16.touch",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m16.inverted",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m16.bulk-random",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m16.bulk-equal",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m16.bulk-touch",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m28.random",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m28.equal",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m28.touch",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m28.inverted",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m28.boundary-0",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m28.boundary-1",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m28.boundary-28",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m28.boundary-29",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m28.random",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m28.equal",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m28.touch",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m28.inverted",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m28.bulk-random",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m28.bulk-equal",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m28.bulk-touch",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d3.m5.random",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d3.m5.equal",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d3.m5.touch",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d3.m5.inverted",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d3.m5.boundary-0",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d3.m5.boundary-1",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d3.m5.boundary-5",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d3.m5.boundary-6",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d3.m5.random",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d3.m5.equal",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d3.m5.touch",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d3.m5.inverted",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d3.m5.bulk-random",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d3.m5.bulk-equal",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d3.m5.bulk-touch",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d3.m16.random",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d3.m16.equal",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d3.m16.touch",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d3.m16.inverted",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d3.m16.boundary-0",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d3.m16.boundary-1",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d3.m16.boundary-16",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d3.m16.boundary-17",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d3.m16.random",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d3.m16.equal",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d3.m16.touch",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d3.m16.inverted",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d3.m16.bulk-random",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d3.m16.bulk-equal",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d3.m16.bulk-touch",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d1.m8.random",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d1.m8.equal",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d1.m8.touch",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d1.m8.inverted",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d1.m8.boundary-0",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d1.m8.boundary-1",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d1.m8.boundary-8",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d1.m8.boundary-9",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d1.m8.random",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d1.m8.equal",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d1.m8.touch",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d1.m8.inverted",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d1.m3.random",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d1.m3.equal",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d1.m3.touch",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d1.m3.inverted",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d1.m3.boundary-0",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d1.m3.boundary-1",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d1.m3.boundary-3",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d1.m3.boundary-4",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d1.m3.random",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d1.m3.equal",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d1.m3.touch",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d1.m3.inverted",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i64.d2.m16.random",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i64.d2.m16.equal",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i64.d2.m16.touch",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i64.d2.m16.inverted",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i64.d2.m16.boundary-0",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i64.d2.m16.boundary-1",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i64.d2.m16.boundary-16",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i64.d2.m16.boundary-17",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i64.d2.m16.random",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i64.d2.m16.equal",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i64.d2.m16.touch",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i64.d2.m16.inverted",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i64.d2.m16.bulk-random",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i64.d2.m16.bulk-equal",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i64.d2.m16.bulk-touch",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i64.d3.m8.random",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i64.d3.m8.equal",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i64.d3.m8.touch",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i64.d3.m8.inverted",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i64.d3.m8.boundary-0",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i64.d3.m8.boundary-1",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i64.d3.m8.boundary-8",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i64.d3.m8.boundary-9",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i64.d3.m8.random",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i64.d3.m8.equal",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i64.d3.m8.touch",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i64.d3.m8.inverted",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i64.d3.m8.bulk-random",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i64.d3.m8.bulk-equal",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i64.d3.m8.bulk-touch",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d1.m3.deep-paths",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m4.deep-paths",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m16.full-domain-leaf",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i32.d2.m16.full-domain-centers",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i64.d2.m16.full-domain-leaf",
+      "outcome": "compared"
+    },
+    {
+      "case": "packed.i64.d2.m16.full-domain-centers",
+      "outcome": "compared"
+    },
+    {
+      "case": "cow.i32.d2.m16.empty-chain",
+      "outcome": "compared"
+    }
+  ],
+  "cases_sha256": "eea15f9aabb9068fbb52bd3c9f7b75d1fb3cb8fef8963495dfa58bb54b7da4c2",
+  "oracle_output_sha256": "fe53a770137fc18c2c350f788548a93d1a04dbd952dd039ea8a6943f0483509a",
+  "rust_output_sha256": "1bd2e266c057333513472794cd47648bd59cabb4b6deedde81df256de38acf5c",
+  "oracle_sha256": "03af0fb1c8df5def3a799be381516b58ac8e8b5719c930700dc83cbce0b0f423",
+  "rust_sha256": "784785bebd3c6ef87e1f6ec06923fb215134a482f074fffab117ac50b6121d3a"
+}

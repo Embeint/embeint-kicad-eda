@@ -53,6 +53,7 @@ jobs:
             --unit libs.kimath.include.geometry.rtree.application.pure.p002 --root "$PWD" \
             --oracle "$out/rtree-oracle" --rust "$PWD/rust/target/debug/kicad-rtree-cow-packed-shim" \
             --timeout-secs 240 --report "$out/compare.json"
+          python3 rust/kicad-rtree-cow-packed-shim/native/coverage.py --out "$out"
           "$out/rtree-oracle" < port/cases/libs.kimath.include.geometry.rtree.application.pure.p002.jsonl > "$out/native.jsonl"
           python3 rust/kicad-rtree-cow-packed-shim/compare_refusals.py --oracle "$out/rtree-oracle" --rust "$PWD/rust/target/debug/kicad-rtree-cow-packed-shim"
       - name: Execute the complete corpus in import-free WebAssembly
@@ -64,7 +65,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
-          name: dynamic-cow-packed-live-${{ github.run_id }}
+          name: cow-packed-rtree-live-${{ github.run_id }}
           path: |
             ${{ runner.temp }}/cow-packed-live/
             ${{ runner.temp }}/rtree-stage/source-manifest.json

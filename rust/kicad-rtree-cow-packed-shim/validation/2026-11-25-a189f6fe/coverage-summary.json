@@ -1,0 +1,12 @@
+{
+  "headers": [
+    "/work/rust/kicad-rtree-cow-packed-shim/target-native-stage/libs/kimath/include/geometry/rtree/dynamic_rtree_cow.h",
+    "/work/rust/kicad-rtree-cow-packed-shim/target-native-stage/libs/kimath/include/geometry/rtree/packed_rtree.h"
+  ],
+  "function_instantiations": 515,
+  "executed_function_instantiations": 513,
+  "line_entries": 5083,
+  "executed_line_entries": 4936,
+  "branches": 3340,
+  "taken_branches": 2643
+}
