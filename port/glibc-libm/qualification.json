@@ -1,0 +1,27 @@
+{
+  "domain": {
+    "fixed_count": 517520,
+    "seeded_count": 1000000,
+    "count": 1517520,
+    "sha256": "4c9c2f84ce8174a35ba9c6fba3bfdb3d713576923670896783280edda2e0d7f4"
+  },
+  "dispatch": {
+    "atan": "0x2d840",
+    "tan": "0x30b80",
+    "atan2": {
+      "wrapper": "0x12aa0",
+      "got": "0xe7ed0",
+      "kernel": "0x26fe0"
+    },
+    "asin": {
+      "wrapper": "0x12a40",
+      "got": "0xe7f20",
+      "kernel": "0x25f70"
+    },
+    "acos": {
+      "wrapper": "0x129a0",
+      "got": "0xe7f38",
+      "kernel": "0x26780"
+    }
+  }
+}

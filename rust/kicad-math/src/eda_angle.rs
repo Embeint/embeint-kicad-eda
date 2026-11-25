@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Derived from KiCad eda_angle.h, copyright The KiCad Developers.
 //! Angle magnitudes and normalized orientations at pin 4cf939778df04d2b747bb2c4714fc5014a7565c7.
-use crate::{fp, glibc_trig, StreamError, StreamInsert, StreamState, Vector2D};
+use crate::{fp, glibc_libm, glibc_trig, StreamError, StreamInsert, StreamState, Vector2D};
 use core::ops::{Add, AddAssign, Div, Mul, Neg, Sub, SubAssign};
 
 pub const UNIT: &str = "libs.kimath.include.geometry.application.ui.p001";
@@ -152,23 +152,20 @@ impl EdaAngle {
             glibc_trig::cos(self.as_radians())
         }
     }
-    // Unlike sin/cos, these C runtime operations have no accepted portable
-    // bit-exact backend yet. Keep the wrapper continuation; never expose a
-    // host-dependent answer as portable geometry.
     pub fn tan(self) -> GeometryResult<f64> {
-        scalar_libm("libc::tan", self.as_radians())
+        Ok(glibc_libm::tan(self.as_radians()))
     }
     pub fn arccos(x: f64) -> GeometryResult<Self> {
-        Ok(Self::new(scalar_libm("libc::acos", x)?, AngleUnit::Radians))
+        Ok(Self::new(glibc_libm::acos(x), AngleUnit::Radians))
     }
     pub fn arcsin(x: f64) -> GeometryResult<Self> {
-        Ok(Self::new(scalar_libm("libc::asin", x)?, AngleUnit::Radians))
+        Ok(Self::new(glibc_libm::asin(x), AngleUnit::Radians))
     }
     pub fn arctan(x: f64) -> GeometryResult<Self> {
-        Ok(Self::new(scalar_libm("libc::atan", x)?, AngleUnit::Radians))
+        Ok(Self::new(glibc_libm::atan(x), AngleUnit::Radians))
     }
     pub fn arctan2(y: f64, x: f64) -> GeometryResult<Self> {
-        Ok(Self::new(scalar_atan2(y, x)?, AngleUnit::Radians))
+        Ok(Self::new(glibc_libm::atan2(y, x), AngleUnit::Radians))
     }
     fn fold_to_two_periods(value: f64, period: f64) -> f64 {
         if !value.is_finite() {
@@ -427,15 +424,7 @@ impl StreamInsert for EdaOrientation {
     }
 }
 
-// UNPORTED(libs.kimath.include.geometry.application.ui.p001): libc tan/acos/asin/atan backend
-fn scalar_libm(upstream: &'static str, _x: f64) -> GeometryResult<f64> {
-    missing(upstream, UNIT)
-}
 // UNPORTED(libs.kimath.include.geometry.application.ui.p001): libc pow backend
 fn scalar_pow(_x: f64, _y: f64) -> GeometryResult<f64> {
     missing("libc::pow", UNIT)
-}
-// UNPORTED(libs.kimath.include.geometry.application.ui.p001): libc atan2 backend
-fn scalar_atan2(_y: f64, _x: f64) -> GeometryResult<f64> {
-    missing("libc::atan2", UNIT)
 }
