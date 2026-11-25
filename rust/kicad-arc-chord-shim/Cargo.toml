@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[package]
+name = "kicad-arc-chord-shim"
+description = "Native JSONL adapter for the ARC_CHORD_PARAMS source port"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[package.metadata.kicad]
+portable = false
+
+[dependencies]
+kicad-math = { path = "../kicad-math" }
+kicad-difftest = { path = "../kicad-difftest" }
+serde_json.workspace = true
