@@ -8,6 +8,10 @@ license = "GPL-3.0-or-later"
 [lib]
 crate-type = ["cdylib"]
 path = "lib.rs"
+# Only needed when tooling compiles the included trig module's tests. The
+# production transport has no dependency or host imports.
+[dev-dependencies]
+kicad-math = { path = "../../../rust/kicad-math" }
 [workspace]
 [profile.release]
 opt-level = 3

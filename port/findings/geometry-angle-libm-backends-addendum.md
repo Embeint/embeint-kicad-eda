@@ -30,3 +30,21 @@ with exponentiation or a power-of-ten lookup. Round still defers at its first
 pow call, before KiROUND, retaining both pow calls and the continuation. KiROUND
 and equals stubs are untouched, as assigned to the separate util-header worker.
 The geometry unit remains partial. No golden is created.
+
+## Owned branch audit
+
+| Operation | Body and continuation | Evidence requested | Remaining gap |
+| --- | --- | --- | --- |
+| atan | tiny identity; signed polynomial; table reduction; reciprocal table/polynomial; saturated +/-pi/2; quiet NaN | Every table bin and reciprocal boundary, all exponents and signed specials | Fresh runtime gate pending |
+| atan2 | Ordered NaN priority; signed zero/axes; all infinity quadrants; +/-57 exponent-gap shortcuts; both scaling paths; exact quotient correction; four separate quadrant continuations | Ordered payload Cartesian product, table and exponent edges, correlated/full-domain seeded pairs; public vector and Arctan2 wrappers | Fresh runtime gate pending; errno/flags and non-default floating environment are outside value contract |
+| tan | tiny identity; polynomial/table; reducers <=25, <=1e8, branred; EADD and non-FMA MUL12/DIV2 cotangent continuation | All table boundaries, range edges and neighbouring pi/2 multiples from small to huge arguments | Fresh runtime gate pending |
+| asin/acos | tiny and polynomial branches; all five table regions; table-seeded near-one square-root refinement; endpoints and invalid/NaN branches | Every table bin, attainable near-one root boundaries, endpoints and domain refusal values | Fresh runtime gate pending |
+| Round | Both pow calls, multiplication, KiROUND, final division stay in source order | Added 32 requests; all 1,642 expanded-corpus Round requests remain typed deferrals | Owned libc::pow backend; separately owned KiROUND |
+
+The 18,050 original request lines are preserved verbatim. Local expanded-corpus
+reply counts are 17,721 successful and 3,433 deferred: pow 1,642; KiROUND 626;
+equals 560; SEG::Square 553; GRID_GEOMETRY::Area 48; ELLIPSE::GetPointAtAngle 4.
+The original 2,216 scalar deferrals removed consist of 928 atan2 and 322 each of
+atan/tan/asin/acos. These are local execution counts until the C++ gate passes.
+The complete new corpus also agrees with newly executed macOS arm64 native
+replies in import-free wasm release, Node 24.16.0 / V8 13.6.233.17-node.49.
