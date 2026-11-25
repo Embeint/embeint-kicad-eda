@@ -221,7 +221,7 @@ def probes(c, rng):
         group = [timer(rng.choice(names), d) for d in deltas[start:start + 6]]
         c.add("latency_probe", {"op": "latency_probe", "name": "timers", "start": rng.word() - (1 << 63),
                                 "checkpoints": group})
-    # Checkpoint lines call LATENCY_PROBE::delta_ms (header unit): Rust defers these.
+    # Checkpoint lines call LATENCY_PROBE::delta_ms (ported by the header unit).
     stamps = [0, 1, 999, 1000, 1499, 1500, 1_000_000, 123_456_789, -5, I64_MAX, I64_MIN]
     for i in range(24):
         start = rng.choice([0, 1_000, -1_000, 1 << 40])
@@ -713,11 +713,11 @@ def generate():
 
 
 def expected_replies(cases):
-    """The Rust reply each case must give, derived from the inputs: a latency probe
-    with any non-timer checkpoint prints a `chp:` line through the header-owned
-    LATENCY_PROBE::delta_ms, a typed deferral; every other case is compared exactly."""
-    deferred = [case["case"] for case in cases if case["input"]["op"] == "latency_probe"
-                and any(not checkpoint["timer"] for checkpoint in case["input"]["checkpoints"])]
+    """The Rust reply each case must give, derived from the inputs. The header unit
+    ports LATENCY_PROBE::delta_ms, so every case, including probes that print `chp:`
+    lines, is compared exactly and none may defer. The deferral specification stays
+    as the only reply a deferral could ever take."""
+    deferred = []
     value = {"cases": len(cases), "compared": len(cases) - len(deferred),
              "deferred": {"cases": deferred,
                           "error": {"kind": "unported", "unit": HEADER_UNIT, "upstream": "LATENCY_PROBE::delta_ms"}}}

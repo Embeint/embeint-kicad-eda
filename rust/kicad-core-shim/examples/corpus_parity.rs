@@ -2,10 +2,10 @@
 //! Runtime probe against freshly collected native C++ replies, not stored goldens.
 //! Each request runs through the same dispatch as the native shim. Every native reply
 //! must be a successful result. A Rust result must reproduce it exactly; a Rust
-//! deferral must be exactly the expected unported reply (`LATENCY_PROBE::delta_ms`,
-//! owned by the header unit) for one of the expected case ids. The compared and
-//! deferred counts and the deferred ids must equal `expected-replies.json`, which the
-//! corpus generator derives from the inputs.
+//! deferral must be exactly the expected unported reply for one of the expected case
+//! ids (none since the header unit ported `LATENCY_PROBE::delta_ms`). The compared
+//! and deferred counts and the deferred ids must equal `expected-replies.json`, which
+//! the corpus generator derives from the inputs.
 #![forbid(unsafe_code)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 use serde_json::{json, Value};
