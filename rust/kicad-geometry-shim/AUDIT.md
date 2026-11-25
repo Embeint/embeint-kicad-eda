@@ -118,3 +118,13 @@ They run through both native adapters and import-free wasm.
 The archived d221593095 evidence predates this transport fix. It remains historical
 evidence for the unchanged 18,050-case corpus, not a substitute for final-head CI.
 The PR links current-head native and registered-main reports.
+
+## Angle libm backend addendum
+
+The private glibc 2.39 SSE2 atan/atan2/tan/asin/acos backends replace the five
+owned scalar stubs. Pow, KiROUND and equals retain their typed deferrals and
+continuations. The historical evidence above is unchanged. Current-head
+qualification and exact geometry counts belong to
+`port/findings/geometry-angle-libm-backends-addendum.md`; provenance and the
+1,517,520-input-per-function native/wasm harness are in `port/glibc-libm/README.md`.
+The additive geometry corpus has 21,154 requests. The unit remains partial.

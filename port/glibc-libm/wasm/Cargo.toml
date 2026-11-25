@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[package]
+name = "kicad-math-wasm-libm"
+version = "0.0.0"
+edition = "2021"
+publish = false
+license = "GPL-3.0-or-later"
+[lib]
+crate-type = ["cdylib"]
+path = "lib.rs"
+[workspace]
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

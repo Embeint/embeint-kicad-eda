@@ -113,6 +113,20 @@ def generate(include_undefined=False):
         holes=[[[rng.randrange(-10000,10000),rng.randrange(-10000,10000)] for _ in range(7)]] if i%3==0 else []
         pt=[rng.randrange(-1000000,1000000),rng.randrange(-1000000,1000000)]
         add(f'random-slanted-poly-{i}',op='poly',builds=[dict(polygons=[poly(points,holes)],point=pt,accuracy=i%4)])
+    # Additive libm continuation inputs use their own seed so the merged corpus
+    # above stays byte-for-byte unchanged. These are requests, never answers.
+    libm_rng = random.Random(SEED ^ 0xA7A22)
+    for i in range(512):
+        x = libm_rng.uniform(-1e200, 1e200)
+        y = libm_rng.uniform(-1e200, 1e200)
+        a = libm_rng.uniform(-1., 1.)
+        angle = libm_rng.uniform(-1e10, 1e10)
+        add(f'libm-vector-{i}', op='vector', x=bits(x), y=bits(y))
+        add(f'libm-atan2-{i}', op='binary', kind='atan2', a=bits(y), b=bits(x))
+        for kind, value in [('atan', x), ('asin', a), ('acos', a), ('tan', angle)]:
+            add(f'libm-{kind}-{i}', op='unary', kind=kind, a=bits(value))
+        if i < 32:
+            add(f'libm-round-{i}', op='round', a=bits(angle), digits=i-16)
     assert len({c['case'] for c in cases}) == len(cases)
     if include_undefined: return undefined
     return ''.join(json.dumps(c,separators=(',',':'),allow_nan=False)+'\n' for c in cases)

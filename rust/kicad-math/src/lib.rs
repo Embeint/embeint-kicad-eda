@@ -41,6 +41,7 @@ pub mod poly_ystripes;
 // would remove; fixing that belongs in the emitter and a reviewed re-emission, not here.
 #[rustfmt::skip]
 mod generated;
+mod glibc_libm;
 mod glibc_trig;
 pub mod matrix3x3;
 mod sse2;

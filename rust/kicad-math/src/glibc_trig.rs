@@ -708,7 +708,7 @@ fn branred_half(x_part: f64) -> (f64, f64, f64) {
 
 /// `__branred (x, &a, &aa)` for `105414350 <= |x| < 2^1024`: returns `(n & 3, a, aa)` with
 /// `x = n * pi/2 + (a + aa)`, `|a + aa| < pi/4`.
-fn branred(x: f64) -> (u32, f64, f64) {
+pub(super) fn branred(x: f64) -> (u32, f64, f64) {
     let x = x * BR_TM600;
     let t = x * BR_SPLIT;
     let x1 = t - (t - x);
@@ -855,4 +855,5 @@ pub(crate) fn sincos(x: f64) -> (f64, f64) {
 }
 
 #[cfg(test)]
+#[path = "glibc_trig/tests.rs"]
 mod tests;

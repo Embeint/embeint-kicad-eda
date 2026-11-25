@@ -386,7 +386,7 @@ mod tests {
                 counts[1] += 1;
             }
         }
-        assert_eq!(counts, [12433, 5617]);
+        assert_eq!(counts, [17721, 3433]);
     }
     #[test]
     fn undefined_controls_keep_real_refusals_and_earlier_dependencies_distinct(
