@@ -1,0 +1,168 @@
+{
+  "tested_revision": "012e8c9ac61bfd7ab5a61b2301c395494324ab87",
+  "base": "eb4cd4724ff6f5fa2119c86248c1a4beb4847451",
+  "platform": "Darwin 25.5.0 arm64",
+  "rustc": "rustc 1.96.1 (31fca3adb 2026-06-26)",
+  "checks": [
+    {
+      "command": [
+        "cargo",
+        "fmt",
+        "--manifest-path",
+        "rust/Cargo.toml",
+        "--all",
+        "--check"
+      ],
+      "exit_code": 0,
+      "log": "00.log"
+    },
+    {
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--manifest-path",
+        "rust/Cargo.toml",
+        "-p",
+        "kicad-math",
+        "-p",
+        "kicad-math-util-shim",
+        "--all-targets",
+        "-j2",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "log": "01.log"
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--manifest-path",
+        "rust/Cargo.toml",
+        "-p",
+        "kicad-math",
+        "-p",
+        "kicad-math-util-shim",
+        "-j2"
+      ],
+      "exit_code": 0,
+      "log": "02.log"
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--manifest-path",
+        "rust/Cargo.toml",
+        "-p",
+        "kicad-math",
+        "-p",
+        "kicad-math-util-shim",
+        "--release",
+        "-j2"
+      ],
+      "exit_code": 0,
+      "log": "03.log"
+    },
+    {
+      "command": [
+        "cargo",
+        "check",
+        "--locked",
+        "--manifest-path",
+        "rust/Cargo.toml",
+        "-p",
+        "kicad-math",
+        "--target",
+        "wasm32-unknown-unknown",
+        "-j2"
+      ],
+      "exit_code": 0,
+      "log": "04.log"
+    },
+    {
+      "command": [
+        "python3",
+        "rust/kicad-math-util-shim/generate_cases.py",
+        "--check"
+      ],
+      "exit_code": 0,
+      "log": "05.log"
+    },
+    {
+      "command": [
+        "python3",
+        "port/oracle/test_math_util_inputs.py",
+        "rust/target/debug/kicad-math-util-shim",
+        "rust/target/release/kicad-math-util-shim"
+      ],
+      "exit_code": 0,
+      "log": "06.log"
+    },
+    {
+      "command": [
+        "python3",
+        "port/tools/validate_units.py"
+      ],
+      "exit_code": 0,
+      "log": "07.log"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--exit-code",
+        "origin/rust",
+        "--",
+        "rust/kicad-math/src/vector.rs",
+        "rust/kicad-hash",
+        "port/units/libs.kimath.include.math.application.ui.p001.toml"
+      ],
+      "exit_code": 0,
+      "log": "08.log"
+    },
+    {
+      "command": [
+        "clang++",
+        "-std=c++20",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-fsyntax-only",
+        "-fno-fast-math",
+        "-ffp-contract=off",
+        "-I/var/folders/7b/gycfj6bn0bjc37_4dc5lx6k40000gn/T/kimath-util-syntax-21n5lkt7",
+        "-Iport/oracle",
+        "-Ilibs/kimath/include",
+        "-Ithirdparty/nlohmann_json",
+        "port/oracle/shims/math_util.cpp"
+      ],
+      "exit_code": 0,
+      "log": "09.log",
+      "scope": "adapter syntax only, temporary empty config.h; no C++ runtime claim"
+    }
+  ],
+  "cpp_runtime": "pending hosted Linux; Mac adapter syntax only passed",
+  "tests_per_profile": 20,
+  "refusals_per_profile": 411,
+  "host_deferrals_per_profile": 7,
+  "continuations_per_profile": 418,
+  "debug": {
+    "binary_sha256": "dbf06e937feee6d6a48a5739ef30772245a1c5e10c05992b8bc5bbc290a95714",
+    "reply_sha256": "db9fe1117b870099b21d457e108643017a91a819cf5eec665fcd3bf637b688de",
+    "replies": 10656
+  },
+  "release": {
+    "binary_sha256": "b014c4938d0e1c696222f6c50e924db9e5ddb8948426791a350c4b35d39ff3ef",
+    "reply_sha256": "db9fe1117b870099b21d457e108643017a91a819cf5eec665fcd3bf637b688de",
+    "replies": 10656
+  },
+  "debug_release_byte_identical": true,
+  "cases_sha256": "0bb87119b2d4f89aedddbe7b762515789d739c06258adb2ba987230ac508999e",
+  "controls_sha256": "60a4796a628c998c590830bb89351c0b042219889baa05aa332c66d659dd7eae"
+}

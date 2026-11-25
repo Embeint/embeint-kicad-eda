@@ -1,0 +1,2 @@
+$ python3 port/tools/validate_units.py
+All unit records and source accounting valid

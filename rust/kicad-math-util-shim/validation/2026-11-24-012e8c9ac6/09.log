@@ -1,0 +1,1 @@
+$ clang++ -std=c++20 -Wall -Wextra -Werror -fsyntax-only -fno-fast-math -ffp-contract=off -I/var/folders/7b/gycfj6bn0bjc37_4dc5lx6k40000gn/T/kimath-util-syntax-21n5lkt7 -Iport/oracle -Ilibs/kimath/include -Ithirdparty/nlohmann_json port/oracle/shims/math_util.cpp

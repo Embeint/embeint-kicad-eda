@@ -152,7 +152,8 @@ covers a subset of the tools and is used only when a client registers it (rust/M
 
 `.github/workflows/release-mcp.yml` builds and checks the package with `--rust` on Windows x86_64,
 Linux x86_64 and Linux arm64 hosted runners. The Python/Rust parity suite must pass on each platform
-first. The workflow uploads each archive with its `check_package.py` report, parity report and
+first. Pull requests that change the package's inputs build Windows only; pushes to `main`, tags and
+manual runs build all three. The workflow uploads each archive with its `check_package.py` report, parity report and
 `build-info.json`. Pushing a tag `mcp-v*` (or a manual run with `release_tag`) also creates a draft
 GitHub release with the archives and `SHA256SUMS`. Review and publish it by hand. The workflow does
 not build KiCad: record the KiCad build a package is meant for with the manual run's

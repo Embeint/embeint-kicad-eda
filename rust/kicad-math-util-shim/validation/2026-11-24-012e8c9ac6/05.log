@@ -1,0 +1,2 @@
+$ python3 rust/kicad-math-util-shim/generate_cases.py --check
+{"arithmetic": 10656, "cases": 11074, "deferred": 7, "refusal": 411}

@@ -97,7 +97,9 @@ artefact older than any Rust source. The corpus is the 64 cases in `cases.json`,
 (`--generated N`), and 300 seeded pin lists with values of any JSON type in their fields
 (`--typed N`).
 
-CI runs `.github/workflows/rust-layout.yml` when `rust/**` or `symbol_layout.py` changes. Its
+CI runs `.github/workflows/rust-layout.yml` when an `embeint-*` crate, `rust/parity`, the workspace
+manifest or lock file, or `symbol_layout.py` changes (on the `rust` branch the `kicad-*` port crates
+are checked by `rust-port.yml` instead). Its
 actions are pinned to commit SHAs and its Rust toolchain to an explicit version (`RUST_TOOLCHAIN`),
 so a new stable release cannot fail unrelated pull requests with new lints. It runs rustfmt,
 clippy with `-D warnings` (native and wasm32), `cargo check` with the declared minimum Rust 1.85.0

@@ -2,7 +2,7 @@
 #![forbid(unsafe_code)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-//! Portable port of KiCad's `kimath` headers at pin 4cf939778df04d2b747bb2c4714fc5014a7565c7.
+//! Portable port of KiCad's `kimath` headers and math utility source at pin 4cf939778df04d2b747bb2c4714fc5014a7565c7.
 //!
 //! Unit `libs.kimath.include.math.application.pure.p001` owns [`matrix3x3`]
 //! (`math/matrix3x3.h`: 20 definitions) and [`wide_int`] (`math/wide_int.h`: 4 definitions).
@@ -24,6 +24,7 @@
 extern crate self as kicad_math;
 
 mod fp;
+pub mod math_util;
 
 // `generated.rs` is emitter output (sha256 d24ff0f2..., from the reviewed graph locks of the
 // pinned oracle; port/tools/kimath_nan/README.md). It is bound byte for byte by
