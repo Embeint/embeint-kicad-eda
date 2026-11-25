@@ -68,9 +68,11 @@ Minimum type co-ports, recorded in this unit's notes for the header owner:
 
 ## Defined domain and controls
 
-`port/oracle/fixtures/core-p001-controls.jsonl` (110 requests) holds every refusal:
+`port/oracle/fixtures/core-p001-controls.jsonl` (112 requests) holds every refusal:
 undefined reference behaviour (null `impl_` dereference, adding into an active
-range-for, signed overflow, overflowing time point differences), non-termination
+range-for, an iteration count wrapped from `UINT_MAX` to 0 by a notification so that
+removals inside it erase from the vector being ranged over, signed overflow,
+overflowing time point differences), non-termination
 (`parseVersionString`), harness limits and malformed requests. The oracle ctest
 `oracle-core-p001-inputs` and `rust/kicad-core-shim/tests/corpus.rs` replay them with a
 successful continuation after each. Release (`NDEBUG`) semantics are ported: the

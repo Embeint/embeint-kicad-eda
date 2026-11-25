@@ -42,7 +42,7 @@ fn controls_are_refused_with_the_recorded_message() -> Result<(), serde_json::Er
         );
         count += 1;
     }
-    assert_eq!(count, 110);
+    assert_eq!(count, 112);
     Ok(())
 }
 

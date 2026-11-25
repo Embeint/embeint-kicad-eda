@@ -16,7 +16,9 @@
 //!   (both would destroy or rewire state an active range-for is reading);
 //! * adding to a list that an active `Notify` loop is ranging over invalidates the
 //!   loop's iterators in the reference. It is refused, or skipped and logged with
-//!   `guard: true`; likewise `unsubscribe` with a null `impl_` (a null dereference).
+//!   `guard: true`; likewise `unsubscribe` with a null `impl_` (a null dereference);
+//! * a notification whose `enter_iteration` would wrap the count from `UINT_MAX` to 0
+//!   is refused: removals inside it would erase from the vector being ranged over.
 
 use crate::operations::{boolean, fields, signed, text, Error, Result};
 use kicad_core::observable::{
@@ -565,6 +567,13 @@ impl Driver {
         let Some(id) = self.observable(obs)?.impl_ref().map(|r| r.id()) else {
             return Ok(());
         };
+        // An unpaired leave_iteration can leave the unsigned count at UINT_MAX; this
+        // enter_iteration would wrap it to 0 inside the active loop, after which a
+        // removal or collect erases from the vector the reference range-for is
+        // reading (iterator invalidation). No other path reaches 0 during a loop.
+        if self.arena.iteration_count(id).map_err(handle)? == u32::MAX {
+            return Err("iteration count wraps during notification".into());
+        }
         {
             let Driver {
                 arena, observables, ..

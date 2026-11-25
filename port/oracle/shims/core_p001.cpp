@@ -842,6 +842,12 @@ private:
             TEST_OBSERVABLE& observable = Observable( aStep.obs );
             const void*      impl = observable.Impl().get();
 
+            // Notify's enter_iteration would wrap UINT_MAX (left by an unpaired
+            // leave_iteration) to 0 inside the loop; a removal or collect would then
+            // erase from the vector the range-for is reading. Undefined: refuse.
+            if( impl && observable.Impl()->iteration_count_ == UINT_MAX )
+                Fail( "iteration count wraps during notification" );
+
             if( impl )
                 m_active.push_back( impl );
 

@@ -62,7 +62,7 @@ jobs:
           nm -C "$oracle" > "$out/symbols.txt"
           for symbol in 'base64::encode(' 'base64::decode(' 'base64::encode_length(' 'base64::decode_length(' \
                         'parseVersionString(' 'compareVersionStrings(' 'GetRunningMicroSecs()' \
-                        'LATENCY_PROBE::to_string()' 'UTIL::LINK::reset()' \
+                        'LATENCY_PROBE::to_string[' 'UTIL::LINK::reset()' \
                         'UTIL::DETAIL::OBSERVABLE_BASE::leave_iteration()' '__wrap_clock_gettime'; do
             grep -F -- "$symbol" "$out/symbols.txt" > /dev/null || { echo "missing $symbol"; exit 1; }
           done

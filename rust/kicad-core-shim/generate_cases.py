@@ -438,7 +438,8 @@ def random_script(rng):
             steps.append(step("link_token", link=l, obs=rng.choice(observables), observer=observer()))
             link_present[l] = True
         elif kind == 13 and observables:
-            steps.append(step(rng.choice(["enter_iteration", "leave_iteration", "on_observers_empty"]),
+            # Unpaired leave_iteration (count wrap) is covered by a scenario and a control.
+            steps.append(step(rng.choice(["enter_iteration", "on_observers_empty"]),
                               obs=rng.choice(observables)))
     return steps
 
@@ -530,6 +531,12 @@ def refusals(c):
     obs_refuse(sub + [step("new", obs=1), step("subscribe", obs=1, observer=1, link=1),
                       notify(0, 1, {0: [notify(1, 2, {1: [step("subscribe_unmanaged", obs=0, observer=2)]})]})],
                "subscribe during active iteration")
+    obs_refuse(sub + [step("subscribe", obs=0, observer=1, link=1), step("leave_iteration", obs=0),
+                      notify(0, 1, {0: [step("unsubscribe", obs=0, observer=0)]})],
+               "iteration count wraps during notification")
+    obs_refuse(sub + [step("leave_iteration", obs=0), step("new", obs=1),
+                      step("subscribe", obs=1, observer=1, link=1),
+                      notify(1, 1, {1: [notify(0, 2)]})], "iteration count wraps during notification")
     obs_refuse(sub + [notify(0, 1, {0: [step("drop", obs=0)]})], "drop during own notification")
     obs_refuse(sub + [notify(0, 1, {0: [step("leave_iteration", obs=0)]})], "base operation inside notification")
     obs_refuse(sub + [notify(0, 1, {0: [step("on_observers_empty", obs=0)]})], "base operation inside notification")

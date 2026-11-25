@@ -64,7 +64,10 @@ links; `null` for a null `shared_ptr`), `size()`, each link's `operator bool`, p
 `is_shared()` and `use_count()`.
 
 Undefined in the reference, refused (or skipped and logged with `guard: true`): adding to
-a list an active `Notify` loop is ranging over, `unsubscribe` with a null `impl_`. Script
+a list an active `Notify` loop is ranging over, `unsubscribe` with a null `impl_`. A
+notification whose `enter_iteration` would wrap the count from `UINT_MAX` (left by an
+unpaired `leave_iteration`) to 0 is refused, since removals inside it would erase from the
+vector being ranged over. Script
 limits: no `drop` of an observable inside its own notification, base operations
 (`enter_iteration`, `leave_iteration`, `on_observers_empty`) only at top level, 2,048
 steps, 100,000 executed steps and callbacks.
