@@ -14,7 +14,7 @@
 namespace
 {
 using oracle::JSON;
-constexpr const char* UNIT = "libs.kimath.include.geometry.application.ui.p001";
+constexpr const char* GEOMETRY_UNIT = "libs.kimath.include.geometry.application.ui.p001";
 void Keys( const JSON& v, std::initializer_list<const char*> fields )
 {
     if( !v.is_object() ) throw std::invalid_argument( "expected object" );
@@ -86,6 +86,72 @@ void CheckRay( const SHAPE_POLY_SET& poly, const VECTOR2I& point )
     {
         ring( poly.COutline( o ) );
         for( int h = 0; h < poly.HoleCount( o ); ++h ) ring( poly.CHole( o, h ) );
+    }
+}
+// SEG's 64-bit dot/norm intermediates are checked individually, in evaluation
+// order. The cross-product branch is widened by the pinned source itself.
+int64_t CheckLong( __int128 value )
+{
+    if( value < INT64_MIN || value > INT64_MAX ) throw std::invalid_argument( "intermediate overflow" );
+    return static_cast<int64_t>( value );
+}
+int64_t CheckDot( const VECTOR2L& a, const VECTOR2L& b )
+{
+    const int64_t x = CheckLong( __int128( a.x ) * b.x );
+    const int64_t y = CheckLong( __int128( a.y ) * b.y );
+    return CheckLong( __int128( x ) + y );
+}
+void CheckDistance( const VECTOR2I& a, const VECTOR2I& b, const VECTOR2I& p )
+{
+    const VECTOR2L ab( int64_t( b.x ) - a.x, int64_t( b.y ) - a.y );
+    const VECTOR2L ap( int64_t( p.x ) - a.x, int64_t( p.y ) - a.y );
+    const int64_t e = CheckDot( ap, ab );
+    if( e <= 0 ) { CheckDot( ap, ap ); return; }
+    const int64_t f = CheckDot( ab, ab );
+    if( e >= f )
+    {
+        const VECTOR2L bp( int64_t( p.x ) - b.x, int64_t( p.y ) - b.y );
+        CheckDot( bp, bp );
+    }
+}
+void CheckAccuracy( const SHAPE_POLY_SET& poly, const VECTOR2I& point, int accuracy )
+{
+    if( accuracy <= 1 ) return;
+    struct Edge { VECTOR2I a, b; bool hole; };
+    std::vector<Edge> edges;
+    int64_t yMin = INT_MAX, yMax = INT_MIN;
+    auto ring = [&]( const SHAPE_LINE_CHAIN& chain, bool hole )
+    {
+        if( chain.PointCount() < 3 ) return;
+        for( int j = 0; j < chain.PointCount(); ++j )
+        {
+            const auto& a = chain.CPoint( j );
+            const auto& b = chain.CPoint( ( j + 1 ) % chain.PointCount() );
+            if( a.y == b.y ) continue;
+            edges.push_back( { a, b, hole } );
+            yMin = std::min( yMin, int64_t( std::min( a.y, b.y ) ) );
+            yMax = std::max( yMax, int64_t( std::max( a.y, b.y ) ) );
+        }
+    };
+    for( int o = 0; o < poly.OutlineCount(); ++o )
+    {
+        ring( poly.COutline( o ), false );
+        for( int h = 0; h < poly.HoleCount( o ); ++h ) ring( poly.CHole( o, h ), true );
+    }
+    if( edges.empty() ) return;
+    const int count = std::clamp( int( std::sqrt( double( edges.size() ) ) ), 1, 65536 );
+    const int64_t height = ( yMax - yMin + count - 1 ) / count;
+    auto stripe = [&]( int64_t y ) { return std::clamp( int( ( y - yMin ) / height ), 0, count - 1 ); };
+    // Reconstruct only the execution domain of the distance calls. A later edge
+    // must not be pre-rejected after the actual reference would already return.
+    for( int s = stripe( int64_t( point.y ) - accuracy ); s <= stripe( int64_t( point.y ) + accuracy ); ++s )
+    {
+        for( const auto& e : edges )
+        {
+            if( e.hole || s < stripe( std::min( e.a.y, e.b.y ) ) || s > stripe( std::max( e.a.y, e.b.y ) ) ) continue;
+            CheckDistance( e.a, e.b, point );
+            if( SEG( e.a, e.b ).SquaredDistance( point ) <= SEG::Square( accuracy ) ) return;
+        }
     }
 }
 GRID_GEOMETRY Grid( const JSON& v )
@@ -277,7 +343,12 @@ JSON Run( const JSON& v )
             const auto point = Point( build.at( "point" ) );
             CheckRay( poly, point );
             if( build.at( "accuracy" ).is_null() ) results.push_back( index.Contains( point ) );
-            else results.push_back( index.Contains( point, Int( build, "accuracy" ) ) );
+            else
+            {
+                const int accuracy = Int( build, "accuracy" );
+                if( accuracy > 1 && !index.Contains( point, 0 ) ) CheckAccuracy( poly, point, accuracy );
+                results.push_back( index.Contains( point, accuracy ) );
+            }
         }
         return results;
     }
@@ -288,6 +359,6 @@ namespace oracle
 {
 void RegisterGeometryHeaders( REGISTRY& registry )
 {
-    registry.Add( UNIT, "geometry/{eda_angle,ellipse,grid_geometry,poly_ystripes_index}.h", Run );
+    registry.Add( GEOMETRY_UNIT, "geometry/{eda_angle,ellipse,grid_geometry,poly_ystripes_index}.h", Run );
 }
 }

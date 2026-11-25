@@ -14,7 +14,7 @@ The canonical `Vector2<T>` and source-unit `rescale_i32` are reused.
 | EDA_ANGLE constructors, accessors, constants | Default, explicit degrees, radians division, tenths division; vector zero, axes, diagonals and atan2; exact constant bits | Raw-bit construction and vector cases, signed zeros, extremes, NaN/inf | AsTenthsOfADegree calls unported KiROUND |
 | Normalize, Normalized, NormalizeNegative/90/180/720, foldToTwoPeriods | Finite/abs threshold/fmod+copysign; each inclusive/exclusive loop and returned mutation; copy form | Six modes at wrap boundaries and adjacent doubles, random exponent sweep, huge/tiny, nonfinite | Degenerate >two-loop cases intentionally absent because source fold bounds them |
 | IsZero/Horizontal/Vertical, Invert, abs; all arithmetic/comparison and assignment operators | Exact comparisons without implicit normalization; expression order and units preserved | Unary/binary cases, raw return bits; NaN comparisons | Mixed-NaN selection still needs native qualification |
-| Sin/Cos/Tan, Arccos/Arcsin/Arctan/Arctan2 | Every cardinal/diagonal shortcut, original unnormalized radian fallback; scalar inverse wrappers | Shortcuts, ordinary scalar libm and domain/NaN cases | sin/cos reuse accepted portable glibc kernel; other libm calls compile on wasm but bit identity there is unqualified |
+| Sin/Cos/Tan, Arccos/Arcsin/Arctan/Arctan2 | Every cardinal/diagonal shortcut, original unnormalized radian fallback; scalar inverse wrappers (typed runtime deferral) | Shortcuts, ordinary scalar libm and domain/NaN cases | sin/cos reuse accepted portable glibc kernel; tan/inverse/atan2 runtime calls explicitly defer to this unit |
 | IsParallelTo | Both Normalize90 and -90-to-90 substitutions, final equals | Native reference returns bool; Rust explicitly defers at equals | `libs.kimath.include.math.application.ui.p001`: equals<double> |
 | Snapped, Round, AsTenthsOfADegree | Nonpositive-step identity; surrounding multiplication, divisions, both pow calls, result construction | Nonpositive snap succeeds, positive snap/round/tenths reach typed dependency errors | `libs.kimath.include.math.application.ui.p001`: KiROUND<double,int> |
 | Reflect and EDA_ORIENTATION (all operators, SetAngle/GetAngle, default, equality) | Reflection arithmetic; normalization; signed-zero canonicalization; angle-left forms and orientation difference | Raw bits of all outputs, mutation and assigned state, equality in each orientation case | Native mixed-NaN qualification pending |
@@ -35,9 +35,8 @@ supply these views without copying coordinates or changing the index algorithm.
 Input-dependent edge/stripe/crossing allocations use try_reserve; integer differences
 and counters are checked. No arbitrary coordinate or point-count cap is introduced.
 The reference totalEdges int domain is checked before allocation. The query's stripe
-narrowing follows the pinned Linux int cast, not saturation. The C++ adapter's int64
-subtraction preflight refuses only actual signed-int UB sites, before the native call.
-Three separate refusal controls do not enter the successful corpus.
+narrowing follows the pinned Linux int cast, not saturation. The C++ adapter checks individual int32 differences and the executed SEG int64 dot/norm intermediates before the native call.
+Seven separate undefined-domain controls do not enter the successful corpus.
 
 All header bodies after unavailable calls are present; no success substitutes for a
 missing dependency. No header declarations implemented by other source units are
@@ -55,3 +54,12 @@ No lookup, tolerance, exclusions or golden. See the PR for head-specific native 
 Local Mac validation: cargo fmt, clippy with warnings denied, kicad-math tests,
 geometry safety/continuation tests, portable wasm build, unit-record validation.
 Only one cargo target directory; builds capped at -j3. No KiCad, Windows or WSL build.
+
+Portable runtime qualification is enforced, not inferred from build success: the full
+corpus runs import-free wasm against newly executed native Rust replies. Scalar
+tan/inverse/atan2 backends remain owned runtime deferrals after an observed local
+acos mismatch; see port/findings/geometry-angle-libm-portability.md. The corpus has
+18,050 defined-domain cases plus seven separate controls. Before native comparison,
+12,433 Rust results succeed and 5,617 defer. Of the controls, three are actual Rust
+overflow refusals and four stop at an earlier SEG::Square dependency; C++ refuses
+all seven undefined inputs. These are not successful geometry operations.

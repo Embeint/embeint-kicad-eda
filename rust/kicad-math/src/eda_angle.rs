@@ -54,7 +54,7 @@ impl EdaAngle {
             AngleUnit::Degrees => value,
         })
     }
-    pub fn from_vector(vector: Vector2D) -> Self {
+    pub fn from_vector(vector: Vector2D) -> GeometryResult<Self> {
         let (x, y) = (vector.x, vector.y);
         let value = if x == 0.0 && y == 0.0 {
             0.0
@@ -85,7 +85,7 @@ impl EdaAngle {
         } else {
             return Self::arctan2(y, x);
         };
-        Self::degrees(value)
+        Ok(Self::degrees(value))
     }
     pub const fn as_degrees(self) -> f64 {
         self.value
@@ -152,22 +152,23 @@ impl EdaAngle {
             glibc_trig::cos(self.as_radians())
         }
     }
-    // These scalar libm calls retain the C++ operation boundary. Native Linux is
-    // qualified by the live oracle; wasm libm bit identity remains unqualified.
-    pub fn tan(self) -> f64 {
-        self.as_radians().tan()
+    // Unlike sin/cos, these C runtime operations have no accepted portable
+    // bit-exact backend yet. Keep the wrapper continuation; never expose a
+    // host-dependent answer as portable geometry.
+    pub fn tan(self) -> GeometryResult<f64> {
+        scalar_libm("libc::tan", self.as_radians())
     }
-    pub fn arccos(x: f64) -> Self {
-        Self::new(x.acos(), AngleUnit::Radians)
+    pub fn arccos(x: f64) -> GeometryResult<Self> {
+        Ok(Self::new(scalar_libm("libc::acos", x)?, AngleUnit::Radians))
     }
-    pub fn arcsin(x: f64) -> Self {
-        Self::new(x.asin(), AngleUnit::Radians)
+    pub fn arcsin(x: f64) -> GeometryResult<Self> {
+        Ok(Self::new(scalar_libm("libc::asin", x)?, AngleUnit::Radians))
     }
-    pub fn arctan(x: f64) -> Self {
-        Self::new(x.atan(), AngleUnit::Radians)
+    pub fn arctan(x: f64) -> GeometryResult<Self> {
+        Ok(Self::new(scalar_libm("libc::atan", x)?, AngleUnit::Radians))
     }
-    pub fn arctan2(y: f64, x: f64) -> Self {
-        Self::new(y.atan2(x), AngleUnit::Radians)
+    pub fn arctan2(y: f64, x: f64) -> GeometryResult<Self> {
+        Ok(Self::new(scalar_atan2(y, x)?, AngleUnit::Radians))
     }
     fn fold_to_two_periods(value: f64, period: f64) -> f64 {
         if !value.is_finite() {
@@ -400,4 +401,13 @@ impl StreamInsert for EdaOrientation {
     fn insert(&self, state: &mut StreamState) -> Result<String, StreamError> {
         self.angle.insert(state)
     }
+}
+
+// UNPORTED(libs.kimath.include.geometry.application.ui.p001): libc tan/acos/asin/atan backend
+fn scalar_libm(upstream: &'static str, _x: f64) -> GeometryResult<f64> {
+    missing(upstream, UNIT)
+}
+// UNPORTED(libs.kimath.include.geometry.application.ui.p001): libc atan2 backend
+fn scalar_atan2(_y: f64, _x: f64) -> GeometryResult<f64> {
+    missing("libc::atan2", UNIT)
 }

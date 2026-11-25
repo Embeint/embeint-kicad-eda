@@ -15,8 +15,9 @@ SEED = 0xEDA4CF939
 def bits(x):
     return struct.pack('>d', x).hex()
 
-def generate():
+def generate(include_undefined=False):
     cases = []
+    undefined = []
     def add(name, **v):
         cases.append({'unit': UNIT, 'case': name, 'input': v})
     add('defaults-and-constants', op='default')
@@ -91,7 +92,11 @@ def generate():
             if i in (13,14) and pt[1] not in (-2147483648,2147483647): continue
             if i not in (13,14) and pt[0] == -2147483648: continue
             for accuracy in [None,-1,0,1,2,10]:
-                add(f'poly-{i}-{j}-{accuracy}',op='poly',builds=[dict(polygons=polys,point=pt,accuracy=accuracy)])
+                case=dict(unit=UNIT,case=f'poly-{i}-{j}-{accuracy}',input=dict(op='poly',builds=[dict(polygons=polys,point=pt,accuracy=accuracy)]))
+                if accuracy in (2,10) and ((i==13 and j==14) or (i==14 and j==15)):
+                    undefined.append(case)
+                else:
+                    cases.append(case)
     # Multiple builds on one index exercise clearing and early-return stale fields.
     for i,polys in enumerate(polygons[:13]):
         add(f'rebuild-{i}',op='poly',builds=[dict(polygons=[poly(square)],point=[50,50],accuracy=None),dict(polygons=polys,point=[50,50],accuracy=0),dict(polygons=[],point=[50,50],accuracy=2),dict(polygons=[poly(square,[hole])],point=[50,50],accuracy=0)])
@@ -101,7 +106,15 @@ def generate():
         points=[[x,y],[x+w,y],[x+w,y+h],[x,y+h]]
         pt=[rng.randrange(x-w,x+2*w),rng.randrange(y-h,y+2*h)]
         add(f'random-poly-{i}',op='poly',builds=[dict(polygons=[poly(points)],point=pt,accuracy=rng.choice([0,1,2,10]))])
+    for i in range(512):
+        # Ordered arbitrary contours intentionally include concavity and crossings;
+        # this tests the index itself, independent of polygon validity repair.
+        points=[[rng.randrange(-1000000,1000000),rng.randrange(-1000000,1000000)] for _ in range(rng.randrange(3,130))]
+        holes=[[[rng.randrange(-10000,10000),rng.randrange(-10000,10000)] for _ in range(7)]] if i%3==0 else []
+        pt=[rng.randrange(-1000000,1000000),rng.randrange(-1000000,1000000)]
+        add(f'random-slanted-poly-{i}',op='poly',builds=[dict(polygons=[poly(points,holes)],point=pt,accuracy=i%4)])
     assert len({c['case'] for c in cases}) == len(cases)
+    if include_undefined: return undefined
     return ''.join(json.dumps(c,separators=(',',':'),allow_nan=False)+'\n' for c in cases)
 
 def controls():
@@ -111,6 +124,8 @@ def controls():
     add('diff-x-overflow',[[-2147483648,0],[2147483647,100],[0,0]],[0,50])
     add('diff-y-overflow',[[0,-2147483648],[100,2147483647],[200,-2147483648]],[0,0])
     add('point-x-overflow',[[-10,0],[-10,100],[-20,0]],[2147483647,50])
+    for request in generate(include_undefined=True):
+        result.append(dict(request=request,error=dict(kind='invalid_input',message='intermediate overflow'),rust_error=dict(kind='unported',unit='libs.kimath.include.geometry.application.ui.p003',upstream='SEG::Square')))
     return ''.join(json.dumps(v,separators=(',',':'))+'\n' for v in result)
 
 def main():

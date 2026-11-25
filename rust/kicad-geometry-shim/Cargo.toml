@@ -16,3 +16,10 @@ portable = false
 kicad-math = { path = "../kicad-math" }
 kicad-difftest = { path = "../kicad-difftest" }
 serde_json.workspace = true
+
+[features]
+live-wasm = []
+
+[[example]]
+name = "corpus_parity"
+required-features = ["live-wasm"]
