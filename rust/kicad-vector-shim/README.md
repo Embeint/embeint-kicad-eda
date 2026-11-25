@@ -72,10 +72,18 @@ execution or per-site floating qualification is claimed in this unit yet.
 
 The initial 4,103-case hosted pass is retained under
 `validation/2026-11-24-f98485d7/`: 3,173 exact comparisons, 930 deferrals, zero failures.
-It is tied to that historical head. The expanded 9,582-case corpus and later changes require
-a fresh hosted result; no count from the initial run certifies them.
+It is tied to that historical head; no count from the initial run certifies later changes.
 
 The later `validation/2026-11-24-ff389f87/` snapshot records 9,186 native cases,
 8,513 exact comparisons and 673 explicit deferrals, with zero failures. It qualifies the
 unique-NaN arithmetic implementation at that head; subsequent API/reference observations
-and accepted-base integration remain pending their own live run.
+and accepted-base integration are qualified separately below.
+
+The accepted-utility integration snapshot is retained under
+`validation/2026-11-25-bfc668cf/`: hosted run **45569917252** on implementation head
+`bfc668cfd61fd9016a791949302e361f6cc802d7` compared **8,860** of **9,582** cases exactly,
+with **722** deferrals and **zero** failures/unprocessed cases/process faults/extra replies.
+All oracle controls and the phase-zero job passed. Integral Resize calls accepted
+`rescale<int64_t>` and now reaches the missing header-owned KiROUND; the source utility files
+are unchanged. The snapshot lists remaining deferrals by owner and retains the full report
+and provenance. PR #58 records checks for subsequent documentation commits.

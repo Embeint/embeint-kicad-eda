@@ -53,11 +53,11 @@ The prior Bezier co-port implementations (`checked_sub`, f64 Sub/Add/Mul and f64
 TryFrom) remain unchanged. Their historical PR #51/header-hash evidence is not new vector
 qualification. In particular private fp.rs's fixed left-NaN choice is **not generalized**.
 New fallible arithmetic preserves the single distinct quieted NaN value and bound x86 invalid
-arithmetic result; it defers an arithmetic site with two different quieted NaNs. New scalar-site
-coverage and this implementation require fresh hosted validation;
+arithmetic result; it defers an arithmetic site with two different quieted NaNs. The
+revision-bound hosted snapshots below qualify the exercised scalar sites;
 valid mixed NaNs remain in the corpus. Pure copies, comparisons, sign changes and failed
 Normalize checks retain the NaN domain. General std::hypot and f64 ostream formatting are
-owned deferrals. Finite arithmetic/sqrt are provisional until exact hosted comparison;
+owned deferrals. The exercised finite arithmetic/sqrt cases passed exact hosted comparison;
 wasm compilation is not a vector runtime-parity claim.
 
 `vector2_add/sub/dot/mul` and `scalar_mul_vector2` have explicit common-type promotion
@@ -168,8 +168,10 @@ The deterministic generator emits 9,582 valid cases and 30 separate UB refusal c
 Every corpus case runs in the real pinned C++ and in Rust; Rust deferrals are explicit error
 envelopes with actual owner, while C++ must return a real result. Refusals are outside the
 success corpus and assert a later request survives. There is no tolerance, lookup table,
-recorded-answer fallback, default success or blessed golden. The initial live report must
-retain exact compared/deferred/failure counts before any qualification claim.
+recorded-answer fallback, default success or blessed golden. The current implementation
+snapshot at `../kicad-vector-shim/validation/2026-11-25-bfc668cf/`
+records hosted run 45569917252: 9,582 cases, 8,860 exact comparisons, 722 deferrals,
+zero failures/unprocessed cases/process faults/extra replies. The unit stays partial.
 
 Still missing: the named helper implementations and their downstream continuations' live
 execution, per-site selection between distinct quieted arithmetic NaNs, general double hypot/libm parity,
