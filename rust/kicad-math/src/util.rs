@@ -223,11 +223,17 @@ pub fn equals_f32(a: f32, b: f32, epsilon: Option<f32>) -> bool {
 
 pub trait SqrtInteger: Copy {
     const MAX: i128;
+    const PROMOTED_LOW: i128;
+    const PROMOTED_HIGH: i128;
+    const WRAP_BITS: u32;
     fn integer(self) -> i128;
     fn from_integer(v: i128) -> Self;
 }
 macro_rules! sqrt_integer { ($($t:ty),*) => {$ (
     impl SqrtInteger for $t { const MAX:i128=<$t>::MAX as i128;
+        const PROMOTED_LOW:i128=if core::mem::size_of::<Self>()<4{i32::MIN as i128}else{<$t>::MIN as i128};
+        const PROMOTED_HIGH:i128=if core::mem::size_of::<Self>()<4{i32::MAX as i128}else{<$t>::MAX as i128};
+        const WRAP_BITS:u32=if <$t>::MIN==0 && core::mem::size_of::<Self>()>=4{(core::mem::size_of::<Self>()*8) as u32}else{0};
         fn integer(self)->i128 { self as i128 } fn from_integer(v:i128)->Self {v as Self}
     }
 )*}; }
@@ -236,21 +242,42 @@ fn bounded<T: SqrtInteger>(v: Option<i128>) -> Result<i128> {
     v.filter(|v| *v >= -T::MAX - 1 && *v <= T::MAX)
         .ok_or(VectorDomainError::IntegerOverflow)
 }
+// C++ integral promotions precede arithmetic; unsigned 32/64-bit additions wrap,
+// while small integer operands are promoted to signed int. Narrow only on assignment.
+fn promoted<T: SqrtInteger>(v: Option<i128>) -> Result<i128> {
+    let v = v.ok_or(VectorDomainError::IntegerOverflow)?;
+    if T::WRAP_BITS != 0 {
+        let modulus = 1_i128
+            .checked_shl(T::WRAP_BITS)
+            .filter(|m| *m > 0)
+            .ok_or(VectorDomainError::IntegerOverflow)?;
+        let mask = modulus
+            .checked_sub(1)
+            .ok_or(VectorDomainError::IntegerOverflow)?;
+        return Ok(v & mask);
+    }
+    if v < T::PROMOTED_LOW || v > T::PROMOTED_HIGH {
+        return Err(VectorDomainError::IntegerOverflow);
+    }
+    Ok(v)
+}
 pub fn ct_sqrt_helper<T: SqrtInteger>(x: T, lo: T, hi: T) -> Result<T> {
     let x = x.integer();
     let mut lo = lo.integer();
     let mut hi = hi.integer();
-    // For a defined convergent invocation, each iteration halves the interval.
+    // Bound recursion; ordinary root-search intervals halve at each iteration.
     for _ in 0..128 {
         if lo == hi {
             return Ok(T::from_integer(lo));
         }
-        let mid = bounded::<T>(bounded::<T>(lo.checked_add(hi))?.checked_add(1))? / 2;
+        let sum = promoted::<T>(lo.checked_add(hi))?;
+        let mid = T::from_integer(promoted::<T>(sum.checked_add(1))? / 2).integer();
         if mid == 0 {
             return Err(VectorDomainError::DivisionByZero);
         }
-        if x / mid < mid {
-            hi = bounded::<T>(mid.checked_sub(1))?;
+        let quotient = promoted::<T>(x.checked_div(mid))?;
+        if quotient < mid {
+            hi = T::from_integer(promoted::<T>(mid.checked_sub(1))?).integer();
         } else {
             lo = mid;
         }

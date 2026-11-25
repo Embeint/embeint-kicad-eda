@@ -25,7 +25,7 @@ live reports; a mapping is not proof of complete qualification.
 | KiCheckedCast<S,R> | ki_checked_cast/CheckedCast generic numeric casts; checked_cast_long_long_to_int special logging/clamp | cast-* directly exercises long long->int; Linux generic long->int is exercised by box extremes; other generic pairs have Rust implementation but no complete native qualification |
 | rescale<T> | generic multiplication then division, promoted small ints/unsigned wrapping, f32/f64; i32/i64 dispatch to accepted source owner | rescale-*; native i32/i64/f32/f64; other integer types implemented but not native-qualified |
 | sign<T> | comparison subtraction, including unordered/-0 | sign-* for all adapter types |
-| ct_sqrt, ct_sqrt_helper | checked source addition/division and interval halving; bounded refusal for nonconvergent input | ct_sqrt-*, ct-helper-*; convergent nonnegative inputs; malformed helper ranges are not defined successful inputs |
+| ct_sqrt, ct_sqrt_helper | checked promoted signed arithmetic and defined unsigned wrapping, division and interval halving; bounded refusal for nonconvergent input | ct_sqrt-*, ct-helper-*; convergent nonnegative inputs; malformed helper ranges are not defined successful inputs |
 | isqrt<T> | negative sqrt_max return, double estimate, upward/downward corrections | isqrt-* including signed minima and u64 max |
 | UnsignedAbs, RoundedHypot | exact unsigned magnitude incl MIN, narrowMax branch, isqrt rounding, accepted wide callee | abs-*, hypot-* at all dispatch boundaries and MIN/MAX |
 | equals<T> | abs-difference strict absolute check; largest abs branch; inclusive relative check; default epsilon | equals-* including epsilon zero/negative/default, inf, NaN and -0; f32/f64 |
@@ -88,7 +88,7 @@ full type/branch coverage is made. Rust checks its arithmetic independently.
 ## Validation
 
 Fixed-seed public corpora are additive and deterministic. The owned corpus has
-15,876 inputs and 11 separate UB controls. Vector has 10,286 inputs (+704),
+15,884 inputs and 14 separate UB controls. Vector has 10,286 inputs (+704),
 geometry 18,434 (+384). No prior corpus case is deleted or excluded. Native
 comparison reports must show zero previously passing regressions. The scoped
 workflow runs all three corpora and replays this unit's freshly executed native
@@ -116,6 +116,13 @@ not green or complete native qualification of arbitrary template instantiations.
 
 The current generator additionally includes 36 successful box-level KiROUND
 continuations and 12 explicit Linux generic narrowing constructor/getter/
-Normalize cases. These extend the retained 15,828-case snapshot to 15,876;
+Normalize cases. Together with eight promotion/wrapping helper cases, these extend the retained 15,828-case snapshot to 15,884;
 fresh live evidence is required for the additions rather than treating the
 logging-only round_box cases as successful continuation coverage.
+
+Small-type ct_sqrt_helper arithmetic is performed in promoted signed int, with
+narrowing only at the declared T assignment/recursive argument. Unsigned 32/64-bit
+addition/subtraction wraps. New cases exercise defined narrow-type helpers with
+bounds near both signed extrema and full-width unsigned wrapping. Three separate
+controls refuse signed addition overflow, MIN/-1 division, and division by zero
+at the actual helper operation; they do not reclassify defined promotions as UB.

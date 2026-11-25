@@ -133,12 +133,21 @@ def generate():
             a=dict(mode=mode,pos=p,size=sz)
             for k in ['state','getters','normalize']:
                 add(f'box-generic-narrow-{mode}-{j}-{k}',op='box',type='i32',kind=k,a=a)
+    # Narrow integer promotions and unsigned wrapping in the public helper body.
+    for t,lo,hi in [('i8',-128,127),('u8',0,255),('i16',-32768,32767),('u16',0,65535)]:
+        add(f'ct-helper-promoted-positive-{t}',op='ct_sqrt_helper',type=t,a=hi,lo=hi-1,hi=hi)
+        if lo<0:add(f'ct-helper-promoted-negative-{t}',op='ct_sqrt_helper',type=t,a=0,lo=lo,hi=lo+1)
+    for t,hi in [('u32',2**32-1),('u64',2**64-1)]:
+        add(f'ct-helper-unsigned-wrap-{t}',op='ct_sqrt_helper',type=t,a=hi,lo=hi-1,hi=hi)
     assert len({c['case'] for c in cases})==len(cases)
     return ''.join(json.dumps(c,separators=(',',':'),allow_nan=False)+'\n' for c in cases)
 def controls():
     cs=[]
     def add(name,**v):cs.append(dict(request=dict(unit=UNIT,case=name,input=v),error=dict(kind='invalid_input',message='undefined box/util operation')))
     add('ub-center-size-max-cast',op='box',type='f64',kind='getters',a=dict(mode='center',pos=[bits(10.),bits(20.)],size=[bits(4294967296.),bits(0.)]))
+    add('ub-ct-helper-add',op='ct_sqrt_helper',type='i32',a=0,lo=2**31-2,hi=2**31-1)
+    add('ub-ct-helper-divide',op='ct_sqrt_helper',type='i32',a=-2**31,lo=-3,hi=0)
+    add('ub-ct-helper-zero',op='ct_sqrt_helper',type='i32',a=0,lo=0,hi=-1)
     add('ub-offset',op='box',type='i32',kind='offset',a=dict(mode='raw',pos=[2**31-1,0],size=[0,0]),p=[1,0])
     add('ub-long-add',op='box',type='i64',kind='state',a=dict(mode='new',pos=[2**63-1,0],size=[1,0]))
     add('ub-corners',op='box',type='i32',kind='state',a=dict(mode='corners',pos=[-2**31,0],end=[2**31-1,0]))

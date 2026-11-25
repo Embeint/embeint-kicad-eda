@@ -15874,3 +15874,11 @@
 {"unit":"libs.kimath.include.math.application.ui.p001","case":"box-generic-narrow-raw-1-state","input":{"op":"box","type":"i32","kind":"state","a":{"mode":"raw","pos":[-2147483648,0],"size":[-2,0]}}}
 {"unit":"libs.kimath.include.math.application.ui.p001","case":"box-generic-narrow-raw-1-getters","input":{"op":"box","type":"i32","kind":"getters","a":{"mode":"raw","pos":[-2147483648,0],"size":[-2,0]}}}
 {"unit":"libs.kimath.include.math.application.ui.p001","case":"box-generic-narrow-raw-1-normalize","input":{"op":"box","type":"i32","kind":"normalize","a":{"mode":"raw","pos":[-2147483648,0],"size":[-2,0]}}}
+{"unit":"libs.kimath.include.math.application.ui.p001","case":"ct-helper-promoted-positive-i8","input":{"op":"ct_sqrt_helper","type":"i8","a":127,"lo":126,"hi":127}}
+{"unit":"libs.kimath.include.math.application.ui.p001","case":"ct-helper-promoted-negative-i8","input":{"op":"ct_sqrt_helper","type":"i8","a":0,"lo":-128,"hi":-127}}
+{"unit":"libs.kimath.include.math.application.ui.p001","case":"ct-helper-promoted-positive-u8","input":{"op":"ct_sqrt_helper","type":"u8","a":255,"lo":254,"hi":255}}
+{"unit":"libs.kimath.include.math.application.ui.p001","case":"ct-helper-promoted-positive-i16","input":{"op":"ct_sqrt_helper","type":"i16","a":32767,"lo":32766,"hi":32767}}
+{"unit":"libs.kimath.include.math.application.ui.p001","case":"ct-helper-promoted-negative-i16","input":{"op":"ct_sqrt_helper","type":"i16","a":0,"lo":-32768,"hi":-32767}}
+{"unit":"libs.kimath.include.math.application.ui.p001","case":"ct-helper-promoted-positive-u16","input":{"op":"ct_sqrt_helper","type":"u16","a":65535,"lo":65534,"hi":65535}}
+{"unit":"libs.kimath.include.math.application.ui.p001","case":"ct-helper-unsigned-wrap-u32","input":{"op":"ct_sqrt_helper","type":"u32","a":4294967295,"lo":4294967294,"hi":4294967295}}
+{"unit":"libs.kimath.include.math.application.ui.p001","case":"ct-helper-unsigned-wrap-u64","input":{"op":"ct_sqrt_helper","type":"u64","a":18446744073709551615,"lo":18446744073709551614,"hi":18446744073709551615}}

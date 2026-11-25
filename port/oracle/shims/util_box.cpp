@@ -640,7 +640,39 @@ JSON rounded( const JSON& v )
     TARGET( "i64", int64_t )
     TARGET( "ll", long long )
 #undef TARGET
-            throw std::invalid_argument( "unknown target" );
+    throw std::invalid_argument( "unknown target" );
+}
+// Validate only the execution domain; the reply still comes from the pinned function.
+template <class T>
+void checkCtDomain( T x, T lo, T hi )
+{
+    using P = decltype( T( 0 ) + T( 0 ) );
+    for( int depth = 0; depth < 128; ++depth )
+    {
+        if( lo == hi )
+            return;
+        P sum;
+        if constexpr( std::is_unsigned_v<P> )
+            sum = P( P( lo ) + P( hi ) + P( 1 ) );
+        else
+            sum = add( add( P( lo ), P( hi ) ), P( 1 ) );
+        T mid = T( sum / P( 2 ) );
+        if( mid == 0 )
+            undefined();
+        if constexpr( std::is_signed_v<P> )
+            if( P( x ) == std::numeric_limits<P>::lowest() && P( mid ) == -1 )
+                undefined();
+        if( P( x ) / P( mid ) < P( mid ) )
+        {
+            if constexpr( std::is_unsigned_v<P> )
+                hi = T( P( mid ) - P( 1 ) );
+            else
+                hi = T( sub( P( mid ), P( 1 ) ) );
+        }
+        else
+            lo = mid;
+    }
+    undefined();
 }
 template <class T>
 JSON scalar( const JSON& v )
@@ -671,9 +703,16 @@ JSON scalar( const JSON& v )
         if( op == "isqrt" )
             return out( isqrt( a ) );
         if( op == "ct_sqrt" )
+        {
+            checkCtDomain( a, T( 0 ), T( a / 2 + 1 ) );
             return out( ct_sqrt( a ) );
+        }
         if( op == "ct_sqrt_helper" )
-            return out( ct_sqrt_helper( a, read<T>( v.at( "lo" ) ), read<T>( v.at( "hi" ) ) ) );
+        {
+            auto lo = read<T>( v.at( "lo" ) ), hi = read<T>( v.at( "hi" ) );
+            checkCtDomain( a, lo, hi );
+            return out( ct_sqrt_helper( a, lo, hi ) );
+        }
     }
     throw std::invalid_argument( "unknown operation" );
 }
@@ -842,7 +881,8 @@ JSON run( const JSON& v )
     TYPE( "u16", uint16_t )
     TYPE( "i32", int )
     TYPE( "u32", unsigned )
-    TYPE( "i64", int64_t ) TYPE( "ll", long long ) TYPE( "u64", uint64_t )
+    TYPE( "i64", int64_t )
+    TYPE( "ll", long long ) TYPE( "u64", uint64_t )
 #undef TYPE
             throw std::invalid_argument( "unknown type" );
 }
