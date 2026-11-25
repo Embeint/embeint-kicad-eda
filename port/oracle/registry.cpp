@@ -19,6 +19,7 @@ void RegisterCowPackedRtree( REGISTRY& aRegistry );
 void RegisterEdaAngleSource( REGISTRY& aRegistry );
 void RegisterArcChordParams( REGISTRY& aRegistry );
 void RegisterClipper2CoreEngine( REGISTRY& aRegistry );
+void RegisterCoreP001( REGISTRY& aRegistry );
 
 
 void REGISTRY::Add( const std::string& aUnit, const std::string& aUpstream, SHIM aShim )
@@ -50,6 +51,7 @@ REGISTRY MakeRegistry()
     RegisterEdaAngleSource( registry );
     RegisterArcChordParams( registry );
     RegisterClipper2CoreEngine( registry );
+    RegisterCoreP001( registry );
     return registry;
 }
 

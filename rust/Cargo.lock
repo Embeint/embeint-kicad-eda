@@ -684,6 +684,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "kicad-core"
+version = "0.1.0"
+
+[[package]]
+name = "kicad-core-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-core",
+ "kicad-difftest",
+ "serde_json",
+]
+
+[[package]]
 name = "kicad-difftest"
 version = "0.1.0"
 dependencies = [

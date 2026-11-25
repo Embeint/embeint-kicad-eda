@@ -128,7 +128,10 @@ add_executable( kicad-oracle main.cpp protocol.cpp registry.cpp ${ORACLE_SHIMS}
 target_include_directories( kicad-oracle PRIVATE "${ORACLE_OVERLAY}" "${CMAKE_BINARY_DIR}" )
 target_link_libraries( kicad-oracle PRIVATE kimath nlohmann_json iec60664-reference resistor-reference
                        calculator-reader-reference )
-target_link_options( kicad-oracle PRIVATE -Wl,--gc-sections )
+# shims/core_p001.cpp scripts the clock that the reference GetRunningMicroSecs reads.
+# --wrap redirects only static objects' clock_gettime references (unarmed calls
+# forward to the real function); shared libraries keep the system clock.
+target_link_options( kicad-oracle PRIVATE -Wl,--gc-sections -Wl,--wrap=clock_gettime )
 
 # Audit every build, including direct cmake --build calls and warm cache builds.
 add_custom_target( oracle-audit
@@ -156,7 +159,7 @@ add_executable( oracle-dispatch-test EXCLUDE_FROM_ALL test_dispatch.cpp protocol
 target_include_directories( oracle-dispatch-test PRIVATE "${ORACLE_OVERLAY}" )
 target_link_libraries( oracle-dispatch-test PRIVATE kimath nlohmann_json iec60664-reference
                        resistor-reference calculator-reader-reference )
-target_link_options( oracle-dispatch-test PRIVATE -Wl,--gc-sections )
+target_link_options( oracle-dispatch-test PRIVATE -Wl,--gc-sections -Wl,--wrap=clock_gettime )
 add_dependencies( oracle-dispatch-test oracle-audit )
 add_test( NAME oracle-dispatch COMMAND oracle-dispatch-test )
 add_test( NAME oracle-md5-inputs
@@ -188,3 +191,8 @@ add_test( NAME oracle-math-util-inputs
     COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_math_util_inputs.py"
             "$<TARGET_FILE:kicad-oracle>" )
 set_tests_properties( oracle-math-util-inputs PROPERTIES TIMEOUT 60 )
+
+add_test( NAME oracle-core-p001-inputs
+    COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_core_p001_inputs.py"
+            "$<TARGET_FILE:kicad-oracle>" )
+set_tests_properties( oracle-core-p001-inputs PROPERTIES TIMEOUT 120 )
