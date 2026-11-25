@@ -6,7 +6,7 @@
 
 [workspace]
 resolver = "2"
-members = ["embeint-layout", "embeint-web", "embeint-layout-cli", "embeint-ipc", "embeint-mcp", "kicad-difftest", "kicad-md5", "kicad-md5-shim", "kicad-hash", "kicad-hash-shim", "kicad-iec60664", "kicad-iec60664-shim", "kicad-resistors", "kicad-resistors-shim", "kicad-math", "kicad-math-shim", "kicad-math-util-shim", "kicad-vector-shim", "kicad-geometry-shim", "kicad-util-box-shim", "kicad-eda-angle-shim", "kicad-arc-chord-shim", "kicad-rtree-node", "kicad-rtree-node-shim", "kicad-rtree", "kicad-rtree-shim", "kicad-rtree-cow-packed", "kicad-rtree-cow-packed-shim", "kicad-clipper2", "kicad-clipper2-shim", "kicad-core", "kicad-core-shim"]
+members = ["embeint-layout", "embeint-web", "embeint-layout-cli", "embeint-ipc", "embeint-mcp", "kicad-difftest", "kicad-md5", "kicad-md5-shim", "kicad-hash", "kicad-hash-shim", "kicad-iec60664", "kicad-iec60664-shim", "kicad-resistors", "kicad-resistors-shim", "kicad-math", "kicad-math-shim", "kicad-math-util-shim", "kicad-vector-shim", "kicad-geometry-shim", "kicad-util-box-shim", "kicad-eda-angle-shim", "kicad-arc-chord-shim", "kicad-seg-shim", "kicad-rtree-node", "kicad-rtree-node-shim", "kicad-rtree", "kicad-rtree-shim", "kicad-rtree-cow-packed", "kicad-rtree-cow-packed-shim", "kicad-clipper2", "kicad-clipper2-shim", "kicad-core", "kicad-core-shim"]
 
 [workspace.package]
 version = "0.1.0"
