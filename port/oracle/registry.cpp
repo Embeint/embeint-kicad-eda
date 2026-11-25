@@ -11,6 +11,7 @@ void RegisterKimathMath( REGISTRY& aRegistry );
 void RegisterKimathHeaderHash( REGISTRY& aRegistry );
 void RegisterRtreeNode( REGISTRY& aRegistry );
 void RegisterMathUtil( REGISTRY& aRegistry );
+void RegisterVector( REGISTRY& aRegistry );
 void RegisterDynamicRtree( REGISTRY& aRegistry );
 
 
@@ -35,6 +36,7 @@ REGISTRY MakeRegistry()
     RegisterKimathHeaderHash( registry );
     RegisterRtreeNode( registry );
     RegisterMathUtil( registry );
+    RegisterVector( registry );
     RegisterDynamicRtree( registry );
     return registry;
 }

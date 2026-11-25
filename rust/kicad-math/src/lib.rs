@@ -7,9 +7,9 @@
 //! Unit `libs.kimath.include.math.application.pure.p001` owns [`matrix3x3`]
 //! (`math/matrix3x3.h`: 20 definitions) and [`wide_int`] (`math/wide_int.h`: 4 definitions).
 //! [`stream`] models the caller's `std::ostream` state that `operator<<` formats with.
-//! [`vector`] is the canonical minimal co-port of `VECTOR2`/`VECTOR3` from
-//! `libs.kimath.include.math.application.ui.p002`, which remains that unit's work; later ports
-//! extend those types rather than adding others.
+//! [`vector`] is the canonical partial port of `VECTOR2`/`VECTOR3` from
+//! `libs.kimath.include.math.application.ui.p002`, owned and audited by that unit; later ports
+//! extend those types rather than adding others. `TYPE_SUPPORT.md` records the vector scope.
 //!
 //! The private `glibc_trig` module reproduces the reference C library's `sin`, `cos` and
 //! `sincos` (glibc 2.39, baseline SSE2 variants) bit for bit without the host libm, so

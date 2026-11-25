@@ -1,0 +1,14 @@
+[
+  [{"dim":2,"type":"i32","op":"new","a":[1]},"invalid vector"],
+  [{"dim":2,"type":"i32","op":"new","a":[2147483648,0]},"invalid component"],
+  [{"dim":3,"type":"u32","op":"new","a":[-1,0,0]},"invalid component"],
+  [{"dim":2,"type":"f64","op":"new","a":["7FF8000000000001","0000000000000000"]},"invalid component"],
+  [{"dim":2,"type":"i32","op":"mul_assign_scalar","a":[2,3],"alias":null},"invalid scalar alias"],
+  [{"dim":2,"type":"i32","op":"mul_assign_scalar","a":[2,3],"alias":""},"invalid scalar alias"],
+  [{"dim":2,"type":"i32","op":"mul_assign_scalar","a":[2,3],"alias":"z"},"invalid scalar alias"],
+  [{"dim":2,"type":"i32","op":"mul_assign_scalar","a":[2,3],"alias":"x","scalar":2},"unexpected or missing field"],
+  [{"dim":2.0,"type":"i32","op":"new","a":[2,3]},"unsupported component type"],
+  [{"dim":2,"type":"i32","op":"new","a":[2,3],"b":[2,3]},"unexpected or missing field"],
+  [{"dim":2,"type":"i32","op":"nope","a":[2,3]},"unknown operation"],
+  [{"dim":2,"type":"i32","op":null,"a":[2,3]},"unknown operation"]
+]
