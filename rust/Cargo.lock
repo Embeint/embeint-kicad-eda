@@ -674,6 +674,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "kicad-clipper2-engine-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-clipper2",
+ "kicad-difftest",
+ "serde_json",
+]
+
+[[package]]
 name = "kicad-clipper2-shim"
 version = "0.1.0"
 dependencies = [
