@@ -30,7 +30,7 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 | --- | --- | --- |
 | Geometry | SEG PR #74 in reference CI after Sol review; Opus investigating/fixing the geometry-to-VRML extractor collision | `circle.cpp` after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. Use ellipse or transform if acceptance/regeneration blocks the chain. |
 | Polygon operations | Opus implementing Clipper2 source pure p001 | Source p002 after accepted p001; rectclip p003 is independent fallback; then public wrapper headers. |
-| Core and general utilities | Opus rate-limited during delivery of draft PR #73; parent preserving the completed working tree and arranging Sol review/reference CI | Resume Opus implementation when the provider is available; independent small-unit queue follows. Audit UI core headers before line-chain work. |
+| Core and general utilities | Opus rate-limited during delivery; parent recovered/published PR #73 at `eecececf42`, Sol review and fresh reference CI underway | Resume Opus implementation when the provider is available; independent small-unit queue follows. Audit UI core headers before line-chain work. |
 | Numeric backends and spatial follow-ups | Opus implementing pinned glibc `pow` | R-tree depth-limit removal; further measured math/backend gaps, with explicit ownership and source-derived scope. |
 
 On each implementation completion, immediately inspect the result, start the
