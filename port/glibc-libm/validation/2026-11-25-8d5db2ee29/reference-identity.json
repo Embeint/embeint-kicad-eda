@@ -1,0 +1,65 @@
+{
+  "package": {
+    "name": "libc6",
+    "version": "2.39-0ubuntu8.12",
+    "architecture": "amd64",
+    "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/g/glibc/libc6_2.39-0ubuntu8.12_amd64.deb",
+    "size": 3264258,
+    "sha256": "d821b41fc59cb4978ecd53bc83e5c964ac15d305c8d2ac4c8a35aebe55010fb9"
+  },
+  "download_url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/g/glibc/libc6_2.39-0ubuntu8.12_amd64.deb",
+  "files": {
+    "loader": {
+      "path": "usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2",
+      "size": 236616,
+      "sha256": "5fc0940888e9d2e1a00e66d6b1a559c36364ee867683652e1074fa576952cc3f"
+    },
+    "libc": {
+      "path": "usr/lib/x86_64-linux-gnu/libc.so.6",
+      "size": 2129424,
+      "sha256": "755a371e86cc9f564ab54f66140747700fb0a103f698f659f2060f707897e09a"
+    },
+    "libm": {
+      "path": "usr/lib/x86_64-linux-gnu/libm.so.6",
+      "size": 952616,
+      "sha256": "5dcc4d25466e29ca390ed6fabb371c69b65dff6fa4e91c34561057a020d6994a",
+      "build_id": "f772fc0c42a75e38f138f8b66f1ebc8aad060525"
+    }
+  },
+  "tunables": "glibc.cpu.hwcaps=-AVX,-AVX2,-FMA,-FMA4,-AVX512F",
+  "dispatch": {
+    "atan": "0x2d840",
+    "tan": "0x30b80",
+    "atan2": {
+      "wrapper": "0x12aa0",
+      "got": "0xe7ed0",
+      "kernel": "0x26fe0"
+    },
+    "asin": {
+      "wrapper": "0x12a40",
+      "got": "0xe7f20",
+      "kernel": "0x25f70"
+    },
+    "acos": {
+      "wrapper": "0x129a0",
+      "got": "0xe7f38",
+      "kernel": "0x26780"
+    },
+    "lib_version": {
+      "offset": "0xe8008",
+      "value": 2,
+      "mode": "_POSIX_"
+    }
+  },
+  "probe_source_sha256": "4ea7dd3c9803348edd772c7cf1148b20708853847e48b009f0a11a963796fadb",
+  "probe_binary_sha256": "ab676f7cc36d04e476b738bdbb49c171755505fb614d09e4812990238ab07209",
+  "gcc": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+  "host": "Linux-7.0.0-1014-aws-x86_64-with-glibc2.39",
+  "domain": {
+    "fixed_count": 517520,
+    "seeded_count": 1000000,
+    "count": 1517520,
+    "sha256": "4c9c2f84ce8174a35ba9c6fba3bfdb3d713576923670896783280edda2e0d7f4"
+  },
+  "reference_sha256": "4e4c22b8bf31caa70e3ce07f2f7dca631dd76c48563d43188a3be3ccc1ddaf02"
+}

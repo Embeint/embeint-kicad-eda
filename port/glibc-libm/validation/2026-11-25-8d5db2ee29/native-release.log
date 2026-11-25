@@ -1,0 +1,15 @@
+   Compiling kicad-math v0.1.0 (/home/runner/work/embeint-kicad-eda/embeint-kicad-eda/rust/kicad-math)
+    Finished `release` profile [optimized] target(s) in 5.93s
+     Running unittests src/lib.rs (rust/target/release/deps/kicad_math-8969fac29f3e5dd6)
+
+running 2 tests
+test glibc_libm::tests::specials_and_identities ... ok
+glibc_libm atan: 1517520 records, 0 mismatches
+glibc_libm atan2: 1517520 records, 0 mismatches
+glibc_libm tan: 1517520 records, 0 mismatches
+glibc_libm asin: 1517520 records, 0 mismatches
+glibc_libm acos: 1517520 records, 0 mismatches
+test glibc_libm::tests::reference_records ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.09s
+

@@ -1,0 +1,38 @@
+{
+  "archive": {
+    "url": "https://archive.ubuntu.com/ubuntu/pool/main/g/glibc/glibc_2.39.orig.tar.xz",
+    "size": 18520988,
+    "sha256": "f77bd47cf8170c57365ae7bf86696c118adb3b120d3259c64c502d3dc1e2d926",
+    "mirrors": [
+      "https://ftp.gnu.org/gnu/glibc/glibc-2.39.tar.xz",
+      "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/g/glibc/glibc_2.39.orig.tar.xz"
+    ]
+  },
+  "files": {
+    "sysdeps/ieee754/dbl-64/s_atan.c": "a3349485e285d3fba5d1af04a29cc6edc7c808372a4e548ee605bc0fa5a2e1d7",
+    "sysdeps/ieee754/dbl-64/e_atan2.c": "d0dcea030cfa9054d5daeecd19531bc18ee33fa93714b28bae4dca474d290463",
+    "sysdeps/ieee754/dbl-64/s_tan.c": "8e02f594c1cde592b6997e6c88be2090a16c23f940fdffc93348ab0dd1b06174",
+    "sysdeps/ieee754/dbl-64/e_asin.c": "cf56fcbf627fd8d57ca280e95ec891b978c70ae54f0f5929cc017003a3256eeb",
+    "sysdeps/ieee754/dbl-64/atnat.h": "80ee2e836855c62c9688e59217abf661e13c3c12cc4cd094adba9cea24bd91bb",
+    "sysdeps/ieee754/dbl-64/atnat2.h": "b0aad002dfc061e5ea2a52db377e9e4ab86d1ef0d05d0fc752f17b66272bea08",
+    "sysdeps/ieee754/dbl-64/uatan.tbl": "8072e14d43f1b897ab7013b70954e18b113ef2fcac942e8a263a579d4baf531a",
+    "sysdeps/ieee754/dbl-64/utan.h": "1e1f5458a04576d3ab84b78fa09af5818531e8995a6661185ae3b48624a566c5",
+    "sysdeps/ieee754/dbl-64/utan.tbl": "0c8b795eff2c650d6ffd1ce9480b335dda87554bd535f95281f9dbeb9bbea95c",
+    "sysdeps/ieee754/dbl-64/asincos.tbl": "067c3b7047ab28b087262ba26a839ad23bf39236a843897306d5c828d69904f0",
+    "sysdeps/ieee754/dbl-64/root.tbl": "f3c9d14fdf380e8db2098a183266721cd800ddeb4745ef14f2a491c35b17f5eb",
+    "sysdeps/ieee754/dbl-64/powtwo.tbl": "e66e94adcd700010aa6ea5407130486ef4dba610311c1aab74bda7952bd67f53",
+    "sysdeps/ieee754/dbl-64/uasncs.h": "27a627aae3639ad30b30cd77193c6e2f62ea662b24e5fc94b7617ffbaf61fff7",
+    "sysdeps/ieee754/dbl-64/dla.h": "ea81d5abbc49e592d09d1f08ff29bfd2928f4c9102bc80b1345046ded7c16a6f",
+    "sysdeps/x86_64/fpu/multiarch/s_atan.c": "0e6a7f9ec2a9c0ad0e2974c1fbbb16d1cbf46b0d8ff6b9ceea686503eb83d7dc",
+    "sysdeps/x86_64/fpu/multiarch/e_atan2.c": "4a093783f053eff68f95f14d73e4bdb82daf50a49c09ad3004f65ca0958b6508",
+    "sysdeps/x86_64/fpu/multiarch/s_tan.c": "02dfb70dff3008f3afc7ae4b8a44400477e1fc5bf14fb41bce0fda28424a6454",
+    "sysdeps/x86_64/fpu/multiarch/e_asin.c": "96101fd86692b616b880b102d4c2bc66150a77a99d607db7b3a055c566bac0bb",
+    "sysdeps/x86_64/fpu/multiarch/ifunc-avx-fma4.h": "9e526ff82a36d22699d948b9f6a65e6077bf5b8ec88deee86376ac5492fb9f81",
+    "sysdeps/x86_64/fpu/multiarch/ifunc-fma4.h": "087e7774c28e9f278f5beba1915224ef31aa767f92c3faa46122a3cb8b070021",
+    "math/w_asin_compat.c": "00f2b636313d2a78b45cad103d651bdc78ad75f96e7599add270c719568e00da",
+    "math/w_acos_compat.c": "d6188af1c2c038567818a22e7b64e957105a6a964f5395fef3936c957719cc97",
+    "sysdeps/ieee754/k_standard.c": "a2d5977f0f2e6f165ebc12fcdc14cea6880c349f1a7895f0d77a87b28d17f1b6",
+    "sysdeps/ieee754/s_lib_version.c": "746112a21263269e9cf60f6cbf5e83170e5bc8c20bd5928834781c8b9f2d9220",
+    "math/math-svid-compat.h": "9a89bdba16d6ab8918573120690d5327fa32c4bc1db8a80fde8a09d7eb815902"
+  }
+}

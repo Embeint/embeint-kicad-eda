@@ -22,7 +22,8 @@ fresh runtime measurement.
 
 The IBM Accurate Mathematical Library/FSF notices are retained in each derived
 file. The public inverse wrappers also preserve the Sun Microsystems notice
-for `k_standard.c`'s permissively licensed domain cases. The source is LGPL-2.1-or-later, GPL-compatible. This derivative uses
+for `k_standard.c`'s permissively licensed domain cases. The GNU/IBM source is
+LGPL-2.1-or-later, GPL-compatible. This derivative uses
 LGPL-2.1 section 3 to distribute it under GPL-3.0-or-later, like kicad-math.
 `check_sources.py` verifies original coefficient/table bits against those sources;
 the tables are glibc polynomial coefficients, not recorded function answers.
@@ -54,7 +55,8 @@ Round-to-nearest and gradual underflow are required; the probe refuses unless
 MXCSR control is `0x1f80` and x87 control is `0x037f`. Only returned values are
 modelled, not errno/exception flags or non-default rounding environments.
 Special NaN paths explicitly preserve SSE2 sign/payload/quieting, including
-atan2's first x-NaN path (disassembly `addsd %xmm0,%xmm1` selects x). Tan's infinite inputs produce SSE2's negative indefinite NaN. The public
+atan2's first x-NaN path (disassembly `addsd %xmm0,%xmm1` selects x). Tan's
+infinite inputs produce SSE2's negative indefinite NaN. The public
 asin/acos wrappers return **positive** `NAN` for ordered `|x|>1` (including
 infinities), through `k_standard.c` cases 2/1 at the default `_LIB_VERSION ==
 _POSIX_` (2). The probe pins that mode at `libm+0xe8008`; IEEE bypass/SVID modes
