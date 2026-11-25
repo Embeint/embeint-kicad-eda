@@ -107,3 +107,30 @@ texts. Python (PSF-2.0), pip (MIT) and the platform's venv build tooling are hos
 prerequisites, not shipped application code. Package versions and source revisions
 are reproducible; Python, Git, Rust, pip build backends and platform wheel bytes
 are supplied by the host. This is not a hermetic compiler/toolchain image.
+
+## Clipper2 core and engine headers
+
+`rust/kicad-clipper2` is a faithful port of Clipper2 2.0.1 as pinned in KiCad
+(`thirdparty/clipper2` at `4cf939778df04d2b747bb2c4714fc5014a7565c7`), starting with
+`clipper.core.h` and `clipper.engine.h`. Clipper2 is Copyright Angus Johnson 2010-2025 under
+the Boost Software License 1.0 (BSL-1.0), which is GPL-compatible. The crate is a derivative
+work: its manifest declares `GPL-3.0-or-later AND BSL-1.0`, it carries the unmodified licence
+text in `rust/kicad-clipper2/LICENSE-BSL-1.0`, and every source file keeps the copyright
+notice. Distribution in source form must retain that notice and licence; machine-code-only
+distribution is exempt under BSL-1.0 but the GPL notices still apply. No Clipper2 source is
+vendored beyond the existing `thirdparty/clipper2` tree.
+
+Existing crates.io packages are not used (checked 2026-11-26). `clipper2-sys`,
+`clipper2c-sys` and `clipper2` (a safe API over `clipper2c-sys`) link a C++ build, which the portable wasm32
+target cannot use. The pure-Rust ports do not match this exact revision: `clipper2-rs` 0.3.0
+follows upstream release 2.0.1 plus later upstream fixes (commit `b496b45`), and `clipper2-rust`
+1.3.0 does not state the upstream revision it ports. KiCad's pinned tree carries local
+additions, such as `StripeIndex` and `ClipperBase::PipIndexThreshold`, that neither port has. `clipper2-rs` also evaluates the C++
+undefined cases with defined substitutes (`i128::wrapping_mul` in `CrossProductSign`,
+saturating `as` conversions) instead of refusing them. Exact oracle comparison against KiCad's
+pin is the acceptance criterion, so the port is written from the pinned headers and checked
+case by case against them.
+
+The crate's only dependency is the workspace's `kicad-math` (stream formatting), so the
+portable closure is unchanged. The native `kicad-clipper2-shim` reuses `kicad-difftest` and
+`serde_json`, already recorded above and in `rust/MCP.md`.
