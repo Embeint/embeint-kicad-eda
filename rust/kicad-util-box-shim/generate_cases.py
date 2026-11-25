@@ -118,6 +118,21 @@ def generate():
             add(f'round-default-{t}-{i}',op='round_default',type=t,a=a)
             for quiet in [False,True]:
                 add(f'round-longlong-target-{t}-{i}-{quiet}',op='round',type=t,a=a,target='ll',quiet=quiet)
+    # Successful box-level KiROUND continuation, separate from the overflow/log cases.
+    round_rng=random.Random(0xB0A0D)
+    for i in range(36):
+        p=[round_rng.uniform(-100000,100000) for _ in range(2)]
+        sz=[round_rng.uniform(-100000,100000) for _ in range(2)]
+        if i<4:
+            p=[[.5,-.5],[-0.,0.],[1.5,-1.5],[2147483647.,0.]][i]
+            sz=[[3.5,-3.5],[-0.,0.],[-1.5,1.5],[1.,0.]][i]
+        add(f'round-box-continuation-{i}',op='round_box',a=dict(mode='raw',pos=[bits(x) for x in p],size=[bits(x) for x in sz]))
+    # Linux int64_t=long selects generic KiCheckedCast<long,int>, including modulo narrowing.
+    for mode in ['new','raw']:
+        for j,(p,sz) in enumerate([([2**31-1,0],[2,0]),([-2**31,0],[-2,0])]):
+            a=dict(mode=mode,pos=p,size=sz)
+            for k in ['state','getters','normalize']:
+                add(f'box-generic-narrow-{mode}-{j}-{k}',op='box',type='i32',kind=k,a=a)
     assert len({c['case'] for c in cases})==len(cases)
     return ''.join(json.dumps(c,separators=(',',':'),allow_nan=False)+'\n' for c in cases)
 def controls():

@@ -88,7 +88,7 @@ full type/branch coverage is made. Rust checks its arithmetic independently.
 ## Validation
 
 Fixed-seed public corpora are additive and deterministic. The owned corpus has
-15,828 inputs and 11 separate UB controls. Vector has 10,286 inputs (+704),
+15,876 inputs and 11 separate UB controls. Vector has 10,286 inputs (+704),
 geometry 18,434 (+384). No prior corpus case is deleted or excluded. Native
 comparison reports must show zero previously passing regressions. The scoped
 workflow runs all three corpora and replays this unit's freshly executed native
@@ -113,3 +113,9 @@ RotatePoint wrappers, 63 to source SegmentIntersectsSegment, 15 to the vector
 unit's float formatting/general hypot, and four to SHAPE_ARC::BBox. The caller
 reports enumerate their remaining owners. This is an implemented partial unit,
 not green or complete native qualification of arbitrary template instantiations.
+
+The current generator additionally includes 36 successful box-level KiROUND
+continuations and 12 explicit Linux generic narrowing constructor/getter/
+Normalize cases. These extend the retained 15,828-case snapshot to 15,876;
+fresh live evidence is required for the additions rather than treating the
+logging-only round_box cases as successful continuation coverage.
