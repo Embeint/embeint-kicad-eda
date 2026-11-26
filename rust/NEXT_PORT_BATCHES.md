@@ -75,17 +75,35 @@ Both PR descriptions now record these blockers and remain draft. Passing existin
 corpora does not clear them. Substantial corrections return to Opus and need
 fresh independent Sol reviews; no golden is proposed.
 
-Circle #95 hit the requested provider's 429 quota at 16:38:12 UTC on 26 November.
-Reported reset: **27 November 06:30:12 AEST** (20:30:12 UTC on 26 November),
-not a guarantee of successful execution. No retry loop or model/provider change.
-Its existing prepared checkout and claim are preserved at local head
-`1bbeb2e2d5c019becfa127b04f898754b9c93a09`, with tracked and untracked work
-backed up privately. Resume there after reset; do not create a duplicate claim.
-There are currently **zero active implementation streams**. Review, evidence,
-CI and accepted integration can continue while implementation quota is unavailable.
-A single continuation is scheduled for **27 November 06:31 AEST** to resume
-the preserved Opus work after the reported reset. It first checks for already
-resumed assignments and makes no repeated quota retry.
+The reported Opus quota reset has now passed. At 20:30:13 UTC on 26 November,
+the original circle #95 delegate automatically resumed in its preserved checkout;
+its executed model is confirmed as `claude-opus-5-5`. The scheduled parent
+continuation first saw no pending tasks, but a separate one-off continuation
+probe detected the original writer's edits and exited without changing anything.
+Thread/process ownership was then reconciled. The original circle worker remains
+the sole writer; it has been sent accepted `70888b5722` integration requirements.
+The preserved backup and unpublished work remain intact. Do not resume another
+circle implementer or use the probe's stale checkout snapshot as current state.
+
+Two substantive correction tasks were submitted on the same requested route:
+`rust-correct-core92-opus55-20261127` and
+`rust-correct-wx93-opus55-20261127`. Each owns its existing clean original
+checkout, must merge only accepted rust, and must correct the actual review
+findings before a new independent Sol 6.1 review. They were starting at dispatch;
+that state alone is not proof of implementation or completion.
+
+There are three assigned implementation streams: the resumed circle task and
+the two correction tasks. The fourth refill is the dependency-ready, unclaimed
+`thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p002`: engine lines
+2272-3337 and offset lines 1-661, 1,727 owned lines. Both hard dependencies are
+accepted partials. The parent is moving coordination into a tool-managed
+`origin/rust` checkout before delegating a separate prepared checkout from that
+accepted base. The scoped draft PR, once created after a fresh overlap check,
+will be its claim; this plan does not reserve the unit.
+
+No model/provider substitution or quota retry loop occurred. Another route
+failure must preserve/report work without repeated dispatch. The single
+scheduled continuation is now executing; no further timer is created.
 
 The following historical notes preserve earlier heads and pending states. The
 manual final integration section records their accepted outcome.
@@ -384,10 +402,10 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 
 | Stream | Current assignment | Next dependency-ready work |
 | --- | --- | --- |
-| Geometry | Core utility #92 needs lifecycle/allocation/lifetime and generic corrections; circle #95 partial work is preserved after quota failure. | Resume the original Opus work after quota reset; geometry p003 follows circle and graph acceptance. |
-| Polygon operations | Graph #94 is accepted at `70888b5722` after fresh review and exact-tree manual gate; metadata refresh is complete. | Refill with dependency-ready engine/offset work after the requested provider quota reset. |
-| Core and general utilities | Unix policy #89 is accepted; wx STL #93 needs stream exception/guard/allocation corrections. | Return substantial #93 corrections to Opus after quota reset, then fresh Sol review. |
-| Numeric backends and spatial follow-ups | Unix system-info #90 is accepted with exact-tree manual final CI. Circle #95 is paused by quota, with local work backed up. | Resume circle before taking another unit; logging effects and copy-on-write depth remain queued. |
+| Geometry | Core utility #92 corrections assigned; original circle #95 automatically resumed on Opus 5.5. | Complete existing circle and core work, then fresh Sol reviews; geometry p003 follows accepted circle. |
+| Polygon operations | Graph #94 is accepted at `70888b5722` after fresh review and exact-tree manual gate; metadata refresh is complete. | Engine/offset source p002 selected for a fresh isolated refill from accepted rust; claim pending. |
+| Core and general utilities | Unix policy #89 is accepted; wx STL #93 needs stream exception/guard/allocation corrections. | The wx stream exception/guard/allocation correction task is assigned to Opus; fresh Sol review follows delivery. |
+| Numeric backends and spatial follow-ups | Unix system-info #90 is accepted with exact-tree manual final CI. Circle #95 resumed automatically at reset with existing work preserved. | Finish the original circle assignment; logging effects and copy-on-write depth remain queued. |
 
 On each implementation completion, immediately inspect the result, start the
 independent Sol review and select the next unclaimed dependency-ready assignment.
