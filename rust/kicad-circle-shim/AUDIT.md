@@ -47,14 +47,14 @@ oracle evidence.
 | `CIRCLE( const VECTOR2I&, int )` | memberwise | `new`: 99 states incl. int limits, negative radii | none |
 | `CIRCLE( const CIRCLE& )` | `Center`, then `Radius`; `operator==` after copy | `copy`: 99 states + equality | none |
 | defaulted `operator==` (co-port) | `Radius`, `Center` | `equals`: 16, both operand orders | none |
-| `ConstructFromTanTanPt` | parallel / general; `aP == intersectPoint` early return; furthest/closest lambdas (`>` / `<=`, ties to the second / first); A-vs-B tangent choice (`>`); 5 `wxCHECK_MSG` returns of `*this`; returns `*this` | 107 cases deferred at `SEG::Square`; oracle replies retained (all `returns_self`, 39 `wxCHECK_MSG` failures printed by the oracle and returned) | entire body behind header p003 and trigo; adapter accepts only a stated sufficient domain (below) |
+| `ConstructFromTanTanPt` | parallel / general; `aP == intersectPoint` early return; furthest/closest lambdas (`>` / `<=`, ties to the second / first); A-vs-B tangent choice (`>`); 7 `wxCHECK_MSG` sites returning `*this`; returns `*this` | 107 cases deferred at `SEG::Square`; oracle replies retained (all `returns_self`, 39 `wxCHECK_MSG` failures printed by the oracle and returned) | entire body behind header p003 and trigo; adapter accepts only a stated sufficient domain (below) |
 | `Contains( const VECTOR2I& ) const` | int64 norm; inclusive band `Radius +/- MIN_PRECISION_IU` | `contains` const: values over the band edges, centre, int limits, negative radii | none |
 | `Contains( const VECTOR2I& )` (non-const) | `( aP - Center )` in `int` (undefined on overflow), int norm `< Radius` | `contains` non_const values; 29 overflow controls | none |
 | `NearestPoint( const VECTOR2I& )` | int sub; centre -> `vec.x = 1`; `Resize( Radius )`; int sum | values for every Resize branch, radius sign, limits | radius `INT_MIN` axis: 3 math-util deferrals |
 | `NearestPoint( const VECTOR2D& )` | double - int; signed-zero centre test; `Resize( double( Radius ) )`; double + int | exact bits incl. single NaN payloads, infinities, subnormals, huge values | 28 distinct-NaN vector deferrals |
 | `FurthestPoint( const VECTOR2I& )` | `Center - aP`; as above | as NearestPoint | 3 math-util deferrals |
 | `FurthestPoint( const VECTOR2D& )` | int - double; as above | as NearestPoint | 28 distinct-NaN vector deferrals |
-| `Intersect( const CIRCLE& )` | apart/nested return; co-centred return; int64 eq. (3) with truncating division; remainder `< 0` return; `KiROUND( sqrt )`; modular `VECTOR2I( int64, int64 )`; rotation; `+= Center`; second solution only for `y != 0` | 236 empty results (apart, nested, co-centred, 12 remainder-test cases, negative radii) | 193 RotatePoint deferrals; 4 eq. (3) overflow controls; 4 post-rotation overflow controls (oracle refuses, Rust defers first) |
+| `Intersect( const CIRCLE& )` | apart/nested return; co-centred return; int64 eq. (3) with truncating division; remainder `< 0` return; `KiROUND( sqrt )`; modular `VECTOR2I( int64, int64 )`; rotation; `+= Center`; second solution only for `y != 0` | 236 empty results (apart, nested, co-centred and negative radii); no generated negative-remainder cases | 193 RotatePoint deferrals; 4 eq. (3) overflow controls; 4 post-rotation overflow controls (oracle refuses, Rust defers first) |
 | `Intersect( const SEG& )` | `IntersectLine`, then `SEG::Contains( p, 3 )` per point, in order | 571 values | 12 controls |
 | `IntersectLine( const SEG& )` | miss (`> R+4`); tangent band (inclusive both ends) pushes `m`; chord with `int( sqrt )`; `( B - A ).Resize`; `-mTo1vec`; two int sums; degenerate line gives `m` twice | 571 values incl. band sweeps -7..7 on three orientations | 12 controls |
 
@@ -66,10 +66,11 @@ overflow in equation (3), and the SEG guards reached by `LineProject` and `Conta
 
 The oracle adapter does not guard `ConstructFromTanTanPt` operation by operation. It accepts
 only non-degenerate lines and a point within 2^16, where the pinned `ApproxParallel` is true or
-the lines' angle has sine at least 1/8; every intermediate then stays near 2^24. Other requests
-are refused as outside the audited domain. This is a harness limit, not a statement about the
-C++. The Rust shim mirrors the bound and degeneracy checks; the angle check needs the unported
-`SEG::Square`, so the generator only emits requests that pass it.
+the lines' angle has sine at least 1/8. The review found intermediates exceeding the previously
+claimed 2^24 bound; complete safety of this restricted input set is not yet established.
+Requests outside the set are refused as a harness limit, not as a claim about defined C++.
+The Rust shim mirrors the bound and degeneracy checks; the angle check reaches the genuine
+SEG::Square deferral. A precise follow-up safety audit remains required.
 
 ## Evidence
 
@@ -77,3 +78,20 @@ Local diagnostic run only (WSL, GCC 15.2 / glibc 2.43, merged-tree-equivalent im
 f6c05a433e): 4,978 public cases, 4,616 exact, 362 deferred, 0 failures; 81 controls agree.
 The hosted `rust-circle-live` workflow (ubuntu-24.04: GCC 13 / glibc 2.39 / wx 3.2.4) is the
 reference run and must pass on the final head. No golden is proposed.
+
+## Partial review corrections and unresolved findings
+
+The first independent review stopped on a provider content flag and did not
+produce a completed verdict. It independently reproduced the hosted hashes and
+controls but identified missing assertion effects in tan-tan continuations.
+Returning the partially mutated circle reproduces only the scalar return:
+`wxCHECK_MSG` also invokes the C++ assertion handler. The portable continuation
+does not represent that host effect. This remains a source-contract finding;
+partial status and the current SEG::Square deferral do not resolve it.
+
+The test-only SEG::Center transcription now calls the accepted rounded vector
+division, with positive/negative odd-half checks. It is still not production or
+oracle evidence. The equal-radius generator search emitted zero cases, so the
+previous twelve-case remainder coverage claim is removed without changing the
+public corpus. See `port/findings/circle-review-assertion-and-coverage-gaps.md`
+for evidence and remaining work.

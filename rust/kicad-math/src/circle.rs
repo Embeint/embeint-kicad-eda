@@ -620,8 +620,8 @@ mod tests {
             Ok(self.parallel)
         }
         fn seg_center(&self, seg: &Seg) -> CircleResult<Vector2I> {
-            let half = seg.b.try_sub(seg.a)?;
-            Ok(seg.a.try_add(Vector2::new(half.x / 2, half.y / 2))?)
+            let half = seg.b.try_sub(seg.a)?.divide(2.0)?;
+            Ok(seg.a.try_add(half)?)
         }
         fn intersect_lines(&self, seg: &Seg, other: &Seg) -> CircleResult<OptVector2I> {
             Ok(seg.intersect(other, false, true)?)
@@ -652,6 +652,21 @@ mod tests {
             };
             Ok(())
         }
+    }
+
+    #[test]
+    fn transcribed_center_rounds_odd_halves() -> CircleResult<()> {
+        let t = Transcribed { parallel: true };
+        // SEG::Center uses VECTOR2I / double: half integers round away from zero.
+        for (a, b, expected) in [
+            (v(0, 0), v(1, -1), v(1, -1)),
+            (v(7, -7), v(10, -10), v(9, -9)),
+            (v(-5, 5), v(0, 0), v(-2, 2)),
+            (v(0, 0), v(-5, 5), v(-3, 3)),
+        ] {
+            assert_eq!(t.seg_center(&Seg::new(a, b))?, expected);
+        }
+        Ok(())
     }
 
     #[test]

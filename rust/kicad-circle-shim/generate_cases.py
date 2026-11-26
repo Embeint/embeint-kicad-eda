@@ -414,18 +414,9 @@ def generate():
         if not all(fits(v) for v in (*c1, *c2)):
             continue
         ic(f'intersect_circle-hand-{i}', c1, r1, c2, r2)
-    # The remainder test r1^2 - x^2 < 0 after the integer division and the rounded d.
-    found = 0
-    for a in range(1, 400):
-        for b in range(1, 40):
-            for r in range(1, 30):
-                res_d = norm_l(a, b)
-                if res_d <= r + r and res_d >= 0 and res_d != 0:
-                    num = res_d * res_d
-                    x = trunc_div(num, 2 * res_d)
-                    if r * r - x * x < 0 and found < 12:
-                        ic(f'intersect_circle-remainder-{found}', (0, 0), r, (a, b), r)
-                        found += 1
+    # No negative-remainder cases are established here. The former equal-radius
+    # search emitted none: d <= 2*r implies trunc(d/2) <= r. Keep that coverage
+    # gap explicit instead of claiming the attempted search generated cases.
     for i in range(400):
         scale = rng.choice([20, 1000, 2**20, 2**28])
         c1 = (rng.randint(-scale, scale), rng.randint(-scale, scale))
