@@ -10,6 +10,19 @@ claims before assigning work. Implementation uses Opus 5.5; each implementation
 receives an independent Sol 6.1 review of its exact head.
 
 ## Current integration and correction queue
+ 
+Latest wx state: independent review of #93 head058165f437 requests changes.
+Parent fix `4aaae34988cd6af451b045556f08b6ddce895074` removes allocating Clone
+from StreamBuf/OStream and shim Sink;20tests/fmt/clippy/wasm/generator pass,
+public cases and insertion behavior unchanged. Four source gaps remain:
+ambient unwind context(P1), mutable facet ios state/padding, forced-unwind
+propagation and null-buffer behavior. They require substantive corrections and
+a fresh review afterward; no readiness is claimed from CI/partial status.
+The saved local reference export has880CRLF-only differences across918raw
+pinned blobs, so previous raw-byte-export claims are corrected. See the
+[full review and parent check record](validation/2026-11-27-wx-stream-review/README.md).
+No replacement implementation dispatch is started after the quota failure.
+
 
 Latest circle state: #95 is at `0aa3752c1687581a34c64096075926abc015ba74`.
 The follow-up Sol review on6b36ef0440 was stopped by the same provider content
