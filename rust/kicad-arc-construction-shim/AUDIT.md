@@ -20,7 +20,7 @@ compiled in the oracle's own `kimath` target.
 | `ArcFromStartEndMidDrag` | projection, through, `mid = projected` only when valid | 436 cases, on-chord and apex-rounding refusals | none |
 | `ArcFromStartEndCenterDrag` | zero chord default; `centerT` sign (`< 0` only; zero and -0 give +1); `!aMajor` flips; direct `std::hypot( len/2, centerT )` | 634 cases, both postures, centers on the chord, at the midpoint, far along the bisector | none |
 | `ArcFromStartTangentEnd` | tangent norm `<= 0` / non-finite default; `dd <= 0` or `cross == 0` default; `k`, normal, `len = sqrt(dd)`, chord normal, side from `cross` | 990 cases: QA sweep (432), random magnitudes 1e-6..1e6, subnormal, overflowing, signed-zero, NaN-on-axis and signalling-NaN tangents | 20 tangents with an infinite or NaN operand in the general norm branch defer (below) |
-| `ARC_SOLUTION` (header) | layout and defaults (`valid = false`, `radius = 0.0`, zero vectors) as `ArcSolution` | every reply reports all six fields | header has no unit of its own; plain aggregate, no behaviour |
+| `ARC_SOLUTION` (header) | layout and defaults (`valid = false`, `radius = 0.0`, zero vectors) as `ArcSolution` | every reply reports all six fields | minimum co-port recorded in owner `libs.kimath.include.geometry.application.pure.p001`, which remains todo |
 
 Branch labels come from `generate_cases.py --branches` (a Python mirror that never writes a
 result). Every reachable label is required by the generator.

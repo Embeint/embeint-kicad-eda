@@ -7,8 +7,9 @@
 //! `geometry/arc_construction.cpp`: the file-local `crossZ`, `toIU` and `buildOnChord`, and the
 //! public `ProjectToChordBisector`, `ArcThroughPoints`, `ArcFromStartEndMidDrag`,
 //! `ArcFromStartEndCenterDrag` and `ArcFromStartTangentEnd`. The `ARC_SOLUTION` aggregate and its
-//! default member initializers are declared in `geometry/arc_construction.h`, which the extractor
-//! gives no unit of its own; [`ArcSolution`] reproduces that layout and its defaults only.
+//! default member initializers are declared in `geometry/arc_construction.h`, owned by
+//! `libs.kimath.include.geometry.application.pure.p001`; [`ArcSolution`] co-ports those fields
+//! and defaults only, as recorded in the owning unit's notes.
 //!
 //! Arithmetic follows the source expression order without contraction. `crossZ` calls `std::fma`
 //! explicitly, so it uses the correctly rounded [`f64::mul_add`], which is the single IEEE fused
