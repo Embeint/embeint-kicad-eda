@@ -1,4 +1,4 @@
-name: Rust glibc angle libm fresh reference
+name: Rust glibc angle libm and pow fresh reference
 on:
   pull_request:
     branches: [rust]
@@ -48,9 +48,13 @@ jobs:
           cargo clippy --locked --manifest-path rust/Cargo.toml -p kicad-math --all-targets -j3 -- -D warnings
       - name: Generate fixed boundaries and one million seeded inputs per function
         run: python3 port/glibc-libm/reference.py domain --out "$OUT"
+      - name: Generate fixed pow boundaries and one million seeded pow inputs
+        run: python3 port/glibc-libm/reference.py pow-domain --out "$OUT"
       - name: Execute genuine locked glibc through its own loader
         id: reference
-        run: python3 port/glibc-libm/reference.py reference --out "$OUT"
+        run: |
+          python3 port/glibc-libm/reference.py reference --out "$OUT"
+          python3 port/glibc-libm/reference.py pow-reference --out "$OUT"
       - name: Native debug and release
         if: ${{ !cancelled() && steps.reference.outcome == 'success' }}
         shell: bash
@@ -58,6 +62,8 @@ jobs:
           set -o pipefail
           export KICAD_GLIBC_LIBM_REFERENCE="$OUT/reference.bin"
           export KICAD_GLIBC_LIBM_COUNT=$(python3 -c 'import json; print(json.load(open("port/glibc-libm/qualification.json"))["domain"]["count"])')
+          export KICAD_GLIBC_LIBM_POW_REFERENCE="$OUT/pow-reference.bin"
+          export KICAD_GLIBC_LIBM_POW_COUNT=$(python3 -c 'import json; print(json.load(open("port/glibc-libm/qualification.json"))["pow_domain"]["count"])')
           for profile in dev release; do
             name=$([ "$profile" = dev ] && echo debug || echo release)
             cargo test --locked --manifest-path rust/Cargo.toml -p kicad-math --lib --profile "$profile" glibc_libm -- --include-ignored --nocapture 2>&1 | tee "$OUT/native-$name.log"
@@ -69,6 +75,8 @@ jobs:
           set -o pipefail
           export KICAD_GLIBC_LIBM_REFERENCE="$OUT/reference.bin"
           export KICAD_GLIBC_LIBM_COUNT=$(python3 -c 'import json; print(json.load(open("port/glibc-libm/qualification.json"))["domain"]["count"])')
+          export KICAD_GLIBC_LIBM_POW_REFERENCE="$OUT/pow-reference.bin"
+          export KICAD_GLIBC_LIBM_POW_COUNT=$(python3 -c 'import json; print(json.load(open("port/glibc-libm/qualification.json"))["pow_domain"]["count"])')
           for profile in dev release; do
             name=$([ "$profile" = dev ] && echo debug || echo release)
             wasm=$(cargo test --locked --manifest-path rust/Cargo.toml -p kicad-math --lib --target wasm32-wasip1 --profile "$profile" --no-run --message-format=json | python3 port/glibc-libm/reference.py wasi-test)
@@ -80,11 +88,13 @@ jobs:
         run: |
           set -o pipefail
           count=$(python3 -c 'import json; print(json.load(open("port/glibc-libm/qualification.json"))["domain"]["count"])')
+          pow_count=$(python3 -c 'import json; print(json.load(open("port/glibc-libm/qualification.json"))["pow_domain"]["count"])')
           for profile in dev release; do
             name=$([ "$profile" = dev ] && echo debug || echo release)
             cargo build --locked --manifest-path port/glibc-libm/wasm/Cargo.toml --target wasm32-unknown-unknown --profile "$profile" -j3
             module="$CARGO_TARGET_DIR/wasm32-unknown-unknown/$name/kicad_math_wasm_libm.wasm"
             node port/glibc-libm/wasm/check.mjs "$module" "$OUT/reference.bin" "$count" 2>&1 | tee "$OUT/unknown-$name.log"
+            node port/glibc-libm/wasm/check_pow.mjs "$module" "$OUT/pow-reference.bin" "$pow_count" 2>&1 | tee -a "$OUT/unknown-$name.log"
           done
       - name: Report all required comparisons
         if: always()

@@ -242,13 +242,13 @@ impl EdaAngle {
         Self::degrees(fp::sub(fp::mul(2.0, axis.value), self.value))
     }
     pub fn round(self, digits: i32) -> GeometryResult<Self> {
-        // C++ evaluates pow( 10.0, aDigits ) before KiROUND, so the first missing
-        // call is the libm pow, not KiROUND. Both pow calls and the post-KiROUND
-        // division stay in source order. Host powf is not used: an inexact power
-        // of ten would differ between glibc, Apple libm and wasm.
-        let scale = scalar_pow(10.0, f64::from(digits))?;
+        // C++ evaluates pow( 10.0, aDigits ) (std::pow promotes the int to
+        // double), then KiROUND, then a second pow and the division, in that
+        // order. pow is the pinned glibc 2.39 SSE2 port; host pow is not used,
+        // because glibc, Apple libm and wasm need not agree on inexact powers.
+        let scale = glibc_libm::pow(10.0, f64::from(digits));
         let rounded = round_i32(fp::mul(self.value, scale))?;
-        let divisor = scalar_pow(10.0, f64::from(digits))?;
+        let divisor = glibc_libm::pow(10.0, f64::from(digits));
         Ok(Self::degrees(div(f64::from(rounded), divisor)))
     }
     /// Named forms retain the C++ mutable-self return contract; the Rust traits
@@ -425,9 +425,4 @@ impl StreamInsert for EdaOrientation {
     fn insert(&self, state: &mut StreamState) -> Result<String, StreamError> {
         self.angle.insert(state)
     }
-}
-
-// UNPORTED(libs.kimath.include.geometry.application.ui.p001): libc pow backend
-fn scalar_pow(_x: f64, _y: f64) -> GeometryResult<f64> {
-    missing("libc::pow", UNIT)
 }
