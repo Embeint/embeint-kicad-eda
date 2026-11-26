@@ -735,6 +735,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "kicad-distribute-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-math",
+ "serde_json",
+]
+
+[[package]]
 name = "kicad-eda-angle-shim"
 version = "0.1.0"
 dependencies = [
