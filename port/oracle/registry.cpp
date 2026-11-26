@@ -21,6 +21,7 @@ void RegisterArcChordParams( REGISTRY& aRegistry );
 void RegisterDistribute( REGISTRY& aRegistry );
 void RegisterArcConstruction( REGISTRY& aRegistry );
 void RegisterEllipse( REGISTRY& aRegistry );
+void RegisterCircle( REGISTRY& aRegistry );
 void RegisterClipper2CoreEngine( REGISTRY& aRegistry );
 void RegisterClipper2EngineP001( REGISTRY& aRegistry );
 void RegisterCoreP001( REGISTRY& aRegistry );
@@ -64,6 +65,7 @@ REGISTRY MakeRegistry()
     RegisterDistribute( registry );
     RegisterArcConstruction( registry );
     RegisterEllipse( registry );
+    RegisterCircle( registry );
     RegisterClipper2CoreEngine( registry );
     RegisterClipper2EngineP001( registry );
     RegisterCoreP001( registry );

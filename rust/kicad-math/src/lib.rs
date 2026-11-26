@@ -35,6 +35,10 @@
 //! `libs.kimath.src.geometry.arc_construction.application.ui.p001` owns [`arc_construction`]
 //! (`geometry/arc_construction.cpp`).
 //!
+//! Unit `libs.kimath.src.geometry.circle.application.ui.p001` owns [`circle`]
+//! (`geometry/circle.cpp`), on minimum co-ports of the `CIRCLE` members from `geometry/circle.h`
+//! and of `SHAPE::MIN_PRECISION_IU`.
+//!
 //! Unit `libs.kimath.src.geometry.ellipse.application.ui.p001` owns [`ellipse`]
 //! (`geometry/ellipse.cpp`), the out-of-line bodies of the header-owned
 //! [`geometry_headers::Ellipse`].
@@ -49,6 +53,7 @@ extern crate self as kicad_math;
 
 pub mod arc_chord_params;
 pub mod arc_construction;
+pub mod circle;
 pub mod distribute;
 pub mod eda_angle;
 pub mod eda_angle_source;
