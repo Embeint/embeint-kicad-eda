@@ -19,5 +19,5 @@ source_ranges = ["thirdparty/clipper2/Clipper2Lib/src/clipper.rectclip.cpp:1:102
 wx_class = "pure"
 
 [difftest]
-rust_package = "kicad-clipper2-rectclip-shim"
 rust_binary = "kicad-clipper2-rectclip-shim"
+rust_package = "kicad-clipper2-rectclip-shim"

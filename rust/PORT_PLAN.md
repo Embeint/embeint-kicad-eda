@@ -109,9 +109,10 @@ provenance. Counts are physical lines, with tracked CRLF normalized to LF.
 The corrected graph yields **1,801 units**, owning **2,380,947
 physical lines**: tracked application/generated sources, additional generated
 application inputs, and Clipper2; QA and other third-party/tooling sources remain
-separately inventoried. There are **392 topological layers**,
-**9,548 back-edges** (dropped weight 106,538)
-and 46,894 hard dependency edges.
+separately inventoried. There are **377 topological layers**,
+**9,496 back-edges** (dropped weight 105,471)
+and 46,709 hard dependency edges, after the same-USR definition endpoint
+correction (previously 392, 9,548, 106,538 and 46,894).
 
 | Propagated wx classification | Units | Owned physical lines |
 | --- | ---: | ---: |

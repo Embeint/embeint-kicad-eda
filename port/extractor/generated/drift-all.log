@@ -2,7 +2,7 @@
   "schema_version": 1,
   "upstream_pin": "4cf939778df04d2b747bb2c4714fc5014a7565c7",
   "extraction_commit": "3cd2c9afc6d2749b7d3a79fd1deaa86ac51cb3a7",
-  "target": "4738a9c23f8c6068784d26ba991a690044343892",
+  "target": "d3a5bf6d6eeb1422ef144ffac038dfa500ec5b9b",
   "ported_statuses": [
     "partial",
     "green"
@@ -2704,8 +2704,8 @@
       "reason": "owned declarations/source changed; unit review required"
     }
   ],
-  "ported_unit_count": 16,
-  "ported_function_count": 713,
+  "ported_unit_count": 27,
+  "ported_function_count": 976,
   "dependency_reviews": [
     {
       "unit": "3d.viewer.3d_cache.application.pure.p001",
