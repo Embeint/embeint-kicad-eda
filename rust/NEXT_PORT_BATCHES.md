@@ -11,6 +11,32 @@ receives an independent Sol 6.1 review of its exact head.
 
 ## Current integration and correction queue
 
+Current state after all delivered reviews: **no topic is ready to merge**.
+Accepted rust remains `70888b572202033a6522f2f271b10cc908f74dfe`.
+
+| Topic | Current state | Next required work |
+| --- | --- | --- |
+| Core #92 | Quota failure; local `80e7fdad4e` and unfinished corrections preserved | Reconcile original ownership before any authorized Opus continuation; finish allocation/lifecycle/cast/lifetime work, then fresh review |
+| wx #93 | `4aaae34988cd6af451b045556f08b6ddce895074`; allocating Clone fixed | Four substantive unwind/facet/null-buffer findings remain; fresh review after correction |
+| Circle #95 | `0aa3752c1687581a34c64096075926abc015ba74`; two provider-interrupted reviews | Assertion effects, domain argument and completed independent review remain; no third retry/model substitution |
+| Clipper #96 | `5b145ba4d1f3c8e804031613c5df1a01345321fb`; three bounded review fixes published | Add fallible callback behavior and retain groups/Z callback on failure, then fresh review |
+
+For #96, fresh locked GCC13/glibc2.39/wx3.2.4 evidence at code commit
+`fba034bbf4f5014268c8ccdba09044b8e191fcc5` passes 1,551 exact/20 deferred over
+1,571 cases, all 44 refusal controls with continuations, all 15 oracle CTests,
+accepted caller suites and import-free wasm. Generator checking now reproduces
+on Windows and Linux. Only existing `big-star` changes, with 14 valid cases and
+21 controls added. The published head adds documentation and an adapter comment
+only afterward. [Review/correction evidence](validation/2026-11-27-clipper96-review/README.md)
+retains source/binary bindings and the unresolved callback source-contract gap.
+These manual target results are not hosted CI status or independent approval.
+
+No new implementation or reviewer retry, timer or model substitution was
+started. Existing PR watches remain; source findings block integration even
+when checks pass. No current implementation writer is claimed active.
+
+### Earlier coordination snapshots (superseded by the queue above)
+
 Latest wx state: independent review of #93 head058165f437 requests changes.
 Parent fix `4aaae34988cd6af451b045556f08b6ddce895074` removes allocating Clone
 from StreamBuf/OStream and shim Sink;20tests/fmt/clippy/wasm/generator pass,

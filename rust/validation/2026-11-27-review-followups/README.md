@@ -35,3 +35,10 @@ review requesting changes. The [full report and bounded clone correction](../202
 now supersede the original wx correction brief: four source-contract findings
 remain, while allocating stream clones have been removed and20focused checks
 pass. Keep the original implementation checkout exclusive for substantive fixes.
+
+Clipper #96 also received a completed Sol review requesting changes. The
+[parent correction and locked-reference evidence](../2026-11-27-clipper96-review/README.md)
+resolve bounded oracle-guard and generator issues at the recorded code commit;
+callback failure and retained group/Z-callback state remain source-contract
+blockers. No new Opus retry or model substitution was started. Earlier pending
+review/claim snapshots above are historical, not current readiness claims.

@@ -1,0 +1,96 @@
+{
+  "review_task": "rust-review-clipper96-sol61-20261127",
+  "review_model": "gpt-6.1-sol",
+  "reviewed_head": "6234371e6f9f2eb9ef7ba743eb872287ded1e4b7",
+  "verdict": "changes requested",
+  "bounded_correction_commit": "fba034bbf4f5014268c8ccdba09044b8e191fcc5",
+  "published_head": "5b145ba4d1f3c8e804031613c5df1a01345321fb",
+  "after_test_changes": "Documentation and adapter header comment only. No behavior changes.",
+  "remaining_source_findings": [
+    "Typed callback failure interface absent",
+    "Groups and Z callback lost across caught native unwinding"
+  ],
+  "corrected_findings": [
+    "Empty non-Polygon significant-offset oracle UB guard",
+    "Actual singleton ceil-to-int oracle UB guard",
+    "Host-independent star input generation"
+  ],
+  "manual_reference_checks": {
+    "runtime": 0,
+    "generator": 0,
+    "fmt": 0,
+    "rust-tests": 0,
+    "clippy": 0,
+    "wasm-check": 0,
+    "build-rust": 0,
+    "oracle-build": 0,
+    "compare-kicad-clipper2-p002-shim": 0,
+    "controls-kicad-clipper2-p002-shim": 0,
+    "compare-kicad-clipper2-engine-shim": 0,
+    "controls-kicad-clipper2-engine-shim": 0,
+    "compare-kicad-clipper2-shim": 0,
+    "controls-kicad-clipper2-shim": 0,
+    "compare-kicad-clipper2-rectclip-shim": 0,
+    "controls-kicad-clipper2-rectclip-shim": 0,
+    "wasm-build": 0,
+    "wasm-replay": 0
+  },
+  "comparisons": [
+    {
+      "shim": "kicad-clipper2-p002-shim",
+      "status": "partial",
+      "cases": 1571,
+      "compared": 1551,
+      "deferred": 20,
+      "failures": 0,
+      "unprocessed": 0,
+      "report_sha256": "6d9c5e6dc2e00cf87365ee2009027a14aee705fbf1158a332837c12af2a261b9"
+    },
+    {
+      "shim": "kicad-clipper2-engine-shim",
+      "status": "partial",
+      "cases": 907,
+      "compared": 901,
+      "deferred": 6,
+      "failures": 0,
+      "unprocessed": 0,
+      "report_sha256": "8015f2f0b349d10e0ad55c68436069159d9356647d07e9cbe0081e5eae1b11dc"
+    },
+    {
+      "shim": "kicad-clipper2-shim",
+      "status": "green",
+      "cases": 1587,
+      "compared": 1587,
+      "deferred": 0,
+      "failures": 0,
+      "unprocessed": 0,
+      "report_sha256": "38fd8877bfa3fdabcb5ef98f1cce6ff1ced020cefc93ba3641a6e89d26abee30"
+    },
+    {
+      "shim": "kicad-clipper2-rectclip-shim",
+      "status": "green",
+      "cases": 1574,
+      "compared": 1574,
+      "deferred": 0,
+      "failures": 0,
+      "unprocessed": 0,
+      "report_sha256": "6936c4823c7f272bb3e81ff1f422523c40f1f3867eb728a9a109adcefcf1cab0"
+    }
+  ],
+  "controls": {
+    "p002": 44,
+    "engine_p001": 49,
+    "include_p001": 83,
+    "rectclip_p003": 11
+  },
+  "oracle_ctests": 15,
+  "generator_platforms": [
+    "native Windows",
+    "locked reference Linux"
+  ],
+  "wasm_scope": "1571 corpus requests and 44 refusal controls against freshly executed native Rust; deferred replies are not C++ results",
+  "unit_validation": "All unit records and source accounting valid",
+  "hosted_checks": "No new-head hosted result inferred or polled",
+  "fresh_independent_correction_review": "not yet performed; substantial callback findings remain",
+  "merge": "held draft/partial; no golden"
+}
