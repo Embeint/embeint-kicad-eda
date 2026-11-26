@@ -113,6 +113,19 @@ def check_reader_reference(commands, link_commands, source, build):
         raise ValueError("Oracle does not link the actual calculator-reader-reference archive")
 
 
+def check_kiplatform_unix_reference(commands, link_commands, source):
+    """Require the unchanged pinned Unix drivers.cpp and sysinfo.cpp, compiled and linked."""
+    required = {source / "libs/kiplatform/os/unix/drivers.cpp",
+                source / "libs/kiplatform/os/unix/sysinfo.cpp"}
+    compiled = {Path(entry["file"]) for entry in commands if any(
+        "CMakeFiles/kiplatform-unix-reference.dir/" in token for token in entry["arguments"])}
+    if compiled != required:
+        raise ValueError("Missing actual kiplatform-unix-reference compilation: " + repr(required ^ compiled))
+    if not any("-o kicad-oracle" in command and "libkiplatform-unix-reference.a" in command
+               for command in link_commands):
+        raise ValueError("Oracle does not link the actual kiplatform-unix-reference archive")
+
+
 def audit(build, source, overlay):
     manifest, manifest_sha = verify_source(source)
     database = json.loads((build / "compile_commands.json").read_text(encoding="utf-8"))
@@ -137,7 +150,7 @@ def audit(build, source, overlay):
                 raise ValueError("Unexpected compilation outside pinned source/overlay: " + str(path))
             generated = verify_reader_generated(build, source)
         for target in ("core", "clipper2", "kimath", "fmt", "iec60664-reference", "resistor-reference",
-                       "calculator-reader-reference", "kicad-oracle"):
+                       "calculator-reader-reference", "kiplatform-unix-reference", "kicad-oracle"):
             if any("CMakeFiles/" + target + ".dir/" in token for token in tokens):
                 if (target == "iec60664-reference" and path != source /
                         "pcb_calculator/calculator_panels/iec60664.cpp"):
@@ -146,7 +159,7 @@ def audit(build, source, overlay):
         compilers.add(tokens[0])
         commands.append({"file": str(path), "arguments": tokens})
     if targets != {"core", "clipper2", "kimath", "fmt", "iec60664-reference", "resistor-reference",
-                   "calculator-reader-reference", "kicad-oracle"}:
+                   "calculator-reader-reference", "kiplatform-unix-reference", "kicad-oracle"}:
         raise ValueError("Unexpected reference target closure: " + repr(targets))
     link_commands = subprocess.check_output(
         ["ninja", "-C", str(build), "-t", "commands", "kicad-oracle"], text=True).splitlines()
@@ -160,6 +173,7 @@ def audit(build, source, overlay):
         raise ValueError("Oracle does not link the actual IEC60664 archive")
     check_resistor_reference(commands, link_commands, source, overlay)
     check_reader_reference(commands, link_commands, source, build)
+    check_kiplatform_unix_reference(commands, link_commands, source)
     overlay_files = {p.relative_to(overlay).as_posix(): sha(p) for p in sorted(overlay.rglob("*"))
                      if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc"}
     result = {
