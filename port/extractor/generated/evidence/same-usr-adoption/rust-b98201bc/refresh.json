@@ -1,0 +1,46 @@
+{
+  "accepted_rust": "b98201bc6b4c9e90cf725a0ab62b29d7b7b37a42",
+  "all_graph_fields_equal_reviewed": true,
+  "all_metadata_equals_accepted": true,
+  "canonical_split": {
+    "iterations": 2,
+    "only_byte_changes": [
+      "libs.kiplatform.os.unix.application.pure.p001.toml",
+      "libs.kiplatform.os.unix.application.thin.replacement.p001.toml"
+    ],
+    "repeat_identical": true,
+    "report_changed": false,
+    "semantic_changes": []
+  },
+  "drift": {
+    "drift-all.json": {
+      "affected_units": 1715,
+      "ported_units": 29,
+      "sha256": "63c10c28b84945dd82987cb7acf365437e28058485e2c3edc6122fe473a96895",
+      "target": "b98201bc6b4c9e90cf725a0ab62b29d7b7b37a42"
+    },
+    "drift-ported.json": {
+      "affected_units": 24,
+      "ported_units": 29,
+      "sha256": "d10d4aaab5e51df4c66c6edfce5559cf0f49564ad91380fbd3b3e413786f4359",
+      "target": "b98201bc6b4c9e90cf725a0ab62b29d7b7b37a42"
+    }
+  },
+  "graph_sha256_unchanged": "b2de2a7a99cbfedbfb4f714c9939561418a12f873e86731f617afe44e8b7f9a1",
+  "measurement_statuses": {
+    "blocked": 64,
+    "green": 3,
+    "partial": 26,
+    "todo": 1708
+  },
+  "merged_head": "0fb0aeaf2333e9101d74756baa00635b295b2dfd",
+  "no_new_parse": true,
+  "old_measurement_statuses": {
+    "blocked": 64,
+    "green": 3,
+    "partial": 24,
+    "todo": 1710
+  },
+  "prior_reviewed_head": "f7dd7eac749c8d5c467b379da382f880a246a985",
+  "unit_count": 1801
+}
