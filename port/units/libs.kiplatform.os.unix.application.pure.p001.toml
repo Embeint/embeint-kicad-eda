@@ -17,3 +17,7 @@ schema_version = 1
 source_category = "application"
 source_ranges = ["libs/kiplatform/os/unix/drivers.cpp:1:25", "libs/kiplatform/os/unix/sysinfo.cpp:1:45"]
 wx_class = "pure"
+
+[difftest]
+rust_package = "kicad-kiplatform-sysinfo-shim"
+rust_binary = "kicad-kiplatform-sysinfo-shim"
