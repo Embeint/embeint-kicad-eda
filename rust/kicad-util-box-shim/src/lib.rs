@@ -652,7 +652,8 @@ mod tests {
                 counts[1] += 1;
             }
         }
-        assert_eq!(counts, [14324, 1607]);
+        // Wiring the finite VECTOR2<double> norm resolves five former hypot deferrals.
+        assert_eq!(counts, [14329, 1602]);
     }
     #[test]
     fn undefined_controls_refuse_and_next_request_survives() -> Result<(), serde_json::Error> {

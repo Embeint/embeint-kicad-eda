@@ -30,9 +30,10 @@
 //! Unit `libs.kimath.include.math.application.thin.replacement.p001` owns [`vector2wx`]
 //! (`math/vector2wx.h`): the six wxPoint/wxSize conversions, on plain value stand-ins for
 //! the two wx host boundary types.
-//!
 //! Unit `libs.kimath.src.geometry.poisson_disk.application.pure.p001` owns [`poisson_disk`]
 //! (`geometry/poisson_disk.cpp`), drawing from the Boost.Random port in `kicad-boost-random`.
+//! `libs.kimath.src.geometry.arc_construction.application.ui.p001` owns [`arc_construction`]
+//! (`geometry/arc_construction.cpp`).
 //!
 //! The `MATRIX3x3<double>` arithmetic is evaluated through private per-site code generated
 //! from the pinned oracle binary (`generated`) on explicit SSE2 NaN selection (`sse2`); see
@@ -43,6 +44,7 @@
 extern crate self as kicad_math;
 
 pub mod arc_chord_params;
+pub mod arc_construction;
 pub mod distribute;
 pub mod eda_angle;
 pub mod eda_angle_source;
