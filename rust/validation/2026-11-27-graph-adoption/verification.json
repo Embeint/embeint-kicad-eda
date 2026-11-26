@@ -1,0 +1,1107 @@
+{
+  "head": "d3d65cb5ecf2f9f67b6b46e6a71b205e2db52d9c",
+  "tree": "73ca919b04fab75da9b2250f40b722a22d4bde7a",
+  "result": "PASS",
+  "steps": [
+    {
+      "name": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--manifest-path",
+        "rust/Cargo.toml",
+        "--all",
+        "--check"
+      ],
+      "exit_code": 0,
+      "seconds": 0.64
+    },
+    {
+      "name": "policy-tests",
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "rust/kicad-difftest/tests",
+        "-p",
+        "test_policy.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "seconds": 5.5
+    },
+    {
+      "name": "unit-validation",
+      "command": [
+        "python3",
+        "port/tools/validate_units.py",
+        "--source-root",
+        "/reference-extraction-source",
+        "--json"
+      ],
+      "exit_code": 0,
+      "seconds": 21.5
+    },
+    {
+      "name": "ctest",
+      "command": [
+        "ctest",
+        "--test-dir",
+        "/build/pr90-combined/oracle/oracle-build",
+        "--output-on-failure",
+        "-j8"
+      ],
+      "exit_code": 0,
+      "seconds": 0.37
+    },
+    {
+      "name": "difftest",
+      "command": [
+        "python3",
+        "port/tools/check_goldens_policy.py",
+        "--ci",
+        "--require-phase0",
+        "--runner",
+        "/build/rust/debug/kicad-difftest",
+        "--oracle",
+        "/build/pr90-combined/oracle/oracle-build/kicad-oracle",
+        "--reports",
+        "/build/pr94-reference/run4/reports"
+      ],
+      "exit_code": 0,
+      "seconds": 244.5
+    }
+  ],
+  "source_files": 4230,
+  "source_reverified_after_checks": true,
+  "runtime_files_reverified": true,
+  "oracle_sha256": "87048341fafbcb64070e4c9ad26a11fd0eab5fb623c566efa5197a0eba56f408",
+  "original_source_context_sha256": "a582d8eb3ac5a7fe369e155f97aac52b0d54861762236d88ea70b9bcc2155531",
+  "source_validation_root": "Read-only preserved extraction source; runtime-only export omits original C++ inventory files. First attempt stopped on this scaffolding omission; run2 supplies full source root.",
+  "reuse_binding": "Runtime/harness/workflow files exactly match source-bound accepted b98201bc tree tested in manual-pr90-combined; only graph/unit metadata, findings and documentation differ. Native binaries and oracle reused, not rebuilt.",
+  "prior_full_workspace_checks_head": "397629f3ec38ed1df8951cca4a5edae8a4444573",
+  "log_sha256": {
+    "ctest.log": "1f5d2b1ce432b290e2ac05bf772ea6720b39d09f378426f4f22545ae756d228c",
+    "fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "difftest.log": "858605d3a822c41e51cbaace036d51cf32b268433d8a48a7dad2212094d043b3",
+    "unit-validation.log": "0809b030c89d3e9c592607f2e898a1872be3331e33c9fdd3511511cc4a920320",
+    "policy-tests.log": "2aa5097e48d39658facd84ec086e26d4176b228b0cd29dc76b6f38f68b18b653"
+  },
+  "summary": {
+    "cases": 140712,
+    "compared": 135944,
+    "deferred": 4768,
+    "failures": 0,
+    "unprocessed": 0,
+    "units": 29
+  },
+  "units": [
+    {
+      "unit": "libs.core.application.pure.p001",
+      "status": "green",
+      "action": "compare",
+      "mode": "partial",
+      "cases": 6227,
+      "compared": 6227,
+      "deferred": 0,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": false,
+      "golden": {
+        "status": "not_requested"
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "f8bc6a1d7716586632ba2ec4375457e32db425b1d812cb97ea238e72f2432563",
+      "oracle_output_sha256": "0fa2244ea6c0d751701dfe21949d1afbf6d0803270c096784de1396d48219dd9",
+      "rust_output_sha256": "f9d548d4d9df25b93188c3364bc057c089d4cba89328c57ade23a7250a1232aa",
+      "oracle_sha256": "87048341fafbcb64070e4c9ad26a11fd0eab5fb623c566efa5197a0eba56f408",
+      "rust_sha256": "11e4d4b09a7b2c196ad8eef82fac5e45828d3cdc316ca749e7260b015b91c6d6"
+    },
+    {
+      "unit": "libs.core.include.core.application.pure.p001",
+      "status": "green",
+      "action": "compare",
+      "mode": "partial",
+      "cases": 669,
+      "compared": 669,
+      "deferred": 0,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": false,
+      "golden": {
+        "status": "not_requested"
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "d7a7fd8bb7e1b8db3bee5903386f818161d808d93032ee2e6f855caf23298a6e",
+      "oracle_output_sha256": "cb66b38bf8ee75c368d36c287d3fc9268934760f51f9816e3ddbd372d7f4240f",
+      "rust_output_sha256": "ef11b32e21cff3bd69c8c533e23f7ae47623083bd5106e3bda19ef1b2e752ce3",
+      "oracle_sha256": "87048341fafbcb64070e4c9ad26a11fd0eab5fb623c566efa5197a0eba56f408",
+      "rust_sha256": "ff66df87cbf617618d038b1777aa3cbc4c53b806530af0e3c67369b0737e1cc5"
+    },
+    {
+      "unit": "libs.core.include.core.application.thin.replacement.p001",
+      "status": "green",
+      "action": "check",
+      "mode": "partial",
+      "cases": 3084,
+      "compared": 3084,
+      "deferred": 0,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": true,
+      "golden": {
+        "status": "matched",
+        "error": null,
+        "mismatched_cases": [],
+        "unchecked_cases": []
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "5ea2082cbaed536902924f321ed304e163e88dea89dc35f04411dfcdf4200cd2",
+      "oracle_output_sha256": "f7103e18b3969d9821cad7e364c16fbb085ced4cd05d065935d0d8185a7c4691",
+      "rust_output_sha256": "f7103e18b3969d9821cad7e364c16fbb085ced4cd05d065935d0d8185a7c4691",
+      "oracle_sha256": "87048341fafbcb64070e4c9ad26a11fd0eab5fb623c566efa5197a0eba56f408",
+      "rust_sha256": "c1b4efcd288fd71adcae4610c025c3ddee3cf742d9f034f77c8b7c834801735f"
+    },
+    {
+      "unit": "libs.kimath.include.application.pure.p001",
+      "status": "green",
+      "action": "check",
+      "mode": "partial",
+      "cases": 2641,
+      "compared": 2641,
+      "deferred": 0,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": true,
+      "golden": {
+        "status": "matched",
+        "error": null,
+        "mismatched_cases": [],
+        "unchecked_cases": []
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "5464c930c65efecf25c50e37f26a20804c50cbb354e4be2f2c947c419674466d",
+      "oracle_output_sha256": "1ef5a58c552ee2898575b7563807e4a8cf5325eae78d226244e7ca58623e08d9",
+      "rust_output_sha256": "2697bf65210ec4ab2d42b31fba94ccc44f36f3914e6cae6b0a92924d73700b72",
+      "oracle_sha256": "87048341fafbcb64070e4c9ad26a11fd0eab5fb623c566efa5197a0eba56f408",
+      "rust_sha256": "8a88bfb18eda06033f9f2184af0469c53eccf36687c30740f9520eee59c1fb30"
+    },
+    {
+      "unit": "libs.kimath.include.geometry.application.ui.p001",
+      "status": "partial",
+      "action": "compare",
+      "mode": "partial",
+      "cases": 22171,
+      "compared": 20474,
+      "deferred": 1697,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": false,
+      "golden": {
+        "status": "not_requested"
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "2b544c6436bcbbeaa121254a5c29c45bfc887f3d76354fa649f49c9795cdb65f",
+      "oracle_output_sha256": "86f514ca3e244359368e751a649f10b6722929d8b28ff7ba02f958bf297b3b8d",
+      "rust_output_sha256": "0447ce3cb1394f573f419f02c11956e8e8ec4f009e68eedd1e9af165bc85f066",
+      "oracle_sha256": "87048341fafbcb64070e4c9ad26a11fd0eab5fb623c566efa5197a0eba56f408",
+      "rust_sha256": "cf9e9fc7f0bcb4b1e02958b42d7d815e2ea0c5abbae11fdc90e88967dad5a006"
+    },
+    {
+      "unit": "libs.kimath.include.geometry.rtree.application.pure.p001",
+      "status": "green",
+      "action": "compare",
+      "mode": "partial",
+      "cases": 259,
+      "compared": 259,
+      "deferred": 0,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": false,
+      "golden": {
+        "status": "not_requested"
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "78fde679fc8aa0a8f2c00c805c13c82a9a221935fd1730c0ad3585818e07d246",
+      "oracle_output_sha256": "fdb43b37107a25c8e63a2f83615e4580869bd0c1445a0789d7a6e560f0068c09",
+      "rust_output_sha256": "d6c19823913e54b0ebf5b424f7e8fba1cbe9c3ed5ae07c3287e6a4f16376e1bd",
+      "oracle_sha256": "87048341fafbcb64070e4c9ad26a11fd0eab5fb623c566efa5197a0eba56f408",
+      "rust_sha256": "ed26d01f10ce0e0f3b53a73d4229fe3f5ba40cdfd6e639935d80b5530049f61a"
+    },
+    {
+      "unit": "libs.kimath.include.geometry.rtree.application.pure.p002",
+      "status": "green",
+      "action": "compare",
+      "mode": "partial",
+      "cases": 153,
+      "compared": 153,
+      "deferred": 0,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": false,
+      "golden": {
+        "status": "not_requested"
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "8fcccd81ec93ab31ed170de3e2134bb4a5e57bd607d1ff9181d9b5769f4d10dd",
+      "oracle_output_sha256": "9869e9dbc87c9ce53a7b5939d2dca7b12d00882f12f3889d63b6224827c15cc2",
+      "rust_output_sha256": "dfa33c0fd4a4c7484ab5991a2de8939095f0e0d498bd31e62c1a1890c7468587",
+      "oracle_sha256": "87048341fafbcb64070e4c9ad26a11fd0eab5fb623c566efa5197a0eba56f408",
+      "rust_sha256": "86d4661331a000c6d87dcfccf56e58c6741e281088d21445a5ff6eb7d5478c6d"
+    },
+    {
+      "unit": "libs.kimath.include.geometry.rtree.application.pure.p003",
+      "status": "green",
+      "action": "check",
+      "mode": "partial",
+      "cases": 1525,
+      "compared": 1525,
+      "deferred": 0,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": true,
+      "golden": {
+        "status": "matched",
+        "error": null,
+        "mismatched_cases": [],
+        "unchecked_cases": []
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "680e23d6cddbf64a87c4e61e9a3ac3ac824e24bb25646e6e78e572161279be39",
+      "oracle_output_sha256": "668780e1bc0ed16920a42e12e824779f92ac4ee2d4bcdc4a7b5183c0b84b68da",
+      "rust_output_sha256": "824da02531a5c9460e3a1864f3be9508141f537ce3f3f468525844f2d6f7aa28",
+      "oracle_sha256": "87048341fafbcb64070e4c9ad26a11fd0eab5fb623c566efa5197a0eba56f408",
+      "rust_sha256": "64f5559250dd056e500ffc377e39b3dddd8817d2f7472cbfcc3c28b497b5487c"
+    },
+    {
+      "unit": "libs.kimath.include.math.application.pure.p001",
+      "status": "green",
+      "action": "check",
+      "mode": "partial",
+      "cases": 7460,
+      "compared": 7460,
+      "deferred": 0,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": true,
+      "golden": {
+        "status": "matched",
+        "error": null,
+        "mismatched_cases": [],
+        "unchecked_cases": []
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "c82021245968c5f9cdbf23b2c1b681257d4ba68836ad1d884b41bb77dc6ac287",
+      "oracle_output_sha256": "5b3e42d65eb6b6126acbbf5d45cfbdcc27d461c25558179a84aa0b1c5dd4525b",
+      "rust_output_sha256": "3e2292e57d427e6173572bf354138428ac648e59ddf7e3b4b3cf02c4bc549d52",
+      "oracle_sha256": "87048341fafbcb64070e4c9ad26a11fd0eab5fb623c566efa5197a0eba56f408",
+      "rust_sha256": "9a9fce91399e060b18992773966694ebbbbde1788f95f3dc49b560f9fa66aa0d"
+    },
+    {
+      "unit": "libs.kimath.include.math.application.thin.replacement.p001",
+      "status": "green",
+      "action": "compare",
+      "mode": "partial",
+      "cases": 396,
+      "compared": 396,
+      "deferred": 0,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": false,
+      "golden": {
+        "status": "not_requested"
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "b1d548153bb9fec15be495f5bf99c53b4a772db3afbae3b15296280a4209026e",
+      "oracle_output_sha256": "8d989b38405999750d656e38d52991223089d0213dcbbfcb8f36fd6807540091",
+      "rust_output_sha256": "8d989b38405999750d656e38d52991223089d0213dcbbfcb8f36fd6807540091",
+      "oracle_sha256": "87048341fafbcb64070e4c9ad26a11fd0eab5fb623c566efa5197a0eba56f408",
+      "rust_sha256": "e1166226db69e0197de3b2ff3f6d7f0f8ef761ee1943ef2a4e17ddd4db47f79c"
+    },
+    {
+      "unit": "libs.kimath.include.math.application.ui.p001",
+      "status": "partial",
+      "action": "compare",
+      "mode": "partial",
+      "cases": 15931,
+      "compared": 14329,
+      "deferred": 1602,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": false,
+      "golden": {
+        "status": "not_requested"
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "3d0252cb84e8b16ffc621dce2cd589b4860684416f3881eab37a20bbba75145e",
+      "oracle_output_sha256": "c24f3429b8968b4ee90ca4144b0476cfb518901b51caa201d8ab6d024e96f474",
+      "rust_output_sha256": "3d80fbbdd44bce04ef45e34fd400a398f7f15736193164696c803049efa7ab11",
+      "oracle_sha256": "87048341fafbcb64070e4c9ad26a11fd0eab5fb623c566efa5197a0eba56f408",
+      "rust_sha256": "9f6df9f558b07479914dbf6ec02f90d2351842fccfdec92ac2e97d9fb709bcec"
+    },
+    {
+      "unit": "libs.kimath.include.math.application.ui.p002",
+      "status": "partial",
+      "action": "compare",
+      "mode": "partial",
+      "cases": 12208,
+      "compared": 11737,
+      "deferred": 471,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": false,
+      "golden": {
+        "status": "not_requested"
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "c460d8eeec3ade6f978f183e19cd7e03076eeb960d17816ce07b6b1fc1c37ebb",
+      "oracle_output_sha256": "e3300bce1dc60638a9ce28949b65f04d71d823fee40386ccf2e846198aa83703",
+      "rust_output_sha256": "3a38556646facdcd89509302e625fefcca6e1c79da7038d1144bf6181b219765",
+      "oracle_sha256": "87048341fafbcb64070e4c9ad26a11fd0eab5fb623c566efa5197a0eba56f408",
+      "rust_sha256": "92a41effa5e5e0f883c7c863a7170c077597f735160c1b8e7643069a9d443d10"
+    },
+    {
+      "unit": "libs.kimath.src.geometry.arc_chord_params.application.pure.p001",
+      "status": "green",
+      "action": "compare",
+      "mode": "partial",
+      "cases": 1611,
+      "compared": 1611,
+      "deferred": 0,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": false,
+      "golden": {
+        "status": "not_requested"
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "e6f4210811894154f4b9317279a7dd7c50d65cd3d12aa165e9036732419dbc05",
+      "oracle_output_sha256": "fec4659c59ba3f8c1892ff46fbb2cf43c1cb3c38b5621ca7e1327e021b7faa2e",
+      "rust_output_sha256": "a5b2e44f68902891597d63c69adea957e31567f436698fad2bde6a10995e8cef",
+      "oracle_sha256": "87048341fafbcb64070e4c9ad26a11fd0eab5fb623c566efa5197a0eba56f408",
+      "rust_sha256": "c5c1c3f36392f8168a4de024636274b6e41ead51ca49102e8428e5415d0e3de7"
+    },
+    {
+      "unit": "libs.kimath.src.geometry.arc_construction.application.ui.p001",
+      "status": "green",
+      "action": "compare",
+      "mode": "partial",
+      "cases": 2912,
+      "compared": 2912,
+      "deferred": 0,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": false,
+      "golden": {
+        "status": "not_requested"
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "12ef1c73bb994b642ce8d520742f3d4ed3113508b203077df72a89b9cc19576f",
+      "oracle_output_sha256": "21f4e730aeb7c34faebe9e404b9525f5e82642a2caf93d4da4f7564dbd7cfdbf",
+      "rust_output_sha256": "c31459b00156d6e37877169a121e9773299765361b4073f62b37b5a6eb93b70b",
+      "oracle_sha256": "87048341fafbcb64070e4c9ad26a11fd0eab5fb623c566efa5197a0eba56f408",
+      "rust_sha256": "528170380bff84d524db747c5bf64355fedebdb32064e66ca791033fca043fa8"
+    },
+    {
+      "unit": "libs.kimath.src.geometry.distribute.application.ui.p001",
+      "status": "green",
+      "action": "compare",
+      "mode": "partial",
+      "cases": 2758,
+      "compared": 2758,
+      "deferred": 0,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": false,
+      "golden": {
+        "status": "not_requested"
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "a8fb38bd8b2337a36afc2ea5bf923672fe400e8c833d3bc982823a9c7612b02a",
+      "oracle_output_sha256": "bb07a75fe6f2cac76445161cc71225e3842653a9cae0b6c0f8eba02f53b2865b",
+      "rust_output_sha256": "bb07a75fe6f2cac76445161cc71225e3842653a9cae0b6c0f8eba02f53b2865b",
+      "oracle_sha256": "87048341fafbcb64070e4c9ad26a11fd0eab5fb623c566efa5197a0eba56f408",
+      "rust_sha256": "3a4e01f97f3a4a0862ec8f2cf27d7f7612362692f9e7e9737d2853507800f0c4"
+    },
+    {
+      "unit": "libs.kimath.src.geometry.eda_angle.application.pure.p001",
+      "status": "green",
+      "action": "compare",
+      "mode": "partial",
+      "cases": 4704,
+      "compared": 4704,
+      "deferred": 0,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": false,
+      "golden": {
+        "status": "not_requested"
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "e27bb9f06af750b8233f9f5b7c11f8ab7fde7db26fe9718bc556d2c2e688307b",
+      "oracle_output_sha256": "0cf6016a1ad757e19d1bc8b80e9e14da2ebbbbebf5e1551cd32848880cb5462d",
+      "rust_output_sha256": "0cf6016a1ad757e19d1bc8b80e9e14da2ebbbbebf5e1551cd32848880cb5462d",
+      "oracle_sha256": "87048341fafbcb64070e4c9ad26a11fd0eab5fb623c566efa5197a0eba56f408",
+      "rust_sha256": "119a39d326546d5bc1b8eeab916894a0296f09278a8736c4b48e272acf1f77ec"
+    },
+    {
+      "unit": "libs.kimath.src.geometry.ellipse.application.ui.p001",
+      "status": "partial",
+      "action": "compare",
+      "mode": "partial",
+      "cases": 2224,
+      "compared": 2124,
+      "deferred": 100,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": false,
+      "golden": {
+        "status": "not_requested"
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "76b289f4ce8c20b20fe70593fc8bfa92d55f4460a594a84a973fb493dd07ac29",
+      "oracle_output_sha256": "9571a2432dabf93a86f6a23e34e422a4bbad8ccd6d8b478a7c9985c8da72bc96",
+      "rust_output_sha256": "30997501de54d28c835e5ab7f1d785d84813550807cac2203b1100f093bae48a",
+      "oracle_sha256": "87048341fafbcb64070e4c9ad26a11fd0eab5fb623c566efa5197a0eba56f408",
+      "rust_sha256": "ec20d232688c24c0bc185269454992c52a99488a98e7bec50a103ce971818b56"
+    },
+    {
+      "unit": "libs.kimath.src.geometry.poisson_disk.application.pure.p001",
+      "status": "green",
+      "action": "compare",
+      "mode": "partial",
+      "cases": 499,
+      "compared": 499,
+      "deferred": 0,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": false,
+      "golden": {
+        "status": "not_requested"
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "548255e60f1eb4aad341a06a97e2743eceebb0cdfdec10827086ab164e8eaaf0",
+      "oracle_output_sha256": "6d63040e5daab2baac9518230d5d93a6994b93fc04f1059c02b4d1b3c2eb7718",
+      "rust_output_sha256": "6d63040e5daab2baac9518230d5d93a6994b93fc04f1059c02b4d1b3c2eb7718",
+      "oracle_sha256": "87048341fafbcb64070e4c9ad26a11fd0eab5fb623c566efa5197a0eba56f408",
+      "rust_sha256": "ae4c446c262f8084e127d57338d91cdb64ea3f90971ac423cb57f04fc12f87a0"
+    },
+    {
+      "unit": "libs.kimath.src.geometry.seg.application.ui.p001",
+      "status": "partial",
+      "action": "compare",
+      "mode": "partial",
+      "cases": 9503,
+      "compared": 8645,
+      "deferred": 858,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": false,
+      "golden": {
+        "status": "not_requested"
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "d0b83072f8a129fbdd767e0cccee6a85712537e84b1a2a1bcab7f88c278ed037",
+      "oracle_output_sha256": "26d9630b7e138ab6158dca3342d0ff093139f2ee149fd84957fc51cb3b77fa82",
+      "rust_output_sha256": "bc3b8861289a16c3932a3a9b347a61698d25f43cbd7600b64cf71834efac4e61",
+      "oracle_sha256": "87048341fafbcb64070e4c9ad26a11fd0eab5fb623c566efa5197a0eba56f408",
+      "rust_sha256": "c7e0024e591057503629bff2a4cba931a9bc20b677b3e65f027b8823a6094652"
+    },
+    {
+      "unit": "libs.kimath.src.math.util.application.ui.p001",
+      "status": "green",
+      "action": "compare",
+      "mode": "partial",
+      "cases": 10656,
+      "compared": 10656,
+      "deferred": 0,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": false,
+      "golden": {
+        "status": "not_requested"
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "0bb87119b2d4f89aedddbe7b762515789d739c06258adb2ba987230ac508999e",
+      "oracle_output_sha256": "db9fe1117b870099b21d457e108643017a91a819cf5eec665fcd3bf637b688de",
+      "rust_output_sha256": "db9fe1117b870099b21d457e108643017a91a819cf5eec665fcd3bf637b688de",
+      "oracle_sha256": "87048341fafbcb64070e4c9ad26a11fd0eab5fb623c566efa5197a0eba56f408",
+      "rust_sha256": "1c5662c8667b9701d22e5796e5a90bb6628b8acf22fb1a937bf22059cc84a3ea"
+    },
+    {
+      "unit": "libs.kimath.src.md5_hash.application.pure.p001",
+      "status": "green",
+      "action": "check",
+      "mode": "strict",
+      "cases": 5973,
+      "compared": 5973,
+      "deferred": 0,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": true,
+      "golden": {
+        "status": "matched",
+        "error": null,
+        "mismatched_cases": [],
+        "unchecked_cases": []
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "0d2232c3b758cb67acdc486cbe420350394502fdf2df591e356280468df00795",
+      "oracle_output_sha256": "9b8b9a761911d19c39e45136b28d17eb47ef50dc582102b4b4e538ba909034cb",
+      "rust_output_sha256": "709084cd7bce4bd431415418ae7456b198d0d30d80613d2c9be373e8f67c6cf4",
+      "oracle_sha256": "87048341fafbcb64070e4c9ad26a11fd0eab5fb623c566efa5197a0eba56f408",
+      "rust_sha256": "45155588bfbddfa3195f77b39e9134d1950daed90146b2ff7fb11d6da6f581d3"
+    },
+    {
+      "unit": "libs.kimath.src.transform.application.ui.p001",
+      "status": "green",
+      "action": "compare",
+      "mode": "partial",
+      "cases": 7678,
+      "compared": 7678,
+      "deferred": 0,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": false,
+      "golden": {
+        "status": "not_requested"
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "f7454a762ded1d65a3678cbbfe4f9955d9407def206925185710cbe16ef1bbc2",
+      "oracle_output_sha256": "9bc8b652f128e3a030ab0bc661b1a04006aefc0e2d69facfbc31d29683807aee",
+      "rust_output_sha256": "d9dea23248c78b5b995aa78d4c1bc8eefe49c637900d2855fe9a851ef698b1be",
+      "oracle_sha256": "87048341fafbcb64070e4c9ad26a11fd0eab5fb623c566efa5197a0eba56f408",
+      "rust_sha256": "297c9c255c3cb474bb172f17e051f14ef5877760f9e1b77a8b8468c3e7cfcbbb"
+    },
+    {
+      "unit": "libs.kiplatform.os.unix.application.pure.p001",
+      "status": "green",
+      "action": "compare",
+      "mode": "partial",
+      "cases": 126,
+      "compared": 126,
+      "deferred": 0,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": false,
+      "golden": {
+        "status": "not_requested"
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "a2de5dc6abc67e31c7d11fab96e0958e34c83ddb3207a825c1730aecf95c5ca6",
+      "oracle_output_sha256": "b470406aea31b9622f9a44fc16083ef2a341dcaca560e601de9e48e10aa69e34",
+      "rust_output_sha256": "b470406aea31b9622f9a44fc16083ef2a341dcaca560e601de9e48e10aa69e34",
+      "oracle_sha256": "87048341fafbcb64070e4c9ad26a11fd0eab5fb623c566efa5197a0eba56f408",
+      "rust_sha256": "38f77d06dfce6aa9d31d84cb3d0aafcf1a797e4a57046ed1a2f20070d49ade25"
+    },
+    {
+      "unit": "libs.kiplatform.os.unix.application.thin.replacement.p001",
+      "status": "green",
+      "action": "compare",
+      "mode": "partial",
+      "cases": 36,
+      "compared": 36,
+      "deferred": 0,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": false,
+      "golden": {
+        "status": "not_requested"
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "1f8df908d1743f965ee4b83dd222751096bcaa68d30aac5117a66019dc4697f6",
+      "oracle_output_sha256": "c79a22a5f355b31b9c51058cb7765be4c57483c3284f3035dcc0abdd34c0abe5",
+      "rust_output_sha256": "c79a22a5f355b31b9c51058cb7765be4c57483c3284f3035dcc0abdd34c0abe5",
+      "oracle_sha256": "87048341fafbcb64070e4c9ad26a11fd0eab5fb623c566efa5197a0eba56f408",
+      "rust_sha256": "fe7c3671e5397d0e6aec229aa3be28d03d1e858e9125b0b2124818cae9aa31e7"
+    },
+    {
+      "unit": "pcb_calculator.application.pure.p001",
+      "status": "green",
+      "action": "check",
+      "mode": "strict",
+      "cases": 1050,
+      "compared": 1050,
+      "deferred": 0,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": true,
+      "golden": {
+        "status": "matched",
+        "error": null,
+        "mismatched_cases": [],
+        "unchecked_cases": []
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "58dd1186c9f10c8efb54bc90102c71508c8e852c0b8c08d437380b112fe3c597",
+      "oracle_output_sha256": "db61789166977ceab4ce628c252c6ed35771cd7a5bb84d0ad7ac0a3ae08e2e9e",
+      "rust_output_sha256": "d86fdf217976cd40b65a162d8f27dec734888ba7b7c952715ecf63bef72ddc95",
+      "oracle_sha256": "87048341fafbcb64070e4c9ad26a11fd0eab5fb623c566efa5197a0eba56f408",
+      "rust_sha256": "24f1de41536df4f9436e17e6ffa93396c495e6e6dd2624670072463bf0c6125c"
+    },
+    {
+      "unit": "pcb_calculator.calculator_panels.application.pure.p001",
+      "status": "green",
+      "action": "check",
+      "mode": "strict",
+      "cases": 14190,
+      "compared": 14190,
+      "deferred": 0,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": true,
+      "golden": {
+        "status": "matched",
+        "error": null,
+        "mismatched_cases": [],
+        "unchecked_cases": []
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "4e624fe320565d6894ece1432b5ff38fcab5aca92688996e97b4cd684f872aff",
+      "oracle_output_sha256": "3051d7e1269a8ba05dc50ccba3fa53faedd10ba71e3ec630e6e2c0f2c2fe366f",
+      "rust_output_sha256": "819f74f463f537c7e7fa29127e5d6e71ee628c87fec8e541b143a7d6f39c1f4d",
+      "oracle_sha256": "87048341fafbcb64070e4c9ad26a11fd0eab5fb623c566efa5197a0eba56f408",
+      "rust_sha256": "d068b4aefdad28ee7660707269d56ca478b4ac8a9f7d91676026330c5969e885"
+    },
+    {
+      "unit": "thirdparty.clipper2.clipper2lib.include.clipper2.thirdparty.pure.p001",
+      "status": "partial",
+      "action": "compare",
+      "mode": "partial",
+      "cases": 1587,
+      "compared": 1573,
+      "deferred": 14,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": false,
+      "golden": {
+        "status": "not_requested"
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "29bc63785c7d3599437577163b78d66f199b86d4cf9a13bb08bc32d480f72ca7",
+      "oracle_output_sha256": "6fc00376f7cf0d0b407ff78a6679efeeb5101ec7a69421cb064d831b1be5f0b7",
+      "rust_output_sha256": "690346ea08120c06ebfa1bd559b117a721bee7b9f8866ea24fe79b2b5e12683f",
+      "oracle_sha256": "87048341fafbcb64070e4c9ad26a11fd0eab5fb623c566efa5197a0eba56f408",
+      "rust_sha256": "8e94b2931d97a7cc5ce7bd7a0ed86a136c8ab59f591471863971271cd0fa693e"
+    },
+    {
+      "unit": "thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p001",
+      "status": "partial",
+      "action": "compare",
+      "mode": "partial",
+      "cases": 907,
+      "compared": 881,
+      "deferred": 26,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": false,
+      "golden": {
+        "status": "not_requested"
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "65cb5e62dd9e4dc10c39c4cf333c2e69b2406103910fdf653cfc469dd0d95435",
+      "oracle_output_sha256": "fb359ac9258f4211bfa8d8ae9051bb00b2612cc87d96adc296b79a33bf67506e",
+      "rust_output_sha256": "5afcd8e12bc61078b20b10b4dd103ec517bffb61bc6269d15b8026bafadc59bd",
+      "oracle_sha256": "87048341fafbcb64070e4c9ad26a11fd0eab5fb623c566efa5197a0eba56f408",
+      "rust_sha256": "87ad5583133e1699f803812bfe6d9da499c2a5349fb7b20507051f8b55e342e4"
+    },
+    {
+      "unit": "thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p003",
+      "status": "green",
+      "action": "compare",
+      "mode": "partial",
+      "cases": 1574,
+      "compared": 1574,
+      "deferred": 0,
+      "failures": 0,
+      "unprocessed": 0,
+      "golden_checked": false,
+      "golden": {
+        "status": "not_requested"
+      },
+      "run_faults": [],
+      "extra_replies": [],
+      "cases_sha256": "cacea3bb09f0cd9b34d9c11c35f44e5b618c8e31e09d027f3930452202759dde",
+      "oracle_output_sha256": "b27cd0bcab327c72363e129e03fd968ce4f9990cd3263582144d2a092eef2323",
+      "rust_output_sha256": "2d0bfa16453f6163af39416c8e54a2940614bad3e05673f8017bd8ffe72a03c2",
+      "oracle_sha256": "87048341fafbcb64070e4c9ad26a11fd0eab5fb623c566efa5197a0eba56f408",
+      "rust_sha256": "9dc1f5e5144665772a2db25b1acdbedd817184795c367f46aba02f1d80eaac0f"
+    }
+  ],
+  "all_29_unit_inputs_and_replies_unchanged": true,
+  "review": {
+    "head": "d3d65cb5ecf2f9f67b6b46e6a71b205e2db52d9c",
+    "tree": "73ca919b04fab75da9b2250f40b722a22d4bde7a",
+    "model": "gpt-6.1-sol",
+    "result": "No actionable integration findings; prior source review remains applicable.",
+    "metadata_records_verified": 1801,
+    "splitter_regenerations": 2,
+    "measurement_and_both_drift_reproduced": true,
+    "fresh_windows_checks": {
+      "discovered": 95,
+      "passed": 81,
+      "skipped": 14
+    },
+    "default_validation": "pass",
+    "golden_policy": "pass",
+    "strict_validation": "exactly known incomplete-extraction diagnostic",
+    "limits": [
+      "No fresh WSL suite, runtime corpus or hosted CI qualification by reviewer.",
+      "Skips: unavailable libclang/Ninja/POSIX facilities and unbuilt difftest runner."
+    ],
+    "task": "rust-review-graph94-unix-integration-sol61-20261127"
+  },
+  "source": {
+    "head": "d3d65cb5ecf2f9f67b6b46e6a71b205e2db52d9c",
+    "tree": "73ca919b04fab75da9b2250f40b722a22d4bde7a",
+    "archive_sha256": "2ed840962c013967dc83d8a82914d820e3bb1508146c461eb250b4e79bb2387f"
+  },
+  "runtime_scope": "Unchanged locked reference runtime; source-bound accepted native binaries reused, not rebuilt. Fresh exact-head unit metadata gate. Not a hosted check status.",
+  "previous_attempts": [
+    {
+      "directory": "run3",
+      "outcome": "Full source validation and CTests passed; gate could not launch Rust shim because its default rust/target path was not mapped to the reused build output. Run4 supplies that mapping and checks every registered binary exists before the gate."
+    },
+    {
+      "directory": "run2",
+      "outcome": "Full explicit source-root validation and CTests passed; nested global-gate validation requires the same full inventory at its default root. Run3 supplies verified read-only source context there."
+    },
+    {
+      "directory": "run",
+      "outcome": "Stopped at unit-validation because runtime-only export omits full original C++ tree; run2 supplies the preserved extraction source read-only."
+    },
+    {
+      "script": "run2.py initial invocation",
+      "outcome": "Stopped at parsing an incorrectly transcoded UTF-8 BOM before any checks; script encoding corrected."
+    }
+  ],
+  "preflight": {
+    "cancelled_offline_run": 45867748826,
+    "hosted_fallback_run": 45868907057,
+    "status_at_dispatch": "pending",
+    "status": "success",
+    "source": {
+      "purpose": "cached developer preflight, not numerical qualification",
+      "source_sha": "d3d65cb5ecf2f9f67b6b46e6a71b205e2db52d9c",
+      "source_branch": "t3/adopt-canonical-graph-units",
+      "workflow_sha": "d3d65cb5ecf2f9f67b6b46e6a71b205e2db52d9c",
+      "runner": "GitHub Actions 1000021446",
+      "runner_environment": "github-hosted",
+      "platform": "Linux-7.0.0-1014-aws-x86_64-with-glibc2.39",
+      "compiled_cache": true,
+      "numerical_qualification": false,
+      "memory.max": "unavailable",
+      "memory.swap.max": "unavailable",
+      "cpu.max": "unavailable",
+      "pids.max": "unavailable"
+    },
+    "artifact_files_sha256": {
+      "rust-preflight-45868907057-1\\clippy.log": "8c2f5f4254085db09f8224795eff5030f29627afd1cf7327bf621dc4ce082855",
+      "rust-preflight-45868907057-1\\fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "rust-preflight-45868907057-1\\outcome.txt": "86bc72f1b5d9b8501f4901b9ba47e7bca2b7b7cb02b5e36f9184a0b24f720ab2",
+      "rust-preflight-45868907057-1\\resolver-tests.log": "78eef06a986d8417523e74a16d2bb14e35ab64ab86924c647f2bc690902433d9",
+      "rust-preflight-45868907057-1\\source.json": "f526cde24414a7f9f204a0e9112ab4a6827d89cfb532341e75de1d3fab2a265e",
+      "rust-preflight-45868907057-1\\tests.log": "0db9536a37d18f7750b0255d553d5dffc1f5bf3c5182aa41b9ebbdb5235e07ae",
+      "rust-preflight-45868907057-1\\tools.txt": "e7607ecdef4dbe3763a0b59b65e2f286db19b3593e5c1922f56aa37a3ea19b98",
+      "rust-preflight-45868907057-1\\units.log": "abed390c4ea800264ccc8d263613112c91ef5ab421228878b2f617f8894b9a83",
+      "rust-preflight-45868907057-1\\wasm.log": "3f0eb535859d115fbc530675942ab87a0d237a5e24105e3abf16bf90446f6c38"
+    }
+  },
+  "hosted_checks_at_decision": {
+    "headRefOid": "d3d65cb5ecf2f9f67b6b46e6a71b205e2db52d9c",
+    "isDraft": true,
+    "state": "OPEN",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-26T17:34:38Z",
+        "conclusion": "CANCELLED",
+        "detailsUrl": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45867748826/job/140074858681",
+        "name": "rust-preflight",
+        "startedAt": "2026-11-26T17:26:26Z",
+        "status": "COMPLETED",
+        "workflowName": "Rust port developer preflight"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "detailsUrl": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45867761331/job/140074895759",
+        "name": "rust-port",
+        "startedAt": "2026-11-26T17:33:39Z",
+        "status": "IN_PROGRESS",
+        "workflowName": "Rust port harness and phase zero"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-26T17:41:08Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45867761281/job/140074895924",
+        "name": "clipper2-live",
+        "startedAt": "2026-11-26T17:33:15Z",
+        "status": "COMPLETED",
+        "workflowName": "Rust Clipper2 core/engine live validation"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-26T17:33:37Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45867761356/job/140074895785",
+        "name": "clipper2-engine-live",
+        "startedAt": "2026-11-26T17:26:53Z",
+        "status": "COMPLETED",
+        "workflowName": "Rust Clipper2 engine source (p001) live validation"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-26T17:39:45Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45867761078/job/140074894486",
+        "name": "clipper2-rectclip-live",
+        "startedAt": "2026-11-26T17:31:23Z",
+        "status": "COMPLETED",
+        "workflowName": "Rust Clipper2 rectangle clipping live validation"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-26T17:35:20Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45867761256/job/140074894681",
+        "name": "seg-live",
+        "startedAt": "2026-11-26T17:27:20Z",
+        "status": "COMPLETED",
+        "workflowName": "Rust SEG live validation"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-26T17:36:59Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45867761076/job/140074894249",
+        "name": "arc-chord-live",
+        "startedAt": "2026-11-26T17:29:38Z",
+        "status": "COMPLETED",
+        "workflowName": "Rust arc chord parameters live validation"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-26T17:36:01Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45867761521/job/140074896018",
+        "name": "arc-construction-live",
+        "startedAt": "2026-11-26T17:29:17Z",
+        "status": "COMPLETED",
+        "workflowName": "Rust arc construction live validation"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-26T17:35:54Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45867761042/job/140074894866",
+        "name": "cow-packed-live",
+        "startedAt": "2026-11-26T17:31:40Z",
+        "status": "COMPLETED",
+        "workflowName": "Rust cow and packed rtree live validation"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-26T17:38:55Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45867761273/job/140074894720",
+        "name": "distribute-live",
+        "startedAt": "2026-11-26T17:32:17Z",
+        "status": "COMPLETED",
+        "workflowName": "Rust distribute live validation"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-26T17:33:13Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45867761055/job/140074894411",
+        "name": "rtree-live",
+        "startedAt": "2026-11-26T17:26:33Z",
+        "status": "COMPLETED",
+        "workflowName": "Rust dynamic R-tree live validation"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-26T17:34:08Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45867761183/job/140074894778",
+        "name": "ellipse-live",
+        "startedAt": "2026-11-26T17:27:37Z",
+        "status": "COMPLETED",
+        "workflowName": "Rust ellipse source live validation"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-26T17:41:58Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45867761501/job/140074896719",
+        "name": "geometry-live",
+        "startedAt": "2026-11-26T17:33:29Z",
+        "status": "COMPLETED",
+        "workflowName": "Rust geometry headers live validation"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-26T17:33:28Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45867761024/job/140074893798",
+        "name": "transform-live",
+        "startedAt": "2026-11-26T17:26:33Z",
+        "status": "COMPLETED",
+        "workflowName": "Rust kimath transform live validation"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-26T17:34:23Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45867761404/job/140074895408",
+        "name": "kiplatform-sysinfo-live",
+        "startedAt": "2026-11-26T17:27:07Z",
+        "status": "COMPLETED",
+        "workflowName": "Rust kiplatform Unix drivers and sysinfo live validation"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-26T17:36:45Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45867761339/job/140074894992",
+        "name": "kiplatform-policy-live",
+        "startedAt": "2026-11-26T17:30:23Z",
+        "status": "COMPLETED",
+        "workflowName": "Rust kiplatform unix policy live validation"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-26T17:34:17Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45867761118/job/140074894678",
+        "name": "core-include-live",
+        "startedAt": "2026-11-26T17:27:23Z",
+        "status": "COMPLETED",
+        "workflowName": "Rust libs/core include p001 live validation"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-26T17:34:44Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45867761432/job/140074895998",
+        "name": "map-helpers-live",
+        "startedAt": "2026-11-26T17:28:04Z",
+        "status": "COMPLETED",
+        "workflowName": "Rust libs/core map_helpers live validation"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-26T17:40:14Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45867761318/job/140074895634",
+        "name": "core-live",
+        "startedAt": "2026-11-26T17:33:35Z",
+        "status": "COMPLETED",
+        "workflowName": "Rust libs/core p001 live validation"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-26T17:33:33Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45867760864/job/140074893536",
+        "name": "poisson-live",
+        "startedAt": "2026-11-26T17:26:32Z",
+        "status": "COMPLETED",
+        "workflowName": "Rust poisson disk live validation"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-26T17:30:21Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45867761429/job/140074896005",
+        "name": "build",
+        "startedAt": "2026-11-26T17:28:30Z",
+        "status": "COMPLETED",
+        "workflowName": "Rust port progress pages"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-26T17:33:57Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45867761210/job/140074894956",
+        "name": "util-box-live",
+        "startedAt": "2026-11-26T17:27:22Z",
+        "status": "COMPLETED",
+        "workflowName": "Rust util-box headers live validation"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-26T17:41:28Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45867761476/job/140074896185",
+        "name": "vector2wx-live",
+        "startedAt": "2026-11-26T17:33:32Z",
+        "status": "COMPLETED",
+        "workflowName": "Rust vector2wx live validation"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-26T17:30:22Z",
+        "conclusion": "SKIPPED",
+        "detailsUrl": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45867761429/job/140076751892",
+        "name": "deploy",
+        "startedAt": "2026-11-26T17:30:22Z",
+        "status": "COMPLETED",
+        "workflowName": "Rust port progress pages"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-26T17:35:11Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45867761331/job/140074896033",
+        "name": "msrv",
+        "startedAt": "2026-11-26T17:33:58Z",
+        "status": "COMPLETED",
+        "workflowName": "Rust port harness and phase zero"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-11-26T17:26:30Z",
+        "conclusion": "SKIPPED",
+        "detailsUrl": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45867761331/job/140074898015",
+        "name": "resistor-migration",
+        "startedAt": "2026-11-26T17:26:31Z",
+        "status": "COMPLETED",
+        "workflowName": "Rust port harness and phase zero"
+      }
+    ]
+  }
+}

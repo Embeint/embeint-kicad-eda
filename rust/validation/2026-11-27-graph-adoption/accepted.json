@@ -1,0 +1,20 @@
+{
+  "pr": 94,
+  "head": "d3d65cb5ecf2f9f67b6b46e6a71b205e2db52d9c",
+  "base": "b98201bc6b4c9e90cf725a0ab62b29d7b7b37a42",
+  "accepted": "70888b572202033a6522f2f271b10cc908f74dfe",
+  "tree": "73ca919b04fab75da9b2250f40b722a22d4bde7a",
+  "mergedAt": "2026-11-26T17:46:15Z",
+  "merge_method": "rebase",
+  "rebase_refusal": null,
+  "review": "Fresh Sol6.1 no actionable findings; prior adoption source review remains applicable.",
+  "manual_summary": {
+    "cases": 140712,
+    "compared": 135944,
+    "deferred": 4768,
+    "failures": 0,
+    "unprocessed": 0,
+    "units": 29
+  },
+  "hosted_at_decision": "All applicable completed checks passed, offline preflight explicitly replaced by successful exact-head hosted fallback 45868907057; rust-port was still running. User-authorized manual gate passed on exact head."
+}

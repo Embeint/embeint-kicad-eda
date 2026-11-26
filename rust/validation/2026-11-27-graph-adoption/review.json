@@ -1,0 +1,22 @@
+{
+  "head": "d3d65cb5ecf2f9f67b6b46e6a71b205e2db52d9c",
+  "tree": "73ca919b04fab75da9b2250f40b722a22d4bde7a",
+  "model": "gpt-6.1-sol",
+  "result": "No actionable integration findings; prior source review remains applicable.",
+  "metadata_records_verified": 1801,
+  "splitter_regenerations": 2,
+  "measurement_and_both_drift_reproduced": true,
+  "fresh_windows_checks": {
+    "discovered": 95,
+    "passed": 81,
+    "skipped": 14
+  },
+  "default_validation": "pass",
+  "golden_policy": "pass",
+  "strict_validation": "exactly known incomplete-extraction diagnostic",
+  "limits": [
+    "No fresh WSL suite, runtime corpus or hosted CI qualification by reviewer.",
+    "Skips: unavailable libclang/Ninja/POSIX facilities and unbuilt difftest runner."
+  ],
+  "task": "rust-review-graph94-unix-integration-sol61-20261127"
+}

@@ -2,7 +2,7 @@
 # Next Rust port batches
 
 Planning snapshot: 27 November 2026, accepted `rust` at
-`b98201bc6b4c9e90cf725a0ab62b29d7b7b37a42`. Maintain this plan on `main` as the
+`70888b572202033a6522f2f271b10cc908f74dfe`. Maintain this plan on `main` as the
 port advances. This is a scheduling guide, not a claim list or a change to the
 port gates. The scoped draft PRs remain the authoritative claims.
 Recheck accepted dependencies and open
@@ -32,18 +32,29 @@ statuses. Original-head scoped hosted gates and fallback `45858418153` passed.
 [Combined acceptance evidence](validation/2026-11-27-kiplatform-sysinfo/combined/README.md).
 Both Unix units remain partial without goldens. Both merged PRs are unwatched.
 
-Graph adoption #94 received a clear independent source review at
-`f7dd7eac749c8d5c467b379da382f880a246a985`. The parent has merged accepted
-`b98201bc6b` without conflicts. Published refresh head
-`d3d65cb5ecf2f9f67b6b46e6a71b205e2db52d9c` preserves all 1,801 unit metadata
-values and the reviewed graph fields. Two canonical splitter runs agree; only
-two difftest table key orders change. Measurement now has 3 green/26 partial/
-64 blocked/1,708 todo, and drift covers 29 ported units. Focused extractor/site/
-tools/policy/default-validation/golden-policy checks pass; strict validation
-retains its known incomplete diagnostic. The graph and aggregation code are
-unchanged; this is not another parse. Fresh independent integration review
-`rust-review-graph94-unix-integration-sol61-20261127` and new hosted checks are
-pending on this exact head.
+Graph adoption #94 is accepted as
+`70888b572202033a6522f2f271b10cc908f74dfe`, rebase-merged from reviewed head
+`d3d65cb5ecf2f9f67b6b46e6a71b205e2db52d9c`. Accepted tree
+`73ca919b04fab75da9b2250f40b722a22d4bde7a` equals the reviewed/tested tree.
+The original source review and fresh independent Sol 6.1 integration review
+found no actionable findings. All 1,801 records preserve accepted non-graph
+metadata and reviewed graph fields; two splitter runs, measurement and both
+drift outputs reproduce exactly. Counts are 3 green, 26 partial, 64 blocked,
+1,708 todo and 29 ported units. The graph/code are unchanged by this refresh;
+no new parse or completeness qualification is claimed.
+
+The authorized manual gate on this exact head passes 140,712 cases with
+135,944 exact, 4,768 explicit deferrals, zero failures/unprocessed. All 29 units'
+inputs/replies equal the accepted baseline, and all 15 oracle CTests pass.
+Source-bound native binaries were reused because every runtime/harness/workflow
+input equals the already tested accepted tree; this is not a fresh build or
+workspace/wasm rerun. Full source accounting, fmt and policy tests pass. Initial
+local scaffolding omissions and the BOM error remain documented separately.
+All completed hosted checks, including every live job and MSRV, pass; isolated
+preflight 45867748826 is replaced by successful exact-head hosted fallback
+45868907057. Hosted rust-port was still running at the decision; manual results
+are not its status. #94 is merged and unwatched.
+[Acceptance evidence](validation/2026-11-27-graph-adoption/README.md).
 
 Core utility headers #92 at `b48b95f893125e53b6f4bb484156d2abee43dcd5`
 received changes requested despite passing GCC 13 corpus qualification.
@@ -374,7 +385,7 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 | Stream | Current assignment | Next dependency-ready work |
 | --- | --- | --- |
 | Geometry | Core utility #92 needs lifecycle/allocation/lifetime and generic corrections; circle #95 partial work is preserved after quota failure. | Resume the original Opus work after quota reset; geometry p003 follows circle and graph acceptance. |
-| Polygon operations | Graph #94 source review clear; refresh published at `d3d65cb5ec`, fresh integration review and hosted checks pending. | Finish exact-tree graph validation/review, then refill with dependency-ready engine/offset work. |
+| Polygon operations | Graph #94 is accepted at `70888b5722` after fresh review and exact-tree manual gate; metadata refresh is complete. | Refill with dependency-ready engine/offset work after the requested provider quota reset. |
 | Core and general utilities | Unix policy #89 is accepted; wx STL #93 needs stream exception/guard/allocation corrections. | Return substantial #93 corrections to Opus after quota reset, then fresh Sol review. |
 | Numeric backends and spatial follow-ups | Unix system-info #90 is accepted with exact-tree manual final CI. Circle #95 is paused by quota, with local work backed up. | Resume circle before taking another unit; logging effects and copy-on-write depth remain queued. |
 
