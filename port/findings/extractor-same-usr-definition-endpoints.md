@@ -136,6 +136,16 @@ The comparison with the V5 original AST graph `40861e9c`
 
 ## Remaining work and limits
 
+Sol 6.1 independently reviewed `664493feb0684460b82ad9580d972cb6a7a5b27a`
+with no blocking findings and reproduced all 39 libclang tests. Its optional
+cache-race finding is now hardened: replay also refuses a missing record at
+consumption time, so disappearance after preflight cannot enqueue a parse or
+write a cache entry under zero-parse provenance. A platform-independent mocked
+race regression checks this path; the current suite passes 40/40 under WSL
+and 27 tests with 13 libclang skips on Windows. The large V5 replay measurements
+above still bind the original aggregation identity, not this later guard change;
+canonical adoption must regenerate provenance from its actual final tool head.
+
 - Adoption is a separate step: it needs this replay output, canonical split,
   the verified generator-dependency `apply` with the retained capture,
   measurement and drift reports, documentation counts, and a regenerated

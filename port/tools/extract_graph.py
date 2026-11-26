@@ -192,6 +192,8 @@ def main():
                 result['cache_reused_from'] = {'path': str(artifact), 'sha256': digest(artifact.read_bytes())}
                 consume_safely(result)
             else:
+                if replay:
+                    p.error(f"Replay refuses to parse: cache record disappeared for {job['file']}")
                 pending[pool.submit(extract_translation_unit, job)] = (cache, job)
         for future in as_completed(pending):
             cache, job = pending.pop(future)
