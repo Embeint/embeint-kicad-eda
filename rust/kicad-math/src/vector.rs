@@ -515,7 +515,14 @@ impl VectorComponent for f64 {
         if y == 0.0 {
             return Ok(x.abs());
         }
+        // static_cast<double>( std::hypot( x, y ) ). Finite operands use the shared glibc 2.39
+        // finite-input backend (hypot.rs), wired by the arc_construction unit, which reaches this
+        // body for every general chord; its oracle and the vector corpus check it exactly.
+        if x.is_finite() && y.is_finite() {
+            return Ok(crate::hypot::finite(x, y));
+        }
         // UNPORTED(libs.kimath.include.math.application.ui.p002): std::hypot reference/libm parity
+        // for infinite and NaN operands (the glibc special-value path and its NaN selection).
         missing("VECTOR2<double>::EuclideanNorm std::hypot", VECTOR_UNIT)
     }
     fn squared_norm2(x: Self, y: Self) -> VResult<Self> {
