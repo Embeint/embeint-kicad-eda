@@ -1,0 +1,61 @@
+{
+  "compile_commands_sha256": "bc402ade70f0304ed5018793a5d8c37749df978dfd7859ee87e655ee3a616196",
+  "p003_after": {
+    "depends_on": [
+      "libs.kimath.include.geometry.application.ui.p001",
+      "libs.kimath.include.math.application.ui.p001",
+      "libs.kimath.include.math.application.ui.p002",
+      "libs.kimath.src.geometry.circle.application.ui.p001",
+      "libs.kimath.src.geometry.seg.application.ui.p001"
+    ],
+    "layer": 5,
+    "status": "todo"
+  },
+  "parse_failures": [
+    [
+      "thirdparty/fmt/src/fmt-c.cc",
+      "parse-error"
+    ],
+    [
+      "thirdparty/fmt/src/fmt.cc",
+      "parse-error"
+    ],
+    [
+      "thirdparty/fmt/src/format.cc",
+      "parse-error"
+    ],
+    [
+      "thirdparty/fmt/src/os.cc",
+      "parse-error"
+    ]
+  ],
+  "provenance": {
+    "aggregation_extractor_sha256": "49935b1e7fc27867bcf62274ed4ca30d2317ef1d10177b2bb99fe6c5b01e161b",
+    "cache_reused_commands": 2511,
+    "commands_attempted": 2511,
+    "compile_commands_count": 2511,
+    "compile_commands_sha256": "bc402ade70f0304ed5018793a5d8c37749df978dfd7859ee87e655ee3a616196",
+    "definition_endpoint_policy": "Call and override endpoints resolve to the body defined in the reporting TU; an endpoint without a TU-local definition reaches every body sharing its USR",
+    "extractor_sha256": "e1548c1fe920a05d882e3f2de1c14843ca0e7b3b04ca9441d4132e16de77b88d",
+    "gate_complete": false,
+    "generated_sources_manifest_sha256": "a2466270bdf4aec52b7b8267140ac4b18c8295520c5b94e1ecb3dc8498dacb34",
+    "parse_cache_replay": {
+      "aggregation_extractor_sha256": "49935b1e7fc27867bcf62274ed4ca30d2317ef1d10177b2bb99fe6c5b01e161b",
+      "parse_extractor_sha256": "e1548c1fe920a05d882e3f2de1c14843ca0e7b3b04ca9441d4132e16de77b88d",
+      "parse_runtime": "/home/karlvonrichter/kicad-port/corrected-review-v5/runner",
+      "parser_sha256": "5953ad9da3f9820cde4db4c60b5efebd9f5c2db34fc7b46df3d92da228094e4b",
+      "parses": 0
+    },
+    "parse_complete": false,
+    "source_inventory_sha256": "3d52afc68446cc7e00344409c2fc1ac6908ed5aa554f55d2501126885e5ee175"
+  },
+  "replay_graph_sha256": "c3b15c81ae167c540d1bfffe84a5eef3c5616291e65553557a53cac73ff0db54",
+  "replay_inventory_sha256": "b9d6bfe7ecf172a845760fbd4f04e1ae9b0f9ef34b3710bdc22361496ae5f715",
+  "source_manifest_sha256": "9fd04872118352d8ba6e54bb6c799a3087c2a0bf4d681dbb7afce07b7464eca9",
+  "split_graph_sha256": "2e6b5640b627463f91b6d84755beed118bb6bc583dded2a99a36efcb7e0a8b74",
+  "split_units_report_sha256": "a46484dc35194a7472499aac1abbbeadad87adfcc83272e3f460b1b57f37ccbe",
+  "v5_cache_record_set_sha256": "c973f106c250c6d97c393ff4a25298db1ab9b4e0371f3b4db47097dbcf09b819",
+  "v5_cache_records": 2511,
+  "v5_inputs_generated_sources_sha256": "a2466270bdf4aec52b7b8267140ac4b18c8295520c5b94e1ecb3dc8498dacb34",
+  "v5_original_graph_sha256": "40861e9ca678464cedc513561e6e559cbcb5f902bb5b221fe2b6c378fb803e18"
+}
