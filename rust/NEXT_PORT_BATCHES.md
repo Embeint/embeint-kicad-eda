@@ -16,8 +16,14 @@ source bodies with no behavioral finding; its ownership-note finding is fixed
 in head `0e9845fad7eb4f38fb7d2fe21cf6d56fc467ecbc`. Its dedicated SEG and geometry
 checks passed. Developer preflight timed out during dependency bootstrap on the
 isolated runner before Rust checks; [hosted fallback run 45726912995](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45726912995)
-was dispatched for that earlier head. SEG now imports accepted pow and awaits
-fresh CI at `24df53e57c`. Use accepted rust for new topics, never an open topic.
+was dispatched for that earlier head. SEG imported accepted pow at
+`24df53e57c` and completed all 24 checks (19 success, five inapplicable skips).
+After extractor #79 advanced rust, the parent imported that accepted delta as
+`b908f439a09859dab06aac21a06ddfebeebc9534`; final-head CI is required again.
+The import equals exactly the accepted extractor diff, and the resulting tree
+equals precomputed `d99888b961c00991a4917b1f9f44fdfffb73da9a`. SEG source
+and header deferrals are unchanged. Use accepted rust for new topics, never an
+open topic.
 
 Pow [PR #80](https://github.com/Embeint/embeint-kicad-eda/pull/80) is accepted:
 reviewed implementation `e055b8ff6b5ccb474db28f947cb65aeb05b1b9a1` passed Sol
@@ -46,7 +52,7 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 
 | Stream | Current assignment | Next dependency-ready work |
 | --- | --- | --- |
-| Geometry | SEG integration head `24df53e57c` awaits CI. Extractor PR #79 accepted as `4738a9c23f`; graph adoption assigned to Opus in the freed transform slot. Ellipse PR #81 delivered and reviewed, documentation corrected at `5c42b69677`. Opus also implementing distribute. | Adopt graph with final-head provenance; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
+| Geometry | SEG passed checks at `24df53e57c`, then imported accepted extractor #79 at `b908f439a0`; fresh CI required. Extractor accepted as `4738a9c23f`; graph adoption assigned to Opus in the freed transform slot. Ellipse PR #81 reviewed, documentation corrected at `5c42b69677`. Opus also implementing distribute. | Adopt graph with final-head provenance; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
 | Polygon operations | Engine PR #76 at `6f58bc73fa` awaits CI. Rectclip PR #77 reviewed, owner note corrected at `87e2913afa`, hosted checks pending. Transform PR #82 delivered and reviewed; reference prose corrected at `b2918f6b31`. Opus now implementing graph adoption as independent fallback. | Source p002 after accepted engine p001, then public wrapper headers after rectclip and p002. |
 | Core and general utilities | PR #73 passed all applicable checks at `26f11478b7`, then imported accepted extractor #79 at `ab6fd8f3ea`; fresh CI required. Map helpers PR #78 corrected at `1cadc88eb8`, independent Sol recheck passed; status partial pending target wx qualification. Opus assigned arc_construction as independent fallback. | Hold wx_stl_compat reuse until map helpers is accepted. Keep pure headers partial for allocation, stream, concurrency and scoped-timer gaps. Audit UI core headers before line-chain work. |
 | Numeric backends and spatial follow-ups | Pow PR #80 accepted. R-tree follow-up PR #83 at `813623a66b` passed Sol review, hosted checks pending. Opus now assigned poisson_disk. | Model newly exposed kimathLogOverflow host effects with explicit ownership/host assertion policy; further measured numeric and spatial gaps. Audit copy-on-write code before claiming a similar fixed-depth problem. |
