@@ -1,0 +1,103 @@
+{
+  "head": "48e156721a92296c99b4b9e8222a73855fadc30b",
+  "tree": "3fb9617db557e7b6d460c5e16d622a290c74a443",
+  "accepted_base": "70888b572202033a6522f2f271b10cc908f74dfe",
+  "hosted_merge": "ae030e14c0e52eb751e98a15d87569a374e1235b",
+  "hosted_merge_parents": [
+    "70888b572202033a6522f2f271b10cc908f74dfe",
+    "48e156721a92296c99b4b9e8222a73855fadc30b"
+  ],
+  "run": 45893397767,
+  "run_url": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45893397767",
+  "case_result": {
+    "unit": "libs.kimath.src.geometry.circle.application.ui.p001",
+    "status": "partial",
+    "action": "compare",
+    "mode": "partial",
+    "cases": 4978,
+    "compared": 4616,
+    "deferred": 362,
+    "failures": 0,
+    "unprocessed": 0,
+    "golden_checked": false,
+    "golden": {
+      "status": "not_requested"
+    },
+    "run_faults": [],
+    "extra_replies": [],
+    "cases_sha256": "1d4169c251f4c13172137a0d513dabce662a070f715d41fcf1a0c48f8e70612a",
+    "oracle_output_sha256": "d765f24265ffcd77bb390b203fa88dd7b1292922512aa1feec627013f8e751e9",
+    "rust_output_sha256": "88c447917d4d60e90b8e9fe3ccb332049b421f090b49b0be3913dc9096c763df",
+    "oracle_sha256": "b3df98b7154a9aad8263e86d4fad99c6471f37b74eb0c304ab234c8636e92c3f",
+    "rust_sha256": "ee2483a454029bd2a869381067b10d67dac3c57e37c42f55fc7899f1cb8fa31a"
+  },
+  "target": {
+    "compilers": {
+      "/usr/bin/g++": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+    },
+    "compiler_targets": {
+      "/usr/bin/g++": "x86_64-linux-gnu"
+    },
+    "system_libc_version": "glibc 2.39",
+    "wx_version": "3.2.4",
+    "kicad_pin": "4cf939778df04d2b747bb2c4714fc5014a7565c7",
+    "floating_point": {
+      "contract": "off",
+      "fast_math": false
+    },
+    "reference_file_count": 918
+  },
+  "oracle_sha256": "b3df98b7154a9aad8263e86d4fad99c6471f37b74eb0c304ab234c8636e92c3f",
+  "artifact_sha256": {
+    "circle-live-45893397767\\circle-native\\compare.json": "2978d4bafc4ae7868bbd71ad3998a932bf0ec75f5bb9c8f0866e00416587eb42",
+    "circle-live-45893397767\\circle-stage\\source-manifest.json": "4f7f1a0cd5b0e6f8852f9f8522c22ef4e67a377686a8317901998990983c3690",
+    "circle-live-45893397767\\circle-native\\oracle-build\\binary.sha256": "0bed69363344735545bd5f9ab66057ab5d1eb50bbea2c746d19e8c7f424d76f7",
+    "circle-live-45893397767\\circle-native\\oracle-build\\compile_commands.json": "6e89db8d1dede33c7d64e267dbb5778a455e046293f5fc707e5e0913198b5a9c",
+    "circle-live-45893397767\\circle-native\\oracle-build\\kicad-oracle": "b3df98b7154a9aad8263e86d4fad99c6471f37b74eb0c304ab234c8636e92c3f",
+    "circle-live-45893397767\\circle-native\\oracle-build\\oracle-provenance.json": "26378209682f36f5bef59edf511060fd5a822d05e752b1914617ffdc338958e0"
+  },
+  "hosted_log_sha256": "3e75be9e2b230c290926a31dd0a050da0466c3faf6ee6cb0641528e54e00bb91",
+  "relevant_log_lines": [
+    "circle-live\tCheck portable implementation, generated corpus and controls\t2026-11-26T20:55:26.8734186Z 4978 public cases, 81 undefined-domain controls",
+    "circle-live\tCompare every public case and separate undefined-domain controls\t\ufeff2026-11-26T20:59:03.5130075Z ##[group]Run out=\"$RUNNER_TEMP/circle-native\"",
+    "circle-live\tCompare every public case and separate undefined-domain controls\t2026-11-26T20:59:03.5130394Z ^[[36;1mout=\"$RUNNER_TEMP/circle-native\"^[[0m",
+    "circle-live\tCompare every public case and separate undefined-domain controls\t2026-11-26T20:59:03.5130686Z ^[[36;1mrust/target/debug/kicad-difftest compare --partial \\^[[0m",
+    "circle-live\tCompare every public case and separate undefined-domain controls\t2026-11-26T20:59:03.5131085Z ^[[36;1m  --unit libs.kimath.src.geometry.circle.application.ui.p001 --root \"$PWD\" \\^[[0m",
+    "circle-live\tCompare every public case and separate undefined-domain controls\t2026-11-26T20:59:03.5131597Z ^[[36;1m  --oracle \"$out/oracle-build/kicad-oracle\" --rust \"$PWD/rust/target/debug/kicad-circle-shim\" \\^[[0m",
+    "circle-live\tCompare every public case and separate undefined-domain controls\t2026-11-26T20:59:03.5131976Z ^[[36;1m  --report \"$out/compare.json\"^[[0m",
+    "circle-live\tCompare every public case and separate undefined-domain controls\t2026-11-26T20:59:03.5132264Z ^[[36;1mpython3 rust/kicad-circle-shim/compare_controls.py \\^[[0m",
+    "circle-live\tCompare every public case and separate undefined-domain controls\t2026-11-26T20:59:03.5132667Z ^[[36;1m  --oracle \"$out/oracle-build/kicad-oracle\" --rust \"$PWD/rust/target/debug/kicad-circle-shim\"^[[0m",
+    "circle-live\tCompare every public case and separate undefined-domain controls\t2026-11-26T20:59:03.5170307Z shell: /usr/bin/bash -e {0}",
+    "circle-live\tCompare every public case and separate undefined-domain controls\t2026-11-26T20:59:03.5170527Z env:",
+    "circle-live\tCompare every public case and separate undefined-domain controls\t2026-11-26T20:59:03.5170706Z   CARGO_BUILD_JOBS: 2",
+    "circle-live\tCompare every public case and separate undefined-domain controls\t2026-11-26T20:59:03.5170889Z   ORACLE_JOBS: 2",
+    "circle-live\tCompare every public case and separate undefined-domain controls\t2026-11-26T20:59:03.5171138Z   GLIBC_TUNABLES: glibc.cpu.hwcaps=-AVX,-AVX2,-FMA,-FMA4,-AVX512F",
+    "circle-live\tCompare every public case and separate undefined-domain controls\t2026-11-26T20:59:03.5171488Z   LD_LIBRARY_PATH: ",
+    "circle-live\tCompare every public case and separate undefined-domain controls\t2026-11-26T20:59:03.5171665Z ##[endgroup]",
+    "circle-live\tCompare every public case and separate undefined-domain controls\t2026-11-26T20:59:05.0864419Z {\"unit\":\"libs.kimath.src.geometry.circle.application.ui.p001\",\"status\":\"partial\",\"action\":\"compare\",\"mode\":\"partial\",\"cases\":4978,\"compared\":4616,\"deferred\":362,\"failures\":0,\"unprocessed\":0,\"golden_checked\":false,\"golden\":\"not_requested\",\"run_faults\":[],\"extra_replies\":[],\"rust_sha256\":\"ee2483a454029bd2a869381067b10d67dac3c57e37c42f55fc7899f1cb8fa31a\",\"cases_sha256\":\"1d4169c251f4c13172137a0d513dabce662a070f715d41fcf1a0c48f8e70612a\",\"oracle_output_sha256\":\"d765f24265ffcd77bb390b203fa88dd7b1292922512aa1feec627013f8e751e9\",\"rust_output_sha256\":\"88c447917d4d60e90b8e9fe3ccb332049b421f090b49b0be3913dc9096c763df\",\"oracle_sha256\":\"b3df98b7154a9aad8263e86d4fad99c6471f37b74eb0c304ab234c8636e92c3f\"}",
+    "circle-live\tCompare every public case and separate undefined-domain controls\t2026-11-26T20:59:05.1545541Z 81 undefined-domain controls checked on 2 program(s): {'contains': 29, 'furthest_i32': 10, 'intersect_circle': 4, 'intersect_circle (after Rust deferral)': 4, 'intersect_line': 12, 'intersect_seg': 12, 'nearest_i32': 10}",
+    "circle-live\tExecute every case and control in import-free WebAssembly\t2026-11-26T20:59:13.3330049Z Every circle case and control agrees with newly executed native Rust replies (including deferrals and refusals) in import-free wasm; Node v22.23.5, V8 12.4.254.21-node.57"
+  ],
+  "independent_review": {
+    "model": "gpt-6.1-sol",
+    "task": "rust-review-circle95-sol61-20261127",
+    "status": "starting at dispatch; pending"
+  },
+  "controls": {
+    "total": 81,
+    "matching_refusals": 77,
+    "oracle_refusal_after_prior_rust_deferral": 4
+  },
+  "wasm_scope": "5059 public/control requests agree with native Rust, not raw C++ parity on deferred paths.",
+  "fallback": {
+    "cancelled_offline_run": 45893393494,
+    "hosted_fallback_run": 45896654915,
+    "status_at_dispatch": "pending"
+  },
+  "limits": [
+    "ConstructFromTanTanPt entirely deferred at genuine SEG::Square; seam tests are not oracle evidence.",
+    "Nonempty circle intersection defers at RotatePoint.",
+    "Tan-tan sufficient-domain harness bound is not a C++ UB/domain claim.",
+    "Unit partial, no golden; fresh independent review pending."
+  ]
+}

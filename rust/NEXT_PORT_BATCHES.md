@@ -11,6 +11,32 @@ receives an independent Sol 6.1 review of its exact head.
 
 ## Current integration and correction queue
 
+Latest completion/quota update: circle #95 delivered at
+`48e156721a92296c99b4b9e8222a73855fadc30b`, with all 13 source bodies and
+continuations implemented. The parent verified scoped hosted target run
+45893397767: 4,978 cases, 4,616 exact, 362 deferred, zero failures on GCC 13.3/
+glibc 2.39/wx 3.2.4. Controls are 77 matching refusals plus four oracle refusals
+after a prior Rust RotatePoint deferral; wasm parity is against native Rust on
+all 5,059 requests. Global rust-port and other applicable live jobs pass.
+Fresh Sol 6.1 review `rust-review-circle95-sol61-20261127` is pending; partial,
+no golden and stated tan-tan/intersection harness gaps remain. Isolated preflight
+45893393494 is replaced by hosted fallback 45896654915, pending.
+[Target evidence](validation/2026-11-27-circle/README.md).
+
+The core #92 correction task then hit another 429 quota failure, reporting a
+reset after 4h16m30s. No retry/substitute or new implementation refill was
+submitted after that failure. Original checkout/claim remains exclusive at
+local commit `80e7fdad4e5879bfe2c005f55d5ea5377172e1b6`, with substantial
+staged/unstaged corrections, a local stack_dst compatibility patch and two
+untracked fixture modules. Private working/index patches, untracked ZIP, local
+commit bundle and hashes preserve it; no source edit or validation/approval is
+inferred from this backup. Do not dispatch a duplicate if the provider later
+automatically resumes this task. wx #93 and engine/offset assignments remain
+unfinished as last dispatched; circle has moved to review. There are no longer
+four active implementers. Review/CI/evidence work can continue without claiming
+the requested Opus route is available for another implementation dispatch.
+
+
 Unix policy #89 is accepted as `925fab5de0c5721d0bd5c82c370386ea26e22001`.
 All applicable hosted checks and exact-head hosted fallback `45856821086`
 passed; the rebase merge preserved tested tree

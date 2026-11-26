@@ -21,3 +21,11 @@ wait for corrected concrete heads; no readiness claim or golden follows from
 dispatch. The fourth engine/offset source p002 refill is dispatched in a separate
 tool-prepared checkout from accepted rust; its scoped claim is pending. Dispatch
 is not a qualification result.
+
+Core #92's correction task subsequently stopped on another 429 quota failure
+(reported reset after 4h16m30s). Local commit 80e7fdad4e and all staged/unstaged/
+untracked work are preserved in a private bundle/patch/ZIP/hash backup. No new
+retry, substitute model or timer is created. Its original checkout and claim
+remain exclusive in case of provider-driven resumption. Circle #95 has delivered
+and is now under a fresh independent review; four active implementations are
+not claimed.
