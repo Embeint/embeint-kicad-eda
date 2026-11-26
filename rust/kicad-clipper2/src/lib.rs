@@ -46,6 +46,7 @@ use std::borrow::Cow;
 pub mod clipper_core;
 pub mod clipper_engine;
 pub mod engine_p001;
+pub mod rectclip;
 pub mod stream;
 
 pub use crate::clipper_core::*;
