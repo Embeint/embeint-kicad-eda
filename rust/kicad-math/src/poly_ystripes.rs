@@ -215,12 +215,16 @@ fn seg_square(_accuracy: i32) -> GeometryResult<i64> {
         "libs.kimath.include.geometry.application.ui.p003",
     )
 }
-fn seg_squared_distance(_a: Vector2I, _b: Vector2I, _point: Vector2I) -> GeometryResult<i64> {
-    // UNPORTED(libs.kimath.src.geometry.seg.application.ui.p001): SEG::SquaredDistance
-    missing(
-        "SEG::SquaredDistance",
-        "libs.kimath.src.geometry.seg.application.ui.p001",
-    )
+/// `SEG( e.A, e.B ).SquaredDistance( aPoint )`.
+fn seg_squared_distance(a: Vector2I, b: Vector2I, point: Vector2I) -> GeometryResult<i64> {
+    crate::seg::Seg::new(a, b)
+        .squared_distance_point(point)
+        .map_err(|error| match error {
+            crate::seg::SegError::Unported { upstream, unit } => {
+                GeometryError::Unported { upstream, unit }
+            }
+            crate::seg::SegError::Undefined => GeometryError::IntegerOverflow,
+        })
 }
 
 impl Default for PolyYstripesIndex {

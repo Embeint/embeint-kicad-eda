@@ -124,6 +124,14 @@ list( APPEND ORACLE_SHIMS "${CLIPPER2_SHIM}" )
 set( CORE_INCLUDE_SHIM "${ORACLE_OVERLAY}/shims/core_include_p001.cpp" )
 list( REMOVE_ITEM ORACLE_SHIMS "${CORE_INCLUDE_SHIM}" )
 list( APPEND ORACLE_SHIMS "${CORE_INCLUDE_SHIM}" )
+# The engine source adapter compiles the pinned clipper.engine.cpp itself into its translation
+# unit (in a renamed namespace) to reach its private and file-local bodies; it follows the
+# header adapter so no earlier weak definition changes.
+set( CLIPPER2_ENGINE_P001_SHIM "${ORACLE_OVERLAY}/shims/clipper2_engine_p001.cpp" )
+list( REMOVE_ITEM ORACLE_SHIMS "${CLIPPER2_ENGINE_P001_SHIM}" )
+list( APPEND ORACLE_SHIMS "${CLIPPER2_ENGINE_P001_SHIM}" )
+set_source_files_properties( "${CLIPPER2_ENGINE_P001_SHIM}" PROPERTIES INCLUDE_DIRECTORIES
+                             "${KICAD_REFERENCE_SOURCE}/thirdparty/clipper2/Clipper2Lib/src" )
 set( GEOMETRY_SHIM "${ORACLE_OVERLAY}/shims/geometry_headers.cpp" )
 list( REMOVE_ITEM ORACLE_SHIMS "${GEOMETRY_SHIM}" )
 list( APPEND ORACLE_SHIMS "${GEOMETRY_SHIM}" )

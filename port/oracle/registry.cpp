@@ -19,8 +19,10 @@ void RegisterCowPackedRtree( REGISTRY& aRegistry );
 void RegisterEdaAngleSource( REGISTRY& aRegistry );
 void RegisterArcChordParams( REGISTRY& aRegistry );
 void RegisterClipper2CoreEngine( REGISTRY& aRegistry );
+void RegisterClipper2EngineP001( REGISTRY& aRegistry );
 void RegisterCoreP001( REGISTRY& aRegistry );
 void RegisterCoreIncludeP001( REGISTRY& aRegistry );
+void RegisterSeg( REGISTRY& aRegistry );
 void RegisterClipper2RectClip( REGISTRY& aRegistry );
 
 
@@ -53,8 +55,10 @@ REGISTRY MakeRegistry()
     RegisterEdaAngleSource( registry );
     RegisterArcChordParams( registry );
     RegisterClipper2CoreEngine( registry );
+    RegisterClipper2EngineP001( registry );
     RegisterCoreP001( registry );
     RegisterCoreIncludeP001( registry );
+    RegisterSeg( registry );
     RegisterClipper2RectClip( registry );
     return registry;
 }

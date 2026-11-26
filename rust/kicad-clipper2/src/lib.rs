@@ -37,13 +37,15 @@
 //! changes the result of a valid input within the budget.
 //!
 //! Engine bodies written in `clipper.engine.cpp` belong to the
-//! `thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p001`/`p002` units; header bodies
-//! that call them return [`ClipperError::Unported`] at that call, naming the owning unit.
+//! `thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p001`/`p002` units. Lines 1-2271 (unit
+//! p001) are ported in [`engine_p001`]; header and engine bodies that call lines 2272 onward
+//! return [`ClipperError::Unported`] at that call, naming the owning unit.
 
 use std::borrow::Cow;
 
 pub mod clipper_core;
 pub mod clipper_engine;
+pub mod engine_p001;
 pub mod rectclip;
 pub mod stream;
 
