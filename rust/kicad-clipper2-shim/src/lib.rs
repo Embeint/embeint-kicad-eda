@@ -1067,10 +1067,10 @@ fn write_tree<K: TreeOps>(tree: &PolyTree<K::T>) -> R<Value> {
     }
 }
 
-/// Harness guard mirroring `GUARD::StripeIndex` in the C++ adapter. `StripeIndex::BuildFromPath`
-/// and `PointInPolygon` belong to the engine source unit and stay deferred in the port; the
-/// adapter refuses the inputs on which their pinned arithmetic is undefined before calling them,
-/// so this shim refuses the same inputs for the same reason. It computes no result.
+/// Harness guard mirroring `GUARD::StripeIndex` in the C++ adapter, which refuses the inputs on
+/// which the pinned `StripeIndex` arithmetic is undefined before calling it. The port
+/// (`kicad_clipper2::engine_p001`) refuses the same inputs itself; this guard keeps the refusal
+/// envelope identical. It computes no result.
 fn stripe_index_guard(path: &[Point64], query: Option<&Point64>) -> R<()> {
     const OVERFLOW: E = E::Clip(ClipperError::Undefined("StripeIndex int64_t overflow"));
     let mut edges = Vec::new();
@@ -1199,7 +1199,7 @@ fn run_engine(op: &str, v: &Value) -> R<Value> {
                 }
                 "local_minima" => {
                     // flag selects the path type; a nonzero point z selects an open path.
-                    let vertex = VertexId(0);
+                    let vertex = VertexId { list: 0, index: 0 };
                     let polytype = if flag {
                         PathType::Clip
                     } else {
@@ -1321,12 +1321,12 @@ fn run_engine(op: &str, v: &Value) -> R<Value> {
             };
             let calls = Rc::new(RefCell::new(Vec::new()));
             if callback {
-                clipper.set_z_callback(Some(recorder(z, Rc::clone(&calls))));
+                clipper.set_z_callback(Some(recorder(z, Rc::clone(&calls))))?;
             }
             let mut result =
                 json!({"before": clipper.base.z_callback_kind() != ZCallbackKind::Empty});
             if op == "clipperd_check_callback" {
-                clipper.check_callback();
+                clipper.check_callback()?;
                 result["after"] = json!(clipper.base.z_callback_kind() != ZCallbackKind::Empty);
             }
             if invoke {

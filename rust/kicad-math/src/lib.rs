@@ -23,7 +23,9 @@
 //! `geometry/eda_angle.cpp` bodies to that type in [`eda_angle_source`].
 //!
 //! Unit `libs.kimath.src.geometry.arc_chord_params.application.pure.p001` owns
-//! [`arc_chord_params`] (`geometry/arc_chord_params.cpp`).
+//! [`arc_chord_params`] (`geometry/arc_chord_params.cpp`). Unit
+//! `libs.kimath.src.geometry.distribute.application.ui.p001` owns [`distribute`]
+//! (`geometry/distribute.cpp`).
 //!
 //! Unit `libs.kimath.include.math.application.thin.replacement.p001` owns [`vector2wx`]
 //! (`math/vector2wx.h`): the six wxPoint/wxSize conversions, on plain value stand-ins for
@@ -38,6 +40,7 @@
 extern crate self as kicad_math;
 
 pub mod arc_chord_params;
+pub mod distribute;
 pub mod eda_angle;
 pub mod eda_angle_source;
 mod fp;
@@ -45,6 +48,7 @@ pub mod geometry_headers;
 mod hypot;
 pub mod math_util;
 pub mod poly_ystripes;
+pub mod seg;
 
 // `generated.rs` is emitter output (sha256 d24ff0f2..., from the reviewed graph locks of the
 // pinned oracle; port/tools/kimath_nan/README.md). It is bound byte for byte by

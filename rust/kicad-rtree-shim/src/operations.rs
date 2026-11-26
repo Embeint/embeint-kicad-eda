@@ -7,6 +7,17 @@ use kicad_rtree_node::{RtreeNode, SlabArena, SlabNode};
 use serde_json::{json, Value};
 pub const UNIT: &str = "libs.kimath.include.geometry.rtree.application.pure.p001";
 const LIMIT: usize = 8192;
+/// Harness node budget. The C++ reference has none, and monotone fanout-3/4
+/// programs within the 4096-step limit reach millions of live nodes, so any
+/// finite constant here could refuse a valid request that C++ completes. The
+/// comparison host therefore imposes no node budget; requests are bounded by
+/// their step and entry limits. Portable tests exercise the budget itself.
+const NODE_BUDGET: usize = usize::MAX;
+/// Deepest root level whose nested `state` reply every consumer parses: the
+/// innermost array sits at container nesting 8 + 3 * level, and serde_json's
+/// default limit (used by the wasm replay) is 128, one stricter than the
+/// difftest parser. Deeper trees are observed with flat `topology` instead.
+const STATE_MAX_LEVEL: i32 = 39;
 #[derive(Clone, Debug, PartialEq)]
 struct Item(i64);
 impl NodeData for Item {}
@@ -71,6 +82,61 @@ fn results(out: &[(i64, Option<Item>)]) -> Value {
         .map(|(d, x)| json!([d, wire_item(x)]))
         .collect::<Vec<_>>())
 }
+fn bounds<E: Wire, const N: usize>(lo: &[E; N], hi: &[E; N]) -> (Vec<i64>, Vec<i64>) {
+    (
+        lo.iter().map(|e| e.widen()).collect(),
+        hi.iter().map(|e| e.widen()).collect(),
+    )
+}
+/// Flat breadth-first hierarchy: node indices are assigned in visiting order
+/// and internal entries name their child's index, so nesting depth is constant
+/// whatever the height. `active_nodes` is the tree's own allocation count,
+/// compared with the native count of reachable nodes.
+fn topology<E: Wire, const N: usize, const M: usize>(
+    tree: &DynamicRtree<Item, E, N, M>,
+) -> Outcome {
+    let mut nodes = Vec::new();
+    let mut levels: Vec<usize> = Vec::new();
+    let mut queue = std::collections::VecDeque::new();
+    let mut root_level = Value::Null;
+    if let Some(root) = tree.root_handle() {
+        root_level = json!(tree.node(&root).map_err(|e| e.to_string())?.level);
+        queue.push_back(root);
+    }
+    let mut next = 1usize;
+    while let Some(h) = queue.pop_front() {
+        let node = tree.node(&h).map_err(|e| e.to_string())?;
+        let level = usize::try_from(node.level).map_err(|_| "negative level")?;
+        if levels.len() <= level {
+            levels.resize(level + 1, 0);
+        }
+        levels[level] += 1;
+        let mut children = Vec::new();
+        for i in 0..node.count as usize {
+            let (lo, hi) = node.get_child_bounds(i).map_err(|e| e.to_string())?;
+            let (min, max) = bounds(&lo, &hi);
+            if node.is_leaf() {
+                let (il, ih) = node.get_insert_bounds(i).map_err(|e| e.to_string())?;
+                let (insert_min, insert_max) = bounds(&il, &ih);
+                let item = wire_item(&node.data(i).map_err(|e| e.to_string())?.cloned());
+                children.push(json!({"min":min,"max":max,"insert_min":insert_min,"insert_max":insert_max,"item":item}));
+            } else {
+                let child = node
+                    .child(i)
+                    .map_err(|e| e.to_string())?
+                    .ok_or("missing child")?;
+                queue.push_back(child.clone());
+                children.push(json!({"min":min,"max":max,"child":next}));
+                next += 1;
+            }
+        }
+        nodes.push(json!({"level":node.level,"children":children}));
+    }
+    Ok(
+        json!({"size":tree.len(),"empty":tree.is_empty(),"memory":tree.memory_usage().map_err(|e|e.to_string())?,
+        "active_nodes":tree.active_nodes(),"root_level":root_level,"levels":levels,"nodes":nodes}),
+    )
+}
 fn snapshot<E: Wire, const N: usize, const M: usize>(
     tree: &DynamicRtree<Item, E, N, M>,
     h: &NodeHandle,
@@ -93,8 +159,8 @@ fn snapshot<E: Wire, const N: usize, const M: usize>(
 }
 fn program<E: Wire, const N: usize, const M: usize>(steps: &[Value]) -> Outcome {
     let mut trees = [
-        DynamicRtree::<Item, E, N, M>::new(LIMIT).map_err(|e| e.to_string())?,
-        DynamicRtree::<Item, E, N, M>::new(LIMIT).map_err(|e| e.to_string())?,
+        DynamicRtree::<Item, E, N, M>::new(LIMIT, NODE_BUDGET).map_err(|e| e.to_string())?,
+        DynamicRtree::<Item, E, N, M>::new(LIMIT, NODE_BUDGET).map_err(|e| e.to_string())?,
     ];
     let mut events = Vec::new();
     for s in steps {
@@ -150,12 +216,21 @@ fn program<E: Wire, const N: usize, const M: usize>(steps: &[Value]) -> Outcome 
             }
             "state" => {
                 keys(s, &["op", "a"])?;
+                if let Some(root) = trees[a].root_handle() {
+                    if trees[a].node(&root).map_err(|e| e.to_string())?.level > STATE_MAX_LEVEL {
+                        return Err("state nesting exceeds protocol depth".into());
+                    }
+                }
                 let root = trees[a]
                     .root_handle()
                     .map(|h| snapshot(&trees[a], &h))
                     .transpose()?
                     .unwrap_or(Value::Null);
                 json!({"size":trees[a].len(),"empty":trees[a].is_empty(),"memory":trees[a].memory_usage().map_err(|e|e.to_string())?,"root":root})
+            }
+            "topology" => {
+                keys(s, &["op", "a"])?;
+                topology(&trees[a])?
             }
             "iterate" => {
                 keys(s, &["op", "a", "skip", "take"])?;
