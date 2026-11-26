@@ -235,6 +235,15 @@ commands, hashes and scoped limitations.
 The unit stays partial, with no blessed golden and the inherited wx/harness
 qualification limits retained.
 
+Runner inspection found `proxmox-kicad-isolated-01` still offline. Policy's
+queued isolated developer preflight `45852707850` was cancelled, and the existing
+`use_hosted=true` fallback was dispatched as
+[run 45856821086](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45856821086).
+Its workflow head is the same reviewed `4f482553db`, and it is in progress.
+This supplies ordinary developer preflight on the available hosted runner;
+manual numerical/source reference evidence is recorded separately above.
+Repository settings and required checks are unchanged.
+
 The freed implementation stream is assigned
 `libs.core.application.thin.replacement.p001` (`wx_stl_compat.cpp`), reusing
 accepted wxString/wxPoint/wxSize models. Draft #93 at
