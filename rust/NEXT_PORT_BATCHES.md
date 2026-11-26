@@ -83,7 +83,7 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 | Geometry | SEG awaits fresh CI at `b908f439a0`. Ellipse #81 target repair at `fb6dd8632c` passed fresh Sol review; hosted CI pending. Distribute #84 and hypot #88 passed Sol review, hosted CI pending. Core utility header assignment interrupted by provider failure before implementation. | Resume existing assignment when routing works; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
 | Polygon operations | Engine #76 awaits fresh CI at `401ebc2624`; rectclip #77 at `b88832a7d2`. Transform #82 reviewed at source head with prose fix `b2918f6b31`. Graph-adoption work is preserved but interrupted by provider failure. | Resume graph adoption with final-head provenance; source p002 after accepted engine p001, then wrapper headers after rectclip and p002. |
 | Core and general utilities | PR #73 accepted as `7a984a76e8`, retaining partial contracts. Map helpers #78 at `d8ab26658f`, arc #85 at `207f67b2cb` and vector2wx #86 at `3861aaa7b2` await final integration checks. Unix policy #89 local work is preserved; provider interrupted. | Recover existing claim without a duplicate port. Hold wx_stl_compat reuse until map helpers acceptance; keep pure-header partial contracts explicit. |
-| Numeric backends and spatial follow-ups | Pow #80 accepted. R-tree #83 and poisson #87 passed source review, hosted checks pending. Unix driver/system-info claim #90 has preserved local implementation work; provider interrupted. | Recover existing claim without a duplicate port. Keep logging host-effect and copy-on-write audits queued. |
+| Numeric backends and spatial follow-ups | Pow #80 accepted. R-tree #83 awaits final integration checks. Poisson #87 standalone wasm lockfile failure fixed and accepted core imported at `19e7851592`; fresh CI required. Unix driver/system-info claim #90 local work is preserved; provider interrupted. | Recover existing claim without a duplicate port. Keep logging host-effect and copy-on-write audits queued. |
 
 On each implementation completion, immediately inspect the result, start the
 independent Sol review and select the next unclaimed dependency-ready assignment.
@@ -311,7 +311,7 @@ Keep one unit per claim/PR, even if one worker handles several sequentially.
 | B | `transform.cpp` — 127 lines; delivered PR #82 | Sol found no implementation defect; local-reference prose fixed at `b2918f6b31`. Final-head hosted CI pending. |
 | C | `arc_construction.cpp` — 207 lines; delivered PR #85 | Sol source review passed; co-port notes fixed. Stale util/box caller count assertion and scoped workflow corrected at `207f67b2cb`; fresh hosted CI pending. |
 | D | `distribute.cpp` — 89 lines; delivered PR #84 | Sol independently replayed all 2,758 cases and 679 controls at `33fa41f687` without findings; hosted reference CI pending. |
-| E | `poisson_disk.cpp` — 143 lines; delivered PR #87 | Sol found no correctness defect in sampling, RNG or resource handling. Qualification prose fixed at `bed62f0c5b`; final-head hosted CI pending. |
+| E | `poisson_disk.cpp` — 143 lines; delivered PR #87 | Sol source review passed. Standalone wasm lockfile fixed, early guard added and accepted core imported at `19e7851592`; fresh hosted CI pending. |
 | F | `vector2wx.h` — 56 lines; delivered PR #86 | Sol found no correctness blocker; wasm evidence comment corrected at `3861aaa7b2`. Final-head hosted CI pending. |
 | G | Unix `policy.cpp` — 35 lines; provider interrupted, claim #89 | Two genuine constant-return platform bodies; retain the ignored key argument without importing wxString behavior. Recover existing local work. |
 | H | Unix `drivers.cpp` + `sysinfo.cpp` — 70 lines; provider interrupted, claim #90 | Six genuine platform bodies; unchanged initialized output parameters, empty lifecycle and no synthetic OS queries. Recover existing local work. |
@@ -520,6 +520,22 @@ and the local Boost 1.90/glibc 2.43 run does not certify the target GCC 13 /
 Boost 1.83 / glibc 2.39 environment. Final-head hosted checks remain required.
 The new GPL/Boost-licensed random crate and source provenance require continued
 review when its consumers expand beyond this qualified engine/distribution use.
+
+Poisson #87's glibc-libm run 45738462726 failed because the independent wasm
+qualification Cargo.lock omitted the new local Boost dependency of kicad-math.
+The locked build stopped before import-free wasm comparisons; those comparisons
+were not run. Cargo regenerated the lockfile without numerical or dependency
+version changes. An early locked-metadata check now catches this before
+qualification record generation, and was tested against both stale and fresh
+lockfiles. Locked debug/release wasm builds pass locally with no host imports.
+
+Final correction head `19e78515922da5b50546203887e0e7f74c3cfedb` also imports
+accepted core `7a984a76e8`. Shared workspace and registry conflicts preserve
+both ports; the parent verified lock package unions and exact imported/owned
+source blobs. The computed merge tree equals head tree
+`5511099ced7e40affba49215073429a1534dffae`. Sampling, RNG and numerical
+implementations are unchanged. Fresh hosted checks must complete every required
+comparison; the earlier missing wasm results are not waived.
 
 The freed stream takes `libs.kiplatform.os.unix.application.pure.p001`:
 Valid3DConnexionDriverVersion, the empty SYSINFO constructor/destructor and
