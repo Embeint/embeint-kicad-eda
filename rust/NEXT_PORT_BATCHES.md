@@ -31,9 +31,9 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 
 | Stream | Current assignment | Next dependency-ready work |
 | --- | --- | --- |
-| Geometry | SEG PR #74 reviewed; dedicated checks passed, hosted preflight fallback underway after isolated-runner bootstrap timeout. Opus investigating/fixing the geometry-to-VRML extractor collision. | `circle.cpp` after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. Use ellipse or transform if acceptance/regeneration blocks the chain. |
+| Geometry | SEG PR #74 awaits hosted preflight fallback; extractor tool fix PR #79 at `664493feb0` in Sol review, graph adoption still pending. Opus assigned independent ellipse source unit. | Adopt graph after accepted tool fix; `circle.cpp` after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. Transform is further independent fallback work. |
 | Polygon operations | PR #76 cleanup-observation fix at `d138e88437` accepted by Sol as explicitly partial pending CI; Opus assigned independent rectclip source p003. Local header deferrals reduced from 31 to 14. | Source p002 after accepted p001; then public wrapper headers after rectclip and p002. |
-| Core and general utilities | PR #73 review documentation corrected at `5d99a6f8a1`; Sol replay agrees on 669 new and 6,227 existing cases. Opus assigned independent map_helpers header unit. | Keep pure headers partial for allocation, stream, concurrency and scoped-timer gaps even after CI. Audit UI core headers before line-chain work; small-unit queue follows map helpers. |
+| Core and general utilities | PR #73 review documentation corrected at `5d99a6f8a1`; hosted preflight fallback dispatched after isolated-runner cancellation during workspace tests. Opus assigned independent map_helpers header unit. | Keep pure headers partial for allocation, stream, concurrency and scoped-timer gaps even after CI. Audit UI core headers before line-chain work; small-unit queue follows map helpers. |
 | Numeric backends and spatial follow-ups | Opus implementing pinned glibc `pow` | R-tree depth-limit removal; further measured math/backend gaps, with explicit ownership and source-derived scope. |
 
 On each implementation completion, immediately inspect the result, start the
@@ -79,6 +79,13 @@ the review documentation fix and assigned the next independent core unit
 source p003) to Opus. These are new work assignments, not repeated retries of the
 failed long-context run; any further provider refusal remains a visible blocker.
 
+Core preflight run 45725447405 was cancelled during workspace testing, with no
+test assertion failure in the retained log; its core tests had passed. The exact
+cancellation cause is not established. [Hosted fallback run 45727170169](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45727170169)
+was dispatched for the unchanged reviewed head `5d99a6f8a1`. Do not describe this
+as the same bootstrap timeout observed on SEG or count the interrupted run as a
+completed workspace validation.
+
 ## Recommended next assignments
 
 | Order | Assignment | Start condition | Result to demonstrate |
@@ -94,6 +101,17 @@ dependency, review or build lock holds up one of those streams.
 Reviews begin only after a concrete implementation head is available.
 
 ## Geometry dependency audit
+
+Tool fix delivered as [PR #79](https://github.com/Embeint/embeint-kicad-eda/pull/79),
+head `664493feb0684460b82ad9580d972cb6a7a5b27a`, now in independent Sol review.
+It resolves endpoints to each TU's local definition before aggregation while
+retaining all-body fallback for declaration-only cross-TU calls. Reported V5
+cache replay removes 1,798 edges, including 32 SHAPE cross-edges, without function,
+copy or wx-classification changes. The replay retains the original four fmt
+parse failures; it is not new completeness evidence. Canonical graph/units are
+unchanged: adoption is a separate post-review task, including retained generated
+dependency capture, provenance, measurement, drift and accounting updates. The
+committed p003-to-VRML scheduling edge remains until that adoption is accepted.
 
 The current unit records do **not** make `trigo.cpp`, `shape_arc.cpp` or
 `intersection.cpp` ready after SEG alone. `trigo.cpp` also requires
