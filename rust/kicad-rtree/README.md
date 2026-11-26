@@ -22,7 +22,7 @@ use kicad_rtree::{DynamicRtree, NodeData};
 struct Item(u64); // request/document-local pointer identity
 impl NodeData for Item {}
 fn example() -> Result<(), kicad_rtree::Error> {
-    let mut tree = DynamicRtree::<Item, i32>::new(100_000)?;
+    let mut tree = DynamicRtree::<Item, i32>::new(100_000, 1_000_000)?;
     tree.insert([0, 0], [10, 10], Some(Item(7)))?;
     let mut hits = Vec::new();
     let found = tree.search([10, 10], [20, 20], &mut |item| {
@@ -101,22 +101,33 @@ component to `i64` before summing. Bulk conversion accepts negative fractions
 in `(-1,0)` because C++ truncates those to zero. Floating contraction stays off.
 
 The sealed accepted `Coord` trait supports `i32` and `i64`. Templates require
-positive dimensions and fanout >= 2. The public constructor takes an explicit
-maximum entry count. This is a host resource budget, not an assertion that
-larger native trees are undefined.
+positive dimensions and fanout >= 2. `DynamicRtree::new(max_entries, max_nodes)`
+takes two explicit, independent host budgets: stored items, and simultaneously
+allocated nodes (`active_nodes()` reports the count, maintained at every
+allocation and free). Neither asserts that larger native trees are undefined.
 
-Traversal, mutation paths and cursors also have a **fixed 64-level depth
-limit** (literal 64/65 checks on paths in `src/lib.rs` and the cursor stack in
-`src/iter.rs`). It is a constant, not a host-configurable budget, and it is a
-known gap: with fanout 3 or 4 the minimum fill is 1, so monotone insertion grows
-height roughly linearly (fanout 4, 1,200 sorted boxes refuses at insert 1,051
-near level 63), whereas C++ simply recurses deeper. The refusal is discovered
-after splits have changed nodes, so it marks the tree interrupted like
-undefined arithmetic below. KiCad's own `int,2,16`/`int,3,16` instantiations
-reach height 4 after 8,192 sorted inserts and cannot hit it. Replacing the
-fixed limit with explicit unbounded stacks plus a separate active-node budget
-(as the closed PR #60 did) is follow-up work.
-`ResourceLimit`, `Conversion`, `Overflow`, node errors and
+There is **no depth limit**. Every traversal whose depth is the tree height
+uses heap storage with fallible growth instead of native recursion: subtree
+choice paths, split propagation (a loop carrying the parent and new sibling
+entry, in the reference order), removal (explicit frames with the next slot to
+try and the reference post-descent continuation on success), visitor search
+(frames holding the node's remaining overlap mask, computed on entry), both
+cursors, postorder frees and nearest search (heap). Height is bounded only by
+the node budget. Forced reinsertion's nested insertion is not height-driven:
+overflow treatment is reached only for leaves, so the nesting is at most
+insert -> reinsert -> insert -> split loop. With fanout 3 or 4 the minimum fill
+is 1, so monotone insertion grows height linearly and live nodes roughly
+quadratically (fanout 3, 160 sorted 1D boxes: root level 79, 6,321 nodes; the
+earlier fixed limit refused these). KiCad's own `int,2,16`/`int,3,16`
+instantiations reach height 4 after 8,192 sorted inserts.
+
+A node-budget refusal (`NodeBudget`) for the first root of an empty tree
+changes nothing. Inside an insertion or orphan reinsertion it occurs after
+splits have changed nodes, so it marks the tree interrupted like undefined
+arithmetic below; `clear` then restores an empty tree with the same budgets.
+Bulk load computes its packed node count in advance and refuses before the old
+tree is touched.
+`ResourceLimit`, `NodeBudget`, `Conversion`, `Overflow`, node errors and
 `InterruptedMutation` are distinct typed refusals; no missing dependency is
 silently converted into a successful empty result. There are currently **zero
 Unported calls or dependency deferrals** for the supported interface.
@@ -126,7 +137,7 @@ marks the tree interrupted. Further spatial reads/edits refuse; `clear` then
 releases the entire arena and restores a usable empty tree. This avoids reporting
 success on partially changed topology. C++ defines no resulting state after that
 undefined operation. Entry-budget and bulk-conversion failures discovered before
-mutation preserve the old tree; the depth limit above does not. Read-only distance failure does not poison the
+mutation preserve the old tree, as do first-root and bulk node-budget refusals. Read-only distance failure does not poison the
 index; output has already been cleared, matching the evaluated native lifecycle.
 This is not a strong exception guarantee for actual allocation exhaustion.
 
@@ -156,7 +167,7 @@ is revision-specific; generated gcov records expose unexecuted instantiated path
 | Upstream bodies | Implementation / preserved branches | Observable test | Remaining limitation |
 | --- | --- | --- | --- |
 | constructor, destructor, move constructor/assignment; allocNode/freeNode/removeAllNodes | `new`, ownership drop, move methods, accepted slab calls, explicit postorder | empty/source reuse, populated target replacement, transferred handles, post-clear memory | allocation exhaustion; implicit drop has no separate externally observable free-list state |
-| Insert, insertImpl, chooseSubtree, chooseSubtreeAtLevel | `insert`, `insert_impl`, `choose`; overlap/area keys and first tie | leaf/internal growth; complete node hierarchy; query order after mixed insert/remove | depth guard 64; other coordinate/data types |
+| Insert, insertImpl, chooseSubtree, chooseSubtreeAtLevel | `insert`, `insert_impl`, `choose`; overlap/area keys and first tie | leaf/internal growth; complete node hierarchy; query order after mixed insert/remove; monotone fanout 3/4 to measured root level 79 | other coordinate/data types |
 | overflowTreatment, forcedReinsert, reinsertNode | `overflow`, `forced`, `reinsert_node`; masks, per-component cast, retained insertion boxes, level targeting | equal/touching/random distributions; nonroot reinserts; M=3 no-reinsert split fallback | level >= 32 fallback and forcedReinsert internal-node arm are implemented but not public-corpus reached |
 | splitNode, splitNodeInternal | `split` with separate leaf/general versus internal comparators and axis policies; recursive parent propagation | root/internal splits; min/max/distribution ties; actual topology | every winning-axis/distribution branch is not separately certified |
 | computeSplitPerimeters, findBestSplitIndex, computeSplitOverlap | checked `split_perimeters`, `best_split`, `split_overlap`; strict `lo >= hi` cutoff; earliest tied split | degenerate/touching boxes, equal keys, 1D/2D/3D | extreme overflow guards are Rust tests, not executed native UB |
@@ -169,6 +180,15 @@ is revision-specific; generated gcov records expose unexecuted instantiated path
 | SearchIterator constructors, advance, *, ++, ==, !=; SearchRange ctor/begin/end/empty; Overlapping | `Cursor` with owned query, `SearchRange`; inclusive child predicates; lazy descent | empty/matching/pruned ranges, early take, cached dereference and equality | same borrowing restriction |
 
 ## Status and validation
+
+**Depth follow-up.** The fixed 64/65-level guards are removed (audit in
+`port/findings/rtree-depth-limit-removal.md`). The corpus grows to **259
+programs / 76,820 steps**: the original 249 programs are byte-for-byte
+unchanged, and ten append deep monotone fanout-3/4 programs whose native root
+levels (79, 79 and 74) are measured through a new flat `topology` observation,
+plus a nested-state boundary at level 39. Refusal controls grow to **27**. The
+evidence for this revision is recorded in the finding and the PR; the
+historical paragraphs below describe the earlier revision unchanged.
 
 Status is **partial**, not green. Other ELEMTYPE/DATATYPE instantiations remain at
 the accepted node boundary; platform/library order and allocation failures remain

@@ -5,6 +5,7 @@
 #include <geometry/rtree/dynamic_rtree.h>
 #include <array>
 #include <cmath>
+#include <deque>
 #include <optional>
 #include <string>
 
@@ -12,6 +13,11 @@ namespace
 {
 using oracle::JSON;
 constexpr int LIMIT = 8192;
+// Deepest root level whose nested state reply every consumer parses: the
+// innermost array sits at container nesting 8 + 3 * level, and serde_json's
+// default limit (used by the wasm replay) is 128. Deeper trees are observed
+// with the flat topology operation instead.
+constexpr int STATE_MAX_LEVEL = 39;
 struct ITEM
 {
     int tag;
@@ -144,6 +150,58 @@ JSON Snapshot( const KIRTREE::RTREE_NODE<ITEM*, E, D, M>* aNode )
         children.push_back( child );
     }
     return { { "level", aNode->level }, { "children", children } };
+}
+
+// Flat breadth-first hierarchy with constant nesting depth: node indices follow
+// visiting order and internal entries name their child's index. active_nodes is
+// the number of reachable live nodes, compared with Rust's allocation count.
+template <class E, int D, int M, class TREE>
+JSON Topology( const TREE& aTree, const KIRTREE::RTREE_NODE<ITEM*, E, D, M>* aRoot )
+{
+    using NODE = KIRTREE::RTREE_NODE<ITEM*, E, D, M>;
+    JSON                    nodes = JSON::array();
+    std::vector<size_t>     levels;
+    std::deque<const NODE*> queue;
+    if( aRoot )
+        queue.push_back( aRoot );
+    size_t next = 1;
+    while( !queue.empty() )
+    {
+        const NODE* node = queue.front();
+        queue.pop_front();
+        if( levels.size() <= static_cast<size_t>( node->level ) )
+            levels.resize( node->level + 1, 0 );
+        ++levels[node->level];
+        JSON children = JSON::array();
+        for( int i = 0; i < node->count; ++i )
+        {
+            E lo[D], hi[D];
+            node->GetChildBounds( i, lo, hi );
+            JSON child = { { "min", lo }, { "max", hi } };
+            if( node->IsLeaf() )
+            {
+                E il[D], ih[D];
+                node->GetInsertBounds( i, il, ih );
+                child["insert_min"] = il;
+                child["insert_max"] = ih;
+                child["item"] = WireItem( node->data[i] );
+            }
+            else
+            {
+                queue.push_back( node->children[i] );
+                child["child"] = next++;
+            }
+            children.push_back( child );
+        }
+        nodes.push_back( { { "level", node->level }, { "children", children } } );
+    }
+    return { { "size", aTree.size() },
+             { "empty", aTree.empty() },
+             { "memory", aTree.MemoryUsage() },
+             { "active_nodes", nodes.size() },
+             { "root_level", aRoot ? JSON( aRoot->level ) : JSON( nullptr ) },
+             { "levels", levels },
+             { "nodes", nodes } };
 }
 
 // Guard only arithmetic actually evaluated by the best-first traversal. This is
@@ -301,10 +359,17 @@ JSON Program( const JSON& aSteps )
         else if( op == "state" )
         {
             Keys( s, { "op", "a" } );
+            if( auto* root = tree.*Get( ROOT_TAG<TREE>{} ); root && root->level > STATE_MAX_LEVEL )
+                Refuse( "state nesting exceeds protocol depth" );
             event = { { "size", tree.size() },
                       { "empty", tree.empty() },
                       { "memory", tree.MemoryUsage() },
                       { "root", Snapshot( tree.*Get( ROOT_TAG<TREE>{} ) ) } };
+        }
+        else if( op == "topology" )
+        {
+            Keys( s, { "op", "a" } );
+            event = Topology<E, D, M>( tree, tree.*Get( ROOT_TAG<TREE>{} ) );
         }
         else if( op == "clear" )
         {

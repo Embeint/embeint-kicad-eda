@@ -134,3 +134,27 @@ case by case against them.
 The crate's only dependency is the workspace's `kicad-math` (stream formatting), so the
 portable closure is unchanged. The native `kicad-clipper2-shim` reuses `kicad-difftest` and
 `serde_json`, already recorded above and in `rust/MCP.md`.
+
+## Boost.Random mt19937 and uniform distributions
+
+`rust/kicad-boost-random` is a faithful port of the parts of Boost.Random 1.83.0 that
+`POISSON_DISK::ToroidalUnitTile` instantiates: `mt19937` (integer seeding with
+`normalize_state()`, the split `twist()`, tempered output), `uniform_int_distribution<size_t>`
+(every branch of `detail::generate_uniform_int` for a 32-bit engine) and
+`uniform_real_distribution<double>` (`detail::generate_uniform_real`). The source is the oracle's
+locked `libboost1.83-dev 1.83.0-2.1ubuntu3.2` package (`port/reference-env/inputs.lock.json`,
+SHA-256 `519ecf2c…`); header hashes: `mersenne_twister.hpp` `8131c25c…`,
+`uniform_int_distribution.hpp` `26eee099…`, `uniform_real_distribution.hpp` `2a088aed…`,
+`detail/signed_unsigned_tools.hpp` `061a46e2…`, `detail/seed.hpp` `981c08fc…`. Boost is Copyright
+Jens Maurer 2000-2001 and 2006 and Steven Watanabe 2009-2011 under the Boost Software License 1.0,
+which is GPL-compatible. The crate is a derivative work: its manifest declares
+`GPL-3.0-or-later AND BSL-1.0`, it carries the licence text in
+`rust/kicad-boost-random/LICENSE-BSL-1.0`, and its source keeps the copyright notices. No Boost
+source is vendored.
+
+Existing crates are not used (checked 2026-11-26): `rand`'s uniform distributions use different
+algorithms and draw counts, and `rand_mt` implements the reference `init_genrand` without Boost's
+`normalize_state()` and has no Boost distributions. Exact oracle comparison against the pinned
+Boost headers (the `rng` operation of the poisson disk shim) is the acceptance criterion. The
+crate has no dependencies; `kicad-math` depends on it, and the native `kicad-poisson-shim` reuses
+`kicad-difftest` and `serde_json`, already recorded.
