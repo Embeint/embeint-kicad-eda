@@ -72,14 +72,17 @@ that needs the current default owns it and passes the transform explicitly.
 | `InverseTransform` | determinant, four quotients, truncation, both determinant signs; refusals | 221 exact matrices; 12 division-by-zero and 113 overflow controls | none |
 | `MapAngles` | both mappings, residual, swap, all three ordering outcomes | 5,208 exact (swap, a1 bits, a2 bits); oracle: swap true 5,208; no reorder 3,509, a2 normalized 1,051, a1 - 360 648 | null-pointer wxCHECK branch unrepresentable |
 
-Local run (WSL Ubuntu, GCC, glibc 2.39 with
-`GLIBC_TUNABLES=glibc.cpu.hwcaps=-AVX,-AVX2,-FMA,-FMA4,-AVX512F`, the qualified SSE2 runtime):
-`kicad-difftest compare --partial`: 7,678 cases, 7,678 compared, 0 deferred, 0 failures, 0
-unprocessed; `compare_controls.py`: 1,696 controls refused identically; import-free wasm
-replay of all 9,374 requests equals native Rust. Without the tunables, glibc selects its FMA
-variants and one MapAngles case (`map-random-206`) differs by one ulp in the oracle, as for
-every other unit using the SSE2 trig ports; the comparison is only valid on the qualified
-runtime, which CI enforces.
+Local run (WSL Ubuntu 26.04, GCC 15.2, glibc 2.43, with
+`GLIBC_TUNABLES=glibc.cpu.hwcaps=-AVX,-AVX2,-FMA,-FMA4,-AVX512F`): `kicad-difftest compare
+--partial`: 7,678 cases, 7,678 compared, 0 deferred, 0 failures, 0 unprocessed;
+`compare_controls.py`: 1,696 controls refused identically; import-free wasm replay of all 9,374
+requests equals native Rust. This host is not the qualified reference environment (Ubuntu 24.04,
+GCC 13.3, glibc 2.39), so it is supporting evidence only; the hosted `transform-live` and
+`rust-port` jobs are the qualifying comparison. On this host the global gate stops at an
+unrelated geometry-header stream case (`stream-6-False-fixed-0`: libstdc++ 15 prints `+INF`),
+a host toolchain difference outside this unit. Without the tunables, glibc selects its FMA
+variants and one MapAngles case (`map-random-206`) differs by one ulp in the oracle; the
+comparison is only meaningful on the SSE2 runtime, which CI enforces.
 
 Status stays `partial`: no golden is blessed and the separate review and required CI on the
 final head are pending.
