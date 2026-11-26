@@ -386,13 +386,18 @@ void EVENTS::Log( const char* aKind, const JSON& aDetail )
 
 
 /// A num_put<char> whose do_put( long ) call with the scripted 0-based index throws
-/// std::runtime_error, before or after the runtime's own num_put<char>::do_put (an extern
-/// template, so the distribution libstdc++'s body and numpunct cache run).
+/// std::runtime_error, before or after the stock body. The stock body is the classic
+/// locale's num_put<char> object, reached through the runtime's use_facet and a virtual
+/// put(): a qualified call of the inline num_put<char>::do_put would instantiate
+/// _M_insert_int and its __use_cache<__numpunct_cache<char>> here, and that copy would
+/// interpose the runtime's (whose numpunct twin ends the grouping at a NUL) for every
+/// stream in the process. The adapter's object is checked to contain neither.
 class NUM_PUT : public std::num_put<char>
 {
 public:
     NUM_PUT( int64_t aCall, bool aAfter, EVENTS& aEvents ) :
-            m_call( aCall ), m_after( aAfter ), m_events( aEvents )
+            m_call( aCall ), m_after( aAfter ), m_events( aEvents ),
+            m_stock( std::use_facet<std::num_put<char>>( std::locale::classic() ) )
     {}
 
 protected:
@@ -408,7 +413,8 @@ protected:
             throw std::runtime_error( "num_put" );
         }
 
-        iter_type out = std::num_put<char>::do_put( aOut, aIo, aFill, aValue );
+        // The stock facet formats with aIo's locale (its numpunct), as the base body does.
+        iter_type out = m_stock.put( aOut, aIo, aFill, aValue );
 
         if( throws )
         {
@@ -420,10 +426,11 @@ protected:
     }
 
 private:
-    int64_t          m_call;
-    bool             m_after;
-    EVENTS&          m_events;
-    mutable uint64_t m_calls = 0;
+    int64_t                     m_call;
+    bool                        m_after;
+    EVENTS&                     m_events;
+    const std::num_put<char>&   m_stock;
+    mutable uint64_t            m_calls = 0;
 };
 
 

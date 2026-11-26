@@ -456,7 +456,12 @@ fn insert(input: &Value, flush: SentryFlush, size: bool) -> Result<Value> {
             });
         }
     }
-    Ok(result)
+    // Keys in nlohmann::json's sorted order, so the replies are byte-identical too.
+    let sorted: BTreeMap<String, Value> = match result {
+        Value::Object(map) => map.into_iter().collect(),
+        _ => BTreeMap::new(),
+    };
+    Ok(Value::Object(sorted.into_iter().collect()))
 }
 
 fn run(v: &Value, flush: SentryFlush) -> Result<Value> {
