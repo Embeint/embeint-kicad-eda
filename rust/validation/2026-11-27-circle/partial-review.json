@@ -1,0 +1,33 @@
+{
+  "reviewed_head": "48e156721a92296c99b4b9e8222a73855fadc30b",
+  "review_task": "rust-review-circle95-sol61-20261127",
+  "result": "Interrupted by provider content flag; no completed review/approval.",
+  "reported_partial_findings": [
+    "Assertion handler effect omitted from failed wxCHECK_MSG continuations.",
+    "Tan-tan intermediate bound exceeded; complete accepted-domain safety not established.",
+    "Test-only SEG::Center truncated odd halves instead of rounded VECTOR2I division.",
+    "Generator emitted zero claimed negative-remainder cases."
+  ],
+  "reported_independent_evidence": [
+    "Hosted C++ hash reproduced with GCC13 binary/glibc2.39.",
+    "Rust output hash and81controls reproduced."
+  ],
+  "parent_correction_head": "6b36ef0440da28259f8761773c91a95815e2b0da",
+  "corrected": [
+    "Test-only rounding with both-sign odd-half checks",
+    "Zero-output generator search and unsupported coverage/intermediate-bound claims"
+  ],
+  "uncorrected_readiness_findings": [
+    "Assertion effect representation",
+    "Complete adapter-domain safety audit"
+  ],
+  "checks": {
+    "circle_tests": 10,
+    "generator": "4978 public/81 controls unchanged",
+    "fmt": "pass",
+    "clippy": "pass"
+  },
+  "new_review_task": "rust-review-circle95-followup-sol61-20261127",
+  "new_review_state": "pending",
+  "earlier_target_scope": "48e156721a only; new head CI pending"
+}

@@ -32,3 +32,11 @@ limitation, not a claim that other defined C++ calls are invalid.
 [verification.json](verification.json) retains exact source/merge/runtime/binary
 bindings, comparison counts/hashes, separate control classification, wasm scope
 and reference log evidence. No readiness verdict follows from CI without review.
+
+The first review later stopped on a provider content flag; it is not a completed
+review or approval. [partial-review.json](partial-review.json) records its
+reported findings and the parent test/audit corrections published at6b36ef0440.
+Assertion host effects and the adapter safety argument remain unresolved.
+A fresh independent review is pending on that corrected head; the target
+results above remain historical evidence for48e156721a only. No numerical
+comparison or public corpus changed.

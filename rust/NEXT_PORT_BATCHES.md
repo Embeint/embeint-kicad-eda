@@ -11,6 +11,37 @@ receives an independent Sol 6.1 review of its exact head.
 
 ## Current integration and correction queue
 
+Circle #95 is now at parent correction head
+`6b36ef0440da28259f8761773c91a95815e2b0da`. The first Sol review stopped on a
+provider content flag and is not approval. Its partial findings identify an
+unrepresented wxCHECK_MSG assertion effect and an unproven tan-tan safety bound;
+those remain readiness blockers. Parent corrected only test-helper odd-half
+rounding and unsupported remainder-case coverage, with 10 scoped tests,
+generator check (unchanged 4,978 public/81 controls), fmt and clippy passing.
+A fresh review `rust-review-circle95-followup-sol61-20261127` must finish on
+this exact head. Earlier hosted results remain bound only to 48e156721a.
+The new additive finding is on the circle topic; no production algorithm,
+public input, refusal or golden changed to conceal the blockers.
+
+Clipper engine/offset #96 delivered at
+`6234371e6f9f2eb9ef7ba743eb872287ded1e4b7`, based on accepted `70888b5722`.
+Fresh Sol review `rust-review-clipper96-sol61-20261127` and hosted target checks
+are pending. Worker GCC15/glibc2.43 diagnostics report 1,537 exact/20 deferred
+from1,557 cases, source p001901/6 (was881/26), header p0011,587/0 (was1,573/14)
+and unchanged rectclip1,574/0, zero failures. These are not target evidence.
+The agreed public reference_libm facade forwards to unchanged accepted bodies;
+core stdalgo sort is reused. Review must assess callback exceptions, skipped
+defined NaN input, domain/budget limits, owner notes and all newly wired callers.
+Partial/no golden remains. Isolated preflight45898141144 is replaced by hosted
+fallback45898637501, pending at dispatch.
+
+All three delivered topics (#93/#95/#96) now await independent review/checks;
+core #92 retains preserved unpublished corrections after quota failure. No
+implementation worker is currently claimed active and no new Opus dispatch or
+timer follows the failure. Earlier stream/claim entries below are historical
+snapshots; they do not override these concrete heads or remaining findings.
+
+
 wx STL #93 corrections are delivered at
 `058165f437c59b26afc27423e651c7f1f7fcb2b3`, merged only with accepted
 `70888b5722`. Fresh Sol 6.1 review
