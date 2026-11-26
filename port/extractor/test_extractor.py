@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Run with: python -m unittest discover -s port/extractor -p 'test_*.py'."""
 import importlib.util
+import io
 import gzip
 import json
 import os
@@ -58,6 +59,54 @@ def save_fixture(root, graph, inventory, target=1):
 
 
 class GraphTests(unittest.TestCase):
+    def test_replay_refuses_a_cache_record_lost_after_preflight(self):
+        import extract_graph
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / 'entry.cpp'
+            source.write_text('int entry() { return 1; }\n', encoding='utf-8')
+            manifest, database, cache = root / 'manifest.json', root / 'commands.json', root / 'cache'
+            write_json(manifest, {'files': ['entry.cpp']})
+            write_json(database, [{'file': str(source), 'directory': str(root),
+                                   'arguments': ['clang++', '-c', str(source)]}])
+            libclang = root / 'libclang'
+            libclang.write_bytes(b'identity only; replay must not load this')
+            here = Path(__file__).resolve().parents[2]
+            visible = True
+            original_exists = Path.exists
+
+            def exists(path):
+                if path.parent == cache:
+                    return visible
+                return original_exists(path)
+
+            pool = mock.MagicMock()
+
+            def enter():
+                nonlocal visible
+                # The record passed replay preflight, then disappeared before consumption.
+                visible = False
+                return pool
+
+            pool.__enter__.side_effect = enter
+            args = ['extract_graph.py', '--compile-commands', str(database), '--source-root', str(root),
+                    '--original-source-root', str(root), '--manifest', str(manifest), '--cache', str(cache),
+                    '--libclang', str(libclang), '--output', str(root / 'output'),
+                    '--replay-parse-runtime', str(here)]
+            stderr = io.StringIO()
+            with mock.patch.object(sys, 'argv', args), mock.patch.object(sys, 'stderr', stderr), \
+                    mock.patch.object(Path, 'exists', exists), \
+                    mock.patch.object(extract_graph, 'ProcessPoolExecutor', return_value=pool), \
+                    mock.patch.object(extract_graph, 'write_cache') as write:
+                with self.assertRaises(SystemExit) as failure:
+                    extract_graph.main()
+            self.assertEqual(failure.exception.code, 2)
+            self.assertIn('Replay refuses to parse: cache record disappeared', stderr.getvalue())
+            pool.submit.assert_not_called()
+            write.assert_not_called()
+            self.assertFalse(cache.exists())
+
     def test_cli_regeneration_preserves_port_wiring_and_refreshes_accounting(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
