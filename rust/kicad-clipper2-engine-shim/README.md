@@ -13,7 +13,7 @@ pinned, unmodified `clipper.engine.cpp` into its own translation unit with the i
 `-fno-fast-math -ffp-contract=off` and KiCad's public `USINGZ`. Private members are reached
 through explicit template instantiation, which C++ exempts from access checks. Calls into lines
 2272 onward (`CheckJoinLeft`, `CheckJoinRight`, `SwapPositionsInAEL`, `Split`) run the real C++
-there; the Rust port returns typed deferrals to unit `...src.thirdparty.pure.p002`.
+there and, since unit `...src.thirdparty.pure.p002` was ported, the real Rust bodies too.
 
 ## Protocol
 
