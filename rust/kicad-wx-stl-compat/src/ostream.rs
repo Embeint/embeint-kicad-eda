@@ -278,8 +278,9 @@ pub struct BadAlloc;
 /// A byte buffer with no put area that accepts up to a capacity (`overflow` returns `eof()`
 /// once it is full) and whose `sync()` succeeds or fails as configured. Growth is fallible:
 /// a refused allocation is thrown as [`BadAlloc`], as `std::string::push_back` throws
-/// `std::bad_alloc` in the reference adapter's buffer.
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// `std::bad_alloc` in the reference adapter's buffer. It deliberately has no allocating
+/// `Clone` implementation.
+#[derive(Debug, PartialEq, Eq)]
 pub struct StreamBuf {
     capacity: Option<usize>,
     sync_fails: bool,
@@ -409,7 +410,7 @@ impl Field {
 /// A `std::ostream` (`basic_ostream<char>`) on a [`StreamHost`].
 ///
 /// `precision()` is carried for completeness; integer and string output do not read it.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct OStream<H> {
     /// `flags()`.
     pub flags: FmtFlags,
@@ -658,10 +659,9 @@ impl<H: StreamHost> OStream<H> {
 
     /// The field the stock `num_put<char>::_M_insert_int<long>` writes, without allocating.
     ///
-    /// Stage 3 padding is not taken: in the owned bodies every integer insertion follows a
-    /// string insertion that either reset `width()` to 0 or left the stream not good (so
-    /// this sentry fails), and no host operation can change this stream's width, so
-    /// `__io.width()` is 0 here and its `width( 0 )` changes nothing.
+    /// This currently models the non-padding path because the host hook cannot mutate
+    /// this stream's ios state. A C++ facet can change width before stock formatting;
+    /// that missing context and padding path are recorded as a review finding.
     fn num_put_field(&self, value: i64) -> Field {
         let flags = self.flags;
         let octal = flags.oct && !flags.dec && !flags.hex;
@@ -1190,7 +1190,8 @@ mod tests {
         assert!(StreamBuf::new(Some(MAX_SINK_CAPACITY + 1), false).is_err());
         let mut out = stream(None)?;
         out.width = MAX_UNBOUNDED_WIDTH + 1;
-        let before = out.clone();
+        let mut before = stream(None)?;
+        before.width = MAX_UNBOUNDED_WIDTH + 1;
         assert!(matches!(
             insert_wx_size(&mut out, &WxSize::new(0, 0)),
             Err(InsertError::Refused(_))

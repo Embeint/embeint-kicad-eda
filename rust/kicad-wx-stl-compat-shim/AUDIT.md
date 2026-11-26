@@ -82,9 +82,9 @@ header, and #1 through `std::less<wxPoint>{}`: all resolve to the out-of-line de
   the first 32 grouping bytes, which behave exactly as the whole string: an `int` field has
   at most 11 digits, so `__add_grouping` advances its index at most 10 times and never
   reaches the last index of a longer string.
-- Width is consumed by the first literal; the later integers see width 0 (or a stream that
-  is not good, whose sentry fails), and no host operation can change this stream's width,
-  so `num_put` padding is unreachable from the owned bodies and not modelled.
+- The current non-mutating host hook leaves width zero after the first successful literal.
+  This is an API restriction, not a C++ invariant: a real facet can mutate ios state and
+  make stock integer padding reachable. That context and padding behavior remain missing.
 - `~sentry` for a `unitbuf` stream is the only runtime difference (`SentryFlush`). Up to
   the GCC 14 branch it calls `pubsync()` whatever the state with no `try` block, inside a
   `noexcept` destructor: a throwing `sync()`, or `-1` with `badbit` in the mask, calls
@@ -166,3 +166,19 @@ The accepted `WxString`, `WxPoint`, `WxSize` and `FmtFlags` models are reused un
 
 None. No owned body calls an unported KiCad function; every dependency is the distribution
 wxWidgets, glibc or libstdc++, modelled here for the paths reached.
+
+## Second independent review
+
+Review of 058165f437 requests changes for missing ambient unwinding, mutable
+facet ios context/stock padding, distinguished forced-unwind propagation and
+null-buffer clear/sentry/flush behavior. These are source-contract findings,
+not just absent cases. The additional allocating-Clone finding is corrected by
+removing Clone from StreamBuf/OStream and the shim Sink. The source and corpus
+semantics are unchanged;20focused tests, fmt/clippy, portable wasm checking and
+generator checks pass. The other four findings still block readiness.
+
+Local export caveat: the saved918-file manifest had880CRLF-only differences
+from raw pinned Git blobs. Its files match their manifest, but that is not raw
+Git-byte identity or target qualification. The saved runtime comparison remains
+diagnostic. See port/findings/wx-stl-compat-second-review-gaps.md for detailed
+source, resource-reporting and evidence limits.

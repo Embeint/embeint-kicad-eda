@@ -119,7 +119,7 @@ impl StreamHost for TieSink {
 }
 
 /// The main stream's buffer, facet and tie.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Sink {
     buf: StreamBuf,
     overflow_throw: CallIndex,
