@@ -365,18 +365,13 @@ mod tests {
             .map(|_| ()),
             Err(EllipseError::UndefinedConversion)
         );
-        assert!(matches!(
-            Ellipse::<f64>::from_major_axis(
-                Vector2::new(0.0, 0.0),
-                Vector2::new(3.0, 4.0),
-                0.5,
-                ArcAngles::Defaults
-            ),
-            Err(EllipseError::Unported {
-                unit: "libs.kimath.include.math.application.ui.p002",
-                ..
-            })
-        ));
+        let e = Ellipse::<f64>::from_major_axis(
+            Vector2::new(0.0, 0.0),
+            Vector2::new(3.0, 4.0),
+            0.5,
+            ArcAngles::Defaults,
+        )?;
+        assert_eq!((e.major_radius, e.minor_radius), (5.0, 2.5));
         Ok(())
     }
 

@@ -48,3 +48,8 @@ C++ with all registered units, affected Rust tests, refusal controls and portabl
 builds. Exact reports and the original-cohort diagnostic are retained with the
 manual integration evidence. The unit remains partial for its logging dependency
 and separately reviewed golden work.
+
+The direct double major-axis constructor test now verifies radii (5.0, 2.5)
+for the (3, 4) vector and ratio 0.5. Its earlier expectation of a vector-owner
+Unported error was stale after dependency integration. Runtime ellipse code
+before the test module is byte-identical to the reviewed target-order repair.
