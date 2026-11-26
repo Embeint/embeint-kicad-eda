@@ -67,7 +67,10 @@ fn every_public_case_succeeds_and_insertions_return_the_same_stream(
     assert_eq!(count, CORPUS_CASES);
     // Every defined outcome is reached on the reference runtime model.
     for outcome in ["returned", "ios_failure", "runtime_error", "terminate"] {
-        assert!(outcomes.get(outcome).is_some_and(|&n| n > 0), "{outcomes:?}");
+        assert!(
+            outcomes.get(outcome).is_some_and(|&n| n > 0),
+            "{outcomes:?}"
+        );
     }
     Ok(())
 }

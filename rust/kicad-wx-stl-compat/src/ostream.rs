@@ -1,5 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright The KiCad Developers, see AUTHORS.txt for contributors.
+// The stream algorithms (sentry, __ostream_insert/_fill/_write, _M_insert, flush,
+// _M_insert_int, __int_to_char, __add_grouping, the default xsputn and the numpunct twin
+// facet) are reimplemented from the GNU ISO C++ Library (libstdc++, GCC 13.3.0, 14.2.0 and
+// 15.2.0): Copyright (C) 1997-2024 Free Software Foundation, Inc., GPL-3.0-or-later with the
+// GCC Runtime Library Exception 3.1. No libstdc++ text is copied; this file is distributed
+// under GPL-3.0-or-later, which that licence permits without the exception. See
+// rust/kicad-wx-stl-compat-shim/AUDIT.md (Licence and attribution).
 
 //! `std::ostream& operator<<( std::ostream& out, const wxSize& size )` and
 //! `std::ostream& operator<<( std::ostream& out, const wxPoint& pt )`

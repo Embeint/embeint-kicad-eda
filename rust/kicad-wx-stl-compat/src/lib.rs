@@ -23,12 +23,15 @@
 //!   library's `mbsrtowcs` in the current `LC_CTYPE` locale. The locale is an explicit input.
 //! - `operator<<( std::ostream&, const wxSize& )` and `operator<<( std::ostream&, const
 //!   wxPoint& )` ([`ostream::insert_wx_size`], [`ostream::insert_wx_point`]), which insert into
-//!   the caller's stream; [`ostream::OStream`] models that stream's state byte for byte.
+//!   the caller's stream; [`ostream::OStream`] models that stream's state byte for byte, and
+//!   [`ostream::StreamHost`] the caller's buffer, `num_put` facet and tie, whose operations
+//!   may throw.
 //!
-//! The `USE_KICAD_WXSTRING_HASH` body (`std::hash<wxString>::operator()`) is not compiled at
-//! the pin: nothing defines the macro, and wxWidgets 3.2 supplies `std::hash<wxString>` itself
-//! (`wx/string.h`, under `wxUSE_STD_STRING`). It is wxWidgets code, not a KiCad body, and is
-//! not ported.
+//! The `USE_KICAD_WXSTRING_HASH` body (`std::hash<wxString>::operator()`) is not compiled in
+//! the audited configuration: nothing in the pinned tree or its build defines the macro, and
+//! wxWidgets 3.2 supplies `std::hash<wxString>` itself (`wx/string.h`, under
+//! `wxUSE_STD_STRING`). It is not ported; a build that defines the macro itself would compile
+//! a body this crate does not claim.
 //!
 //! The wx value types are reused from accepted ports: `WxString` from `kicad-map-helpers`
 //! (wxWidgets 3.2.4 `wxUSE_UNICODE_WCHAR`, 32-bit signed `wchar_t` units) and `WxPoint` /

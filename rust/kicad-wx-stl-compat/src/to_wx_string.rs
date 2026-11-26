@@ -1,5 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright The KiCad Developers, see AUTHORS.txt for contributors.
+// The conversion reimplements wxWidgets 3.2.4 wxString::ConvertStr and wxMBConv::cMB2WC /
+// ToWChar (src/common/string.cpp, src/common/strconv.cpp: (c) 1998 Vadim Zeitlin, (c) 1999
+// Ove Kaaven, Robert Roebling, Vaclav Slavik, (c) 2000-2003 Vadim Zeitlin, (c) 2004 Ryan
+// Norton, Fredrik Roubert; wxWindows Library Licence 3.1, i.e. LGPL-2.0-or-later with an
+// exception) and the GNU C Library 2.39 ASCII and UTF-8 mbsrtowcs decoders
+// (iconv/gconv_simple.c, iconv/loop.c, wcsmbs/mbsrtowcs_l.c: Copyright (C) 1997-2024 Free
+// Software Foundation, Inc., LGPL-2.1-or-later). No upstream text is copied; this file is
+// distributed under GPL-3.0-or-later, as both licences permit (LGPL-2.0 and LGPL-2.1
+// section 3). See rust/kicad-wx-stl-compat-shim/AUDIT.md (Licence and attribution).
 
 //! `wxString TowxString( const std::string_view& view )` (`libs/core/wx_stl_compat.cpp:42-45`):
 //! `return wxString( view.data(), view.length() );`.
@@ -173,12 +182,18 @@ pub fn to_wx_string(view: Option<&[u8]>, ctype: LibcCtype) -> Result<WxString, W
     }
 
     // The conversion pass into wxWCharBuffer( dstLen ). It converts the same bytes, so it
-    // cannot fail or differ; a failure is still the reference's empty result.
+    // cannot fail or differ; a failure is still the reference's empty result. Units beyond
+    // the reserved length are never pushed, so the buffer never grows.
     let mut units = Vec::new();
     units
         .try_reserve_exact(length)
         .map_err(|_| WxError::Alloc { requested: length })?;
-    if to_wchar(src, ctype, &mut |unit| units.push(unit)) != Some(length) {
+    let converted = to_wchar(src, ctype, &mut |unit| {
+        if units.len() < length {
+            units.push(unit);
+        }
+    });
+    if converted != Some(length) || units.len() != length {
         return Ok(WxString::new());
     }
 
