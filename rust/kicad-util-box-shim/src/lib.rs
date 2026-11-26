@@ -652,7 +652,9 @@ mod tests {
                 counts[1] += 1;
             }
         }
-        assert_eq!(counts, [14324, 1607]);
+        // The vector owner's std::hypot wiring returns the 5 former
+        // `VECTOR2<double>::EuclideanNorm std::hypot` deferrals; no other count changes.
+        assert_eq!(counts, [14329, 1602]);
     }
     #[test]
     fn undefined_controls_refuse_and_next_request_survives() -> Result<(), serde_json::Error> {

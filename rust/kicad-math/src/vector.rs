@@ -515,8 +515,10 @@ impl VectorComponent for f64 {
         if y == 0.0 {
             return Ok(x.abs());
         }
-        // UNPORTED(libs.kimath.include.math.application.ui.p002): std::hypot reference/libm parity
-        missing("VECTOR2<double>::EuclideanNorm std::hypot", VECTOR_UNIT)
+        // static_cast<double>( std::hypot( x, y ) ): the pinned glibc 2.39 hypot@@GLIBC_2.35,
+        // qualified against the locked libm (port/glibc-libm). Finite operands continue into
+        // the shared accepted finite body; infinite and NaN operands take its special branch.
+        Ok(crate::hypot::hypot(x, y))
     }
     fn squared_norm2(x: Self, y: Self) -> VResult<Self> {
         x.c_mul(x)?.c_add(y.c_mul(y)?)
