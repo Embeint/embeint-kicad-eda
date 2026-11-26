@@ -22,4 +22,5 @@ SOURCE_PATHS = (
     "cmake/BuildSteps/TokenList2DsnLexer.cmake",
     "pcb_calculator/units_scales.h",
     "libs/kiplatform/os/unix/policy.cpp",
+    "libs/kiplatform/os/unix/drivers.cpp", "libs/kiplatform/os/unix/sysinfo.cpp",
 )

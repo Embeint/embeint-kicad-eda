@@ -833,6 +833,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "kicad-kiplatform-sysinfo"
+version = "0.1.0"
+
+[[package]]
+name = "kicad-kiplatform-sysinfo-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-kiplatform-sysinfo",
+ "serde_json",
+]
+
+[[package]]
 name = "kicad-map-helpers"
 version = "0.1.0"
 

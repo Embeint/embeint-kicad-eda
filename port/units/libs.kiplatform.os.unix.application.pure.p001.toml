@@ -6,14 +6,18 @@ depends_on = []
 soft_depends_on = []
 est_lines = 70
 layer = 0
-tests = []
-status = "todo"
-claimed_by = ""
-claimed_at = ""
-notes = "Awaiting port and oracle cases."
+tests = ["port/cases/libs.kiplatform.os.unix.application.pure.p001.jsonl", "rust/kicad-kiplatform-sysinfo-shim/generate_cases.py", "rust/kicad-kiplatform-sysinfo-shim/src/lib.rs", "rust/kicad-kiplatform-sysinfo-shim/src/operations.rs", "rust/kicad-kiplatform-sysinfo-shim/tests/corpus.rs", "rust/kicad-kiplatform-sysinfo-shim/examples/corpus_parity.rs", "rust/kicad-kiplatform-sysinfo/src/drivers.rs", "rust/kicad-kiplatform-sysinfo/src/sysinfo.rs", "port/oracle/shims/kiplatform_unix_p001.cpp", "port/oracle/fixtures/kiplatform-unix-p001-controls.jsonl", "port/oracle/test_kiplatform_unix_p001_inputs.py", ".github/workflows/rust-kiplatform-sysinfo-live.yml"]
+status = "partial"
+claimed_by = "Karl Von Richter (Claude Code)"
+claimed_at = "2026-11-26T01:54:16Z"
+notes = "All six owned bodies are implemented in kicad_kiplatform_sysinfo (rust/kicad-kiplatform-sysinfo): drivers::valid_3dconnexion_driver_version (Valid3DConnexionDriverVersion, return false) and sysinfo::Sysinfo::{new, Drop, get_memory_info, get_cpu_info, get_gpu_info} (empty constructor and destructor; each query returns false and neither reads nor writes its output argument). The pinned Unix bodies read no host or environment state, so the portable crate takes no host observations and invents no machine model; there are no other-owner calls and no UNPORTED tags. Minimum co-port of GPU_INFO, CPU_INFO, MEMORY_INFO and the SYSINFO class from kiplatform/sysinfo.h and sysinfo_gtk.h (owned by libs.kiplatform.include.kiplatform.application.pure.p001, todo) as kicad_kiplatform_sysinfo::sysinfo::{GpuInfo, CpuInfo, MemoryInfo, Sysinfo}; SYSINFO_BASE (pure virtual, privately inherited) is not ported, the overrides are inherent methods. The C++ aggregates leave scalar members uninitialized by default; that state is not representable in Rust or observable without undefined behaviour, so the types have no Default and every fixture field is initialized. Oracle: the unchanged pinned drivers.cpp and sysinfo.cpp are compiled into the audited kiplatform-unix-reference archive (pin.py captures the two files; audit.py requires both compilations and the archive link; the KiCad pin is unchanged). The adapter calls the real methods on a real SYSINFO object, including destroy/reconstruct steps, and reports every output field and whether every buffer kept its address, length and capacity. Evidence after merging accepted rust 98a12c1123ef, own WSL tree, oracle sha256 d9f00b97a86c61f573245c8d495aaf9e9800e21849814675907360c80863563f: 126 fixed-seed public cases, 126 compared exactly, 0 deferred, 0 failures; Rust and C++ reply streams byte-identical (sha256 b470406aea31b9622f9a44fc16083ef2a341dcaca560e601de9e48e10aa69e34); 67 malformed-request controls refused identically by both programs, each followed by a successful lifecycle; import-free wasm32 equals the native C++ replies on every case; nm shows all six reference symbols linked. Limitation: local results were produced with GCC 15.2/glibc 2.43 and do not qualify the GCC 13/glibc 2.39 hosted target; the scoped live workflow on that runner is still required. Status partial: no deferrals, but no golden is supplied and green awaits independent review and hosted reference evidence."
 coverage_gaps = []
 functions = ["c:@N@KIPLATFORM@N@DRIVERS@F@Valid3DConnexionDriverVersion#", "c:@N@KIPLATFORM@S@SYSINFO@F@GetCPUInfo#&$@N@std@S@vector>#$@N@KIPLATFORM@S@CPU_INFO#$@N@std@S@allocator>#S2_#", "c:@N@KIPLATFORM@S@SYSINFO@F@GetGPUInfo#&$@N@std@S@vector>#$@N@KIPLATFORM@S@GPU_INFO#$@N@std@S@allocator>#S2_#", "c:@N@KIPLATFORM@S@SYSINFO@F@GetMemoryInfo#&$@N@KIPLATFORM@S@MEMORY_INFO#", "c:@N@KIPLATFORM@S@SYSINFO@F@SYSINFO#", "c:@N@KIPLATFORM@S@SYSINFO@F@~SYSINFO#"]
 schema_version = 1
 source_category = "application"
 source_ranges = ["libs/kiplatform/os/unix/drivers.cpp:1:25", "libs/kiplatform/os/unix/sysinfo.cpp:1:45"]
 wx_class = "pure"
+
+[difftest]
+rust_package = "kicad-kiplatform-sysinfo-shim"
+rust_binary = "kicad-kiplatform-sysinfo-shim"
