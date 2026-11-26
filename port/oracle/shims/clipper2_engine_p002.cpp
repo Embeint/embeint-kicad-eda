@@ -646,6 +646,16 @@ double OffsetValue( const JSON& aValue )
 }
 
 
+// DoGroupOffset's non-round singleton branch converts ceil(abs_delta) to int.
+// Check the executed branch, including the callback value after group reversal.
+void GuardSingletonCast( const c2::Path64& aPath, c2::JoinType aJoin, double aGroupDelta )
+{
+    if( aPath.size() == 1 && aJoin != c2::JoinType::Round && aGroupDelta >= 1.0
+        && std::ceil( std::fabs( aGroupDelta ) ) > std::numeric_limits<int>::max() )
+        throw std::invalid_argument( "undefined behaviour: offset" );
+}
+
+
 JSON RunOffset( const JSON& aIn )
 {
     Keys( aIn, { "op", "groups", "miter_limit", "arc_tolerance", "preserve_collinear",
@@ -788,12 +798,28 @@ JSON RunOffset( const JSON& aIn )
 
     auto makeCallback = [&]() -> c2::DeltaCallback64
     {
-        return [table, deltaCalls]( const c2::Path64& path, const c2::PathD& normals, size_t curr,
+        return [table, deltaCalls, &co]( const c2::Path64& path, const c2::PathD& normals, size_t curr,
                                     size_t prev ) -> double
         {
             const double value = table[deltaCalls->size() % table.size()];
             deltaCalls->push_back( JSON::array(
                     { curr, prev, path.size(), normals.size() } ) );
+
+            // The singleton callback receives the group's original path. A table
+            // entry used by another path must not restrict the singleton domain.
+            if( path.size() == 1 )
+            {
+                for( const auto& group : co.*Get( OFFSET_GROUPS{} ) )
+                {
+                    for( const auto& original : group.paths_in )
+                    {
+                        if( &original == &path )
+                            GuardSingletonCast( path, group.join_type,
+                                                group.is_reversed ? -value : value );
+                    }
+                }
+            }
+
             return value;
         };
     };
@@ -834,10 +860,43 @@ JSON RunOffset( const JSON& aIn )
                                        { "is_reversed", group.is_reversed } } );
         }
 
+        bool callbackActive = setCallback;
+
         for( const EXECUTE& e : executes )
         {
             c2::Paths64 paths;
             JSON        tree = nullptr;
+
+            callbackActive = callbackActive || e.kind == 2;
+            double delta = e.kind == 2 ? 1.0 : e.delta;
+
+            // Insignificant offsets copy paths without entering DoGroupOffset.
+            // Inspect the constructed groups, after duplicate stripping, and
+            // follow delta_'s mutation across polygon groups in source order.
+            if( std::fabs( delta ) >= 0.5 )
+            {
+                for( const auto& group : co.*Get( OFFSET_GROUPS{} ) )
+                {
+                    if( group.end_type == c2::EndType::Polygon
+                        && !group.lowest_path_idx.has_value() )
+                        delta = std::fabs( delta );
+
+                    const double groupDelta = group.end_type == c2::EndType::Polygon
+                                                      ? ( group.is_reversed ? -delta : delta )
+                                                      : std::fabs( delta );
+
+                    for( const auto& path : group.paths_in )
+                    {
+                        // Empty open paths reach front/back references in the
+                        // pinned OffsetOpenJoined/OffsetOpenPath bodies.
+                        if( path.empty() && group.end_type != c2::EndType::Polygon )
+                            throw std::invalid_argument( "undefined behaviour: offset" );
+
+                        if( !callbackActive )
+                            GuardSingletonCast( path, group.join_type, groupDelta );
+                    }
+                }
+            }
 
             if( e.kind == 0 )
             {

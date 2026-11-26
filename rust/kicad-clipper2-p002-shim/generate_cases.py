@@ -23,6 +23,7 @@ import math
 import random
 import struct
 import sys
+from decimal import Decimal, localcontext
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -89,12 +90,34 @@ def helper(fn, **args):
 
 # --- shapes ---------------------------------------------------------------------------
 
+def input_sin_cos(angle):
+    """Generate inputs without host libm, as in the accepted arc corpus generator.
+
+    Evaluate the exact binary64 angle with 100 decimal digits and 120 Taylor
+    terms before rounding once to binary64. These are input coordinates, never
+    reference answers; the genuine C++ oracle still computes every result.
+    """
+    with localcontext() as context:
+        context.prec = 100
+        x = Decimal.from_float(angle)
+        minus_square = -x * x
+        sin_term, cos_term = x, Decimal(1)
+        sin_sum, cos_sum = sin_term, cos_term
+        for n in range(1, 120):
+            sin_term *= minus_square / ((2 * n) * (2 * n + 1))
+            cos_term *= minus_square / ((2 * n - 1) * (2 * n))
+            sin_sum += sin_term
+            cos_sum += cos_term
+        return float(sin_sum), float(cos_sum)
+
+
 def star(cx, cy, r1, r2, n, z=0):
     pts = []
     for i in range(2 * n):
         r = r1 if i % 2 == 0 else r2
-        a = math.pi * i / n
-        pts.append(pt(cx + round(r * math.cos(a)), cy + round(r * math.sin(a)), z))
+        a = float.fromhex("0x1.921fb54442d18p+1") * i / n
+        sin_a, cos_a = input_sin_cos(a)
+        pts.append(pt(cx + round(r * cos_a), cy + round(r * sin_a), z))
     return pts
 
 
@@ -322,6 +345,27 @@ def corpus():
     add("offset-lifecycle", offset([group([poly], 3, 0)],
                                    [("paths", 5.0), ("tree", -5.0), ("paths", 0.1),
                                     ("paths", 12.0)]))
+    # Defined neighbors of the source-derived empty-path and int-cast guards.
+    for end in range(5):
+        add(f"offset-empty-insignificant-{end}",
+            offset([group([[]], 0, end)], [("paths", 0.49), ("tree", -0.49)]))
+    add("offset-empty-polygon", offset([group([[]], 0, 0)], [("paths", 1.0)]))
+    for join in [0, 1, 3]:
+        add(f"offset-singleton-int-max-{join}",
+            offset([group([[pt(0, 0)]], join, 0)], [("paths", 2**31 - 1)]))
+    add("offset-large-multipoint",
+        offset([group([poly], 0, 0)], [("paths", 2**31)]))
+    add("offset-singleton-callback-small",
+        offset([group([[pt(0, 0)]], 0, 0)], [("paths", 2**31)],
+               table=[1.0], set_callback=True))
+    add("offset-singleton-callback-negative-skip",
+        offset([group([[pt(0, 0)]], 0, 0)], [("callback", 0.0)], table=[-2**31]))
+    add("offset-singleton-callback-reversed-skip",
+        offset([group([reverse(poly), [pt(100, 100)]], 0, 0)],
+               [("callback", 0.0)], table=[1.0] * len(poly) + [2**31]))
+    add("offset-large-table-multipoint-only",
+        offset([group([line, [pt(100, 100)]], 0, 2)], [("callback", 0.0)],
+               table=[2**31] + [1.0] * 63))
     for i in range(160):
         shapes = []
         for _ in range(rng.randint(1, 3)):
@@ -472,6 +516,33 @@ def controls():
         ("helper-normal-domain", helper("unit_normal", a=pt(big, 0), b=pt(0, 0)),
          "invalid input: domain"),
         ("op", {"op": "minkowski"}, "invalid input: op"),
+    ]
+    for end in [1, 2, 3, 4]:
+        for kind in ["paths", "callback"]:
+            items.append((f"offset-empty-open-{end}-{kind}",
+                          offset([group([[]], 0, end)], [(kind, 1.0)],
+                                 table=[1.0] if kind == "callback" else None),
+                          "undefined behaviour: offset"))
+    for join in [0, 1, 3]:
+        for delta in [2**31 - 0.5, 2**31, -2**31]:
+            # Open groups take abs(delta); all three reach the int conversion.
+            items.append((f"offset-singleton-int-{join}-{delta}",
+                          offset([group([[pt(0, 0)]], join, 2)], [("paths", delta)]),
+                          "undefined behaviour: offset"))
+    items += [
+        ("offset-singleton-stripped",
+         offset([group([[pt(0, 0), pt(0, 0)]], 0, 0)], [("paths", 2**31)]),
+         "undefined behaviour: offset"),
+        ("offset-singleton-callback-set-overflow",
+         offset([group([[pt(0, 0)]], 0, 0)], [("paths", 1.0)],
+                table=[2**31], set_callback=True), "undefined behaviour: offset"),
+        ("offset-singleton-callback-persists",
+         offset([group([[pt(0, 0)]], 0, 0)], [("callback", 0.0), ("paths", 1.0)],
+                table=[1.0, 2**31]), "undefined behaviour: offset"),
+        ("offset-singleton-callback-reversed-overflow",
+         offset([group([reverse(ok_poly[0]), [pt(100, 100)]], 0, 0)],
+                [("callback", 0.0)], table=[1.0] * 4 + [-2**31]),
+         "undefined behaviour: offset"),
     ]
     out = []
     for name, request, message in items:
