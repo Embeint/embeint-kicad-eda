@@ -120,6 +120,10 @@ endif()
 set( CLIPPER2_SHIM "${ORACLE_OVERLAY}/shims/clipper2_core_engine.cpp" )
 list( REMOVE_ITEM ORACLE_SHIMS "${CLIPPER2_SHIM}" )
 list( APPEND ORACLE_SHIMS "${CLIPPER2_SHIM}" )
+# The libs/core header adapter follows every previously qualified adapter too.
+set( CORE_INCLUDE_SHIM "${ORACLE_OVERLAY}/shims/core_include_p001.cpp" )
+list( REMOVE_ITEM ORACLE_SHIMS "${CORE_INCLUDE_SHIM}" )
+list( APPEND ORACLE_SHIMS "${CORE_INCLUDE_SHIM}" )
 set( GEOMETRY_SHIM "${ORACLE_OVERLAY}/shims/geometry_headers.cpp" )
 list( REMOVE_ITEM ORACLE_SHIMS "${GEOMETRY_SHIM}" )
 list( APPEND ORACLE_SHIMS "${GEOMETRY_SHIM}" )
@@ -151,10 +155,14 @@ add_executable( kicad-oracle main.cpp protocol.cpp registry.cpp ${ORACLE_SHIMS}
 target_include_directories( kicad-oracle PRIVATE "${ORACLE_OVERLAY}" "${CMAKE_BINARY_DIR}" )
 target_link_libraries( kicad-oracle PRIVATE kimath nlohmann_json iec60664-reference resistor-reference
                        calculator-reader-reference clipper2-rectclip-replay )
-# shims/core_p001.cpp scripts the clock that the reference GetRunningMicroSecs reads.
-# --wrap redirects only static objects' clock_gettime references (unarmed calls
-# forward to the real function); shared libraries keep the system clock.
-target_link_options( kicad-oracle PRIVATE -Wl,--gc-sections -Wl,--wrap=clock_gettime )
+# shims/core_p001.cpp scripts the clock that the reference GetRunningMicroSecs reads,
+# and shims/core_include_p001.cpp the std::chrono::system_clock::now() that the
+# profile.h timers read (libstdc++'s high_resolution_clock). --wrap redirects only
+# static objects' references (unarmed calls forward to the real functions); shared
+# libraries keep the system clocks.
+set( ORACLE_CLOCK_WRAPS -Wl,--wrap=clock_gettime
+     -Wl,--wrap=_ZNSt6chrono3_V212system_clock3nowEv )
+target_link_options( kicad-oracle PRIVATE -Wl,--gc-sections ${ORACLE_CLOCK_WRAPS} )
 
 # Audit every build, including direct cmake --build calls and warm cache builds.
 add_custom_target( oracle-audit
@@ -182,7 +190,7 @@ add_executable( oracle-dispatch-test EXCLUDE_FROM_ALL test_dispatch.cpp protocol
 target_include_directories( oracle-dispatch-test PRIVATE "${ORACLE_OVERLAY}" )
 target_link_libraries( oracle-dispatch-test PRIVATE kimath nlohmann_json iec60664-reference
                        resistor-reference calculator-reader-reference clipper2-rectclip-replay )
-target_link_options( oracle-dispatch-test PRIVATE -Wl,--gc-sections -Wl,--wrap=clock_gettime )
+target_link_options( oracle-dispatch-test PRIVATE -Wl,--gc-sections ${ORACLE_CLOCK_WRAPS} )
 add_dependencies( oracle-dispatch-test oracle-audit )
 add_test( NAME oracle-dispatch COMMAND oracle-dispatch-test )
 add_test( NAME oracle-md5-inputs
@@ -219,3 +227,8 @@ add_test( NAME oracle-core-p001-inputs
     COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_core_p001_inputs.py"
             "$<TARGET_FILE:kicad-oracle>" )
 set_tests_properties( oracle-core-p001-inputs PROPERTIES TIMEOUT 120 )
+
+add_test( NAME oracle-core-include-p001-inputs
+    COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_core_include_p001_inputs.py"
+            "$<TARGET_FILE:kicad-oracle>" )
+set_tests_properties( oracle-core-include-p001-inputs PROPERTIES TIMEOUT 120 )
