@@ -1,0 +1,93 @@
+name: Rust libs/core include p001 live validation
+
+# Scoped live evidence for libs.core.include.core.application.pure.p001 (the
+# libs/core/include/core header bodies): the genuine pinned oracle against the Rust shim,
+# the undefined-domain controls on both, and the whole corpus replayed in import-free
+# wasm32 against this run's native C++ replies. The rust-port job remains the gate.
+on:
+  pull_request:
+    branches: [rust]
+    paths:
+      - rust/kicad-core/**
+      - rust/kicad-core-shim/**
+      - rust/kicad-core-include-shim/**
+      - rust/Cargo.toml
+      - rust/Cargo.lock
+      - port/oracle/**
+      - port/cases/libs.core.include.core.application.pure.p001.jsonl
+      - port/units/libs.core.include.core.application.pure.p001.toml
+      - .github/workflows/rust-core-include-live.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  core-include-live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: "2"
+      ORACLE_JOBS: "2"
+      UNIT: libs.core.include.core.application.pure.p001
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0 # The oracle exports the pinned upstream commit, not HEAD.
+      - name: Install toolchain and oracle dependencies
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal --component clippy,rustfmt --target wasm32-unknown-unknown
+          rustup default 1.99.1
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++ gcc cmake ninja-build python3 rsync git libboost-dev libwxgtk3.2-dev
+      - name: Check the portable implementation and deterministic corpus
+        run: |
+          cargo fmt --manifest-path rust/Cargo.toml -p kicad-core -p kicad-core-include-shim --check
+          cargo clippy --locked --manifest-path rust/Cargo.toml -p kicad-core -p kicad-core-include-shim --all-targets -j2 -- -D warnings
+          cargo test --locked --manifest-path rust/Cargo.toml -p kicad-core -p kicad-core-include-shim -j2
+          cargo check --locked --manifest-path rust/Cargo.toml -p kicad-core --target wasm32-unknown-unknown -j2
+          python3 rust/kicad-core-include-shim/generate_cases.py --check
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-difftest -p kicad-core-include-shim -j2
+      - name: Build the genuine pinned own-library oracle
+        env:
+          LD_LIBRARY_PATH: ""
+        run: |
+          export PATH="/usr/bin:/bin:$PATH"
+          /usr/bin/python3 port/oracle/prepare.py --output-dir "$RUNNER_TEMP/core-stage"
+          bash port/oracle/build.sh "$RUNNER_TEMP/core-stage" "$PWD/port/oracle" "$RUNNER_TEMP/core-native"
+      - name: Compare every public case exactly and replay the controls on both sides
+        run: |
+          out="$RUNNER_TEMP/core-native"
+          oracle="$out/oracle-build/kicad-oracle"
+          # The header bodies are compiled from the pinned headers into the adapter; the
+          # scripted clock wrapper and the dependency unit's observable bodies are linked.
+          nm -C "$oracle" > "$out/symbols.txt"
+          for symbol in 'KI_MST::FilterKruskal<' 'KI_UNION_FIND::Unite' 'PROF_TIMER::to_string[' \
+                        'UTIL::DETAIL::OBSERVABLE_BASE::leave_iteration()' 'LATENCY_PROBE::to_string[' \
+                        '__wrap__ZNSt6chrono3_V212system_clock3nowEv' '__wrap_clock_gettime'; do
+            grep -F -- "$symbol" "$out/symbols.txt" > /dev/null || { echo "missing $symbol"; exit 1; }
+          done
+          rust/target/debug/kicad-difftest compare --unit "$UNIT" --root "$PWD" \
+            --oracle "$oracle" --rust "$PWD/rust/target/debug/kicad-core-include-shim" \
+            --report "$out/compare.json"
+          python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); print({k: r[k] for k in ("status","cases","compared","deferred","failures","unprocessed")})' "$out/compare.json"
+          python3 port/oracle/test_core_include_p001_inputs.py "$oracle" "$PWD/rust/target/debug/kicad-core-include-shim"
+          "$oracle" < "port/cases/$UNIT.jsonl" > "$out/native.jsonl"
+      - name: Replay the complete corpus in import-free WebAssembly against the C++ replies
+        run: |
+          export KICAD_CORE_INCLUDE_WASM_REFERENCE="$RUNNER_TEMP/core-native/native.jsonl"
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-core-include-shim \
+            --example corpus_parity --features live-wasm --target wasm32-unknown-unknown --release -j2
+          node rust/kicad-core-include-shim/wasm-test.mjs rust/target/wasm32-unknown-unknown/release/examples/corpus_parity.wasm
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: core-include-p001-live-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/core-native/compare.json
+            ${{ runner.temp }}/core-native/symbols.txt
+            ${{ runner.temp }}/core-native/oracle-build/oracle-provenance.json
+            ${{ runner.temp }}/core-native/oracle-build/compile_commands.json
+            ${{ runner.temp }}/core-native/oracle-build/binary.sha256
+            ${{ runner.temp }}/core-stage/source-manifest.json
+          retention-days: 14

@@ -55,7 +55,10 @@ for `nullptr`). Steps: `new`, `copy {obs, from}` (copy construction), `drop`,
 `on_observers_empty`, `link_new` (`LINK()`), `link_token {link, obs, observer}`
 (`LINK( impl_, observer )`), `link_move {link, from}` (move construction),
 `link_assign {link, from}` (move assignment, including self-assignment), `link_reset`,
-`link_drop` (destruction). `reactions` are `[{observer, steps}]`: whenever that observer
+`link_drop` (destruction), `throw` (the observer being called throws; outside a callback
+the step itself throws). An exception unwinds through every enclosing template, whose
+`catch( ... )` calls `leave_iteration()`, and is caught after the top-level step, whose
+event then carries `"thrown": true`. `reactions` are `[{observer, steps}]`: whenever that observer
 is notified by this notification, its steps run (nesting up to depth 8).
 
 The snapshot lists each slot's `impl` (a label in first-seen order over observables then
@@ -75,6 +78,7 @@ undefined points:
 | `subscribe during active iteration` | `push_back` into a list an active `Notify`/`NotifyIgnore` range-for is reading invalidates its iterators |
 | `remove during active iteration` | `unsubscribe`, `link_reset`, `link_drop` or `link_assign` (not self-assignment) would erase from a list an active loop is reading: `IMPL::remove_observer` erases instead of nulling when the count is 0, which inside a loop means the count wrapped. Checked before the removal |
 | `list compacted during active iteration` | after a step inside a callback, a list an active loop is reading has a different size: `collect()` erased nulls when a nested `leave_iteration` brought the count to 0. Checked when the step returns, before the loop reads again |
+| `throw through destroyed observable` | A `throw` while an enclosing `notify_ignore` belongs to an observable dropped inside it: the template's `catch( ... )` calls `leave_iteration()` on the destroyed object |
 | `list destroyed during active iteration` | after a step inside a callback, a list an active loop is reading has lost its last reference (`leave_iteration`'s release, `on_observers_empty`, a link reset, a drop) |
 
 `subscribe`, `subscribe_unmanaged`, `unsubscribe`, `link_reset`, `link_drop` and
@@ -84,5 +88,5 @@ guarded form. Script limits: depth 8, 2,048 steps, 100,000 executed steps and ca
 
 The C++ adapter runs the real `OBSERVABLE<T>` template. That template is a header body
 owned by `libs.core.include.core.application.pure.p001`; the Rust driver
-(`src/observable_driver.rs`) plays its role with the same base primitives and is harness
-code, not a port of it.
+(`src/observable_driver.rs`) drives its port, `kicad_core::observable_template`. The
+header unit's adapters reuse both drivers for their own `observable` cases.
