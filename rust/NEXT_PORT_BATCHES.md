@@ -52,7 +52,7 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 
 | Stream | Current assignment | Next dependency-ready work |
 | --- | --- | --- |
-| Geometry | SEG passed checks, then imported accepted extractor #79 at `b908f439a0`; fresh CI required. Graph adoption active. Ellipse #81 has 11 reference-CI NaN mismatches at `5c42b69677`; focused Opus repair active, fresh Sol review required afterward. Distribute #84 passed Sol review at `33fa41f687`; hosted CI pending. Main Opus slot implements pinned hypot. | Adopt graph with final-head provenance; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
+| Geometry | SEG awaits fresh CI at `b908f439a0`; graph adoption active. Ellipse #81 target NaN repair at `fb6dd8632c` passed fresh Sol review and recorded-reference replay; hosted CI pending. Distribute #84 passed Sol review at `33fa41f687`; hosted CI pending. Hypot #88 delivered and under Sol review. | Adopt graph with final-head provenance; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
 | Polygon operations | Engine #76 passed checks at `6f58bc73fa`, then imported accepted extractor #79 at `401ebc2624`; fresh CI required. Rectclip #77 likewise awaits fresh CI at `b88832a7d2`. Transform #82 reviewed; reference prose corrected at `b2918f6b31`. Opus implementing graph adoption as independent fallback. | Source p002 after accepted engine p001, then public wrapper headers after rectclip and p002. |
 | Core and general utilities | PR #73 awaits fresh CI at `ab6fd8f3ea`. Map helpers #78 corrected at `1cadc88eb8`, Sol recheck passed; target wx qualification pending. Arc #85 caller count/workflow fix pushed at `207f67b2cb`; fresh CI required. Vector2wx #86 passed Sol review; wasm comment corrected at `3861aaa7b2`. Freed Opus slot implements Unix policy. | Hold wx_stl_compat reuse until map helpers is accepted. Keep pure headers partial for allocation, stream, concurrency and scoped-timer gaps. Audit UI core headers before line-chain work. |
 | Numeric backends and spatial follow-ups | Pow #80 accepted. R-tree #83 at `813623a66b` passed Sol review, hosted checks pending. Poisson #87 passed Sol review; qualification prose fixed at `bed62f0c5b`. Freed Opus slot now implements Unix driver/system-info bodies. | Model newly exposed kimathLogOverflow host effects with explicit ownership/host assertion policy; further measured numeric and spatial gaps. Audit copy-on-write code before claiming a similar fixed-depth problem. |
@@ -272,7 +272,7 @@ Keep one unit per claim/PR, even if one worker handles several sequentially.
 
 | Priority | Unit | Scope and validation focus |
 | --- | --- | --- |
-| A | `ellipse.cpp` — 127 lines; delivered PR #81 | Initial Sol source review found no functional defect, but target CI found 11 NaN mismatches at `5c42b69677`. Focused Opus repair and fresh Sol review are required. |
+| A | `ellipse.cpp` — 127 lines; delivered PR #81 | Target CI's 11 NaN mismatches repaired at `fb6dd8632c`; fresh Sol review and complete recorded-reference replay pass. Final-head hosted CI pending. |
 | B | `transform.cpp` — 127 lines; delivered PR #82 | Sol found no implementation defect; local-reference prose fixed at `b2918f6b31`. Final-head hosted CI pending. |
 | C | `arc_construction.cpp` — 207 lines; delivered PR #85 | Sol source review passed; co-port notes fixed. Stale util/box caller count assertion and scoped workflow corrected at `207f67b2cb`; fresh hosted CI pending. |
 | D | `distribute.cpp` — 89 lines; delivered PR #84 | Sol independently replayed all 2,758 cases and 679 controls at `33fa41f687` without findings; hosted reference CI pending. |
@@ -308,6 +308,27 @@ The dedicated ellipse-live run 45732444601, job 139617502795, also failed.
 Its artifact 15079837395 confirms exactly the same 11 case IDs and identical
 oracle/Rust failed replies, with the same 2,092/136/11 counts. It is folded
 into the existing focused repair rather than treated as a second defect.
+
+The focused Opus repair is published as
+`fb6dd8632cda29ace4dc7ae536071588eb0ed495`. Hosted GCC 13 disassembly
+selects the sine term first in `ry = ex*sinR + ey*cosR`; the port now follows
+that order. A regression covers the three observed NaN shapes and fails with
+the old order. Replaying all 2,239 recorded hosted oracle replies gives 2,103
+compared, 136 deferred and zero failures; controls and native/wasm replay pass.
+The worker also reports byte-identical caller geometry replies and a passing
+350-test workspace run. This is recorded-reference replay, not a fresh target
+oracle run.
+
+The parent verified that the preceding merge imports exactly the accepted
+extractor delta, and the final merge tree equals head tree
+`8aa98fab6e15b37f4261a80d0a36e7828c91acae`. No other open topic is imported.
+The implementation fix touches ellipse code/test, its own unit notes and a new
+additive finding. Fresh independent Sol review passed at that exact head:
+the reviewer verified the hosted binary hash and disassembly, independently
+replayed 2,239 recorded replies (2,103 exact / 136 deferred / zero failures),
+and confirmed that restoring only the old operand order makes the regression
+fail. Final-head hosted checks remain pending; replay alone cannot qualify
+the corrected head.
 
 Map helpers PR #78 initially claimed green after 3,084 exact replies. Sol found
 the implicit generic default skipped a copy and the UTF-8 logical limit counted
