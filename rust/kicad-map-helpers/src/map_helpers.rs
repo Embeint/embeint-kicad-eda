@@ -164,7 +164,7 @@ pub fn get_def_or_value_init<K: Ord, V: TryClone + Default>(
 ) -> Result<V, WxError> {
     let defval = V::default();
     match map.get(key) {
-        None => Ok(defval),
+        None => defval.try_clone(),
         Some(value) => value.try_clone(),
     }
 }
@@ -172,6 +172,44 @@ pub fn get_def_or_value_init<K: Ord, V: TryClone + Default>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[derive(Debug, Default, PartialEq, Eq)]
+    struct CopiedValue(u32);
+
+    impl TryClone for CopiedValue {
+        fn try_clone(&self) -> Result<Self, WxError> {
+            Ok(Self(self.0 + 1))
+        }
+    }
+
+    #[derive(Debug, Default, PartialEq, Eq)]
+    struct RefusedCopy;
+
+    impl TryClone for RefusedCopy {
+        fn try_clone(&self) -> Result<Self, WxError> {
+            Err(WxError::Alloc { requested: 1 })
+        }
+    }
+
+    #[test]
+    fn value_initialized_default_is_copied() -> Result<(), WxError> {
+        let map = BTreeMap::<i32, CopiedValue>::new();
+        assert_eq!(get_def_or_value_init(&map, &1)?, CopiedValue(1));
+        assert_eq!(
+            get_def_or_value_init(&map, &1)?,
+            get_def(&map, &1, &CopiedValue::default())?
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn value_initialized_default_reports_copy_failure() {
+        let map = BTreeMap::<i32, RefusedCopy>::new();
+        assert_eq!(
+            get_def_or_value_init(&map, &1),
+            Err(WxError::Alloc { requested: 1 })
+        );
+    }
 
     fn wx(text: &str) -> Result<WxString, WxError> {
         let units: alloc::vec::Vec<i32> = text.chars().map(|c| c as i32).collect();

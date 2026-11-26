@@ -3,9 +3,12 @@
 
 Upstream: `libs/core/include/core/map_helpers.h` (122 lines) at pin
 `4cf939778df04d2b747bb2c4714fc5014a7565c7`, byte-identical in the checkout (modulo
-CRLF). Reference wx: Ubuntu `3.2.4+dfsg-4build1` (`wxUSE_UNICODE_WCHAR`, 32-bit
-signed `wchar_t`); the wx sources read are v3.2.4 `string.h`, `string.cpp`,
-`strconv.cpp` and `wxcrt.h`.
+CRLF). Target wx: Ubuntu `3.2.4+dfsg-4build1` (`wxUSE_UNICODE_WCHAR`, 32-bit
+signed `wchar_t`); the implementation audit read v3.2.4 `string.h`, `string.cpp`,
+`strconv.cpp` and `wxcrt.h`. The initial live binary actually linked wx 3.2.9,
+as its embedded provenance records. Its comparison does not establish 3.2.4
+agreement. See the reference correction and review fixes in
+`port/findings/core-map-helpers-review-and-reference-addendum.md`.
 
 ## Owned functions
 
@@ -68,7 +71,8 @@ Tested tree: this PR's head (see the PR). Commands (WSL Ubuntu, owned work root
   suite (11 tests) passed; kicad-oracle sha256
   `b52c653214bc993834d30f4aef11c29ea2160da915376b6ad848f86707c6c193`.
 - `kicad-difftest compare`: 3084 cases, 3084 compared, 0 deferred, 0 failures, 0
-  unprocessed (status green); `check` against the blessed baseline: matched.
+  unprocessed; `check` against the blessed baseline: matched. The unit now remains
+  partial pending target-reference qualification, despite zero deferrals.
 - `test_core_map_helpers_inputs.py` on the oracle and the Rust shim: 336 refusals,
   each followed by a successful continuation.
 - `corpus_parity` in import-free wasm32 (Node 22) against the native replies: all

@@ -3,11 +3,12 @@
 
 - **Unit:** `libs.core.include.core.application.thin.replacement.p001`
   (`libs/core/include/core/map_helpers.h`, the `const char*` overloads).
-- **Location:** distribution wxWidgets 3.2.4, `src/common/strconv.cpp`,
+- **Location:** wxWidgets `src/common/strconv.cpp` (3.2.4 source audit;
+  initial live binary linked 3.2.9, see the reference addendum),
   `wxMBConvStrictUTF8::ToWChar`, reached through `wxString::FromUTF8( const char* )`
   = `wxString( utf8, wxMBConvUTF8(), npos )` on the wchar_t build.
-- **Status:** confirmed against the live oracle; reference behaviour, not a KiCad
-  defect. Ported as is.
+- **Status:** confirmed against the local wx 3.2.9 oracle; target 3.2.4 live
+  qualification is pending. Ported as observed; no KiCad defect is claimed.
 
 ## Behaviour
 
@@ -15,7 +16,7 @@ The "strict" decoder validates only the lead byte (`tableUtf8Lengths`: rejects
 80..C1 and F5..FF) and the `10xxxxxx` pattern of the continuation bytes. It does
 not reject:
 
-| Input | Result on the pinned build |
+| Input | Result on the local wx 3.2.9 build |
 | --- | --- |
 | `E0 80 80` (overlong NUL) | one unit `0` (an embedded NUL in the key) |
 | `ED A0 80` (UTF-16 surrogate) | one unit `0xD800` |

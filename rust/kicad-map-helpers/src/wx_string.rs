@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Minimum `wxString` co-port for `map_helpers.h`, modelled on the pinned reference
-//! build: wxWidgets 3.2.4 (Ubuntu `3.2.4+dfsg-4build1`) with `wxUSE_UNICODE_WCHAR`,
-//! where `wxString` stores a `std::wstring` of 32-bit signed `wchar_t` units.
+//! Minimum `wxString` co-port for `map_helpers.h`, targeting wxWidgets 3.2.4
+//! (Ubuntu `3.2.4+dfsg-4build1`) with `wxUSE_UNICODE_WCHAR`, where `wxString`
+//! stores a `std::wstring` of 32-bit signed `wchar_t` units. Initial local
+//! comparison used wxWidgets 3.2.9; target-reference qualification is pending.
+//! See `port/findings/core-map-helpers-review-and-reference-addendum.md`.
 //!
 //! Only what the header uses is ported:
 //!
@@ -166,7 +168,15 @@ impl WxString {
                 limit: MAX_UNITS,
             });
         }
-        let mut units = reserve(with_nul)?;
+        // The limit bounds the string, not the temporary converted terminator.
+        // length was checked above; reserve one extra slot without imposing a
+        // second logical-length check on this buffer.
+        let mut units = Vec::new();
+        units
+            .try_reserve_exact(with_nul)
+            .map_err(|_| WxError::Alloc {
+                requested: with_nul,
+            })?;
         // The second pass converts the same bytes, so it cannot fail; a failure is
         // still mapped to the reference's empty result instead of a panic.
         if strict_utf8_to_wchar(source, |unit| units.push(unit)) != Some(with_nul) {
@@ -255,5 +265,33 @@ mod tests {
                 limit: MAX_UNITS
             })
         );
+    }
+
+    #[test]
+    fn utf8_limit_excludes_the_buffer_terminator() -> Result<(), WxError> {
+        let mut input = Vec::new();
+        input
+            .try_reserve_exact(MAX_UNITS + 2)
+            .map_err(|_| WxError::Alloc {
+                requested: MAX_UNITS + 2,
+            })?;
+        input.resize(MAX_UNITS, b'a');
+        input.push(0);
+        let source = CStr::from_bytes_with_nul(&input).unwrap_or(c"");
+        let text = WxString::from_utf8(Some(source))?;
+        assert_eq!(text.len(), MAX_UNITS);
+        assert_eq!(text, WxString::from_units(text.units())?);
+        input.pop();
+        input.push(b'a');
+        input.push(0);
+        let source = CStr::from_bytes_with_nul(&input).unwrap_or(c"");
+        assert_eq!(
+            WxString::from_utf8(Some(source)),
+            Err(WxError::CapacityExceeded {
+                requested: MAX_UNITS + 1,
+                limit: MAX_UNITS,
+            })
+        );
+        Ok(())
     }
 }
