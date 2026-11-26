@@ -11,6 +11,17 @@ receives an independent Sol 6.1 review of its exact head.
 
 ## Current integration and correction queue
 
+Latest circle state: #95 is at `0aa3752c1687581a34c64096075926abc015ba74`.
+The follow-up Sol review on6b36ef0440 was stopped by the same provider content
+flag, so both review attempts lack a completed verdict. No third retry or
+unasked reviewer model change is started. Parent also removed the stale2^24
+safety claim from the adapter's source comments; no guard or numerical behavior
+changed. The assertion-effect and adapter-safety findings remain open and the
+PR stays draft/partial. wx #93 and Clipper #96 reviews remain pending as last
+dispatched; core #92 recovery remains quota-blocked and preserved. Earlier
+pending-circle-review entries below are superseded by this failure state.
+
+
 Circle #95 is now at parent correction head
 `6b36ef0440da28259f8761773c91a95815e2b0da`. The first Sol review stopped on a
 provider content flag and is not approval. Its partial findings identify an

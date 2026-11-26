@@ -40,3 +40,9 @@ Assertion host effects and the adapter safety argument remain unresolved.
 A fresh independent review is pending on that corrected head; the target
 results above remain historical evidence for48e156721a only. No numerical
 comparison or public corpus changed.
+
+The follow-up review was also stopped by the provider content flag before its
+verdict. Current head0aa3752c16 additionally retracts the stale intermediate
+bound in adapter source comments. No third review retry is launched. Both
+interrupted reviews remain partial evidence; neither approves the unresolved
+assertion or domain findings. Guard code and numerical behavior remain unchanged.
