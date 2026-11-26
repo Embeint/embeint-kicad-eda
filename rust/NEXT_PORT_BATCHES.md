@@ -53,7 +53,7 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 | Stream | Current assignment | Next dependency-ready work |
 | --- | --- | --- |
 | Geometry | SEG passed checks, then imported accepted extractor #79 at `b908f439a0`; fresh CI required. Graph adoption active. Ellipse #81 has 11 reference-CI NaN mismatches at `5c42b69677`; focused Opus repair active, fresh Sol review required afterward. Distribute #84 passed Sol review at `33fa41f687`; hosted CI pending. Main Opus slot implements pinned hypot. | Adopt graph with final-head provenance; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
-| Polygon operations | Engine PR #76 at `6f58bc73fa` awaits CI. Rectclip #77 passed checks at `87e2913afa`, then imported accepted extractor #79 at `b88832a7d2`; fresh CI required. Transform #82 reviewed; reference prose corrected at `b2918f6b31`. Opus implementing graph adoption as independent fallback. | Source p002 after accepted engine p001, then public wrapper headers after rectclip and p002. |
+| Polygon operations | Engine #76 passed checks at `6f58bc73fa`, then imported accepted extractor #79 at `401ebc2624`; fresh CI required. Rectclip #77 likewise awaits fresh CI at `b88832a7d2`. Transform #82 reviewed; reference prose corrected at `b2918f6b31`. Opus implementing graph adoption as independent fallback. | Source p002 after accepted engine p001, then public wrapper headers after rectclip and p002. |
 | Core and general utilities | PR #73 passed checks, then imported accepted extractor #79 at `ab6fd8f3ea`; fresh CI required. Map helpers #78 corrected at `1cadc88eb8`, Sol recheck passed; target wx qualification pending. Arc construction #85 passed source review, owner notes fixed at `eaa34442d1`. Freed Opus slot now implements vector2wx. | Hold wx_stl_compat reuse until map helpers is accepted. Keep pure headers partial for allocation, stream, concurrency and scoped-timer gaps. Audit UI core headers before line-chain work. |
 | Numeric backends and spatial follow-ups | Pow PR #80 accepted. R-tree follow-up PR #83 at `813623a66b` passed Sol review, hosted checks pending. Opus now assigned poisson_disk. | Model newly exposed kimathLogOverflow host effects with explicit ownership/host assertion policy; further measured numeric and spatial gaps. Audit copy-on-write code before claiming a similar fixed-depth problem. |
 
@@ -241,6 +241,13 @@ documented qualification limits. The waiting polygon slot delivered transform.cp
 while engine p001's acceptance blocks source p002, and now takes graph adoption.
 
 Engine source p001 covers lines 1–2,271.
+PR #76 completed all 19 checks at `6f58bc73fa` (16 success, three inapplicable
+skips). The parent then imported accepted extractor `4738a9c23f` conflict-free
+as `401ebc26240160c939f28ca5522bdca52c050a6e`. The imported diff equals
+exactly the accepted extractor delta, and the resulting tree equals the
+precomputed `d16d2228f900159b9ce957ad2c88af5d076f3efe`. Engine runtime code,
+refusal controls and partial qualification are unchanged. Final-head hosted
+checks must pass before acceptance; source p002 remains queued behind it.
 Source pure p002 owns engine lines 2,272–3,337 and `clipper.offset.cpp` lines
 1–661. This includes `ExecuteInternal`, `BuildPaths64`, `BuildTree64`,
 `BuildPathsD` and `BuildTreeD`. Consequently the first engine unit alone cannot
