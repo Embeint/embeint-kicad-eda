@@ -130,6 +130,31 @@ and #88 `45767723841`. Await these outcomes before claiming complete checks.
 The offline runner remains an infrastructure issue; this existing fallback
 removes it from the current implementation PRs' completion path.
 
+## Hypot build correction and completed fallback batch
+
+All 12 hosted fallback preflights in the preceding batch completed successfully
+on their recorded source heads. Current hosted checks on #74, #76, #77, #78,
+#81, #82, #83, #84, #85, #86 and #87 have no remaining build failure.
+The #88 failure was investigated from the complete job log: its source hashes,
+coefficients and 12 Python harness tests passed, then standalone wasm harness
+`cargo fmt --check` failed on module ordering. Numerical qualification had not
+started; the subsequent missing-comparison report failure was expected.
+
+The parent applied rustfmt ordering and kept the hypot comment beside its
+module. It also imported accepted `7a984a76e8` conflict-free, verifying that
+the imported diff equals the accepted delta. Current published hypot head is
+`846c58813e72355ad3ebaf24ce4427975f3fee64`, tree
+`f3eccd6cc6ad83ed2e5ff47c380415ed7e21e707`. Runtime bodies, qualification
+inputs, guards and status are unchanged. Original Sol source review is retained;
+the parent handled this small formatting fix directly.
+
+Local standalone/workspace formatting, all 12 Python harness tests, kicad-math
+clippy and locked wasm debug/release builds pass. Both wasm profiles replay all
+1,607,712 existing locked hypot records with zero mismatches. No golden was
+added. See `port/findings/hypot-wasm-harness-format-check.md` on the hypot topic.
+Fresh complete hosted qualification on the corrected head remains required;
+its new hosted fallback preflight is run `45823810813`.
+
 ## Continuous four-stream cycle
 
 Current provider interruption: all four Opus assignments stopped around
