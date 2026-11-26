@@ -4,7 +4,7 @@
 // Derived from glibc 2.39 (LGPL-2.1-or-later); distributed under GPL-3.0-or-later
 // as permitted by LGPL-2.1 section 3. See port/glibc-libm/README.md.
 
-//! The pinned glibc 2.39 baseline SSE2 angle backends. IEEE binary64 operations
+//! The pinned glibc 2.39 baseline SSE2 angle backends and `pow`. IEEE binary64 operations
 //! stay in source order without contraction. No host libm, FMA, errno or floating
 //! exception flags. Requires round-to-nearest and gradual underflow, like glibc_trig.
 
@@ -16,6 +16,10 @@ mod asin_table;
 mod atan;
 #[path = "glibc_libm/atan_table.rs"]
 mod atan_table;
+#[path = "glibc_libm/pow.rs"]
+mod pow;
+#[path = "glibc_libm/pow_table.rs"]
+mod pow_table;
 #[path = "glibc_libm/tan.rs"]
 mod tan;
 #[path = "glibc_libm/tan_table.rs"]
@@ -23,6 +27,7 @@ mod tan_table;
 
 pub(crate) use asin::{acos, asin};
 pub(crate) use atan::{atan, atan2};
+pub(crate) use pow::pow;
 pub(crate) use tan::tan;
 
 const QUIET: u64 = 0x0008_0000_0000_0000;
