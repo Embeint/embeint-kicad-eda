@@ -49,6 +49,36 @@ and interrupted recoveries must use this new accepted baseline before final
 integration. Preserve existing local changes and accepted unit metadata when
 recovering graph regeneration; do not overwrite the newly accepted core status.
 
+## Core integration conflict refresh
+
+After accepting core headers #73, nine topics conflicted in shared workspace
+and oracle build registrations. The parent merged accepted `7a984a76e8` into
+each topic and pushed all nine reviewed merge heads in one atomic fast-forward
+publication. No other open topic was imported. Independent Sol review passed
+on the exact heads below. This table supersedes earlier pending-head references;
+previous CI and review records remain historical evidence for those heads.
+
+| PR | Published integration head | Reviewed tree |
+| --- | --- | --- |
+| #74 | `3a24cb5c7f71221e132191c376f37d42083939f0` | `df93202fbb3455a013674814c5326812ec6a03a4` |
+| #76 | `58067c565265d1e401aa5c608441d92290ebb41c` | `22d7f1500b2a3068993561f49a5a14176cbeb23e` |
+| #77 | `23117820ad222697c4a2fc5aafd2b0fadcde7e6f` | `eef1a3f7a2ed5c44e7d139fae46d848ee5362a96` |
+| #78 | `b96acf7125f66c0e4ef11f90be93f86a03a16936` | `3dadb6e2684e628e5cb073ef4aa7a554d23612c3` |
+| #81 | `5e060eeb08d9d1b8b1d5577abbb931d4383eaa9d` | `5153105d5ac2d3b7875080c9224a8494fe35b903` |
+| #82 | `2057cbe19449fd20aadbc9cdb2e8dc3c22963f63` | `b25ba9a85047cb1a06b17c6eb84a5e5d3a4b18a5` |
+| #84 | `d528c0fbe4839724e39ab575846d01673beb146e` | `9be9a030cac804594a4086a05e532b272d68e030` |
+| #85 | `7fbeed303c72ba9b93a59ab37044708a1bbb171c` | `ba1d5cf3c57f191ea08bb714108e843bef58f1be` |
+| #86 | `a3ab12f1b738863ac0df01d058249f7465404079` | `bba5e22160bfbdd393ad4c66d21e208e723345e6` |
+
+Locked Cargo metadata passed on all nine topics. Independent review verified
+an exact three-way union of workspace members, lock packages, oracle registry
+entries and tests; all nonshared tracked blobs match their contributing heads.
+Both accepted clock wrappers are retained. Engine private includes and both
+rectclip replay links are preserved, together with existing adapter ordering.
+There are no implementation, corpus, refusal, golden or unit-status changes.
+Fresh hosted checks on these published heads are required before integration;
+this metadata review does not replace the original source reviews or CI.
+
 ## Continuous four-stream cycle
 
 Current provider interruption: all four Opus assignments stopped around
@@ -80,9 +110,9 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 
 | Stream | Current assignment | Next dependency-ready work |
 | --- | --- | --- |
-| Geometry | SEG awaits fresh CI at `b908f439a0`. Ellipse #81 target repair at `fb6dd8632c` passed fresh Sol review; hosted CI pending. Distribute #84 and hypot #88 passed Sol review, hosted CI pending. Core utility header assignment interrupted by provider failure before implementation. | Resume existing assignment when routing works; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
-| Polygon operations | Engine #76 awaits fresh CI at `401ebc2624`; rectclip #77 at `b88832a7d2`. Transform #82 reviewed at source head with prose fix `b2918f6b31`. Graph-adoption work is preserved but interrupted by provider failure. | Resume graph adoption with final-head provenance; source p002 after accepted engine p001, then wrapper headers after rectclip and p002. |
-| Core and general utilities | PR #73 accepted as `7a984a76e8`, retaining partial contracts. Map helpers #78 at `d8ab26658f`, arc #85 at `207f67b2cb` and vector2wx #86 at `3861aaa7b2` await final integration checks. Unix policy #89 local work is preserved; provider interrupted. | Recover existing claim without a duplicate port. Hold wx_stl_compat reuse until map helpers acceptance; keep pure-header partial contracts explicit. |
+| Geometry | SEG #74 awaits fresh CI at `3a24cb5c7f`. Ellipse #81 target repair passed fresh Sol review and imports accepted core at `5e060eeb08`; hosted CI pending. Distribute #84 at `d528c0fbe4` and hypot #88 passed Sol review, hosted CI pending. Core utility header assignment interrupted by provider failure before implementation. | Resume existing assignment when routing works; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
+| Polygon operations | Engine #76 awaits fresh CI at `58067c5652`; rectclip #77 at `23117820ad`. Transform #82 source and prose correction reviewed; accepted core imported at `2057cbe194`. Graph-adoption work is preserved but interrupted by provider failure. | Resume graph adoption with final-head provenance; source p002 after accepted engine p001, then wrapper headers after rectclip and p002. |
+| Core and general utilities | PR #73 accepted as `7a984a76e8`, retaining partial contracts. Map helpers #78 at `b96acf7125`, arc #85 at `7fbeed303c` and vector2wx #86 at `a3ab12f1b7` await fresh integration checks after reviewed core imports. Unix policy #89 local work is preserved; provider interrupted. | Recover existing claim without a duplicate port. Hold wx_stl_compat reuse until map helpers acceptance; keep pure-header partial contracts explicit. |
 | Numeric backends and spatial follow-ups | Pow #80 accepted. R-tree #83 awaits final integration checks. Poisson #87 standalone wasm lockfile failure fixed and accepted core imported at `19e7851592`; fresh CI required. Unix driver/system-info claim #90 local work is preserved; provider interrupted. | Recover existing claim without a duplicate port. Keep logging host-effect and copy-on-write audits queued. |
 
 On each implementation completion, immediately inspect the result, start the
