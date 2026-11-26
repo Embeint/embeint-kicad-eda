@@ -56,7 +56,40 @@ def check(get):
     for name,v in re.findall(r'\b(f[1-6]|rt[0-3])\s*=\s*([0-9.E+-]+)',src['uasncs.h']):
         actual=re.search(r'const '+name.upper()+r': f64 = f64::from_bits\(0x([a-fA-F0-9_]+)\)',rust)
         need(actual is not None and int(actual[1],16)==bits(v),f'constant {name}')
+    check_pow(src['e_pow_log_data.c'],src['e_exp_data.c'],(RUST/'pow_table.rs').read_text())
     return manifest
+
+def hexexpr(text,n=128):
+    # Initializers are a hex float times exact small integers (N, -2, 4, -8);
+    # binary64 folding of those products is exact.
+    value=1.0
+    for part in text.replace('N',str(n)).split('*'):
+        part=part.strip()
+        value*=float.fromhex(part) if 'x' in part else float(int(part))
+    return value
+def init_list(text,start):
+    body=text.split(start,1)[1].split('}',1)[0]
+    return [l.strip().rstrip(',') for l in body.splitlines()
+            if l.strip() and not l.strip().startswith(('#','//'))]
+def rust_array(text,name):
+    body=text.split('const '+name+':',1)[1].split('= [',1)[1].split('];',1)[0]
+    return [int(v.replace('_',''),16) for v in re.findall(r'0x([a-fA-F0-9_]+)',body)]
+def rust_const(text,name):
+    m=re.search(r'const '+name+r': f64 = f64::from_bits\(0x([a-fA-F0-9_]+)\)',text)
+    need(m is not None,f'pow constant {name}');return int(m[1].replace('_',''),16)
+def check_pow(log_data,exp_data,rust):
+    """e_pow_log_data.c and e_exp_data.c fields read by e_pow.c (N=128)."""
+    for name,field,text in [('LN2HI','ln2hi',log_data),('LN2LO','ln2lo',log_data),
+                            ('INV_LN2_N','invln2N',exp_data),('SHIFT','shift',exp_data),
+                            ('NEG_LN2_HI_N','negln2hiN',exp_data),('NEG_LN2_LO_N','negln2loN',exp_data)]:
+        m=re.search(r'\.'+field+r'\s*=\s*([^,\n]+),',text);need(m is not None,f'pow field {field}')
+        need(rust_const(rust,name)==bits(hexexpr(m[1])),f'pow constant {name}')
+    need(rust_array(rust,'A')==[bits(hexexpr(v)) for v in init_list(log_data,'.poly = {')],'pow_log_data poly')
+    rows=re.findall(r'^A\(([^,]+), ([^,]+), ([^)]+)\)',log_data,re.M);need(len(rows)==128,'pow_log_data rows')
+    need(rust_array(rust,'POW_LOG')==[bits(float.fromhex(v)) for r in rows for v in r],'pow_log_data tab')
+    need(rust_array(rust,'C')==[bits(hexexpr(v)) for v in init_list(exp_data,'.poly = {')],'exp_data poly')
+    tab=[int(v,16) for v in re.findall(r'0x[0-9a-fA-F]+',exp_data.split('.tab = {',1)[1].split('#endif',1)[0])]
+    need(len(tab)==256 and rust_array(rust,'EXP_TAB')==tab,'exp_data tab')
 
 def fetch_archive(spec, archive):
     # Transport mirrors may fail (archive.ubuntu.com refused hosted CI with
