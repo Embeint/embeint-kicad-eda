@@ -2,10 +2,10 @@
 id = "eeschema.dialogs.generated.ui.p009"
 upstream = ["eeschema/dialogs/dialog_tablecell_properties_base.cpp", "eeschema/dialogs/dialog_tablecell_properties_base.h", "eeschema/dialogs/dialog_text_properties_base.cpp", "eeschema/dialogs/dialog_text_properties_base.h", "eeschema/dialogs/dialog_update_from_pcb_base.cpp", "eeschema/dialogs/dialog_update_from_pcb_base.h", "eeschema/dialogs/dialog_update_symbol_fields_base.cpp", "eeschema/dialogs/dialog_update_symbol_fields_base.h", "eeschema/dialogs/dialog_user_defined_signals_base.cpp", "eeschema/dialogs/dialog_user_defined_signals_base.h", "eeschema/dialogs/dialog_wire_bus_properties_base.cpp", "eeschema/dialogs/dialog_wire_bus_properties_base.h", "eeschema/dialogs/panel_bom_presets_base.cpp"]
 rust_module = "kicad_port::eeschema::dialogs::generated::ui::p009"
-depends_on = ["common.application.ui.p006", "common.widgets.application.ui.p001", "common.widgets.application.ui.p003", "common.widgets.application.ui.p004", "common.widgets.application.ui.p013", "common.widgets.application.ui.p016", "common.widgets.application.ui.p017", "common.widgets.application.ui.p018", "pcbnew.application.ui.p047"]
+depends_on = ["common.application.ui.p006", "common.widgets.application.ui.p001", "common.widgets.application.ui.p003", "common.widgets.application.ui.p004", "common.widgets.application.ui.p013", "common.widgets.application.ui.p016", "common.widgets.application.ui.p017", "common.widgets.application.ui.p018"]
 soft_depends_on = ["eeschema.dialogs.application.ui.p020"]
 est_lines = 1956
-layer = 201
+layer = 72
 tests = []
 status = "todo"
 claimed_by = ""

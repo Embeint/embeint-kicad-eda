@@ -19,6 +19,6 @@ source_ranges = ["libs/kimath/include/geometry/rtree/rtree_node.h:1:719"]
 wx_class = "pure"
 
 [difftest]
-rust_package = "kicad-rtree-node-shim"
-rust_binary = "kicad-rtree-node-shim"
 rust_args = []
+rust_binary = "kicad-rtree-node-shim"
+rust_package = "kicad-rtree-node-shim"

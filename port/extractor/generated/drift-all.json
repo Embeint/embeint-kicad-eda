@@ -51605,13 +51605,13 @@
     "Conservative text-hunk and extraction-TU include analysis; dependencies in uncompiled configurations are unknown",
     "Reports committed target changes, not working-tree edits"
   ],
-  "ported_function_count": 0,
+  "ported_function_count": 713,
   "ported_statuses": [
     "partial",
     "green"
   ],
-  "ported_unit_count": 0,
+  "ported_unit_count": 16,
   "schema_version": 1,
-  "target": "c1e8a467da149eac67341d31de0228e498916ba3",
+  "target": "4738a9c23f8c6068784d26ba991a690044343892",
   "upstream_pin": "4cf939778df04d2b747bb2c4714fc5014a7565c7"
 }

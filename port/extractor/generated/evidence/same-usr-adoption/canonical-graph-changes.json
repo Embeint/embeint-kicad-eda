@@ -1,0 +1,129 @@
+{
+  "added_edges": 0,
+  "adopted_graph_sha256": "b2de2a7a99cbfedbfb4f714c9939561418a12f873e86731f617afe44e8b7f9a1",
+  "adopted_refresh": {
+    "capture_code_sha256": "e81b9d9dfc2fa8d30d2a6f17ce44e044cabf7504b1ba09a5e5ee59da0f11c0cd",
+    "capture_sha256": "b187a2dd84e652fba88e665fb74c6a2186074a17b62aa779d76f36fa039c19f9",
+    "changed_fields": [
+      "provenance.generated_sources_manifest_sha256",
+      "provenance.generated_input_dependencies",
+      "provenance.source_inventory_sha256",
+      "provenance.generator_dependency_refresh",
+      "inventory build-generated generator_inputs"
+    ],
+    "input_graph_sha256": "0046a45fb84476e570feb861f3e5ed3894400726191e3d9403d07b1d39804421",
+    "input_inventory_sha256": "b320d93f3eb2d9f450d40edd2a22dcd850d59565810540dd1476b773822bfd47",
+    "parse_extractor_sha256": "e1548c1fe920a05d882e3f2de1c14843ca0e7b3b04ca9441d4132e16de77b88d",
+    "parse_generated_sources_manifest_sha256": "a2466270bdf4aec52b7b8267140ac4b18c8295520c5b94e1ecb3dc8498dacb34",
+    "parse_recipes_sha256": "dff5b79afdbe58e2e4c7a4f0e4d8b093fd34a94a0302d38cddd6483660496951",
+    "parse_source_inventory_sha256": "3d52afc68446cc7e00344409c2fc1ac6908ed5aa554f55d2501126885e5ee175",
+    "policy": "Post-parse generator dependency refresh. AST, definitions, calls, overrides, unresolved records, translation units, coverage and source bytes are those of the original parse (parse_* identities); only generator dependency metadata and the fingerprints derived from it were recaptured from the unchanged private build.",
+    "recipes_sha256": "f44049e2ea0a2ad8b1a16133e5c6bc25df084366d07995b7369d0d44fd9d1900",
+    "refresh_code_hash_policy": "refresh_generator_dependencies.py and generated_sources.py concatenated after CRLF-to-LF normalization",
+    "refresh_code_sha256": "e81b9d9dfc2fa8d30d2a6f17ce44e044cabf7504b1ba09a5e5ee59da0f11c0cd",
+    "source_identity": {
+      "generation_inputs_sha256": "bf7a1689587de011b7f2b8879e7d6284827a451ee43155ad72b8963fe30a6de6",
+      "hash_policy": "SHA-256 after CRLF-to-LF normalization, as in the original parse",
+      "inventory_sha256": "b320d93f3eb2d9f450d40edd2a22dcd850d59565810540dd1476b773822bfd47",
+      "source_commit": "3cd2c9afc6d2749b7d3a79fd1deaa86ac51cb3a7",
+      "source_files_sha256": "3c0d96516f2c20ca5e7883aa7a549ed0e412a190b27af60012a4edfb0621122e",
+      "source_root": "/home/karlvonrichter/kicad-port/extract-source",
+      "tracked_source_inventory_sha256": "da0820c028bc23f338b6a6256e38dc984bd79f323f02737b93e7e5e499d57a2f",
+      "upstream_pin": "4cf939778df04d2b747bb2c4714fc5014a7565c7",
+      "verified_source_files": 9655
+    }
+  },
+  "committed_graph_sha256": "014f05141168b634cd4ef39a9cea434b696ae2d6d6230048e41af3f31738f342",
+  "edges": [
+    649723,
+    647925
+  ],
+  "functions_equal": true,
+  "generated_input_dependencies_equal": true,
+  "inventory_files_equal": true,
+  "inventory_provenance_equals_graph": true,
+  "manifest_changed_fields": [
+    "generator_dependency_refresh"
+  ],
+  "manifest_refresh_changed": [
+    "capture_code_sha256",
+    "capture_sha256",
+    "source_identity"
+  ],
+  "other_top_level_changed": [],
+  "overrides": [
+    17587,
+    17576
+  ],
+  "provenance_changed": [
+    "aggregation_extractor_sha256",
+    "cache_reused_commands",
+    "definition_endpoint_policy",
+    "generated_sources_manifest_sha256",
+    "generator_dependency_refresh",
+    "parse_cache_replay",
+    "parse_failures"
+  ],
+  "range_postprocessing": [
+    {
+      "input_graph_sha256": "40861e9ca678464cedc513561e6e559cbcb5f902bb5b221fe2b6c378fb803e18",
+      "policy": "byte-verified exclusive EOF to inclusive physical line",
+      "splitter_sha256": "7b97cbc5f1edcf28d9ef77ea0b5956a5a0e51fc260b74c5877a989925d035961"
+    },
+    {
+      "input_graph_sha256": "754103312d4602dab3e4388f041bad413b3615d8452477810e262f8383d1be73",
+      "policy": "byte-verified exclusive EOF to inclusive physical line",
+      "splitter_sha256": "7b97cbc5f1edcf28d9ef77ea0b5956a5a0e51fc260b74c5877a989925d035961"
+    }
+  ],
+  "refresh_fields_changed": [
+    "capture_code_sha256",
+    "capture_sha256",
+    "input_graph_sha256",
+    "input_inventory_sha256",
+    "refresh_code_sha256",
+    "source_identity"
+  ],
+  "removed_edges": 1798,
+  "removed_edges_by_kind": {
+    "override": 233,
+    "static": 1355,
+    "virtual": 210
+  },
+  "translation_units_equal_excluding_cache_trace": true,
+  "vrml_body_callers": [
+    "c:@S@WRL1FACESET@F@TranslateToSG#*$@S@SGNODE#*$@S@WRL1STATUS#",
+    "c:@S@WRL2FACESET@F@TranslateToSG#*$@S@SGNODE#",
+    "c:@S@X3DIFACESET@F@TranslateToSG#*$@S@SGNODE#"
+  ],
+  "vrml_body_callers_committed": [
+    "c:@F@GenerateLayerPoly#*$@S@SHAPE_POLY_SET#*$@S@BOARD#*$@S@PLOTTER#$@E@PCB_LAYER_ID#b#b#b#",
+    "c:@F@drawPcbShapeWithStyle#*1$@S@PCB_SHAPE#*$@S@SHAPE_POLY_SET#I#",
+    "c:@N@KIGFX@S@PCB_PAINTER@F@draw#*1$@S@PCB_SHAPE#I#",
+    "c:@N@KIGFX@S@PCB_PAINTER@F@draw#*1$@S@PCB_TEXTBOX#I#",
+    "c:@N@KIGFX@S@SCH_PAINTER@F@draw#*1$@S@SCH_SHAPE#I#b#",
+    "c:@N@KIGFX@S@SCH_PAINTER@F@draw#*1$@S@SCH_TEXTBOX#I#b#",
+    "c:@N@PNS@S@HOLE@F@~HOLE#",
+    "c:@N@PNS@S@SOLID@F@SetShape#*$@S@SHAPE#",
+    "c:@N@PNS@S@SOLID@F@~SOLID#",
+    "c:@S@BOARD_ADAPTER@F@addShape#*1$@S@PCB_SHAPE#*$@S@CONTAINER_2D_BASE#*1$@S@BOARD_ITEM#$@E@PCB_LAYER_ID#",
+    "c:@S@BRDITEMS_PLOTTER@F@PlotShape#*1$@S@PCB_SHAPE#1",
+    "c:@S@EXPORTER_STEP@F@buildGraphic3DShape#*$@S@BOARD_ITEM#&1$@S@VECTOR2>#d#",
+    "c:@S@ROUTER_PREVIEW_ITEM@F@Update#*1$@N@PNS@S@ITEM#",
+    "c:@S@ROUTER_PREVIEW_ITEM@F@~ROUTER_PREVIEW_ITEM#",
+    "c:@S@SCH_SHAPE@F@HitTest#&1$@S@SHAPE_LINE_CHAIN#b#1",
+    "c:@S@SHAPE_ARC@F@~SHAPE_ARC#",
+    "c:@S@SHAPE_CIRCLE@F@~SHAPE_CIRCLE#",
+    "c:@S@SHAPE_COMPOUND@F@AddShape#*$@S@SHAPE#",
+    "c:@S@SHAPE_COMPOUND@F@~SHAPE_COMPOUND#",
+    "c:@S@SHAPE_COMPOUND@F@~SHAPE_COMPOUND#",
+    "c:@S@SHAPE_ELLIPSE@F@~SHAPE_ELLIPSE#",
+    "c:@S@SHAPE_LINE_CHAIN_BASE@F@~SHAPE_LINE_CHAIN_BASE#",
+    "c:@S@SHAPE_NULL@F@~SHAPE_NULL#",
+    "c:@S@SHAPE_POLY_SET@F@~SHAPE_POLY_SET#",
+    "c:@S@SHAPE_SEGMENT@F@~SHAPE_SEGMENT#",
+    "c:@S@WRL1FACESET@F@TranslateToSG#*$@S@SGNODE#*$@S@WRL1STATUS#",
+    "c:@S@WRL2FACESET@F@TranslateToSG#*$@S@SGNODE#",
+    "c:@S@X3DIFACESET@F@TranslateToSG#*$@S@SGNODE#"
+  ]
+}

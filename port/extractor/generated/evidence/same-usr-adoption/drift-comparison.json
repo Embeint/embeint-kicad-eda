@@ -1,0 +1,22 @@
+{
+  "drift-all.json": {
+    "changed_keys": [
+      "ported_function_count",
+      "ported_unit_count"
+    ],
+    "committed_target": "c1e8a467da149eac67341d31de0228e498916ba3",
+    "equal_to_committed_except_target": false,
+    "target": "4738a9c23f8c6068784d26ba991a690044343892"
+  },
+  "drift-ported.json": {
+    "changed_keys": [
+      "affected_units",
+      "dependency_reviews",
+      "ported_function_count",
+      "ported_unit_count"
+    ],
+    "committed_target": "c1e8a467da149eac67341d31de0228e498916ba3",
+    "equal_to_committed_except_target": false,
+    "target": "4738a9c23f8c6068784d26ba991a690044343892"
+  }
+}

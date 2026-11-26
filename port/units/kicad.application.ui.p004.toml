@@ -2,10 +2,10 @@
 id = "kicad.application.ui.p004"
 upstream = ["kicad/local_history_pane.cpp", "kicad/menubar.cpp", "kicad/mergetool_frame.cpp", "kicad/mergetool_frame.h", "kicad/pgm_kicad.h", "kicad/project_downgrade.cpp", "kicad/project_template.cpp"]
 rust_module = "kicad_port::kicad::application::ui::p004"
-depends_on = ["common.application.ui.p002", "common.application.ui.p010", "common.application.ui.p011", "common.application.ui.p019", "common.application.ui.p024", "common.application.ui.p025", "common.application.ui.p027", "common.application.ui.p030", "common.application.ui.p031", "common.application.ui.p033", "common.diff_merge.application.ui.p001", "common.diff_merge.application.ui.p002", "common.generated.ui.p002", "common.jobs.application.thin.replacement.p001", "common.libraries.application.ui.p003", "common.project.application.ui.p004", "common.tool.application.ui.p001", "common.widgets.application.ui.p017", "common.widgets.application.ui.p018", "include.application.ui.p002", "include.application.ui.p003", "include.application.ui.p004", "include.application.ui.p007", "include.application.ui.p008", "include.application.ui.p012", "include.settings.application.ui.p001", "include.tool.application.ui.p001", "include.tool.application.ui.p005", "libs.kiplatform.os.unix.application.thin.replacement.p001", "libs.kiplatform.os.unix.application.ui.p001"]
-soft_depends_on = ["kicad.application.ui.p002", "kicad.application.ui.p003", "pcbnew.tools.application.ui.p004"]
+depends_on = ["common.application.ui.p002", "common.application.ui.p011", "common.application.ui.p019", "common.application.ui.p024", "common.application.ui.p025", "common.application.ui.p027", "common.application.ui.p030", "common.application.ui.p031", "common.application.ui.p033", "common.diff_merge.application.ui.p001", "common.diff_merge.application.ui.p002", "common.generated.ui.p002", "common.jobs.application.thin.replacement.p001", "common.libraries.application.ui.p003", "common.project.application.ui.p004", "common.tool.application.ui.p001", "common.widgets.application.ui.p017", "common.widgets.application.ui.p018", "include.application.ui.p002", "include.application.ui.p003", "include.application.ui.p004", "include.application.ui.p007", "include.application.ui.p008", "include.application.ui.p012", "include.settings.application.ui.p001", "include.tool.application.ui.p001", "include.tool.application.ui.p005", "libs.kiplatform.os.unix.application.thin.replacement.p001", "libs.kiplatform.os.unix.application.ui.p001"]
+soft_depends_on = ["common.application.ui.p010", "kicad.application.ui.p002", "kicad.application.ui.p003", "pcbnew.tools.application.ui.p004"]
 est_lines = 1937
-layer = 128
+layer = 105
 tests = []
 status = "todo"
 claimed_by = ""

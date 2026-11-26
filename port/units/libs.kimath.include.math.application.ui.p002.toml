@@ -19,5 +19,5 @@ source_ranges = ["libs/kimath/include/math/vector2d.h:1:737", "libs/kimath/inclu
 wx_class = "UI"
 
 [difftest]
-rust_package = "kicad-vector-shim"
 rust_binary = "kicad-vector-shim"
+rust_package = "kicad-vector-shim"

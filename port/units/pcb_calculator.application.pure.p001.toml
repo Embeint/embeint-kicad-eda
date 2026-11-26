@@ -19,6 +19,6 @@ source_ranges = ["pcb_calculator/common_data.h:1:62", "pcb_calculator/eseries.cp
 wx_class = "pure"
 
 [difftest]
-rust_package = "kicad-resistors-shim"
-rust_binary = "kicad-resistors-shim"
 rust_args = []
+rust_binary = "kicad-resistors-shim"
+rust_package = "kicad-resistors-shim"
