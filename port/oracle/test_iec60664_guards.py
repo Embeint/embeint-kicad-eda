@@ -10,15 +10,17 @@ from unittest.mock import patch
 from audit import audit
 
 
-# The integrated oracle also compiles the resistor and reader reference
-# closures. Every fixture supplies them completely, so each refusal below is
+# The integrated oracle also compiles the resistor, reader and kiplatform Unix
+# reference closures. Every fixture supplies them completely, so each refusal below is
 # caused only by the IEC60664 compilation or archive under test.
 OTHER_TARGETS = ("core", "clipper2", "kimath", "fmt", "kicad-oracle")
 RESISTOR_SOURCES = ("pcb_calculator/eseries.cpp",)
 READER_SOURCES = ("pcb_calculator/datafile_read_write.cpp", "common/dsnlexer.cpp",
                   "common/richio.cpp", "common/exceptions.cpp")
 READER_GENERATED = "reader-generated/pcb_calculator_datafile_keywords.cpp"
-OTHER_ARCHIVES = ("libresistor-reference.a", "libfmt.a", "libcalculator-reader-reference.a")
+KIPLATFORM_SOURCES = ("libs/kiplatform/os/unix/drivers.cpp", "libs/kiplatform/os/unix/sysinfo.cpp")
+OTHER_ARCHIVES = ("libresistor-reference.a", "libfmt.a", "libcalculator-reader-reference.a",
+                  "libkiplatform-unix-reference.a")
 
 
 class CalculatorReferenceGuards(unittest.TestCase):
@@ -37,6 +39,7 @@ class CalculatorReferenceGuards(unittest.TestCase):
         compiled.append(("resistor-reference", wrapper))
         compiled += [("calculator-reader-reference", source / path) for path in READER_SOURCES]
         compiled.append(("calculator-reader-reference", build / READER_GENERATED))
+        compiled += [("kiplatform-unix-reference", source / path) for path in KIPLATFORM_SOURCES]
         if reference:
             compiled.append(("iec60664-reference",
                              overlay / "iec60664.cpp" if substitute else source / relative))
@@ -45,7 +48,7 @@ class CalculatorReferenceGuards(unittest.TestCase):
             "-o", f"CMakeFiles/{target}.dir/impl.cpp.o"]}
             for target, path in compiled if target not in omit]
         (build / "compile_commands.json").write_text(json.dumps(database), encoding="utf-8")
-        pinned = (relative,) + RESISTOR_SOURCES + READER_SOURCES
+        pinned = (relative,) + RESISTOR_SOURCES + READER_SOURCES + KIPLATFORM_SOURCES
         manifest = {"files": {path: "test-hash" for path in pinned},
                     "overlay_revision": "test-revision", "overlay_dirty_at_export": False}
         link = "g++ -fno-fast-math -ffp-contract=off -o kicad-oracle libkimath.a"
@@ -85,11 +88,12 @@ class CalculatorReferenceGuards(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             build = self.run_audit(Path(directory))
             record = json.loads((build / "oracle-provenance.json").read_text(encoding="utf-8"))
-            self.assertEqual(len(record["compile_commands"]), 13)
+            self.assertEqual(len(record["compile_commands"]), 15)
             self.assertIn("libiec60664-reference.a", record["build_commands"][0])
 
     def test_other_reference_closures_remain_required_with_calculator_present(self):
-        for target in ("fmt", "resistor-reference", "calculator-reader-reference"):
+        for target in ("fmt", "resistor-reference", "calculator-reader-reference",
+                       "kiplatform-unix-reference"):
             with self.subTest(target=target), tempfile.TemporaryDirectory() as directory, \
                     self.assertRaisesRegex(ValueError, "Unexpected reference target closure"):
                 self.run_audit(Path(directory), omit=(target,))

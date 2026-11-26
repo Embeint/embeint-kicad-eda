@@ -19,5 +19,5 @@ source_ranges = ["libs/kimath/src/geometry/ellipse.cpp:1:127"]
 wx_class = "UI"
 
 [difftest]
-rust_package = "kicad-ellipse-shim"
 rust_binary = "kicad-ellipse-shim"
+rust_package = "kicad-ellipse-shim"

@@ -19,6 +19,6 @@ source_ranges = ["libs/kimath/src/md5_hash.cpp:1:289"]
 wx_class = "pure"
 
 [difftest]
-rust_package = "kicad-md5-shim"
-rust_binary = "kicad-md5-shim"
 rust_args = []
+rust_binary = "kicad-md5-shim"
+rust_package = "kicad-md5-shim"

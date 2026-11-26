@@ -2,10 +2,10 @@
 id = "plugins.3d.vrml.application.ui.p001"
 upstream = ["plugins/3d/vrml/plugin.cpp", "plugins/3d/vrml/vrml.cpp", "plugins/3d/vrml/vrml_line_reader.cpp", "plugins/3d/vrml/wrlfacet.cpp"]
 rust_module = "kicad_port::plugins::unit_3d::vrml::application::ui::p001"
-depends_on = ["3d.viewer.3d_cache.sg.application.ui.p001", "3d.viewer.3d_cache.sg.application.ui.p002", "3d.viewer.3d_cache.sg.generated.ui.p001", "common.io.idf.application.thin.replacement.p001", "include.plugins.3dapi.application.pure.p001", "libs.sexpr.include.sexpr.application.pure.p001", "plugins.3d.application.ui.p001", "plugins.3d.idf.application.ui.p001", "plugins.3d.vrml.application.pure.p001", "plugins.3d.vrml.application.ui.p002", "plugins.3d.vrml.v2.generated.pure.p001", "thirdparty.clipper2.clipper2lib.include.clipper2.thirdparty.pure.p001"]
-soft_depends_on = ["common.application.ui.p001", "common.application.ui.p019", "libs.kimath.include.geometry.application.ui.p003", "plugins.3d.oce.application.ui.p001", "plugins.3d.vrml.application.ui.p003", "plugins.3d.vrml.v1.generated.ui.p001", "plugins.3d.vrml.v2.generated.ui.p001"]
+depends_on = ["3d.viewer.3d_cache.sg.application.ui.p001", "3d.viewer.3d_cache.sg.application.ui.p002", "3d.viewer.3d_cache.sg.generated.ui.p001", "common.application.ui.p019", "common.io.idf.application.thin.replacement.p001", "include.plugins.3dapi.application.pure.p001", "libs.sexpr.include.sexpr.application.pure.p001", "plugins.3d.application.ui.p001", "plugins.3d.vrml.application.pure.p001", "plugins.3d.vrml.application.ui.p002", "plugins.3d.vrml.v2.generated.pure.p001", "thirdparty.clipper2.clipper2lib.include.clipper2.thirdparty.pure.p001"]
+soft_depends_on = ["plugins.3d.vrml.application.ui.p003", "plugins.3d.vrml.v1.generated.ui.p001", "plugins.3d.vrml.v2.generated.ui.p001"]
 est_lines = 1393
-layer = 12
+layer = 76
 tests = []
 status = "todo"
 claimed_by = ""

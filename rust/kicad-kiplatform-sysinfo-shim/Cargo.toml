@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[package]
+name = "kicad-kiplatform-sysinfo-shim"
+description = "Native JSONL adapter for the Unix kiplatform drivers.cpp and sysinfo.cpp port"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[package.metadata.kicad]
+portable = false
+
+[dependencies]
+kicad-kiplatform-sysinfo = { path = "../kicad-kiplatform-sysinfo" }
+kicad-difftest = { path = "../kicad-difftest" }
+serde_json.workspace = true
+
+[features]
+# Replays the corpus in wasm32 against native C++ replies supplied at build time.
+live-wasm = []
+
+[[example]]
+name = "corpus_parity"
+required-features = ["live-wasm"]

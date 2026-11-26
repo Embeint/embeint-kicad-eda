@@ -2,10 +2,10 @@
 id = "common.io.idf.application.ui.p004"
 upstream = ["common/io/idf/idf_parser.cpp"]
 rust_module = "kicad_port::common::io::idf::application::ui::p004"
-depends_on = ["common.io.idf.application.pure.p001", "common.io.idf.application.pure.p002", "common.io.idf.application.thin.replacement.p001", "common.io.idf.application.ui.p001", "common.io.idf.application.ui.p002", "common.io.idf.application.ui.p003", "include.application.ui.p012", "libs.sexpr.include.sexpr.application.pure.p001", "plugins.3d.application.ui.p001", "thirdparty.clipper2.clipper2lib.include.clipper2.thirdparty.pure.p001"]
-soft_depends_on = ["common.application.ui.p019", "common.application.ui.p033", "common.jobs.application.ui.p002", "common.jobs.application.ui.p003", "common.widgets.application.ui.p017", "common.widgets.application.ui.p018", "eeschema.sim.generated.ui.p001", "kicad.application.ui.p004", "pcbnew.tools.application.ui.p004"]
+depends_on = ["common.application.ui.p019", "common.application.ui.p033", "common.io.idf.application.pure.p001", "common.io.idf.application.pure.p002", "common.io.idf.application.thin.replacement.p001", "common.io.idf.application.ui.p001", "common.io.idf.application.ui.p002", "common.io.idf.application.ui.p003", "common.jobs.application.ui.p002", "common.jobs.application.ui.p003", "common.widgets.application.ui.p017", "common.widgets.application.ui.p018", "eeschema.sim.generated.ui.p001", "include.application.ui.p012", "kicad.application.ui.p004", "libs.sexpr.include.sexpr.application.pure.p001", "plugins.3d.application.ui.p001", "thirdparty.clipper2.clipper2lib.include.clipper2.thirdparty.pure.p001"]
+soft_depends_on = ["pcbnew.tools.application.ui.p004"]
 est_lines = 2018
-layer = 10
+layer = 255
 tests = []
 status = "todo"
 claimed_by = ""

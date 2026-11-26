@@ -19,5 +19,5 @@ source_ranges = ["libs/kimath/src/geometry/arc_construction.cpp:1:207"]
 wx_class = "UI"
 
 [difftest]
-rust_package = "kicad-arc-construction-shim"
 rust_binary = "kicad-arc-construction-shim"
+rust_package = "kicad-arc-construction-shim"

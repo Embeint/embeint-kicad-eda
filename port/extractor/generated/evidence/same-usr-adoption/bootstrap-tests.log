@@ -1,0 +1,18 @@
+test_check_does_not_create_configuration (test_bootstrap_west.BootstrapTests.test_check_does_not_create_configuration) ... ok
+test_configuration_is_local_and_idempotent (test_bootstrap_west.BootstrapTests.test_configuration_is_local_and_idempotent) ... ok
+test_dirty_checkout_blocks_update (test_bootstrap_west.BootstrapTests.test_dirty_checkout_blocks_update) ... ok
+test_existing_manifest_is_preserved (test_bootstrap_west.BootstrapTests.test_existing_manifest_is_preserved) ... ok
+test_git_settings_are_process_local_and_keep_existing_overrides (test_bootstrap_west.BootstrapTests.test_git_settings_are_process_local_and_keep_existing_overrides) ... ok
+test_head_and_trailer_must_both_match (test_bootstrap_west.BootstrapTests.test_head_and_trailer_must_both_match) ... ok
+test_manifest_drift_is_rejected_before_west (test_bootstrap_west.BootstrapTests.test_manifest_drift_is_rejected_before_west) ... ok
+test_short_commit_is_rejected (test_bootstrap_west.BootstrapTests.test_short_commit_is_rejected) ... ok
+test_wrong_origin_blocks_update (test_bootstrap_west.BootstrapTests.test_wrong_origin_blocks_update) ... ok
+test_counts_and_forged_hash_cannot_authorize_other_values_or_paths (test_resistor_migration.ReplacementTest.test_counts_and_forged_hash_cannot_authorize_other_values_or_paths) ... ok
+test_exact_authorized_replacement_passes (test_resistor_migration.ReplacementTest.test_exact_authorized_replacement_passes) ... ok
+test_metadata_digest_cannot_hide_a_different_original_file (test_resistor_migration.ReplacementTest.test_metadata_digest_cannot_hide_a_different_original_file) ... ok
+test_original_lines_and_positions_must_match_actual_file (test_resistor_migration.ReplacementTest.test_original_lines_and_positions_must_match_actual_file) ... ok
+
+----------------------------------------------------------------------
+Ran 13 tests in 0.056s
+
+OK
