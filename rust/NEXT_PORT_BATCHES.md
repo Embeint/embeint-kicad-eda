@@ -254,6 +254,23 @@ No implementation or review evidence is claimed for #93 yet. Core utility
 headers have claim #92 at `060319e6542579d70a36b56db249d0577ef3ceaf`;
 that is also ownership evidence, not delivery.
 
+Unix system-info #90 is delivered at
+`ab2d7b683c9ea101540adc084492c989b23c4161`, with fresh Sol 6.1 review reporting
+no findings. Its scoped hosted reference run `45852710376` and `rust-port` pass:
+126 exact cases, zero deferrals, 67 matching controls with continuation, and
+wasm parity on GCC 13/glibc 2.39/wx 3.2.4. The parent verified that the hosted
+merge tree equals the reviewed tree and retained the artifact/log hashes in
+[the evidence](validation/2026-11-27-kiplatform-sysinfo/README.md). No duplicate
+local qualification run is needed. The queued isolated preflight `45852706498`
+is replaced by exact-head hosted fallback `45858418153`, still pending.
+
+The freed implementation slot is assigned
+`libs.kimath.src.geometry.circle.application.ui.p001` (`circle.cpp`, 380 lines).
+Its four hard dependencies are accepted partials, and it was unclaimed at
+assignment. Opus 5.5 receives a separate prepared checkout from accepted rust
+`98a12c1123`; it must finish implementation and validation after its scoped
+claim. The independent review waits for a concrete finished head.
+
 Use completion events, not status polling or retry loops. Any renewed routing
 failure must be reported without changing the requested model/provider.
 
@@ -290,7 +307,7 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 | Geometry | SEG #74, ellipse #81, distribute #84 and full hypot #88 are accepted. Core utility header claim #92 is published; implementation remains in progress. | Finish the existing core recovery; circle is now ready after SEG. Geometry headers p003 await graph adoption. |
 | Polygon operations | Engine #76, rectclip #77 and transform #82 are accepted. Graph-adoption recovery submitted with the preserved generated work. | Resume graph adoption against the final accepted baseline, preserving all unit metadata; engine/offset source p002 can now start after engine p001. |
 | Core and general utilities | Core headers #73, map helpers #78, arc #85 and vector2wx #86 are accepted. Unix policy #89 delivered at `4f482553db`, source review and manual reference checks pass; hosted CI pending. wx STL compatibility claim #93 is now the stream assignment. | Finish #93 using accepted wx types; audit explicit-length/locale conversion and byte-oriented stream state. Integrate #89 after its gates pass. |
-| Numeric backends and spatial follow-ups | Pow #80, full hypot #88, R-tree depth #83 and poisson #87 are accepted. Unix driver/system-info #90 recovery submitted; local implementation is still unpublished. | Recover the existing Unix system-info work. Logging host effects and the copy-on-write depth audit remain queued. |
+| Numeric backends and spatial follow-ups | Pow #80, full hypot #88, R-tree depth #83 and poisson #87 are accepted. Unix system-info #90 delivered at `ab2d7b683c`, source review and target hosted gates pass; fallback preflight pending. Circle source p001 is now assigned. | Finish circle source p001, then geometry headers after graph adoption. Logging host effects and copy-on-write depth remain queued. |
 
 On each implementation completion, immediately inspect the result, start the
 independent Sol review and select the next unclaimed dependency-ready assignment.

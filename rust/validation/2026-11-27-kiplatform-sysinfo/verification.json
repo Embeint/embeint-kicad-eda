@@ -1,0 +1,90 @@
+{
+  "head": "ab2d7b683c9ea101540adc084492c989b23c4161",
+  "tree": "c67da78ea16ecb47a668eb55a5dea5c0d2bce694",
+  "hosted_merge": "a327ad77408f3aad9d31c885a12e1e916808ffcb",
+  "hosted_merge_parents": [
+    "98a12c1123efc4904e0f0c5a59299452a7a15e5d",
+    "ab2d7b683c9ea101540adc084492c989b23c4161"
+  ],
+  "run": 45852710376,
+  "run_url": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45852710376",
+  "review": {
+    "model": "gpt-6.1-sol",
+    "executed_model": "gpt-6.1-sol",
+    "head": "ab2d7b683c9ea101540adc084492c989b23c4161",
+    "result": "no source findings or material objections"
+  },
+  "case_result": {
+    "unit": "libs.kiplatform.os.unix.application.pure.p001",
+    "status": "green",
+    "action": "compare",
+    "mode": "partial",
+    "cases": 126,
+    "compared": 126,
+    "deferred": 0,
+    "failures": 0,
+    "unprocessed": 0,
+    "golden_checked": false,
+    "golden": {
+      "status": "not_requested"
+    },
+    "run_faults": [],
+    "extra_replies": [],
+    "cases_sha256": "a2de5dc6abc67e31c7d11fab96e0958e34c83ddb3207a825c1730aecf95c5ca6",
+    "oracle_output_sha256": "b470406aea31b9622f9a44fc16083ef2a341dcaca560e601de9e48e10aa69e34",
+    "rust_output_sha256": "b470406aea31b9622f9a44fc16083ef2a341dcaca560e601de9e48e10aa69e34",
+    "oracle_sha256": "52824418d14d08f75d440aa703cc92f22a6bed2156924396e669dd33c2904bd7",
+    "rust_sha256": "6c330038c191bea2022c0993590d764cf7a4050f31117f21985ed36a98b1b40f"
+  },
+  "target": {
+    "compilers": {
+      "/usr/bin/g++": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+    },
+    "compiler_targets": {
+      "/usr/bin/g++": "x86_64-linux-gnu"
+    },
+    "system_libc_version": "glibc 2.39",
+    "wx_version": "3.2.4",
+    "kicad_pin": "4cf939778df04d2b747bb2c4714fc5014a7565c7",
+    "floating_point": {
+      "contract": "off",
+      "fast_math": false
+    },
+    "reference_file_count": 917
+  },
+  "artifact_sha256": {
+    "sysinfo-native\\compare.json": "fb78d90a1df6bc3190e5b2bbfb61bcc6d46fb17d2abc43121751aefbaefb3442",
+    "sysinfo-native\\oracle-build\\binary.sha256": "818cac3546a210321f43bd10bbc7ee7a92fe45235e9df846c7df4e67a605ce96",
+    "sysinfo-native\\oracle-build\\compile_commands.json": "2cc782dad3f853bf2ff2584526ddbac2374d8e961209723f896eb710a43865a2",
+    "sysinfo-native\\oracle-build\\oracle-provenance.json": "c8f00538e0657486fbb34e6db88edba5b080d8680fc3c702b434dcbdb10e26c2",
+    "sysinfo-native\\symbols.txt": "fa45ff9e6b04c62445d19bc7ffeafd65519610f67da77ac791887438892f732b",
+    "sysinfo-stage\\source-manifest.json": "85ebfa6d4b436b643bec89105a2fcbc22220318674da8545e956d3ffcddfb2be"
+  },
+  "hosted_log_sha256": "0ac4529f33b337b9f74f7ba2907cd95202067af270d2b2a9ed70749e391f3c3a",
+  "relevant_log_lines": [
+    "kiplatform-sysinfo-live\tCompare every public case exactly and replay the controls on both sides\t2026-11-26T15:54:35.3077284Z /home/runner/work/_temp/sysinfo-native/oracle-build/kicad-oracle: 67 refusals, each followed by a successful continuation",
+    "kiplatform-sysinfo-live\tCompare every public case exactly and replay the controls on both sides\t2026-11-26T15:54:35.3078117Z /home/runner/work/embeint-kicad-eda/embeint-kicad-eda/rust/target/debug/kicad-kiplatform-sysinfo-shim: 67 refusals, each followed by a successful continuation",
+    "kiplatform-sysinfo-live\tReplay the complete corpus in import-free WebAssembly against the C++ replies\t2026-11-26T15:54:43.3179521Z Complete corpus agrees with live C++ replies in import-free wasm; Node v22.23.5, V8 12.4.254.21-node.57"
+  ],
+  "fallback": {
+    "pr": 90,
+    "head": "ab2d7b683c9ea101540adc084492c989b23c4161",
+    "cancelled_offline_run": 45852706498,
+    "fallback_run": 45858418153,
+    "fallback_url": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45858418153",
+    "status_at_dispatch": "queued",
+    "use_hosted": true,
+    "scoped_reference_run": 45852710376,
+    "source_review": "fresh Sol6.1: no findings",
+    "unit_status": "partial",
+    "golden": "none"
+  },
+  "scope": "Scoped hosted target evidence at the exact reviewed source tree. Partial, no golden. Output records fully initialized; uninitialized C++ defaults are not modeled.",
+  "global_hosted_gate": {
+    "name": "rust-port",
+    "conclusion": "SUCCESS",
+    "detailsUrl": "https://github.com/Embeint/embeint-kicad-eda/actions/runs/45852710190/job/140022960975"
+  },
+  "refusal_controls": 67,
+  "wasm": "all 126 agree with fresh C++ replies"
+}
