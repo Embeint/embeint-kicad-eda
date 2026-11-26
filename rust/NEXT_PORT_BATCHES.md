@@ -13,8 +13,11 @@ The current batch owns `seg.cpp`, Clipper2 source p001 and the pure core headers
 SEG has delivered draft [PR #74](https://github.com/Embeint/embeint-kicad-eda/pull/74),
 implementation `f85e09907681ad748217ae5f91c31f55177010fc`. Sol 6.1 reviewed those
 source bodies with no behavioral finding; its ownership-note finding is fixed
-in head `0e9845fad7eb4f38fb7d2fe21cf6d56fc467ecbc`. Reference CI remains
-outstanding. Do not base new port topics on these open topics: wait for accepted
+in head `0e9845fad7eb4f38fb7d2fe21cf6d56fc467ecbc`. Its dedicated SEG and geometry
+checks passed. Developer preflight timed out during dependency bootstrap on the
+isolated runner before Rust checks; [hosted fallback run 45726912995](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45726912995)
+was dispatched for the same exact head. Acceptance remains pending. Do not base
+new port topics on these open topics: wait for accepted
 `rust`, or take independent work below.
 
 ## Continuous four-stream cycle
@@ -28,8 +31,8 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 
 | Stream | Current assignment | Next dependency-ready work |
 | --- | --- | --- |
-| Geometry | SEG PR #74 in reference CI after Sol review; Opus investigating/fixing the geometry-to-VRML extractor collision | `circle.cpp` after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. Use ellipse or transform if acceptance/regeneration blocks the chain. |
-| Polygon operations | PR #76 cleanup-observation fix at `d138e88437` in fresh Sol review/reference CI; Opus assigned independent rectclip source p003. Local header deferrals reduced from 31 to 14. | Source p002 after accepted p001; then public wrapper headers after rectclip and p002. |
+| Geometry | SEG PR #74 reviewed; dedicated checks passed, hosted preflight fallback underway after isolated-runner bootstrap timeout. Opus investigating/fixing the geometry-to-VRML extractor collision. | `circle.cpp` after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. Use ellipse or transform if acceptance/regeneration blocks the chain. |
+| Polygon operations | PR #76 cleanup-observation fix at `d138e88437` accepted by Sol as explicitly partial pending CI; Opus assigned independent rectclip source p003. Local header deferrals reduced from 31 to 14. | Source p002 after accepted p001; then public wrapper headers after rectclip and p002. |
 | Core and general utilities | PR #73 review documentation corrected at `5d99a6f8a1`; Sol replay agrees on 669 new and 6,227 existing cases. Opus assigned independent map_helpers header unit. | Keep pure headers partial for allocation, stream, concurrency and scoped-timer gaps even after CI. Audit UI core headers before line-chain work; small-unit queue follows map helpers. |
 | Numeric backends and spatial follow-ups | Opus implementing pinned glibc `pow` | R-tree depth-limit removal; further measured math/backend gaps, with explicit ownership and source-derived scope. |
 
