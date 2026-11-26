@@ -290,10 +290,12 @@ impl<T: EllipseCoord> Ellipse<T> {
 
         let cos_r = self.rotation.cos();
         let sin_r = SinFactor::of(self.rotation);
-        // Compiled operand order (oracle disassembly): rx = ex * cosR - ey * sinR, but
-        // ry = ey * cosR + ex * sinR. The order decides only which of two NaNs survives.
+        // Compiled operand order of the target oracle (GCC 13.3, packed subpd/addpd):
+        // rx = ex * cosR - ey * sinR and ry = ex * sinR + ey * cosR, the source order. The
+        // order decides only which of two NaNs survives (finding
+        // ellipse-target-ry-operand-order).
         let rx = fp::sub(fp::mul(cos_r, ex), sin_r.times(ey));
-        let ry = fp::add(fp::mul(cos_r, ey), sin_r.times(ex));
+        let ry = fp::add(sin_r.times(ex), fp::mul(cos_r, ey));
 
         T::offset(self.center, rx, ry)
     }
@@ -425,5 +427,51 @@ mod tests {
                 AngleUnit::Radians
             ))
         );
+    }
+
+    /// `ry = ex * sinR + ey * cosR` keeps the target oracle's first operand when both
+    /// products are NaN (hosted GCC 13.3 report, cases radii-f64-rot7-defaults,
+    /// random-f64-382 and random-f64-34).
+    #[test]
+    fn point_at_angle_ry_keeps_the_sine_term_nan() -> GeometryResult<()> {
+        let bits = |p: Vector2<f64>| (p.x.to_bits(), p.y.to_bits());
+        let inf = EdaAngle::degrees(f64::INFINITY);
+
+        // 270 degrees: sinR is -1 (ex negated), so the default NaN of ex loses its sign.
+        let e = Ellipse::<f64>::new(
+            Vector2::new(1.0, 2.0),
+            3.0,
+            2.0,
+            EdaAngle::degrees(270.0),
+            ArcAngles::Defaults,
+        );
+        assert_eq!(
+            bits(e.point_at_angle(inf)?),
+            (0xfff8_0000_0000_0000, 0x7ff8_0000_0000_0000)
+        );
+
+        // A NaN major radius carries its payload through ex, not ey's default NaN.
+        let e = Ellipse::<f64>::new(
+            Vector2::new(1.0, 2.0),
+            f64::from_bits(0xfff8_0000_0000_0123),
+            2.0,
+            EdaAngle::degrees(315.0),
+            ArcAngles::Defaults,
+        );
+        assert_eq!(
+            bits(e.point_at_angle(inf)?),
+            (0xfff8_0000_0000_0123, 0xfff8_0000_0000_0123)
+        );
+
+        // A signalling NaN minor radius survives only in rx; ry keeps ex's default NaN.
+        let e = Ellipse::<f64>::new(
+            Vector2::new(1.0, 2.0),
+            3.0,
+            f64::from_bits(0x7ff4_0000_0000_0abc),
+            EdaAngle::degrees(-123.0),
+            ArcAngles::Defaults,
+        );
+        assert_eq!(bits(e.point_at_angle(inf)?).1, 0xfff8_0000_0000_0000);
+        Ok(())
     }
 }
