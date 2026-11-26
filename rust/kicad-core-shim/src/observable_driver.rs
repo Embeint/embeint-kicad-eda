@@ -1,13 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Scripted observable driver, mirroring `port/oracle/shims/core_p001.cpp`.
 //!
-//! The C++ adapter drives the real `UTIL::OBSERVABLE<OBSERVER>` header template.
-//! That template is owned by `libs.core.include.core.application.pure.p001` and is
-//! not ported; this driver plays its role on the Rust side using the same base
-//! primitives the template calls (`add_observer` + `LINK( impl_, ... )` for
-//! `Subscribe`, `enter_iteration` / range over `impl_->observers_` /
-//! `leave_iteration` for `Notify`, the same without `leave_iteration` for
-//! `NotifyIgnore`). It is harness code, not a port of those bodies.
+//! The C++ adapter drives the real `UTIL::OBSERVABLE<OBSERVER>` header template; this
+//! driver drives its port, [`kicad_core::observable_template`] (unit
+//! `libs.core.include.core.application.pure.p001`), with the same script.
 //!
 //! Script domain (identical on both sides). Steps are validated completely before
 //! anything runs. Everything the reference defines runs; the refusals are exactly the
@@ -28,16 +24,25 @@
 //!   last reference went, e.g. `leave_iteration`'s release or `on_observers_empty`
 //!   inside the loop). Checked when the step returns, before the loop reads again.
 //!
+//! * `throw` while an enclosing `notify_ignore` belongs to an observable that was
+//!   dropped inside it: the exception unwinds through that template's `catch( ... )`,
+//!   which calls `leave_iteration()` on the destroyed object.
+//!
 //! The wrap itself, nested notifications in a wrapped loop that compact nothing,
 //! and the base operations inside callbacks are defined and run. The adding and
 //! removing refusals become a skip logged as `{"skipped": op}` when the step carries
 //! `guard: true`; the post-step refusals have no guarded form.
+//!
+//! `throw` makes the observer being called throw an exception (outside a callback,
+//! the step itself throws). It unwinds through every enclosing template, whose
+//! `catch( ... )` calls `leave_iteration()` and rethrows, and is caught after the
+//! top-level step, whose event then carries `"thrown": true`.
 
 use crate::operations::{boolean, fields, signed, text, Error, Result};
 use kicad_core::observable::{
-    ArenaId, ImplId, Link, ObservableArena, ObservableBase, ObservableError, ObserverId,
-    ObserverPtr,
+    ArenaId, ImplId, Link, ObservableArena, ObservableError, ObserverId, ObserverPtr,
 };
+use kicad_core::observable_template::{self, NotifyError, NotifyHost, Observable};
 use serde_json::{json, Value};
 
 pub const OBSERVABLES: usize = 8;
@@ -115,7 +120,32 @@ enum Step {
         link: usize,
         guard: bool,
     },
+    /// The observer being notified throws (an exception, not a refusal).
+    Throw,
 }
+
+/// The observer interface of the script (`OBSERVER` in the C++ adapter).
+pub struct Observer;
+
+/// How a driver step ends abnormally: a refusal, or the scripted exception unwinding.
+enum Fault {
+    Refused(Error),
+    Thrown,
+}
+
+impl From<Error> for Fault {
+    fn from(error: Error) -> Self {
+        Self::Refused(error)
+    }
+}
+
+impl From<&str> for Fault {
+    fn from(message: &str) -> Self {
+        Self::Refused(message.into())
+    }
+}
+
+type Outcome<T> = core::result::Result<T, Fault>;
 
 fn index(input: &Value, name: &str, count: usize) -> Result<usize> {
     let max = i64::try_from(count).unwrap_or(i64::MAX) - 1;
@@ -293,6 +323,10 @@ impl Parser {
                     from: index(input, "from", LINKS)?,
                 }
             }
+            "throw" => {
+                fields(input, &["op"], &[])?;
+                Step::Throw
+            }
             "link_assign" => {
                 fields(input, &["op", "link", "from"], &["guard"])?;
                 Step::LinkAssign {
@@ -317,7 +351,12 @@ fn handle(error: ObservableError) -> Error {
 
 struct Driver {
     arena: ObservableArena,
-    observables: Vec<Option<ObservableBase>>,
+    observables: Vec<Option<Observable<Observer>>>,
+    /// Bumped whenever a slot receives a new observable, so a notification can tell
+    /// its own object from a later one in the same slot.
+    generations: [u64; OBSERVABLES],
+    /// Executing notifications, outermost first: the slot and its generation.
+    frames: Vec<(usize, u64)>,
     links: Vec<Link>,
     present: [bool; LINKS],
     /// Lists ranged over by active `Notify`/`NotifyIgnore` loops, outermost first, with
@@ -343,7 +382,7 @@ impl Driver {
         Ok(())
     }
 
-    fn observable(&mut self, obs: usize) -> Result<&mut ObservableBase> {
+    fn observable(&mut self, obs: usize) -> Result<&mut Observable<Observer>> {
         self.observables
             .get_mut(obs)
             .and_then(Option::as_mut)
@@ -391,7 +430,7 @@ impl Driver {
 
     /// True when adding to `obs`'s list would push into a list an active loop ranges over.
     fn adds_during_iteration(&mut self, obs: usize) -> Result<bool> {
-        let id = self.observable(obs)?.impl_ref().map(|r| r.id());
+        let id = self.observable(obs)?.base().impl_ref().map(|r| r.id());
         Ok(id.is_some_and(|id| self.is_active(id)))
     }
 
@@ -437,19 +476,27 @@ impl Driver {
         self.calls.push(json!({"skipped": op}));
     }
 
-    fn exec(&mut self, step: &Step, depth: usize) -> Result<()> {
-        self.exec_step(step, depth)?;
-        self.check_active()
+    /// Place a new observable in a vacant slot.
+    fn place(&mut self, obs: usize, value: Observable<Observer>) {
+        if let Some(slot) = self.observables.get_mut(obs) {
+            *slot = Some(value);
+        }
+        if let Some(generation) = self.generations.get_mut(obs) {
+            *generation = generation.wrapping_add(1);
+        }
     }
 
-    fn exec_step(&mut self, step: &Step, depth: usize) -> Result<()> {
+    fn exec(&mut self, step: &Step, depth: usize) -> Outcome<()> {
+        self.exec_step(step, depth)?;
+        Ok(self.check_active()?)
+    }
+
+    fn exec_step(&mut self, step: &Step, depth: usize) -> Outcome<()> {
         self.tick()?;
         match step {
             Step::New { obs } => {
                 self.vacant(*obs)?;
-                if let Some(slot) = self.observables.get_mut(*obs) {
-                    *slot = Some(ObservableBase::new());
-                }
+                self.place(*obs, Observable::new());
             }
             Step::Copy { obs, from } => {
                 self.vacant(*obs)?;
@@ -458,14 +505,12 @@ impl Driver {
                     .get_mut(*from)
                     .and_then(Option::take)
                     .ok_or("observable slot empty")?;
-                let copy = self.arena.copy_observable(&mut source);
+                let copy = Observable::inherit(&mut self.arena, &mut source);
                 if let Some(slot) = self.observables.get_mut(*from) {
                     *slot = Some(source);
                 }
                 let copy = copy.map_err(handle)?;
-                if let Some(slot) = self.observables.get_mut(*obs) {
-                    *slot = Some(copy);
-                }
+                self.place(*obs, copy);
             }
             Step::Drop { obs } => {
                 self.observable(*obs)?;
@@ -480,7 +525,9 @@ impl Driver {
                     .get_mut(*obs)
                     .and_then(Option::take)
                     .ok_or("observable slot empty")?;
-                self.arena.drop_observable(base).map_err(handle)?;
+                self.arena
+                    .drop_observable(base.into_base())
+                    .map_err(handle)?;
             }
             Step::Subscribe {
                 obs,
@@ -500,13 +547,12 @@ impl Driver {
                 let Driver {
                     arena, observables, ..
                 } = self;
-                let base = observables
+                let observable = observables
                     .get_mut(*obs)
                     .and_then(Option::as_mut)
                     .ok_or("observable slot empty")?;
-                arena.add_observer(base, *observer).map_err(handle)?;
-                let token = arena.share_impl(base).map_err(handle)?;
-                self.set_link(*link, Link::with_token(token, *observer))?;
+                let link_value = observable.subscribe(arena, *observer).map_err(handle)?;
+                self.set_link(*link, link_value)?;
             }
             Step::SubscribeUnmanaged {
                 obs,
@@ -524,25 +570,27 @@ impl Driver {
                 let Driver {
                     arena, observables, ..
                 } = self;
-                let base = observables
+                let observable = observables
                     .get_mut(*obs)
                     .and_then(Option::as_mut)
                     .ok_or("observable slot empty")?;
-                arena.add_observer(base, *observer).map_err(handle)?;
+                observable
+                    .subscribe_unmanaged(arena, *observer)
+                    .map_err(handle)?;
             }
             Step::Unsubscribe {
                 obs,
                 observer,
                 guard,
             } => {
-                let id = match self.observable(*obs)?.impl_ref() {
+                let id = match self.observable(*obs)?.base().impl_ref() {
                     Some(reference) => reference.id(),
                     // OBSERVABLE_BASE::remove_observer dereferences a null impl_.
                     None if *guard => {
                         self.skipped("unsubscribe");
                         return Ok(());
                     }
-                    None => return Err(handle(ObservableError::NoImpl)),
+                    None => return Err(handle(ObservableError::NoImpl).into()),
                 };
                 if self.erases_during_iteration(Some(id), *observer)? {
                     if *guard {
@@ -554,11 +602,11 @@ impl Driver {
                 let Driver {
                     arena, observables, ..
                 } = self;
-                let base = observables
-                    .get(*obs)
-                    .and_then(Option::as_ref)
+                let observable = observables
+                    .get_mut(*obs)
+                    .and_then(Option::as_mut)
                     .ok_or("observable slot empty")?;
-                arena.remove_observer(base, *observer).map_err(handle)?;
+                observable.unsubscribe(arena, *observer).map_err(handle)?;
             }
             Step::Notify {
                 obs,
@@ -573,7 +621,8 @@ impl Driver {
                 let base = observables
                     .get(*obs)
                     .and_then(Option::as_ref)
-                    .ok_or("observable slot empty")?;
+                    .ok_or("observable slot empty")?
+                    .base();
                 arena.enter_iteration(base).map_err(handle)?;
             }
             Step::LeaveIteration { obs } => {
@@ -583,7 +632,8 @@ impl Driver {
                 let base = observables
                     .get_mut(*obs)
                     .and_then(Option::as_mut)
-                    .ok_or("observable slot empty")?;
+                    .ok_or("observable slot empty")?
+                    .base_mut();
                 arena.leave_iteration(base).map_err(handle)?;
             }
             Step::OnObserversEmpty { obs } => {
@@ -593,7 +643,8 @@ impl Driver {
                 let base = observables
                     .get_mut(*obs)
                     .and_then(Option::as_mut)
-                    .ok_or("observable slot empty")?;
+                    .ok_or("observable slot empty")?
+                    .base_mut();
                 arena.on_observers_empty(base).map_err(handle)?;
             }
             Step::LinkNew { link } => {
@@ -612,7 +663,8 @@ impl Driver {
                 let base = observables
                     .get(*obs)
                     .and_then(Option::as_ref)
-                    .ok_or("observable slot empty")?;
+                    .ok_or("observable slot empty")?
+                    .base();
                 let token = arena.share_impl(base).map_err(handle)?;
                 self.set_link(*link, Link::with_token(token, *observer))?;
             }
@@ -665,11 +717,23 @@ impl Driver {
                 }
                 self.arena.drop_link(value).map_err(handle)?;
             }
+            Step::Throw => {
+                // Every enclosing template's catch block calls leave_iteration() on its
+                // observable; one destroyed inside its own NotifyIgnore makes that
+                // undefined.
+                if self.frames.iter().any(|(obs, generation)| {
+                    self.observables.get(*obs).is_none_or(Option::is_none)
+                        || self.generations.get(*obs) != Some(generation)
+                }) {
+                    return Err("throw through destroyed observable".into());
+                }
+                return Err(Fault::Thrown);
+            }
         }
         Ok(())
     }
 
-    /// The `OBSERVABLE<T>::Notify` / `NotifyIgnore` loop over `impl_->observers_`.
+    /// `OBSERVABLE<T>::Notify` / `NotifyIgnore` through the ported template.
     fn notify(
         &mut self,
         obs: usize,
@@ -677,64 +741,51 @@ impl Driver {
         ignore: Option<ObserverPtr>,
         reactions: &[(ObserverId, Vec<Step>)],
         depth: usize,
-    ) -> Result<()> {
-        let Some(id) = self.observable(obs)?.impl_ref().map(|r| r.id()) else {
-            return Ok(());
-        };
+    ) -> Outcome<()> {
+        let id = self.observable(obs)?.base().impl_ref().map(|r| r.id());
+        let generation = self.generations.get(obs).copied().unwrap_or(0);
         // enter_iteration is modular: a count left at UINT_MAX by an unpaired
-        // leave_iteration becomes 0 here, which is defined. Only a later erase,
-        // compaction or destruction of this list during the loop is undefined; the
-        // removal checks and check_active refuse exactly those.
-        {
-            let Driver {
-                arena, observables, ..
-            } = &mut *self;
-            let base = observables
-                .get(obs)
-                .and_then(Option::as_ref)
-                .ok_or("observable slot empty")?;
-            arena.enter_iteration(base).map_err(handle)?;
+        // leave_iteration becomes 0 inside the loop, which is defined. Only a later
+        // erase, compaction or destruction of this list during the loop is undefined;
+        // the removal checks and check_active refuse exactly those.
+        if let Some(id) = id {
+            // The range-for end is fixed when the loop starts.
+            let end = self.arena.observers(id).map_err(handle)?.len();
+            self.active.push((id, end));
         }
-        // The range-for end is fixed when the loop starts; entries are re-read each step.
-        let end = self.arena.observers(id).map_err(handle)?.len();
-        self.active.push((id, end));
+        self.frames.push((obs, generation));
         if ignore.is_none() {
             self.notifying.push(obs);
         }
-        for position in 0..end {
-            let entry = self
-                .arena
-                .observers(id)
-                .map_err(handle)?
-                .get(position)
-                .copied()
-                .flatten();
-            let Some(observer) = entry else { continue };
-            if ignore == Some(Some(observer)) {
-                continue;
+        let mut run = NotifyRun {
+            driver: self,
+            obs,
+            generation,
+            event,
+            reactions,
+            depth,
+        };
+        let result = match ignore {
+            None => observable_template::notify(&mut run),
+            Some(pointer) => observable_template::notify_ignore(&mut run, pointer),
+        };
+        match result {
+            Ok(()) => {}
+            Err(NotifyError::Observer(fault) | NotifyError::UnwoundDestroyed(fault)) => {
+                return Err(fault)
             }
-            self.tick()?;
-            self.calls
-                .push(json!({"depth": depth, "event": event, "observer": observer.0}));
-            if let Some((_, steps)) = reactions.iter().find(|(o, _)| *o == observer) {
-                for step in steps {
-                    self.exec(step, depth + 1)?;
-                }
+            Err(NotifyError::Observable(error)) => return Err(handle(error).into()),
+            Err(NotifyError::ListInvalidated) => {
+                return Err("list invalidated during active iteration".into())
             }
+            Err(NotifyError::Destroyed) => return Err("drop during own notification".into()),
         }
-        self.active.pop();
         if ignore.is_none() {
             self.notifying.pop();
         }
-        if ignore.is_none() {
-            let Driver {
-                arena, observables, ..
-            } = self;
-            let base = observables
-                .get_mut(obs)
-                .and_then(Option::as_mut)
-                .ok_or("observable slot empty")?;
-            arena.leave_iteration(base).map_err(handle)?;
+        self.frames.pop();
+        if id.is_some() {
+            self.active.pop();
         }
         Ok(())
     }
@@ -757,7 +808,8 @@ impl Driver {
         for slot in &self.observables {
             observables.push(match slot {
                 None => Value::Null,
-                Some(base) => {
+                Some(observable) => {
+                    let base = observable.base();
                     let impl_label = label(base.impl_ref().map(|r| r.id()));
                     json!({"impl": impl_label, "size": self.arena.size(base).map_err(handle)?})
                 }
@@ -792,6 +844,8 @@ pub fn run(input: &Value) -> Result<Value> {
     let mut driver = Driver {
         arena: ObservableArena::new(ArenaId(0)),
         observables: (0..OBSERVABLES).map(|_| None).collect(),
+        generations: [0; OBSERVABLES],
+        frames: Vec::new(),
         links: (0..LINKS).map(|_| Link::new()).collect(),
         present: [false; LINKS],
         active: Vec::new(),
@@ -801,9 +855,23 @@ pub fn run(input: &Value) -> Result<Value> {
     };
     let mut events = Vec::new();
     for step in &steps {
-        driver.exec(step, 0)?;
+        let thrown = match driver.exec(step, 0) {
+            Ok(()) => false,
+            Err(Fault::Thrown) => {
+                // Caught after the top-level step: every enclosing loop has unwound.
+                driver.active.clear();
+                driver.notifying.clear();
+                driver.frames.clear();
+                true
+            }
+            Err(Fault::Refused(error)) => return Err(error),
+        };
         let calls = core::mem::take(&mut driver.calls);
-        events.push(json!({"calls": calls, "state": driver.snapshot()?}));
+        let mut event = json!({"calls": calls, "state": driver.snapshot()?});
+        if thrown {
+            event["thrown"] = json!(true);
+        }
+        events.push(event);
     }
     // Destroy everything in the C++ adapter's scope-exit order (links, then
     // observables), so the arena's lifetime accounting is exercised too; nothing
@@ -813,8 +881,54 @@ pub fn run(input: &Value) -> Result<Value> {
             driver.arena.drop_link(link).map_err(handle)?;
         }
     }
-    for base in driver.observables.into_iter().flatten() {
-        driver.arena.drop_observable(base).map_err(handle)?;
+    for observable in driver.observables.into_iter().flatten() {
+        driver
+            .arena
+            .drop_observable(observable.into_base())
+            .map_err(handle)?;
     }
     Ok(json!({"events": events}))
+}
+
+/// One notification's host: the driver, the notifying slot and the reactions to run.
+struct NotifyRun<'a> {
+    driver: &'a mut Driver,
+    obs: usize,
+    generation: u64,
+    event: i64,
+    reactions: &'a [(ObserverId, Vec<Step>)],
+    depth: usize,
+}
+
+impl NotifyHost<Observer> for NotifyRun<'_> {
+    type Error = Fault;
+
+    fn parts(&mut self) -> (&mut ObservableArena, Option<&mut Observable<Observer>>) {
+        let Driver {
+            arena,
+            observables,
+            generations,
+            ..
+        } = &mut *self.driver;
+        let this = if generations.get(self.obs) == Some(&self.generation) {
+            observables.get_mut(self.obs).and_then(Option::as_mut)
+        } else {
+            None
+        };
+        (arena, this)
+    }
+
+    /// `OBSERVER::OnEvent( event )`: log the call and run this observer's reaction.
+    fn call(&mut self, observer: ObserverId) -> Outcome<()> {
+        self.driver.tick()?;
+        self.driver
+            .calls
+            .push(json!({"depth": self.depth, "event": self.event, "observer": observer.0}));
+        if let Some((_, steps)) = self.reactions.iter().find(|(o, _)| *o == observer) {
+            for step in steps {
+                self.driver.exec(step, self.depth + 1)?;
+            }
+        }
+        Ok(())
+    }
 }
