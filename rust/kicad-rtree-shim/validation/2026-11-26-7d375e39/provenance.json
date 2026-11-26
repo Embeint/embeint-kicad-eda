@@ -1,0 +1,32 @@
+{
+  "pin": "4cf939778df04d2b747bb2c4714fc5014a7565c7",
+  "source_sha256": {
+    "libs/kimath/include/geometry/rtree/dynamic_rtree.h": "82a116ed5908a9e50ff079ccc0dbfd21780a6f8c8633e01cc9c5ff0087f77e6a",
+    "libs/kimath/include/geometry/rtree/rtree_node.h": "448e32c2beb20dabd1e8d98b98b3e430fd6ea1c58de440cae78e48a13e359587",
+    "thirdparty/nlohmann_json/nlohmann/json.hpp": "9bea4c8066ef4a1c206b2be5a36302f8926f7fdc6087af5d20b417d0cf103ea6"
+  },
+  "overlay_sha256": {
+    "dynamic_rtree.cpp": "9130de00ee551ea335015df9e14f0d288abbc55bbb07f8f19e6bf1bc54d8d2d8",
+    "protocol.cpp": "481ff37223bce228d2ed35b8afac14eb9f92ef8b7a5a944432b233c29f7c47ca",
+    "protocol.h": "e55856a73b3aad95d46f843fc1ca5047454ec2ffd0d37630f39e9d07464de652",
+    "registry.h": "687b5d51b8e5c3855ad06ff6468ee1bae424111718133f7cc95ca3de89fda3b1",
+    "main.cpp": "c6feea089f550a84359ecaac0eb913c4cf07838b8894cbe884506be58f7783f6"
+  },
+  "revision": "7d375e39ad",
+  "dirty": false,
+  "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+  "machine": "x86_64",
+  "compiler": "g++",
+  "compiler_version": "g++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0\nCopyright (C) 2025 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+  "flags": [
+    "-std=c++20",
+    "-O0",
+    "-g0",
+    "--coverage",
+    "-fno-fast-math",
+    "-ffp-contract=off",
+    "-fsanitize=undefined,float-cast-overflow",
+    "-fno-sanitize-recover=all"
+  ],
+  "binary_sha256": "ba6cdb2e5904542ea2e9d90d5082b445b1326cbeaa4b56b3a5652e09c71b1336"
+}
