@@ -52,7 +52,7 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 
 | Stream | Current assignment | Next dependency-ready work |
 | --- | --- | --- |
-| Geometry | SEG awaits fresh CI at `b908f439a0`; graph adoption active. Ellipse #81 target NaN repair at `fb6dd8632c` passed fresh Sol review and recorded-reference replay; hosted CI pending. Distribute #84 passed Sol review at `33fa41f687`; hosted CI pending. Hypot #88 delivered and under Sol review. | Adopt graph with final-head provenance; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
+| Geometry | SEG awaits fresh CI at `b908f439a0`; graph adoption active. Ellipse #81 target repair at `fb6dd8632c` passed fresh Sol review; hosted CI pending. Distribute #84 and hypot #88 passed Sol review, hosted CI pending. Freed Opus slot now implements independent include/core utility headers. | Adopt graph with final-head provenance; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
 | Polygon operations | Engine #76 passed checks at `6f58bc73fa`, then imported accepted extractor #79 at `401ebc2624`; fresh CI required. Rectclip #77 likewise awaits fresh CI at `b88832a7d2`. Transform #82 reviewed; reference prose corrected at `b2918f6b31`. Opus implementing graph adoption as independent fallback. | Source p002 after accepted engine p001, then public wrapper headers after rectclip and p002. |
 | Core and general utilities | PR #73 awaits fresh CI at `ab6fd8f3ea`. Map helpers #78 corrected at `1cadc88eb8`, Sol recheck passed; target wx qualification pending. Arc #85 caller count/workflow fix pushed at `207f67b2cb`; fresh CI required. Vector2wx #86 passed Sol review; wasm comment corrected at `3861aaa7b2`. Freed Opus slot implements Unix policy. | Hold wx_stl_compat reuse until map helpers is accepted. Keep pure headers partial for allocation, stream, concurrency and scoped-timer gaps. Audit UI core headers before line-chain work. |
 | Numeric backends and spatial follow-ups | Pow #80 accepted. R-tree #83 at `813623a66b` passed Sol review, hosted checks pending. Poisson #87 passed Sol review; qualification prose fixed at `bed62f0c5b`. Freed Opus slot now implements Unix driver/system-info bodies. | Model newly exposed kimathLogOverflow host effects with explicit ownership/host assertion policy; further measured numeric and spatial gaps. Audit copy-on-write code before claiming a similar fixed-depth problem. |
@@ -265,7 +265,7 @@ precise guards cover the arithmetic reached across both engine units. Keep
 the remaining restriction explicit until then. `SHAPE_POLY_SET` still has
 geometry prerequisites after Clipper2 is complete.
 
-## Independent small-unit queue
+## Independent fallback queue
 
 The units below have satisfied recorded hard dependencies at the snapshot.
 Keep one unit per claim/PR, even if one worker handles several sequentially.
@@ -280,6 +280,7 @@ Keep one unit per claim/PR, even if one worker handles several sequentially.
 | F | `vector2wx.h` — 56 lines; delivered PR #86 | Sol found no correctness blocker; wasm evidence comment corrected at `3861aaa7b2`. Final-head hosted CI pending. |
 | G | Unix `policy.cpp` — 35 lines; Opus active | Two genuine constant-return platform bodies; retain the ignored key argument without importing wxString behavior. No recorded hard dependencies. |
 | H | Unix `drivers.cpp` + `sysinfo.cpp` — 70 lines; Opus active | Six genuine platform bodies; false results with unchanged, initialized output parameters, empty lifecycle and no synthetic OS queries. No recorded hard dependencies. |
+| I | `include/core` pure utility headers — 1,046 lines; Opus active | Callable storage copy/move/lifetime, intentional leak ownership, mirror operations, injected-clock throttle and exact type classifications. Separate from #73's libs/core headers; no recorded hard dependencies. |
 
 Ellipse's local GCC 15.2/glibc 2.43 comparison reports 2,239 cases: 2,103 exact,
 136 deferred (100 logging and 36 hypot), zero failures, plus 234 identical
@@ -373,6 +374,33 @@ accepted. This is existing vector ownership, not an invented glibc unit.
 Reuse the accepted glibc 2.39 SSE2 source/package/dispatch qualification approach,
 including exact NaN bits, scaling, subnormals and native/wasm agreement.
 Do not import or edit unaccepted ellipse code to demonstrate the dependency.
+
+Hypot delivered as PR #88 at
+`980bcf964ae55a64e3368d20afaab040a3b339d6`. The accepted finite kernel is
+unchanged; the public special-value path and vector norm wiring are added.
+The locked glibc binding is `hypot@@GLIBC_2.35`, a plain function distinct from
+the old compatibility entry. The worker reports 1,607,712 locked records with
+zero mismatches on native Windows/Linux and import-free wasm, debug/release.
+Sol independently rebuilt and replayed all records on Windows debug/release,
+verified record/source archive hashes, source constants and the disassembly,
+and passed Python qualification tests. Reversing NaN priority disagrees on
+205 records, confirming meaningful discrimination. No blocking implementation
+finding; hosted CI and WASI qualification remain pending.
+
+Caller reports show 11,737 exact vector cases / 471 deferred out of 12,208,
+and util/box 14,329 exact / 1,602 deferred, with zero local C++ mismatches.
+All 2,070 vector and five util/box hypot deferrals become results without
+changing earlier successes or introducing new deferrals. The new vector wiring
+subsumes #85's finite-only branch; both make the same util/box count assertion
+update. Resolve this through accepted rust and rerun arc/ellipse continuations
+after integration. Four Windows release workspace failures were reported to
+match the base, but that equivalence was not independently substantiated by
+the reviewer; retain it as a local validation limit, not a passing check.
+
+The freed Opus slot takes `include.core.application.pure.p001`: inplace_function,
+leak_at_exit, mirror, throttle and typeinfo headers. Its canonical FLIP_DIRECTION
+must eventually replace/reexport ellipse #81's minimum co-port through accepted
+integration; do not import the open ellipse topic to build this unit.
 
 Arc construction PR #85 implements all eight definitions and reports 2,912
 public cases: 2,892 exact, 20 deferred, zero failures. Twenty malformed-request
