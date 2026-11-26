@@ -232,7 +232,7 @@ add_test( NAME oracle-iec60664-build-guards
     COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_iec60664_guards.py" )
 add_executable( oracle-dispatch-test EXCLUDE_FROM_ALL test_dispatch.cpp protocol.cpp registry.cpp
                 ${ORACLE_SHIMS} reference/geometry_unreachable_config.cpp
-                "${KIPLATFORM_POLICY_SHIM}" "${KIPLATFORM_POLICY_SOURCE}" )
+                "${KIPLATFORM_POLICY_SHIM}" "${KIPLATFORM_POLICY_SOURCE}" "${WX_STL_COMPAT_SHIM}" )
 target_include_directories( oracle-dispatch-test PRIVATE "${ORACLE_OVERLAY}"
                             "${KICAD_REFERENCE_SOURCE}/libs/kiplatform/include" )
 target_link_libraries( oracle-dispatch-test PRIVATE kimath nlohmann_json iec60664-reference
