@@ -91,10 +91,12 @@ Measured installation details and run evidence are in [validation.md](validation
 ## Rust-port developer feedback
 
 `rust-port-preflight.yml` adds ordinary cached developer checks on pushes to
-`rust` and repository writers' `t3/**` branches. It uses the existing isolated
-runner while `KICAD_CI_RUNNER_ENABLED=true`, otherwise GitHub Ubuntu 24.04.
-The manual `use_hosted` option supplies a baseline or temporary fallback without
-changing repository settings. The installed admission hook remains unchanged:
+`rust` and repository writers' `t3/**` branches. Pushes and ordinary manual runs
+use GitHub Ubuntu 24.04, so an offline isolated runner cannot strand automatic
+feedback. A manual `use_isolated=true` run uses the cached isolated runner only
+when `KICAD_CI_RUNNER_ENABLED=true`; verify the runner is online before opting in.
+The existing manual `use_hosted=true` option forces GitHub even if both options
+are selected. No repository settings need changing. The installed admission hook remains unchanged:
 PR events and other repositories are refused. No Docker access, sudo, additional
 memory, private-network access or runner registration is added.
 
@@ -135,7 +137,8 @@ remove this cross-job influence; neither is installed.
 
 Read-only preflight artifacts record source identity, runner, cgroup limits,
 tools and actual check logs. They explicitly say numerical qualification is
-false. Per-branch preflight concurrency cancels superseded developer runs. The
+false. Per-branch and selected-runner preflight concurrency cancels superseded
+developer runs; ordinary pushes and forced-hosted manual runs share a group. The
 hosted Rust-port, Rust MCP and package workflows also cancel superseded PR
 heads; tag releases, push qualification and manual migration runs retain their
 existing non-cancelling behavior.
