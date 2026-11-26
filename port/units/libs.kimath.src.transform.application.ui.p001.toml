@@ -19,5 +19,5 @@ source_ranges = ["libs/kimath/src/transform.cpp:1:127"]
 wx_class = "UI"
 
 [difftest]
-rust_package = "kicad-transform-shim"
 rust_binary = "kicad-transform-shim"
+rust_package = "kicad-transform-shim"

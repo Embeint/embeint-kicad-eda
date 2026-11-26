@@ -19,6 +19,6 @@ source_ranges = ["libs/kimath/include/math/matrix3x3.h:1:471", "libs/kimath/incl
 wx_class = "pure"
 
 [difftest]
-rust_package = "kicad-math-shim"
-rust_binary = "kicad-math-shim"
 rust_args = []
+rust_binary = "kicad-math-shim"
+rust_package = "kicad-math-shim"

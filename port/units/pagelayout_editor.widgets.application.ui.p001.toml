@@ -2,10 +2,10 @@
 id = "pagelayout_editor.widgets.application.ui.p001"
 upstream = ["pagelayout_editor/widgets/pl_properties_panel.cpp"]
 rust_module = "kicad_port::pagelayout_editor::widgets::application::ui::p001"
-depends_on = ["common.application.ui.p006", "common.application.ui.p008", "common.application.ui.p010", "common.application.ui.p023", "common.application.ui.p024", "common.application.ui.p031", "common.application.ui.p034", "common.dialogs.application.ui.p008", "common.drawing_sheet.application.ui.p001", "common.drawing_sheet.application.ui.p002", "common.properties.application.ui.p001", "common.properties.application.ui.p002", "common.tool.application.ui.p006", "common.tool.application.ui.p007", "common.tool.application.ui.p008", "common.widgets.application.ui.p012", "common.widgets.application.ui.p013", "include.application.ui.p005", "include.drawing_sheet.application.ui.p001", "include.properties.application.ui.p001", "include.properties.application.ui.p002", "include.tool.application.ui.p003", "include.tool.application.ui.p005", "pagelayout_editor.application.ui.p001", "pagelayout_editor.application.ui.p002", "pcbnew.widgets.application.ui.p007"]
-soft_depends_on = ["eeschema.application.ui.p022", "eeschema.application.ui.p041", "eeschema.application.ui.p052", "eeschema.widgets.application.ui.p004"]
+depends_on = ["common.application.ui.p006", "common.application.ui.p008", "common.application.ui.p010", "common.application.ui.p023", "common.application.ui.p024", "common.application.ui.p031", "common.application.ui.p034", "common.dialogs.application.ui.p008", "common.drawing_sheet.application.ui.p001", "common.drawing_sheet.application.ui.p002", "common.properties.application.ui.p001", "common.properties.application.ui.p002", "common.tool.application.ui.p006", "common.tool.application.ui.p007", "common.tool.application.ui.p008", "common.widgets.application.ui.p012", "common.widgets.application.ui.p013", "eeschema.application.ui.p052", "include.application.ui.p005", "include.drawing_sheet.application.ui.p001", "include.properties.application.ui.p001", "include.properties.application.ui.p002", "include.tool.application.ui.p003", "include.tool.application.ui.p005", "pagelayout_editor.application.ui.p001", "pagelayout_editor.application.ui.p002"]
+soft_depends_on = ["eeschema.application.ui.p022", "eeschema.application.ui.p041", "eeschema.widgets.application.ui.p004", "pcbnew.widgets.application.ui.p007"]
 est_lines = 337
-layer = 231
+layer = 245
 tests = []
 status = "todo"
 claimed_by = ""

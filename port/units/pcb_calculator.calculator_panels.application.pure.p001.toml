@@ -19,6 +19,6 @@ source_ranges = ["pcb_calculator/calculator_panels/iec60664.cpp:1:1355", "pcb_ca
 wx_class = "pure"
 
 [difftest]
-rust_package = "kicad-iec60664-shim"
-rust_binary = "kicad-iec60664-shim"
 rust_args = []
+rust_binary = "kicad-iec60664-shim"
+rust_package = "kicad-iec60664-shim"

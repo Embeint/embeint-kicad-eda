@@ -19,6 +19,6 @@ source_ranges = ["libs/core/base64.cpp:1:164", "libs/core/observable.cpp:1:267",
 wx_class = "pure"
 
 [difftest]
-rust_package = "kicad-core-shim"
-rust_binary = "kicad-core-shim"
 rust_args = []
+rust_binary = "kicad-core-shim"
+rust_package = "kicad-core-shim"

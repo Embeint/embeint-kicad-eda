@@ -1,0 +1,33 @@
+test_compressed_graph_has_same_accounting_and_correct_source_link (test_progress.ProgressTests.test_compressed_graph_has_same_accounting_and_correct_source_link) ... ok
+test_dependencies_and_layers_are_visible (test_progress.ProgressTests.test_dependencies_and_layers_are_visible) ... ok
+test_deterministic_bytes_without_clock_or_network (test_progress.ProgressTests.test_deterministic_bytes_without_clock_or_network) ... ok
+test_empty_golden_and_missing_golden_are_distinct (test_progress.ProgressTests.test_empty_golden_and_missing_golden_are_distinct) ... ok
+test_empty_is_not_a_vacuous_phase0_pass (test_progress.ProgressTests.test_empty_is_not_a_vacuous_phase0_pass) ... ok
+test_escape_toml_markdown_urls_and_findings (test_progress.ProgressTests.test_escape_toml_markdown_urls_and_findings) ... ok
+test_extractor_flags_coverage_limits_and_back_edges (test_progress.ProgressTests.test_extractor_flags_coverage_limits_and_back_edges) ... ok
+test_extractor_nonboolean_flag_is_rejected (test_progress.ProgressTests.test_extractor_nonboolean_flag_is_rejected) ... ok
+test_failed_replies_block_green_without_counting_as_deferred (test_progress.ProgressTests.test_failed_replies_block_green_without_counting_as_deferred) ... ok
+test_findings_symlink_cannot_read_private_file (test_progress.ProgressTests.test_findings_symlink_cannot_read_private_file) ... ok
+test_generated_logical_source_link_uses_committed_snapshot (test_progress.ProgressTests.test_generated_logical_source_link_uses_committed_snapshot) ... ok
+test_generated_navigation_and_stylesheet_links_resolve (test_progress.ProgressTests.test_generated_navigation_and_stylesheet_links_resolve) ... ok
+test_green_with_coverage_gap_is_reported_partial (test_progress.ProgressTests.test_green_with_coverage_gap_is_reported_partial) ... ok
+test_green_with_deferred_evidence_is_flagged (test_progress.ProgressTests.test_green_with_deferred_evidence_is_flagged) ... ok
+test_invalid_unit_and_unknown_dependency_fail_build (test_progress.ProgressTests.test_invalid_unit_and_unknown_dependency_fail_build) ... ok
+test_jsonl_bare_cr_inside_string_remains_invalid (test_progress.ProgressTests.test_jsonl_bare_cr_inside_string_remains_invalid) ... ok
+test_jsonl_literal_unicode_separators_with_lf_framing (test_progress.ProgressTests.test_jsonl_literal_unicode_separators_with_lf_framing) ... ok
+test_jsonl_non_lf_record_separators_remain_invalid (test_progress.ProgressTests.test_jsonl_non_lf_record_separators_remain_invalid) ... ok
+test_jsonl_unicode_case_id_duplicates_remain_invalid (test_progress.ProgressTests.test_jsonl_unicode_case_id_duplicates_remain_invalid) ... ok
+test_jsonl_unicode_values_do_not_bypass_identity_validation (test_progress.ProgressTests.test_jsonl_unicode_values_do_not_bypass_identity_validation) ... ok
+test_malformed_record_and_duplicate_keys_fail_build (test_progress.ProgressTests.test_malformed_record_and_duplicate_keys_fail_build) ... ok
+test_mixed_statuses_stored_counts_and_source_links (test_progress.ProgressTests.test_mixed_statuses_stored_counts_and_source_links) ... ok
+test_nonempty_unowned_output_is_not_modified (test_progress.ProgressTests.test_nonempty_unowned_output_is_not_modified) ... ok
+test_partial_generated_artifacts_remain_visibly_incomplete (test_progress.ProgressTests.test_partial_generated_artifacts_remain_visibly_incomplete) ... ok
+test_rebuild_removes_obsolete_unit_pages (test_progress.ProgressTests.test_rebuild_removes_obsolete_unit_pages) ... ok
+test_source_paths_cannot_escape_repository (test_progress.ProgressTests.test_source_paths_cannot_escape_repository) ... ok
+test_three_green_records_do_not_certify_live_oracle_gate (test_progress.ProgressTests.test_three_green_records_do_not_certify_live_oracle_gate) ... ok
+test_upstream_error_status_inside_result_is_not_a_harness_failure (test_progress.ProgressTests.test_upstream_error_status_inside_result_is_not_a_harness_failure) ... ok
+
+----------------------------------------------------------------------
+Ran 28 tests in 0.990s
+
+OK

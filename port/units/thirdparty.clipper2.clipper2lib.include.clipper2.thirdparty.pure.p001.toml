@@ -19,5 +19,5 @@ source_ranges = ["thirdparty/clipper2/Clipper2Lib/include/clipper2/clipper.core.
 wx_class = "pure"
 
 [difftest]
-rust_package = "kicad-clipper2-shim"
 rust_binary = "kicad-clipper2-shim"
+rust_package = "kicad-clipper2-shim"

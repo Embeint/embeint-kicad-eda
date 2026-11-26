@@ -2,10 +2,10 @@
 id = "common.plotters.application.ui.p001"
 upstream = ["common/plotters/DXF_plotter.cpp"]
 rust_module = "kicad_port::common::plotters::application::ui::p001"
-depends_on = ["common.font.application.ui.p002", "common.gal.application.ui.p001", "common.plotters.application.ui.p004", "common.plotters.application.ui.p005", "common.plotters.application.ui.p006", "common.plotters.application.ui.p007", "common.plotters.application.ui.p008", "include.application.ui.p011", "include.gal.application.ui.p001", "include.plotters.application.ui.p001", "libs.kimath.include.application.ui.p001", "libs.kimath.include.geometry.application.ui.p001", "libs.kimath.include.geometry.application.ui.p004", "libs.kimath.include.geometry.application.ui.p005", "libs.kimath.include.geometry.application.ui.p006", "libs.kimath.include.math.application.ui.p001", "libs.kimath.include.math.application.ui.p002", "libs.kimath.src.convert_basic_shapes_to_polygon.application.ui.p001", "libs.kimath.src.geometry.shape_poly_set.application.ui.p001", "libs.kimath.src.geometry.shape_poly_set.application.ui.p002", "libs.kimath.src.geometry.shape_rect.application.ui.p001"]
-soft_depends_on = ["common.plotters.application.ui.p002", "common.plotters.application.ui.p003", "pcbnew.application.ui.p050"]
+depends_on = ["common.font.application.ui.p002", "common.gal.application.ui.p001", "common.plotters.application.ui.p004", "common.plotters.application.ui.p005", "common.plotters.application.ui.p006", "common.plotters.application.ui.p007", "common.plotters.application.ui.p008", "include.application.ui.p011", "include.gal.application.ui.p001", "include.plotters.application.ui.p001", "libs.kimath.include.application.ui.p001", "libs.kimath.include.geometry.application.ui.p001", "libs.kimath.include.geometry.application.ui.p004", "libs.kimath.include.geometry.application.ui.p005", "libs.kimath.include.geometry.application.ui.p006", "libs.kimath.include.math.application.ui.p001", "libs.kimath.include.math.application.ui.p002", "libs.kimath.src.convert_basic_shapes_to_polygon.application.ui.p001", "libs.kimath.src.geometry.shape_poly_set.application.ui.p001", "libs.kimath.src.geometry.shape_poly_set.application.ui.p002", "libs.kimath.src.geometry.shape_rect.application.ui.p001", "pcbnew.application.ui.p050"]
+soft_depends_on = ["common.plotters.application.ui.p002", "common.plotters.application.ui.p003"]
 est_lines = 2013
-layer = 107
+layer = 100
 tests = []
 status = "todo"
 claimed_by = ""

@@ -2,10 +2,10 @@
 id = "plugins.3d.oce.application.ui.p001"
 upstream = ["plugins/3d/oce/loadmodel.cpp", "plugins/3d/oce/oce.cpp"]
 rust_module = "kicad_port::plugins::unit_3d::oce::application::ui::p001"
-depends_on = ["3d.viewer.3d_cache.sg.application.ui.p001", "3d.viewer.3d_cache.sg.application.ui.p002", "3d.viewer.3d_cache.sg.generated.ui.p001", "common.application.ui.p001", "include.plugins.3dapi.application.pure.p001", "plugins.3d.application.ui.p001", "plugins.3d.idf.application.ui.p001", "plugins.3d.vrml.application.ui.p001"]
-soft_depends_on = ["pcbnew.exporters.step.application.ui.p002", "pcbnew.exporters.u3d.application.ui.p001"]
+depends_on = ["3d.viewer.3d_cache.sg.application.ui.p001", "3d.viewer.3d_cache.sg.application.ui.p002", "3d.viewer.3d_cache.sg.generated.ui.p001", "common.application.ui.p001", "include.plugins.3dapi.application.pure.p001", "plugins.3d.application.ui.p001"]
+soft_depends_on = []
 est_lines = 1503
-layer = 36
+layer = 28
 tests = []
 status = "todo"
 claimed_by = ""

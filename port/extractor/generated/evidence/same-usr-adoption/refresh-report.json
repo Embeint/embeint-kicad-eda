@@ -1,0 +1,401 @@
+{
+  "build_generated_entries": 178,
+  "build_generated_entries_changed": 56,
+  "build_generated_inputs_added": 8,
+  "build_generated_inputs_removed": 56,
+  "changed_build_generated_entries": {
+    "@build/common/drawing_sheet/drawing_sheet_keywords.cpp": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/drawing_sheet/drawing_sheet_lexer.h": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/drc_rules_keywords.cpp": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/drc_rules_lexer.h": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/embedded_files_keywords.cpp": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/embedded_files_lexer.h": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/gal/glsl_kicad_frag.cpp": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/gal/glsl_kicad_vert.cpp": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/gal/glsl_smaa_base.cpp": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/gal/glsl_smaa_pass_1_frag_color.cpp": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/gal/glsl_smaa_pass_1_frag_luma.cpp": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/gal/glsl_smaa_pass_1_vert.cpp": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/gal/glsl_smaa_pass_2_frag.cpp": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/gal/glsl_smaa_pass_2_vert.cpp": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/gal/glsl_smaa_pass_3_frag.cpp": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/gal/glsl_smaa_pass_3_vert.cpp": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/gal/glsl_xor_diff_frag.cpp": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/gal/glsl_xor_diff_vert.cpp": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/lib_table_keywords.cpp": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/lib_table_lexer.h": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/libeval/grammar.c": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/libeval/grammar.h": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/libeval_compiler/grammar.c": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/libeval_compiler/grammar.h": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/netlist_keywords.cpp": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/netlist_lexer.h": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/pcb_keywords.cpp": {
+      "added": [
+        "cmake/BuildSteps/markdown2C.cmake",
+        "pcbnew/pcb_text_help.md"
+      ],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/pcb_lexer.h": {
+      "added": [
+        "cmake/BuildSteps/markdown2C.cmake",
+        "pcbnew/pcb_text_help.md"
+      ],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/pcb_plot_params_keywords.cpp": {
+      "added": [
+        "cmake/BuildSteps/markdown2C.cmake",
+        "pcbnew/pcb_text_help.md"
+      ],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/pcb_plot_params_lexer.h": {
+      "added": [
+        "cmake/BuildSteps/markdown2C.cmake",
+        "pcbnew/pcb_text_help.md"
+      ],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/stroke_params_keywords.cpp": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/stroke_params_lexer.h": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/template_fieldnames_keywords.cpp": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/template_fieldnames_lexer.h": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/text_eval/text_eval.c": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/common/text_eval/text_eval.h": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/eeschema/dialogs/dialog_bom_cfg_keywords.cpp": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/eeschema/dialogs/dialog_bom_cfg_lexer.h": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/eeschema/schematic_keywords.cpp": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/eeschema/schematic_lexer.h": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/include/gal/shaders/glsl_kicad_frag.h": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/include/gal/shaders/glsl_kicad_vert.h": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/include/gal/shaders/glsl_smaa_base.h": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/include/gal/shaders/glsl_smaa_pass_1_frag_color.h": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/include/gal/shaders/glsl_smaa_pass_1_frag_luma.h": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/include/gal/shaders/glsl_smaa_pass_1_vert.h": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/include/gal/shaders/glsl_smaa_pass_2_frag.h": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/include/gal/shaders/glsl_smaa_pass_2_vert.h": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/include/gal/shaders/glsl_smaa_pass_3_frag.h": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/include/gal/shaders/glsl_smaa_pass_3_vert.h": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/include/gal/shaders/glsl_xor_diff_frag.h": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/include/gal/shaders/glsl_xor_diff_vert.h": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/pcb_calculator/pcb_calculator_datafile_keywords.cpp": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/pcb_calculator/pcb_calculator_datafile_lexer.h": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/pcbnew/specctra_import_export/specctra_keywords.cpp": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    },
+    "@build/pcbnew/specctra_import_export/specctra_lexer.h": {
+      "added": [],
+      "removed": [
+        "@build/."
+      ]
+    }
+  },
+  "invariants": [
+    "graph content outside the declared provenance fields unchanged",
+    "inventory content outside build-generated generator_inputs unchanged",
+    "tracked source inventory fingerprint unchanged",
+    "published dependency map equals the refreshed manifest"
+  ],
+  "policy": "Post-parse generator dependency refresh. AST, definitions, calls, overrides, unresolved records, translation units, coverage and source bytes are those of the original parse (parse_* identities); only generator dependency metadata and the fingerprints derived from it were recaptured from the unchanged private build.",
+  "recipe_records": 1435,
+  "refresh": {
+    "capture_code_sha256": "e81b9d9dfc2fa8d30d2a6f17ce44e044cabf7504b1ba09a5e5ee59da0f11c0cd",
+    "capture_sha256": "b187a2dd84e652fba88e665fb74c6a2186074a17b62aa779d76f36fa039c19f9",
+    "changed_fields": [
+      "provenance.generated_sources_manifest_sha256",
+      "provenance.generated_input_dependencies",
+      "provenance.source_inventory_sha256",
+      "provenance.generator_dependency_refresh",
+      "inventory build-generated generator_inputs"
+    ],
+    "input_graph_sha256": "0046a45fb84476e570feb861f3e5ed3894400726191e3d9403d07b1d39804421",
+    "input_inventory_sha256": "b320d93f3eb2d9f450d40edd2a22dcd850d59565810540dd1476b773822bfd47",
+    "parse_extractor_sha256": "e1548c1fe920a05d882e3f2de1c14843ca0e7b3b04ca9441d4132e16de77b88d",
+    "parse_generated_sources_manifest_sha256": "a2466270bdf4aec52b7b8267140ac4b18c8295520c5b94e1ecb3dc8498dacb34",
+    "parse_recipes_sha256": "dff5b79afdbe58e2e4c7a4f0e4d8b093fd34a94a0302d38cddd6483660496951",
+    "parse_source_inventory_sha256": "3d52afc68446cc7e00344409c2fc1ac6908ed5aa554f55d2501126885e5ee175",
+    "policy": "Post-parse generator dependency refresh. AST, definitions, calls, overrides, unresolved records, translation units, coverage and source bytes are those of the original parse (parse_* identities); only generator dependency metadata and the fingerprints derived from it were recaptured from the unchanged private build.",
+    "recipes_sha256": "f44049e2ea0a2ad8b1a16133e5c6bc25df084366d07995b7369d0d44fd9d1900",
+    "refresh_code_hash_policy": "refresh_generator_dependencies.py and generated_sources.py concatenated after CRLF-to-LF normalization",
+    "refresh_code_sha256": "e81b9d9dfc2fa8d30d2a6f17ce44e044cabf7504b1ba09a5e5ee59da0f11c0cd",
+    "source_identity": {
+      "generation_inputs_sha256": "bf7a1689587de011b7f2b8879e7d6284827a451ee43155ad72b8963fe30a6de6",
+      "hash_policy": "SHA-256 after CRLF-to-LF normalization, as in the original parse",
+      "inventory_sha256": "b320d93f3eb2d9f450d40edd2a22dcd850d59565810540dd1476b773822bfd47",
+      "source_commit": "3cd2c9afc6d2749b7d3a79fd1deaa86ac51cb3a7",
+      "source_files_sha256": "3c0d96516f2c20ca5e7883aa7a549ed0e412a190b27af60012a4edfb0621122e",
+      "source_root": "/home/karlvonrichter/kicad-port/extract-source",
+      "tracked_source_inventory_sha256": "da0820c028bc23f338b6a6256e38dc984bd79f323f02737b93e7e5e499d57a2f",
+      "upstream_pin": "4cf939778df04d2b747bb2c4714fc5014a7565c7",
+      "verified_source_files": 9655
+    }
+  },
+  "refreshed_manifest_sha256": "2889bdc4bd68d337e28d67cb82975429cece6eb9bade574abda2d90c697e6797",
+  "refreshed_source_inventory_sha256": "62ea246ff04ae3f4392529446b9dc393850b26bf604119e60705da5dfe2743a8",
+  "schema_version": 1,
+  "source_generator_outputs": 163,
+  "source_generator_outputs_with_inputs": 27
+}

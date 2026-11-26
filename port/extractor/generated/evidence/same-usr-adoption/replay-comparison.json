@@ -1,0 +1,300 @@
+{
+  "replay_inventory_sha256": "b320d93f3eb2d9f450d40edd2a22dcd850d59565810540dd1476b773822bfd47",
+  "versus_pr79_replay": {
+    "edges_equal": true,
+    "functions_equal": true,
+    "other_top_level_equal": true,
+    "overrides_equal": true,
+    "parse_cache_replay_differences": [
+      "aggregation_extractor_sha256"
+    ],
+    "pr79_replay_graph_sha256": "c3b15c81ae167c540d1bfffe84a5eef3c5616291e65553557a53cac73ff0db54",
+    "provenance_differences": [
+      "aggregation_extractor_sha256",
+      "parse_cache_replay"
+    ],
+    "semantics_equal_except_aggregation_identity": true,
+    "translation_units_equal_excluding_cache_trace": true
+  },
+  "versus_v5_original": {
+    "added_edges": 0,
+    "added_overrides": 0,
+    "copies": 244,
+    "functions_equal": true,
+    "new_edges": 647925,
+    "new_overrides": 17576,
+    "old_edges": 649723,
+    "old_overrides": 17587,
+    "other_top_level_changed": [],
+    "parse_failures": [
+      [
+        "thirdparty/fmt/src/fmt-c.cc",
+        "parse-error"
+      ],
+      [
+        "thirdparty/fmt/src/fmt.cc",
+        "parse-error"
+      ],
+      [
+        "thirdparty/fmt/src/format.cc",
+        "parse-error"
+      ],
+      [
+        "thirdparty/fmt/src/os.cc",
+        "parse-error"
+      ]
+    ],
+    "provenance_added": [
+      "aggregation_extractor_sha256",
+      "definition_endpoint_policy",
+      "parse_cache_replay"
+    ],
+    "provenance_changed": [
+      "cache_reused_commands",
+      "parse_failures"
+    ],
+    "removed_edges": 1798,
+    "removed_edges_by_kind": {
+      "override": 233,
+      "static": 1355,
+      "virtual": 210
+    },
+    "removed_edges_without_copy_endpoint": 0,
+    "removed_overrides": 11,
+    "replay_graph_sha256": "754103312d4602dab3e4388f041bad413b3615d8452477810e262f8383d1be73",
+    "replay_provenance": {
+      "aggregation_extractor_sha256": "30ca71dc50af99de46f34d50b4ac1343543ecf77852f6d380f369e6a89118870",
+      "cache_reused_commands": 2511,
+      "commands_attempted": 2511,
+      "definition_endpoint_policy": "Call and override endpoints resolve to the body defined in the reporting TU; an endpoint without a TU-local definition reaches every body sharing its USR",
+      "extractor_sha256": "e1548c1fe920a05d882e3f2de1c14843ca0e7b3b04ca9441d4132e16de77b88d",
+      "gate_complete": false,
+      "parse_cache_replay": {
+        "aggregation_extractor_sha256": "30ca71dc50af99de46f34d50b4ac1343543ecf77852f6d380f369e6a89118870",
+        "parse_extractor_sha256": "e1548c1fe920a05d882e3f2de1c14843ca0e7b3b04ca9441d4132e16de77b88d",
+        "parse_runtime": "/home/karlvonrichter/kicad-port/corrected-review-v5/runner",
+        "parser_sha256": "5953ad9da3f9820cde4db4c60b5efebd9f5c2db34fc7b46df3d92da228094e4b",
+        "parses": 0
+      },
+      "parse_complete": false
+    },
+    "shape_destructor_remaining_vrml_body_callers": [
+      [
+        "c:@S@WRL1FACESET@F@TranslateToSG#*$@S@SGNODE#*$@S@WRL1STATUS#",
+        "plugins/3d/vrml/v1/vrml1_faceset.cpp",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "static"
+      ],
+      [
+        "c:@S@WRL2FACESET@F@TranslateToSG#*$@S@SGNODE#",
+        "plugins/3d/vrml/v2/vrml2_faceset.cpp",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "static"
+      ],
+      [
+        "c:@S@X3DIFACESET@F@TranslateToSG#*$@S@SGNODE#",
+        "plugins/3d/vrml/x3d/x3d_ifaceset.cpp",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "static"
+      ]
+    ],
+    "shape_destructor_removed_edge_count": 32,
+    "shape_destructor_removed_edges": [
+      [
+        "c:@F@GenerateLayerPoly#*$@S@SHAPE_POLY_SET#*$@S@BOARD#*$@S@PLOTTER#$@E@PCB_LAYER_ID#b#b#b#",
+        "pcbnew/plot_board_layers.cpp",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "virtual"
+      ],
+      [
+        "c:@F@drawPcbShapeWithStyle#*1$@S@PCB_SHAPE#*$@S@SHAPE_POLY_SET#I#",
+        "3d-viewer/3d_canvas/create_layer_items.cpp",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "virtual"
+      ],
+      [
+        "c:@N@KIGFX@S@PCB_PAINTER@F@draw#*1$@S@PCB_SHAPE#I#",
+        "pcbnew/pcb_painter.cpp",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "virtual"
+      ],
+      [
+        "c:@N@KIGFX@S@PCB_PAINTER@F@draw#*1$@S@PCB_TEXTBOX#I#",
+        "pcbnew/pcb_painter.cpp",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "virtual"
+      ],
+      [
+        "c:@N@KIGFX@S@SCH_PAINTER@F@draw#*1$@S@SCH_SHAPE#I#b#",
+        "eeschema/sch_painter.cpp",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "virtual"
+      ],
+      [
+        "c:@N@KIGFX@S@SCH_PAINTER@F@draw#*1$@S@SCH_TEXTBOX#I#b#",
+        "eeschema/sch_painter.cpp",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "virtual"
+      ],
+      [
+        "c:@N@PNS@S@HOLE@F@~HOLE#",
+        "pcbnew/router/pns_hole.cpp",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "virtual"
+      ],
+      [
+        "c:@N@PNS@S@SOLID@F@SetShape#*$@S@SHAPE#",
+        "pcbnew/router/pns_solid.h",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "virtual"
+      ],
+      [
+        "c:@N@PNS@S@SOLID@F@~SOLID#",
+        "pcbnew/router/pns_solid.h",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "virtual"
+      ],
+      [
+        "c:@S@BOARD_ADAPTER@F@addShape#*1$@S@PCB_SHAPE#*$@S@CONTAINER_2D_BASE#*1$@S@BOARD_ITEM#$@E@PCB_LAYER_ID#",
+        "3d-viewer/3d_canvas/create_3Dgraphic_brd_items.cpp",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "virtual"
+      ],
+      [
+        "c:@S@BRDITEMS_PLOTTER@F@PlotShape#*1$@S@PCB_SHAPE#1",
+        "pcbnew/plot_brditems_plotter.cpp",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "virtual"
+      ],
+      [
+        "c:@S@EXPORTER_STEP@F@buildGraphic3DShape#*$@S@BOARD_ITEM#&1$@S@VECTOR2>#d#",
+        "pcbnew/exporters/step/exporter_step.cpp",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "virtual"
+      ],
+      [
+        "c:@S@ROUTER_PREVIEW_ITEM@F@Update#*1$@N@PNS@S@ITEM#",
+        "pcbnew/router/router_preview_item.cpp",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "virtual"
+      ],
+      [
+        "c:@S@ROUTER_PREVIEW_ITEM@F@~ROUTER_PREVIEW_ITEM#",
+        "pcbnew/router/router_preview_item.cpp",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "virtual"
+      ],
+      [
+        "c:@S@SCH_SHAPE@F@HitTest#&1$@S@SHAPE_LINE_CHAIN#b#1",
+        "eeschema/sch_shape.cpp",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "virtual"
+      ],
+      [
+        "c:@S@SHAPE@F@~SHAPE#",
+        "libs/kimath/include/geometry/shape.h",
+        "c:@N@std@F@operator==#&1>@N@std@ST>1#T@_List_iterator1t0.0#S0_#",
+        "static"
+      ],
+      [
+        "c:@S@SHAPE@F@~SHAPE#",
+        "libs/kimath/include/geometry/shape.h",
+        "c:@N@std@N@__cxx11@ST>2#T#T@list@F@begin#",
+        "static"
+      ],
+      [
+        "c:@S@SHAPE@F@~SHAPE#",
+        "libs/kimath/include/geometry/shape.h",
+        "c:@N@std@N@__cxx11@ST>2#T#T@list@F@clear#",
+        "static"
+      ],
+      [
+        "c:@S@SHAPE@F@~SHAPE#",
+        "libs/kimath/include/geometry/shape.h",
+        "c:@N@std@N@__cxx11@ST>2#T#T@list@F@end#",
+        "static"
+      ],
+      [
+        "c:@S@SHAPE@F@~SHAPE#",
+        "libs/kimath/include/geometry/shape.h",
+        "c:@N@std@ST>1#T@_List_iterator@F@operator*#1",
+        "static"
+      ],
+      [
+        "c:@S@SHAPE@F@~SHAPE#",
+        "libs/kimath/include/geometry/shape.h",
+        "c:@N@std@ST>1#T@_List_iterator@F@operator++#",
+        "static"
+      ],
+      [
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "plugins/3d/vrml/wrlfacet.cpp",
+        "c:@S@SHAPE_BASE@F@~SHAPE_BASE#",
+        "static"
+      ],
+      [
+        "c:@S@SHAPE_ARC@F@~SHAPE_ARC#",
+        "libs/kimath/include/geometry/shape_arc.h",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "static"
+      ],
+      [
+        "c:@S@SHAPE_CIRCLE@F@~SHAPE_CIRCLE#",
+        "libs/kimath/include/geometry/shape_circle.h",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "static"
+      ],
+      [
+        "c:@S@SHAPE_COMPOUND@F@AddShape#*$@S@SHAPE#",
+        "libs/kimath/include/geometry/shape_compound.h",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "virtual"
+      ],
+      [
+        "c:@S@SHAPE_COMPOUND@F@~SHAPE_COMPOUND#",
+        "libs/kimath/src/geometry/shape_compound.cpp",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "static"
+      ],
+      [
+        "c:@S@SHAPE_COMPOUND@F@~SHAPE_COMPOUND#",
+        "libs/kimath/src/geometry/shape_compound.cpp",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "virtual"
+      ],
+      [
+        "c:@S@SHAPE_ELLIPSE@F@~SHAPE_ELLIPSE#",
+        "libs/kimath/include/geometry/shape_ellipse.h",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "static"
+      ],
+      [
+        "c:@S@SHAPE_LINE_CHAIN_BASE@F@~SHAPE_LINE_CHAIN_BASE#",
+        "libs/kimath/include/geometry/shape.h",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "static"
+      ],
+      [
+        "c:@S@SHAPE_NULL@F@~SHAPE_NULL#",
+        "libs/kimath/include/geometry/shape_null.h",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "static"
+      ],
+      [
+        "c:@S@SHAPE_POLY_SET@F@~SHAPE_POLY_SET#",
+        "libs/kimath/src/geometry/shape_poly_set.cpp",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "static"
+      ],
+      [
+        "c:@S@SHAPE_SEGMENT@F@~SHAPE_SEGMENT#",
+        "libs/kimath/include/geometry/shape_segment.h",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "static"
+      ]
+    ],
+    "translation_units_equal_excluding_cache_trace": true,
+    "v5_graph_sha256": "40861e9ca678464cedc513561e6e559cbcb5f902bb5b221fe2b6c378fb803e18",
+    "wx_class_changes": 0
+  }
+}

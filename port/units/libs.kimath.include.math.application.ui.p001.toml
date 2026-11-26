@@ -19,5 +19,5 @@ source_ranges = ["libs/kimath/include/math/box2.h:1:990", "libs/kimath/include/m
 wx_class = "UI"
 
 [difftest]
-rust_package = "kicad-util-box-shim"
 rust_binary = "kicad-util-box-shim"
+rust_package = "kicad-util-box-shim"

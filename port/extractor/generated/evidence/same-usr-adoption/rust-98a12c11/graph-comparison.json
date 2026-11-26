@@ -1,0 +1,224 @@
+{
+  "added_edges": 0,
+  "added_overrides": 0,
+  "copies_shape_sample": "[[\"c:@F@CanRender@definition:2ef8b16a309b2c01\", \"c:@F@CanRender\"]]",
+  "copy_group_usrs": 207,
+  "copy_group_usrs_equal": true,
+  "definition_copies_equal": true,
+  "definition_variants_equal": true,
+  "edges": [
+    649723,
+    647925
+  ],
+  "edges_into_vrml_body_removed": 25,
+  "edges_into_vrml_body_removed_by_caller_unit": {
+    "3d.viewer.3d_canvas.application.ui.p002": 1,
+    "3d.viewer.3d_canvas.application.ui.p003": 1,
+    "eeschema.application.ui.p037": 1,
+    "eeschema.application.ui.p038": 1,
+    "eeschema.application.ui.p047": 1,
+    "libs.kimath.include.geometry.application.pure.p002": 1,
+    "libs.kimath.include.geometry.application.ui.p003": 5,
+    "libs.kimath.include.geometry.application.ui.p006": 1,
+    "libs.kimath.src.geometry.shape_compound.application.ui.p001": 2,
+    "libs.kimath.src.geometry.shape_poly_set.application.ui.p001": 1,
+    "pcbnew.application.ui.p049": 2,
+    "pcbnew.application.ui.p067": 1,
+    "pcbnew.application.ui.p068": 1,
+    "pcbnew.exporters.step.application.ui.p001": 1,
+    "pcbnew.router.application.ui.p006": 1,
+    "pcbnew.router.application.ui.p023": 2,
+    "pcbnew.router.application.ui.p026": 2
+  },
+  "function_count": [
+    107254,
+    107254
+  ],
+  "function_files_equal": true,
+  "functions_equal": true,
+  "hard_dependents_of_vrml_p001": {
+    "new": [
+      "plugins.3d.vrml.v1.application.ui.p001",
+      "plugins.3d.vrml.v2.application.ui.p001",
+      "plugins.3d.vrml.v2.generated.ui.p001",
+      "plugins.3d.vrml.x3d.application.ui.p001"
+    ],
+    "old": [
+      "3d.viewer.3d_canvas.application.ui.p002",
+      "3d.viewer.3d_canvas.application.ui.p003",
+      "eeschema.application.ui.p037",
+      "eeschema.application.ui.p038",
+      "eeschema.application.ui.p047",
+      "libs.kimath.include.geometry.application.pure.p002",
+      "libs.kimath.include.geometry.application.ui.p003",
+      "libs.kimath.include.geometry.application.ui.p006",
+      "libs.kimath.src.geometry.shape_compound.application.ui.p001",
+      "libs.kimath.src.geometry.shape_poly_set.application.ui.p001",
+      "pcbnew.application.ui.p049",
+      "pcbnew.application.ui.p067",
+      "pcbnew.application.ui.p068",
+      "pcbnew.exporters.step.application.ui.p001",
+      "pcbnew.router.application.ui.p006",
+      "pcbnew.router.application.ui.p023",
+      "pcbnew.router.application.ui.p026",
+      "plugins.3d.oce.application.ui.p001",
+      "plugins.3d.vrml.v1.application.ui.p001",
+      "plugins.3d.vrml.v2.application.ui.p001",
+      "plugins.3d.vrml.v2.generated.ui.p001",
+      "plugins.3d.vrml.x3d.application.ui.p001"
+    ]
+  },
+  "new_graph_aggregation_extractor": "30ca71dc50af99de46f34d50b4ac1343543ecf77852f6d380f369e6a89118870",
+  "old_graph_provenance_extractor": "e1548c1fe920a05d882e3f2de1c14843ca0e7b3b04ca9441d4132e16de77b88d",
+  "overrides": [
+    17587,
+    17576
+  ],
+  "p003": {
+    "new_depends_on": [
+      "libs.kimath.include.geometry.application.ui.p001",
+      "libs.kimath.include.math.application.ui.p001",
+      "libs.kimath.include.math.application.ui.p002",
+      "libs.kimath.src.geometry.circle.application.ui.p001",
+      "libs.kimath.src.geometry.seg.application.ui.p001"
+    ],
+    "new_edges_into_vrml_p001": [],
+    "new_layer": 5,
+    "new_soft_depends_on": [
+      "libs.kimath.include.application.ui.p001",
+      "libs.kimath.include.geometry.application.pure.p002",
+      "libs.kimath.include.geometry.application.ui.p004",
+      "libs.kimath.include.geometry.application.ui.p006",
+      "libs.kimath.src.geometry.shape_arc.application.ui.p001",
+      "libs.kimath.src.geometry.shape_collisions.application.ui.p001",
+      "libs.kimath.src.geometry.shape_compound.application.ui.p001",
+      "libs.kimath.src.geometry.shape_ellipse.application.ui.p001",
+      "libs.kimath.src.geometry.shape_line_chain.application.ui.p001",
+      "libs.kimath.src.geometry.shape_line_chain.application.ui.p002",
+      "libs.kimath.src.geometry.shape_poly_set.application.ui.p001",
+      "libs.kimath.src.geometry.shape_poly_set.application.ui.p002",
+      "libs.kimath.src.geometry.shape_rect.application.ui.p001"
+    ],
+    "old_depends_on": [
+      "libs.kimath.include.geometry.application.ui.p001",
+      "libs.kimath.include.math.application.ui.p001",
+      "libs.kimath.include.math.application.ui.p002",
+      "libs.kimath.src.geometry.circle.application.ui.p001",
+      "libs.kimath.src.geometry.seg.application.ui.p001",
+      "plugins.3d.vrml.application.ui.p001"
+    ],
+    "old_edges_into_vrml_p001": [
+      [
+        "c:@S@SHAPE_ARC@F@~SHAPE_ARC#",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "static"
+      ],
+      [
+        "c:@S@SHAPE_CIRCLE@F@~SHAPE_CIRCLE#",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "static"
+      ],
+      [
+        "c:@S@SHAPE_COMPOUND@F@AddShape#*$@S@SHAPE#",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "virtual"
+      ],
+      [
+        "c:@S@SHAPE_ELLIPSE@F@~SHAPE_ELLIPSE#",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "static"
+      ],
+      [
+        "c:@S@SHAPE_LINE_CHAIN_BASE@F@~SHAPE_LINE_CHAIN_BASE#",
+        "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+        "static"
+      ]
+    ],
+    "old_layer": 13,
+    "old_soft_depends_on": [
+      "libs.kimath.include.application.ui.p001",
+      "libs.kimath.include.geometry.application.pure.p002",
+      "libs.kimath.include.geometry.application.ui.p004",
+      "libs.kimath.include.geometry.application.ui.p006",
+      "libs.kimath.src.geometry.shape_arc.application.ui.p001",
+      "libs.kimath.src.geometry.shape_collisions.application.ui.p001",
+      "libs.kimath.src.geometry.shape_compound.application.ui.p001",
+      "libs.kimath.src.geometry.shape_ellipse.application.ui.p001",
+      "libs.kimath.src.geometry.shape_line_chain.application.ui.p001",
+      "libs.kimath.src.geometry.shape_line_chain.application.ui.p002",
+      "libs.kimath.src.geometry.shape_poly_set.application.ui.p001",
+      "libs.kimath.src.geometry.shape_poly_set.application.ui.p002",
+      "libs.kimath.src.geometry.shape_rect.application.ui.p001"
+    ]
+  },
+  "provenance_keys_added": [
+    "aggregation_extractor_sha256",
+    "definition_endpoint_policy",
+    "parse_cache_replay"
+  ],
+  "provenance_keys_changed": [
+    "cache_reused_commands",
+    "generated_sources_manifest_sha256",
+    "generator_dependency_refresh",
+    "parse_failures"
+  ],
+  "range_normalizations_equal": true,
+  "removed_edges": 1798,
+  "removed_edges_by_kind": {
+    "override": 233,
+    "static": 1355,
+    "virtual": 210
+  },
+  "removed_edges_with_suffixed_copy_endpoint": 985,
+  "removed_edges_without_copy_endpoint": 0,
+  "removed_overrides": 11,
+  "shape_destructor_edges_removed": 32,
+  "template_aliases_equal": true,
+  "translation_unit_count": 2511,
+  "translation_units_equal": true,
+  "unresolved_call_count": 8899609,
+  "unresolved_calls_equal": true,
+  "vrml_body_callers_also_reach_primary": [
+    [
+      "c:@S@WRL1FACESET@F@TranslateToSG#*$@S@SGNODE#*$@S@WRL1STATUS#",
+      "c:@S@SHAPE@F@~SHAPE#",
+      "static"
+    ],
+    [
+      "c:@S@WRL2FACESET@F@TranslateToSG#*$@S@SGNODE#",
+      "c:@S@SHAPE@F@~SHAPE#",
+      "static"
+    ],
+    [
+      "c:@S@X3DIFACESET@F@TranslateToSG#*$@S@SGNODE#",
+      "c:@S@SHAPE@F@~SHAPE#",
+      "static"
+    ]
+  ],
+  "vrml_body_callers_retained": [
+    [
+      "c:@S@WRL1FACESET@F@TranslateToSG#*$@S@SGNODE#*$@S@WRL1STATUS#",
+      "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+      "static",
+      "plugins.3d.vrml.v1.application.ui.p001"
+    ],
+    [
+      "c:@S@WRL2FACESET@F@TranslateToSG#*$@S@SGNODE#",
+      "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+      "static",
+      "plugins.3d.vrml.v2.application.ui.p001"
+    ],
+    [
+      "c:@S@X3DIFACESET@F@TranslateToSG#*$@S@SGNODE#",
+      "c:@S@SHAPE@F@~SHAPE#@definition:861533d9c907d7fb",
+      "static",
+      "plugins.3d.vrml.x3d.application.ui.p001"
+    ]
+  ],
+  "wx_class_counts": {
+    "UI": 41606,
+    "pure": 60729,
+    "thin-replacement": 4919
+  },
+  "wx_classification_equal": true
+}
