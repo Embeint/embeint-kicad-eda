@@ -54,7 +54,7 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 | --- | --- | --- |
 | Geometry | SEG passed checks at `24df53e57c`, then imported accepted extractor #79 at `b908f439a0`; fresh CI required. Graph adoption active. Ellipse PR #81 reviewed at source head with documentation corrected at `5c42b69677`. Distribute PR #84 passed Sol review at `33fa41f687`; hosted CI pending. Freed Opus slot now implements pinned hypot for vector norms. | Adopt graph with final-head provenance; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
 | Polygon operations | Engine PR #76 at `6f58bc73fa` awaits CI. Rectclip PR #77 reviewed, owner note corrected at `87e2913afa`, hosted checks pending. Transform PR #82 delivered and reviewed; reference prose corrected at `b2918f6b31`. Opus now implementing graph adoption as independent fallback. | Source p002 after accepted engine p001, then public wrapper headers after rectclip and p002. |
-| Core and general utilities | PR #73 passed all applicable checks at `26f11478b7`, then imported accepted extractor #79 at `ab6fd8f3ea`; fresh CI required. Map helpers PR #78 corrected at `1cadc88eb8`, independent Sol recheck passed; status partial pending target wx qualification. Opus assigned arc_construction as independent fallback. | Hold wx_stl_compat reuse until map helpers is accepted. Keep pure headers partial for allocation, stream, concurrency and scoped-timer gaps. Audit UI core headers before line-chain work. |
+| Core and general utilities | PR #73 passed checks, then imported accepted extractor #79 at `ab6fd8f3ea`; fresh CI required. Map helpers #78 corrected at `1cadc88eb8`, Sol recheck passed; target wx qualification pending. Arc construction #85 passed source review, owner notes fixed at `eaa34442d1`. Freed Opus slot now implements vector2wx. | Hold wx_stl_compat reuse until map helpers is accepted. Keep pure headers partial for allocation, stream, concurrency and scoped-timer gaps. Audit UI core headers before line-chain work. |
 | Numeric backends and spatial follow-ups | Pow PR #80 accepted. R-tree follow-up PR #83 at `813623a66b` passed Sol review, hosted checks pending. Opus now assigned poisson_disk. | Model newly exposed kimathLogOverflow host effects with explicit ownership/host assertion policy; further measured numeric and spatial gaps. Audit copy-on-write code before claiming a similar fixed-depth problem. |
 
 On each implementation completion, immediately inspect the result, start the
@@ -253,16 +253,17 @@ geometry prerequisites after Clipper2 is complete.
 
 ## Independent small-unit queue
 
-All five units below have satisfied recorded hard dependencies at the snapshot.
+The units below have satisfied recorded hard dependencies at the snapshot.
 Keep one unit per claim/PR, even if one worker handles several sequentially.
 
 | Priority | Unit | Scope and validation focus |
 | --- | --- | --- |
 | A | `ellipse.cpp` — 127 lines; delivered PR #81 | Sol found no functional defect; owner note and toolchain qualification fixed at `5c42b69677`. Hosted reference CI pending. |
 | B | `transform.cpp` — 127 lines; delivered PR #82 | Sol found no implementation defect; local-reference prose fixed at `b2918f6b31`. Final-head hosted CI pending. |
-| C | `arc_construction.cpp` — 207 lines; Opus active | Degenerate and boundary constructions, exact rounding and existing vector/angle backends. |
+| C | `arc_construction.cpp` — 207 lines; delivered PR #85 | Sol found no source correctness defect; co-port owner notes fixed at `eaa34442d1`. Final-head hosted reference CI pending. |
 | D | `distribute.cpp` — 89 lines; delivered PR #84 | Sol independently replayed all 2,758 cases and 679 controls at `33fa41f687` without findings; hosted reference CI pending. |
 | E | `poisson_disk.cpp` — 143 lines; Opus active | Reproduce Boost MT19937, distribution algorithms, draw/evaluation order, trig bits and ordered samples. Bound tiny-radius storage/work; spacing alone is insufficient evidence. |
+| F | `vector2wx.h` — 56 lines; Opus active | All six point/size/vector conversions with accepted vector types and portable host-boundary values; exact signed component conversions. |
 
 Ellipse's local GCC 15.2/glibc 2.43 comparison reports 2,239 cases: 2,103 exact,
 136 deferred (100 logging and 36 hypot), zero failures, plus 234 identical
@@ -316,6 +317,31 @@ accepted. This is existing vector ownership, not an invented glibc unit.
 Reuse the accepted glibc 2.39 SSE2 source/package/dispatch qualification approach,
 including exact NaN bits, scaling, subnormals and native/wasm agreement.
 Do not import or edit unaccepted ellipse code to demonstrate the dependency.
+
+Arc construction PR #85 implements all eight definitions and reports 2,912
+public cases: 2,892 exact, 20 deferred, zero failures. Twenty malformed-request
+controls agree; the worker reports import-free wasm agreement for cases and
+controls. Sol reviewed source head `3167f167f2` with no concrete correctness
+finding and independently passed generator and scoped native math/shim tests;
+four existing reference-probe tests were ignored. It did not independently
+rebuild the C++ oracle or rerun wasm. Parent documentation fix
+`eaa34442d1dcf74ed373d2d48be6499f7bfbc1d9` records ARC_SOLUTION fields and
+defaults in its actual owning geometry header unit, which remains todo.
+
+That PR wires the already accepted finite-input hypot backend into the vector
+norm. Local caller reruns report vector 9,723 exact/563 deferred and util/box
+14,329 exact/1,602 deferred, with zero failures. The parent agreed this finite
+wiring boundary with the full-hypot worker; integrate through accepted rust
+only and resolve the overlap without duplicating the backend. Nonfinite
+tangents still cause 20 arc deferrals. Hosted Ubuntu 24.04 evidence must qualify
+the final head; local glibc 2.43 results do not certify target glibc 2.39.
+
+The worker's suggested geometry pure header p001 is not a small arc-chord unit:
+it owns 1,935 lines across 17 headers and depends on geometry UI p003.
+Existing arc-chord accessors are only a minimum co-port, so the larger unit
+remains blocked by its actual prerequisites. The fourth slot instead takes
+`libs.kimath.include.math.application.thin.replacement.p001` (vector2wx.h),
+whose six conversions have no recorded hard dependencies.
 
 Poisson disk is short but less predictable than its line count suggests.
 Check the pinned sources rather than the moving upstream version: even random
