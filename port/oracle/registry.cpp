@@ -21,6 +21,7 @@ void RegisterArcChordParams( REGISTRY& aRegistry );
 void RegisterEllipse( REGISTRY& aRegistry );
 void RegisterClipper2CoreEngine( REGISTRY& aRegistry );
 void RegisterCoreP001( REGISTRY& aRegistry );
+void RegisterCoreIncludeP001( REGISTRY& aRegistry );
 
 
 void REGISTRY::Add( const std::string& aUnit, const std::string& aUpstream, SHIM aShim )
@@ -54,6 +55,7 @@ REGISTRY MakeRegistry()
     RegisterEllipse( registry );
     RegisterClipper2CoreEngine( registry );
     RegisterCoreP001( registry );
+    RegisterCoreIncludeP001( registry );
     return registry;
 }
 
