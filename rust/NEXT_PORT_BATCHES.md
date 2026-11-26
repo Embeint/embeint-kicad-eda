@@ -54,7 +54,7 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 | --- | --- | --- |
 | Geometry | SEG passed checks, then imported accepted extractor #79 at `b908f439a0`; fresh CI required. Graph adoption active. Ellipse #81 has 11 reference-CI NaN mismatches at `5c42b69677`; focused Opus repair active, fresh Sol review required afterward. Distribute #84 passed Sol review at `33fa41f687`; hosted CI pending. Main Opus slot implements pinned hypot. | Adopt graph with final-head provenance; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
 | Polygon operations | Engine #76 passed checks at `6f58bc73fa`, then imported accepted extractor #79 at `401ebc2624`; fresh CI required. Rectclip #77 likewise awaits fresh CI at `b88832a7d2`. Transform #82 reviewed; reference prose corrected at `b2918f6b31`. Opus implementing graph adoption as independent fallback. | Source p002 after accepted engine p001, then public wrapper headers after rectclip and p002. |
-| Core and general utilities | PR #73 awaits fresh CI at `ab6fd8f3ea`. Map helpers #78 corrected at `1cadc88eb8`, Sol recheck passed; target wx qualification pending. Arc #85 owner notes fixed at `eaa34442d1`. Vector2wx #86 passed Sol review; wasm comment corrected at `3861aaa7b2`. Freed Opus slot now implements Unix policy. | Hold wx_stl_compat reuse until map helpers is accepted. Keep pure headers partial for allocation, stream, concurrency and scoped-timer gaps. Audit UI core headers before line-chain work. |
+| Core and general utilities | PR #73 awaits fresh CI at `ab6fd8f3ea`. Map helpers #78 corrected at `1cadc88eb8`, Sol recheck passed; target wx qualification pending. Arc #85 caller count/workflow fix pushed at `207f67b2cb`; fresh CI required. Vector2wx #86 passed Sol review; wasm comment corrected at `3861aaa7b2`. Freed Opus slot implements Unix policy. | Hold wx_stl_compat reuse until map helpers is accepted. Keep pure headers partial for allocation, stream, concurrency and scoped-timer gaps. Audit UI core headers before line-chain work. |
 | Numeric backends and spatial follow-ups | Pow #80 accepted. R-tree #83 at `813623a66b` passed Sol review, hosted checks pending. Poisson #87 passed Sol review; qualification prose fixed at `bed62f0c5b`. Freed Opus slot now implements Unix driver/system-info bodies. | Model newly exposed kimathLogOverflow host effects with explicit ownership/host assertion policy; further measured numeric and spatial gaps. Audit copy-on-write code before claiming a similar fixed-depth problem. |
 
 On each implementation completion, immediately inspect the result, start the
@@ -274,7 +274,7 @@ Keep one unit per claim/PR, even if one worker handles several sequentially.
 | --- | --- | --- |
 | A | `ellipse.cpp` — 127 lines; delivered PR #81 | Initial Sol source review found no functional defect, but target CI found 11 NaN mismatches at `5c42b69677`. Focused Opus repair and fresh Sol review are required. |
 | B | `transform.cpp` — 127 lines; delivered PR #82 | Sol found no implementation defect; local-reference prose fixed at `b2918f6b31`. Final-head hosted CI pending. |
-| C | `arc_construction.cpp` — 207 lines; delivered PR #85 | Sol found no source correctness defect; co-port owner notes fixed at `eaa34442d1`. Final-head hosted reference CI pending. |
+| C | `arc_construction.cpp` — 207 lines; delivered PR #85 | Sol source review passed; co-port notes fixed. Stale util/box caller count assertion and scoped workflow corrected at `207f67b2cb`; fresh hosted CI pending. |
 | D | `distribute.cpp` — 89 lines; delivered PR #84 | Sol independently replayed all 2,758 cases and 679 controls at `33fa41f687` without findings; hosted reference CI pending. |
 | E | `poisson_disk.cpp` — 143 lines; delivered PR #87 | Sol found no correctness defect in sampling, RNG or resource handling. Qualification prose fixed at `bed62f0c5b`; final-head hosted CI pending. |
 | F | `vector2wx.h` — 56 lines; delivered PR #86 | Sol found no correctness blocker; wasm evidence comment corrected at `3861aaa7b2`. Final-head hosted CI pending. |
@@ -304,6 +304,10 @@ It must confirm target disassembly, preserve all cases and guards, import only
 accepted rust, replay the complete corpus and controls, and receive a fresh Sol
 review plus final-head hosted CI. Running the downloaded binary under local
 glibc 2.43 is not equivalent to its original target runtime.
+The dedicated ellipse-live run 45732444601, job 139617502795, also failed.
+Its artifact 15079837395 confirms exactly the same 11 case IDs and identical
+oracle/Rust failed replies, with the same 2,092/136/11 counts. It is folded
+into the existing focused repair rather than treated as a second defect.
 
 Map helpers PR #78 initially claimed green after 3,084 exact replies. Sol found
 the implicit generic default skipped a copy and the UTF-8 logical limit counted
@@ -366,6 +370,17 @@ wiring boundary with the full-hypot worker; integrate through accepted rust
 only and resolve the overlap without duplicating the backend. Nonfinite
 tangents still cause 20 arc deferrals. Hosted Ubuntu 24.04 evidence must qualify
 the final head; local glibc 2.43 results do not certify target glibc 2.39.
+
+Arc #85 layout-parity run 45735176879 failed in the full release workspace
+tests before layout comparison. The util/box corpus test still expected
+14,324 results / 1,607 deferrals after finite norm wiring resolved five of
+those deferrals. Parent fix `207f67b2cb11cb1b51a24ed37a692be8b3109d3c`
+requires the actual 14,329 / 1,602 counts and adds vector/util caller tests to
+the scoped arc workflow. Eight scoped release tests pass; a fresh local live
+replay gives those exact counts over all 15,931 cases with zero failures.
+No runtime behavior, case, refusal guard or golden value changed. The additive
+finding records the failed assertion and the non-reference local toolchain;
+final-head hosted checks, including layout-parity, remain required.
 
 The worker's suggested geometry pure header p001 is not a small arc-chord unit:
 it owns 1,935 lines across 17 headers and depends on geometry UI p003.
