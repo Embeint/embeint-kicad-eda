@@ -31,6 +31,7 @@ void RegisterCoreMapHelpers( REGISTRY& aRegistry );
 void RegisterTransformSource( REGISTRY& aRegistry );
 void RegisterVector2Wx( REGISTRY& aRegistry );
 void RegisterPoissonDisk( REGISTRY& aRegistry );
+void RegisterKiplatformPolicy( REGISTRY& aRegistry );
 void RegisterKiplatformUnixP001( REGISTRY& aRegistry );
 
 
@@ -75,6 +76,7 @@ REGISTRY MakeRegistry()
     RegisterTransformSource( registry );
     RegisterVector2Wx( registry );
     RegisterPoissonDisk( registry );
+    RegisterKiplatformPolicy( registry );
     RegisterKiplatformUnixP001( registry );
     return registry;
 }

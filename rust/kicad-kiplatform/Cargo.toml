@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[package]
+name = "kicad-kiplatform"
+description = "Portable port of KiCad libs/kiplatform: the Unix policy source"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+# The accepted minimum wxString co-port (libs.core.include.core.application.thin.replacement.p001).
+kicad-map-helpers = { path = "../kicad-map-helpers" }
