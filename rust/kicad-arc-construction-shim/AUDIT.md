@@ -79,7 +79,8 @@ by the radius check.
 
 ## Evidence
 
-Local, WSL Ubuntu, own work root `~/kicad-port-arcconstruction`, oracle built by
+Local, WSL Ubuntu 26.04 (glibc 2.43, GCC 15; not the hosted ubuntu-24.04 / glibc 2.39
+reference, so these runs are not qualification of the glibc 2.39 hypot backend), own work root `~/kicad-port-arcconstruction`, oracle built by
 `port/oracle/build.sh` (-j8, shared lock), `GLIBC_TUNABLES` as in hosted CI, oracle sha256
 `f49977363148d66e74e981881cd52dc2701fcb3bc2683034702d9ac5955944b7`:
 
