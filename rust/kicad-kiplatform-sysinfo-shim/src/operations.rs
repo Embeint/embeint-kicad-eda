@@ -311,29 +311,27 @@ fn run_sysinfo(input: &Value) -> Result<Value> {
     let mut observed = Vec::with_capacity(steps.len());
     let mut sysinfo = Sysinfo::new();
     for step in steps {
-        let mut entry = Map::new();
-        entry.insert("step".into(), step.name().into());
-        match step {
+        let returned = match step {
             Step::Reconstruct => {
                 // Destroy the object, then construct a new one, as the C++
                 // std::optional reset() and emplace() do.
                 drop(sysinfo);
                 sysinfo = Sysinfo::new();
+                None
             }
-            Step::Memory => {
-                entry.insert(
-                    "returned".into(),
-                    sysinfo.get_memory_info(&mut memory).into(),
-                );
-            }
-            Step::Cpu => {
-                entry.insert("returned".into(), sysinfo.get_cpu_info(&mut cpus).into());
-            }
-            Step::Gpu => {
-                entry.insert("returned".into(), sysinfo.get_gpu_info(&mut gpus).into());
-            }
+            Step::Memory => Some(sysinfo.get_memory_info(&mut memory)),
+            Step::Cpu => Some(sysinfo.get_cpu_info(&mut cpus)),
+            Step::Gpu => Some(sysinfo.get_gpu_info(&mut gpus)),
+        };
+        // Keys are inserted in nlohmann's sorted order, so the serialized reply is
+        // byte-identical to the C++ adapter's (serde_json here preserves insertion
+        // order).
+        let mut entry = Map::new();
+        if let Some(returned) = returned {
+            entry.insert("returned".into(), returned.into());
         }
         entry.insert("state".into(), state(&memory, &cpus, &gpus));
+        entry.insert("step".into(), step.name().into());
         entry.insert(
             "storage_unchanged".into(),
             (Storage::of(&cpus, &gpus) == initial).into(),
