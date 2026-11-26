@@ -3,7 +3,7 @@
 
 This is qualification tooling, not a runtime dependency or a golden generator.
 The private `kicad_math::glibc_libm` ports glibc 2.39's baseline SSE2 `atan`,
-`atan2`, `tan`, `asin`, `acos`. `pow` remains an owned typed deferral. The
+`atan2`, `tan`, `asin`, `acos` and `pow` (the `EDA_ANGLE::Round` callee). The
 accepted sin/cos/sincos bodies are unchanged; only `branred`'s visibility and its
 test-module path change so tan can reuse the exact accepted reducer and the
 import-free qualification wrapper can compile those private sources.
@@ -29,12 +29,30 @@ LGPL-2.1 section 3 to distribute it under GPL-3.0-or-later, like kicad-math.
 the tables are glibc polynomial coefficients, not recorded function answers.
 `powtwo.tbl` is replaced by exact binary64 power-of-two bit construction.
 
+`pow` is the 2018 Arm optimized-routines derivative in glibc's dbl-64
+`e_pow.c` (FSF copyright, LGPL-2.1-or-later, notice retained in `pow.rs` and
+`pow_table.rs`), built as x86_64 `__ieee754_pow_sse2`: no `__FP_FAST_FMA`, no
+`TOINT_INTRINSICS`, `FLT_EVAL_METHOD` 0 (`math_narrow_eval` is the identity),
+`WANT_ROUNDING` and `HIGH_ORDER_BIT_IS_SET_FOR_SNAN` 0. `check_sources.py`
+also verifies every `e_pow_log_data.c` and `e_exp_data.c` field read by pow
+(the scaled poly initializers fold exactly); the unused pad column is omitted.
+The same 657 words were separately matched against `__pow_log_data` and
+`__exp_data` in the locked libm image. `math_err.c`'s helpers keep their
+values (`0x1p769`/`0x1p-767` squares, signed division by zero, SSE2's negative
+indefinite for `(x - x) / (x - x)`); errno and flags are not modelled.
+
 ## Dispatch and floating environment
 
 Use the same setting as the geometry oracle and glibc_trig:
 `GLIBC_TUNABLES=glibc.cpu.hwcaps=-AVX,-AVX2,-FMA,-FMA4,-AVX512F`.
-`atan`/`atan2`/`tan` use `ifunc-avx-fma4.h`. `asin`/`acos` use `ifunc-fma4.h`.
-Both select SSE2 under these tunables. No further dispatch setting is needed.
+`atan`/`atan2`/`tan` use `ifunc-avx-fma4.h`. `asin`/`acos`/`pow` use
+`ifunc-fma4.h`. Both select SSE2 under these tunables. Callers built against
+2.39 bind `pow@@GLIBC_2.29` (libm+0x3a630), the `w_pow_template.c` wrapper,
+which only sets errno and returns the `__ieee754_pow` value unchanged; the SVID
+`pow@GLIBC_2.2.5` compat wrapper is not involved. The probe checks that
+default/versioned binding and the wrapper's IRELATIVE GOT slot (+0xe7f58 ->
+`__ieee754_pow_sse2`, +0x2b810). Its NaN `x + y` returns follow the kernel's
+`addsd` with x as the first operand: a NaN x wins, quieted, else a NaN y. No further dispatch setting is needed.
 All five 2.39 bodies have no multiprecision fallback. The non-FMA `dla.h`
 EMULV and MUL12 are different algorithms and are preserved separately.
 
@@ -75,6 +93,18 @@ Seeded modes cover full raw bits, the inverse functions' successful domain,
 near-one root regions, correlated atan2 magnitudes, and huge tan arguments.
 No tolerance, case exclusions, result lookup or premature golden.
 
+`pow_domain.py` separately writes 535,736 fixed pairs plus 1,000,000 seeded
+pairs, **1,535,736 pow calls per target/profile**, as 24-byte (x, y, pow)
+records (`reference.py pow-domain` / `pow-reference`). Fixed cases follow
+e_pow.c: special operand products (signalling/quiet NaN order, signed zero,
+infinities), the |y| < 2^-65 and >= 2^63 checks, checkint at every exponent,
+every log_inline table bin across normal and subnormal exponents, x near one,
+exp_inline's 512/1024 thresholds, the overflow and subnormal/underflow
+specialcase edges with positive and negative bases, and 10^d for every
+d in [-1100, 1100] (all `EDA_ANGLE::Round` digit counts reach these edges).
+The generator uses only exact and `decimal` arithmetic, never the host libm;
+its hash is the same on Windows and Linux.
+
 The `rust-glibc-libm.yml` job downloads and hash-checks the locked libc package,
 binds it to the reviewed input lock, runs only its own loader with a cleared
 environment, and compares native debug/release, WASI debug/release, and import-free
@@ -83,8 +113,8 @@ same private source files under `forbid(unsafe_code)`; the separate existing
 geometry job checks the complete public EDA_ANGLE continuations against C++ and
 then import-free wasm. All local builds use `rust/target` and at most -j3.
 
-A green report requires one full-count, zero-mismatch result for each of five
-functions on all six configurations. `report.json` hashes the domain, genuine
+A green report requires one full-count, zero-mismatch result for each of six
+functions (pow with its own count) on all six configurations. `report.json` hashes the domain, genuine
 records, probe, source verification and logs. CI artifacts are fresh evidence;
 the implementation never reads them. Run:
 
@@ -92,10 +122,14 @@ the implementation never reads them. Run:
 python3 port/glibc-libm/reference.py domain --out <out>
 # Put the reviewed inputs.lock.json in <out> first (workflow fetches its commit).
 python3 port/glibc-libm/reference.py reference --out <out>
+python3 port/glibc-libm/reference.py pow-domain --out <out>
+python3 port/glibc-libm/reference.py pow-reference --out <out>
 KICAD_GLIBC_LIBM_REFERENCE=<out>/reference.bin KICAD_GLIBC_LIBM_COUNT=1517520 \
+KICAD_GLIBC_LIBM_POW_REFERENCE=<out>/pow-reference.bin KICAD_GLIBC_LIBM_POW_COUNT=1535736 \
   cargo test --locked --manifest-path rust/Cargo.toml -p kicad-math --lib \
   glibc_libm -- --include-ignored --nocapture
 ```
 
-Executed results and remaining objections are recorded in the additive finding
-`port/findings/geometry-angle-libm-backends-addendum.md`, not inferred here.
+Executed results and remaining objections are recorded in the additive findings
+`port/findings/geometry-angle-libm-backends-addendum.md` and
+`port/findings/geometry-angle-libm-pow-addendum.md`, not inferred here.

@@ -33,6 +33,18 @@
     "math/w_acos_compat.c": "d6188af1c2c038567818a22e7b64e957105a6a964f5395fef3936c957719cc97",
     "sysdeps/ieee754/k_standard.c": "a2d5977f0f2e6f165ebc12fcdc14cea6880c349f1a7895f0d77a87b28d17f1b6",
     "sysdeps/ieee754/s_lib_version.c": "746112a21263269e9cf60f6cbf5e83170e5bc8c20bd5928834781c8b9f2d9220",
-    "math/math-svid-compat.h": "9a89bdba16d6ab8918573120690d5327fa32c4bc1db8a80fde8a09d7eb815902"
+    "math/math-svid-compat.h": "9a89bdba16d6ab8918573120690d5327fa32c4bc1db8a80fde8a09d7eb815902",
+    "sysdeps/ieee754/dbl-64/e_pow.c": "68c6da4de5b99d1c0500d6b5078a702274d22cd8fb77a47a6a21ca025b6455e2",
+    "sysdeps/ieee754/dbl-64/e_pow_log_data.c": "c64bee05138417398b2d2b2a08c67d96cf22a135c1b6a72509cdadb4edf633be",
+    "sysdeps/ieee754/dbl-64/e_exp_data.c": "9dee45e089bc8fac36a79da80889c7d784793aae7a00743a32066bd49dbf3434",
+    "sysdeps/ieee754/dbl-64/math_config.h": "b49c1a791fbc260bfe77889bdc7ebdb3f1c3c87fbede3a4e47622d0863ddbd12",
+    "sysdeps/ieee754/dbl-64/math_err.c": "1854c6d7c3a8e5bc1f2333cce0f918554595b6cbf047d1f841faf86c12e7b972",
+    "sysdeps/ieee754/dbl-64/w_pow.c": "dc041a658e340e59f3e05b01a60c32d82444f57731cfbbdfc2f4bf7636cdc9fa",
+    "sysdeps/x86_64/fpu/multiarch/e_pow.c": "4dbe2b69a12b9ced06599608bcd4cbcc6a9e40bdd13ae1beac051d2c6ade6ff5",
+    "sysdeps/x86_64/fpu/multiarch/w_pow.c": "3e378e9c586b7a0d929e2b2d3cfb93234ac4614ad5829b2ab03586bdcf311125",
+    "math/w_pow.c": "8adda50c3f70cd134cb8e250d6a33e89f51d6bf7b6b98bb44a69725e178f3385",
+    "math/w_pow_template.c": "adb42c449afe3f4236aff5c9dfe0edaa6b8da77bcce71745a649a971334a4a6c",
+    "sysdeps/generic/nan-high-order-bit.h": "025278d83d7eae790ec25d79a061fad4ed3e80a9b53413cb506433c0683a110e",
+    "include/math-narrow-eval.h": "24d92cf204f90b02b01f533ae693e049754bcfb0ad4e4e09648d9ec7be9c4fa1"
   }
 }
