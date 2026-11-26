@@ -41,6 +41,7 @@ pub mod geometry_headers;
 mod hypot;
 pub mod math_util;
 pub mod poly_ystripes;
+pub mod seg;
 
 // `generated.rs` is emitter output (sha256 d24ff0f2..., from the reviewed graph locks of the
 // pinned oracle; port/tools/kimath_nan/README.md). It is bound byte for byte by
