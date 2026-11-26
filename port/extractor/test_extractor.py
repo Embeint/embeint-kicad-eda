@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Run with: python -m unittest discover -s port/extractor -p 'test_*.py'."""
 import importlib.util
+import io
 import gzip
 import json
 import os
@@ -16,7 +17,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
-from extractor.model import PIN, classify, digest, expand_virtual, materialize_definitions, layers, weighted_dag, write_json, write_graph, write_cache, read_json, wx_class
+from extractor.model import PIN, classify, digest, expand_virtual, locate_endpoints, materialize_definitions, layers, weighted_dag, write_json, write_graph, write_cache, read_json, wx_class
 from split_units import dump, normalize_eof_ranges, split
 from validate_units import validate
 import drift_report
@@ -58,6 +59,54 @@ def save_fixture(root, graph, inventory, target=1):
 
 
 class GraphTests(unittest.TestCase):
+    def test_replay_refuses_a_cache_record_lost_after_preflight(self):
+        import extract_graph
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / 'entry.cpp'
+            source.write_text('int entry() { return 1; }\n', encoding='utf-8')
+            manifest, database, cache = root / 'manifest.json', root / 'commands.json', root / 'cache'
+            write_json(manifest, {'files': ['entry.cpp']})
+            write_json(database, [{'file': str(source), 'directory': str(root),
+                                   'arguments': ['clang++', '-c', str(source)]}])
+            libclang = root / 'libclang'
+            libclang.write_bytes(b'identity only; replay must not load this')
+            here = Path(__file__).resolve().parents[2]
+            visible = True
+            original_exists = Path.exists
+
+            def exists(path):
+                if path.parent == cache:
+                    return visible
+                return original_exists(path)
+
+            pool = mock.MagicMock()
+
+            def enter():
+                nonlocal visible
+                # The record passed replay preflight, then disappeared before consumption.
+                visible = False
+                return pool
+
+            pool.__enter__.side_effect = enter
+            args = ['extract_graph.py', '--compile-commands', str(database), '--source-root', str(root),
+                    '--original-source-root', str(root), '--manifest', str(manifest), '--cache', str(cache),
+                    '--libclang', str(libclang), '--output', str(root / 'output'),
+                    '--replay-parse-runtime', str(here)]
+            stderr = io.StringIO()
+            with mock.patch.object(sys, 'argv', args), mock.patch.object(sys, 'stderr', stderr), \
+                    mock.patch.object(Path, 'exists', exists), \
+                    mock.patch.object(extract_graph, 'ProcessPoolExecutor', return_value=pool), \
+                    mock.patch.object(extract_graph, 'write_cache') as write:
+                with self.assertRaises(SystemExit) as failure:
+                    extract_graph.main()
+            self.assertEqual(failure.exception.code, 2)
+            self.assertIn('Replay refuses to parse: cache record disappeared', stderr.getvalue())
+            pool.submit.assert_not_called()
+            write.assert_not_called()
+            self.assertFalse(cache.exists())
+
     def test_cli_regeneration_preserves_port_wiring_and_refreshes_accounting(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -124,6 +173,71 @@ class GraphTests(unittest.TestCase):
         self.assertIn((duplicate, "callee", False), calls)
         self.assertIn(("entry", duplicate, False), calls)
         self.assertEqual(overrides, [])
+
+    def test_same_name_classes_in_separate_components_resolve_to_their_tu_bodies(self):
+        # Reproduces the KiCad collision: geometry's inline virtual SHAPE::~SHAPE
+        # in shape.h and the VRML plugin's distinct global SHAPE, whose
+        # nonvirtual destructor is out of line in wrlfacet.cpp, share one USR.
+        geometry = ("shape.h", 138, 139)
+        vrml = ("wrlfacet.cpp", 675, 688)
+
+        def body(location, virtual):
+            return {"file": location[0], "start": location[1], "end": location[2], "wx": [], "virtual": virtual}
+
+        arc = {"file": "shape_arc.h", "start": 10, "end": 11, "wx": [], "virtual": True}
+        add = {"file": "shape_compound.h", "start": 20, "end": 21, "wx": [], "virtual": False}
+        helper = {"file": "util.h", "start": 1, "end": 2, "wx": [], "virtual": False}
+        translate = {"file": "vrml2_faceset.cpp", "start": 5, "end": 9, "wx": [], "virtual": False}
+        painter = {"file": "pcb_painter.cpp", "start": 3, "end": 4, "wx": [], "virtual": False}
+        results = [
+            # A geometry TU: the destructor body it sees is its own inline one.
+            {"functions": {"~SHAPE": body(geometry, True), "~ARC": arc, "AddShape": add, "helper": helper},
+             "calls": [["~ARC", "~SHAPE", False], ["AddShape", "~SHAPE", True], ["AddShape", "helper", False]],
+             "overrides": [["~SHAPE", "~ARC"]]},
+            # The VRML definition TU.
+            {"functions": {"~SHAPE": body(vrml, False)}, "calls": [], "overrides": []},
+            # A VRML caller only declares SHAPE::~SHAPE: a true cross-TU call.
+            {"functions": {"Translate": translate}, "calls": [["Translate", "~SHAPE", False]], "overrides": []},
+            # Another TU sharing the same inline header body and the same helper.
+            {"functions": {"~SHAPE": body(geometry, True), "helper": helper, "draw": painter},
+             "calls": [["draw", "~SHAPE", True], ["draw", "helper", False]], "overrides": []},
+        ]
+        functions, locations, calls, overrides = {}, {}, set(), set()
+        for result in results:
+            for usr, record in result["functions"].items():
+                functions.setdefault(usr, dict(record))
+                locations.setdefault(usr, {})[(record["file"], record["start"], record["end"])] = dict(record)
+            located_calls, located_overrides = locate_endpoints(result)
+            calls |= located_calls
+            overrides |= located_overrides
+        calls, overrides, copies = materialize_definitions(functions, calls, overrides, locations)
+        (vrml_body,) = copies
+        self.assertEqual(functions[vrml_body]["file"], "wrlfacet.cpp")
+        self.assertEqual(functions["~SHAPE"]["file"], "shape.h")
+        # Geometry callers and overrides reach only geometry's own body.
+        self.assertFalse([call for call in calls if call[1] == vrml_body and call[0] != "Translate"])
+        self.assertEqual(overrides, [("~SHAPE", "~ARC")])
+        self.assertIn(("~ARC", "~SHAPE", False), calls)
+        self.assertIn(("AddShape", "~SHAPE", True), calls)
+        # Virtual dispatch from a TU-local base still expands to every override.
+        self.assertIn(("draw", "~ARC", "override"), expand_virtual(calls, overrides))
+        # A shared inline body at one location stays one target for both TUs.
+        self.assertIn(("AddShape", "helper", False), calls)
+        self.assertIn(("draw", "helper", False), calls)
+        self.assertNotIn("helper", {copies[k] for k in copies})
+        # Without a local definition the linker chooses: every body is kept.
+        self.assertIn(("Translate", vrml_body, False), calls)
+        self.assertIn(("Translate", "~SHAPE", False), calls)
+        # Unlocated legacy records keep the previous conservative union.
+        legacy, _, _ = materialize_definitions(
+            {usr: dict(record) for usr, record in functions.items() if "@definition:" not in usr},
+            [("~ARC", "~SHAPE", False)], [], locations)
+        self.assertEqual(len([call for call in legacy if call[0] == "~ARC"]), 2)
+        with self.assertRaisesRegex(ValueError, "not recorded as a definition"):
+            materialize_definitions({usr: dict(record) for usr, record in functions.items()
+                                     if "@definition:" not in usr},
+                                    [("~ARC", ("shape_arc.h", 10, 11), "~SHAPE", ("other.h", 1, 2), False)],
+                                    [], locations)
 
     def test_absent_source_is_never_passed_to_clang(self):
         from extractor.clang_graph import extract_translation_unit
@@ -1026,6 +1140,107 @@ namespace Gui { using Alias = wxFrame; int get(Alias*) { return 1; } }
                 '--inventory', str(output/'inventory.json'), '--units-dir', str(root/'port/units'),
                 '--report', str(output/'units.json'), '--source-root', str(root)], check=True, capture_output=True)
             self.assertEqual(validate(root), [])
+
+    def test_same_name_classes_in_separate_targets_and_read_only_cache_replay(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            root = base / 'src'
+            sources = {
+                # Geometry: inline virtual base destructor shared by several TUs.
+                'geometry/shape.h': 'struct SHAPE { virtual ~SHAPE() {} };\n'
+                                    'struct ARC : SHAPE { ~ARC() override {} };\n'
+                                    'inline void release(SHAPE* s) { delete s; }\n',
+                'geometry/arc.cpp': '#include "shape.h"\nvoid use() { ARC a; release(new ARC); }\n',
+                'geometry/painter.cpp': '#include "shape.h"\nvoid draw(SHAPE* s) { release(s); }\n',
+                # VRML: an unrelated global SHAPE, nonvirtual and defined out of line.
+                'vrml/wrlfacet.h': 'struct SHAPE { ~SHAPE(); int n; };\n',
+                'vrml/wrlfacet.cpp': '#include "wrlfacet.h"\nSHAPE::~SHAPE() { n = 0; }\n',
+                'vrml/faceset.cpp': '#include "wrlfacet.h"\nvoid translate() { SHAPE s; }\n',
+                # A genuine cross-TU virtual destructor without a local body.
+                'core/base.h': 'struct Base { virtual ~Base(); };\nstruct Derived : Base { ~Derived() override; };\n',
+                'core/base.cpp': '#include "base.h"\nBase::~Base() {}\nDerived::~Derived() {}\n',
+                'core/caller.cpp': '#include "base.h"\nvoid drop(Base* b) { delete b; }\n',
+            }
+            for name, text in sources.items():
+                (root / name).parent.mkdir(parents=True, exist_ok=True)
+                (root / name).write_text(text, encoding='utf-8', newline='\n')
+            manifest = base / 'source-manifest.json'
+            write_json(manifest, {'source_commit': 'a' * 40, 'upstream_pin': PIN, 'files': sorted(sources)})
+            database = base / 'compile_commands.json'
+            write_json(database, [dict(file=str(root / name), directory=str(root / Path(name).parent),
+                                       arguments=['clang++', '-std=c++20', '-c', str(root / name)])
+                                  for name in sorted(sources) if name.endswith('.cpp')])
+            here = Path(__file__).resolve().parents[2]
+
+            def extract(runtime, cache, output, *extra):
+                command = [sys.executable, str(runtime / 'port/tools/extract_graph.py'),
+                           '--compile-commands', str(database), '--source-root', str(root),
+                           '--original-source-root', str(root), '--manifest', str(manifest),
+                           '--cache', str(cache), '--output', str(output), '--jobs', '1', *extra]
+                return subprocess.run(command, capture_output=True, text=True, cwd=base)
+
+            fresh = extract(here, base / 'fresh-cache', base / 'fresh')
+            self.assertEqual(fresh.returncode, 0, fresh.stdout + fresh.stderr)
+            graph = read_json(base / 'fresh/graph.json')
+            names = {usr: f['name'] for usr, f in graph['functions'].items()}
+            files = {usr: f['file'] for usr, f in graph['functions'].items()}
+            (vrml,) = [k for k, v in graph['definition_copies'].items() if names[k] == 'SHAPE::~SHAPE()']
+            self.assertEqual(files[vrml], 'vrml/wrlfacet.cpp')
+            geometry = graph['definition_copies'][vrml]
+            self.assertEqual(files[geometry], 'geometry/shape.h')
+            edges = {(names.get(a), files.get(b), kind) for a, b, kind in graph['edges']}
+            for caller, kind in (('ARC::~ARC()', 'static'), ('release(SHAPE *)', 'virtual')):
+                self.assertIn((caller, 'geometry/shape.h', kind), edges)
+            self.assertFalse([e for e in graph['edges'] if e[1] == vrml and files.get(e[0], '').startswith('geometry/')])
+            self.assertNotIn([vrml, next(u for u in names if names[u] == 'ARC::~ARC()')], graph['overrides'])
+            self.assertIn([geometry, next(u for u in names if names[u] == 'ARC::~ARC()')], graph['overrides'])
+            # The VRML caller has no local body: both same-USR bodies stay reachable.
+            translate = next(u for u in names if names[u] == 'translate()')
+            self.assertTrue({(translate, vrml), (translate, geometry)} <= {(a, b) for a, b, _ in graph['edges']})
+            # One inline body shared by two geometry TUs is one target, not a copy.
+            release = [u for u in names if names[u] == 'release(SHAPE *)']
+            self.assertEqual(len(release), 1)
+            self.assertTrue({('use()', release[0]), ('draw(SHAPE *)', release[0])}
+                            <= {(names.get(a), b) for a, b, _ in graph['edges']})
+            # A true cross-TU virtual destructor keeps its base and override.
+            self.assertTrue({('drop(Base *)', 'Base::~Base()'), ('drop(Base *)', 'Derived::~Derived()')}
+                            <= {(names.get(a), names.get(b)) for a, b, _ in graph['edges']})
+            self.assertIsNone(graph['provenance']['parse_cache_replay'])
+
+            # A runtime whose aggregation differs but whose parser is identical.
+            runtime = base / 'runtime'
+            for name in ('port/tools/extract_graph.py', *(str(p.relative_to(here).as_posix())
+                         for p in (here / 'port/extractor').glob('*.py'))):
+                (runtime / name).parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(here / name, runtime / name)
+            with open(runtime / 'port/extractor/model.py', 'a', encoding='utf-8') as stream:
+                stream.write('# earlier aggregation identity\n')
+            cache = base / 'parse-cache'
+            parsed = extract(runtime, cache, base / 'parsed')
+            self.assertEqual(parsed.returncode, 0, parsed.stdout + parsed.stderr)
+            before = {p.name: p.read_bytes() for p in cache.iterdir()}
+            replay = extract(here, cache, base / 'replay', '--replay-parse-runtime', str(runtime))
+            self.assertEqual(replay.returncode, 0, replay.stdout + replay.stderr)
+            self.assertEqual({p.name: p.read_bytes() for p in cache.iterdir()}, before)
+            replayed = read_json(base / 'replay/graph.json')
+            record = replayed['provenance']['parse_cache_replay']
+            self.assertEqual(record['parses'], 0)
+            self.assertEqual(replayed['provenance']['extractor_sha256'], record['parse_extractor_sha256'])
+            self.assertNotEqual(record['parse_extractor_sha256'], record['aggregation_extractor_sha256'])
+            self.assertEqual(replayed['provenance']['cache_reused_commands'], 6)
+            for key in ('edges', 'overrides', 'definition_copies', 'functions'):
+                self.assertEqual(replayed[key], graph[key])
+            # A missing record is refused rather than parsed under a foreign identity.
+            refused = extract(here, base / 'empty-cache', base / 'refused', '--replay-parse-runtime', str(runtime))
+            self.assertEqual(refused.returncode, 2)
+            self.assertIn('Replay refuses to parse', refused.stderr)
+            self.assertFalse((base / 'empty-cache').exists())
+            # So is a cache produced by a different parser.
+            with open(runtime / 'port/extractor/clang_graph.py', 'a', encoding='utf-8') as stream:
+                stream.write('# different parser\n')
+            refused = extract(here, cache, base / 'refused', '--replay-parse-runtime', str(runtime))
+            self.assertEqual(refused.returncode, 2)
+            self.assertIn('different parser', refused.stderr)
 
     def test_macro_only_generated_includes_are_frozen_and_invalidate_cache(self):
         with tempfile.TemporaryDirectory() as tmp:
