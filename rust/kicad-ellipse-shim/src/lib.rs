@@ -350,9 +350,9 @@ pub fn dispatch(line: &str) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
-    const CASES: usize = 2239;
+    const CASES: usize = 2224;
     const DEFERRED: usize = 100;
-    const CONTROLS: usize = 234;
+    const CONTROLS: usize = 249;
     fn has_refusal(result: &Value) -> bool {
         result["state"].get("error").is_some()
             || result["steps"]
