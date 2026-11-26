@@ -429,10 +429,16 @@ impl Engine {
 
     /// `DeleteEdges` deletes the AEL; the harness forgets every edge then (the adapter
     /// deletes the ones outside the AEL).
-    fn forget_edges(&mut self) {
+    fn forget_edges(&mut self) -> R<()> {
         for handle in &mut self.handles {
             handle.1 = false;
         }
+        // CleanUp preserves the source SEL head, whose edges have just been deleted.
+        // Refuse the adapter's mandatory observation, not the defined cleanup itself.
+        if self.base.sel_head().is_some() {
+            return invalid("deleted list observation");
+        }
+        Ok(())
     }
 
     fn outrec(&self, v: &Value) -> R<OutRecId> {
@@ -738,7 +744,7 @@ impl Engine {
                 match text(s, "target")? {
                     "base" => {
                         self.base.clear()?;
-                        self.forget_edges();
+                        self.forget_edges()?;
                         self.base_borrows = false;
                         self.iter_valid = true;
                     }
@@ -755,7 +761,7 @@ impl Engine {
             "clean_up" => {
                 keys(s, &["s"])?;
                 self.base.clean_up()?;
-                self.forget_edges();
+                self.forget_edges()?;
                 Ok(Value::Null)
             }
             "reset" => {

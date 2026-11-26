@@ -536,6 +536,17 @@ def active_edges(c, rng):
            engine(*edge_setup([("subject", POLYS["a"])]), new_active(0, "left"), step("push_horz", e=0),
                   step("push_horz", e=0)), "list")
 
+    # Cleanup is defined with a populated SEL, but the adapter cannot observe its
+    # now-deleted links. Keep this harness limitation separate from source UB.
+    cleanup_setup = [add([path([(0, 10), (10, 10), (10, 0)])], is_open=True), step("reset"),
+                     new_active(0, "right"), step("insert_left_edge", e=0), step("push_horz", e=0)]
+    c.rule("engine/cleanup/deleted_sel_observation", engine(*cleanup_setup, step("clean_up")),
+           "deleted list observation")
+    c.rule("engine/clear/deleted_sel_observation", engine(*cleanup_setup, step("clear", target="base")),
+           "deleted list observation")
+    c.case("engine/cleanup/drained_sel", engine(*cleanup_setup, step("pop_horz"),
+                                                step("clean_up"), step("reset")))
+
 
 # --- engine: output records from edges -------------------------------------------------------
 

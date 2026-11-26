@@ -840,6 +840,12 @@ private:
         DeleteOrphans( ael );
         std::fill( m_alive.begin(), m_alive.end(), false );
         m_live.clear();
+
+        // CleanUp leaves sel_ unchanged. The source operation is defined, but this
+        // adapter cannot traverse that list for its mandatory state observation once
+        // the edges have been destroyed. Refuse before Register follows the links.
+        if( m_base.Field<SEL>() )
+            Invalid( "deleted list observation" );
     }
 
     size_t OutRecIndex( const JSON& aValue )

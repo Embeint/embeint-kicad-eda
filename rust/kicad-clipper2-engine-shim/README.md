@@ -59,6 +59,12 @@ Both programs refuse, with identical envelopes:
   Clipper2's declared `MIN_COORD..MAX_COORD`. Adding paths, `Reset`, minima and scanline
   steps only compare coordinates and accept the whole `int64_t` range.
 
+Cleanup with a populated SEL is defined in the source, but leaves a pointer to deleted
+edges. The adapter refuses its subsequent mandatory list observation as
+`invalid input: deleted list observation` before traversing those edges. This is an
+explicit harness limitation, not a claim that the cleanup operation itself is undefined.
+Draining SEL before cleanup remains a successful compared case.
+
 ## Evidence
 
 - `generate_cases.py` writes the corpus (`port/cases/<unit>.jsonl`) and the controls
