@@ -24,6 +24,7 @@ void RegisterCoreP001( REGISTRY& aRegistry );
 void RegisterCoreIncludeP001( REGISTRY& aRegistry );
 void RegisterSeg( REGISTRY& aRegistry );
 void RegisterClipper2RectClip( REGISTRY& aRegistry );
+void RegisterCoreMapHelpers( REGISTRY& aRegistry );
 
 
 void REGISTRY::Add( const std::string& aUnit, const std::string& aUpstream, SHIM aShim )
@@ -60,6 +61,7 @@ REGISTRY MakeRegistry()
     RegisterCoreIncludeP001( registry );
     RegisterSeg( registry );
     RegisterClipper2RectClip( registry );
+    RegisterCoreMapHelpers( registry );
     return registry;
 }
 
