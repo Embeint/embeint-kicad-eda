@@ -3,9 +3,13 @@
 
 Unit: `libs.kimath.src.geometry.ellipse.application.ui.p001`
 (`libs/kimath/src/geometry/ellipse.cpp` at pin `4cf939778df04d2b747bb2c4714fc5014a7565c7`).
-Confirmation state: confirmed against the live pinned oracle (GCC, x86-64 SSE2, `-O3
--fno-fast-math -ffp-contract=off`), oracle binary sha256
+Confirmation state: confirmed locally against the pinned source built with GCC
+15.2 and glibc 2.43 (x86-64 SSE2, `-O3 -fno-fast-math -ffp-contract=off`),
+oracle binary sha256
 `3d9f83c2d737a9fa139d4c566a95eeefafa4bb4f0da2aafcc9b0ab25d66394e4`. Not a reference defect.
+Compiled NaN operand forms remain unqualified against the target GCC 13.3 and
+glibc 2.39 until the final-head Ubuntu 24.04 hosted comparison passes. Matching
+this local binary does not establish agreement with that target binary.
 
 ## Compiled operand forms that decide NaN bits
 
