@@ -41,6 +41,7 @@ jobs:
           git show "$INPUT_LOCK_COMMIT:port/reference-env/inputs.lock.json" > "$out/inputs.lock.json"
       - name: Check source coefficients and harness refusal paths
         run: |
+          cargo metadata --locked --manifest-path port/glibc-libm/wasm/Cargo.toml --format-version 1 > "$OUT/wasm-cargo-metadata.json"
           python3 port/glibc-libm/check_sources.py --out "$OUT"
           python3 -I -B -m unittest discover -s port/glibc-libm -p 'test_*.py' -v
           cargo fmt --manifest-path rust/Cargo.toml -p kicad-math --check
