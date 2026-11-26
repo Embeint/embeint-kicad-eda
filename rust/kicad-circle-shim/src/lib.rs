@@ -279,3 +279,109 @@ pub fn dispatch(line: &str) -> Value {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::BTreeMap;
+    const CASES: usize = 4978;
+    const CONTROLS: usize = 81;
+
+    /// Every public case either succeeds or defers to exactly these owners, these many times.
+    #[test]
+    fn public_cases_succeed_or_defer_to_their_actual_owners() {
+        let mut deferred: BTreeMap<(String, String), usize> = BTreeMap::new();
+        let mut ok = 0;
+        for line in include_str!(
+            "../../../port/cases/libs.kimath.src.geometry.circle.application.ui.p001.jsonl"
+        )
+        .lines()
+        {
+            let reply = dispatch(line);
+            if reply.get("result").is_some() {
+                ok += 1;
+                continue;
+            }
+            assert_eq!(reply["error"]["kind"], "unported", "{reply}");
+            let key = (
+                reply["error"]["unit"]
+                    .as_str()
+                    .unwrap_or_default()
+                    .to_string(),
+                reply["error"]["upstream"]
+                    .as_str()
+                    .unwrap_or_default()
+                    .to_string(),
+            );
+            *deferred.entry(key).or_default() += 1;
+        }
+        let expected: BTreeMap<(String, String), usize> = [
+            (
+                "libs.kimath.include.application.ui.p001",
+                "RotatePoint(VECTOR2I&, EDA_ANGLE)",
+                193,
+            ),
+            (
+                "libs.kimath.include.geometry.application.ui.p003",
+                "SEG::Square",
+                107,
+            ),
+            (
+                "libs.kimath.include.math.application.ui.p002",
+                "VECTOR floating arithmetic: distinct NaN operands",
+                56,
+            ),
+            (
+                "libs.kimath.src.math.util.application.ui.p001",
+                "kimathLogOverflow",
+                6,
+            ),
+        ]
+        .into_iter()
+        .map(|(u, s, n)| ((u.to_string(), s.to_string()), n))
+        .collect();
+        assert_eq!(deferred, expected);
+        assert_eq!(ok + deferred.values().sum::<usize>(), CASES);
+    }
+
+    #[test]
+    fn controls_refuse_or_defer_exactly_as_recorded() -> Result<(), serde_json::Error> {
+        let mut count = 0;
+        for line in include_str!("../../../port/oracle/fixtures/circle-controls.jsonl").lines() {
+            let control: Value = serde_json::from_str(line)?;
+            let reply = dispatch(&control["request"].to_string());
+            let error = match control.get("rust_unported") {
+                Some(owner) => json!({"kind": "unported", "unit": owner["unit"],
+                                      "upstream": owner["upstream"]}),
+                None => control["error"].clone(),
+            };
+            assert_eq!(reply["error"], error, "{reply}");
+            count += 1;
+        }
+        assert_eq!(count, CONTROLS);
+        Ok(())
+    }
+
+    #[test]
+    fn malformed_requests_are_refused_before_any_operation() {
+        let base = |input: Value| {
+            dispatch(&json!({"unit": UNIT, "case": "c", "input": input}).to_string())
+        };
+        let c = json!({"center": [0, 0], "radius": 1});
+        for input in [
+            json!({"op": "default", "extra": 1}),
+            json!({"op": "nope"}),
+            json!({"op": "new", "center": [0, 2147483648_i64], "radius": 1}),
+            json!({"op": "contains", "circle": c, "point": [0, 0], "overload": "volatile"}),
+            json!({"op": "nearest_f64", "circle": c, "point": ["nothex", "0000000000000000"]}),
+            json!({"op": "intersect_seg", "circle": c, "seg": [[0, 0]]}),
+            json!({"op": "copy", "circle": {"center": [0, 0]}}),
+            json!({"op": "tan_tan_pt", "circle": c, "line_a": [[0, 0], [0, 0]],
+                   "line_b": [[0, 1], [1, 1]], "point": [0, 0]}),
+            json!({"op": "tan_tan_pt", "circle": c, "line_a": [[0, 0], [70000, 0]],
+                   "line_b": [[0, 1], [1, 1]], "point": [0, 0]}),
+        ] {
+            assert_eq!(base(input)["error"]["kind"], "invalid_input");
+        }
+    }
+}
