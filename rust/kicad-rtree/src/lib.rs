@@ -90,13 +90,20 @@ pub struct DynamicRtree<T: NodeData, E: Coord, const N: usize = 2, const M: usiz
     root: Option<NodeHandle>,
     count: usize,
     max_entries: usize,
+    /// Independent host storage budget: maximum simultaneously allocated nodes.
+    max_nodes: usize,
+    /// Nodes currently allocated from `arena` and not yet freed.
+    active_nodes: usize,
     interrupted: bool,
     branches: Branches,
 }
 impl<T: NodeData, E: Coord, const N: usize, const M: usize> DynamicRtree<T, E, N, M> {
-    /// Resource budget is explicit and can be raised by the host. Invalid bounds
-    /// are accepted wherever the reference has defined arithmetic; no normalizing.
-    pub fn new(max_entries: usize) -> Result<Self, Error> {
+    /// Both resource budgets are explicit host choices, not reference limits:
+    /// `max_entries` bounds stored items, `max_nodes` bounds simultaneously
+    /// allocated nodes (and therefore tree height and every traversal stack).
+    /// There is no depth limit. Invalid bounds are accepted wherever the
+    /// reference has defined arithmetic; no normalizing.
+    pub fn new(max_entries: usize, max_nodes: usize) -> Result<Self, Error> {
         if N == 0 || M < 2 || M > i32::MAX as usize / 3 {
             return Err(Error::InvalidTemplate);
         }
@@ -108,6 +115,8 @@ impl<T: NodeData, E: Coord, const N: usize, const M: usize> DynamicRtree<T, E, N
             root: None,
             count: 0,
             max_entries,
+            max_nodes,
+            active_nodes: 0,
             interrupted: false,
             branches: Branches::default(),
         })
@@ -120,6 +129,16 @@ impl<T: NodeData, E: Coord, const N: usize, const M: usize> DynamicRtree<T, E, N
     }
     pub fn branches(&self) -> &Branches {
         &self.branches
+    }
+    /// Nodes currently allocated, counted at every allocation and free.
+    pub fn active_nodes(&self) -> usize {
+        self.active_nodes
+    }
+    pub fn max_entries(&self) -> usize {
+        self.max_entries
+    }
+    pub fn max_nodes(&self) -> usize {
+        self.max_nodes
     }
     pub fn memory_usage(&self) -> Result<u64, Error> {
         Ok(self.arena.memory_usage(&self.allocator)?)
@@ -152,12 +171,18 @@ impl<T: NodeData, E: Coord, const N: usize, const M: usize> DynamicRtree<T, E, N
         self.n(h)?.child(i)?.cloned().ok_or(Error::Invariant)
     }
     fn alloc(&mut self, level: i32) -> Result<NodeHandle, Error> {
+        if self.active_nodes >= self.max_nodes {
+            return Err(Error::NodeBudget);
+        }
         let h = self.arena.allocate(&self.allocator)?;
+        self.active_nodes = self.active_nodes.checked_add(1).ok_or(Error::Invariant)?;
         self.nm(&h)?.level = level;
         Ok(h)
     }
     fn free(&mut self, h: &NodeHandle) -> Result<(), Error> {
-        Ok(self.arena.free(&self.allocator, Some(h))?)
+        self.arena.free(&self.allocator, Some(h))?;
+        self.active_nodes = self.active_nodes.checked_sub(1).ok_or(Error::Invariant)?;
+        Ok(())
     }
     fn entries(&self, h: &NodeHandle) -> Result<Vec<Entry<T, E, N>>, Error> {
         let node = self.n(h)?;
@@ -218,7 +243,7 @@ impl<T: NodeData, E: Coord, const N: usize, const M: usize> DynamicRtree<T, E, N
     /// After a refused undefined mutation, reset releases the entire arena instead.
     pub fn clear(&mut self) -> Result<(), Error> {
         if self.interrupted {
-            *self = Self::new(self.max_entries)?;
+            *self = Self::new(self.max_entries, self.max_nodes)?;
             return Ok(());
         }
         self.remove_all_nodes(self.root.clone())?;
@@ -227,7 +252,7 @@ impl<T: NodeData, E: Coord, const N: usize, const M: usize> DynamicRtree<T, E, N
         Ok(())
     }
     pub fn move_construct(source: &mut Self) -> Result<Self, Error> {
-        let mut result = Self::new(source.max_entries)?;
+        let mut result = Self::new(source.max_entries, source.max_nodes)?;
         core::mem::swap(&mut result, source);
         Ok(result)
     }
@@ -244,10 +269,12 @@ impl<T: NodeData, E: Coord, const N: usize, const M: usize> DynamicRtree<T, E, N
         if self.count >= self.max_entries {
             return Err(Error::ResourceLimit);
         }
-        self.interrupted = true;
+        // Allocating the first root changes no reachable state, so a budget
+        // refusal there leaves the tree usable. Later refusals interrupt it.
         if self.root.is_none() {
             self.root = Some(self.alloc(0)?);
         }
+        self.interrupted = true;
         self.insert_impl(Entry::leaf(min, max, data), &mut 0)?;
         self.count = self.count.checked_add(1).ok_or(Error::ResourceLimit)?;
         self.interrupted = false;
@@ -271,9 +298,8 @@ impl<T: NodeData, E: Coord, const N: usize, const M: usize> DynamicRtree<T, E, N
         let mut path = Vec::new();
         let mut h = self.root()?;
         while self.n(&h)?.level > target.unwrap_or(0) {
-            if path.len() >= 64 {
-                return Err(Error::ResourceLimit);
-            }
+            // The path is heap storage bounded by the height, itself bounded by
+            // the node budget; there is no fixed depth limit.
             push(&mut path, h.clone())?;
             let node = self.n(&h)?;
             let mut best = 0;
@@ -502,6 +528,10 @@ impl<T: NodeData, E: Coord, const N: usize, const M: usize> DynamicRtree<T, E, N
         }
         Ok(best)
     }
+    /// splitNode/splitNodeInternal. The reference recurses once per ancestor
+    /// that overflows in turn; this loop performs the same steps in the same
+    /// order, carrying the parent and new sibling entry into the next pass, so
+    /// propagation height uses no native stack and has no depth limit.
     fn split(
         &mut self,
         h: NodeHandle,
@@ -511,84 +541,84 @@ impl<T: NodeData, E: Coord, const N: usize, const M: usize> DynamicRtree<T, E, N
         internal: bool,
     ) -> Result<(), Error> {
         let _ = levels;
-        let mut es = self.entries(&h)?;
-        push(&mut es, e)?;
-        let mut axis_best = 0;
-        let mut sum_best = i64::MAX;
-        for axis in 0..N {
+        let (mut h, mut e, mut internal) = (h, e, internal);
+        loop {
+            let mut es = self.entries(&h)?;
+            push(&mut es, e)?;
+            let mut axis_best = 0;
+            let mut sum_best = i64::MAX;
+            for axis in 0..N {
+                order::sort(&mut es, |a, b| {
+                    if internal {
+                        a.min[axis] < b.min[axis]
+                    } else {
+                        (a.min[axis], a.max[axis]) < (b.min[axis], b.max[axis])
+                    }
+                })?;
+                let mut sum = Self::split_perimeters(&es)?;
+                if !internal {
+                    order::sort(&mut es, |a, b| {
+                        (a.max[axis], a.min[axis]) < (b.max[axis], b.min[axis])
+                    })?;
+                    sum = add(sum, Self::split_perimeters(&es)?)?;
+                }
+                if sum < sum_best {
+                    axis_best = axis;
+                    sum_best = sum;
+                }
+            }
             order::sort(&mut es, |a, b| {
                 if internal {
-                    a.min[axis] < b.min[axis]
+                    a.min[axis_best] < b.min[axis_best]
                 } else {
-                    (a.min[axis], a.max[axis]) < (b.min[axis], b.max[axis])
+                    (a.min[axis_best], a.max[axis_best]) < (b.min[axis_best], b.max[axis_best])
                 }
             })?;
-            let mut sum = Self::split_perimeters(&es)?;
+            let mut k = Self::best_split(&es)?;
             if !internal {
-                order::sort(&mut es, |a, b| {
-                    (a.max[axis], a.min[axis]) < (b.max[axis], b.min[axis])
+                let mut by_max = es.clone();
+                order::sort(&mut by_max, |a, b| {
+                    (a.max[axis_best], a.min[axis_best]) < (b.max[axis_best], b.min[axis_best])
                 })?;
-                sum = add(sum, Self::split_perimeters(&es)?)?;
+                let km = Self::best_split(&by_max)?;
+                if Self::split_overlap(&by_max, km)? < Self::split_overlap(&es, k)? {
+                    es = by_max;
+                    k = km;
+                }
             }
-            if sum < sum_best {
-                axis_best = axis;
-                sum_best = sum;
-            }
-        }
-        order::sort(&mut es, |a, b| {
-            if internal {
-                a.min[axis_best] < b.min[axis_best]
+            if self.n(&h)?.is_leaf() {
+                self.branches.leaf_splits += 1;
             } else {
-                (a.min[axis_best], a.max[axis_best]) < (b.min[axis_best], b.max[axis_best])
+                self.branches.internal_splits += 1;
             }
-        })?;
-        let mut k = Self::best_split(&es)?;
-        if !internal {
-            let mut by_max = es.clone();
-            order::sort(&mut by_max, |a, b| {
-                (a.max[axis_best], a.min[axis_best]) < (b.max[axis_best], b.min[axis_best])
-            })?;
-            let km = Self::best_split(&by_max)?;
-            if Self::split_overlap(&by_max, km)? < Self::split_overlap(&es, k)? {
-                es = by_max;
-                k = km;
-            }
-        }
-        if self.n(&h)?.is_leaf() {
-            self.branches.leaf_splits += 1;
-        } else {
-            self.branches.internal_splits += 1;
-        }
-        let sibling = self.alloc(self.n(&h)?.level)?;
-        let (a, b) = es.split_at_checked(k).ok_or(Error::Invariant)?;
-        self.rebuild(&h, a)?;
-        self.rebuild(&sibling, b)?;
-        let (lo, hi) = self.n(&sibling)?.compute_enclosing_bounds()?;
-        if let Some(parent) = path.pop() {
+            let sibling = self.alloc(self.n(&h)?.level)?;
+            let (a, b) = es.split_at_checked(k).ok_or(Error::Invariant)?;
+            self.rebuild(&h, a)?;
+            self.rebuild(&sibling, b)?;
+            let (lo, hi) = self.n(&sibling)?.compute_enclosing_bounds()?;
+            let Some(parent) = path.pop() else {
+                let level = self
+                    .n(&self.root()?)?
+                    .level
+                    .checked_add(1)
+                    .ok_or(Error::Overflow)?;
+                let root = self.alloc(level)?;
+                let (nlo, nhi) = self.n(&h)?.compute_enclosing_bounds()?;
+                self.append(&root, &Entry::internal(nlo, nhi, h))?;
+                self.append(&root, &Entry::internal(lo, hi, sibling))?;
+                self.root = Some(root);
+                self.branches.root_splits += 1;
+                return Ok(());
+            };
             self.update(&parent, &h)?;
-            let e = Entry::internal(lo, hi, sibling);
+            let sibling_entry = Entry::internal(lo, hi, sibling);
             if !self.n(&parent)?.is_full() {
-                self.append(&parent, &e)?;
-                self.adjust(&path, Some(parent))
-            } else {
-                self.split(parent, e, path, levels, true)
+                self.append(&parent, &sibling_entry)?;
+                return self.adjust(&path, Some(parent));
             }
-        } else {
-            let level = self
-                .n(&self.root()?)?
-                .level
-                .checked_add(1)
-                .ok_or(Error::Overflow)?;
-            if level > 64 {
-                return Err(Error::ResourceLimit);
-            }
-            let root = self.alloc(level)?;
-            let (nlo, nhi) = self.n(&h)?.compute_enclosing_bounds()?;
-            self.append(&root, &Entry::internal(nlo, nhi, h))?;
-            self.append(&root, &Entry::internal(lo, hi, sibling))?;
-            self.root = Some(root);
-            self.branches.root_splits += 1;
-            Ok(())
+            h = parent;
+            e = sibling_entry;
+            internal = true;
         }
     }
     pub fn remove(&mut self, min: [E; N], max: [E; N], data: Option<T>) -> Result<bool, Error> {
@@ -598,12 +628,11 @@ impl<T: NodeData, E: Coord, const N: usize, const M: usize> DynamicRtree<T, E, N
         };
         self.interrupted = true;
         let mut orphans = Vec::new();
-        let mut found = self.remove_impl(&root, &min, &max, &data, &mut orphans, 0)?;
+        let mut found = self.remove_impl(&root, &min, &max, &data, &mut orphans)?;
         if !found {
             orphans.clear();
             self.branches.fallback_removals += 1;
-            found =
-                self.remove_impl(&root, &[E::LOWEST; N], &[E::MAX; N], &data, &mut orphans, 0)?;
+            found = self.remove_impl(&root, &[E::LOWEST; N], &[E::MAX; N], &data, &mut orphans)?;
         }
         if found {
             self.count = self.count.checked_sub(1).ok_or(Error::Invariant)?;
@@ -613,56 +642,94 @@ impl<T: NodeData, E: Coord, const N: usize, const M: usize> DynamicRtree<T, E, N
         self.interrupted = false;
         Ok(found)
     }
+    /// removeImpl without native recursion. Each frame is a node and the next
+    /// child slot to try; a frame scans exactly as the reference loop does and
+    /// a descent records the slot it entered. When a child reports success, the
+    /// parent performs the reference post-descent continuation for that slot
+    /// (bounds update, parent-root underflow test, orphan or empty-child free)
+    /// and success unwinds every ancestor in innermost-first order; a failed
+    /// child resumes the parent's scan at the following slot.
     fn remove_impl(
         &mut self,
-        h: &NodeHandle,
+        root: &NodeHandle,
         min: &[E; N],
         max: &[E; N],
         data: &Option<T>,
         orphans: &mut Vec<NodeHandle>,
-        depth: usize,
     ) -> Result<bool, Error> {
-        if depth > 64 {
-            return Err(Error::ResourceLimit);
-        }
-        let leaf = self.n(h)?.is_leaf();
-        let count = self.n(h)?.count as usize;
-        for i in 0..count {
-            if leaf && self.n(h)?.data(i)? != data.as_ref() {
-                continue;
-            }
-            if !self.n(h)?.child_overlaps(i, min, max)? {
-                continue;
-            }
-            if leaf {
-                self.nm(h)?.remove_child(i as i32)?;
-                return Ok(true);
-            }
-            let child = self.child(h, i)?;
-            if self.remove_impl(&child, min, max, data, orphans, depth + 1)? {
-                let count = self.n(&child)?.count;
-                if count > 0 {
-                    let (lo, hi) = self.n(&child)?.compute_enclosing_bounds()?;
-                    self.nm(h)?.set_child_bounds(i, &lo, &hi)?;
-                    // Pinned quirk: test the parent against root, not the child.
-                    if count < (M * 2 / 5) as i32 && Some(h) != self.root.as_ref() {
-                        push(orphans, child.clone())?;
-                        self.nm(h)?.remove_child(i as i32)?;
-                        if self.n(&child)?.is_leaf() {
-                            self.branches.leaf_orphans += 1;
-                        } else {
-                            self.branches.internal_orphans += 1;
+        let mut stack: Vec<(NodeHandle, usize)> = Vec::new();
+        push(&mut stack, (root.clone(), 0))?;
+        // Some(result) while unwinding from a completed frame.
+        let mut unwound: Option<bool> = None;
+        loop {
+            if let Some(found) = unwound.take() {
+                let Some((h, next)) = stack.last().cloned() else {
+                    return Ok(found);
+                };
+                if found {
+                    // The child that succeeded was entered from slot next - 1.
+                    let i = next.checked_sub(1).ok_or(Error::Invariant)?;
+                    let child = self.child(&h, i)?;
+                    let count = self.n(&child)?.count;
+                    if count > 0 {
+                        let (lo, hi) = self.n(&child)?.compute_enclosing_bounds()?;
+                        self.nm(&h)?.set_child_bounds(i, &lo, &hi)?;
+                        // Pinned quirk: test the parent against root, not the child.
+                        if count < (M * 2 / 5) as i32 && Some(&h) != self.root.as_ref() {
+                            push(orphans, child.clone())?;
+                            self.nm(&h)?.remove_child(i as i32)?;
+                            if self.n(&child)?.is_leaf() {
+                                self.branches.leaf_orphans += 1;
+                            } else {
+                                self.branches.internal_orphans += 1;
+                            }
                         }
+                    } else {
+                        self.free(&child)?;
+                        self.nm(&h)?.remove_child(i as i32)?;
+                        self.branches.empty_child_frees += 1;
                     }
-                } else {
-                    self.free(&child)?;
-                    self.nm(h)?.remove_child(i as i32)?;
-                    self.branches.empty_child_frees += 1;
+                    stack.pop();
+                    unwound = Some(true);
+                    continue;
                 }
-                return Ok(true);
+                // Failed child: fall through and resume this frame's scan.
+            }
+            let (h, start) = stack.last().cloned().ok_or(Error::Invariant)?;
+            let leaf = self.n(&h)?.is_leaf();
+            let count = self.n(&h)?.count as usize;
+            let mut descend = None;
+            for i in start..count {
+                if leaf && self.n(&h)?.data(i)? != data.as_ref() {
+                    continue;
+                }
+                if !self.n(&h)?.child_overlaps(i, min, max)? {
+                    continue;
+                }
+                if leaf {
+                    self.nm(&h)?.remove_child(i as i32)?;
+                    descend = None;
+                    unwound = Some(true);
+                    break;
+                }
+                descend = Some(i);
+                break;
+            }
+            if unwound.is_some() {
+                stack.pop();
+                continue;
+            }
+            match descend {
+                Some(i) => {
+                    stack.last_mut().ok_or(Error::Invariant)?.1 = i + 1;
+                    push(&mut stack, (self.child(&h, i)?, 0))?;
+                }
+                None => {
+                    stack.pop();
+                    unwound = Some(false);
+                }
             }
         }
-        Ok(false)
     }
     fn reinsert_orphans(&mut self, orphans: Vec<NodeHandle>) -> Result<(), Error> {
         for orphan in orphans {
@@ -741,6 +808,11 @@ impl<T: NodeData, E: Coord, const N: usize, const M: usize> DynamicRtree<T, E, N
         // The (curve,index) pair has a strict unique total order, so unstable
         // sort's equal-key behavior cannot change this ordering.
         order.sort_unstable();
+        // The packed node count is known in advance and the old tree is freed
+        // first, so a node-budget refusal can be given before any mutation.
+        if Self::packed_nodes(entries.len())? > self.max_nodes {
+            return Err(Error::NodeBudget);
+        }
         self.interrupted = true;
         self.remove_all_nodes(self.root.clone())?;
         self.root = None;
@@ -774,6 +846,17 @@ impl<T: NodeData, E: Coord, const N: usize, const M: usize> DynamicRtree<T, E, N
         self.interrupted = false;
         Ok(())
     }
+    /// Nodes BulkLoad allocates for `n > 0` entries: ceil(n/M) leaves, then
+    /// ceil(count/M) parents per level until a single root remains.
+    fn packed_nodes(n: usize) -> Result<usize, Error> {
+        let mut level = n.div_ceil(M);
+        let mut total = level;
+        while level > 1 {
+            level = level.div_ceil(M);
+            total = total.checked_add(level).ok_or(Error::NodeBudget)?;
+        }
+        Ok(total)
+    }
     pub fn begin(&self) -> Result<Cursor<'_, T, E, N, M>, Error> {
         self.ready()?;
         Cursor::new(self, None)
@@ -800,34 +883,45 @@ impl<T: NodeData, E: Coord, const N: usize, const M: usize> DynamicRtree<T, E, N
         self.ready()?;
         let mut found = 0;
         if let Some(root) = &self.root {
-            self.search_impl(root, &min, &max, visitor, &mut found, 0)?;
+            self.search_impl(root, &min, &max, visitor, &mut found)?;
         }
         Ok(found)
     }
+    /// searchImpl without native recursion. Each frame holds a node and its
+    /// remaining overlap mask, computed when the node is entered exactly as the
+    /// reference does; bits are consumed in ascending order and a descent
+    /// suspends the parent's mask. A false visitor result ends the search.
     fn search_impl<F: FnMut(Option<&T>) -> bool>(
         &self,
-        h: &NodeHandle,
+        root: &NodeHandle,
         min: &[E; N],
         max: &[E; N],
         visitor: &mut F,
         found: &mut i32,
-        depth: usize,
     ) -> Result<bool, Error> {
-        if depth > 64 {
-            return Err(Error::ResourceLimit);
-        }
-        let node = self.n(h)?;
-        let mut mask = node.child_overlap_mask(min, max)?;
-        while mask != 0 {
+        let mut stack: Vec<(NodeHandle, u32)> = Vec::new();
+        push(
+            &mut stack,
+            (root.clone(), self.n(root)?.child_overlap_mask(min, max)?),
+        )?;
+        while let Some((h, mask)) = stack.last_mut() {
+            if *mask == 0 {
+                stack.pop();
+                continue;
+            }
             let i = mask.trailing_zeros() as usize;
-            mask &= mask - 1;
+            *mask &= *mask - 1;
+            let h = h.clone();
+            let node = self.n(&h)?;
             if node.is_leaf() {
                 *found = found.checked_add(1).ok_or(Error::Overflow)?;
                 if !visitor(node.data(i)?) {
                     return Ok(false);
                 }
-            } else if !self.search_impl(&self.child(h, i)?, min, max, visitor, found, depth + 1)? {
-                return Ok(false);
+            } else {
+                let child = self.child(&h, i)?;
+                let child_mask = self.n(&child)?.child_overlap_mask(min, max)?;
+                push(&mut stack, (child, child_mask))?;
             }
         }
         Ok(true)

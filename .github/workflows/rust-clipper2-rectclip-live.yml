@@ -1,0 +1,79 @@
+name: Rust Clipper2 rectangle clipping live validation
+on:
+  pull_request:
+    branches: [rust]
+    paths:
+      - rust/kicad-clipper2/**
+      - rust/kicad-clipper2-rectclip-shim/**
+      - rust/kicad-math/**
+      - rust/kicad-difftest/**
+      - rust/Cargo.toml
+      - rust/Cargo.lock
+      - port/oracle/**
+      - port/cases/thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p003.jsonl
+      - port/units/thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p003.toml
+      - .github/workflows/rust-clipper2-rectclip-live.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  clipper2-rectclip-live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: "2"
+      ORACLE_JOBS: "2"
+      UNIT: thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p003
+      GLIBC_TUNABLES: "glibc.cpu.hwcaps=-AVX,-AVX2,-FMA,-FMA4,-AVX512F"
+      LD_LIBRARY_PATH: ""
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - name: Install toolchain and oracle dependencies
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal --component clippy,rustfmt --target wasm32-unknown-unknown
+          rustup default 1.99.1
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++ gcc cmake ninja-build python3 rsync git libboost-dev libwxgtk3.2-dev
+      - name: Check the portable implementation and the generated corpus
+        run: |
+          cargo fmt --manifest-path rust/Cargo.toml -p kicad-clipper2 -p kicad-clipper2-rectclip-shim --check
+          cargo clippy --locked --manifest-path rust/Cargo.toml -p kicad-clipper2 -p kicad-clipper2-rectclip-shim --all-targets -j2 -- -D warnings
+          cargo test --locked --manifest-path rust/Cargo.toml -p kicad-clipper2 -p kicad-clipper2-rectclip-shim -j2
+          cargo check --locked --manifest-path rust/Cargo.toml -p kicad-clipper2 --target wasm32-unknown-unknown -j2
+          python3 rust/kicad-clipper2-rectclip-shim/generate_cases.py --check
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-clipper2-rectclip-shim -p kicad-difftest -j2
+      - name: Build the genuine pinned own-library oracle
+        run: |
+          python3 port/oracle/prepare.py --output-dir "$RUNNER_TEMP/rectclip-stage"
+          bash port/oracle/build.sh "$RUNNER_TEMP/rectclip-stage" "$PWD/port/oracle" "$RUNNER_TEMP/rectclip-native"
+      - name: Compare every public case exactly and the separate refusal controls
+        run: |
+          out="$RUNNER_TEMP/rectclip-native"
+          rust/target/debug/kicad-difftest compare --partial --unit "$UNIT" --root "$PWD" \
+            --oracle "$out/oracle-build/kicad-oracle" --rust "$PWD/rust/target/debug/kicad-clipper2-rectclip-shim" \
+            --report "$out/compare.json"
+          python3 -c "import json,sys; r=json.load(open(sys.argv[1])); print({k: r[k] for k in ('status','cases','compared','deferred','failures','unprocessed')}); assert r['status'] == 'green' and r['deferred'] == 0 and r['failures'] == 0 and r['compared'] == r['cases']" "$out/compare.json"
+          python3 rust/kicad-clipper2-rectclip-shim/compare_controls.py \
+            --oracle "$out/oracle-build/kicad-oracle" --rust "$PWD/rust/target/debug/kicad-clipper2-rectclip-shim"
+      - name: Replay the corpus and controls in import-free WebAssembly
+        run: |
+          out="$RUNNER_TEMP/rectclip-native"
+          rust/target/debug/kicad-clipper2-rectclip-shim < "port/cases/$UNIT.jsonl" > "$out/rust-native.jsonl"
+          export KICAD_CLIPPER2_RECTCLIP_WASM_REFERENCE="$out/rust-native.jsonl"
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-clipper2-rectclip-shim \
+            --example corpus_parity --features live-wasm --target wasm32-unknown-unknown --release -j2
+          node rust/kicad-clipper2-rectclip-shim/wasm-test.mjs rust/target/wasm32-unknown-unknown/release/examples/corpus_parity.wasm
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: clipper2-rectclip-live-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/rectclip-native/compare.json
+            ${{ runner.temp }}/rectclip-native/rust-native.jsonl
+            ${{ runner.temp }}/rectclip-native/oracle-build/oracle-provenance.json
+            ${{ runner.temp }}/rectclip-native/oracle-build/compile_commands.json
+            ${{ runner.temp }}/rectclip-native/oracle-build/binary.sha256
+            ${{ runner.temp }}/rectclip-stage/source-manifest.json
+          retention-days: 14

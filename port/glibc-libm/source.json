@@ -45,6 +45,11 @@
     "math/w_pow.c": "8adda50c3f70cd134cb8e250d6a33e89f51d6bf7b6b98bb44a69725e178f3385",
     "math/w_pow_template.c": "adb42c449afe3f4236aff5c9dfe0edaa6b8da77bcce71745a649a971334a4a6c",
     "sysdeps/generic/nan-high-order-bit.h": "025278d83d7eae790ec25d79a061fad4ed3e80a9b53413cb506433c0683a110e",
-    "include/math-narrow-eval.h": "24d92cf204f90b02b01f533ae693e049754bcfb0ad4e4e09648d9ec7be9c4fa1"
+    "include/math-narrow-eval.h": "24d92cf204f90b02b01f533ae693e049754bcfb0ad4e4e09648d9ec7be9c4fa1",
+    "sysdeps/ieee754/dbl-64/e_hypot.c": "5bb30147cb13eade6e28eddac0a69b04de71d2850090166e36c94236ac9c514e",
+    "sysdeps/ieee754/dbl-64/w_hypot.c": "dc041a658e340e59f3e05b01a60c32d82444f57731cfbbdfc2f4bf7636cdc9fa",
+    "math/w_hypot_compat.c": "bda9448d5e9feaf16edfb0db34bccb7a857589a948fe34353fff89cdcc5c7f6b",
+    "sysdeps/generic/math-use-builtins-fmax.h": "c90bb25dd7ebd43edf0720927660f715e7efb0e46aebd7e1cf9077747617d619",
+    "sysdeps/generic/math-use-builtins-fmin.h": "f52c0367000af36a05f4f88bbcf441f2ecbfae5bc28da6e9766335c9fe38fc9f"
   }
 }

@@ -32,7 +32,8 @@ in C++. Coordinates are the full `i32`/`i64` domain, with exact array lengths.
 | insert/remove | min,max,item | empty event / actual removal bool |
 | bulk | entries: array of {min,max,item} | argument entries after real call (unchanged order) |
 | clear | none | actual RemoveAll |
-| state | none | size, empty, reference memory, full live hierarchy with child/insert bounds and data |
+| state | none | size, empty, reference memory, full live hierarchy with child/insert bounds and data; refused above root level 39 |
+| topology | none | size, empty, reference memory, active nodes, root level, nodes per level, flat breadth-first hierarchy (children named by index) |
 | iterate | skip,take (0..8192) | lazy order, cached current even at end, atEnd, equality with incremented copy; native arrow exercised |
 | overlap | min,max,take | lazy matching order, cached current, empty/atEnd, copied iterator equality |
 | search | min,max,stop (0..8192),seed | appended items and callback count; stop=0 still reports first hit if present |
@@ -51,9 +52,23 @@ step. This adapter is a test runner, not a hardened arbitrary-input C++ service;
 mutation-overflow guards in Rust are separately tested and are not claimed as
 native executions. No valid generated case is filtered or replaced.
 
+The nested `state` reply grows three containers per level; its innermost array
+sits at nesting 8 + 3 * root level, and the wasm replay's serde_json default
+limit is 128, so both adapters refuse `state` above root level 39 with the same
+message. `topology` has constant nesting and observes trees of any height. Its
+`active_nodes` is Rust's allocation count and, natively, the number of nodes
+reachable from the root, so the comparison checks the Rust accounting.
+
+The Rust adapter imposes no node budget (`usize::MAX`): C++ has none, and
+monotone fanout-3/4 programs within the step limit reach millions of live
+nodes, so any finite harness constant could refuse a valid request. The node
+budget and its failure lifecycle are covered by portable behaviour tests.
+
 ## Corpus and checks
 
-`generate_cases.py` writes **249 programs / 67,713 steps**, seed 20261124:
+`generate_cases.py` writes **259 programs / 76,820 steps**, seed 20261124. The
+first 249 programs (67,713 steps) are the original corpus, unchanged; ten deep
+programs follow (below). The original corpus covers
 packing boundaries, empty/one/multiple levels, equal boxes, touching/degenerate
 bounds, distributions forcing leaf/internal splits and nonroot reinsertions,
 shuffled deletion, insertion-box fallback, null/duplicate data, root collapse,
@@ -64,7 +79,19 @@ insert/remove/query sequences. The explicit 800-entry M=8 cascade is also a Rust
 behavior test with measured branch counters. Complete native topology is compared,
 not just hit sets. `--check` verifies deterministic bytes.
 
-`generate_refusals.py` writes **26 refusal controls**, kept separate from successful
+The deep programs insert monotone boxes into `i32.d1.m3` (160 sorted 1D boxes)
+and `i32.d2.m4` (240 touching unit strips; the 1,200-box pattern of closed #60),
+measured natively at root levels 79, 79 and 74. Each pattern has an insert and
+traverse program (topology checkpoints, full and offset iteration, pruned,
+empty and truncated ranges, visitor stops, nearest with ties and k limits), a
+removal program (fallback misses, then direct removal from the deep end through
+repeated root condensation to empty and regrowth), and a lifecycle program
+(move construct and assign of deep trees, moved-from reuse, bulk replacement,
+clear and regrowth with memory accounting). A tenth program observes nested
+`state` at root level 39.
+
+`generate_refusals.py` writes **27 refusal controls** (the 27th: nested state at
+root level 40), kept separate from successful
 corpus comparisons: malformed fields/counts, unknown instantiation, full-domain
 nearest overflow, out-of-domain bulk conversion, step and active-entry budgets.
 `compare_refusals.py` runs both real processes and requires every error envelope.

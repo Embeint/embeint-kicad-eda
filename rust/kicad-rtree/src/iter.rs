@@ -67,9 +67,8 @@ impl<'a, T: NodeData, E: Coord, const N: usize, const M: usize> Cursor<'a, T, E,
                 self.at_end = false;
                 return Ok(());
             }
-            if self.stack.len() >= 65 {
-                return Err(Error::ResourceLimit);
-            }
+            // Heap stack, one frame per level; height is bounded by the tree's
+            // node budget rather than by a fixed depth limit.
             push(&mut self.stack, (self.tree.child(&h, i)?, 0))?;
         }
         self.at_end = true;
