@@ -18,6 +18,7 @@ are counted as deferrals, never dropped.
 """
 import argparse
 from collections import Counter
+from decimal import Decimal, localcontext
 from fractions import Fraction
 import json
 import math
@@ -41,6 +42,35 @@ def bits(v):
 
 def from_bits(s):
     return struct.unpack('<d', struct.pack('<Q', int(s, 16)))[0]
+
+
+def input_sin_cos(angle):
+    """Generate input coordinates without a platform libm dependency.
+
+    All input angles lie within [-7, 7]. Evaluate 120 Taylor terms with 100
+    decimal digits, then convert once to binary64. This only chooses test
+    inputs; the branch mirror and both compared implementations are separate.
+    """
+    assert math.isfinite(angle) and abs(angle) <= 7
+    with localcontext() as ctx:
+        ctx.prec = 100
+        x = Decimal.from_float(angle)
+        minus_square = -x * x
+        sin_term, cos_term = x, Decimal(1)
+        sin_sum, cos_sum = sin_term, cos_term
+        for n in range(1, 120):
+            sin_term = sin_term * minus_square / ((2 * n) * (2 * n + 1))
+            cos_term = cos_term * minus_square / ((2 * n - 1) * (2 * n))
+            sin_sum += sin_term
+            cos_sum += cos_term
+        return float(sin_sum), float(cos_sum)
+
+
+def input_power10(exponent):
+    """Choose a test magnitude without the host binary64 pow implementation."""
+    with localcontext() as ctx:
+        ctx.prec = 100
+        return float(ctx.power(Decimal(10), Decimal.from_float(exponent)))
 
 
 def fma(a, b, c):
@@ -304,13 +334,14 @@ def generate():
             cursor=[0, 2000000000], major=major)
     start = (250000, -130000)
     for ti, (tx, ty) in enumerate([(1, 0), (0, -1), (3, 4), (-5, 2)]):
-        n = math.hypot(tx, ty)
+        n = math.sqrt(tx * tx + ty * ty)
         ux, uy = tx / n, ty / n
         for degrees in range(5, 360, 10):
             for radius in (3000.0, 400000.0, 90000000.0):
                 ang = degrees * math.pi / 180.0
-                end = [start[0] + kiround(radius * (ux * math.cos(ang) - uy * math.sin(ang))),
-                       start[1] + kiround(radius * (ux * math.sin(ang) + uy * math.cos(ang)))]
+                sin_a, cos_a = input_sin_cos(ang)
+                end = [start[0] + kiround(radius * (ux * cos_a - uy * sin_a)),
+                       start[1] + kiround(radius * (ux * sin_a + uy * cos_a))]
                 add(f'qa-tangent-sweep-{ti}-{degrees}-{int(radius)}', op='tangent', start=list(start),
                     tangent=tbits(tx, ty), end=end)
     add('qa-tangent-quarter', op='tangent', start=[0, 0], tangent=tbits(1, 0), end=[100000, 100000])
@@ -328,9 +359,10 @@ def generate():
             add(f'center-random-{si}-{i}', op='center_drag', start=pt(scale), end=pt(scale), cursor=pt(scale),
                 major=bool(i & 1))
             ang = rng.uniform(-math.pi, math.pi)
-            mag = 10.0 ** rng.uniform(-6, 6)
+            mag = input_power10(rng.uniform(-6, 6))
+            sin_a, cos_a = input_sin_cos(ang)
             add(f'tangent-random-{si}-{i}', op='tangent', start=pt(scale),
-                tangent=tbits(mag * math.cos(ang), mag * math.sin(ang)), end=pt(scale))
+                tangent=tbits(mag * cos_a, mag * sin_a), end=pt(scale))
 
     # Degenerate: zero chords, coincident and collinear points, at the integer limits too.
     for i, p in enumerate([[0, 0], [INT_MIN, INT_MIN], [INT_MAX, INT_MAX], [INT_MIN, INT_MAX], [17, -3]]):
