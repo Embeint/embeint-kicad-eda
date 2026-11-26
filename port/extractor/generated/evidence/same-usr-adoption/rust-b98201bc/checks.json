@@ -1,0 +1,84 @@
+{
+  "extractor-windows": {
+    "command": [
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "port/extractor",
+      "-p",
+      "test_*.py",
+      "-v"
+    ],
+    "exit_code": 0,
+    "log_sha256": "e4b7ee17c17390d7d89acef75e22190c173218bb720b3a3efc9c67e4c9abdbb7"
+  },
+  "progress-tests": {
+    "command": [
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "port/site",
+      "-p",
+      "test_*.py",
+      "-v"
+    ],
+    "exit_code": 0,
+    "log_sha256": "12ae1f1255993c9adcc47c32d41470b5ffd55e06fa2f6ca33a34d315f2048b60"
+  },
+  "tools-tests": {
+    "command": [
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "port/tools",
+      "-p",
+      "test_*.py",
+      "-v"
+    ],
+    "exit_code": 0,
+    "log_sha256": "527c4f1b87412c2d2c162f1582d34662d286826b622c510f498ce8fd187f02d2"
+  },
+  "policy-tests": {
+    "command": [
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "rust/kicad-difftest/tests",
+      "-p",
+      "test_policy.py",
+      "-v"
+    ],
+    "exit_code": 0,
+    "log_sha256": "4802db07eb01fa11ec70e381a4c5dbf9a7035c2e291b98567b14a57631a3fe8a"
+  },
+  "validate": {
+    "command": [
+      "port/tools/validate_units.py",
+      "--json"
+    ],
+    "exit_code": 0,
+    "log_sha256": "822d50062d63adae239e9f882321debfbc05acf38773f8c1f6b29192d665edc4"
+  },
+  "validate-strict": {
+    "command": [
+      "port/tools/validate_units.py",
+      "--json",
+      "--require-complete"
+    ],
+    "exit_code": 1,
+    "log_sha256": "8491664134664cb658cae5406ebc21fd3ed05762d79a93b76cb248089282231d"
+  },
+  "golden-changes": {
+    "command": [
+      "port/tools/check_goldens_policy.py",
+      "--base",
+      "b98201bc6b4c9e90cf725a0ab62b29d7b7b37a42"
+    ],
+    "exit_code": 0,
+    "log_sha256": "a0918eb57b05267af76c5d8709147401e68ff1d40ef6a1ca88249633d146b09c"
+  }
+}

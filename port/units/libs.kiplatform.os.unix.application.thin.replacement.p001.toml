@@ -19,6 +19,6 @@ source_ranges = ["libs/kiplatform/os/unix/policy.cpp:1:35"]
 wx_class = "thin-replacement"
 
 [difftest]
-rust_package = "kicad-kiplatform-shim"
-rust_binary = "kicad-kiplatform-shim"
 rust_args = []
+rust_binary = "kicad-kiplatform-shim"
+rust_package = "kicad-kiplatform-shim"

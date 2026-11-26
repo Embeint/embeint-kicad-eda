@@ -306,3 +306,14 @@ See [VALIDATION.md](VALIDATION.md), [PILOTS.md](../PILOTS.md), the migration led
 and [measurement.json](measurement.json). The pilot scopes must be re-confirmed
 against these records; no old ID alone certifies unchanged scope. Stored cases
 and the three-live-green-pilot gate are separate from extraction validation.
+
+## Accepted Unix metadata refresh
+
+The same-USR graph remains unchanged from its independent review. After merging
+accepted rust `b98201bc6b` (Unix policy and system info), canonical generation
+preserves every unit metadata value and produces identical results twice.
+Measurement statuses now read 3 green, 26 partial, 64 blocked and 1,708 todo;
+drift covers 29 ported units against that explicit accepted source commit.
+See [the integration addendum](../../findings/extractor-same-usr-unix-integration.md)
+and `evidence/same-usr-adoption/rust-b98201bc/`. This refresh performs no parse
+and makes no additional source, runtime or completeness qualification claim.

@@ -18913,7 +18913,7 @@
           "libs/kiplatform/os/unix/drivers.cpp:1:25",
           "libs/kiplatform/os/unix/sysinfo.cpp:1:45"
         ],
-        "status": "todo",
+        "status": "partial",
         "upstream": [
           "libs/kiplatform/os/unix/drivers.cpp",
           "libs/kiplatform/os/unix/sysinfo.cpp"
@@ -20146,8 +20146,8 @@
     "statuses": {
       "blocked": 64,
       "green": 3,
-      "partial": 24,
-      "todo": 1710
+      "partial": 26,
+      "todo": 1708
     },
     "unit_count": 1801,
     "wx_classes": {
