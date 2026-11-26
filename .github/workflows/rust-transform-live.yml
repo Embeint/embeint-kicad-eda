@@ -1,0 +1,78 @@
+name: Rust kimath transform live validation
+on:
+  pull_request:
+    branches: [rust]
+    paths:
+      - rust/kicad-transform-shim/**
+      - rust/kicad-hash/**
+      - rust/kicad-math/**
+      - port/oracle/**
+      - port/cases/libs.kimath.src.transform.application.ui.p001.jsonl
+      - port/units/libs.kimath.src.transform.application.ui.p001.toml
+      - .github/workflows/rust-transform-live.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  transform-live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CARGO_BUILD_JOBS: "2"
+      ORACLE_JOBS: "2"
+      GLIBC_TUNABLES: "glibc.cpu.hwcaps=-AVX,-AVX2,-FMA,-FMA4,-AVX512F"
+      LD_LIBRARY_PATH: ""
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - name: Install toolchain and oracle dependencies
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal --component clippy,rustfmt --target wasm32-unknown-unknown
+          rustup default 1.99.1
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++ gcc cmake ninja-build python3 rsync git libboost-dev libwxgtk3.2-dev
+      - name: Check portable implementation, generated corpus and controls
+        run: |
+          cargo fmt --manifest-path rust/Cargo.toml -p kicad-hash -p kicad-transform-shim --check
+          cargo clippy --locked --manifest-path rust/Cargo.toml -p kicad-hash -p kicad-transform-shim --all-targets -j2 -- -D warnings
+          cargo test --locked --manifest-path rust/Cargo.toml -p kicad-hash -p kicad-transform-shim -j2
+          cargo check --locked --manifest-path rust/Cargo.toml -p kicad-hash --target wasm32-unknown-unknown -j2
+          python3 rust/kicad-transform-shim/generate_cases.py --check
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-transform-shim -p kicad-difftest -j2
+      - name: Build genuine pinned own-library oracle
+        run: |
+          python3 port/oracle/prepare.py --output-dir "$RUNNER_TEMP/transform-stage"
+          bash port/oracle/build.sh "$RUNNER_TEMP/transform-stage" "$PWD/port/oracle" "$RUNNER_TEMP/transform-native"
+      - name: Compare every public case and separate undefined-domain controls
+        run: |
+          out="$RUNNER_TEMP/transform-native"
+          rust/target/debug/kicad-difftest compare --partial \
+            --unit libs.kimath.src.transform.application.ui.p001 --root "$PWD" \
+            --oracle "$out/oracle-build/kicad-oracle" --rust "$PWD/rust/target/debug/kicad-transform-shim" \
+            --report "$out/compare.json"
+          python3 rust/kicad-transform-shim/compare_controls.py \
+            --oracle "$out/oracle-build/kicad-oracle" --rust "$PWD/rust/target/debug/kicad-transform-shim"
+      - name: Execute all portable paths in import-free WebAssembly
+        run: |
+          out="$RUNNER_TEMP/transform-native"
+          { cat port/cases/libs.kimath.src.transform.application.ui.p001.jsonl
+            python3 -c 'import json,sys; [print(json.dumps(json.loads(l)["request"])) for l in open("port/oracle/fixtures/transform-controls.jsonl")]'
+          } | rust/target/debug/kicad-transform-shim > "$out/rust-native.jsonl"
+          export KICAD_TRANSFORM_WASM_REFERENCE="$out/rust-native.jsonl"
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-transform-shim \
+            --example corpus_parity --features live-wasm --target wasm32-unknown-unknown --release -j2
+          node rust/kicad-transform-shim/wasm-test.mjs rust/target/wasm32-unknown-unknown/release/examples/corpus_parity.wasm
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: transform-live-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/transform-native/compare.json
+            ${{ runner.temp }}/transform-native/rust-native.jsonl
+            ${{ runner.temp }}/transform-native/oracle-build/oracle-provenance.json
+            ${{ runner.temp }}/transform-native/oracle-build/compile_commands.json
+            ${{ runner.temp }}/transform-native/oracle-build/binary.sha256
+            ${{ runner.temp }}/transform-native/oracle-build/kicad-oracle
+            ${{ runner.temp }}/transform-stage/source-manifest.json
+          retention-days: 14

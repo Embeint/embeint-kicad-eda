@@ -15,6 +15,9 @@
 //! `kicad_math::vector::Vector2` and the minimal `VECTOR2` arithmetic co-ported there;
 //! `BEZIER<double>` NaN results follow the bound reference build site by site
 //! (`bezier_f64_sites`, through the private SSE2 scalar interface `sse2`).
+//!
+//! Unit `libs.kimath.src.transform.application.ui.p001` adds the out-of-line
+//! `libs/kimath/src/transform.cpp` bodies to [`Transform`] in [`transform_source`].
 
 pub mod bezier;
 mod bezier_f64_sites;
@@ -24,6 +27,7 @@ pub mod md5_hash;
 pub mod mmh3_hash;
 mod sse2;
 pub mod transform;
+pub mod transform_source;
 
 pub use bezier::{Bezier, BezierCoordinate, BezierPoly};
 pub use hash::{hash_bytes, hash_combine, hash_val, StdHash, STD_HASH_SEED};
