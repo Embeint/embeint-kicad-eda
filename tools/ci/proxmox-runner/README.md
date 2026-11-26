@@ -124,10 +124,11 @@ the workflow run, not to the selected topic's required PR checks.
 
 The runner is persistent, and every job on it shares one user and `$HOME`. The
 per-workflow cache directories are separate paths, not separate trust domains.
-A `t3/**` push runs that branch's build scripts and proc-macros, including any
-new dependency in its `Cargo.lock`, and that code can write the shared
+A manual run explicitly opting into the isolated runner and selecting a `t3/`
+branch runs that branch's build scripts and proc-macros, including any new
+dependency in its `Cargo.lock`, and that code can write the shared
 workspace, `~/.cargo`, `~/.rustup` and the other workflows' caches. So a writer's
-topic branch can change the results of later `rust` or `main` jobs on this
+topic branch selected this way can change the results of later `rust` or `main` jobs on this
 runner. This is within the trust model (only repository writers' pushed
 branches run here), and hosted checks remain authoritative for every PR. The
 source resolver itself runs outside the leftover workspace, with Python isolated
