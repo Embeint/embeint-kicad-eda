@@ -347,6 +347,52 @@ def corpus():
                    rev=rng.random() < 0.3, z=rng.choice(["none", "recorder"]), table=table,
                    set_callback=set_cb))
 
+    # ClipperD open paths returned as paths (BuildPathsD's open branch).
+    for i, subj in enumerate(dscenes):
+        add(f"clipd-{i}-paths-open",
+            clipd(subj, dclip, ct=1, fr=1, output="paths_open", rev=i == 1,
+                  open_=[[ptd(-1, 1.5), ptd(12, 1.5)], [ptd(0.5, -2), ptd(0.5, 30), ptd(3, 30)]]))
+
+    # Polytrees of self-intersecting and rectilinear scenes: splits, horizontal joins that
+    # split or join records, and split ownership checks.
+    rng2 = random.Random(SEED + 1)
+    for i in range(240):
+        grid = rng2.choice([5, 6, 8, 12])
+        if rng2.random() < 0.5:
+            subj = [random_ortho(rng2, grid, rng2.randint(5, 14)) for _ in range(rng2.randint(1, 3))]
+        else:
+            subj = [random_poly(rng2, grid, rng2.randint(5, 12)) for _ in range(rng2.randint(1, 3))]
+        clip = [random_ortho(rng2, grid, rng2.randint(3, 8)) for _ in range(rng2.randint(0, 2))]
+        add(f"tree-split-{i:03d}",
+            clip64(subj, clip, ct=rng2.choice([1, 2, 2, 3, 4]), fr=rng2.randint(0, 3),
+                   preserve=rng2.random() < 0.5, rev=rng2.random() < 0.3,
+                   pip=rng2.choice([0, 64]), output=rng2.choice(["tree", "tree_open"]),
+                   z=rng2.choice(["none", "recorder"])))
+
+    # Near-parallel steep and shallow edges at large coordinates, where the computed
+    # intersection can fall outside the scanbeam (AddNewIntersectNode's corrections).
+    for i in range(120):
+        base = rng2.choice([10**9, 10**13, 10**15, 10**17])
+        h = rng2.choice([1, 2, 3, 7, 50])
+        def sliver():
+            x0 = rng2.randint(-base, base)
+            dx = rng2.randint(1, 5) * base // rng2.choice([1, 3, 7])
+            y0 = rng2.randint(-h, h)
+            return [pt(x0, y0), pt(x0 + dx, y0 + rng2.randint(-h, h) + h),
+                    pt(x0 + dx + rng2.randint(1, 9), y0 + rng2.randint(-h, h)),
+                    pt(x0 + rng2.randint(1, 9), y0 - h - rng2.randint(0, h))]
+        def steep():
+            y0 = rng2.randint(-base, base)
+            dy = rng2.randint(1, 5) * base
+            x0 = rng2.randint(-h, h)
+            return [pt(x0, y0), pt(x0 + h, y0 + dy), pt(x0 + h + rng2.randint(1, 3), y0 + dy),
+                    pt(x0 + rng2.randint(1, 3), y0 - 1)]
+        maker = sliver if i % 2 == 0 else steep
+        add(f"rounding-{i:03d}",
+            clip64([maker() for _ in range(rng2.randint(2, 4))], [maker()],
+                   ct=rng2.randint(1, 4), fr=rng2.randint(0, 3),
+                   output=rng2.choice(["paths", "tree"])))
+
     # File-local helpers of clipper.offset.cpp.
     for x, y in [(3.0, 4.0), (0.0, 0.0), (-0.0, 1e-300), (1e300, 1e300), (2.0**60, -7.0),
                  (math.inf, 1.0), (math.nan, 2.0)]:
