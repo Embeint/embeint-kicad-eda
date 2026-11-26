@@ -19,5 +19,5 @@ source_ranges = ["libs/kimath/src/geometry/eda_angle.cpp:1:69"]
 wx_class = "pure"
 
 [difftest]
-rust_package = "kicad-eda-angle-shim"
 rust_binary = "kicad-eda-angle-shim"
+rust_package = "kicad-eda-angle-shim"

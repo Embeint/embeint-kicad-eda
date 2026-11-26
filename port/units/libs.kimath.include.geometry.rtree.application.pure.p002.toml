@@ -19,6 +19,6 @@ source_ranges = ["libs/kimath/include/geometry/rtree/dynamic_rtree_cow.h:1:834",
 wx_class = "pure"
 
 [difftest]
-rust_package = "kicad-rtree-cow-packed-shim"
-rust_binary = "kicad-rtree-cow-packed-shim"
 rust_args = []
+rust_binary = "kicad-rtree-cow-packed-shim"
+rust_package = "kicad-rtree-cow-packed-shim"

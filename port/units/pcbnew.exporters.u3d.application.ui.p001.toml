@@ -2,10 +2,10 @@
 id = "pcbnew.exporters.u3d.application.ui.p001"
 upstream = ["pcbnew/exporters/u3d/writer.cpp"]
 rust_module = "kicad_port::pcbnew::exporters::u3d::application::ui::p001"
-depends_on = ["pcbnew.exporters.step.application.pure.p001", "pcbnew.exporters.u3d.application.pure.p001", "plugins.3d.oce.application.ui.p001"]
+depends_on = ["pcbnew.exporters.step.application.pure.p001", "pcbnew.exporters.u3d.application.pure.p001"]
 soft_depends_on = []
 est_lines = 1054
-layer = 37
+layer = 1
 tests = []
 status = "todo"
 claimed_by = ""

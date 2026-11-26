@@ -2,10 +2,10 @@
 id = "kicad.application.ui.p005"
 upstream = ["kicad/project_template.h", "kicad/project_tree.cpp", "kicad/project_tree.h", "kicad/project_tree_item.cpp", "kicad/project_tree_item.h"]
 rust_module = "kicad_port::kicad::application::ui::p005"
-depends_on = ["common.application.ui.p002", "common.application.ui.p004", "common.application.ui.p021", "common.application.ui.p024", "common.application.ui.p031", "common.widgets.application.ui.p013", "include.application.ui.p008", "include.application.ui.p011", "include.project.application.ui.p001", "include.tool.application.ui.p005", "kicad.application.ui.p002", "kicad.application.ui.p003", "libs.kiplatform.os.unix.application.ui.p001"]
-soft_depends_on = ["kicad.application.ui.p006"]
+depends_on = ["common.application.ui.p002", "common.application.ui.p004", "common.application.ui.p021", "common.application.ui.p024", "common.application.ui.p031", "common.widgets.application.ui.p013", "include.application.ui.p008", "include.application.ui.p011", "include.project.application.ui.p001", "include.tool.application.ui.p005", "kicad.application.ui.p002", "libs.kiplatform.os.unix.application.ui.p001"]
+soft_depends_on = ["kicad.application.ui.p003", "kicad.application.ui.p006"]
 est_lines = 1000
-layer = 136
+layer = 109
 tests = []
 status = "todo"
 claimed_by = ""

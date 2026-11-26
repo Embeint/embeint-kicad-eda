@@ -2,10 +2,10 @@
 id = "gerbview.application.ui.p003"
 upstream = ["gerbview/excellon_read_drill_file.cpp"]
 rust_module = "kicad_port::gerbview::application::ui::p003"
-depends_on = ["3d.viewer.3d_viewer.application.ui.p001", "common.application.ui.p006", "common.application.ui.p010", "common.application.ui.p033", "common.application.ui.p035", "common.dialogs.application.ui.p008", "common.view.application.ui.p001", "eeschema.application.ui.p022", "eeschema.application.ui.p025", "gerbview.application.pure.p001", "gerbview.application.thin.replacement.p001", "gerbview.application.ui.p001", "gerbview.application.ui.p002", "gerbview.application.ui.p005", "gerbview.application.ui.p006", "gerbview.application.ui.p007", "gerbview.application.ui.p009", "include.application.thin.replacement.p004", "include.application.ui.p002", "include.application.ui.p005", "kicad.application.ui.p003", "kicad.application.ui.p004", "libs.kimath.include.application.ui.p001", "libs.kimath.include.geometry.application.ui.p001", "libs.kimath.include.math.application.ui.p001", "libs.kimath.include.math.application.ui.p002", "pagelayout_editor.application.ui.p001", "pcbnew.application.ui.p018", "pcbnew.application.ui.p036", "pcbnew.application.ui.p040", "pcbnew.application.ui.p059"]
-soft_depends_on = ["eeschema.symbol_editor.application.ui.p002", "gerbview.application.ui.p004", "gerbview.application.ui.p008"]
+depends_on = ["3d.viewer.3d_viewer.application.ui.p001", "common.application.ui.p006", "common.application.ui.p010", "common.application.ui.p033", "common.application.ui.p035", "common.dialogs.application.ui.p008", "common.view.application.ui.p001", "eeschema.application.ui.p022", "eeschema.application.ui.p025", "gerbview.application.pure.p001", "gerbview.application.thin.replacement.p001", "gerbview.application.ui.p001", "gerbview.application.ui.p002", "gerbview.application.ui.p005", "gerbview.application.ui.p006", "gerbview.application.ui.p007", "gerbview.application.ui.p009", "include.application.thin.replacement.p004", "include.application.ui.p002", "include.application.ui.p005", "kicad.application.ui.p003", "kicad.application.ui.p004", "libs.kimath.include.application.ui.p001", "libs.kimath.include.geometry.application.ui.p001", "libs.kimath.include.math.application.ui.p001", "libs.kimath.include.math.application.ui.p002", "pagelayout_editor.application.ui.p001", "pcbnew.application.ui.p036", "pcbnew.application.ui.p040", "pcbnew.application.ui.p059"]
+soft_depends_on = ["eeschema.symbol_editor.application.ui.p002", "gerbview.application.ui.p004", "gerbview.application.ui.p008", "pcbnew.application.ui.p018"]
 est_lines = 1255
-layer = 301
+layer = 278
 tests = []
 status = "todo"
 claimed_by = ""

@@ -2,10 +2,10 @@
 id = "eeschema.application.ui.p064"
 upstream = ["eeschema/symbol_fields_data_model.cpp", "eeschema/symbol_fields_data_model.h", "eeschema/symbol_import_manager.cpp", "eeschema/symbol_import_manager.h"]
 rust_module = "kicad_port::eeschema::application::ui::p064"
-depends_on = ["common.application.ui.p003", "common.application.ui.p013", "common.application.ui.p017", "common.application.ui.p036", "common.dialogs.application.ui.p007", "common.libraries.application.ui.p001", "common.widgets.application.ui.p017", "eeschema.application.ui.p011", "eeschema.application.ui.p014", "eeschema.application.ui.p029", "eeschema.application.ui.p030", "eeschema.application.ui.p031", "eeschema.application.ui.p032", "eeschema.application.ui.p042", "eeschema.application.ui.p043", "eeschema.application.ui.p050", "eeschema.application.ui.p051", "eeschema.application.ui.p052", "eeschema.application.ui.p053", "eeschema.application.ui.p054", "eeschema.application.ui.p055", "eeschema.application.ui.p059", "eeschema.application.ui.p060", "include.application.pure.p004", "include.application.ui.p006", "include.application.ui.p007", "include.widgets.application.ui.p005", "pcbnew.application.ui.p020", "pcbnew.application.ui.p044", "pcbnew.application.ui.p055", "pcbnew.application.ui.p056", "pcbnew.dialogs.application.ui.p012"]
-soft_depends_on = ["eeschema.dialogs.application.ui.p018"]
+depends_on = ["common.application.ui.p003", "common.application.ui.p013", "common.application.ui.p017", "common.application.ui.p036", "common.dialogs.application.ui.p007", "common.libraries.application.ui.p001", "common.widgets.application.ui.p017", "eeschema.application.ui.p011", "eeschema.application.ui.p014", "eeschema.application.ui.p029", "eeschema.application.ui.p030", "eeschema.application.ui.p031", "eeschema.application.ui.p032", "eeschema.application.ui.p042", "eeschema.application.ui.p043", "eeschema.application.ui.p050", "eeschema.application.ui.p051", "eeschema.application.ui.p052", "eeschema.application.ui.p053", "eeschema.application.ui.p054", "eeschema.application.ui.p055", "eeschema.application.ui.p059", "eeschema.application.ui.p060", "include.application.pure.p004", "include.application.ui.p006", "include.application.ui.p007", "include.widgets.application.ui.p005", "pcbnew.application.ui.p044", "pcbnew.application.ui.p055", "pcbnew.application.ui.p056"]
+soft_depends_on = ["eeschema.dialogs.application.ui.p018", "pcbnew.application.ui.p020", "pcbnew.dialogs.application.ui.p012"]
 est_lines = 1845
-layer = 298
+layer = 276
 tests = []
 status = "todo"
 claimed_by = ""

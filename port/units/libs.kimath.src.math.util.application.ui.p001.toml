@@ -19,6 +19,6 @@ source_ranges = ["libs/kimath/src/math/util.cpp:1:182"]
 wx_class = "UI"
 
 [difftest]
-rust_package = "kicad-math-util-shim"
-rust_binary = "kicad-math-util-shim"
 rust_args = []
+rust_binary = "kicad-math-util-shim"
+rust_package = "kicad-math-util-shim"
