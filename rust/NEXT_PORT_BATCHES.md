@@ -11,6 +11,28 @@ receives an independent Sol 6.1 review of its exact head.
 
 ## Current integration and correction queue
 
+wx STL #93 corrections are delivered at
+`058165f437c59b26afc27423e651c7f1f7fcb2b3`, merged only with accepted
+`70888b5722`. Fresh Sol 6.1 review
+`rust-review-wx93-corrected-sol61-20261127` is pending, alongside the circle
+review. New hosted wx-stl-compat-live/rust-port checks are running; target
+qualification for the corrected head is not yet recorded. The isolated
+preflight 45897037536 is explicitly replaced by hosted fallback 45897326341,
+pending. The worker reports 4,719 local diagnostic matches, 140 controls and
+native/wasm agreement; loading only target libstdc++ into a local GCC15/glibc2.43
+process is also diagnostic, not a target run. The original 3,329 cases remain
+an unchanged prefix. Exception identity/events, actual forked termination
+observations, setup state/mask overlap, fallible allocation and licence notices
+are corrected in source according to the worker; independent review must assess
+them and the documented remaining source/harness gaps before readiness.
+
+Current ownership state: circle #95 and corrected wx #93 await fresh reviews;
+core #92 is preserved after quota failure; Clipper engine/offset remains the
+only implementation assignment unfinished as last dispatched. No replacement
+Opus task or quota timer is started after the new failure. The assignment
+snapshot below records prior dispatch state, not four currently active writers.
+
+
 Latest completion/quota update: circle #95 delivered at
 `48e156721a92296c99b4b9e8222a73855fadc30b`, with all 13 source bodies and
 continuations implemented. The parent verified scoped hosted target run
