@@ -19,5 +19,5 @@ source_ranges = ["libs/kimath/src/geometry/poisson_disk.cpp:1:143"]
 wx_class = "pure"
 
 [difftest]
-rust_package = "kicad-poisson-shim"
 rust_binary = "kicad-poisson-shim"
+rust_package = "kicad-poisson-shim"

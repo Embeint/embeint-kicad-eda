@@ -19,5 +19,5 @@ source_ranges = ["libs/kimath/src/geometry/distribute.cpp:1:89"]
 wx_class = "UI"
 
 [difftest]
-rust_package = "kicad-distribute-shim"
 rust_binary = "kicad-distribute-shim"
+rust_package = "kicad-distribute-shim"
