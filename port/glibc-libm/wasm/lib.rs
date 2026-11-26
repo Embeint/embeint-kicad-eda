@@ -6,15 +6,15 @@
 mod glibc_libm;
 #[cfg(test)]
 use kicad_math::matrix3x3;
+#[path = "../../../rust/kicad-math/src/glibc_trig.rs"]
+#[forbid(unsafe_code)]
+#[allow(dead_code)]
+mod glibc_trig;
 // The shared hypot backend; its finite body is the accepted one that BOX2 and VECTOR2 use.
 #[path = "../../../rust/kicad-math/src/hypot.rs"]
 #[forbid(unsafe_code)]
 #[allow(dead_code)]
 mod hypot;
-#[path = "../../../rust/kicad-math/src/glibc_trig.rs"]
-#[forbid(unsafe_code)]
-#[allow(dead_code)]
-mod glibc_trig;
 
 #[no_mangle]
 pub extern "C" fn angle_libm(x: u64, y: u64, function: u32) -> u64 {
