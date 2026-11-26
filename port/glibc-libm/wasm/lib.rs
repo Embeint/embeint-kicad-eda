@@ -24,3 +24,9 @@ pub extern "C" fn angle_libm(x: u64, y: u64, function: u32) -> u64 {
     };
     z.to_bits()
 }
+
+/// The public pow, for the separate 24-byte pow records.
+#[no_mangle]
+pub extern "C" fn pow_libm(x: u64, y: u64) -> u64 {
+    glibc_libm::pow(f64::from_bits(x), f64::from_bits(y)).to_bits()
+}

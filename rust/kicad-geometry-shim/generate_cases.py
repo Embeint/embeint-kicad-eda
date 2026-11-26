@@ -134,6 +134,22 @@ def generate(include_undefined=False):
         add(f'ut-wired-tenths-{i}',op='unary',a=bits(a),kind='tenths')
         add(f'ut-wired-snapped-{i}',op='binary',a=bits(a),b=bits(util_rng.choice([1.,5.,45.,90.])),kind='snapped')
         add(f'ut-wired-parallel-{i}',op='binary',a=bits(a),b=bits(a+util_rng.choice([0.,90.,180.,360.])),kind='parallel')
+    # Additive EDA_ANGLE::Round continuations after the ported pow, own seed.
+    # Digit counts cross pow's exact/inexact powers of ten, the subnormal,
+    # underflow and overflow edges of 10^d; values cover KiROUND ties, the
+    # signed zero and NaN results of 0/0, and the int range edges.
+    for digits in [-1100,-1075,-400,-324,-323,-322,-308,-307,-23,-22,-17,-16,-9,-3,-2,-1,
+                   0,1,2,3,9,15,16,22,23,308,309,400,1100]:
+        for j, a in enumerate([0., -0., 0.5, -2.5, 1.25, -0.125, 123.456789, -359.999999,
+                               2147483647.4, -2147483648.4, 1e-300, math.inf, math.nan]):
+            add(f'pow-round-{digits}-{j}', op='round', a=bits(a), digits=digits)
+    pow_rng=random.Random(0x506F77)
+    for i in range(256):
+        digits=pow_rng.randrange(-12,10)
+        scale=10**abs(digits)
+        a=pow_rng.uniform(-2e9,2e9)
+        a=a/scale if digits>0 else a*scale
+        add(f'pow-round-seeded-{i}', op='round', a=bits(a), digits=digits)
     assert len({c['case'] for c in cases}) == len(cases)
     if include_undefined: return undefined
     return ''.join(json.dumps(c,separators=(',',':'),allow_nan=False)+'\n' for c in cases)

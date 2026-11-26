@@ -9,6 +9,7 @@ import unittest
 HERE=Path(__file__).resolve().parent
 sys.path.insert(0,str(HERE))
 import domain
+import pow_domain
 import reference as ref
 
 class ReferenceTests(unittest.TestCase):
@@ -36,13 +37,48 @@ class ReferenceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             self.assertFalse(ref.report(d))
             count=ref.load()['domain']['count']
-            lines=''.join(f'glibc_libm {fn}: {count} records, 0 mismatches\n' for fn in ref.FUNCTIONS)
+            angle=''.join(f'glibc_libm {fn}: {count} records, 0 mismatches\n' for fn in ref.FUNCTIONS)
+            for name in ref.COMPARISONS:(Path(d)/(name+'.log')).write_text(angle)
+            self.assertFalse(ref.report(d),'pow is required on every target')
+            lines=angle+f"glibc_libm pow: {ref.load()['pow_domain']['count']} records, 0 mismatches\n"
+            (Path(d)/'native-debug.log').write_text(angle+f'glibc_libm pow: {count} records, 0 mismatches\n')
+            for name in ref.COMPARISONS[1:]:(Path(d)/(name+'.log')).write_text(lines)
+            self.assertFalse(ref.report(d),'pow needs its own record count')
             for name in ref.COMPARISONS:(Path(d)/(name+'.log')).write_text(lines)
             self.assertTrue(ref.report(d))
             path=Path(d)/'unknown-release.log';path.write_text(lines+lines)
             self.assertFalse(ref.report(d))
             path.write_text(lines.replace('0 mismatches','1 mismatches',1))
             self.assertFalse(ref.report(d))
+
+class PowDomainTests(unittest.TestCase):
+    def test_pow_generator_hash_and_order(self):
+        fixed=pow_domain.fixed()
+        self.assertEqual(fixed,sorted(set(fixed)))
+        self.assertEqual(len(fixed),ref.load()['pow_domain']['fixed_count'])
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(pow_domain.write(Path(d)/'pow-domain.bin'),ref.load()['pow_domain'])
+    def test_pow_source_branches_are_present(self):
+        fixed=set(pow_domain.fixed())
+        b=domain.bits
+        snan,qnan=0x7ff4000000000abc,0x7ff80000deadbeef
+        # y == 0, x == 1, NaN order, signed zero/infinity, invalid and
+        # exponent-range branches of e_pow.c.
+        for pair in [(snan,0),(qnan|domain.SIGN,0),(b(1.0),snan),(qnan,snan),(snan,qnan),
+                     (b(-0.0),b(-3.0)),(b(-2.0),b(0.5)),(b(2.0),b(2.0**63)),
+                     (b(2.0),b(2.0**-66)),(b(0.5),b(2.0**-66)),(b(-2.0),b(-1075.0)),
+                     (b(2.0),b(-1075.0)),(b(2.0),b(1024.0)),(1,b(0.5))]:
+            self.assertIn(pair,fixed)
+        # Every digit count EDA_ANGLE::Round may pass reaches the full range.
+        for digits in range(-1100,1101): self.assertIn((b(10.0),b(float(digits))),fixed)
+        # Every log_inline table bin for x near 1.
+        for j in range(128):
+            self.assertIn((pow_domain.OFF+(j<<45),b(1.0)),fixed)
+    def test_pow_domain_rejected_under_angle_key(self):
+        with tempfile.TemporaryDirectory() as d:
+            p=Path(d)/'pow-domain.bin';pow_domain.write(p)
+            with self.assertRaises(ref.trig.Refused):ref.check_domain(p)
+            ref.check_domain(p,'pow_domain')
 
 class SourceTransportTests(unittest.TestCase):
     def test_mirror_fallback_keeps_hash_mandatory(self):
