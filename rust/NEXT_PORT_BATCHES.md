@@ -220,9 +220,32 @@ verified. The completed implementation batch remains accepted on `rust` at
 On the user's instruction to continue, four recovery assignments were submitted
 to the existing `claudeAgent` provider with `claude-opus-5-5`: core utility
 headers, corrected graph adoption, Unix policy #89 and Unix system info #90.
-Each submission returned `starting`, without an executed-model record yet.
-This records dispatch, not proof that the earlier routing outage has cleared.
-Use completion events, not status polling or retry loops. A renewed routing
+The first recovery has now delivered: Unix policy #89 at
+`4f482553db5ded162af1c3d35552ef51ca731a78`, with an executed-model record of
+`claude-opus-5-5`. This proves that the requested route executed successfully;
+it does not retroactively qualify the previous interrupted work. Source review
+by a fresh Sol 6.1 delegate found no findings at this exact head. Local evidence
+is 36 exact public cases, zero deferrals and 25 separate refusal controls on
+GCC 15/glibc 2.43/wx 3.2.9. The parent has now supplied GCC 13/glibc 2.39/wx 3.2.4 evidence:
+36 exact policy cases, 25 matching controls, wasm replay, Rust 1.85 and the full
+registered-unit gate pass. All 27 previously accepted unit input/output hashes
+are unchanged. Hosted CI still runs.
+[Reference evidence](validation/2026-11-27-kiplatform-policy/README.md) records
+commands, hashes and scoped limitations.
+The unit stays partial, with no blessed golden and the inherited wx/harness
+qualification limits retained.
+
+The freed implementation stream is assigned
+`libs.core.application.thin.replacement.p001` (`wx_stl_compat.cpp`), reusing
+accepted wxString/wxPoint/wxSize models. Draft #93 at
+`a0f9d6396d759eae2f86aaf6aeb63c0c879c3d9d` is a claim only. Its worker ended
+before implementation, so the parent submitted a continuation in that same
+prepared checkout to finish the bodies, byte/locale contracts and validation.
+No implementation or review evidence is claimed for #93 yet. Core utility
+headers have claim #92 at `060319e6542579d70a36b56db249d0577ef3ceaf`;
+that is also ownership evidence, not delivery.
+
+Use completion events, not status polling or retry loops. Any renewed routing
 failure must be reported without changing the requested model/provider.
 
 The earlier provider interruption stopped all four Opus assignments around
@@ -233,17 +256,18 @@ accepted rust, retain all newly accepted metadata/registrations, and never impor
 an open topic. Each completed implementation or graph adoption receives a fresh
 independent Sol 6.1 review of its concrete head before integration.
 
-Recovery points are preserved in their existing worktrees and local patch/
-untracked-file backup archives. Graph adoption remains at accepted
+The original 26 November recovery points are preserved in local patch/
+untracked-file backup archives. The following records describe those historical
+checkpoints; current delivery and assignment states are recorded above. Graph adoption remains at accepted
 `4738a9c23f` with 1,087 changed entries on
 `t3/adopt-canonical-graph-units`; its semantic/qualification checks and
-publication are unfinished. Unix policy [claim #89](https://github.com/Embeint/embeint-kicad-eda/pull/89)
+publication are unfinished. The original Unix policy [claim #89](https://github.com/Embeint/embeint-kicad-eda/pull/89)
 is at `82782c9c76` with 14 local changed entries. Unix system-info
 [claim #90](https://github.com/Embeint/embeint-kicad-eda/pull/90) is at
 `913d4ac93f` with 15 local changed entries. These are claim commits, not
 published implementation evidence. The core utility header checkout is clean
-at `4738a9c23f`, with no new claim or implementation. Resume/recover these
-assignments rather than creating overlapping replacement claims.
+at `4738a9c23f`, with no claim or implementation at that snapshot. Preserve these
+recovery anchors and continue the current assignments without duplicate claims.
 
 Keep four independent implementation streams moving. The parent coordinates
 ownership, integration, reviews and refills; workers deliver one scoped unit or
@@ -254,9 +278,9 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 
 | Stream | Current assignment | Next dependency-ready work |
 | --- | --- | --- |
-| Geometry | SEG #74, ellipse #81, distribute #84 and full hypot #88 are accepted. Core utility header recovery submitted; the unit has no published implementation yet. | Finish the existing core recovery; circle is now ready after SEG. Geometry headers p003 await graph adoption. |
+| Geometry | SEG #74, ellipse #81, distribute #84 and full hypot #88 are accepted. Core utility header claim #92 is published; implementation remains in progress. | Finish the existing core recovery; circle is now ready after SEG. Geometry headers p003 await graph adoption. |
 | Polygon operations | Engine #76, rectclip #77 and transform #82 are accepted. Graph-adoption recovery submitted with the preserved generated work. | Resume graph adoption against the final accepted baseline, preserving all unit metadata; engine/offset source p002 can now start after engine p001. |
-| Core and general utilities | Core headers #73, map helpers #78, arc #85 and vector2wx #86 are accepted. Unix policy #89 recovery submitted; local implementation is still unpublished. | Recover the existing Unix policy work without a duplicate claim. wx_stl_compat can reuse the accepted wxString model. |
+| Core and general utilities | Core headers #73, map helpers #78, arc #85 and vector2wx #86 are accepted. Unix policy #89 delivered at `4f482553db`, source review and manual reference checks pass; hosted CI pending. wx STL compatibility claim #93 is now the stream assignment. | Finish #93 using accepted wx types; audit explicit-length/locale conversion and byte-oriented stream state. Integrate #89 after its gates pass. |
 | Numeric backends and spatial follow-ups | Pow #80, full hypot #88, R-tree depth #83 and poisson #87 are accepted. Unix driver/system-info #90 recovery submitted; local implementation is still unpublished. | Recover the existing Unix system-info work. Logging host effects and the copy-on-write depth audit remain queued. |
 
 On each implementation completion, immediately inspect the result, start the
