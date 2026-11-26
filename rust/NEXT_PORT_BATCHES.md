@@ -52,7 +52,7 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 
 | Stream | Current assignment | Next dependency-ready work |
 | --- | --- | --- |
-| Geometry | SEG passed checks at `24df53e57c`, then imported accepted extractor #79 at `b908f439a0`; fresh CI required. Graph adoption active. Ellipse PR #81 reviewed at source head with documentation corrected at `5c42b69677`. Distribute PR #84 passed Sol review at `33fa41f687`; hosted CI pending. Freed Opus slot now implements pinned hypot for vector norms. | Adopt graph with final-head provenance; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
+| Geometry | SEG passed checks, then imported accepted extractor #79 at `b908f439a0`; fresh CI required. Graph adoption active. Ellipse #81 has 11 reference-CI NaN mismatches at `5c42b69677`; focused Opus repair active, fresh Sol review required afterward. Distribute #84 passed Sol review at `33fa41f687`; hosted CI pending. Main Opus slot implements pinned hypot. | Adopt graph with final-head provenance; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
 | Polygon operations | Engine PR #76 at `6f58bc73fa` awaits CI. Rectclip #77 passed checks at `87e2913afa`, then imported accepted extractor #79 at `b88832a7d2`; fresh CI required. Transform #82 reviewed; reference prose corrected at `b2918f6b31`. Opus implementing graph adoption as independent fallback. | Source p002 after accepted engine p001, then public wrapper headers after rectclip and p002. |
 | Core and general utilities | PR #73 passed checks, then imported accepted extractor #79 at `ab6fd8f3ea`; fresh CI required. Map helpers #78 corrected at `1cadc88eb8`, Sol recheck passed; target wx qualification pending. Arc construction #85 passed source review, owner notes fixed at `eaa34442d1`. Freed Opus slot now implements vector2wx. | Hold wx_stl_compat reuse until map helpers is accepted. Keep pure headers partial for allocation, stream, concurrency and scoped-timer gaps. Audit UI core headers before line-chain work. |
 | Numeric backends and spatial follow-ups | Pow PR #80 accepted. R-tree follow-up PR #83 at `813623a66b` passed Sol review, hosted checks pending. Opus now assigned poisson_disk. | Model newly exposed kimathLogOverflow host effects with explicit ownership/host assertion policy; further measured numeric and spatial gaps. Audit copy-on-write code before claiming a similar fixed-depth problem. |
@@ -265,7 +265,7 @@ Keep one unit per claim/PR, even if one worker handles several sequentially.
 
 | Priority | Unit | Scope and validation focus |
 | --- | --- | --- |
-| A | `ellipse.cpp` — 127 lines; delivered PR #81 | Sol found no functional defect; owner note and toolchain qualification fixed at `5c42b69677`. Hosted reference CI pending. |
+| A | `ellipse.cpp` — 127 lines; delivered PR #81 | Initial Sol source review found no functional defect, but target CI found 11 NaN mismatches at `5c42b69677`. Focused Opus repair and fresh Sol review are required. |
 | B | `transform.cpp` — 127 lines; delivered PR #82 | Sol found no implementation defect; local-reference prose fixed at `b2918f6b31`. Final-head hosted CI pending. |
 | C | `arc_construction.cpp` — 207 lines; delivered PR #85 | Sol found no source correctness defect; co-port owner notes fixed at `eaa34442d1`. Final-head hosted reference CI pending. |
 | D | `distribute.cpp` — 89 lines; delivered PR #84 | Sol independently replayed all 2,758 cases and 679 controls at `33fa41f687` without findings; hosted reference CI pending. |
@@ -280,6 +280,21 @@ defaults, continuations, scoped Rust checks and caller counts, but did not rerun
 the live oracle. Compiled NaN forms remain subject to final-head GCC 13/glibc
 2.39 hosted qualification. FLIP_DIRECTION is now recorded in its owning core
 header unit, which remains todo.
+
+Ellipse reference CI on `5c42b69677` subsequently found a genuine parity gap:
+run 45732444817, rust-port job 139617508389 processed all 2,239 cases with
+2,092 compared, 136 deferred and 11 mismatches. Every mismatch is a NaN sign
+or payload in the rotated point's second coordinate; finite results agree.
+The local GCC 15 operand-order qualification did not establish the target
+GCC 13 behavior. The initial source review does not supersede this failure.
+Parent downloaded the genuine hosted oracle and report from artifact
+15079665501; oracle SHA-256 is
+`9b4dce98ce61384dd70ab2d2cf9f21afe11987a00330a8b26ce97cb2659e57b5`.
+A focused Opus repair runs alongside the four independent port streams.
+It must confirm target disassembly, preserve all cases and guards, import only
+accepted rust, replay the complete corpus and controls, and receive a fresh Sol
+review plus final-head hosted CI. Running the downloaded binary under local
+glibc 2.43 is not equivalent to its original target runtime.
 
 Map helpers PR #78 initially claimed green after 3,084 exact replies. Sol found
 the implicit generic default skipped a copy and the UTF-8 logical limit counted
