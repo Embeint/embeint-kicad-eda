@@ -1,0 +1,87 @@
+name: Rust libs/core map_helpers live validation
+
+# Scoped live evidence for libs.core.include.core.application.thin.replacement.p001
+# (map_helpers.h with its minimum wxString co-port): the genuine pinned oracle against
+# the Rust shim, the refusal controls on both, and the whole corpus replayed in
+# import-free wasm32 against this run's native C++ replies. The rust-port job
+# remains the gate.
+on:
+  pull_request:
+    branches: [rust]
+    paths:
+      - rust/kicad-map-helpers/**
+      - rust/kicad-map-helpers-shim/**
+      - rust/Cargo.toml
+      - rust/Cargo.lock
+      - port/oracle/**
+      - port/cases/libs.core.include.core.application.thin.replacement.p001.jsonl
+      - port/units/libs.core.include.core.application.thin.replacement.p001.toml
+      - .github/workflows/rust-map-helpers-live.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  map-helpers-live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: "2"
+      ORACLE_JOBS: "2"
+      UNIT: libs.core.include.core.application.thin.replacement.p001
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0 # The oracle exports the pinned upstream commit, not HEAD.
+      - name: Install toolchain and oracle dependencies
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal --component clippy,rustfmt --target wasm32-unknown-unknown
+          rustup default 1.99.1
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++ gcc cmake ninja-build python3 rsync git libboost-dev libwxgtk3.2-dev
+      - name: Check the portable implementation and deterministic corpus
+        run: |
+          cargo fmt --manifest-path rust/Cargo.toml -p kicad-map-helpers -p kicad-map-helpers-shim --check
+          cargo clippy --locked --manifest-path rust/Cargo.toml -p kicad-map-helpers -p kicad-map-helpers-shim --all-targets -j2 -- -D warnings
+          cargo test --locked --manifest-path rust/Cargo.toml -p kicad-map-helpers -p kicad-map-helpers-shim -j2
+          cargo check --locked --manifest-path rust/Cargo.toml -p kicad-map-helpers --target wasm32-unknown-unknown -j2
+          python3 rust/kicad-map-helpers-shim/generate_cases.py --check
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-difftest -p kicad-map-helpers-shim -j2
+      - name: Build the genuine pinned own-library oracle
+        env:
+          LD_LIBRARY_PATH: ""
+        run: |
+          export PATH="/usr/bin:/bin:$PATH"
+          /usr/bin/python3 port/oracle/prepare.py --output-dir "$RUNNER_TEMP/map-stage"
+          bash port/oracle/build.sh "$RUNNER_TEMP/map-stage" "$PWD/port/oracle" "$RUNNER_TEMP/map-native"
+      - name: Compare every public case exactly and replay the controls on both sides
+        run: |
+          out="$RUNNER_TEMP/map-native"
+          oracle="$out/oracle-build/kicad-oracle"
+          # The adapter calls the distribution wxWidgets conversion the header uses.
+          nm -C -D "$oracle" > "$out/dynamic-symbols.txt"
+          grep -F 'wxMBConvUTF8' "$out/dynamic-symbols.txt" > /dev/null || { echo 'missing wxMBConvUTF8'; exit 1; }
+          rust/target/debug/kicad-difftest compare --unit "$UNIT" --root "$PWD" \
+            --oracle "$oracle" --rust "$PWD/rust/target/debug/kicad-map-helpers-shim" \
+            --report "$out/compare.json"
+          python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); print({k: r[k] for k in ("status","cases","compared","deferred","failures","unprocessed")})' "$out/compare.json"
+          python3 port/oracle/test_core_map_helpers_inputs.py "$oracle" "$PWD/rust/target/debug/kicad-map-helpers-shim"
+          "$oracle" < "port/cases/$UNIT.jsonl" > "$out/native.jsonl"
+      - name: Replay the complete corpus in import-free WebAssembly against the C++ replies
+        run: |
+          export KICAD_MAP_HELPERS_WASM_REFERENCE="$RUNNER_TEMP/map-native/native.jsonl"
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-map-helpers-shim \
+            --example corpus_parity --features live-wasm --target wasm32-unknown-unknown --release -j2
+          node rust/kicad-map-helpers-shim/wasm-test.mjs rust/target/wasm32-unknown-unknown/release/examples/corpus_parity.wasm
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: map-helpers-live-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/map-native/compare.json
+            ${{ runner.temp }}/map-native/oracle-build/oracle-provenance.json
+            ${{ runner.temp }}/map-native/oracle-build/compile_commands.json
+            ${{ runner.temp }}/map-native/oracle-build/binary.sha256
+            ${{ runner.temp }}/map-stage/source-manifest.json
+          retention-days: 14

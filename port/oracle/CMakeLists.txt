@@ -123,6 +123,11 @@ list( APPEND ORACLE_SHIMS "${CLIPPER2_SHIM}" )
 set( GEOMETRY_SHIM "${ORACLE_OVERLAY}/shims/geometry_headers.cpp" )
 list( REMOVE_ITEM ORACLE_SHIMS "${GEOMETRY_SHIM}" )
 list( APPEND ORACLE_SHIMS "${GEOMETRY_SHIM}" )
+# The map_helpers adapter follows every previously qualified adapter, so its weak
+# wxString/std::map/JSON template copies are never selected ahead of theirs.
+set( MAP_HELPERS_SHIM "${ORACLE_OVERLAY}/shims/core_map_helpers.cpp" )
+list( REMOVE_ITEM ORACLE_SHIMS "${MAP_HELPERS_SHIM}" )
+list( APPEND ORACLE_SHIMS "${MAP_HELPERS_SHIM}" )
 add_executable( kicad-oracle main.cpp protocol.cpp registry.cpp ${ORACLE_SHIMS}
                 reference/geometry_unreachable_config.cpp )
 target_include_directories( kicad-oracle PRIVATE "${ORACLE_OVERLAY}" "${CMAKE_BINARY_DIR}" )

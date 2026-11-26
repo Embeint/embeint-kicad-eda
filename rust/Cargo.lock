@@ -757,6 +757,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "kicad-map-helpers"
+version = "0.1.0"
+
+[[package]]
+name = "kicad-map-helpers-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-map-helpers",
+ "serde_json",
+]
+
+[[package]]
 name = "kicad-math"
 version = "0.1.0"
 
