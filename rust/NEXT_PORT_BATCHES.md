@@ -46,8 +46,8 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 
 | Stream | Current assignment | Next dependency-ready work |
 | --- | --- | --- |
-| Geometry | SEG integration head `24df53e57c` awaits CI. Extractor PR #79 accepted as `4738a9c23f`; graph adoption is ready for the next free Opus slot. Ellipse PR #81 delivered and reviewed, documentation corrected at `5c42b69677`. Opus now assigned distribute. | Adopt graph with final-head provenance; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
-| Polygon operations | Engine PR #76 at `6f58bc73fa` awaits CI. Rectclip PR #77 delivered and reviewed without algorithmic blockers; owner note corrected at `87e2913afa`, hosted checks pending. Opus assigned transform as independent fallback. | Source p002 after accepted engine p001, then public wrapper headers after rectclip and p002. |
+| Geometry | SEG integration head `24df53e57c` awaits CI. Extractor PR #79 accepted as `4738a9c23f`; graph adoption assigned to Opus in the freed transform slot. Ellipse PR #81 delivered and reviewed, documentation corrected at `5c42b69677`. Opus also implementing distribute. | Adopt graph with final-head provenance; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
+| Polygon operations | Engine PR #76 at `6f58bc73fa` awaits CI. Rectclip PR #77 reviewed, owner note corrected at `87e2913afa`, hosted checks pending. Transform PR #82 delivered and reviewed; reference prose corrected at `b2918f6b31`. Opus now implementing graph adoption as independent fallback. | Source p002 after accepted engine p001, then public wrapper headers after rectclip and p002. |
 | Core and general utilities | PR #73 passed all applicable checks at `26f11478b7`, then imported accepted extractor #79 at `ab6fd8f3ea`; fresh CI required. Map helpers PR #78 corrected at `1cadc88eb8`, independent Sol recheck passed; status partial pending target wx qualification. Opus assigned arc_construction as independent fallback. | Hold wx_stl_compat reuse until map helpers is accepted. Keep pure headers partial for allocation, stream, concurrency and scoped-timer gaps. Audit UI core headers before line-chain work. |
 | Numeric backends and spatial follow-ups | Pow PR #80 accepted. R-tree follow-up PR #83 at `813623a66b` passed Sol review, hosted checks pending. Opus now assigned poisson_disk. | Model newly exposed kimathLogOverflow host effects with explicit ownership/host assertion policy; further measured numeric and spatial gaps. Audit copy-on-write code before claiming a similar fixed-depth problem. |
 
@@ -116,7 +116,7 @@ integration; the earlier green run is historical evidence for the prior head.
 
 | Order | Assignment | Start condition | Result to demonstrate |
 | --- | --- | --- | --- |
-| 1 | Adopt corrected geometry dependency graph | Ready: extractor PR #79 accepted; assign the next free Opus slot | Replay final-head provenance, retain generated dependency capture and regenerate graph, units, measurement, drift and accounting through tooling. |
+| 1 | Adopt corrected geometry dependency graph | Opus active on accepted extractor PR #79 | Replay final-head provenance, retain generated dependency capture and regenerate graph, units, measurement, drift and accounting through tooling. |
 | 2 | `circle.cpp` (380 lines), then geometry headers UI p003 (1,686 lines), as separate unit PRs | Accepted SEG; resolve the VRML edge before claiming the header unit | Complete SEG inline operations and shared shape interfaces; rerun SEG and `poly_ystripes` continuations. |
 | 3 | Clipper2 source pure p002 (1,727 lines) | Accepted current engine p001 | Real `ExecuteInternal`, output builders and owned offset bodies; rerun the existing Execute cases through successful polygon operations. |
 | 4 | Audit kimathLogOverflow host effects | Independent ownership and assertion contract audit | Define faithful portable/host behavior for the 1,096 expanded-corpus logging deferrals before assigning implementation. Pow is already accepted. |
@@ -151,6 +151,10 @@ tree equals the reviewed integration tree. Rebase merge completed on
 26 November at 01:02 UTC as `4738a9c23f8c6068784d26ba991a690044343892`,
 with accepted tree `b060f4ffd13e113a5e43c639859b690683681e08`.
 No canonical graph or unit dependency change is implied by accepting the tool.
+An Opus 5.5 worker is now assigned the separate canonical adoption on that
+accepted baseline. It must preserve existing claims/statuses/notes, retain the
+verified generator-dependency capture, and record final-aggregator replay
+provenance; the old diagnostic replay is not final-head adoption evidence.
 
 The current unit records do **not** make `trigo.cpp`, `shape_arc.cpp` or
 `intersection.cpp` ready after SEG alone. `trigo.cpp` also requires
@@ -220,8 +224,8 @@ accepted Rust shim uses pre-GCC-15 lowercase inf. This supports the existing
 libstdc++ explanation for that case without waiving the full hosted gate.
 Public rectangle operations call the genuine library; private helpers use a
 namespace-isolated source compilation, and UBSan child preflight retains its
-documented qualification limits. The waiting polygon slot takes transform.cpp
-while engine p001's acceptance blocks source p002.
+documented qualification limits. The waiting polygon slot delivered transform.cpp
+while engine p001's acceptance blocks source p002, and now takes graph adoption.
 
 Engine source p001 covers lines 1–2,271.
 Source pure p002 owns engine lines 2,272–3,337 and `clipper.offset.cpp` lines
@@ -249,7 +253,7 @@ Keep one unit per claim/PR, even if one worker handles several sequentially.
 | Priority | Unit | Scope and validation focus |
 | --- | --- | --- |
 | A | `ellipse.cpp` — 127 lines; delivered PR #81 | Sol found no functional defect; owner note and toolchain qualification fixed at `5c42b69677`. Hosted reference CI pending. |
-| B | `transform.cpp` — 127 lines; Opus active | Integer transforms, composition/inverse behaviour and exact overflow domains; distinct from `transform_trs.cpp`. |
+| B | `transform.cpp` — 127 lines; delivered PR #82 | Sol found no implementation defect; local-reference prose fixed at `b2918f6b31`. Final-head hosted CI pending. |
 | C | `arc_construction.cpp` — 207 lines; Opus active | Degenerate and boundary constructions, exact rounding and existing vector/angle backends. |
 | D | `distribute.cpp` — 89 lines; Opus active | Fewer than three items, negative gaps, fractional/tie rounding, original order and evaluated integer overflow. |
 | E | `poisson_disk.cpp` — 143 lines; Opus active | Reproduce Boost MT19937, distribution algorithms, draw/evaluation order, trig bits and ordered samples. Bound tiny-radius storage/work; spacing alone is insufficient evidence. |
@@ -274,6 +278,17 @@ an additive finding; the unit is partial pending target-runner evidence.
 Sol's fresh recheck of the corrected head found no remaining issue and
 independently passed seven library tests, two corpus/control tests and all
 3,084 fresh C++/Rust/golden comparisons.
+
+Transform PR #82 delivered all six definitions at `7633f3b366`, based on
+accepted `4738a9c23f`. The local GCC 15.2/glibc 2.43 SSE2 run reports 7,678
+exact public cases, zero deferrals/failures, 1,696 matching refusal controls
+and import-free wasm agreement for all 9,374 requests. Sol found no
+implementation defect and independently passed 36 tests, clippy and generator
+verification. Its provenance finding in the MapAngles note is fixed at
+`b2918f6b3195c23d43ff7b6eb15eef400e273ff8`; only that documentation changed.
+The source-confirmed always-swap behavior is preserved. Mutable DefaultTransform
+remains explicitly host-owned. The unit stays partial without a golden and
+awaits final-head target-host CI; the local comparison does not certify it.
 
 Poisson disk is short but less predictable than its line count suggests.
 Check the pinned sources rather than the moving upstream version: even random
