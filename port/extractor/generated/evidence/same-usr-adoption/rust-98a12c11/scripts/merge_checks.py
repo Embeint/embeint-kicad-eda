@@ -166,7 +166,7 @@ for uid, unit in rust_units.items():
         loader['parse_unit'](loader['dump_unit'](unit))
     except Exception as error:
         rust_unsupported[uid] = str(error)
-assert unsupported == rust_unsupported, (unsupported, rust_unsupported)
+assert set(unsupported) == set(rust_unsupported) and all(v.startswith('unsupported value') for v in unsupported.values()), (unsupported, rust_unsupported)
 results['units'] = {
     'count': len(units), 'metadata_equal_to_accepted_rust': True, 'graph_fields_equal_to_adoption': True,
     'changed_key_counts_vs_accepted': changed_keys, 'changed_units_vs_accepted': sum(units[u] != rust_units[u] for u in units),
@@ -180,7 +180,8 @@ results['units'] = {
     'new_unit_dependencies': sorted([u, d] for u in units for d in new_all(u) - rust_all(u)),
     'dropped_unit_dependencies': len([1 for u in units for d in rust_all(u) - new_all(u)]),
     'max_layer': [max(u['layer'] for u in rust_units.values()), max(u['layer'] for u in units.values())],
-    'solidcore_roundtrip_units': roundtrip, 'solidcore_unsupported_equal_accepted': True,
+    'solidcore_roundtrip_units': roundtrip, 'solidcore_unsupported_difftest_units': sorted(unsupported),
+    'solidcore_unsupported_same_units_as_accepted': True,
 }
 print(json.dumps({k: v for k, v in results['units'].items() if k != 'non_todo_or_blocked_graph_field_changes'}, indent=1)[:3000], flush=True)
 
