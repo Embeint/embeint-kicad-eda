@@ -100,8 +100,24 @@ the measurement fingerprints both stages.
 Separate executables can define the same USR at different source locations
 (KiCad has three observed `main` bodies). Additional locations get stable
 `@definition:<hash>` keys, retain the original `clang_usr`, and appear in
-`definition_copies`. Calls and overrides conservatively reach every location;
-each body therefore has a unit owner instead of disappearing behind one primary.
+`definition_copies`; each body therefore has a unit owner instead of
+disappearing behind one primary. Unrelated classes can also share a USR: the
+VRML plugin's global `SHAPE` (destructor out of line in `wrlfacet.cpp`) and
+geometry's `SHAPE` (inline virtual destructor in `shape.h`). A TU holds at most
+one definition of a USR, and an inline function must be defined in every TU that
+odr-uses it, so each call and override endpoint resolves to the body defined in
+the TU that reported it. Only an endpoint without a TU-local definition (an
+out-of-line body in another TU, chosen by the linker) conservatively reaches
+every body sharing its USR. The aggregation is applied per TU before merging;
+the parser output and cache records are unchanged.
+
+An aggregation-only fix does not change parser output, but it changes the
+extractor identity in every cache key. `--replay-parse-runtime <checkout>`
+re-aggregates an existing cache written by that runtime: its `clang_graph.py`
+must be byte-identical (after LF normalization), the cache keys keep its
+identity, every command must already have a record, and nothing is parsed or
+written to the cache. Provenance keeps that parse runtime in `extractor_sha256`
+and records `aggregation_extractor_sha256` and `parse_cache_replay`.
 
 Virtual calls expand transitively to **all observed overrides**, including
 uninstantiated derived classes, without restricting them to runtime reachability.
