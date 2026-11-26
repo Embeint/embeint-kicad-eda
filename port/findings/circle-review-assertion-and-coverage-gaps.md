@@ -35,3 +35,12 @@ No comparison, corpus, refusal or golden is changed to clear the unresolved
 assertion or adapter-safety findings. The PR remains draft/partial without a
 golden. A new independent review must finish on the corrected concrete head;
 new hosted checks do not retroactively validate missing source behavior.
+
+The fresh follow-up review of 6b36ef0440 was also stopped by the same provider
+content flag before a final verdict. It independently reported the same seven
+missing assertion effects and no additional discrepancy in the other compared
+body groups, but that partial progress is not approval. The remaining stale
+2^24 sufficiency claim in the adapter's source comment is now corrected too;
+guard code and numerical behavior are unchanged. No third review retry is
+started. A completed independent review and substantive findings resolution
+remain prerequisites to readiness.

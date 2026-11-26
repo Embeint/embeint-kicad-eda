@@ -8,8 +8,8 @@
 // flow or a later operand depends on a computed value, the guard takes it from the genuine
 // header or SEG function, called only after that function's own guard has passed.
 //
-// ConstructFromTanTanPt is accepted only inside a stated sufficient domain (see
-// guardTanTanDomain); it is not guarded operation by operation.
+// ConstructFromTanTanPt is restricted by guardTanTanDomain rather than guarded operation by
+// operation. Complete arithmetic safety of that restricted set has not been established.
 #include "registry.h"
 #include <geometry/circle.h>
 #include <geometry/eda_angle.h>
@@ -343,10 +343,10 @@ void guardIntersectSeg( const CIRCLE& aCircle, const SEG& aSeg )
 
 // ConstructFromTanTanPt is not guarded operation by operation. It is accepted only for
 // non-degenerate lines and a point within TAN_TAN_BOUND, where the pinned ApproxParallel is
-// either true or the lines meet at an angle whose sine is at least 1/8. Every intermediate then
-// stays below about 2^24 (the intersection and tangent points are within a small multiple of
-// the input extent), far from any int or int64 limit. Other requests are refused as outside
-// the audited domain, which is a harness limit, not a statement about the C++.
+// either true or the lines meet at an angle whose sine is at least 1/8. These are harness
+// restrictions, not a complete per-operation safety argument. The previously claimed 2^24
+// intermediate bound was exceeded during review; complete arithmetic safety of accepted
+// requests remains unproven. This restriction is not a statement about the C++ defined domain.
 void guardTanTanDomain( const SEG& aLineA, const SEG& aLineB, const VECTOR2I& aP )
 {
     const auto bounded = []( const VECTOR2I& v )
