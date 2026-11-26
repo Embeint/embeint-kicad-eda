@@ -57,10 +57,14 @@ subdirectory. A replay is not a new parse or parser qualification.
   equals the accepted record. The 1,801-unit count and 2,380,947 accounted lines
   are unchanged. The maximum layer falls from 391 to 376, back-edges from 9,548
   to 9,496 (weight 106,538 to 105,471) and hard unit edges from 46,894 to 46,709.
-  Exact per-edge counts, and any graph-field changes on non-todo units, are in
-  `rust-98a12c11/checks.json`.
+  1,060 records change. 426 soft edges became hard and 401 hard edges became
+  soft; 237 unit dependencies disappear and none is new. No claimed, partial or
+  green unit's dependencies or layer change; 23 blocked units change, mostly
+  only in layer. Details are in `rust-98a12c11/checks.json`.
 - **Measurement:** besides the graph metrics, unit statuses now reflect the
-  merged records (3 green, 24 partial, 64 blocked, 1,710 todo).
+  merged records (3 green, 24 partial, 64 blocked, 1,710 todo). The corrected
+  run's failure records gain the replay's `cache_reused_from` trace; the four
+  fmt failures and their diagnostics are otherwise unchanged.
 - **Drift:** the reports are regenerated for 27 ported units. The accepted graph
   produces identical drift reports over the same records, so drift is unaffected
   by the adoption.
