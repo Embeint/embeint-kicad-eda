@@ -558,7 +558,7 @@ JSON RunClipD( const JSON& aIn )
 
     try
     {
-        c2::ClipperD c( int( precision ) );
+        c2::ClipperD c{ static_cast<int>( precision ) };
         c.PreserveCollinear( preserve );
         c.ReverseSolution( reverse );
 
