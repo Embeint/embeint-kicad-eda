@@ -52,7 +52,7 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 
 | Stream | Current assignment | Next dependency-ready work |
 | --- | --- | --- |
-| Geometry | SEG passed checks at `24df53e57c`, then imported accepted extractor #79 at `b908f439a0`; fresh CI required. Extractor accepted as `4738a9c23f`; graph adoption assigned to Opus in the freed transform slot. Ellipse PR #81 reviewed, documentation corrected at `5c42b69677`. Opus also implementing distribute. | Adopt graph with final-head provenance; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
+| Geometry | SEG passed checks at `24df53e57c`, then imported accepted extractor #79 at `b908f439a0`; fresh CI required. Graph adoption active. Ellipse PR #81 reviewed at source head with documentation corrected at `5c42b69677`. Distribute PR #84 passed Sol review at `33fa41f687`; hosted CI pending. Freed Opus slot now implements pinned hypot for vector norms. | Adopt graph with final-head provenance; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
 | Polygon operations | Engine PR #76 at `6f58bc73fa` awaits CI. Rectclip PR #77 reviewed, owner note corrected at `87e2913afa`, hosted checks pending. Transform PR #82 delivered and reviewed; reference prose corrected at `b2918f6b31`. Opus now implementing graph adoption as independent fallback. | Source p002 after accepted engine p001, then public wrapper headers after rectclip and p002. |
 | Core and general utilities | PR #73 passed all applicable checks at `26f11478b7`, then imported accepted extractor #79 at `ab6fd8f3ea`; fresh CI required. Map helpers PR #78 corrected at `1cadc88eb8`, independent Sol recheck passed; status partial pending target wx qualification. Opus assigned arc_construction as independent fallback. | Hold wx_stl_compat reuse until map helpers is accepted. Keep pure headers partial for allocation, stream, concurrency and scoped-timer gaps. Audit UI core headers before line-chain work. |
 | Numeric backends and spatial follow-ups | Pow PR #80 accepted. R-tree follow-up PR #83 at `813623a66b` passed Sol review, hosted checks pending. Opus now assigned poisson_disk. | Model newly exposed kimathLogOverflow host effects with explicit ownership/host assertion policy; further measured numeric and spatial gaps. Audit copy-on-write code before claiming a similar fixed-depth problem. |
@@ -261,7 +261,7 @@ Keep one unit per claim/PR, even if one worker handles several sequentially.
 | A | `ellipse.cpp` — 127 lines; delivered PR #81 | Sol found no functional defect; owner note and toolchain qualification fixed at `5c42b69677`. Hosted reference CI pending. |
 | B | `transform.cpp` — 127 lines; delivered PR #82 | Sol found no implementation defect; local-reference prose fixed at `b2918f6b31`. Final-head hosted CI pending. |
 | C | `arc_construction.cpp` — 207 lines; Opus active | Degenerate and boundary constructions, exact rounding and existing vector/angle backends. |
-| D | `distribute.cpp` — 89 lines; Opus active | Fewer than three items, negative gaps, fractional/tie rounding, original order and evaluated integer overflow. |
+| D | `distribute.cpp` — 89 lines; delivered PR #84 | Sol independently replayed all 2,758 cases and 679 controls at `33fa41f687` without findings; hosted reference CI pending. |
 | E | `poisson_disk.cpp` — 143 lines; Opus active | Reproduce Boost MT19937, distribution algorithms, draw/evaluation order, trig bits and ordered samples. Bound tiny-radius storage/work; spacing alone is insufficient evidence. |
 
 Ellipse's local GCC 15.2/glibc 2.43 comparison reports 2,239 cases: 2,103 exact,
@@ -295,6 +295,27 @@ verification. Its provenance finding in the MapAngles note is fixed at
 The source-confirmed always-swap behavior is preserved. Mutable DefaultTransform
 remains explicitly host-owned. The unit stays partial without a golden and
 awaits final-head target-host CI; the local comparison does not certify it.
+
+Distribute PR #84 delivered both functions at
+`33fa41f68788f7d3014baa706fecae18eac2f7e1`, including the unused final
+target advance and default non-quiet KiROUND call. Sol found no actionable defect
+and independently reproduced 2,758 exact public cases with zero failures or
+deferrals, plus 679 control programs containing 707 refused calls and 723
+successful calls. Reply hash:
+`bb07a75fe6f2cac76445161cc71225e3842653a9cae0b6c0f8eba02f53b2865b`.
+The reviewer reused the genuine local oracle rather than rebuilding it and did
+not independently rerun wasm. The worker reports wasm corpus/control agreement.
+Local GCC 15.2/glibc 2.43 evidence does not replace final-head hosted reference
+CI. The unit remains partial without a golden.
+
+The freed distribute slot now implements pinned glibc `hypot` as a focused
+follow-up to `libs.kimath.include.math.application.ui.p002`. The existing
+`VECTOR2<double>::EuclideanNorm` deferral is the measured target; ellipse #81
+also reports 36 affected cases, which must be rerun after both topics are
+accepted. This is existing vector ownership, not an invented glibc unit.
+Reuse the accepted glibc 2.39 SSE2 source/package/dispatch qualification approach,
+including exact NaN bits, scaling, subnormals and native/wasm agreement.
+Do not import or edit unaccepted ellipse code to demonstrate the dependency.
 
 Poisson disk is short but less predictable than its line count suggests.
 Check the pinned sources rather than the moving upstream version: even random
