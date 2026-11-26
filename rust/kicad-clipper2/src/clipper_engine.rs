@@ -7,17 +7,19 @@
 //! The C++ links engine records with raw pointers. This port keeps them in arenas owned by
 //! [`ClipperBase`] and links them with typed indices ([`VertexId`], [`OutPtId`], ...); a null
 //! pointer is `None`. [`PolyTree`] is a slot arena whose first slot is the tree root. Members whose
-//! bodies are written in `clipper.engine.cpp` are owned by the engine source units: the
-//! inline bodies here call them and return [`ClipperError::Unported`] at that call.
+//! bodies are written in `clipper.engine.cpp` are owned by the engine source units: lines 1-2271
+//! are ported in [`crate::engine_p001`]; the inline bodies here call them, and calls into lines
+//! 2272 onward return [`ClipperError::Unported`] at that call.
 
 use crate::clipper_core::{
     area, check_precision_range, scale_path, scale_paths, FillRule, Path, Path64, PathD, Paths64,
     PathsD, Point64, PointD, PointInPolygonResult, Rect64,
 };
-use crate::{
-    copy_of, push, reserve, Budget, ClipperError, Coord, Result, ENGINE_SRC_P001, ENGINE_SRC_P002,
-};
+use crate::engine_p001::VertexListSlot;
+use crate::{copy_of, push, reserve, Budget, ClipperError, Coord, Result, ENGINE_SRC_P002};
+use std::cell::RefCell;
 use std::collections::BinaryHeap;
+use std::rc::Rc;
 
 /// `ClipType`. "All clipping operations except for Difference are commutative."
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -81,10 +83,15 @@ macro_rules! arena_id {
     };
 }
 
-arena_id!(
-    /// A `Vertex*` into [`ClipperBase::vertex_lists`].
-    VertexId
-);
+/// A `Vertex*`: vertex `index` of the `list`-th vertex array its owner holds (the C++ allocates
+/// one array per `AddPaths_` call). Within [`ClipperBase`] the list indexes its vertex list
+/// slots, which include the arrays borrowed from a `ReuseableDataContainer64`, so two minima on
+/// one vertex share one identity as their pointers do.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct VertexId {
+    pub list: usize,
+    pub index: usize,
+}
 arena_id!(
     /// An `OutPt*` into [`ClipperBase::out_pts`].
     OutPtId
@@ -98,7 +105,8 @@ arena_id!(
     ActiveId
 );
 arena_id!(
-    /// A `LocalMinima*` into [`ClipperBase::minima_list`].
+    /// A `LocalMinima*`: the record's stable slot in the minima store, which `Reset`'s sort of
+    /// the (pointer) list never moves.
     LocalMinimaId
 );
 arena_id!(
@@ -193,22 +201,15 @@ impl StripeIndex {
         self.edges.is_empty()
     }
 
-    /// `void BuildFromPath(const Path64& path)`.
-    pub fn build_from_path(&mut self, _path: &Path64) -> Result<()> {
-        // UNPORTED(thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p001): Clipper2Lib::StripeIndex::BuildFromPath
-        Err(ClipperError::Unported {
-            upstream: "Clipper2Lib::StripeIndex::BuildFromPath",
-            unit: ENGINE_SRC_P001,
-        })
+    /// `void BuildFromPath(const Path64& path)` (`clipper.engine.cpp`, [`crate::engine_p001`]).
+    pub fn build_from_path(&mut self, path: &Path64) -> Result<()> {
+        self.build_from_path_impl(path)
     }
 
-    /// `PointInPolygonResult PointInPolygon(const Point64& pt) const`.
-    pub fn point_in_polygon(&self, _pt: &Point64) -> Result<PointInPolygonResult> {
-        // UNPORTED(thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p001): Clipper2Lib::StripeIndex::PointInPolygon
-        Err(ClipperError::Unported {
-            upstream: "Clipper2Lib::StripeIndex::PointInPolygon",
-            unit: ENGINE_SRC_P001,
-        })
+    /// `PointInPolygonResult PointInPolygon(const Point64& pt) const`
+    /// (`clipper.engine.cpp`, [`crate::engine_p001`]).
+    pub fn point_in_polygon(&self, pt: &Point64) -> Result<PointInPolygonResult> {
+        self.point_in_polygon_impl(pt)
     }
 }
 
@@ -383,6 +384,11 @@ pub type ZCallback64 = Box<dyn FnMut(&Point64, &Point64, &Point64, &Point64, &mu
 /// `ZCallbackD`: `void(e1bot, e1top, e2bot, e2top, PointD& pt)`.
 pub type ZCallbackD = Box<dyn FnMut(&PointD, &PointD, &PointD, &PointD, &mut PointD)>;
 
+/// `ClipperD::zCallbackD_`, shared with the proxy that `CheckCallback` binds, so the engine
+/// reads the callback the `ClipperD` holds at the time of the call, as
+/// `std::bind(&ClipperD::ZCB, this, ...)` does.
+pub(crate) type SharedZCallbackD = Rc<RefCell<Option<ZCallbackD>>>;
+
 /// The content of `ClipperBase::zCallback_` (a `std::function`).
 #[derive(Default)]
 pub enum ZCallbackSlot {
@@ -391,8 +397,12 @@ pub enum ZCallbackSlot {
     Empty,
     /// A user callback (`Clipper64::SetZCallback`).
     User(ZCallback64),
-    /// `std::bind(&ClipperD::ZCB, this, ...)`, assigned by `ClipperD::CheckCallback`.
-    ClipperDProxy,
+    /// `std::bind(&ClipperD::ZCB, this, ...)`, assigned by `ClipperD::CheckCallback`: the bound
+    /// object's `invScale_` and `zCallbackD_`.
+    ClipperDProxy {
+        inv_scale: f64,
+        callback: SharedZCallbackD,
+    },
 }
 
 impl ::core::fmt::Debug for ZCallbackSlot {
@@ -400,7 +410,7 @@ impl ::core::fmt::Debug for ZCallbackSlot {
         formatter.write_str(match self {
             Self::Empty => "Empty",
             Self::User(_) => "User",
-            Self::ClipperDProxy => "ClipperDProxy",
+            Self::ClipperDProxy { .. } => "ClipperDProxy",
         })
     }
 }
@@ -428,15 +438,25 @@ pub struct ClipperBase {
     pub(crate) using_polytree: bool,
     pub(crate) actives: Option<ActiveId>,
     pub(crate) sel: Option<ActiveId>,
-    pub(crate) minima_list: Vec<LocalMinima>,
+    /// The `LocalMinima` records `minima_list_`'s `unique_ptr`s own, in creation order.
+    pub(crate) minima_store: Vec<LocalMinima>,
+    /// `minima_list_`: the order of the records, which `Reset` sorts.
+    pub(crate) minima_list: Vec<LocalMinimaId>,
+    /// `current_locmin_iter_` as an index into `minima_list`. It is singular until the first
+    /// `Reset` or `Clear`, and `AddPaths`/`AddReuseableData` invalidate it (`emplace_back`);
+    /// the engine resets it before use, as the C++ does.
     pub(crate) current_locmin_iter: usize,
-    pub(crate) vertex_lists: Vec<Vertex>,
+    /// `vertex_lists_` (owned arrays), plus the arrays of a `ReuseableDataContainer64` that
+    /// `AddReuseableData` minima point into (borrowed, never freed here).
+    pub(crate) vertex_lists: Vec<VertexListSlot>,
     pub(crate) scanline_list: BinaryHeap<i64>,
     pub(crate) intersect_nodes: Vec<IntersectNode>,
     pub(crate) horz_seg_list: Vec<HorzSegment>,
     pub(crate) horz_join_list: Vec<HorzJoin>,
-    pub(crate) out_pts: Vec<OutPt>,
-    pub(crate) active_edges: Vec<Active>,
+    /// Every `OutPt` allocated with `new`; `None` once deleted.
+    pub(crate) out_pts: Vec<Option<OutPt>>,
+    /// Every `Active` allocated with `new`; `None` once deleted.
+    pub(crate) active_edges: Vec<Option<Active>>,
     pub(crate) preserve_collinear: bool,
     pub(crate) reverse_solution: bool,
     pub(crate) error_code: i32,
@@ -462,6 +482,7 @@ impl Default for ClipperBase {
             using_polytree: false,
             actives: None,
             sel: None,
+            minima_store: Vec::new(),
             minima_list: Vec::new(),
             current_locmin_iter: 0,
             vertex_lists: Vec::new(),
@@ -527,22 +548,8 @@ impl ClipperBase {
         match self.z_callback {
             ZCallbackSlot::Empty => ZCallbackKind::Empty,
             ZCallbackSlot::User(_) => ZCallbackKind::User,
-            ZCallbackSlot::ClipperDProxy => ZCallbackKind::ClipperDProxy,
+            ZCallbackSlot::ClipperDProxy { .. } => ZCallbackKind::ClipperDProxy,
         }
-    }
-
-    /// `void AddPaths(const Paths64& paths, PathType polytype, bool is_open)`.
-    pub fn add_paths(
-        &mut self,
-        _paths: &Paths64,
-        _polytype: PathType,
-        _is_open: bool,
-    ) -> Result<()> {
-        // UNPORTED(thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p001): Clipper2Lib::ClipperBase::AddPaths
-        Err(ClipperError::Unported {
-            upstream: "Clipper2Lib::ClipperBase::AddPaths",
-            unit: ENGINE_SRC_P001,
-        })
     }
 
     /// `bool ExecuteInternal(ClipType ct, FillRule ft, bool use_polytrees)`.
@@ -556,15 +563,6 @@ impl ClipperBase {
         Err(ClipperError::Unported {
             upstream: "Clipper2Lib::ClipperBase::ExecuteInternal",
             unit: ENGINE_SRC_P002,
-        })
-    }
-
-    /// `void CleanUp()`: unlike `Clear`, preserves added paths.
-    pub fn clean_up(&mut self) -> Result<()> {
-        // UNPORTED(thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p001): Clipper2Lib::ClipperBase::CleanUp
-        Err(ClipperError::Unported {
-            upstream: "Clipper2Lib::ClipperBase::CleanUp",
-            unit: ENGINE_SRC_P001,
         })
     }
 }
@@ -1012,7 +1010,7 @@ pub struct ClipperD {
     pub base: ClipperBase,
     scale: f64,
     inv_scale: f64,
-    z_callback_d: Option<ZCallbackD>,
+    z_callback_d: SharedZCallbackD,
 }
 
 impl ::core::fmt::Debug for ClipperD {
@@ -1022,9 +1020,41 @@ impl ::core::fmt::Debug for ClipperD {
             .field("base", &self.base)
             .field("scale", &self.scale)
             .field("inv_scale", &self.inv_scale)
-            .field("z_callback_d", &self.z_callback_d.is_some())
+            .field(
+                "z_callback_d",
+                &self.z_callback_d.try_borrow().map(|cb| cb.is_some()),
+            )
             .finish()
     }
+}
+
+/// A `zCallbackD_` call that re-entered the `ClipperD` it belongs to.
+const REENTRANT: &str = "re-entrant ClipperD Z callback";
+
+/// `void ClipperD::ZCB(e1bot, e1top, e2bot, e2top, Point64& pt)` for the object whose
+/// `invScale_` and `zCallbackD_` are given: descales the points, calls the user callback and
+/// copies back only `z`. An empty callback throws `std::bad_function_call`.
+pub(crate) fn clipper_d_zcb(
+    inv_scale: f64,
+    z_callback_d: &SharedZCallbackD,
+    e1bot: &Point64,
+    e1top: &Point64,
+    e2bot: &Point64,
+    e2top: &Point64,
+    pt: &mut Point64,
+) -> Result<()> {
+    let mut tmp = PointD::from_point(pt)?.scaled(inv_scale)?;
+    let e1b = PointD::from_point(e1bot)?.scaled(inv_scale)?;
+    let e1t = PointD::from_point(e1top)?.scaled(inv_scale)?;
+    let e2b = PointD::from_point(e2bot)?.scaled(inv_scale)?;
+    let e2t = PointD::from_point(e2top)?.scaled(inv_scale)?;
+    let mut slot = z_callback_d
+        .try_borrow_mut()
+        .map_err(|_| ClipperError::Undefined(REENTRANT))?;
+    let callback = slot.as_mut().ok_or(ClipperError::BadFunctionCall)?;
+    callback(&e1b, &e1t, &e2b, &e2t, &mut tmp);
+    pt.z = tmp.z; // only update 'z'
+    Ok(())
 }
 
 /// `std::ilogb` of a finite nonzero normal double (the only kind `ClipperD` passes).
@@ -1081,7 +1111,7 @@ impl ClipperD {
             base,
             scale,
             inv_scale,
-            z_callback_d: None,
+            z_callback_d: Rc::new(RefCell::new(None)),
         })
     }
 
@@ -1091,8 +1121,12 @@ impl ClipperD {
     }
 
     /// `void SetZCallback(ZCallbackD cb)`; `None` is an empty `std::function`.
-    pub fn set_z_callback(&mut self, cb: Option<ZCallbackD>) {
-        self.z_callback_d = cb;
+    pub fn set_z_callback(&mut self, cb: Option<ZCallbackD>) -> Result<()> {
+        *self
+            .z_callback_d
+            .try_borrow_mut()
+            .map_err(|_| ClipperError::Undefined(REENTRANT))? = cb;
+        Ok(())
     }
 
     /// `void ZCB(e1bot, e1top, e2bot, e2top, Point64& pt)`: descales the points, calls the
@@ -1106,27 +1140,33 @@ impl ClipperD {
         e2top: &Point64,
         pt: &mut Point64,
     ) -> Result<()> {
-        let mut tmp = PointD::from_point(pt)?.scaled(self.inv_scale)?;
-        let e1b = PointD::from_point(e1bot)?.scaled(self.inv_scale)?;
-        let e1t = PointD::from_point(e1top)?.scaled(self.inv_scale)?;
-        let e2b = PointD::from_point(e2bot)?.scaled(self.inv_scale)?;
-        let e2t = PointD::from_point(e2top)?.scaled(self.inv_scale)?;
-        let callback = self
-            .z_callback_d
-            .as_mut()
-            .ok_or(ClipperError::BadFunctionCall)?;
-        callback(&e1b, &e1t, &e2b, &e2t, &mut tmp);
-        pt.z = tmp.z; // only update 'z'
-        Ok(())
+        clipper_d_zcb(
+            self.inv_scale,
+            &self.z_callback_d,
+            e1bot,
+            e1top,
+            e2bot,
+            e2top,
+            pt,
+        )
     }
 
     /// `void CheckCallback()`: bind the proxy when a user callback is assigned, else clear.
-    pub fn check_callback(&mut self) {
-        self.base.z_callback = if self.z_callback_d.is_some() {
-            ZCallbackSlot::ClipperDProxy
+    pub fn check_callback(&mut self) -> Result<()> {
+        let assigned = self
+            .z_callback_d
+            .try_borrow()
+            .map_err(|_| ClipperError::Undefined(REENTRANT))?
+            .is_some();
+        self.base.z_callback = if assigned {
+            ZCallbackSlot::ClipperDProxy {
+                inv_scale: self.inv_scale,
+                callback: Rc::clone(&self.z_callback_d),
+            }
         } else {
             ZCallbackSlot::Empty
         };
+        Ok(())
     }
 
     /// Invoke the protected `zCallback_` as the engine's `SetZ` does, dispatching the bound
@@ -1139,14 +1179,7 @@ impl ClipperD {
         e2top: &Point64,
         pt: &mut Point64,
     ) -> Result<()> {
-        match &mut self.base.z_callback {
-            ZCallbackSlot::Empty => Err(ClipperError::BadFunctionCall),
-            ZCallbackSlot::User(callback) => {
-                callback(e1bot, e1top, e2bot, e2top, pt);
-                Ok(())
-            }
-            ZCallbackSlot::ClipperDProxy => self.zcb(e1bot, e1top, e2bot, e2top, pt),
-        }
+        self.base.call_z_callback(e1bot, e1top, e2bot, e2top, pt)
     }
 
     /// `void AddSubject(const PathsD& subjects)`: `ScalePaths<int64_t, double>` into
@@ -1188,7 +1221,7 @@ impl ClipperD {
         closed_paths: &mut PathsD,
         open_paths: &mut PathsD,
     ) -> Result<bool> {
-        self.check_callback();
+        self.check_callback()?;
         if self.base.execute_internal(clip_type, fill_rule, false)? {
             self.build_paths_d(closed_paths, Some(open_paths))?;
         }
@@ -1215,7 +1248,7 @@ impl ClipperD {
         polytree: &mut PolyTreeD,
         open_paths: &mut PathsD,
     ) -> Result<bool> {
-        self.check_callback();
+        self.check_callback()?;
         if self.base.execute_internal(clip_type, fill_rule, true)? {
             polytree.clear(PolyTreeD::ROOT)?;
             polytree.set_scale(PolyTreeD::ROOT, self.inv_scale)?;

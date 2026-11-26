@@ -674,6 +674,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "kicad-clipper2-engine-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-clipper2",
+ "kicad-difftest",
+ "serde_json",
+]
+
+[[package]]
+name = "kicad-clipper2-rectclip-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-clipper2",
+ "kicad-difftest",
+ "serde_json",
+]
+
+[[package]]
 name = "kicad-clipper2-shim"
 version = "0.1.0"
 dependencies = [
@@ -763,6 +781,19 @@ version = "0.1.0"
 dependencies = [
  "kicad-difftest",
  "kicad-iec60664",
+ "serde_json",
+]
+
+[[package]]
+name = "kicad-map-helpers"
+version = "0.1.0"
+
+[[package]]
+name = "kicad-map-helpers-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-map-helpers",
  "serde_json",
 ]
 
@@ -867,6 +898,25 @@ dependencies = [
  "kicad-difftest",
  "kicad-rtree",
  "kicad-rtree-node",
+ "serde_json",
+]
+
+[[package]]
+name = "kicad-seg-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-math",
+ "serde_json",
+]
+
+[[package]]
+name = "kicad-transform-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-hash",
+ "kicad-math",
  "serde_json",
 ]
 
