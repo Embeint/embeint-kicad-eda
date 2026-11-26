@@ -692,6 +692,16 @@ name = "kicad-core"
 version = "0.1.0"
 
 [[package]]
+name = "kicad-core-include-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-core",
+ "kicad-core-shim",
+ "kicad-difftest",
+ "serde_json",
+]
+
+[[package]]
 name = "kicad-core-shim"
 version = "0.1.0"
 dependencies = [

@@ -20,6 +20,7 @@ void RegisterEdaAngleSource( REGISTRY& aRegistry );
 void RegisterArcChordParams( REGISTRY& aRegistry );
 void RegisterClipper2CoreEngine( REGISTRY& aRegistry );
 void RegisterCoreP001( REGISTRY& aRegistry );
+void RegisterCoreIncludeP001( REGISTRY& aRegistry );
 void RegisterPoissonDisk( REGISTRY& aRegistry );
 
 
@@ -53,6 +54,7 @@ REGISTRY MakeRegistry()
     RegisterArcChordParams( registry );
     RegisterClipper2CoreEngine( registry );
     RegisterCoreP001( registry );
+    RegisterCoreIncludeP001( registry );
     RegisterPoissonDisk( registry );
     return registry;
 }

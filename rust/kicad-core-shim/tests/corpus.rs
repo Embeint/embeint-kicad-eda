@@ -34,7 +34,7 @@ fn corpus_success_and_deferral_counts_are_explicit() -> Result<(), serde_json::E
     assert_eq!(Some(cases), expected["cases"].as_u64());
     assert_eq!(Some(results), expected["compared"].as_u64());
     assert_eq!(Some(&deferred), expected["deferred"]["cases"].as_array());
-    assert_eq!((cases, results, deferred.len()), (6227, 6202, 25));
+    assert_eq!((cases, results, deferred.len()), (6227, 6227, 0));
     Ok(())
 }
 
