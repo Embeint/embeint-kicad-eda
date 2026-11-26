@@ -124,14 +124,50 @@ list( APPEND ORACLE_SHIMS "${CLIPPER2_SHIM}" )
 set( CORE_INCLUDE_SHIM "${ORACLE_OVERLAY}/shims/core_include_p001.cpp" )
 list( REMOVE_ITEM ORACLE_SHIMS "${CORE_INCLUDE_SHIM}" )
 list( APPEND ORACLE_SHIMS "${CORE_INCLUDE_SHIM}" )
+# The engine source adapter compiles the pinned clipper.engine.cpp itself into its translation
+# unit (in a renamed namespace) to reach its private and file-local bodies; it follows the
+# header adapter so no earlier weak definition changes.
+set( CLIPPER2_ENGINE_P001_SHIM "${ORACLE_OVERLAY}/shims/clipper2_engine_p001.cpp" )
+list( REMOVE_ITEM ORACLE_SHIMS "${CLIPPER2_ENGINE_P001_SHIM}" )
+list( APPEND ORACLE_SHIMS "${CLIPPER2_ENGINE_P001_SHIM}" )
+set_source_files_properties( "${CLIPPER2_ENGINE_P001_SHIM}" PROPERTIES INCLUDE_DIRECTORIES
+                             "${KICAD_REFERENCE_SOURCE}/thirdparty/clipper2/Clipper2Lib/src" )
 set( GEOMETRY_SHIM "${ORACLE_OVERLAY}/shims/geometry_headers.cpp" )
 list( REMOVE_ITEM ORACLE_SHIMS "${GEOMETRY_SHIM}" )
 list( APPEND ORACLE_SHIMS "${GEOMETRY_SHIM}" )
+# The rectangle clipping adapter follows every earlier adapter, so its weak template copies
+# are never selected ahead of theirs.
+set( RECTCLIP_SHIM "${ORACLE_OVERLAY}/shims/clipper2_rectclip.cpp" )
+list( REMOVE_ITEM ORACLE_SHIMS "${RECTCLIP_SHIM}" )
+list( APPEND ORACLE_SHIMS "${RECTCLIP_SHIM}" )
+# Two extra compilations of the pinned, unmodified clipper.rectclip.cpp for that adapter
+# (reference/clipper2_rectclip_replay.h): an uninstrumented copy for the file's inline helpers
+# and a UB replay with UBSan in trap mode and _GLIBCXX_ASSERTIONS. Each renames namespace
+# Clipper2Lib in its own translation unit; neither replaces the genuine archive's code.
+add_library( clipper2-rectclip-replay STATIC
+    "${ORACLE_OVERLAY}/reference/clipper2_rectclip_copy.cpp"
+    "${ORACLE_OVERLAY}/reference/clipper2_rectclip_guard.cpp" )
+target_include_directories( clipper2-rectclip-replay PRIVATE "${ORACLE_OVERLAY}/reference"
+    "${KICAD_REFERENCE_SOURCE}/thirdparty/clipper2/Clipper2Lib/src" )
+target_link_libraries( clipper2-rectclip-replay PRIVATE clipper2 )
+if( CMAKE_CXX_COMPILER_ID STREQUAL "GNU" )
+    set( RECTCLIP_TRAP -fsanitize-undefined-trap-on-error )
+else()
+    set( RECTCLIP_TRAP -fsanitize-trap=all )
+endif()
+set_source_files_properties( "${ORACLE_OVERLAY}/reference/clipper2_rectclip_guard.cpp"
+    PROPERTIES COMPILE_OPTIONS
+    "-fsanitize=undefined;-fsanitize=float-cast-overflow;-fno-sanitize=vptr;${RECTCLIP_TRAP};-D_GLIBCXX_ASSERTIONS" )
+# The map_helpers adapter follows every previously qualified adapter, so its weak
+# wxString/std::map/JSON template copies are never selected ahead of theirs.
+set( MAP_HELPERS_SHIM "${ORACLE_OVERLAY}/shims/core_map_helpers.cpp" )
+list( REMOVE_ITEM ORACLE_SHIMS "${MAP_HELPERS_SHIM}" )
+list( APPEND ORACLE_SHIMS "${MAP_HELPERS_SHIM}" )
 add_executable( kicad-oracle main.cpp protocol.cpp registry.cpp ${ORACLE_SHIMS}
                 reference/geometry_unreachable_config.cpp )
 target_include_directories( kicad-oracle PRIVATE "${ORACLE_OVERLAY}" "${CMAKE_BINARY_DIR}" )
 target_link_libraries( kicad-oracle PRIVATE kimath nlohmann_json iec60664-reference resistor-reference
-                       calculator-reader-reference )
+                       calculator-reader-reference clipper2-rectclip-replay )
 # shims/core_p001.cpp scripts the clock that the reference GetRunningMicroSecs reads,
 # and shims/core_include_p001.cpp the std::chrono::system_clock::now() that the
 # profile.h timers read (libstdc++'s high_resolution_clock). --wrap redirects only
@@ -150,7 +186,7 @@ add_custom_target( oracle-audit
             --overlay "${ORACLE_OVERLAY}"
     VERBATIM )
 foreach( target core clipper2 kimath fmt iec60664-reference resistor-reference
-         calculator-reader-reference kicad-oracle )
+         calculator-reader-reference clipper2-rectclip-replay kicad-oracle )
     add_dependencies( ${target} oracle-audit )
 endforeach()
 
@@ -166,7 +202,7 @@ add_executable( oracle-dispatch-test EXCLUDE_FROM_ALL test_dispatch.cpp protocol
                 ${ORACLE_SHIMS} reference/geometry_unreachable_config.cpp )
 target_include_directories( oracle-dispatch-test PRIVATE "${ORACLE_OVERLAY}" )
 target_link_libraries( oracle-dispatch-test PRIVATE kimath nlohmann_json iec60664-reference
-                       resistor-reference calculator-reader-reference )
+                       resistor-reference calculator-reader-reference clipper2-rectclip-replay )
 target_link_options( oracle-dispatch-test PRIVATE -Wl,--gc-sections ${ORACLE_CLOCK_WRAPS} )
 add_dependencies( oracle-dispatch-test oracle-audit )
 add_test( NAME oracle-dispatch COMMAND oracle-dispatch-test )
