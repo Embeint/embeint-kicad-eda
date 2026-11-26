@@ -23,7 +23,9 @@
 //! `geometry/eda_angle.cpp` bodies to that type in [`eda_angle_source`].
 //!
 //! Unit `libs.kimath.src.geometry.arc_chord_params.application.pure.p001` owns
-//! [`arc_chord_params`] (`geometry/arc_chord_params.cpp`).
+//! [`arc_chord_params`] (`geometry/arc_chord_params.cpp`). Unit
+//! `libs.kimath.src.geometry.distribute.application.ui.p001` owns [`distribute`]
+//! (`geometry/distribute.cpp`).
 //!
 //! The `MATRIX3x3<double>` arithmetic is evaluated through private per-site code generated
 //! from the pinned oracle binary (`generated`) on explicit SSE2 NaN selection (`sse2`); see
@@ -34,6 +36,7 @@
 extern crate self as kicad_math;
 
 pub mod arc_chord_params;
+pub mod distribute;
 pub mod eda_angle;
 pub mod eda_angle_source;
 mod fp;
