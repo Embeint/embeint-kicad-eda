@@ -32,9 +32,9 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 | Stream | Current assignment | Next dependency-ready work |
 | --- | --- | --- |
 | Geometry | SEG PR #74 awaits hosted preflight fallback; extractor PR #79 reviewed without blockers, optional replay guard fixed at `90c8c3a1ea`, graph adoption still pending. Opus assigned independent ellipse source unit. | Adopt graph after accepted tool fix; `circle.cpp` after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. Transform is further independent fallback work. |
-| Polygon operations | PR #76 cleanup-observation fix at `d138e88437` accepted by Sol as explicitly partial pending CI; Opus assigned independent rectclip source p003. Local header deferrals reduced from 31 to 14. | Source p002 after accepted p001; then public wrapper headers after rectclip and p002. |
+| Polygon operations | PR #76 source reviewed at `d138e88437`; missing global difftest registration fixed at `b8152a8f4d` after hosted gate failure. Formal local run: 881 exact / 26 deferred / 0 failed. Opus assigned rectclip p003. | Await fresh CI; source p002 after accepted p001, then public wrapper headers after rectclip and p002. |
 | Core and general utilities | PR #73 review documentation corrected at `5d99a6f8a1`; hosted preflight fallback dispatched after isolated-runner cancellation during workspace tests. Opus assigned independent map_helpers header unit. | Keep pure headers partial for allocation, stream, concurrency and scoped-timer gaps even after CI. Audit UI core headers before line-chain work; small-unit queue follows map helpers. |
-| Numeric backends and spatial follow-ups | Pow delivered in PR #80 at `e055b8ff6b`, Sol review/reference CI underway. Opus assigned R-tree depth-limit follow-up on the accepted #61 implementation. | Model the newly exposed kimathLogOverflow host effects with explicit ownership/host assertion policy; further measured numeric and spatial gaps. |
+| Numeric backends and spatial follow-ups | Pow PR #80 at `e055b8ff6b` passes Sol source review and hosted locked-libm qualification; geometry/broader CI pending. Opus assigned R-tree depth-limit follow-up on accepted #61. | Model newly exposed kimathLogOverflow host effects with explicit ownership/host assertion policy; further measured numeric and spatial gaps. |
 
 On each implementation completion, immediately inspect the result, start the
 independent Sol review and select the next unclaimed dependency-ready assignment.
@@ -228,7 +228,11 @@ The added 633 cases give 491 results and 142 logging deferrals. Do not confuse
 the base/head Rust corpus comparison with native C++ agreement. A later focused
 logging follow-up must implement the pinned host/assertion effects, not silently
 swallow overflow to turn these cases into successes; the expanded corpus reports
-954 total kimathLogOverflow deferrals. The active fourth stream instead takes
+1,096 total kimathLogOverflow deferrals (954 in the original corpus plus 142
+in the added cases). Sol independently reproduced the transition identities,
+verified all 657 table words against locked libm, and inspected passing hosted
+pow results on all six configurations. Geometry/broader CI still gates readiness.
+The active fourth stream instead takes
 the independent R-tree depth-limit work while pow is reviewed.
 
 Remove #61's fixed 64-level R-tree limit as a separate focused follow-up. Reuse
