@@ -131,8 +131,11 @@ static void check_slot( const char* name, void* wrapper, unsigned long slot, uns
 
 int main( int argc, char** argv )
 {
-    if( argc != 5 )
-        fail( "usage", "DOMAIN RECORDS LIBDIR COUNT" );
+    // An optional fifth argument "pow" selects the pow records (x, y, pow)
+    // instead of the five angle functions; every identity check runs in both.
+    if( argc != 5 && !( argc == 6 && strcmp( argv[5], "pow" ) == 0 ) )
+        fail( "usage", "DOMAIN RECORDS LIBDIR COUNT [pow]" );
+    const int powMode = argc == 6;
     const char* names[3] = { "ld-linux-x86-64.so.2", "libc.so.6", "libm.so.6" };
     if( !realpath( argv[0], g_self ) )
         fail( "own path", argv[0] );
@@ -169,6 +172,13 @@ int main( int argc, char** argv )
     check_slot( "asin", (void*) asinPtr, 0xe7f20, 0x25f70 );
     check_slot( "acos", (void*) acosPtr, 0xe7f38, 0x26780 );
     check_slot( "atan2", (void*) atan2Ptr, 0xe7ed0, 0x26fe0 );
+    // C and C++ callers built against 2.39 bind pow@@GLIBC_2.29, the errno-only
+    // w_pow_template.c wrapper, not the SVID pow@GLIBC_2.2.5 compat wrapper.
+    BINARY powPtr = (BINARY) resolve( "pow", "0x3a630" );
+    if( dlvsym( RTLD_DEFAULT, "pow", "GLIBC_2.29" ) != (void*) powPtr )
+        fail( "pow version", "default pow is not pow@@GLIBC_2.29" );
+    powPtr( one, one );
+    check_slot( "pow", (void*) powPtr, 0xe7f58, 0x2b810 );
     const unsigned long long count = strtoull( argv[4], NULL, 10 );
     struct stat st;
     if( stat( argv[1], &st ) != 0 || (unsigned long long) st.st_size != count * 16ULL )
@@ -182,6 +192,13 @@ int main( int argc, char** argv )
     {
         g_bits[0] = inputs[0]; g_bits[1] = inputs[1];
         const double x = from_bits( g_bits[0] ), y = from_bits( g_bits[1] );
+        if( powMode )
+        {
+            const uint64_t record[3] = { inputs[0], inputs[1], to_bits( powPtr( x, y ) ) };
+            if( fwrite( record, sizeof record, 1, out ) != 1 ) fail( "write", argv[2] );
+            ++written;
+            continue;
+        }
         const uint64_t record[7] = { inputs[0], inputs[1], to_bits( atanPtr(x) ),
             to_bits( atan2Ptr(y,x) ), to_bits( tanPtr(x) ), to_bits( asinPtr(x) ), to_bits( acosPtr(x) ) };
         if( fwrite( record, sizeof record, 1, out ) != 1 ) fail( "write", argv[2] );

@@ -5,6 +5,12 @@
     "count": 1517520,
     "sha256": "4c9c2f84ce8174a35ba9c6fba3bfdb3d713576923670896783280edda2e0d7f4"
   },
+  "pow_domain": {
+    "fixed_count": 535736,
+    "seeded_count": 1000000,
+    "count": 1535736,
+    "sha256": "6160e082f99eae22c25519fdadd09d3a388c180995c695097eb43a97fe76e7c3"
+  },
   "dispatch": {
     "atan": "0x2d840",
     "tan": "0x30b80",
@@ -22,6 +28,12 @@
       "wrapper": "0x129a0",
       "got": "0xe7f38",
       "kernel": "0x26780"
+    },
+    "pow": {
+      "wrapper": "0x3a630",
+      "version": "GLIBC_2.29",
+      "got": "0xe7f58",
+      "kernel": "0x2b810"
     },
     "lib_version": {
       "offset": "0xe8008",
