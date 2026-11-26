@@ -35,6 +35,10 @@
 //! `libs.kimath.src.geometry.arc_construction.application.ui.p001` owns [`arc_construction`]
 //! (`geometry/arc_construction.cpp`).
 //!
+//! Unit `libs.kimath.src.geometry.ellipse.application.ui.p001` owns [`ellipse`]
+//! (`geometry/ellipse.cpp`), the out-of-line bodies of the header-owned
+//! [`geometry_headers::Ellipse`].
+//!
 //! The `MATRIX3x3<double>` arithmetic is evaluated through private per-site code generated
 //! from the pinned oracle binary (`generated`) on explicit SSE2 NaN selection (`sse2`); see
 //! `port/findings/kimath-matrix-mixed-nan-payloads.md`.
@@ -48,6 +52,7 @@ pub mod arc_construction;
 pub mod distribute;
 pub mod eda_angle;
 pub mod eda_angle_source;
+pub mod ellipse;
 mod fp;
 pub mod geometry_headers;
 mod hypot;

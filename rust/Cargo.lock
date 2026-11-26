@@ -766,6 +766,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "kicad-ellipse-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-math",
+ "serde_json",
+]
+
+[[package]]
 name = "kicad-geometry-shim"
 version = "0.1.0"
 dependencies = [

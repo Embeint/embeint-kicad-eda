@@ -20,6 +20,7 @@ void RegisterEdaAngleSource( REGISTRY& aRegistry );
 void RegisterArcChordParams( REGISTRY& aRegistry );
 void RegisterDistribute( REGISTRY& aRegistry );
 void RegisterArcConstruction( REGISTRY& aRegistry );
+void RegisterEllipse( REGISTRY& aRegistry );
 void RegisterClipper2CoreEngine( REGISTRY& aRegistry );
 void RegisterClipper2EngineP001( REGISTRY& aRegistry );
 void RegisterCoreP001( REGISTRY& aRegistry );
@@ -62,6 +63,7 @@ REGISTRY MakeRegistry()
     RegisterArcChordParams( registry );
     RegisterDistribute( registry );
     RegisterArcConstruction( registry );
+    RegisterEllipse( registry );
     RegisterClipper2CoreEngine( registry );
     RegisterClipper2EngineP001( registry );
     RegisterCoreP001( registry );
