@@ -43,7 +43,7 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 | Stream | Current assignment | Next dependency-ready work |
 | --- | --- | --- |
 | Geometry | SEG integration head `24df53e57c` and extractor integration head `59fa8ff9c5` await fresh CI on accepted pow; source reviews complete, graph adoption pending. Opus assigned ellipse. | Adopt graph after accepted tool fix; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. Transform is independent fallback work. |
-| Polygon operations | PR #76 integration head `6f58bc73fa` awaits fresh CI after the reviewed cleanup fix, registration correction and accepted pow merge. Opus assigned rectclip p003. | Source p002 after accepted p001, then public wrapper headers after rectclip and p002. |
+| Polygon operations | Engine PR #76 at `6f58bc73fa` awaits CI. Rectclip PR #77 delivered and reviewed without algorithmic blockers; owner note corrected at `87e2913afa`, hosted checks pending. Opus assigned transform as independent fallback. | Source p002 after accepted engine p001, then public wrapper headers after rectclip and p002. |
 | Core and general utilities | PR #73 integration head `26f11478b7` awaits fresh CI; source review/doc corrections retain explicit partial contracts. Opus assigned map_helpers. | Keep pure headers partial for allocation, stream, concurrency and scoped-timer gaps even after CI. Audit UI core headers before line-chain work; small-unit queue follows map helpers. |
 | Numeric backends and spatial follow-ups | Pow PR #80 merged into accepted rust as `a862a3eb8e`. Opus assigned R-tree depth-limit follow-up on accepted #61. | Model newly exposed kimathLogOverflow host effects with explicit ownership/host assertion policy; further measured numeric and spatial gaps. |
 
@@ -186,16 +186,30 @@ blocker.
 
 ## Clipper2 completion sequence
 
-The current worker owns engine source lines 1–2,271, source pure p001.
+Rectclip source p003 is delivered as [PR #77](https://github.com/Embeint/embeint-kicad-eda/pull/77),
+implementation `f72b23229619869935b4faf0c165ed709505d120`. Sol independently
+replayed 1,574 exact replies and 11 controls with no identified clipping-result or
+lifecycle defect. Header-owner co-port notes were completed at `87e2913afa`;
+source p003 remains partial and wrappers remain todo pending their own work.
+The local global-gate case stream-6-False-fixed-0 reproduces the same uppercase
+INF reply in an independent earlier oracle without rectangle clipping, while the
+accepted Rust shim uses pre-GCC-15 lowercase inf. This supports the existing
+libstdc++ explanation for that case without waiving the full hosted gate.
+Public rectangle operations call the genuine library; private helpers use a
+namespace-isolated source compilation, and UBSan child preflight retains its
+documented qualification limits. The waiting polygon slot takes transform.cpp
+while engine p001's acceptance blocks source p002.
+
+Engine source p001 covers lines 1–2,271.
 Source pure p002 owns engine lines 2,272–3,337 and `clipper.offset.cpp` lines
 1–661. This includes `ExecuteInternal`, `BuildPaths64`, `BuildTree64`,
 `BuildPathsD` and `BuildTreeD`. Consequently the first engine unit alone cannot
 remove every one of #72's 31 deferred cases or finish polygon booleans.
 
-After p002, port source pure p003 (`clipper.rectclip.cpp`, 1,027 lines), which
-is independently schedulable from the accepted core/engine headers. Then port
-include pure p002 (1,151 lines: public wrappers, Minkowski and associated
-headers), whose hard dependencies include both source p002 and p003.
+Source pure p003 (`clipper.rectclip.cpp`, 1,027 lines) was implemented independently
+while p002 remained blocked. After source p002 and p003 are accepted, port include
+pure p002 (1,151 lines: public wrappers, Minkowski and associated headers), whose
+hard dependencies include both source units.
 
 Validate all four boolean operations, fill rules, holes/tree hierarchy, open
 paths, Z handling, collinear preservation, reverse solutions and repeated
