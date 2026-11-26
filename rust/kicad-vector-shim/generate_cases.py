@@ -138,6 +138,57 @@ for n in range(64):
   case(f'ut-wired-{n}-{typ}-divide',2,typ,'divide',aa,scalar=bits(3.0))
  case(f'ut-wired-{n}-equals-default',2,'f64','equals',floats(a),b=floats(a))
  case(f'ut-wired-{n}-round',2,'f64','ki_round',floats([a[0]+0.5,a[1]-0.5]))
+# Additive std::hypot continuations of EuclideanNorm (and Distance, which calls it), past the
+# 45-degree and axis shortcuts: the non-finite branch's infinity and NaN operand order, the
+# 0x1p+511 / 0x1p-459 scaling thresholds, the 0x1p-54 shortcut, the kernel's h <= 2 * ay
+# split, overflow, subnormals and exact triples. Inputs only; seed isolated from the corpus.
+def hx(b): return f'{b:016x}'
+def f(b): return struct.unpack('>d',bytes.fromhex(hx(b)))[0]
+def raw(x): return struct.unpack('>Q',struct.pack('>d',x))[0]
+hy_special=[0x7ff0000000000000,0xfff0000000000000,0x7ff8000000000000,0xfff80000deadbeef,
+            0x7ff0000000000001,0xfff4000000000abc,0x7ff7ffffffffffff,0x3ff0000000000000,
+            0xbff8000000000000,0x0000000000000001,0x7fefffffffffffff]
+for n,x in enumerate(hy_special):
+ for m,y in enumerate(hy_special):
+  case(f'hypot-special-{n}-{m}-norm',2,'f64','norm',[hx(x),hx(y)])
+  case(f'hypot-special-{n}-{m}-distance',2,'f64','distance',[hx(x),hx(y)],b=[bits(0.5),bits(-2.0)])
+hy_edges=[]
+for ax in [0x5fe0000000000000+d for d in range(-2,3)]+[0x7fefffffffffffff,0x7fe0000000000000]:
+ for ay in [ax-(54<<52),ax-(54<<52)+1,ax-(54<<52)-1,ax-(53<<52),0x3ff0000000000000,ax-(1<<52)]:
+  hy_edges.append((ax,ay))
+for ay in [0x2340000000000000+d for d in range(-2,3)]+[1,2,0x000fffffffffffff,0x0010000000000000]:
+ # ay * 2^54 and 2^53 are exact (ax >= ay / EPS), plus a neighbour and the scaled kernel.
+ for ax in [raw(f(ay)*2.0**54),raw(f(ay)*2.0**54)+1,raw(f(ay)*2.0**54)-1,raw(f(ay)*2.0**53),
+            ay+1,0x3ff0000000000000,0x1ab0000000000000]:
+  hy_edges.append((ax,ay))
+for e in [1,100,563,564,565,1023,1533,1534,1535,2000]:
+ for d in range(-3,4):
+  ax=(e<<52)|0x8000000000000
+  # ay/ax near float(1/sqrt(3)): the kernel's h <= 2 * ay split.
+  ay=raw(f(ax)*float.fromhex('0x1.279a74590331cp-1'))+d
+  hy_edges.append((ax,ay))
+# Results next to DBL_MAX: both operands near DBL_MAX * float(1/sqrt(2)).
+v=raw(float.fromhex('0x1.fffffffffffffp+1023')*float.fromhex('0x1.6a09e667f3bcdp-1'))
+for d in range(-3,4): hy_edges.append((v+d,v-1)); hy_edges.append((v+d,v+1))
+# Exact triples; integer times a power of two is exact down to the smallest subnormal.
+for k in [-1074,-1060,-600,-460,-459,0,511,512,1000]:
+ for a,b in [(3,4),(5,12),(20,21)]:
+  hy_edges.append((raw(a*2.0**k),raw(b*2.0**k)))
+for n,(x,y) in enumerate(hy_edges):
+ for sx,sy in [(0,0),(1,1),(1,0)]:
+  case(f'hypot-edge-{n}-{sx}{sy}-norm',2,'f64','norm',[hx(x|sx<<63),hx(y|sy<<63)])
+  case(f'hypot-edge-{n}-{sx}{sy}-swap-norm',2,'f64','norm',[hx(y|sy<<63),hx(x|sx<<63)])
+hy_rng=random.Random(0x48797074)
+for n in range(256):
+ r=hy_rng.getrandbits(64);s=hy_rng.getrandbits(64)
+ if n%4==1: s=(s&0x800fffffffffffff)|(max(0,min(2046,((r>>52)&0x7ff)+hy_rng.randrange(-60,61)))<<52)
+ if n%4==2: r&=0x800fffffffffffff;s&=0x800fffffffffffff
+ case(f'hypot-random-{n}-norm',2,'f64','norm',[hx(r),hx(s)])
+for n in range(64):
+ for typ,lo,hi in [('i32',-2**31,2**31-1),('i64',-2**62,2**62)]:
+  a=[hy_rng.randrange(lo,hi+1),hy_rng.randrange(lo,hi+1)]
+  b=[hy_rng.randrange(lo,hi+1),hy_rng.randrange(lo,hi+1)]
+  case(f'hypot-random-{n}-{typ}-distance',2,typ,'distance',a,b=b)
 assert len({c['case'] for c in CASES+REFUSALS})==len(CASES)+len(REFUSALS)
 for p,rs in [(ROOT/f'port/cases/{UNIT}.jsonl',CASES),(ROOT/'port/oracle/vector-refusals.jsonl',REFUSALS)]:
  p.write_text(''.join(json.dumps(r,separators=(',',':'))+'\n' for r in rs))

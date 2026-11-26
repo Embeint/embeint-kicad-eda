@@ -351,7 +351,7 @@ pub fn dispatch(line: &str) -> Value {
 mod tests {
     use super::*;
     const CASES: usize = 2239;
-    const DEFERRED: usize = 136;
+    const DEFERRED: usize = 100;
     const CONTROLS: usize = 234;
     fn has_refusal(result: &Value) -> bool {
         result["state"].get("error").is_some()
@@ -374,14 +374,9 @@ mod tests {
             } else {
                 let owner = reply["error"]["unit"].as_str();
                 assert_eq!(reply["error"]["kind"], "unported", "{reply}");
-                assert!(
-                    matches!(
-                        owner,
-                        Some(
-                            "libs.kimath.src.math.util.application.ui.p001"
-                                | "libs.kimath.include.math.application.ui.p002"
-                        )
-                    ),
+                assert_eq!(
+                    owner,
+                    Some("libs.kimath.src.math.util.application.ui.p001"),
                     "{reply}"
                 );
                 deferred += 1;

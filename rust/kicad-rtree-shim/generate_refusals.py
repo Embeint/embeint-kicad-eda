@@ -34,6 +34,10 @@ def main():
             dict(op='bulk',a=0,entries=[dict(min=[high]*d,max=[low]*d,item=None)])],
             'floating conversion outside reference domain',config)
     case('tree-resource-limit',[dict(op='bulk',a=0,entries=[dict(min=[0,0],max=[0,0],item=None)]*8192),ins],'resource limit')
+    # Root level 40: nested state would exceed the reply parsers; topology is flat.
+    deep=[dict(op='insert',a=0,min=[2*i],max=[2*i+1],item=i) for i in range(82)]
+    case('state-nesting-level-40',[*deep,dict(op='topology',a=0),dict(op='state',a=0)],
+         'state nesting exceeds protocol depth','i32.d1.m3')
     case('bulk-entry-limit',[dict(op='bulk',a=0,entries=[dict(min=[0,0],max=[0,0],item=None)]*8193)],'invalid entries')
     for name,data in [('refusals.requests.jsonl',rows),('refusals.replies.jsonl',expected)]:
         path=ROOT/'rust/kicad-rtree-shim/fixtures'/name

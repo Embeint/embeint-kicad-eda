@@ -3,7 +3,9 @@
 
 This is qualification tooling, not a runtime dependency or a golden generator.
 The private `kicad_math::glibc_libm` ports glibc 2.39's baseline SSE2 `atan`,
-`atan2`, `tan`, `asin`, `acos` and `pow` (the `EDA_ANGLE::Round` callee). The
+`atan2`, `tan`, `asin`, `acos` and `pow` (the `EDA_ANGLE::Round` callee), and
+qualifies the shared `kicad_math::hypot` (the `VECTOR2<double>::EuclideanNorm`
+`std::hypot` callee). The
 accepted sin/cos/sincos bodies are unchanged; only `branred`'s visibility and its
 test-module path change so tan can reuse the exact accepted reducer and the
 import-free qualification wrapper can compile those private sources.
@@ -41,6 +43,14 @@ The same 657 words were separately matched against `__pow_log_data` and
 values (`0x1p769`/`0x1p-767` squares, signed division by zero, SSE2's negative
 indefinite for `(x - x) / (x - x)`); errno and flags are not modelled.
 
+`hypot` is glibc 2.39 `sysdeps/ieee754/dbl-64/e_hypot.c` (FSF, 2021-2024,
+LGPL-2.1-or-later; notice retained in `rust/kicad-math/src/hypot.rs`), non-FMA
+kernel. `check_sources.py` verifies its `SCALE`/`LARGE_VAL`/`TINY_VAL`/`EPS`
+exponents against `hypot.rs`, the generic `USE_FMAX_BUILTIN`/`USE_FMIN_BUILTIN` 0
+(ternary operand selection), the empty dbl-64 `w_hypot.c` and the `GLIBC_2_35`
+version. Its finite body is the accepted shared one also used by BOX2; this
+qualification adds the non-finite branch and covers both.
+
 ## Dispatch and floating environment
 
 Use the same setting as the geometry oracle and glibc_trig:
@@ -53,6 +63,15 @@ which only sets errno and returns the `__ieee754_pow` value unchanged; the SVID
 default/versioned binding and the wrapper's IRELATIVE GOT slot (+0xe7f58 ->
 `__ieee754_pow_sse2`, +0x2b810). Its NaN `x + y` returns follow the kernel's
 `addsd` with x as the first operand: a NaN x wins, quieted, else a NaN y. No further dispatch setting is needed.
+Callers built against 2.39 bind `hypot@@GLIBC_2.35` (libm+0x28450), which is
+e_hypot.c's `__hypot` itself (also `__hypot_finite@GLIBC_2.15`): dbl-64
+`w_hypot.c` is empty and x86_64 has no multiarch hypot, so there is no IFUNC or
+GOT slot and the tunables do not affect it. The SVID `hypot@GLIBC_2.2.5`
+(`__hypot_compat`, libm+0x12db0, `_LIB_VERSION`/matherr overflow handling) is not
+involved; the probe checks both bindings. Disassembly of the locked body shows no
+FMA and the non-finite `return x + y` as `addsd %xmm1,%xmm0` (x first): a NaN x
+is returned quieted, else the quieted NaN y; an infinity returns the +inf constant
+unless an operand is signalling (`issignaling_inline`).
 All five 2.39 bodies have no multiprecision fallback. The non-FMA `dla.h`
 EMULV and MUL12 are different algorithms and are preserved separately.
 
@@ -105,6 +124,20 @@ d in [-1100, 1100] (all `EDA_ANGLE::Round` digit counts reach these edges).
 The generator uses only exact and `decimal` arithmetic, never the host libm;
 its hash is the same on Windows and Linux.
 
+`hypot_domain.py` writes 607,712 fixed pairs plus 1,000,000 seeded pairs,
+**1,607,712 hypot calls per target/profile** (`reference.py hypot-domain` /
+`hypot-reference`, 24-byte records). Fixed cases follow e_hypot.c: the full
+Cartesian product of signed zeros, subnormal/normal edges, 0x1p+511, 0x1p-459,
+DBL_MAX, infinities and four quiet plus three signalling NaN payloads; every
+exponent (including subnormal) against relative exponents around the 0x1p-54
+shortcut and kernel in both orders; both scaling thresholds with their shortcut
+and kernel continuations; the shortcut at every exponent; the kernel's
+h <= 2 * ay split (ay/ax near 1/sqrt(3)); overflow next to DBL_MAX; exact
+Pythagorean triples at every scale down to 2^-1074 and subnormal pairs. Seeded
+modes cover raw bits, related exponents, both scaling regions, the kernel split
+and random non-finite operands. Only `decimal` supplies the two irrational
+constants; the hash is the same on Windows and Linux.
+
 The `rust-glibc-libm.yml` job downloads and hash-checks the locked libc package,
 binds it to the reviewed input lock, runs only its own loader with a cleared
 environment, and compares native debug/release, WASI debug/release, and import-free
@@ -113,8 +146,8 @@ same private source files under `forbid(unsafe_code)`; the separate existing
 geometry job checks the complete public EDA_ANGLE continuations against C++ and
 then import-free wasm. All local builds use `rust/target` and at most -j3.
 
-A green report requires one full-count, zero-mismatch result for each of six
-functions (pow with its own count) on all six configurations. `report.json` hashes the domain, genuine
+A green report requires one full-count, zero-mismatch result for each of seven
+functions (pow and hypot with their own counts) on all six configurations. `report.json` hashes the domain, genuine
 records, probe, source verification and logs. CI artifacts are fresh evidence;
 the implementation never reads them. Run:
 
@@ -124,12 +157,16 @@ python3 port/glibc-libm/reference.py domain --out <out>
 python3 port/glibc-libm/reference.py reference --out <out>
 python3 port/glibc-libm/reference.py pow-domain --out <out>
 python3 port/glibc-libm/reference.py pow-reference --out <out>
+python3 port/glibc-libm/reference.py hypot-domain --out <out>
+python3 port/glibc-libm/reference.py hypot-reference --out <out>
 KICAD_GLIBC_LIBM_REFERENCE=<out>/reference.bin KICAD_GLIBC_LIBM_COUNT=1517520 \
 KICAD_GLIBC_LIBM_POW_REFERENCE=<out>/pow-reference.bin KICAD_GLIBC_LIBM_POW_COUNT=1535736 \
+KICAD_GLIBC_LIBM_HYPOT_REFERENCE=<out>/hypot-reference.bin KICAD_GLIBC_LIBM_HYPOT_COUNT=1607712 \
   cargo test --locked --manifest-path rust/Cargo.toml -p kicad-math --lib \
   glibc_libm -- --include-ignored --nocapture
 ```
 
 Executed results and remaining objections are recorded in the additive findings
-`port/findings/geometry-angle-libm-backends-addendum.md` and
-`port/findings/geometry-angle-libm-pow-addendum.md`, not inferred here.
+`port/findings/geometry-angle-libm-backends-addendum.md`,
+`port/findings/geometry-angle-libm-pow-addendum.md` and
+`port/findings/vector-hypot-glibc-addendum.md`, not inferred here.

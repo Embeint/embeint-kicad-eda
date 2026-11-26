@@ -11,6 +11,12 @@
     "count": 1535736,
     "sha256": "6160e082f99eae22c25519fdadd09d3a388c180995c695097eb43a97fe76e7c3"
   },
+  "hypot_domain": {
+    "fixed_count": 607712,
+    "seeded_count": 1000000,
+    "count": 1607712,
+    "sha256": "a4b02776b8f98e27a26700c415616914301fd4563cd1a67465893a4327f4f2a8"
+  },
   "dispatch": {
     "atan": "0x2d840",
     "tan": "0x30b80",
@@ -34,6 +40,12 @@
       "version": "GLIBC_2.29",
       "got": "0xe7f58",
       "kernel": "0x2b810"
+    },
+    "hypot": {
+      "symbol": "0x28450",
+      "version": "GLIBC_2.35",
+      "ifunc": false,
+      "compat_wrapper": "0x12db0"
     },
     "lib_version": {
       "offset": "0xe8008",
