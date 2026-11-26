@@ -89,6 +89,13 @@ add_library( iec60664-reference STATIC
 target_include_directories( iec60664-reference PUBLIC
     "${KICAD_REFERENCE_SOURCE}/pcb_calculator/calculator_panels" )
 
+# The genuine pinned Unix kiplatform drivers.cpp and sysinfo.cpp, unchanged.
+add_library( kiplatform-unix-reference STATIC
+    "${KICAD_REFERENCE_SOURCE}/libs/kiplatform/os/unix/drivers.cpp"
+    "${KICAD_REFERENCE_SOURCE}/libs/kiplatform/os/unix/sysinfo.cpp" )
+target_include_directories( kiplatform-unix-reference PUBLIC
+    "${KICAD_REFERENCE_SOURCE}/libs/kiplatform/include" )
+
 file( GLOB ORACLE_SHIMS CONFIGURE_DEPENDS "${ORACLE_OVERLAY}/shims/*.cpp" )
 # GNU ld keeps the first weak/COMDAT template definition. Preserve the measured
 # matrix adapter's selection when the later hash adapter is present: alphabetical
@@ -120,6 +127,10 @@ endif()
 set( CLIPPER2_SHIM "${ORACLE_OVERLAY}/shims/clipper2_core_engine.cpp" )
 list( REMOVE_ITEM ORACLE_SHIMS "${CLIPPER2_SHIM}" )
 list( APPEND ORACLE_SHIMS "${CLIPPER2_SHIM}" )
+# The kiplatform Unix adapter follows every previously qualified adapter as well.
+set( KIPLATFORM_UNIX_SHIM "${ORACLE_OVERLAY}/shims/kiplatform_unix_p001.cpp" )
+list( REMOVE_ITEM ORACLE_SHIMS "${KIPLATFORM_UNIX_SHIM}" )
+list( APPEND ORACLE_SHIMS "${KIPLATFORM_UNIX_SHIM}" )
 set( GEOMETRY_SHIM "${ORACLE_OVERLAY}/shims/geometry_headers.cpp" )
 list( REMOVE_ITEM ORACLE_SHIMS "${GEOMETRY_SHIM}" )
 list( APPEND ORACLE_SHIMS "${GEOMETRY_SHIM}" )
@@ -127,7 +138,7 @@ add_executable( kicad-oracle main.cpp protocol.cpp registry.cpp ${ORACLE_SHIMS}
                 reference/geometry_unreachable_config.cpp )
 target_include_directories( kicad-oracle PRIVATE "${ORACLE_OVERLAY}" "${CMAKE_BINARY_DIR}" )
 target_link_libraries( kicad-oracle PRIVATE kimath nlohmann_json iec60664-reference resistor-reference
-                       calculator-reader-reference )
+                       calculator-reader-reference kiplatform-unix-reference )
 # shims/core_p001.cpp scripts the clock that the reference GetRunningMicroSecs reads.
 # --wrap redirects only static objects' clock_gettime references (unarmed calls
 # forward to the real function); shared libraries keep the system clock.
@@ -142,7 +153,7 @@ add_custom_target( oracle-audit
             --overlay "${ORACLE_OVERLAY}"
     VERBATIM )
 foreach( target core clipper2 kimath fmt iec60664-reference resistor-reference
-         calculator-reader-reference kicad-oracle )
+         calculator-reader-reference kiplatform-unix-reference kicad-oracle )
     add_dependencies( ${target} oracle-audit )
 endforeach()
 
@@ -158,7 +169,7 @@ add_executable( oracle-dispatch-test EXCLUDE_FROM_ALL test_dispatch.cpp protocol
                 ${ORACLE_SHIMS} reference/geometry_unreachable_config.cpp )
 target_include_directories( oracle-dispatch-test PRIVATE "${ORACLE_OVERLAY}" )
 target_link_libraries( oracle-dispatch-test PRIVATE kimath nlohmann_json iec60664-reference
-                       resistor-reference calculator-reader-reference )
+                       resistor-reference calculator-reader-reference kiplatform-unix-reference )
 target_link_options( oracle-dispatch-test PRIVATE -Wl,--gc-sections -Wl,--wrap=clock_gettime )
 add_dependencies( oracle-dispatch-test oracle-audit )
 add_test( NAME oracle-dispatch COMMAND oracle-dispatch-test )
@@ -196,3 +207,8 @@ add_test( NAME oracle-core-p001-inputs
     COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_core_p001_inputs.py"
             "$<TARGET_FILE:kicad-oracle>" )
 set_tests_properties( oracle-core-p001-inputs PROPERTIES TIMEOUT 120 )
+
+add_test( NAME oracle-kiplatform-unix-p001-inputs
+    COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_kiplatform_unix_p001_inputs.py"
+            "$<TARGET_FILE:kicad-oracle>" )
+set_tests_properties( oracle-kiplatform-unix-p001-inputs PROPERTIES TIMEOUT 60 )
