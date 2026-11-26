@@ -2,7 +2,7 @@
 # Next Rust port batches
 
 Planning snapshot: 26 November 2026, accepted `rust` at
-`4738a9c23f8c6068784d26ba991a690044343892`. Maintain this plan on `main` as the
+`7a984a76e8073b7b6cdc01895da4bae126f05641`. Maintain this plan on `main` as the
 port advances. This is a scheduling guide, not a claim list or a change to the
 port gates. The scoped draft PRs remain the authoritative claims.
 Recheck accepted dependencies and open
@@ -41,6 +41,14 @@ reviewed tree `b060f4ffd13e113a5e43c639859b690683681e08`. Pending topics must
 import that accepted tool change before integration if their computed merge
 tree would otherwise differ from their reviewed head.
 
+Core header PR #73 has now passed all applicable checks on integration head
+`ab6fd8f3ea4a546e628a5fc88dff5ec7e85717f4` and rebase-merged as
+`7a984a76e8073b7b6cdc01895da4bae126f05641`. Its accepted tree equals the
+reviewed tree `1dce6d847ddba23d8ba5641ad7d706e253978394`. Other pending topics
+and interrupted recoveries must use this new accepted baseline before final
+integration. Preserve existing local changes and accepted unit metadata when
+recovering graph regeneration; do not overwrite the newly accepted core status.
+
 ## Continuous four-stream cycle
 
 Current provider interruption: all four Opus assignments stopped around
@@ -74,7 +82,7 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 | --- | --- | --- |
 | Geometry | SEG awaits fresh CI at `b908f439a0`. Ellipse #81 target repair at `fb6dd8632c` passed fresh Sol review; hosted CI pending. Distribute #84 and hypot #88 passed Sol review, hosted CI pending. Core utility header assignment interrupted by provider failure before implementation. | Resume existing assignment when routing works; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
 | Polygon operations | Engine #76 awaits fresh CI at `401ebc2624`; rectclip #77 at `b88832a7d2`. Transform #82 reviewed at source head with prose fix `b2918f6b31`. Graph-adoption work is preserved but interrupted by provider failure. | Resume graph adoption with final-head provenance; source p002 after accepted engine p001, then wrapper headers after rectclip and p002. |
-| Core and general utilities | PR #73 awaits fresh CI at `ab6fd8f3ea`. Map helpers #78 passed target wx 3.2.4 checks, then imported accepted extractor #79 and evidence notes at `d8ab26658f`; fresh CI required. Arc #85 at `207f67b2cb` and vector2wx #86 at `3861aaa7b2` await CI. Unix policy #89 local work is preserved; provider interrupted. | Recover existing claim without a duplicate port. Hold wx_stl_compat reuse until map helpers acceptance; keep pure-header partial contracts explicit. |
+| Core and general utilities | PR #73 accepted as `7a984a76e8`, retaining partial contracts. Map helpers #78 at `d8ab26658f`, arc #85 at `207f67b2cb` and vector2wx #86 at `3861aaa7b2` await final integration checks. Unix policy #89 local work is preserved; provider interrupted. | Recover existing claim without a duplicate port. Hold wx_stl_compat reuse until map helpers acceptance; keep pure-header partial contracts explicit. |
 | Numeric backends and spatial follow-ups | Pow #80 accepted. R-tree #83 and poisson #87 passed source review, hosted checks pending. Unix driver/system-info claim #90 has preserved local implementation work; provider interrupted. | Recover existing claim without a duplicate port. Keep logging host-effect and copy-on-write audits queued. |
 
 On each implementation completion, immediately inspect the result, start the
@@ -137,6 +145,13 @@ the accepted extractor delta, and the resulting tree equals the precomputed
 merge tree `1dce6d847ddba23d8ba5641ad7d706e253978394`. Core runtime code and
 partial contracts are unchanged. Final-head hosted checks must pass before
 integration; the earlier green run is historical evidence for the prior head.
+
+The final `ab6fd8f3ea` checks completed: 16 success and three inapplicable
+skips. The parent verified the current merge result equals its reviewed
+`1dce6d847ddba23d8ba5641ad7d706e253978394` tree, marked ready, and rebase-merged
+#73 on 26 November at 02:20 UTC. Accepted commit `7a984a76e8` has that exact
+tree. The unit explicitly remains partial for allocation, concurrent
+interleavings, nondefault stream behavior and scoped-timer drop semantics.
 
 ## Recommended next assignments
 
