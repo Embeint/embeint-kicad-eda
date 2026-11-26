@@ -55,7 +55,7 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 | Geometry | SEG passed checks, then imported accepted extractor #79 at `b908f439a0`; fresh CI required. Graph adoption active. Ellipse #81 has 11 reference-CI NaN mismatches at `5c42b69677`; focused Opus repair active, fresh Sol review required afterward. Distribute #84 passed Sol review at `33fa41f687`; hosted CI pending. Main Opus slot implements pinned hypot. | Adopt graph with final-head provenance; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
 | Polygon operations | Engine #76 passed checks at `6f58bc73fa`, then imported accepted extractor #79 at `401ebc2624`; fresh CI required. Rectclip #77 likewise awaits fresh CI at `b88832a7d2`. Transform #82 reviewed; reference prose corrected at `b2918f6b31`. Opus implementing graph adoption as independent fallback. | Source p002 after accepted engine p001, then public wrapper headers after rectclip and p002. |
 | Core and general utilities | PR #73 awaits fresh CI at `ab6fd8f3ea`. Map helpers #78 corrected at `1cadc88eb8`, Sol recheck passed; target wx qualification pending. Arc #85 owner notes fixed at `eaa34442d1`. Vector2wx #86 passed Sol review; wasm comment corrected at `3861aaa7b2`. Freed Opus slot now implements Unix policy. | Hold wx_stl_compat reuse until map helpers is accepted. Keep pure headers partial for allocation, stream, concurrency and scoped-timer gaps. Audit UI core headers before line-chain work. |
-| Numeric backends and spatial follow-ups | Pow PR #80 accepted. R-tree follow-up PR #83 at `813623a66b` passed Sol review, hosted checks pending. Opus now assigned poisson_disk. | Model newly exposed kimathLogOverflow host effects with explicit ownership/host assertion policy; further measured numeric and spatial gaps. Audit copy-on-write code before claiming a similar fixed-depth problem. |
+| Numeric backends and spatial follow-ups | Pow #80 accepted. R-tree #83 at `813623a66b` passed Sol review, hosted checks pending. Poisson #87 passed Sol review; qualification prose fixed at `bed62f0c5b`. Freed Opus slot now implements Unix driver/system-info bodies. | Model newly exposed kimathLogOverflow host effects with explicit ownership/host assertion policy; further measured numeric and spatial gaps. Audit copy-on-write code before claiming a similar fixed-depth problem. |
 
 On each implementation completion, immediately inspect the result, start the
 independent Sol review and select the next unclaimed dependency-ready assignment.
@@ -276,9 +276,10 @@ Keep one unit per claim/PR, even if one worker handles several sequentially.
 | B | `transform.cpp` — 127 lines; delivered PR #82 | Sol found no implementation defect; local-reference prose fixed at `b2918f6b31`. Final-head hosted CI pending. |
 | C | `arc_construction.cpp` — 207 lines; delivered PR #85 | Sol found no source correctness defect; co-port owner notes fixed at `eaa34442d1`. Final-head hosted reference CI pending. |
 | D | `distribute.cpp` — 89 lines; delivered PR #84 | Sol independently replayed all 2,758 cases and 679 controls at `33fa41f687` without findings; hosted reference CI pending. |
-| E | `poisson_disk.cpp` — 143 lines; Opus active | Reproduce Boost MT19937, distribution algorithms, draw/evaluation order, trig bits and ordered samples. Bound tiny-radius storage/work; spacing alone is insufficient evidence. |
+| E | `poisson_disk.cpp` — 143 lines; delivered PR #87 | Sol found no correctness defect in sampling, RNG or resource handling. Qualification prose fixed at `bed62f0c5b`; final-head hosted CI pending. |
 | F | `vector2wx.h` — 56 lines; delivered PR #86 | Sol found no correctness blocker; wasm evidence comment corrected at `3861aaa7b2`. Final-head hosted CI pending. |
 | G | Unix `policy.cpp` — 35 lines; Opus active | Two genuine constant-return platform bodies; retain the ignored key argument without importing wxString behavior. No recorded hard dependencies. |
+| H | Unix `drivers.cpp` + `sysinfo.cpp` — 70 lines; Opus active | Six genuine platform bodies; false results with unchanged, initialized output parameters, empty lifecycle and no synthetic OS queries. No recorded hard dependencies. |
 
 Ellipse's local GCC 15.2/glibc 2.43 comparison reports 2,239 cases: 2,103 exact,
 136 deferred (100 logging and 36 hypot), zero failures, plus 234 identical
@@ -390,6 +391,27 @@ the two functions in Unix policy.cpp. Both ignore their wxString argument,
 returning NOT_CONFIGURED and nullopt. Preserve the parameter through a minimal
 host-boundary value without adopting the unaccepted wxString model or porting
 the separate policy header's template body.
+
+Poisson disk PR #87 delivered at `1ce518fe29`, reporting 499 exact public
+cases, 57 matching refusals with successful followups, eight exact sample-limit
+probes and 613 native/wasm replies. Sol found no concrete defect in the complete
+sampling body, Boost RNG/distributions, resource bounds or oracle adapter.
+It independently passed 80 tests (four preexisting reference tests ignored) and
+generator verification for 499 cases plus 114 control requests. It did not
+independently rebuild the C++ oracle or execute wasm parity.
+Documentation-only `bed62f0c5b3f8b1d5b90336323d89bf27762a1e6` removes the
+categorical target-identity claim: draw order was observed with local GCC 15.2,
+and the local Boost 1.90/glibc 2.43 run does not certify the target GCC 13 /
+Boost 1.83 / glibc 2.39 environment. Final-head hosted checks remain required.
+The new GPL/Boost-licensed random crate and source provenance require continued
+review when its consumers expand beyond this qualified engine/distribution use.
+
+The freed stream takes `libs.kiplatform.os.unix.application.pure.p001`:
+Valid3DConnexionDriverVersion, the empty SYSINFO constructor/destructor and
+three SYSINFO queries. The pinned Unix bodies genuinely return false and leave
+outputs untouched; fixtures must initialize every field before observation.
+Keep complete output values and lifecycle observable without inventing system
+queries or default initialization for uninitialized C++ aggregate fields.
 
 Poisson disk is short but less predictable than its line count suggests.
 Check the pinned sources rather than the moving upstream version: even random
