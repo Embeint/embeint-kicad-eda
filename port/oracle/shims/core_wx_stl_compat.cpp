@@ -3,28 +3,39 @@
 // the pinned libs/core/wx_stl_compat.cpp, compiled into KiCad's own core library and linked
 // here (std::less<wxPoint>::operator(), TowxString and the wxSize/wxPoint stream insertions),
 // on the distribution wxWidgets 3.2 wchar_t build. Only validation, conversion, the caller's
-// stream setup and serialization live here; every result comes from the library bodies.
-// The schema is in rust/kicad-wx-stl-compat-shim/README.md; the Rust adapter mirrors this
-// file's validation order and messages.
+// program around the stream (its buffer, an optional throwing num_put facet and an optional
+// tied stream), process isolation and serialization live here; every result comes from the
+// library bodies and the distribution libstdc++. The schema is in
+// rust/kicad-wx-stl-compat-shim/README.md; the Rust adapter mirrors this file's validation
+// order and messages.
 #include "registry.h"
 #include <core/wx_stl_compat.h>
 #include <wx/gdicmn.h>
 #include <wx/string.h>
 #include <algorithm>
+#include <cerrno>
 #include <climits>
 #include <clocale>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
+#include <exception>
+#include <fcntl.h>
+#include <functional>
 #include <initializer_list>
 #include <ios>
+#include <iostream>
 #include <locale>
 #include <map>
+#include <new>
 #include <ostream>
 #include <stdexcept>
 #include <streambuf>
 #include <string>
 #include <string_view>
+#include <sys/wait.h>
 #include <type_traits>
+#include <unistd.h>
 #include <vector>
 
 #if !wxUSE_UNICODE_WCHAR
@@ -47,6 +58,10 @@ constexpr size_t  MAX_VIEW = 4096;
 constexpr size_t  MAX_GROUPING = 16;
 constexpr size_t  MAX_SINK_CAPACITY = size_t( 1 ) << 20;
 constexpr int64_t MAX_UNBOUNDED_WIDTH = int64_t( 1 ) << 20;
+constexpr int64_t MAX_SCRIPT_CALL = 64;
+// One insertion logs at most 30 events (five sentries, each with two tied syncs, three
+// buffer or facet events and one destructor sync); the trace refuses beyond this.
+constexpr size_t  MAX_EVENTS = 64;
 
 [[noreturn]] void Fail( const std::string& aMessage )
 {
@@ -276,13 +291,32 @@ private:
 };
 
 
+class SINK;
+
+/// The trace of host calls, shared by the main buffer, the tied buffer and the facet. Each
+/// event is [kind, n, detail], n being the bytes the main buffer held at the time.
+struct EVENTS
+{
+    const SINK* main = nullptr;
+    JSON        list = JSON::array();
+    bool        overrun = false;
+
+    void Log( const char* aKind, const JSON& aDetail );
+};
+
+
 /// The caller's stream buffer: no put area, so sputc and the default xsputn reach
 /// overflow() byte by byte; it accepts up to a capacity, then returns eof(). sync() counts
-/// its calls and returns -1 when configured to fail.
+/// its calls and returns -1 when configured to fail. The overflow and sync calls with the
+/// scripted 0-based indexes throw std::runtime_error instead.
 class SINK : public std::streambuf
 {
 public:
-    SINK( size_t aCapacity, bool aSyncFails ) : m_capacity( aCapacity ), m_syncFails( aSyncFails ) {}
+    SINK( size_t aCapacity, bool aSyncFails, int64_t aOverflowThrow, int64_t aSyncThrow,
+          EVENTS& aEvents, const char* aSyncName ) :
+            m_capacity( aCapacity ), m_syncFails( aSyncFails ), m_overflowThrow( aOverflowThrow ),
+            m_syncThrow( aSyncThrow ), m_events( aEvents ), m_syncName( aSyncName )
+    {}
 
     const std::string& Bytes() const { return m_bytes; }
     uint64_t           SyncCalls() const { return m_syncCalls; }
@@ -293,8 +327,19 @@ protected:
         if( traits_type::eq_int_type( aChar, traits_type::eof() ) )
             return traits_type::not_eof( aChar );
 
+        const uint64_t index = m_overflowCalls++;
+
+        if( m_overflowThrow >= 0 && index == static_cast<uint64_t>( m_overflowThrow ) )
+        {
+            m_events.Log( "throw", "overflow" );
+            throw std::runtime_error( "overflow" );
+        }
+
         if( m_bytes.size() >= m_capacity )
+        {
+            m_events.Log( "eof", static_cast<int>( static_cast<unsigned char>( aChar ) ) );
             return traits_type::eof();
+        }
 
         m_bytes.push_back( traits_type::to_char_type( aChar ) );
         return aChar;
@@ -302,16 +347,213 @@ protected:
 
     int sync() override
     {
-        ++m_syncCalls;
-        return m_syncFails ? -1 : 0;
+        const uint64_t index = m_syncCalls++;
+
+        if( m_syncThrow >= 0 && index == static_cast<uint64_t>( m_syncThrow ) )
+        {
+            m_events.Log( "throw", m_syncName );
+            throw std::runtime_error( m_syncName );
+        }
+
+        const int result = m_syncFails ? -1 : 0;
+        m_events.Log( m_syncName, result );
+        return result;
     }
 
 private:
     size_t      m_capacity;
     bool        m_syncFails;
+    int64_t     m_overflowThrow;
+    int64_t     m_syncThrow;
+    EVENTS&     m_events;
+    const char* m_syncName;
     std::string m_bytes;
+    uint64_t    m_overflowCalls = 0;
     uint64_t    m_syncCalls = 0;
 };
+
+
+void EVENTS::Log( const char* aKind, const JSON& aDetail )
+{
+    if( list.size() >= MAX_EVENTS )
+    {
+        overrun = true;
+        return;
+    }
+
+    list.push_back( JSON::array( { aKind, main ? main->Bytes().size() : 0, aDetail } ) );
+}
+
+
+/// A num_put<char> whose do_put( long ) call with the scripted 0-based index throws
+/// std::runtime_error, before or after the runtime's own num_put<char>::do_put (an extern
+/// template, so the distribution libstdc++'s body and numpunct cache run).
+class NUM_PUT : public std::num_put<char>
+{
+public:
+    NUM_PUT( int64_t aCall, bool aAfter, EVENTS& aEvents ) :
+            m_call( aCall ), m_after( aAfter ), m_events( aEvents )
+    {}
+
+protected:
+    iter_type do_put( iter_type aOut, std::ios_base& aIo, char aFill, long aValue ) const override
+    {
+        const uint64_t index = m_calls++;
+        const bool     throws = index == static_cast<uint64_t>( m_call );
+        m_events.Log( "do_put", static_cast<int64_t>( aValue ) );
+
+        if( throws && !m_after )
+        {
+            m_events.Log( "throw", "num_put" );
+            throw std::runtime_error( "num_put" );
+        }
+
+        iter_type out = std::num_put<char>::do_put( aOut, aIo, aFill, aValue );
+
+        if( throws )
+        {
+            m_events.Log( "throw", "num_put" );
+            throw std::runtime_error( "num_put" );
+        }
+
+        return out;
+    }
+
+private:
+    int64_t          m_call;
+    bool             m_after;
+    EVENTS&          m_events;
+    mutable uint64_t m_calls = 0;
+};
+
+
+/// A scripted call index: null (none) or an integer in [0, aMax].
+int64_t CallIndex( const JSON& aValue, int64_t aMax, const char* aMessage )
+{
+    int64_t index = -1;
+
+    if( !aValue.is_null() && !Integer( aValue, 0, aMax, index ) )
+        Fail( aMessage );
+
+    return index;
+}
+
+
+/// The reply for the state reached, from the child or its terminate handler.
+std::function<JSON()>* g_terminateReport = nullptr;
+
+
+[[noreturn]] void WriteAndExit( int aFd, const JSON& aReply )
+{
+    const std::string text = aReply.dump();
+    size_t            done = 0;
+
+    while( done < text.size() )
+    {
+        const ssize_t wrote = write( aFd, text.data() + done, text.size() - done );
+
+        if( wrote < 0 && errno == EINTR )
+            continue;
+
+        if( wrote <= 0 )
+            _exit( 4 );
+
+        done += static_cast<size_t>( wrote );
+    }
+
+    _exit( 0 );
+}
+
+
+int g_replyFd = -1;
+
+
+/// The reference process calls std::terminate when a sentry destructor throws (libstdc++ 14:
+/// a throwing or failing sync() with badbit in exceptions()). The child reports the state
+/// reached at that moment instead of the default handler's abort.
+[[noreturn]] void ReportTermination()
+{
+    if( !g_terminateReport )
+        _exit( 4 );
+
+    WriteAndExit( g_replyFd, ( *g_terminateReport )() );
+}
+
+
+/// Runs aRun in a child process, which writes its reply to a pipe. Every insertion runs this
+/// way so that a std::terminate inside it is observed, not fatal to the oracle.
+JSON Isolated( const std::function<JSON()>& aRun )
+{
+    int pipeFds[2];
+
+    if( pipe( pipeFds ) != 0 )
+        throw std::runtime_error( "insertion pipe failed" );
+
+    std::cout.flush();
+    std::cerr.flush();
+    std::fflush( nullptr );
+    const pid_t pid = fork();
+
+    if( pid < 0 )
+        throw std::runtime_error( "insertion fork failed" );
+
+    if( pid == 0 )
+    {
+        close( pipeFds[0] );
+        const int null = open( "/dev/null", O_WRONLY );
+
+        if( null >= 0 )
+            dup2( null, STDOUT_FILENO );
+
+        g_replyFd = pipeFds[1];
+        std::set_terminate( ReportTermination );
+
+        try
+        {
+            WriteAndExit( pipeFds[1], aRun() );
+        }
+        catch( ... )
+        {
+            _exit( 4 );
+        }
+    }
+
+    close( pipeFds[1] );
+    std::string text;
+    char        chunk[4096];
+
+    for( ;; )
+    {
+        const ssize_t got = read( pipeFds[0], chunk, sizeof( chunk ) );
+
+        if( got < 0 && errno == EINTR )
+            continue;
+
+        if( got <= 0 )
+            break;
+
+        text.append( chunk, static_cast<size_t>( got ) );
+    }
+
+    close( pipeFds[0] );
+    int status = 0;
+
+    while( waitpid( pid, &status, 0 ) < 0 )
+    {
+        if( errno != EINTR )
+            throw std::runtime_error( "insertion wait failed" );
+    }
+
+    if( !WIFEXITED( status ) || WEXITSTATUS( status ) != 0 || text.empty() )
+        throw std::runtime_error( "insertion child failed" );
+
+    JSON reply = JSON::parse( text );
+
+    if( reply.contains( "_overrun" ) )
+        Fail( "event limit exceeded" );
+
+    return reply;
+}
 
 
 template <typename VALUE>
@@ -320,9 +562,22 @@ JSON Insert( const JSON& aInput )
     Keys( aInput, { "op", "value", "stream" }, "unexpected or missing field" );
     const auto [x, y] = Point( aInput.at( "value" ) );
     const JSON& s = aInput.at( "stream" );
-    Keys( s, { "state", "exceptions", "flags", "width", "precision", "fill", "thousands_sep",
-               "grouping", "capacity", "sync_fails" },
-          "unexpected or missing stream field" );
+
+    // Ten required fields and an optional "host".
+    if( !s.is_object() )
+        Fail( "unexpected or missing stream field" );
+
+    const bool scripted = s.contains( "host" );
+
+    if( s.size() != 10 + ( scripted ? 1 : 0 ) )
+        Fail( "unexpected or missing stream field" );
+
+    for( const char* field : { "state", "exceptions", "flags", "width", "precision", "fill",
+                               "thousands_sep", "grouping", "capacity", "sync_fails" } )
+    {
+        if( !s.contains( field ) )
+            Fail( "unexpected or missing stream field" );
+    }
 
     const std::ios::iostate  state = Names<std::ios::iostate>( s.at( "state" ), IOSTATE, "expected iostate" );
     const std::ios::iostate  mask = Names<std::ios::iostate>( s.at( "exceptions" ), IOSTATE, "expected iostate" );
@@ -354,53 +609,183 @@ JSON Insert( const JSON& aInput )
 
     const bool syncFails = s.at( "sync_fails" ).get<bool>();
 
-    // Setting such a mask on such a state throws from exceptions( mask ).
-    if( state & mask )
-        Fail( "state intersects exceptions" );
+    // The host scripts: which overflow/sync/do_put call throws, and the tied stream.
+    int64_t            overflowThrow = -1;
+    int64_t            syncThrow = -1;
+    int64_t            putCall = -1;
+    bool               putAfter = false;
+    bool               tied = false;
+    std::ios::iostate  tieState{};
+    std::ios::iostate  tieMask{};
+    std::ios::fmtflags tieFlags{};
+    bool               tieSyncFails = false;
+    int64_t            tieSyncThrow = -1;
 
-    // On the reference runtime ~sentry would call pubsync(), fail, and throw badbit from a
-    // noexcept destructor: std::terminate.
-    if( ( flags & std::ios::unitbuf ) && syncFails && ( mask & std::ios::badbit ) )
-        Fail( "sentry destructor would terminate" );
+    if( scripted )
+    {
+        const JSON& host = s.at( "host" );
+        Keys( host, { "overflow_throw", "sync_throw", "num_put", "tie" }, "unexpected or missing host field" );
+        overflowThrow = CallIndex( host.at( "overflow_throw" ), static_cast<int64_t>( MAX_SINK_CAPACITY ),
+                                   "expected overflow_throw" );
+        syncThrow = CallIndex( host.at( "sync_throw" ), MAX_SCRIPT_CALL, "expected sync_throw" );
+        const JSON& put = host.at( "num_put" );
+
+        if( !put.is_null() )
+        {
+            Keys( put, { "call", "throw" }, "expected num_put" );
+
+            if( !Integer( put.at( "call" ), 0, MAX_SCRIPT_CALL, putCall ) || !put.at( "throw" ).is_string() )
+                Fail( "expected num_put" );
+
+            const std::string& when = put.at( "throw" ).get_ref<const std::string&>();
+
+            if( when != "before" && when != "after" )
+                Fail( "expected num_put" );
+
+            putAfter = when == "after";
+        }
+
+        const JSON& tie = host.at( "tie" );
+
+        if( !tie.is_null() )
+        {
+            Keys( tie, { "state", "exceptions", "flags", "sync_fails", "sync_throw" },
+                  "unexpected or missing tie field" );
+            tied = true;
+            tieState = Names<std::ios::iostate>( tie.at( "state" ), IOSTATE, "expected iostate" );
+            tieMask = Names<std::ios::iostate>( tie.at( "exceptions" ), IOSTATE, "expected iostate" );
+            tieFlags = Names<std::ios::fmtflags>( tie.at( "flags" ), FMTFLAGS, "expected fmtflags" );
+
+            if( !tie.at( "sync_fails" ).is_boolean() )
+                Fail( "expected sync_fails" );
+
+            tieSyncFails = tie.at( "sync_fails" ).get<bool>();
+            tieSyncThrow = CallIndex( tie.at( "sync_throw" ), MAX_SCRIPT_CALL, "expected sync_throw" );
+        }
+    }
 
     if( !bounded && width > MAX_UNBOUNDED_WIDTH )
         Fail( "unbounded width exceeds limit" );
 
-    SINK         sink( bounded ? static_cast<size_t>( capacity ) : SIZE_MAX, syncFails );
-    std::ostream out( &sink );
-    out.imbue( std::locale( std::locale::classic(), new NUMPUNCT( separator, grouping ) ) );
-    out.flags( flags );
-    out.width( width );
-    out.precision( precision );
-    out.fill( fill );
-    out.clear( state );
-    out.exceptions( mask );
+    return Isolated(
+            [&]() -> JSON
+            {
+                EVENTS events;
+                SINK   sink( bounded ? static_cast<size_t>( capacity ) : SIZE_MAX, syncFails, overflowThrow,
+                             syncThrow, events, "sync" );
+                events.main = &sink;
 
-    const VALUE value( x, y );
-    bool        threw = false;
-    bool        same = false;
+                // The tied stream: its flags, clear( state ), then exceptions( mask ), whose
+                // throw leaves the mask set and is caught.
+                SINK         tieSink( SIZE_MAX, tieSyncFails, -1, tieSyncThrow, events, "tie_sync" );
+                std::ostream tiedStream( &tieSink );
+                bool         tieSetupFailure = false;
 
-    try
-    {
-        std::ostream& ( *insert )( std::ostream&, const VALUE& ) = &operator<<;
-        same = &insert( out, value ) == &out;
-    }
-    catch( const std::ios_base::failure& )
-    {
-        threw = true;
-        same = true;
-    }
+                if( tied )
+                {
+                    tiedStream.flags( tieFlags );
+                    tiedStream.clear( tieState );
 
-    return JSON{ { "bytes", Hex( sink.Bytes() ) },
-                 { "exceptions", EmitNames( out.exceptions(), IOSTATE ) },
-                 { "fill", static_cast<int>( static_cast<unsigned char>( out.fill() ) ) },
-                 { "flags", EmitNames( out.flags(), FMTFLAGS ) },
-                 { "outcome", threw ? "ios_failure" : "returned" },
-                 { "precision", static_cast<int64_t>( out.precision() ) },
-                 { "same_stream", same },
-                 { "state", EmitNames( out.rdstate(), IOSTATE ) },
-                 { "sync_calls", sink.SyncCalls() },
-                 { "width", static_cast<int64_t>( out.width() ) } };
+                    try
+                    {
+                        tiedStream.exceptions( tieMask );
+                    }
+                    catch( const std::ios_base::failure& )
+                    {
+                        tieSetupFailure = true;
+                    }
+                }
+
+                std::ostream out( &sink );
+                std::locale  locale( std::locale::classic(), new NUMPUNCT( separator, grouping ) );
+
+                if( putCall >= 0 )
+                    locale = std::locale( locale, new NUM_PUT( putCall, putAfter, events ) );
+
+                out.imbue( locale );
+                out.flags( flags );
+                out.width( width );
+                out.precision( precision );
+                out.fill( fill );
+
+                if( tied )
+                    out.tie( &tiedStream );
+
+                out.clear( state );
+                bool setupFailure = false;
+
+                try
+                {
+                    out.exceptions( mask );
+                }
+                catch( const std::ios_base::failure& )
+                {
+                    setupFailure = true;
+                }
+
+                auto report = [&]( const char* aOutcome, const char* aWhat, bool aSame ) -> JSON
+                {
+                    JSON reply{ { "bytes", Hex( sink.Bytes() ) },
+                                { "exceptions", EmitNames( out.exceptions(), IOSTATE ) },
+                                { "fill", static_cast<int>( static_cast<unsigned char>( out.fill() ) ) },
+                                { "flags", EmitNames( out.flags(), FMTFLAGS ) },
+                                { "outcome", aOutcome },
+                                { "precision", static_cast<int64_t>( out.precision() ) },
+                                { "same_stream", aSame },
+                                { "state", EmitNames( out.rdstate(), IOSTATE ) },
+                                { "sync_calls", sink.SyncCalls() },
+                                { "width", static_cast<int64_t>( out.width() ) } };
+
+                    if( setupFailure )
+                        reply["setup_failure"] = true;
+
+                    if( aWhat )
+                        reply["what"] = aWhat;
+
+                    if( scripted )
+                    {
+                        reply["events"] = events.list;
+
+                        if( tied )
+                        {
+                            reply["tie"] = JSON{ { "exceptions", EmitNames( tiedStream.exceptions(), IOSTATE ) },
+                                                 { "setup_failure", tieSetupFailure },
+                                                 { "state", EmitNames( tiedStream.rdstate(), IOSTATE ) },
+                                                 { "sync_calls", tieSink.SyncCalls() } };
+                        }
+                    }
+
+                    if( events.overrun )
+                        reply["_overrun"] = true;
+
+                    return reply;
+                };
+
+                std::function<JSON()> onTerminate = [&]() { return report( "terminate", nullptr, true ); };
+                g_terminateReport = &onTerminate;
+                const VALUE value( x, y );
+
+                try
+                {
+                    std::ostream& ( *insert )( std::ostream&, const VALUE& ) = &operator<<;
+                    const bool same = &insert( out, value ) == &out;
+                    return report( "returned", nullptr, same );
+                }
+                catch( const std::ios_base::failure& )
+                {
+                    return report( "ios_failure", nullptr, true );
+                }
+                catch( const std::runtime_error& error )
+                {
+                    // Copied: what() of the propagated object itself.
+                    const std::string what = error.what();
+                    return report( "runtime_error", what.c_str(), true );
+                }
+                catch( const std::bad_alloc& )
+                {
+                    return report( "bad_alloc", nullptr, true );
+                }
+            } );
 }
 
 

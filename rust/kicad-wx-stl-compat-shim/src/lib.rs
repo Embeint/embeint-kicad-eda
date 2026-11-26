@@ -12,7 +12,7 @@ use kicad_math::stream::FmtFlags;
 use kicad_wx_stl_compat::less::{less_wx_point, WxPointKey};
 use kicad_wx_stl_compat::ostream::{
     insert_wx_point, insert_wx_size, InsertError, IoState, NumPunct, OStream, SentryFlush,
-    StreamBuf, MAX_SINK_CAPACITY, MAX_UNBOUNDED_WIDTH,
+    MAX_SINK_CAPACITY, MAX_UNBOUNDED_WIDTH,
 };
 use kicad_wx_stl_compat::to_wx_string::{to_wx_string, LibcCtype};
 use kicad_wx_stl_compat::{WxPoint, WxSize};
@@ -20,12 +20,18 @@ use serde_json::{json, Value};
 
 pub use kicad_wx_stl_compat::UNIT;
 
+pub mod host;
+
+use host::{CallIndex, HostException, PutScript, Sink, TieSink};
+
 /// Largest `std::map<wxPoint, int>` request.
 pub const MAX_ENTRIES: usize = 256;
 /// Largest `std::string_view`, in bytes.
 pub const MAX_VIEW: usize = 4096;
 /// Largest `numpunct::grouping()` string.
 pub const MAX_GROUPING: usize = 16;
+/// Largest scripted `sync()` or `do_put` call index.
+pub const MAX_SCRIPT_CALL: u64 = 64;
 
 const IOSTATE: [&str; 3] = ["bad", "eof", "fail"];
 const FMTFLAGS: [&str; 15] = [
@@ -57,6 +63,8 @@ const STREAM_FIELDS: [&str; 10] = [
     "capacity",
     "sync_fails",
 ];
+const HOST_FIELDS: [&str; 4] = ["overflow_throw", "sync_throw", "num_put", "tie"];
+const TIE_FIELDS: [&str; 5] = ["state", "exceptions", "flags", "sync_fails", "sync_throw"];
 
 type Result<T> = core::result::Result<T, String>;
 
@@ -240,10 +248,99 @@ fn capacity(v: &Value) -> Result<Option<usize>> {
         .ok_or_else(|| "expected capacity".into())
 }
 
-/// The caller's stream, configured as the C++ adapter configures it: buffer, imbued
-/// `numpunct`, flags, width, precision, fill, `clear( state )`, then `exceptions( mask )`.
-fn stream(v: &Value, flush: SentryFlush) -> Result<OStream> {
-    keys(v, &STREAM_FIELDS, "unexpected or missing stream field")?;
+/// A scripted call index in `[0, maximum]`, or `null` for none.
+fn call_index(v: &Value, maximum: u64, message: &str) -> Result<CallIndex> {
+    if v.is_null() {
+        return Ok(None);
+    }
+    v.as_u64()
+        .filter(|&n| n <= maximum)
+        .map(Some)
+        .ok_or_else(|| message.to_string())
+}
+
+/// The tied stream's configuration.
+struct TieConfig {
+    state: IoState,
+    exceptions: IoState,
+    flags: FmtFlags,
+    sync_fails: bool,
+    sync_throw: CallIndex,
+}
+
+/// The `host` object: the buffer, facet and tie scripts.
+struct HostConfig {
+    overflow_throw: CallIndex,
+    sync_throw: CallIndex,
+    put: Option<PutScript>,
+    tie: Option<TieConfig>,
+}
+
+fn host_config(v: &Value) -> Result<HostConfig> {
+    keys(v, &HOST_FIELDS, "unexpected or missing host field")?;
+    let overflow_throw = call_index(
+        &v["overflow_throw"],
+        MAX_SINK_CAPACITY as u64,
+        "expected overflow_throw",
+    )?;
+    let sync_throw = call_index(&v["sync_throw"], MAX_SCRIPT_CALL, "expected sync_throw")?;
+    let put = match &v["num_put"] {
+        Value::Null => None,
+        put => {
+            keys(put, &["call", "throw"], "expected num_put")?;
+            let call = call_index(&put["call"], MAX_SCRIPT_CALL, "expected num_put")?
+                .ok_or("expected num_put")?;
+            let after = match put["throw"].as_str() {
+                Some("before") => false,
+                Some("after") => true,
+                _ => return Err("expected num_put".into()),
+            };
+            Some(PutScript { call, after })
+        }
+    };
+    let tie = match &v["tie"] {
+        Value::Null => None,
+        tie => {
+            keys(tie, &TIE_FIELDS, "unexpected or missing tie field")?;
+            Some(TieConfig {
+                state: iostate(&tie["state"])?,
+                exceptions: iostate(&tie["exceptions"])?,
+                flags: fmtflags(&tie["flags"])?,
+                sync_fails: tie["sync_fails"].as_bool().ok_or("expected sync_fails")?,
+                sync_throw: call_index(&tie["sync_throw"], MAX_SCRIPT_CALL, "expected sync_throw")?,
+            })
+        }
+    };
+    Ok(HostConfig {
+        overflow_throw,
+        sync_throw,
+        put,
+        tie,
+    })
+}
+
+/// The caller's stream after its setup.
+struct Setup {
+    out: OStream<Sink>,
+    /// `exceptions( mask )` threw `ios_base::failure` (caught; the stream stays usable).
+    setup_failure: bool,
+    /// The same for the tied stream.
+    tie_setup_failure: bool,
+    /// A `host` object was given: the reply adds the trace and the tie.
+    scripted: bool,
+}
+
+/// The caller's stream, configured as the C++ adapter configures it: buffer, the tied
+/// stream (flags, `clear( state )`, then `exceptions( mask )`, whose throw is caught), the
+/// imbued `numpunct` (and scripted `num_put`), flags, width, precision, fill, `tie`,
+/// `clear( state )`, then `exceptions( mask )`, whose throw is caught.
+fn stream(v: &Value, flush: SentryFlush) -> Result<Setup> {
+    let fields = v.as_object().ok_or("unexpected or missing stream field")?;
+    let scripted = fields.contains_key("host");
+    let expected = STREAM_FIELDS.len() + usize::from(scripted);
+    if fields.len() != expected || STREAM_FIELDS.iter().any(|f| !fields.contains_key(*f)) {
+        return Err("unexpected or missing stream field".into());
+    }
     let state = iostate(&v["state"])?;
     let exceptions = iostate(&v["exceptions"])?;
     let flags = fmtflags(&v["flags"])?;
@@ -254,32 +351,44 @@ fn stream(v: &Value, flush: SentryFlush) -> Result<OStream> {
     let grouping = grouping(&v["grouping"])?;
     let capacity = capacity(&v["capacity"])?;
     let sync_fails = v["sync_fails"].as_bool().ok_or("expected sync_fails")?;
-    // Constructing such a stream throws from exceptions( mask ).
-    if state.intersects(exceptions) {
-        return Err("state intersects exceptions".into());
-    }
-    // ~sentry would call std::terminate on the reference runtime.
-    if flags.unitbuf && sync_fails && exceptions.bad {
-        return Err("sentry destructor would terminate".into());
-    }
+    let host = if scripted {
+        Some(host_config(&v["host"])?)
+    } else {
+        None
+    };
     if capacity.is_none() && width > MAX_UNBOUNDED_WIDTH {
         return Err("unbounded width exceeds limit".into());
     }
-    let buf = StreamBuf::new(capacity, sync_fails).map_err(|_| "expected capacity")?;
-    let mut out = OStream::new(buf);
-    out.numpunct = NumPunct {
-        thousands_sep,
-        grouping,
-    };
+    let (overflow_throw, sync_throw, put) = host.as_ref().map_or((None, None, None), |h| {
+        (h.overflow_throw, h.sync_throw, h.put)
+    });
+    let mut sink = Sink::new(capacity, sync_fails, overflow_throw, sync_throw, put)
+        .map_err(|_| "expected capacity")?;
+    let mut tie_setup_failure = false;
+    if let Some(tie) = host.and_then(|h| h.tie) {
+        let mut tied = OStream::new(TieSink::new(tie.sync_fails, tie.sync_throw));
+        tied.sentry_flush = flush;
+        tied.flags = tie.flags;
+        // clear() cannot throw before a mask is set.
+        let _ = tied.clear(tie.state);
+        tie_setup_failure = tied.set_exceptions(tie.exceptions).is_err();
+        sink.set_tie(tied);
+    }
+    let mut out = OStream::new(sink);
+    out.numpunct = NumPunct::new(thousands_sep, &grouping);
     out.sentry_flush = flush;
     out.flags = flags;
     out.width = width;
     out.precision = precision;
     out.fill = fill;
-    out.clear(state)
-        .and_then(|()| out.set_exceptions(exceptions))
-        .map_err(|_| "state intersects exceptions")?;
-    Ok(out)
+    let _ = out.clear(state);
+    let setup_failure = out.set_exceptions(exceptions).is_err();
+    Ok(Setup {
+        out,
+        setup_failure,
+        tie_setup_failure,
+        scripted,
+    })
 }
 
 fn insert(input: &Value, flush: SentryFlush, size: bool) -> Result<Value> {
@@ -289,22 +398,37 @@ fn insert(input: &Value, flush: SentryFlush, size: bool) -> Result<Value> {
         "unexpected or missing field",
     )?;
     let (x, y) = point(&input["value"])?;
-    let mut out = stream(&input["stream"], flush)?;
-    let start: *const OStream = &out;
+    let Setup {
+        mut out,
+        setup_failure,
+        tie_setup_failure,
+        scripted,
+    } = stream(&input["stream"], flush)?;
+    let start: *const OStream<Sink> = &out;
     let reply = if size {
         insert_wx_size(&mut out, &WxSize::new(x, y)).map(|r| core::ptr::eq(r, start))
     } else {
         insert_wx_point(&mut out, &WxPoint::new(x, y)).map(|r| core::ptr::eq(r, start))
     };
+    let mut what = None;
     let (outcome, same) = match reply {
         Ok(same) => ("returned", same),
         Err(InsertError::Failure) => ("ios_failure", true),
+        Err(InsertError::Host(HostException::Runtime(message))) => {
+            what = Some(message);
+            ("runtime_error", true)
+        }
+        Err(InsertError::Host(HostException::BadAlloc)) => ("bad_alloc", true),
+        Err(InsertError::Terminate) => ("terminate", true),
         // Refused up front by the adapter contract; never reached.
-        Err(InsertError::Terminate) => return Err("sentry destructor would terminate".into()),
         Err(InsertError::Refused(_)) => return Err("unbounded width exceeds limit".into()),
     };
-    Ok(json!({
-        "bytes": hex(out.buf().bytes()),
+    let sink = out.host();
+    if sink.overrun() {
+        return Err("event limit exceeded".into());
+    }
+    let mut result = json!({
+        "bytes": hex(sink.bytes()),
         "exceptions": iostate_json(out.exceptions()),
         "fill": out.fill,
         "flags": fmtflags_json(&out.flags),
@@ -312,9 +436,27 @@ fn insert(input: &Value, flush: SentryFlush, size: bool) -> Result<Value> {
         "precision": out.precision,
         "same_stream": same,
         "state": iostate_json(out.rdstate()),
-        "sync_calls": out.buf().sync_calls(),
+        "sync_calls": sink.sync_calls(),
         "width": out.width,
-    }))
+    });
+    if setup_failure {
+        result["setup_failure"] = json!(true);
+    }
+    if let Some(message) = what {
+        result["what"] = json!(message);
+    }
+    if scripted {
+        result["events"] = sink.events_json();
+        if let Some(tie) = sink.tie() {
+            result["tie"] = json!({
+                "exceptions": iostate_json(tie.exceptions()),
+                "setup_failure": tie_setup_failure,
+                "state": iostate_json(tie.rdstate()),
+                "sync_calls": tie.host().sync_calls(),
+            });
+        }
+    }
+    Ok(result)
 }
 
 fn run(v: &Value, flush: SentryFlush) -> Result<Value> {
@@ -418,4 +560,4 @@ pub fn dispatch_with(line: &str, flush: SentryFlush) -> Value {
 }
 
 /// The number of requests in the committed public corpus.
-pub const CORPUS_CASES: usize = 3329;
+pub const CORPUS_CASES: usize = 4719;

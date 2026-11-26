@@ -13,10 +13,14 @@ Operations (schema in README.md):
 The corpus crosses 32-bit boundary values, every single byte and the boundary,
 overlong, surrogate, truncated and NUL-split forms of the C library's decoders, and the
 stream states, flags, widths, fills, groupings, short buffers, exception masks and
-unitbuf/sync combinations that change the insertions' observable result. Requests whose
-answer differs between libstdc++ runtimes (unitbuf on a stream that is not good: the number
-of sync calls, and badbit when sync fails) are ordinary cases: the reference runtime decides
-them.
+unitbuf/sync combinations that change the insertions' observable result. After those come
+the defined paths the first corpus left out: the destructor flush that terminates the
+reference process (and the failing first writes that unwind past it), states the mask
+intersects (setup's exception caught, then the insertion), and scripted host operations: a
+buffer overflow, a sync() or the num_put facet's do_put throwing std::runtime_error at a
+given call, and a tied stream with its own state, mask, unitbuf and sync. Requests whose
+answer differs between libstdc++ runtimes (the unitbuf destructor) are ordinary cases: the
+reference runtime decides them.
 
 Malformed and out-of-contract requests are written to a separate fixture with the exact
 refusal both programs must give; they never enter the public corpus.
@@ -44,6 +48,8 @@ MAX_CAPACITY = 1 << 20
 def stream(**changes):
     base = {'state': [], 'exceptions': [], 'flags': ['dec', 'skipws'], 'width': 0, 'precision': 6,
             'fill': 32, 'thousands_sep': 44, 'grouping': [], 'capacity': None, 'sync_fails': False}
+    if 'host' in changes:
+        base['host'] = None
     unknown = set(changes) - set(base)
     if unknown:
         raise ValueError(unknown)
@@ -302,6 +308,171 @@ def insert_cases(c, rng):
         insert(c, f'{tag}-no-unitbuf-sync-fails-mask-bad', op, (7, -8), sync_fails=True, exceptions=['bad'])
 
 
+LITERAL = {'size': len(b' width="'), 'point': len(b' x="')}
+OPS = [('size', 'insert_size'), ('point', 'insert_point')]
+
+
+def host(overflow_throw=None, sync_throw=None, num_put=None, tie=None):
+    return {'overflow_throw': overflow_throw, 'sync_throw': sync_throw, 'num_put': num_put, 'tie': tie}
+
+
+def tie_stream(state=(), exceptions=(), flags=(), sync_fails=False, sync_throw=None):
+    return {'state': list(state), 'exceptions': list(exceptions), 'flags': list(flags),
+            'sync_fails': sync_fails, 'sync_throw': sync_throw}
+
+
+def terminate_boundary_cases(c):
+    """Good, unitbuf, a failing sync and badbit in the mask. The reference terminates in the
+    first destructor that runs without unwinding; a first write that does not fit throws
+    ios_base::failure first, and the unwinding destructor skips the flush. The boundary is
+    max(width, literal length) bytes of capacity."""
+    for tag, op in OPS:
+        length = LITERAL[tag]
+        for name, extra in [('right', []), ('left', ['left']), ('internal', ['internal'])]:
+            for width in sorted({0, length - 1, length, length + 1, length + 3}):
+                for capacity in range(0, max(width, length) + 2):
+                    insert(c, f'{tag}-terminate-{name}-w{width}-cap{capacity:02d}', op, (12, -345),
+                           flags=['dec', 'unitbuf'] + extra, width=width, fill=0x2A, capacity=capacity,
+                           sync_fails=True, exceptions=['bad'])
+        for capacity in (None, 3):
+            insert(c, f'{tag}-terminate-unbounded-mask-bad-fail-{capacity}', op, (1, 2),
+                   flags=['dec', 'unitbuf'], capacity=capacity, sync_fails=True, exceptions=['bad', 'fail'])
+        for sname, state in [('eof', ['eof']), ('fail', ['fail']), ('eof-fail', ['eof', 'fail'])]:
+            for capacity in (None, 5):
+                insert(c, f'{tag}-terminate-{sname}-mask-bad-{capacity}', op, (7, -8), state=state,
+                       flags=['dec', 'unitbuf'], capacity=capacity, sync_fails=True, exceptions=['bad'])
+
+
+def setup_failure_cases(c):
+    """A state that intersects the mask: exceptions( mask ) throws during setup, is caught,
+    and the insertion then runs on the stream with that mask."""
+    states = {'eof': ['eof'], 'fail': ['fail'], 'bad': ['bad'], 'eof-fail': ['eof', 'fail'],
+              'bad-eof': ['bad', 'eof'], 'all': ['bad', 'eof', 'fail']}
+    masks = {'eof': ['eof'], 'fail': ['fail'], 'bad': ['bad'], 'bad-fail': ['bad', 'fail'],
+             'all': ['bad', 'eof', 'fail']}
+    flush = {'plain': (['dec'], False), 'unitbuf': (['dec', 'unitbuf'], False),
+             'unitbuf-sync-fails': (['dec', 'unitbuf'], True)}
+    for tag, op in OPS:
+        for sname, state in states.items():
+            for mname, mask in masks.items():
+                if not set(state) & set(mask):
+                    continue
+                for fname, (flags, sync_fails) in flush.items():
+                    insert(c, f'{tag}-setup-{sname}-mask-{mname}-{fname}', op, (3, 4), state=state,
+                           exceptions=mask, flags=flags, sync_fails=sync_fails, width=12)
+
+
+def overflow_throw_cases(c):
+    masks = {'none': [], 'bad': ['bad'], 'fail': ['fail'], 'eof': ['eof']}
+    for tag, op in OPS:
+        full = len((' width="12" height="-345"' if tag == 'size' else ' x="12" y="-345"').encode())
+        for k in range(0, full + 1):
+            for mname, mask in masks.items():
+                insert(c, f'{tag}-overflow-throw-{k:02d}-mask-{mname}', op, (12, -345), exceptions=mask,
+                       host=host(overflow_throw=k))
+        for name, extra in [('right', []), ('left', ['left'])]:
+            for k in (0, 1, 5, 7, 8, 11, 12, 13, 15):
+                for mname in ('none', 'bad'):
+                    insert(c, f'{tag}-overflow-throw-pad-{name}-{k:02d}-mask-{mname}', op, (1, 2),
+                           flags=['dec'] + extra, width=12, fill=0x23, exceptions=masks[mname],
+                           host=host(overflow_throw=k))
+        for k in (0, 4, 9):
+            for capacity in (0, 4, 9):
+                insert(c, f'{tag}-overflow-throw-{k}-cap{capacity}-mask-bad', op, (123, 4), capacity=capacity,
+                       exceptions=['bad'], host=host(overflow_throw=k))
+        for k in (0, 3, 6, 10):
+            for mname in ('none', 'bad'):
+                insert(c, f'{tag}-overflow-throw-{k:02d}-unitbuf-mask-{mname}', op, (12, -345),
+                       flags=['dec', 'unitbuf'], exceptions=masks[mname], host=host(overflow_throw=k))
+        insert(c, f'{tag}-overflow-throw-never', op, (12, -345), host=host(overflow_throw=MAX_CAPACITY))
+
+
+def num_put_cases(c):
+    masks = {'none': [], 'bad': ['bad'], 'fail': ['fail']}
+    for tag, op in OPS:
+        for call in (0, 1, 2):
+            for when in ('before', 'after'):
+                for mname, mask in masks.items():
+                    insert(c, f'{tag}-num-put-{call}-{when}-mask-{mname}', op, (-1234, 56), exceptions=mask,
+                           host=host(num_put={'call': call, 'throw': when}))
+        for when in ('before', 'after'):
+            # The stock body grouped and short, then the facet's throw.
+            insert(c, f'{tag}-num-put-0-{when}-grouped-hex', op, (65535, 1), flags=['hex', 'showbase'],
+                   grouping=[2], thousands_sep=0x5F, exceptions=['bad'],
+                   host=host(num_put={'call': 0, 'throw': when}))
+            for capacity in (LITERAL[tag], LITERAL[tag] + 2):
+                for mname in ('none', 'bad'):
+                    insert(c, f'{tag}-num-put-0-{when}-cap{capacity}-mask-{mname}', op, (-1234, 56),
+                           capacity=capacity, exceptions=masks[mname],
+                           host=host(num_put={'call': 0, 'throw': when}))
+            # The buffer throws inside the stock body, before the facet's own throw.
+            insert(c, f'{tag}-num-put-0-{when}-overflow-inside', op, (-1234, 56), exceptions=['bad'],
+                   host=host(overflow_throw=LITERAL[tag] + 2, num_put={'call': 0, 'throw': when}))
+            insert(c, f'{tag}-num-put-1-{when}-unitbuf', op, (-1234, 56), flags=['dec', 'unitbuf'],
+                   host=host(num_put={'call': 1, 'throw': when}))
+        insert(c, f'{tag}-num-put-never', op, (-1234, 56), host=host(num_put={'call': 64, 'throw': 'before'}))
+
+
+def sync_throw_cases(c):
+    masks = {'none': [], 'bad': ['bad'], 'fail': ['fail']}
+    for tag, op in OPS:
+        for k in range(0, 6):
+            for mname, mask in masks.items():
+                for sync_fails in (False, True):
+                    for sname, state in [('good', []), ('eof', ['eof'])]:
+                        name = f'{tag}-sync-throw-{k}-mask-{mname}-{"fails" if sync_fails else "ok"}-{sname}'
+                        insert(c, name, op, (7, -8), state=state, exceptions=mask, flags=['dec', 'unitbuf'],
+                               sync_fails=sync_fails, host=host(sync_throw=k))
+        insert(c, f'{tag}-sync-throw-no-unitbuf', op, (7, -8), host=host(sync_throw=0))
+
+
+def tie_cases(c):
+    states = {'good': [], 'eof': ['eof'], 'bad': ['bad'], 'fail': ['fail']}
+    masks = {'none': [], 'bad': ['bad'], 'fail': ['fail']}
+    syncs = {'ok': (False, None), 'fails': (True, None), 'throw0': (False, 0), 'throw1': (False, 1)}
+    for tag, op in OPS:
+        for sname, state in states.items():
+            for mname, mask in masks.items():
+                for yname, (sync_fails, sync_throw) in syncs.items():
+                    for unitbuf in (False, True):
+                        for main_mask in ([], ['bad']):
+                            name = (f'{tag}-tie-{sname}-mask-{mname}-sync-{yname}'
+                                    f'{"-unitbuf" if unitbuf else ""}{"-main-bad" if main_mask else ""}')
+                            tie = tie_stream(state, mask, ['unitbuf'] if unitbuf else [], sync_fails, sync_throw)
+                            insert(c, name, op, (5, -6), exceptions=main_mask, host=host(tie=tie))
+        # A main stream that is not good never flushes its tie.
+        insert(c, f'{tag}-tie-main-eof', op, (5, -6), state=['eof'],
+               host=host(tie=tie_stream(sync_fails=True, exceptions=['bad'])))
+        # Ties with a main stream that also flushes itself.
+        for yname, (sync_fails, sync_throw) in syncs.items():
+            insert(c, f'{tag}-tie-sync-{yname}-main-unitbuf', op, (5, -6), flags=['dec', 'unitbuf'],
+                   host=host(tie=tie_stream(flags=['unitbuf'], sync_fails=sync_fails, sync_throw=sync_throw)))
+        # A short main buffer with a tie: the tie is flushed by every good sentry only.
+        insert(c, f'{tag}-tie-short-buffer', op, (5, -6), capacity=LITERAL[tag] + 1,
+               host=host(tie=tie_stream()))
+
+
+def random_host_cases(c, rng):
+    names = ['bad', 'eof', 'fail']
+    for tag, op in OPS:
+        for k in range(48):
+            pick = lambda: [n for n in names if rng.random() < 0.3]
+            flags = ['dec'] + (['unitbuf'] if rng.random() < 0.5 else []) + (['left'] if rng.random() < 0.3 else [])
+            put = None
+            if rng.random() < 0.4:
+                put = {'call': rng.randint(0, 2), 'throw': rng.choice(['before', 'after'])}
+            tie = None
+            if rng.random() < 0.5:
+                tie = tie_stream(pick(), pick(), ['unitbuf'] if rng.random() < 0.5 else [], rng.random() < 0.3,
+                                 rng.choice([None, None, 0, 1, 2]))
+            insert(c, f'{tag}-host-random-{k:02d}', op, (rng.randint(-99999, 99999), rng.randint(-99, 99)),
+                   state=pick() if rng.random() < 0.3 else [], exceptions=pick(), flags=flags,
+                   width=rng.choice([0, 3, 9, 14]), fill=0x2E, capacity=rng.choice([None, None, 4, 9, 14, 20]),
+                   sync_fails=rng.random() < 0.4, grouping=rng.choice([[], [3], [1, 2]]),
+                   host=host(rng.choice([None, None, rng.randint(0, 24)]), rng.choice([None, None, rng.randint(0, 4)]),
+                             put, tie))
+
+
 def generate_cases():
     rng = random.Random(SEED)
     corpus = Corpus()
@@ -309,6 +480,15 @@ def generate_cases():
     map_cases(corpus, rng)
     string_cases(corpus, rng)
     insert_cases(corpus, rng)
+    # Defined stream paths added after the first corpus, from their own generator so the
+    # earlier requests are unchanged.
+    terminate_boundary_cases(corpus)
+    setup_failure_cases(corpus)
+    overflow_throw_cases(corpus)
+    num_put_cases(corpus)
+    sync_throw_cases(corpus)
+    tie_cases(corpus)
+    random_host_cases(corpus, random.Random(SEED + 1))
     return corpus.rows
 
 
@@ -384,18 +564,48 @@ def generate_controls():
         ('capacity-big', {'capacity': MAX_CAPACITY + 1}, 'expected capacity'),
         ('capacity-float', {'capacity': 4.0}, 'expected capacity'),
         ('sync-number', {'sync_fails': 0}, 'expected sync_fails'),
-        ('state-mask-overlap', {'state': ['eof'], 'exceptions': ['eof']}, 'state intersects exceptions'),
-        ('state-mask-overlap-bad', {'state': ['bad', 'fail'], 'exceptions': ['bad']}, 'state intersects exceptions'),
-        ('terminate', {'flags': ['dec', 'unitbuf'], 'sync_fails': True, 'exceptions': ['bad']},
-         'sentry destructor would terminate'),
-        ('terminate-not-good', {'flags': ['unitbuf'], 'sync_fails': True, 'exceptions': ['bad', 'fail'],
-                                'state': ['eof']}, 'sentry destructor would terminate'),
         ('unbounded-width', {'width': MAX_CAPACITY + 1}, 'unbounded width exceeds limit'),
         ('unbounded-width-max', {'width': I64_MAX}, 'unbounded width exceeds limit'),
     ]
     for name, changes, message in bad_fields:
         for op in ('insert_size', 'insert_point'):
             add(f'{op}-{name}', {'op': op, 'value': [1, 2], 'stream': dict(good, **changes)}, message)
+
+    # The optional host scripts.
+    ok_tie = tie_stream()
+    bad_hosts = [
+        ('host-number', 5, 'unexpected or missing host field'),
+        ('host-null', None, 'unexpected or missing host field'),
+        ('host-missing', {'overflow_throw': None, 'sync_throw': None, 'num_put': None},
+         'unexpected or missing host field'),
+        ('host-extra', dict(host(), when=1), 'unexpected or missing host field'),
+        ('overflow-negative', host(overflow_throw=-1), 'expected overflow_throw'),
+        ('overflow-float', host(overflow_throw=1.0), 'expected overflow_throw'),
+        ('overflow-string', host(overflow_throw='1'), 'expected overflow_throw'),
+        ('overflow-big', host(overflow_throw=MAX_CAPACITY + 1), 'expected overflow_throw'),
+        ('sync-big', host(sync_throw=65), 'expected sync_throw'),
+        ('sync-negative', host(sync_throw=-1), 'expected sync_throw'),
+        ('put-number', host(num_put=1), 'expected num_put'),
+        ('put-empty', host(num_put={}), 'expected num_put'),
+        ('put-missing', host(num_put={'call': 0}), 'expected num_put'),
+        ('put-when', host(num_put={'call': 0, 'throw': 'during'}), 'expected num_put'),
+        ('put-call-big', host(num_put={'call': 65, 'throw': 'before'}), 'expected num_put'),
+        ('put-call-null', host(num_put={'call': None, 'throw': 'after'}), 'expected num_put'),
+        ('tie-number', host(tie=1), 'unexpected or missing tie field'),
+        ('tie-empty', host(tie={}), 'unexpected or missing tie field'),
+        ('tie-extra', host(tie=dict(ok_tie, width=0)), 'unexpected or missing tie field'),
+        ('tie-state', host(tie=dict(ok_tie, state=['good'])), 'expected iostate'),
+        ('tie-mask', host(tie=dict(ok_tie, exceptions='bad')), 'expected iostate'),
+        ('tie-flags', host(tie=dict(ok_tie, flags=['flush'])), 'expected fmtflags'),
+        ('tie-sync-fails', host(tie=dict(ok_tie, sync_fails=None)), 'expected sync_fails'),
+        ('tie-sync-throw', host(tie=dict(ok_tie, sync_throw=65)), 'expected sync_throw'),
+    ]
+    for name, value, message in bad_hosts:
+        for op in ('insert_size', 'insert_point'):
+            add(f'{op}-{name}', {'op': op, 'value': [1, 2], 'stream': dict(good, host=value)}, message)
+    add('insert-host-unbounded-width', {'op': 'insert_point', 'value': [1, 2],
+                                        'stream': dict(good, width=MAX_CAPACITY + 1, host=host(overflow_throw=0))},
+        'unbounded width exceeds limit')
     # The earliest failing check decides.
     add('insert-order-value-first', {'op': 'insert_size', 'value': 7, 'stream': dict(good, fill=999)},
         'expected point')
@@ -404,6 +614,17 @@ def generate_controls():
     add('insert-order-parse-before-domain', {'op': 'insert_size', 'value': [1, 2],
                                              'stream': dict(good, state=['eof'], exceptions=['eof'],
                                                             sync_fails=1)}, 'expected sync_fails')
+    add('insert-order-sync-before-host', {'op': 'insert_size', 'value': [1, 2],
+                                          'stream': dict(good, sync_fails=1, host=5)}, 'expected sync_fails')
+    add('insert-order-host-before-width', {'op': 'insert_size', 'value': [1, 2],
+                                           'stream': dict(good, width=MAX_CAPACITY + 1, host=host(sync_throw=99))},
+        'expected sync_throw')
+    add('insert-order-host-fields', {'op': 'insert_point', 'value': [1, 2],
+                                     'stream': dict(good, host=host(overflow_throw=-1, sync_throw=99, num_put=1,
+                                                                    tie=1))}, 'expected overflow_throw')
+    add('insert-order-tie-fields', {'op': 'insert_point', 'value': [1, 2],
+                                    'stream': dict(good, host=host(tie=dict(ok_tie, state=['x'], flags=['y'])))},
+        'expected iostate')
     return rows
 
 
