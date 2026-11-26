@@ -29,3 +29,9 @@ retry, substitute model or timer is created. Its original checkout and claim
 remain exclusive in case of provider-driven resumption. Circle #95 has delivered
 and is now under a fresh independent review; four active implementations are
 not claimed.
+
+The corrected wx stream implementation received a second completed independent
+review requesting changes. The [full report and bounded clone correction](../2026-11-27-wx-stream-review/README.md)
+now supersede the original wx correction brief: four source-contract findings
+remain, while allocating stream clones have been removed and20focused checks
+pass. Keep the original implementation checkout exclusive for substantive fixes.

@@ -25,3 +25,6 @@ termination-handler allocation and unchanged Windows difftest limits.
 [review.json](review.json) records the parent correction and checks. Fresh
 independent review is required after the remaining source corrections; none is
 dispatched merely to recheck this bounded removal while those findings remain.
+
+The record retains separate hashes for the original CRLF report and the
+Git-normalized LF Markdown; their text content is identical.

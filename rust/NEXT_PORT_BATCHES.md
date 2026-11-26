@@ -10,7 +10,7 @@ claims before assigning work. Implementation uses Opus 5.5; each implementation
 receives an independent Sol 6.1 review of its exact head.
 
 ## Current integration and correction queue
- 
+
 Latest wx state: independent review of #93 head058165f437 requests changes.
 Parent fix `4aaae34988cd6af451b045556f08b6ddce895074` removes allocating Clone
 from StreamBuf/OStream and shim Sink;20tests/fmt/clippy/wasm/generator pass,

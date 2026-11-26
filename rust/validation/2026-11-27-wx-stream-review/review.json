@@ -4,7 +4,7 @@
   "review_task": "rust-review-wx93-corrected-sol61-20261127",
   "model": "gpt-6.1-sol",
   "verdict": "changes requested",
-  "review_sha256": "5bf10e5dcf3b7a4b64e4981040e87259a8c847e50af38780b6b6f77fc47df549",
+  "review_sha256": "885f18a21eb3b2205db85c00c09b1541750e5566e24152e78f5859bdb7d30f37",
   "parent_fix_head": "4aaae34988cd6af451b045556f08b6ddce895074",
   "corrected": "Unused allocating Clone removed from StreamBuf/OStream and shim Sink; existing bound-state test no longer heap-clones.",
   "remaining_findings": [
@@ -34,5 +34,7 @@
   },
   "source_provenance_caveat": "Saved local918-file manifest has880CRLF-only differences from raw pinned blobs; not byte-identical raw source/target evidence.",
   "new_head_target": "pending; earlier checks do not qualify this head",
-  "implementation_route": "Substantive corrections await requested provider availability; no new dispatch after quota failure."
+  "implementation_route": "Substantive corrections await requested provider availability; no new dispatch after quota failure.",
+  "source_report_sha256": "5bf10e5dcf3b7a4b64e4981040e87259a8c847e50af38780b6b6f77fc47df549",
+  "report_eol_scope": "Source report CRLF; committed Markdown is Git-normalized LF. Both digests retained; text content is identical."
 }
