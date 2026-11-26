@@ -17,3 +17,7 @@ schema_version = 1
 source_category = "thirdparty"
 source_ranges = ["thirdparty/clipper2/Clipper2Lib/src/clipper.engine.cpp:1:2271"]
 wx_class = "pure"
+
+[difftest]
+rust_package = "kicad-clipper2-engine-shim"
+rust_binary = "kicad-clipper2-engine-shim"
