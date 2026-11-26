@@ -53,7 +53,7 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 | Stream | Current assignment | Next dependency-ready work |
 | --- | --- | --- |
 | Geometry | SEG passed checks at `24df53e57c`, then imported accepted extractor #79 at `b908f439a0`; fresh CI required. Graph adoption active. Ellipse PR #81 reviewed at source head with documentation corrected at `5c42b69677`. Distribute PR #84 passed Sol review at `33fa41f687`; hosted CI pending. Freed Opus slot now implements pinned hypot for vector norms. | Adopt graph with final-head provenance; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
-| Polygon operations | Engine PR #76 at `6f58bc73fa` awaits CI. Rectclip PR #77 reviewed, owner note corrected at `87e2913afa`, hosted checks pending. Transform PR #82 delivered and reviewed; reference prose corrected at `b2918f6b31`. Opus now implementing graph adoption as independent fallback. | Source p002 after accepted engine p001, then public wrapper headers after rectclip and p002. |
+| Polygon operations | Engine PR #76 at `6f58bc73fa` awaits CI. Rectclip #77 passed checks at `87e2913afa`, then imported accepted extractor #79 at `b88832a7d2`; fresh CI required. Transform #82 reviewed; reference prose corrected at `b2918f6b31`. Opus implementing graph adoption as independent fallback. | Source p002 after accepted engine p001, then public wrapper headers after rectclip and p002. |
 | Core and general utilities | PR #73 passed checks, then imported accepted extractor #79 at `ab6fd8f3ea`; fresh CI required. Map helpers #78 corrected at `1cadc88eb8`, Sol recheck passed; target wx qualification pending. Arc construction #85 passed source review, owner notes fixed at `eaa34442d1`. Freed Opus slot now implements vector2wx. | Hold wx_stl_compat reuse until map helpers is accepted. Keep pure headers partial for allocation, stream, concurrency and scoped-timer gaps. Audit UI core headers before line-chain work. |
 | Numeric backends and spatial follow-ups | Pow PR #80 accepted. R-tree follow-up PR #83 at `813623a66b` passed Sol review, hosted checks pending. Opus now assigned poisson_disk. | Model newly exposed kimathLogOverflow host effects with explicit ownership/host assertion policy; further measured numeric and spatial gaps. Audit copy-on-write code before claiming a similar fixed-depth problem. |
 
@@ -224,6 +224,13 @@ implementation `f72b23229619869935b4faf0c165ed709505d120`. Sol independently
 replayed 1,574 exact replies and 11 controls with no identified clipping-result or
 lifecycle defect. Header-owner co-port notes were completed at `87e2913afa`;
 source p003 remains partial and wrappers remain todo pending their own work.
+All 19 checks completed at `87e2913afa` (16 success, three inapplicable skips).
+The parent then imported accepted extractor `4738a9c23f` conflict-free as
+`b88832a7d29434c62845f66bc8fdf440b896bdea`. The imported diff equals exactly
+the accepted extractor delta and the resulting tree equals the precomputed
+merge tree `3694d4734fee268101e6caa637104a7bc57c3b5c`. Clipping runtime code
+and qualification limits are unchanged; final-head hosted CI is required
+before integration.
 The local global-gate case stream-6-False-fixed-0 reproduces the same uppercase
 INF reply in an independent earlier oracle without rectangle clipping, while the
 accepted Rust shim uses pre-GCC-15 lowercase inf. This supports the existing
