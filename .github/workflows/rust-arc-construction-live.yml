@@ -35,7 +35,7 @@ jobs:
         run: |
           cargo fmt --manifest-path rust/Cargo.toml -p kicad-math -p kicad-arc-construction-shim --check
           cargo clippy --locked --manifest-path rust/Cargo.toml -p kicad-math -p kicad-arc-construction-shim --all-targets -j2 -- -D warnings
-          cargo test --locked --manifest-path rust/Cargo.toml -p kicad-math -p kicad-arc-construction-shim -j2
+          cargo test --locked --manifest-path rust/Cargo.toml -p kicad-math -p kicad-arc-construction-shim -p kicad-vector-shim -p kicad-util-box-shim -j2
           cargo check --locked --manifest-path rust/Cargo.toml -p kicad-math --target wasm32-unknown-unknown -j2
           python3 rust/kicad-arc-construction-shim/generate_cases.py --check
           cargo build --locked --manifest-path rust/Cargo.toml -p kicad-arc-construction-shim -p kicad-difftest \
