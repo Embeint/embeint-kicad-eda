@@ -14,10 +14,23 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from extractor.clang_graph import extract_translation_unit
-from extractor.model import PIN, classify, digest, expand_virtual, materialize_definitions, read_json, write_cache, write_json
+from extractor.model import (PIN, classify, digest, expand_virtual, locate_endpoints, materialize_definitions,
+                             read_json, write_cache, write_json)
 from extractor.generated_sources import generator_dependencies, verify as verify_generated
 
 SUFFIXES = {".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx", ".m", ".mm"}
+IDENTITY_FILES = ("port/tools/extract_graph.py", "port/extractor/clang_graph.py",
+                  "port/extractor/model.py", "port/extractor/generated_sources.py")
+PARSER_FILE = "port/extractor/clang_graph.py"
+
+
+def normalized(path):
+    return path.read_bytes().replace(b"\r\n", b"\n")
+
+
+def runtime_identity(root):
+    """Hash the four implementation files named in provenance, LF-normalized."""
+    return digest(b"".join(normalized(root / name) for name in IDENTITY_FILES))
 
 
 def category(path, content):
@@ -44,9 +57,26 @@ def main():
     p.add_argument("--jobs", type=int, default=8)
     p.add_argument("--limit", type=int)
     p.add_argument("--match", default="")
+    p.add_argument("--replay-parse-runtime", type=Path,
+                   help="checkout root of the extractor that wrote --cache; re-aggregate its exact TU "
+                        "records with this aggregation code, read-only and without parsing")
     a = p.parse_args()
     if not 1 <= a.jobs <= 8:
         p.error("--jobs must be between 1 and 8")
+    here = Path(__file__).resolve().parents[2]
+    aggregation_identity = runtime_identity(here)
+    replay = None
+    if a.replay_parse_runtime:
+        # Cached TU records are parser output. They may be re-aggregated only
+        # when the parser bytes are unchanged; the cache keys keep the identity
+        # of the runtime that produced them, so every record must already exist.
+        parse_root = a.replay_parse_runtime.resolve()
+        parser = normalized(parse_root / PARSER_FILE)
+        if parser != normalized(here / PARSER_FILE):
+            p.error("--replay-parse-runtime has a different parser; its cache cannot be re-aggregated")
+        replay = {"parse_runtime": str(parse_root), "parse_extractor_sha256": runtime_identity(parse_root),
+                  "parser_sha256": digest(parser), "aggregation_extractor_sha256": aggregation_identity,
+                  "parses": 0}
     manifest = json.loads(a.manifest.read_text(encoding="utf-8"))
     root = a.source_root.resolve()
     raw = a.compile_commands.read_bytes()
@@ -82,19 +112,25 @@ def main():
     jobs.sort(key=lambda j: ("/libs/kimath/" not in j["file"], j["file"], j.get("command", "")))
     if a.limit:
         jobs = jobs[:a.limit]
-    a.cache.mkdir(parents=True, exist_ok=True)
     # Unity sources contain absolute includes of the original checkout. Remap
     # those too, so generated unity TUs cannot mix two copies of a header.
+    # A replay keeps the recorded overlay path in its keys but never writes it.
     overlay = a.cache / "source-overlay.json"
-    write_json(overlay, {"version": 0, "roots": [{"type": "directory-remap",
-               "name": a.original_source_root, "external-contents": str(root)}]})
+    if not replay:
+        a.cache.mkdir(parents=True, exist_ok=True)
+        write_json(overlay, {"version": 0, "roots": [{"type": "directory-remap",
+                   "name": a.original_source_root, "external-contents": str(root)}]})
     for job in jobs:
         job["extra_args"] += ["-ivfsoverlay", str(overlay)]
-        job["extractor_sha256"] = digest(b''.join(path.read_bytes().replace(b'\r\n', b'\n') for path in
-             [Path(__file__), *(Path(__file__).resolve().parents[1] / 'extractor' / name
-               for name in ('clang_graph.py', 'model.py', 'generated_sources.py'))]))
+        job["extractor_sha256"] = replay["parse_extractor_sha256"] if replay else aggregation_identity
     # Cache includes the entire source inventory: changing any header invalidates all TUs.
     snapshot = digest(json.dumps(inventory, sort_keys=True).encode())
+    if replay:
+        absent = [job["file"] for job in jobs if not any(
+            (a.cache / (digest(json.dumps([snapshot, job], sort_keys=True).encode()) + suffix)).exists()
+            for suffix in (".json", ".json.gz"))]
+        if absent:
+            p.error(f"Replay refuses to parse: {len(absent)} commands lack cache records, e.g. {absent[:3]}")
     functions, calls, overrides, unresolved, results = {}, set(), set(), set(), []
     variants, primaries, observed, template_aliases = {}, {}, set(), {}
     locations, location_primaries = {}, {}
@@ -120,8 +156,10 @@ def main():
                 if identity < primaries[usr]:
                     functions[usr], primaries[usr] = record, identity
                 functions[usr]["wx"] = names
-        calls.update(tuple(c) for c in result["calls"])
-        overrides.update(tuple(c) for c in result["overrides"])
+        # Resolve endpoints against this TU's own bodies before merging TUs.
+        located_calls, located_overrides = locate_endpoints(result)
+        calls.update(located_calls)
+        overrides.update(located_overrides)
         for instance, primary in result.get("template_aliases", {}).items():
             template_aliases.setdefault(instance, set()).add(primary)
         unresolved.update((c["caller"], result["file"], c["line"], c["expression"]) for c in result["unresolved"])
@@ -154,6 +192,8 @@ def main():
                 result['cache_reused_from'] = {'path': str(artifact), 'sha256': digest(artifact.read_bytes())}
                 consume_safely(result)
             else:
+                if replay:
+                    p.error(f"Replay refuses to parse: cache record disappeared for {job['file']}")
                 pending[pool.submit(extract_translation_unit, job)] = (cache, job)
         for future in as_completed(pending):
             cache, job = pending.pop(future)
@@ -193,6 +233,9 @@ def main():
                   "source_hash_policy": "SHA-256 after CRLF-to-LF normalization; function offsets refer to snapshot bytes",
                   "extractor_sha256": jobs[0]["extractor_sha256"] if jobs else None,
                   "extractor_hash_policy": "extract_graph.py, clang_graph.py, model.py, generated_sources.py concatenated after CRLF-to-LF normalization",
+                  "aggregation_extractor_sha256": aggregation_identity,
+                  "parse_cache_replay": replay,
+                  "definition_endpoint_policy": "Call and override endpoints resolve to the body defined in the reporting TU; an endpoint without a TU-local definition reaches every body sharing its USR",
                   "compile_commands_path": str(a.compile_commands.resolve()),
                   "compile_commands_count": len(commands), "commands_attempted": len(results),
                   "source_root": str(root), "original_source_root": a.original_source_root,

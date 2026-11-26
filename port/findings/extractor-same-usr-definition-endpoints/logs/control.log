@@ -1,0 +1,23 @@
+FF.
+======================================================================
+FAIL: test_same_name_classes_in_separate_targets_and_read_only_cache_replay (test_extractor.ClangIntegrationTests.test_same_name_classes_in_separate_targets_and_read_only_cache_replay)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/karlvonrichter/kicad-port/shape-collision/control/port/extractor/test_extractor.py", line 1145, in test_same_name_classes_in_separate_targets_and_read_only_cache_replay
+    self.assertFalse([e for e in graph['edges'] if e[1] == vrml and files.get(e[0], '').startswith('geometry/')])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: [['c:@F@release#*$@S@SHAPE#', 'c:@S@SHAPE@F@~SHAPE#@definition:e4a62b70201a98e4', 'virtual'], ['c:@S@ARC@F@~ARC#', 'c:@S@SHAPE@F@~SHAPE#@definition:e4a62b70201a98e4', 'static']] is not false
+
+======================================================================
+FAIL: test_same_name_classes_in_separate_components_resolve_to_their_tu_bodies (test_extractor.GraphTests.test_same_name_classes_in_separate_components_resolve_to_their_tu_bodies)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/karlvonrichter/kicad-port/shape-collision/control/port/extractor/test_extractor.py", line 169, in test_same_name_classes_in_separate_components_resolve_to_their_tu_bodies
+    self.assertFalse([call for call in calls if call[1] == vrml_body and call[0] != "Translate"])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: [('AddShape', '~SHAPE@definition:3e3617b67daa579d', True), ('draw', '~SHAPE@definition:3e3617b67daa579d', True), ('~ARC', '~SHAPE@definition:3e3617b67daa579d', False)] is not false
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.637s
+
+FAILED (failures=2)
