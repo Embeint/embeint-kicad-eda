@@ -31,6 +31,7 @@ void RegisterCoreMapHelpers( REGISTRY& aRegistry );
 void RegisterTransformSource( REGISTRY& aRegistry );
 void RegisterVector2Wx( REGISTRY& aRegistry );
 void RegisterPoissonDisk( REGISTRY& aRegistry );
+void RegisterCoreWxStlCompat( REGISTRY& aRegistry );
 
 
 void REGISTRY::Add( const std::string& aUnit, const std::string& aUpstream, SHIM aShim )
@@ -74,6 +75,7 @@ REGISTRY MakeRegistry()
     RegisterTransformSource( registry );
     RegisterVector2Wx( registry );
     RegisterPoissonDisk( registry );
+    RegisterCoreWxStlCompat( registry );
     return registry;
 }
 

@@ -168,6 +168,11 @@ set_source_files_properties( "${ORACLE_OVERLAY}/reference/clipper2_rectclip_guar
 set( MAP_HELPERS_SHIM "${ORACLE_OVERLAY}/shims/core_map_helpers.cpp" )
 list( REMOVE_ITEM ORACLE_SHIMS "${MAP_HELPERS_SHIM}" )
 list( APPEND ORACLE_SHIMS "${MAP_HELPERS_SHIM}" )
+# The wx_stl_compat adapter follows every previously qualified adapter too, so none of its
+# weak wxString/std::map/JSON template copies is selected ahead of an earlier adapter's.
+set( WX_STL_COMPAT_SHIM "${ORACLE_OVERLAY}/shims/core_wx_stl_compat.cpp" )
+list( REMOVE_ITEM ORACLE_SHIMS "${WX_STL_COMPAT_SHIM}" )
+list( APPEND ORACLE_SHIMS "${WX_STL_COMPAT_SHIM}" )
 add_executable( kicad-oracle main.cpp protocol.cpp registry.cpp ${ORACLE_SHIMS}
                 reference/geometry_unreachable_config.cpp )
 target_include_directories( kicad-oracle PRIVATE "${ORACLE_OVERLAY}" "${CMAKE_BINARY_DIR}" )
@@ -254,3 +259,7 @@ add_test( NAME oracle-vector2wx-inputs
     COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_vector2wx_inputs.py"
             "$<TARGET_FILE:kicad-oracle>" )
 set_tests_properties( oracle-vector2wx-inputs PROPERTIES TIMEOUT 60 )
+add_test( NAME oracle-wx-stl-compat-inputs
+    COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_wx_stl_compat_inputs.py"
+            "$<TARGET_FILE:kicad-oracle>" )
+set_tests_properties( oracle-wx-stl-compat-inputs PROPERTIES TIMEOUT 60 )
