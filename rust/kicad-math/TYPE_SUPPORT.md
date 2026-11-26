@@ -114,9 +114,9 @@ labels and USRs identify bodies exactly; constrained scalar overloads are audite
 | vector - scalar (integral T, floating U)<br>`c:@FT@>2#T#Toperator-#&1>@ST>1#T@VECTOR21t0.0#&1t0.1#S1_#` | `sub_float` | `2-*-sub_float` | KiROUND helper deferred |
 | vector - scalar (floating T or integral T/U)<br>`c:@FT@>2#T#Toperator-#&1>@ST>1#T@VECTOR21t0.0#t0.1#S1_#` | `try_sub_scalar` | `2-*-sub_scalar` | two constrained bodies; other integral U unqualified |
 | VECTOR2 Cross<br>`c:@ST>1#T@VECTOR2@F@Cross#&1>@ST>1#T@VECTOR21t0.0#1` | `cross` | `random-*-cross` | distinct quieted NaN operands deferred |
-| VECTOR2 Distance<br>`c:@ST>1#T@VECTOR2@F@Distance#&1>@ST>1#T@VECTOR21^VECTOR2_TRAITS<type-parameter-0-0>:::extended_type#1` | `distance` | `distance-subtract-before-double, distance-extended-argument` | subtract in extended_type first; general std::hypot deferred |
+| VECTOR2 Distance<br>`c:@ST>1#T@VECTOR2@F@Distance#&1>@ST>1#T@VECTOR21^VECTOR2_TRAITS<type-parameter-0-0>:::extended_type#1` | `distance` | `distance-subtract-before-double, distance-extended-argument, hypot-special-*-distance, hypot-random-*-distance` | subtract in extended_type first; general branch calls the qualified glibc hypot through EuclideanNorm |
 | VECTOR2 Dot<br>`c:@ST>1#T@VECTOR2@F@Dot#&1>@ST>1#T@VECTOR21t0.0#1` | `dot` | `random-*-dot` | distinct quieted NaN operands deferred; signed intermediates guarded |
-| VECTOR2 EuclideanNorm<br>`c:@ST>1#T@VECTOR2@F@EuclideanNorm#1` | `euclidean_norm / norm2` | `2-*-norm, fp-sites-*-norm` | signed RoundedHypot deferred; double diagonal/axis implemented; general std::hypot deferred; other integral types unqualified |
+| VECTOR2 EuclideanNorm<br>`c:@ST>1#T@VECTOR2@F@EuclideanNorm#1` | `euclidean_norm / norm2` | `2-*-norm, fp-sites-*-norm, hypot-*-norm` | signed RoundedHypot via the accepted util owner; double diagonal/axis implemented; general std::hypot is the qualified glibc 2.39 hypot@@GLIBC_2.35 (finite and non-finite); other integral types unqualified |
 | VECTOR2 Format<br>`c:@ST>1#T@VECTOR2@F@Format#1` | `format` | `2-*-format` | fresh classic stream; double formatting deferred |
 | VECTOR2 Perpendicular<br>`c:@ST>1#T@VECTOR2@F@Perpendicular#1` | `perpendicular` | `2-*-perpendicular-min-x` | negates only y; signed-min y refused |
 | VECTOR2 Resize<br>`c:@ST>1#T@VECTOR2@F@Resize#t0.0#1` | `resize` | `2-*-resize-*, floating-resize-*` | zero/diagonal/general branches retained; integral general branch runs the accepted rescale<int64_t>/sqrt (`2-*-resize-general-*`, `random-*-resize-general`); KiROUND, sign and rescale<double> deferred at actual calls; no naive normalized replacement |
@@ -208,3 +208,17 @@ equality, division and the vector KiROUND continuations can run. The additive
 corpus has 10,286 cases. General floating hypot, formatting and ambiguous NaN
 sites remain deferred. Fresh hosted counts and input-preserving caller regression
 evidence are recorded with `../kicad-util-box-shim/AUDIT.md`; status stays partial.
+
+## std::hypot (glibc 2.39 hypot@@GLIBC_2.35)
+
+The general branch of `VECTOR2<double>::EuclideanNorm` (and so `Distance` for every
+extended type) now returns `crate::hypot::hypot`, a safe port of e_hypot.c's public
+`__hypot`: the non-finite branch (an infinity returns +inf unless an operand is
+signalling; otherwise `x + y` with the locked `addsd` operand order, a NaN x first) and the
+unchanged accepted finite body shared with BOX2 (`hypot::finite`). It is qualified against
+1,607,712 genuine records of the locked libm (`../../port/glibc-libm/`, addendum
+`../../port/findings/vector-hypot-glibc-addendum.md`). The 45-degree and axis shortcuts
+before it are unchanged. errno, exception flags and non-default rounding are outside the
+value contract. The vector corpus gains 1,922 additive `hypot-*` cases; the C++ comparison
+is the hosted util-box live gate. f64 stream formatting and ambiguous NaN sites remain
+deferred, so the unit stays partial.

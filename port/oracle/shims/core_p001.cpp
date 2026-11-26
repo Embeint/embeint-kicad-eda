@@ -475,6 +475,12 @@ JSON LatencyProbe( const JSON& aInput )
 
 class DRIVER;
 
+/// The exception a `throw` step makes an observer (or a top-level step) throw. It is
+/// not a refusal: Run catches it after the top-level step.
+struct THROWN
+{
+};
+
 struct OBSERVER
 {
     DRIVER* driver = nullptr;
@@ -671,6 +677,10 @@ private:
             step.link = Index( aInput, "link", LINKS );
             step.from = Index( aInput, "from", LINKS );
         }
+        else if( op == "throw" )
+        {
+            Fields( aInput, { "op" } );
+        }
         else if( op == "link_assign" )
         {
             Fields( aInput, { "op", "link", "from" }, { "guard" } );
@@ -705,9 +715,28 @@ public:
 
         for( const STEP& step : aSteps )
         {
-            Exec( step, 0 );
-            events.push_back( { { "calls", std::exchange( m_calls, JSON::array() ) },
-                                { "state", Snapshot() } } );
+            bool thrown = false;
+
+            try
+            {
+                Exec( step, 0 );
+            }
+            catch( const THROWN& )
+            {
+                // Every enclosing Notify/NotifyIgnore has unwound through its catch block.
+                thrown = true;
+                m_active.clear();
+                m_frames.clear();
+                m_notifiers.clear();
+            }
+
+            JSON event = { { "calls", std::exchange( m_calls, JSON::array() ) },
+                           { "state", Snapshot() } };
+
+            if( thrown )
+                event["thrown"] = true;
+
+            events.push_back( std::move( event ) );
         }
 
         return { { "events", std::move( events ) } };
@@ -1027,6 +1056,24 @@ private:
             else
                 m_links[aStep.link].reset();
         }
+        else if( op == "throw" )
+        {
+            // Each enclosing template's catch block calls leave_iteration() on its
+            // observable; one destroyed inside its own NotifyIgnore makes that undefined.
+            for( const NOTIFIER& notifier : m_notifiers )
+            {
+                if( std::any_of( m_retired.begin(), m_retired.end(),
+                                 [&]( const std::unique_ptr<TEST_OBSERVABLE>& aRetired )
+                                 {
+                                     return aRetired.get() == notifier.observable;
+                                 } ) )
+                {
+                    Fail( "throw through destroyed observable" );
+                }
+            }
+
+            throw THROWN{};
+        }
     }
 
     JSON ObserverJson( const void* aPointer )
@@ -1150,6 +1197,14 @@ JSON Observable( const JSON& aInput )
 
 namespace oracle
 {
+/// The scripted observable driver, shared with the header unit's adapter
+/// (shims/core_include_p001.cpp), which owns the OBSERVABLE<T> template.
+JSON RunCoreObservable( const JSON& aInput )
+{
+    return Observable( aInput );
+}
+
+
 void RegisterCoreP001( REGISTRY& aRegistry )
 {
     aRegistry.Add( "libs.core.application.pure.p001",

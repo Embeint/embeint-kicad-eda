@@ -196,3 +196,115 @@ fn pow_reference_records() -> Result<(), String> {
     assert_eq!(mismatches, 0);
     Ok(())
 }
+
+// Values follow from e_hypot.c's branches and exact IEEE arithmetic alone (no recorded
+// glibc result): the non-finite branch's infinity and NaN selection, signed zeros, exact
+// Pythagorean triples at every scaling branch, the 0x1p-54 shortcut and overflow.
+#[test]
+fn hypot_special_branches() {
+    use crate::hypot::hypot;
+    let bits = |x: f64| x.to_bits();
+    let inf = f64::INFINITY;
+    let snan = f64::from_bits(0x7ff4_0000_0000_0abc);
+    let snan_neg = f64::from_bits(0xfff0_0000_0000_0001);
+    let qnan = f64::from_bits(0xfff8_0000_dead_beef);
+    let qnan2 = f64::from_bits(0x7ff8_0000_0000_0001);
+    // An infinity wins over a quiet NaN, in either position and with either sign.
+    for (x, y) in [
+        (inf, qnan),
+        (qnan, -inf),
+        (-inf, 1.0),
+        (0.0, inf),
+        (-inf, inf),
+    ] {
+        assert_eq!(bits(hypot(x, y)), bits(inf));
+    }
+    // A signalling operand turns the infinity case into x + y.
+    assert_eq!(bits(hypot(snan, inf)), 0x7ffc_0000_0000_0abc);
+    assert_eq!(bits(hypot(-inf, snan)), 0x7ffc_0000_0000_0abc);
+    assert_eq!(bits(hypot(inf, snan_neg)), 0xfff8_0000_0000_0001);
+    // x + y: a NaN x wins quieted (first addsd operand), else the quieted NaN y.
+    assert_eq!(bits(hypot(qnan, qnan2)), bits(qnan));
+    assert_eq!(bits(hypot(qnan2, snan)), bits(qnan2));
+    assert_eq!(bits(hypot(snan, qnan)), 0x7ffc_0000_0000_0abc);
+    assert_eq!(bits(hypot(-2.0, snan_neg)), 0xfff8_0000_0000_0001);
+    assert_eq!(bits(hypot(qnan, -0.0)), bits(qnan));
+    // Signed zeros and one zero operand.
+    assert_eq!(bits(hypot(-0.0, -0.0)), bits(0.0));
+    assert_eq!(bits(hypot(-0.0, -5.0)), bits(5.0));
+    let min = f64::from_bits(1);
+    assert_eq!(bits(hypot(-min, 0.0)), 1);
+    // Exact triples through the common, scaled-down and scaled-up branches and subnormals.
+    for k in [
+        -1074_i64, -1060, -600, -470, -459, -100, 0, 100, 510, 511, 600, 1000,
+    ] {
+        // 2^k from its bits; powi(-1074) may round through 1 / 2^1074 = 0.
+        let s = if k >= -1022 {
+            f64::from_bits(((k + 1023) as u64) << 52)
+        } else {
+            f64::from_bits(1 << (k + 1074))
+        };
+        for (a, b, c) in [(3.0, 4.0, 5.0), (5.0, 12.0, 13.0), (20.0, 21.0, 29.0)] {
+            assert_eq!(bits(hypot(a * s, -b * s)), bits(c * s), "{a} {b} 2^{k}");
+            assert_eq!(bits(hypot(b * s, a * s)), bits(c * s));
+        }
+    }
+    // ay <= ax * 0x1p-54 returns ax + ay (rounded to ax here).
+    assert_eq!(bits(hypot(1.0, 2.0_f64.powi(-54))), bits(1.0));
+    assert_eq!(bits(hypot(f64::MAX, 1.0)), bits(f64::MAX));
+    // Overflow of the scaled kernel, and of ax + ay.
+    assert_eq!(bits(hypot(f64::MAX, f64::MAX)), bits(inf));
+    assert_eq!(
+        bits(hypot(f64::MAX, f64::MAX * 2.0_f64.powi(-54))),
+        bits(f64::MAX)
+    );
+}
+
+/// Compares genuine 24-byte (x, y, f(x, y)) records from the locked libm.
+fn binary_records(
+    reference: &str,
+    count: &str,
+    name: &str,
+    f: fn(f64, f64) -> f64,
+) -> Result<(), String> {
+    let path = std::env::var(reference).map_err(|e| e.to_string())?;
+    let count = std::env::var(count)
+        .map_err(|e| e.to_string())?
+        .parse::<usize>()
+        .map_err(|e| e.to_string())?;
+    let data = std::fs::read(path).map_err(|e| e.to_string())?;
+    assert_eq!(data.len(), count * 24, "record count");
+    let mut mismatches = 0_usize;
+    for row in data.chunks_exact(24) {
+        let mut words = [0_u64; 3];
+        for (w, b) in words.iter_mut().zip(row.chunks_exact(8)) {
+            let mut a = [0_u8; 8];
+            a.copy_from_slice(b);
+            *w = u64::from_le_bytes(a);
+        }
+        let got = f(f64::from_bits(words[0]), f64::from_bits(words[1])).to_bits();
+        if got != words[2] {
+            if mismatches < 10 {
+                println!(
+                    "{name} x {:016x} y {:016x}: got {got:016x} want {:016x}",
+                    words[0], words[1], words[2]
+                );
+            }
+            mismatches += 1;
+        }
+    }
+    println!("glibc_libm {name}: {count} records, {mismatches} mismatches");
+    assert_eq!(mismatches, 0);
+    Ok(())
+}
+
+#[test]
+#[ignore = "requires fresh glibc 2.39 hypot records; see rust-glibc-libm workflow"]
+fn hypot_reference_records() -> Result<(), String> {
+    binary_records(
+        "KICAD_GLIBC_LIBM_HYPOT_REFERENCE",
+        "KICAD_GLIBC_LIBM_HYPOT_COUNT",
+        "hypot",
+        crate::hypot::hypot,
+    )
+}

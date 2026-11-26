@@ -10,6 +10,11 @@ use kicad_math::matrix3x3;
 #[forbid(unsafe_code)]
 #[allow(dead_code)]
 mod glibc_trig;
+// The shared hypot backend; its finite body is the accepted one that BOX2 and VECTOR2 use.
+#[path = "../../../rust/kicad-math/src/hypot.rs"]
+#[forbid(unsafe_code)]
+#[allow(dead_code)]
+mod hypot;
 
 #[no_mangle]
 pub extern "C" fn angle_libm(x: u64, y: u64, function: u32) -> u64 {
@@ -29,4 +34,10 @@ pub extern "C" fn angle_libm(x: u64, y: u64, function: u32) -> u64 {
 #[no_mangle]
 pub extern "C" fn pow_libm(x: u64, y: u64) -> u64 {
     glibc_libm::pow(f64::from_bits(x), f64::from_bits(y)).to_bits()
+}
+
+/// The public hypot@@GLIBC_2.35, for the separate 24-byte hypot records.
+#[no_mangle]
+pub extern "C" fn hypot_libm(x: u64, y: u64) -> u64 {
+    hypot::hypot(f64::from_bits(x), f64::from_bits(y)).to_bits()
 }

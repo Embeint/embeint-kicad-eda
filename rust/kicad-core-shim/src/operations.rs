@@ -243,6 +243,10 @@ fn latency_probe(input: &Value) -> Result<Value> {
         Ok(text) => Ok(json!({"text": text})),
         Err(ProfileError::Unported { upstream, unit }) => Err(Error::Unported { upstream, unit }),
         Err(ProfileError::Overflow) => Err("signed overflow".into()),
+        // Not produced by to_string (it allocates nothing and reads no timer).
+        Err(
+            ProfileError::LengthError(_) | ProfileError::Allocation | ProfileError::Indeterminate,
+        ) => Err("unexpected profile error".into()),
     }
 }
 

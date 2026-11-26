@@ -11,6 +11,9 @@ pub enum Error {
     Conversion,
     /// Explicit host resource budget, distinct from undefined reference input.
     ResourceLimit,
+    /// The tree's explicit active-node storage budget would be exceeded.
+    /// Like `ResourceLimit` this is a host choice, not undefined reference input.
+    NodeBudget,
     InvalidTemplate,
     /// A mutation refused undefined arithmetic after beginning to change nodes.
     /// Clear the tree before reusing it; C++ defines no postcondition for that call.
@@ -33,6 +36,7 @@ impl fmt::Display for Error {
             Self::Overflow => f.write_str("signed arithmetic overflow"),
             Self::Conversion => f.write_str("floating conversion outside reference domain"),
             Self::ResourceLimit => f.write_str("resource limit"),
+            Self::NodeBudget => f.write_str("node budget"),
             Self::InvalidTemplate => f.write_str("invalid template parameters"),
             Self::InterruptedMutation => {
                 f.write_str("tree requires clear after interrupted mutation")
