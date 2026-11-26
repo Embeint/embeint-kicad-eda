@@ -48,7 +48,7 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 | --- | --- | --- |
 | Geometry | SEG integration head `24df53e57c` awaits CI. Extractor PR #79 accepted as `4738a9c23f`; graph adoption is ready for the next free Opus slot. Ellipse PR #81 delivered and reviewed, documentation corrected at `5c42b69677`. Opus now assigned distribute. | Adopt graph with final-head provenance; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
 | Polygon operations | Engine PR #76 at `6f58bc73fa` awaits CI. Rectclip PR #77 delivered and reviewed without algorithmic blockers; owner note corrected at `87e2913afa`, hosted checks pending. Opus assigned transform as independent fallback. | Source p002 after accepted engine p001, then public wrapper headers after rectclip and p002. |
-| Core and general utilities | PR #73 integration head `26f11478b7` awaits fresh CI. Map helpers PR #78 corrected at `1cadc88eb8`, independent Sol recheck passed; status partial pending target wx qualification. Opus assigned arc_construction as independent fallback. | Hold wx_stl_compat reuse until map helpers is accepted. Keep pure headers partial for allocation, stream, concurrency and scoped-timer gaps. Audit UI core headers before line-chain work. |
+| Core and general utilities | PR #73 passed all applicable checks at `26f11478b7`, then imported accepted extractor #79 at `ab6fd8f3ea`; fresh CI required. Map helpers PR #78 corrected at `1cadc88eb8`, independent Sol recheck passed; status partial pending target wx qualification. Opus assigned arc_construction as independent fallback. | Hold wx_stl_compat reuse until map helpers is accepted. Keep pure headers partial for allocation, stream, concurrency and scoped-timer gaps. Audit UI core headers before line-chain work. |
 | Numeric backends and spatial follow-ups | Pow PR #80 accepted. R-tree follow-up PR #83 at `813623a66b` passed Sol review, hosted checks pending. Opus now assigned poisson_disk. | Model newly exposed kimathLogOverflow host effects with explicit ownership/host assertion policy; further measured numeric and spatial gaps. Audit copy-on-write code before claiming a similar fixed-depth problem. |
 
 On each implementation completion, immediately inspect the result, start the
@@ -101,6 +101,16 @@ was dispatched for the then-current reviewed head `5d99a6f8a1`; its acceptance
 role is superseded by the new integration head. Do not describe this
 as the same bootstrap timeout observed on SEG or count the interrupted run as a
 completed workspace validation.
+
+Core PR #73 subsequently completed all 19 checks at `26f11478b7` (16 success,
+three inapplicable skips). Because extractor #79 had advanced accepted rust,
+its prospective merge tree differed from that reviewed head. The parent merged
+accepted `4738a9c23f` conflict-free into #73 as
+`ab6fd8f3ea4a546e628a5fc88dff5ec7e85717f4`. The imported diff equals exactly
+the accepted extractor delta, and the resulting tree equals the precomputed
+merge tree `1dce6d847ddba23d8ba5641ad7d706e253978394`. Core runtime code and
+partial contracts are unchanged. Final-head hosted checks must pass before
+integration; the earlier green run is historical evidence for the prior head.
 
 ## Recommended next assignments
 
