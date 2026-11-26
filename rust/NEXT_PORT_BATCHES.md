@@ -74,7 +74,7 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 | --- | --- | --- |
 | Geometry | SEG awaits fresh CI at `b908f439a0`. Ellipse #81 target repair at `fb6dd8632c` passed fresh Sol review; hosted CI pending. Distribute #84 and hypot #88 passed Sol review, hosted CI pending. Core utility header assignment interrupted by provider failure before implementation. | Resume existing assignment when routing works; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
 | Polygon operations | Engine #76 awaits fresh CI at `401ebc2624`; rectclip #77 at `b88832a7d2`. Transform #82 reviewed at source head with prose fix `b2918f6b31`. Graph-adoption work is preserved but interrupted by provider failure. | Resume graph adoption with final-head provenance; source p002 after accepted engine p001, then wrapper headers after rectclip and p002. |
-| Core and general utilities | PR #73 awaits fresh CI at `ab6fd8f3ea`; map helpers #78 target wx qualification pending. Arc #85 caller fix at `207f67b2cb`; vector2wx #86 comment fix at `3861aaa7b2`, both awaiting CI. Unix policy claim #89 has preserved local implementation work; provider interrupted. | Recover existing claim without a duplicate port. Hold wx_stl_compat reuse until map helpers acceptance; keep pure-header partial contracts explicit. |
+| Core and general utilities | PR #73 awaits fresh CI at `ab6fd8f3ea`. Map helpers #78 passed target wx 3.2.4 checks, then imported accepted extractor #79 and evidence notes at `d8ab26658f`; fresh CI required. Arc #85 at `207f67b2cb` and vector2wx #86 at `3861aaa7b2` await CI. Unix policy #89 local work is preserved; provider interrupted. | Recover existing claim without a duplicate port. Hold wx_stl_compat reuse until map helpers acceptance; keep pure-header partial contracts explicit. |
 | Numeric backends and spatial follow-ups | Pow #80 accepted. R-tree #83 and poisson #87 passed source review, hosted checks pending. Unix driver/system-info claim #90 has preserved local implementation work; provider interrupted. | Recover existing claim without a duplicate port. Keep logging host-effect and copy-on-write audits queued. |
 
 On each implementation completion, immediately inspect the result, start the
@@ -358,10 +358,26 @@ reran 3,084 live C++/Rust/golden replies, 336 controls plus successful followups
 on both processes, and import-free wasm replay; all agree. The baseline prose
 incorrectly named wx 3.2.4, whereas its nested provenance records the actual
 local wx 3.2.9 binary. Immutable golden/evidence remain historical, corrected by
-an additive finding; the unit is partial pending target-runner evidence.
+an additive finding; target-runner evidence subsequently passed as recorded below.
 Sol's fresh recheck of the corrected head found no remaining issue and
 independently passed seven library tests, two corpus/control tests and all
 3,084 fresh C++/Rust/golden comparisons.
+
+All 19 checks then completed at `1cadc88eb8` (16 success, three inapplicable
+skips). Dedicated run 45732438430 / job 139617483587 / artifact 15078975842
+records GCC 13.3.0, glibc 2.39 and wx 3.2.4. All 3,084 cases compare exactly,
+336 controls on each native process have successful continuations, and fresh
+C++ replies replay in import-free wasm. Reply hash
+`f7103e18b3969d9821cad7e364c16fbb085ced4cd05d065935d0d8185a7c4691`
+matches the historical baseline.
+
+The parent imported exactly the accepted extractor delta as `90d741a445`,
+then recorded target evidence additively at
+`d8ab26658ff94262de66700292e2bccc497b4999`. Runtime is unchanged.
+The current merge tree equals head tree
+`292a82549fac7d973509b4097b146f586dc87c40`; final-head hosted checks must
+pass before acceptance. Unit status remains partial, with historical baseline
+evidence and the documented capacity/platform/generic limits preserved.
 
 Transform PR #82 delivered all six definitions at `7633f3b366`, based on
 accepted `4738a9c23f`. The local GCC 15.2/glibc 2.43 SSE2 run reports 7,678
