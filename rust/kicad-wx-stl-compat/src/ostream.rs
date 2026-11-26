@@ -121,6 +121,26 @@ pub struct NumPunct {
     pub grouping: Vec<u8>,
 }
 
+impl NumPunct {
+    /// The grouping `num_put<char>` actually uses: the bytes before the first NUL.
+    ///
+    /// `numpunct<char>` is a dual-ABI facet. Installing one into a locale
+    /// (`locale::_Impl::_M_install_facet`, `src/c++98/locale.cc`) also installs an old-ABI
+    /// `numpunct_shim` twin (`src/c++11/cxx11-shim_facets.cc`), and libstdc++'s own
+    /// `num_put<char>`, compiled for the old ABI, builds its `__numpunct_cache` from that
+    /// twin. The twin's `do_grouping()` returns its cached grouping as a `const char*`, so
+    /// the string it returns ends at the first NUL byte. The same in GCC 13.3, 14.2 and
+    /// master.
+    pub fn effective_grouping(&self) -> &[u8] {
+        let end = self
+            .grouping
+            .iter()
+            .position(|&byte| byte == 0)
+            .unwrap_or(self.grouping.len());
+        self.grouping.get(..end).unwrap_or(&[])
+    }
+}
+
 impl Default for NumPunct {
     /// The classic locale: separator `,` and no grouping.
     fn default() -> Self {
@@ -450,7 +470,7 @@ impl OStream {
         let magnitude = value.unsigned_abs();
         let digits = int_to_char(magnitude, octal, hexadecimal, flags.uppercase);
 
-        let grouping = &self.numpunct.grouping;
+        let grouping = self.numpunct.effective_grouping();
         let digits = match grouping.first() {
             Some(&first) if group_size(first) > 0 && first != CHAR_MAX => {
                 add_grouping(self.numpunct.thousands_sep, grouping, &digits)
@@ -645,6 +665,12 @@ mod tests {
         out.flags.uppercase = true;
         assert!(insert_wx_point(&mut out, &WxPoint::new(-1, 0)).is_ok());
         assert_eq!(out.buf().bytes(), b" x=\"0XFFFFFFFF\" y=\"0\"");
+
+        // The grouping ends at its first NUL byte: [3, 0] groups by three throughout.
+        let mut out = stream(None)?;
+        out.numpunct.grouping = alloc::vec![3, 0, 1];
+        assert!(insert_wx_point(&mut out, &WxPoint::new(i32::MAX, 0)).is_ok());
+        assert_eq!(out.buf().bytes(), b" x=\"2,147,483,647\" y=\"0\"");
         Ok(())
     }
 

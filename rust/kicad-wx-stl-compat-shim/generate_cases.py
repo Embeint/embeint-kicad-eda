@@ -239,6 +239,8 @@ def insert_cases(c, rng):
         'three-zero': ([3, 0], 0x2C), 'three-max': ([3, 127], 0x20), 'three-negative': ([3, 255], 0x2C),
         'one-max': ([1, 127], 0x5F), 'nine': ([9], 0x27), 'ten': ([10], 0x27), 'fours': ([4] * 16, 0x2C),
         'ones': ([1] * 16, 0x80), 'mixed': ([1, 2, 3, 4], 0x7C),
+        # The num_put<char> twin facet ends the grouping at its first NUL byte.
+        'two-nul-one': ([2, 0, 1], 0x2C), 'one-nul-five': ([1, 0, 5], 0x2C), 'nul-three': ([0, 3], 0x2C),
     }
     group_values = [(INT_MIN, INT_MAX), (0, -1), (1000, -1000), (999, 12345678)]
     group_flags = {'dec': ['dec'], 'showpos': ['dec', 'showpos'], 'hex-showbase': ['hex', 'showbase'],

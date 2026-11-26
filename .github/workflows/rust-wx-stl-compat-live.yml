@@ -1,0 +1,95 @@
+name: Rust wx_stl_compat live validation
+
+# Scoped live evidence for libs.core.application.thin.replacement.p001
+# (libs/core/wx_stl_compat.cpp): the bodies compiled into KiCad's own core library on the
+# distribution wxWidgets, glibc and libstdc++ of the reference image against the Rust shim,
+# the refusal controls with continuations on both, and the whole corpus replayed in
+# import-free wasm32 against this run's native C++ replies. The run records the runtime
+# packages the TowxString and stream results depend on. The rust-port job remains the gate.
+on:
+  pull_request:
+    branches: [rust]
+    paths:
+      - rust/kicad-math/**
+      - rust/kicad-map-helpers/**
+      - rust/kicad-wx-stl-compat/**
+      - rust/kicad-wx-stl-compat-shim/**
+      - rust/Cargo.toml
+      - rust/Cargo.lock
+      - port/oracle/**
+      - port/cases/libs.core.application.thin.replacement.p001.jsonl
+      - port/units/libs.core.application.thin.replacement.p001.toml
+      - .github/workflows/rust-wx-stl-compat-live.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wx-stl-compat-live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: "2"
+      ORACLE_JOBS: "2"
+      UNIT: libs.core.application.thin.replacement.p001
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0 # The oracle exports the pinned upstream commit, not HEAD.
+      - name: Install toolchain and oracle dependencies
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal --component clippy,rustfmt --target wasm32-unknown-unknown
+          rustup default 1.99.1
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++ gcc cmake ninja-build python3 rsync git libboost-dev libwxgtk3.2-dev
+      - name: Check the portable implementation and deterministic corpus
+        run: |
+          cargo fmt --manifest-path rust/Cargo.toml -p kicad-wx-stl-compat -p kicad-wx-stl-compat-shim --check
+          cargo clippy --locked --manifest-path rust/Cargo.toml -p kicad-wx-stl-compat -p kicad-wx-stl-compat-shim --all-targets -j2 -- -D warnings
+          cargo test --locked --manifest-path rust/Cargo.toml -p kicad-wx-stl-compat -p kicad-wx-stl-compat-shim -j2
+          cargo check --locked --manifest-path rust/Cargo.toml -p kicad-wx-stl-compat --target wasm32-unknown-unknown -j2
+          python3 rust/kicad-wx-stl-compat-shim/generate_cases.py --check
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-difftest -p kicad-wx-stl-compat-shim -j2
+      - name: Build the genuine pinned own-library oracle
+        env:
+          LD_LIBRARY_PATH: ""
+        run: |
+          export PATH="/usr/bin:/bin:$PATH"
+          /usr/bin/python3 port/oracle/prepare.py --output-dir "$RUNNER_TEMP/wx-stl-compat-stage"
+          bash port/oracle/build.sh "$RUNNER_TEMP/wx-stl-compat-stage" "$PWD/port/oracle" "$RUNNER_TEMP/wx-stl-compat-native"
+      - name: Compare every public case exactly and replay the controls on both sides
+        run: |
+          out="$RUNNER_TEMP/wx-stl-compat-native"
+          oracle="$out/oracle-build/kicad-oracle"
+          "$oracle" --provenance > "$out/provenance.json"
+          # The runtime libraries decide TowxString (glibc locales) and the stream sentries.
+          { dpkg-query -W -f='${Package} ${Version}\n' libc6 libstdc++6 libwxbase3.2-1t64 locales 2>/dev/null || true
+            ls -d /usr/lib/locale/C.utf8 /usr/lib/locale/C.UTF-8 2>/dev/null || true
+            ldd "$oracle" | grep -E 'libstdc|libc\.so|wx_base' || true; } | tee "$out/runtime.txt"
+          python3 -c 'import json,sys; p=json.load(open(sys.argv[1])); print(json.dumps({k: v for k, v in p.items() if "wx" in k.lower() or "compiler" in k.lower()}, indent=1)[:4000])' "$out/provenance.json"
+          rust/target/debug/kicad-difftest compare --partial --unit "$UNIT" --root "$PWD" \
+            --oracle "$oracle" --rust "$PWD/rust/target/debug/kicad-wx-stl-compat-shim" \
+            --report "$out/compare.json"
+          python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); print({k: r[k] for k in ("status","cases","compared","deferred","failures","unprocessed")})' "$out/compare.json"
+          python3 port/oracle/test_wx_stl_compat_inputs.py "$oracle" "$PWD/rust/target/debug/kicad-wx-stl-compat-shim"
+          "$oracle" < "port/cases/$UNIT.jsonl" > "$out/native.jsonl"
+      - name: Replay the complete corpus in import-free WebAssembly against the C++ replies
+        run: |
+          export KICAD_WX_STL_COMPAT_WASM_REFERENCE="$RUNNER_TEMP/wx-stl-compat-native/native.jsonl"
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-wx-stl-compat-shim \
+            --example corpus_parity --features live-wasm --target wasm32-unknown-unknown --release -j2
+          node rust/kicad-wx-stl-compat-shim/wasm-test.mjs rust/target/wasm32-unknown-unknown/release/examples/corpus_parity.wasm
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: wx-stl-compat-live-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/wx-stl-compat-native/compare.json
+            ${{ runner.temp }}/wx-stl-compat-native/native.jsonl
+            ${{ runner.temp }}/wx-stl-compat-native/runtime.txt
+            ${{ runner.temp }}/wx-stl-compat-native/oracle-build/oracle-provenance.json
+            ${{ runner.temp }}/wx-stl-compat-native/oracle-build/compile_commands.json
+            ${{ runner.temp }}/wx-stl-compat-native/oracle-build/binary.sha256
+            ${{ runner.temp }}/wx-stl-compat-stage/source-manifest.json
+          retention-days: 14
