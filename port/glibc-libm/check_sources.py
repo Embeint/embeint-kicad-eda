@@ -21,6 +21,7 @@ import time
 HERE=Path(__file__).resolve().parent
 ROOT=HERE.parents[1]
 RUST=ROOT/'rust/kicad-math/src/glibc_libm'
+HYPOT=ROOT/'rust/kicad-math/src/hypot.rs'
 
 def need(ok,what):
     if not ok: raise ValueError(what)
@@ -57,6 +58,7 @@ def check(get):
         actual=re.search(r'const '+name.upper()+r': f64 = f64::from_bits\(0x([a-fA-F0-9_]+)\)',rust)
         need(actual is not None and int(actual[1],16)==bits(v),f'constant {name}')
     check_pow(src['e_pow_log_data.c'],src['e_exp_data.c'],(RUST/'pow_table.rs').read_text())
+    check_hypot(src,HYPOT.read_text())
     return manifest
 
 def hexexpr(text,n=128):
@@ -90,6 +92,22 @@ def check_pow(log_data,exp_data,rust):
     need(rust_array(rust,'C')==[bits(hexexpr(v)) for v in init_list(exp_data,'.poly = {')],'exp_data poly')
     tab=[int(v,16) for v in re.findall(r'0x[0-9a-fA-F]+',exp_data.split('.tab = {',1)[1].split('#endif',1)[0])]
     need(len(tab)==256 and rust_array(rust,'EXP_TAB')==tab,'exp_data tab')
+
+def check_hypot(src,rust):
+    """e_hypot.c's four scale constants, the fmax/fmin selection and empty w_hypot.c."""
+    text=src['e_hypot.c']
+    for macro,name in [('SCALE','scale'),('LARGE_VAL','large'),('TINY_VAL','tiny'),('EPS','eps')]:
+        m=re.search(r'#define '+macro+r'\s+0x1p([+-]\d+)\n',text);need(m is not None,f'hypot macro {macro}')
+        r=re.search(r'let '+name+r' = f64::from_bits\(\(1023 ([+-]) (\d+)\) << 52\);',rust)
+        need(r is not None,f'hypot constant {name}')
+        need(int(r[1]+r[2])==int(m[1]),f'hypot constant {name} exponent')
+    # The ported ternary order of ax/ay is the generic (non-builtin) selection.
+    for header,macro in [('math-use-builtins-fmax.h','USE_FMAX_BUILTIN'),('math-use-builtins-fmin.h','USE_FMIN_BUILTIN')]:
+        need(re.search(r'#define '+macro+r' 0\n',src[header]) is not None,f'{macro} is not 0')
+    # For double, the public hypot is __hypot itself (versioned GLIBC_2.35).
+    need(src['w_hypot.c'].strip()=='/* Not needed.  */','dbl-64 w_hypot.c is not empty')
+    need('versioned_symbol (libm, __hypot, hypot, GLIBC_2_35);' in text,'hypot GLIBC_2.35 version')
+    need('#ifdef __FP_FAST_FMA' in text,'hypot FMA selection')
 
 def fetch_archive(spec, archive):
     # Transport mirrors may fail (archive.ubuntu.com refused hosted CI with

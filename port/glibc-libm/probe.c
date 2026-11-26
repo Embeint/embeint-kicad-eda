@@ -131,11 +131,14 @@ static void check_slot( const char* name, void* wrapper, unsigned long slot, uns
 
 int main( int argc, char** argv )
 {
-    // An optional fifth argument "pow" selects the pow records (x, y, pow)
-    // instead of the five angle functions; every identity check runs in both.
-    if( argc != 5 && !( argc == 6 && strcmp( argv[5], "pow" ) == 0 ) )
-        fail( "usage", "DOMAIN RECORDS LIBDIR COUNT [pow]" );
-    const int powMode = argc == 6;
+    // An optional fifth argument "pow" or "hypot" selects that function's records
+    // (x, y, f(x, y)) instead of the five angle functions; every identity check runs
+    // in all modes.
+    if( argc != 5
+        && !( argc == 6 && ( strcmp( argv[5], "pow" ) == 0 || strcmp( argv[5], "hypot" ) == 0 ) ) )
+        fail( "usage", "DOMAIN RECORDS LIBDIR COUNT [pow|hypot]" );
+    const int powMode = argc == 6 && strcmp( argv[5], "pow" ) == 0;
+    const int hypotMode = argc == 6 && strcmp( argv[5], "hypot" ) == 0;
     const char* names[3] = { "ld-linux-x86-64.so.2", "libc.so.6", "libm.so.6" };
     if( !realpath( argv[0], g_self ) )
         fail( "own path", argv[0] );
@@ -179,6 +182,20 @@ int main( int argc, char** argv )
         fail( "pow version", "default pow is not pow@@GLIBC_2.29" );
     powPtr( one, one );
     check_slot( "pow", (void*) powPtr, 0xe7f58, 0x2b810 );
+    // hypot@@GLIBC_2.35 is e_hypot.c's __hypot itself (dbl-64 w_hypot.c is empty and
+    // x86_64 has no multiarch hypot, so no IFUNC slot). Callers built against 2.39
+    // bind it, not the SVID hypot@GLIBC_2.2.5 compat wrapper (__hypot_compat).
+    BINARY hypotPtr = (BINARY) resolve( "hypot", "0x28450" );
+    if( dlvsym( RTLD_DEFAULT, "hypot", "GLIBC_2.35" ) != (void*) hypotPtr )
+        fail( "hypot version", "default hypot is not hypot@@GLIBC_2.35" );
+    void* hypotCompat = dlvsym( RTLD_DEFAULT, "hypot", "GLIBC_2.2.5" );
+    Dl_info hypotInfo;
+    if( !hypotCompat || hypotCompat == (void*) hypotPtr || !dladdr( hypotCompat, &hypotInfo )
+        || (uintptr_t) hypotCompat - (uintptr_t) hypotInfo.dli_fbase != 0x12db0 )
+        fail( "hypot compat", "hypot@GLIBC_2.2.5 is not the separate __hypot_compat" );
+    if( dlvsym( RTLD_DEFAULT, "__hypot_finite", "GLIBC_2.15" ) != (void*) hypotPtr )
+        fail( "hypot alias", "__hypot_finite is not the same __hypot body" );
+    printf( "hypot@@GLIBC_2.35 libm+0x28450 (no IFUNC); compat hypot@GLIBC_2.2.5 libm+0x12db0\n" );
     const unsigned long long count = strtoull( argv[4], NULL, 10 );
     struct stat st;
     if( stat( argv[1], &st ) != 0 || (unsigned long long) st.st_size != count * 16ULL )
@@ -192,6 +209,13 @@ int main( int argc, char** argv )
     {
         g_bits[0] = inputs[0]; g_bits[1] = inputs[1];
         const double x = from_bits( g_bits[0] ), y = from_bits( g_bits[1] );
+        if( hypotMode )
+        {
+            const uint64_t record[3] = { inputs[0], inputs[1], to_bits( hypotPtr( x, y ) ) };
+            if( fwrite( record, sizeof record, 1, out ) != 1 ) fail( "write", argv[2] );
+            ++written;
+            continue;
+        }
         if( powMode )
         {
             const uint64_t record[3] = { inputs[0], inputs[1], to_bits( powPtr( x, y ) ) };

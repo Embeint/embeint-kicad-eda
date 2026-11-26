@@ -5,8 +5,8 @@ const CORPUS: &str = include_str!(
     "../../../port/cases/libs.kimath.src.geometry.arc_construction.application.ui.p001.jsonl"
 );
 const CASES: usize = 2912;
-/// Tangents whose EuclideanNorm reaches std::hypot with an infinite or NaN operand.
-const DEFERRED: usize = 20;
+/// Full hypot now covers finite and non-finite tangent norms; every public case returns a result.
+const DEFERRED: usize = 0;
 const VECTOR_UNIT: &str = "libs.kimath.include.math.application.ui.p002";
 
 #[test]

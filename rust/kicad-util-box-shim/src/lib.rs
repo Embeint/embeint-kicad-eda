@@ -652,7 +652,8 @@ mod tests {
                 counts[1] += 1;
             }
         }
-        // Wiring the finite VECTOR2<double> norm resolves five former hypot deferrals.
+        // The vector owner's std::hypot wiring returns the 5 former
+        // `VECTOR2<double>::EuclideanNorm std::hypot` deferrals; no other count changes.
         assert_eq!(counts, [14329, 1602]);
     }
     #[test]

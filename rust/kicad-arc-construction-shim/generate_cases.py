@@ -11,10 +11,9 @@ evaluated exactly through fractions and std::hypot follows the glibc 2.39 finite
 mirror below decides which source branch each request reaches. It labels branches for the
 evidence table and checks every reachable branch is hit; it never writes a result.
 
-Tangents are given as exact IEEE bits. A tangent whose VECTOR2<double>::EuclideanNorm reaches
-std::hypot with an infinite or NaN operand is a real C++ operation that still defers to the
-vector owner (libs.kimath.include.math.application.ui.p002); those cases stay in the corpus and
-are counted as deferrals, never dropped.
+Tangents are given as exact IEEE bits. VECTOR2<double>::EuclideanNorm now uses the full
+qualified hypot backend. The mirror labels its non-finite outcomes for coverage; every input
+stays in the corpus and is compared with the genuine C++ oracle.
 """
 import argparse
 from collections import Counter
@@ -133,11 +132,16 @@ def norm(x, y, labels, where):
     if y == 0:
         labels.add(f'{where}-norm-axis')
         return abs(x)
+    labels.add(f'{where}-norm-hypot')
     if math.isfinite(x) and math.isfinite(y):
-        labels.add(f'{where}-norm-hypot')
         return hypot_finite(x, y)
-    labels.add(f'{where}-norm-deferred')
-    raise Deferred()
+    # Coverage only: glibc hypot returns infinity except when an operand signals NaN.
+    def signalling(value):
+        word = int(bits(value), 16)
+        return (word & 0x7ff0000000000000) == 0x7ff0000000000000 and (word & 0xfffffffffffff) != 0 and (word & 0x8000000000000) == 0
+    if (math.isinf(x) or math.isinf(y)) and not (signalling(x) or signalling(y)):
+        return math.inf
+    return math.nan
 
 
 def kiround(v):
@@ -571,8 +575,8 @@ def main():
         'center-major', 'center-minor', 'tangent-zero', 'tangent-nan-length',
         'tangent-infinite-length', 'tangent-coincident', 'tangent-on-line', 'tangent-left',
         'tangent-right', 'tangent-norm-diagonal', 'tangent-norm-axis', 'tangent-norm-hypot',
-        'tangent-norm-deferred', 'build-norm-hypot', 'build-norm-axis', 'build-norm-diagonal',
-        'through-rel-norm-hypot', 'deferred'}
+        'build-norm-hypot', 'build-norm-axis', 'build-norm-diagonal',
+        'through-rel-norm-hypot'}
     missing = required - set(counts)
     if args.branches:
         for label, n in sorted(counts.items()):
