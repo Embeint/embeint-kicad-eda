@@ -40,6 +40,13 @@ pub mod less;
 pub mod ostream;
 pub mod to_wx_string;
 
+/// The four ported bodies of `libs/core/wx_stl_compat.cpp`, under the unit's module path.
+pub mod wx_stl_compat {
+    pub use crate::less::less_wx_point;
+    pub use crate::ostream::{insert_wx_point, insert_wx_size};
+    pub use crate::to_wx_string::to_wx_string;
+}
+
 pub use kicad_map_helpers::wx_string::{WChar, WxError, WxString};
 pub use kicad_math::vector2wx::{WxPoint, WxSize};
 
