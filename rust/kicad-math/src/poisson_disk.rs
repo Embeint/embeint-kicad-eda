@@ -7,9 +7,10 @@
 //! The function is ported statement by statement in source order. Its random numbers come from
 //! the faithful Boost.Random 1.83 port in `kicad_boost_random` (`mt19937`,
 //! `uniform_real_distribution<double>( 0.0, 1.0 )` and `uniform_int_distribution<size_t>`), and
-//! its trigonometry from the crate's glibc 2.39 `sincos` port, so the samples are bit-identical
-//! to the pinned C++ natively and in WebAssembly. Two evaluation-order facts of the pinned build
-//! (GCC, `-O3 -ffp-contract=off`, checked in the compiled object) are reproduced explicitly:
+//! its trigonometry from the crate's glibc 2.39 `sincos` port. Local exact comparison and
+//! native/wasm replay pass; qualification against the target GCC 13 / Boost 1.83 / glibc 2.39
+//! build remains pending hosted CI. Two evaluation-order facts observed in the local compiled
+//! object (GCC 15.2, `-O3 -ffp-contract=off`) are reproduced explicitly:
 //!
 //! - `VECTOR2D p( uniform( rng ), uniform( rng ) )`: GCC evaluates the two constructor
 //!   arguments right to left, so the first draw is `p.y` and the second `p.x`.
