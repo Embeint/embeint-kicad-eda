@@ -25,6 +25,9 @@
 //! Unit `libs.kimath.src.geometry.arc_chord_params.application.pure.p001` owns
 //! [`arc_chord_params`] (`geometry/arc_chord_params.cpp`).
 //!
+//! Unit `libs.kimath.src.geometry.poisson_disk.application.pure.p001` owns [`poisson_disk`]
+//! (`geometry/poisson_disk.cpp`), drawing from the Boost.Random port in `kicad-boost-random`.
+//!
 //! The `MATRIX3x3<double>` arithmetic is evaluated through private per-site code generated
 //! from the pinned oracle binary (`generated`) on explicit SSE2 NaN selection (`sse2`); see
 //! `port/findings/kimath-matrix-mixed-nan-payloads.md`.
@@ -40,6 +43,7 @@ mod fp;
 pub mod geometry_headers;
 mod hypot;
 pub mod math_util;
+pub mod poisson_disk;
 pub mod poly_ystripes;
 
 // `generated.rs` is emitter output (sha256 d24ff0f2..., from the reviewed graph locks of the

@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-3.0-or-later AND BSL-1.0
+[package]
+name = "kicad-boost-random"
+description = "Portable faithful port of the Boost.Random 1.83 mt19937 and uniform distributions KiCad links"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+# Derived from Boost.Random 1.83.0 (Copyright Jens Maurer 2000-2001, 2006, Steven Watanabe
+# 2009-2011, Boost Software License 1.0, see LICENSE-BSL-1.0); the port is GPL-3.0-or-later.
+license = "GPL-3.0-or-later AND BSL-1.0"
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
