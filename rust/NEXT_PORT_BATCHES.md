@@ -1,15 +1,18 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 # Next Rust port batches
 
-Planning snapshot: 26 November 2026, accepted `rust` at
-`4aaad9d2eb6673eb6f977b7a87a475e522b4b007`. Maintain this plan on `main` as the
+Planning snapshot: 27 November 2026, accepted `rust` at
+`98a12c1123efc4904e0f0c5a59299452a7a15e5d`. Maintain this plan on `main` as the
 port advances. This is a scheduling guide, not a claim list or a change to the
 port gates. The scoped draft PRs remain the authoritative claims.
 Recheck accepted dependencies and open
 claims before assigning work. Implementation uses Opus 5.5; each implementation
 receives an independent Sol 6.1 review of its exact head.
 
-The current batch owns `seg.cpp`, Clipper2 source p001 and the pure core headers.
+The following historical notes preserve earlier heads and pending states. The
+manual final integration section records their accepted outcome.
+
+The earlier batch owned `seg.cpp`, Clipper2 source p001 and the pure core headers.
 SEG has delivered draft [PR #74](https://github.com/Embeint/embeint-kicad-eda/pull/74),
 implementation `f85e09907681ad748217ae5f91c31f55177010fc`. Sol 6.1 reviewed those
 source bodies with no behavioral finding; its ownership-note finding is fixed
@@ -174,8 +177,8 @@ does not adopt a new reference image or claim broader candidate qualification.
 Each manual gate runs workspace formatting/clippy, affected Rust tests, the
 genuine pinned C++ build and CTests, the resistor runtime check, the full
 registered-unit exact comparison/golden policy gate, refusal controls and
-portable wasm builds. Full workspace tests ran at the start; final combined
-workspace, MSRV, generators and wasm replay checks follow the last integration.
+portable wasm builds. Full workspace tests ran at the start and end; final combined
+workspace, MSRV, generator, control, layout and wasm replay checks pass.
 
 | PR | Accepted commit | Tested tree |
 | --- | --- | --- |
@@ -184,8 +187,22 @@ workspace, MSRV, generators and wasm replay checks follow the last integration.
 | #77 | `4e77e346d3c2f086b5101ccff0839acd93389ebe` | `d10df659ae7189ab0cde70958887bff63b104b02` |
 | #78 | `8e4adefd4212c384759bc4e81948ef3d49c01839` | `855f6f2d5b8edaa9c92666d68583a7bcfd5f9389` |
 | #82 | `4aaad9d2eb6673eb6f977b7a87a475e522b4b007` | `2d1c6d8e2218b00d5e64d56775d7af268f7a77f7` |
+| #83 | `70462b87fb7996c4671a31e8995db420a01b111c` | `939292ae773fb3165438023666d888305f448ff1` |
+| #84 | `c21a89d6680adf2a8cfaba594b22352cae0b9cec` | `d330b67903c24065decf4a4a980d9b1cf359bd63` |
+| #86 | `a7dd17d5f6953bfa58f70a36a826107895c79fc5` | `e5085bc8c2afae7f31fa78aab41db8643357c4da` |
+| #87 | `82564b2c8af450facc6e3ee66224044e1947665e` | `8c9574d902189a7cd60e58061b628dd05728d69c` |
+| #85 | `d607f5ec13a6af575af73bda586a7f427bae3cf4` | `dff142d439434981fec40f14dc3d43e917170df7` |
+| #88 | `66140fbe5269747429352e3dbf0c690d14abcfcc` | `2737596c95437476d52632a29ad37fcd7a351a1a` |
+| #81 | `98a12c1123efc4904e0f0c5a59299452a7a15e5d` | `dbfb66a55e0854cc8436d8c500617940c935c1ea` |
 
-Pending this manual cycle: #81, #83, #84, #85, #86, #87, #88.
+All 12 implementation PRs in this cycle are accepted. Final canonical-byte
+verification passes: 140,550 public cases, 135,782 exact results,
+4,768 explicit deferrals, zero failures, all 16 corpus wasm replays,
+workspace tests, Rust 1.85, generators, controls and layout parity. Full hypot
+clears all arc deferrals; ellipse retains 100 logging deferrals and covers 15
+newly exposed guarded programs in controls, without dropping any request.
+[Final evidence](validation/2026-11-27-final-integration/README.md) records
+commands, source/runtime bindings, hashes and the remaining qualification limits.
 
 Every accepted merge tree is checked against its manually tested tree. Normal
 merge commits are used only after GitHub explicitly refuses the rebase merge.
@@ -224,10 +241,10 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 
 | Stream | Current assignment | Next dependency-ready work |
 | --- | --- | --- |
-| Geometry | SEG #74 awaits fresh CI at `3a24cb5c7f`. Ellipse #81 target repair passed fresh Sol review and imports accepted core at `5e060eeb08`; hosted CI pending. Distribute #84 at `d528c0fbe4` and hypot #88 passed Sol review, hosted CI pending. Core utility header assignment interrupted by provider failure before implementation. | Resume existing assignment when routing works; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
-| Polygon operations | Engine #76 awaits fresh CI at `58067c5652`; rectclip #77 at `23117820ad`. Transform #82 source and prose correction reviewed; accepted core imported at `2057cbe194`. Graph-adoption work is preserved but interrupted by provider failure. | Resume graph adoption with final-head provenance; source p002 after accepted engine p001, then wrapper headers after rectclip and p002. |
-| Core and general utilities | PR #73 accepted as `7a984a76e8`, retaining partial contracts. Map helpers #78 at `b96acf7125`, arc #85 at `317c7b571c` and vector2wx #86 at `a3ab12f1b7` await fresh integration checks after reviewed core imports. Unix policy #89 local work is preserved; provider interrupted. | Recover existing claim without a duplicate port. Hold wx_stl_compat reuse until map helpers acceptance; keep pure-header partial contracts explicit. |
-| Numeric backends and spatial follow-ups | Pow #80 accepted. R-tree #83 source passed all applicable checks; accepted rust imported at `0fdf2763e7`, fresh CI pending. Poisson #87 standalone wasm lockfile failure fixed and accepted core imported at `19e7851592`; fresh CI required. Unix driver/system-info claim #90 local work is preserved; provider interrupted. | Recover existing claim without a duplicate port. Keep logging host-effect and copy-on-write audits queued. |
+| Geometry | SEG #74, ellipse #81, distribute #84 and full hypot #88 are accepted. Core utility header assignment remains interrupted before implementation. | Resume the existing core assignment when Opus routing works; circle is now ready after SEG. Geometry headers p003 await graph adoption. |
+| Polygon operations | Engine #76, rectclip #77 and transform #82 are accepted. Graph-adoption work is preserved but interrupted by provider failure. | Resume graph adoption against the final accepted baseline, preserving all unit metadata; engine/offset source p002 can now start after engine p001. |
+| Core and general utilities | Core headers #73, map helpers #78, arc #85 and vector2wx #86 are accepted. Unix policy #89 remains a claim with unpublished local work. | Recover the existing Unix policy work without a duplicate claim. wx_stl_compat can reuse the accepted wxString model. |
+| Numeric backends and spatial follow-ups | Pow #80, full hypot #88, R-tree depth #83 and poisson #87 are accepted. Unix driver/system-info #90 remains a claim with unpublished local work. | Recover the existing Unix system-info work. Logging host effects and the copy-on-write depth audit remain queued. |
 
 On each implementation completion, immediately inspect the result, start the
 independent Sol review and select the next unclaimed dependency-ready assignment.
