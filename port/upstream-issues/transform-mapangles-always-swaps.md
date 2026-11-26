@@ -30,12 +30,15 @@ Evidence: all 5,208 `map_angles` cases of the public corpus for unit
 `libs.kimath.src.transform.application.ui.p001` (every orientation, degenerate and
 non-unimodular matrices, edge, random and arbitrary-bit angles including NaN and
 infinities) return `"swap": true` from the genuine pinned C++ (`kicad-oracle` built from
-`port/oracle/shims/kimath_src_transform.cpp`, glibc 2.39 SSE2 runtime). The Rust port
+`port/oracle/shims/kimath_src_transform.cpp`, local GCC 15.2 / glibc 2.43 with SSE2
+tunables). This is supporting evidence; qualification on the target Ubuntu 24.04 /
+GCC 13.3 / glibc 2.39 runner remains pending. The Rust port
 `kicad_hash::transform_source::Transform::map_angles` evaluates the same expression and
 matches every case exactly. The behaviour is ported as written; it is not corrected and no
 comparison exemption is taken.
 
-Confirmation state: confirmed by source analysis and by the live oracle over the corpus.
+Confirmation state: confirmed by source analysis and by the local live oracle over
+the corpus; target-runner evidence remains pending.
 KiCad application impact (which callers rely on the returned flag or the swapped order) is
 not assessed here; callers are in eeschema, outside the ported units. Nothing has been
 reported upstream.
