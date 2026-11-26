@@ -667,10 +667,41 @@ dependencies = [
 ]
 
 [[package]]
+name = "kicad-arc-construction-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-math",
+ "serde_json",
+]
+
+[[package]]
+name = "kicad-boost-random"
+version = "0.1.0"
+
+[[package]]
 name = "kicad-clipper2"
 version = "0.1.0"
 dependencies = [
  "kicad-math",
+]
+
+[[package]]
+name = "kicad-clipper2-engine-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-clipper2",
+ "kicad-difftest",
+ "serde_json",
+]
+
+[[package]]
+name = "kicad-clipper2-rectclip-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-clipper2",
+ "kicad-difftest",
+ "serde_json",
 ]
 
 [[package]]
@@ -686,6 +717,16 @@ dependencies = [
 [[package]]
 name = "kicad-core"
 version = "0.1.0"
+
+[[package]]
+name = "kicad-core-include-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-core",
+ "kicad-core-shim",
+ "kicad-difftest",
+ "serde_json",
+]
 
 [[package]]
 name = "kicad-core-shim"
@@ -707,7 +748,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "kicad-distribute-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-math",
+ "serde_json",
+]
+
+[[package]]
 name = "kicad-eda-angle-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-math",
+ "serde_json",
+]
+
+[[package]]
+name = "kicad-ellipse-shim"
 version = "0.1.0"
 dependencies = [
  "kicad-difftest",
@@ -770,8 +829,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "kicad-map-helpers"
+version = "0.1.0"
+
+[[package]]
+name = "kicad-map-helpers-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-map-helpers",
+ "serde_json",
+]
+
+[[package]]
 name = "kicad-math"
 version = "0.1.0"
+dependencies = [
+ "kicad-boost-random",
+]
 
 [[package]]
 name = "kicad-math-shim"
@@ -804,6 +879,16 @@ version = "0.1.0"
 dependencies = [
  "kicad-difftest",
  "kicad-md5",
+ "serde_json",
+]
+
+[[package]]
+name = "kicad-poisson-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-boost-random",
+ "kicad-difftest",
+ "kicad-math",
  "serde_json",
 ]
 
@@ -874,6 +959,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "kicad-seg-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-math",
+ "serde_json",
+]
+
+[[package]]
+name = "kicad-transform-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-hash",
+ "kicad-math",
+ "serde_json",
+]
+
+[[package]]
 name = "kicad-util-box-shim"
 version = "0.1.0"
 dependencies = [
@@ -884,6 +988,15 @@ dependencies = [
 
 [[package]]
 name = "kicad-vector-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-math",
+ "serde_json",
+]
+
+[[package]]
+name = "kicad-vector2wx-shim"
 version = "0.1.0"
 dependencies = [
  "kicad-difftest",

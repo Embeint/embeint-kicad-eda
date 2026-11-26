@@ -102,6 +102,67 @@ def cases():
                 if j%50==0:steps+=observe(d)
             steps+=observe(d)+[op('clear'),op('state')]
             yield f'{c}-mixed-seed-{seed}',c,steps
+    yield from deep_cases()
+
+# Monotone insertion with fanout 3/4 has minimum fill 1, so splits peel one
+# entry at a time and height grows linearly. These programs measure root levels
+# well above 64 natively (flat topology), then exercise every traversal,
+# deep removal/orphan/condensation, moves, bulk replacement and clear on them.
+DEEP=[('i32.d1.m3','asc1d',160,lambda i:([2*i],[2*i+1])),
+      ('i32.d2.m4','unitstrip',240,lambda i:([i,0],[i+1,1])),
+      ('i32.d2.m4','pr60strip',1200,lambda i:([i*13,i%11],[i*13+7,i%11+2]))]
+def deep_observe(d,n,hi):
+    mid=hi//2
+    return [op('topology'),op('iterate',skip=0,take=8192),op('iterate',skip=n-2,take=5),
+            op('overlap',min=[-10]*d,max=[hi+10]*d,take=8192),
+            op('overlap',min=[mid]*d,max=[mid+3]*d,take=8192),
+            op('overlap',min=[hi+100]*d,max=[hi+101]*d,take=8192),
+            op('overlap',min=[0]*d,max=[hi]*d,take=3),
+            op('search',min=[-10]*d,max=[hi+10]*d,stop=8192,seed=[8191]),
+            op('search',min=[-10]*d,max=[hi+10]*d,stop=1,seed=[]),
+            op('search',min=[mid]*d,max=[mid+5]*d,stop=7,seed=[]),
+            *[op('nearest',point=[p]*d,k=k,seed=[8191,None]) for p,k in [(0,1),(mid,5),(hi,3),(hi+50,8192),(-30,0)]]]
+def deep_cases():
+    for c,name,n,box in DEEP:
+        d=len(box(0)[0]);es=[entry(*box(i),i) for i in range(n)];hi=max(e['max'][0] for e in es)
+        steps=[]
+        for i,e in enumerate(es):
+            steps.append(op('insert',**e))
+            # Shallow enough for nested state (root level <= 40) only early on.
+            if i in [n//4]:steps.append(op('state'))
+            if i in [n//3,n//2,(2*n)//3]:steps.append(op('topology'))
+        steps+=deep_observe(d,n,hi)
+        yield f'{c}-deep-{name}-insert-traverse',c,steps
+        # Deep removal: fallback misses on even items, then direct removal from
+        # the deep end downwards, triggering orphans and repeated condensation.
+        steps=[op('insert',**e) for e in es]+[op('topology')]
+        for j,i in enumerate(range(0,n,2)):
+            steps.append(op('remove',**dict(es[i],min=[-5000]*d,max=[-4999]*d)))
+            if j%(n//8)==0:steps.append(op('topology'))
+        steps+=deep_observe(d,n,hi)
+        for j,i in enumerate(range(n-1 if (n-1)%2 else n-2,0,-2)):
+            steps.append(op('remove',**es[i]))
+            if j%(n//8)==0:steps+=[op('topology'),op('nearest',point=[hi//3]*d,k=4,seed=[])]
+        steps+=[op('remove',**es[1]),op('topology'),op('iterate',skip=0,take=8192),
+                op('search',min=[-10]*d,max=[hi+10]*d,stop=8192,seed=[]),
+                op('nearest',point=[0]*d,k=3,seed=[8191]),op('insert',**es[0]),op('topology')]
+        yield f'{c}-deep-{name}-remove-condense',c,steps
+        # Lifecycle: move a deep tree, reuse the moved-from source, move back,
+        # replace it by bulk load, clear and regrow, observing memory accounting.
+        steps=[op('insert',**e) for e in es]
+        steps+=[op('move_new',a=1,src=0),op('topology'),op('topology',a=1),
+                op('search',a=1,min=[-10]*d,max=[hi+10]*d,stop=8192,seed=[]),
+                op('insert',**es[3]),op('topology'),
+                op('move_assign',a=0,src=1),op('topology'),op('topology',a=1),
+                op('nearest',point=[hi]*d,k=2,seed=[]),
+                op('bulk',entries=es[:50]),op('topology'),op('iterate',skip=0,take=8192)]
+        steps+=[op('insert',a=1,**e) for e in es]+[op('clear',a=1),op('topology',a=1)]
+        steps+=[op('insert',a=1,**e) for e in es[:n//2]]+[op('topology',a=1),op('clear'),op('topology'),
+                op('move_assign',a=0,src=1),op('topology'),op('topology',a=1)]
+        yield f'{c}-deep-{name}-moves-bulk-clear',c,steps
+    # Nested state at the deepest level every reply parser accepts (level 39).
+    es=[entry([2*i],[2*i+1],i) for i in range(80)]
+    yield 'i32.d1.m3-deep-state-level-39','i32.d1.m3',[*[op('insert',**e) for e in es],op('state'),op('topology')]
 
 def main():
     p=argparse.ArgumentParser();p.add_argument('--check',action='store_true');a=p.parse_args()

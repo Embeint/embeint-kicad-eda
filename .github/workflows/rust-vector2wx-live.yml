@@ -1,0 +1,88 @@
+name: Rust vector2wx live validation
+
+# Scoped live evidence for libs.kimath.include.math.application.thin.replacement.p001
+# (math/vector2wx.h): the genuine pinned header on the distribution wxWidgets against the
+# Rust shim, the malformed-request controls with continuations on both, and the whole
+# corpus replayed in import-free wasm32 against this run's native C++ replies. The
+# rust-port job remains the gate.
+on:
+  pull_request:
+    branches: [rust]
+    paths:
+      - rust/kicad-math/**
+      - rust/kicad-vector2wx-shim/**
+      - rust/Cargo.toml
+      - rust/Cargo.lock
+      - port/oracle/**
+      - port/cases/libs.kimath.include.math.application.thin.replacement.p001.jsonl
+      - port/units/libs.kimath.include.math.application.thin.replacement.p001.toml
+      - .github/workflows/rust-vector2wx-live.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  vector2wx-live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: "2"
+      ORACLE_JOBS: "2"
+      UNIT: libs.kimath.include.math.application.thin.replacement.p001
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0 # The oracle exports the pinned upstream commit, not HEAD.
+      - name: Install toolchain and oracle dependencies
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal --component clippy,rustfmt --target wasm32-unknown-unknown
+          rustup default 1.99.1
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++ gcc cmake ninja-build python3 rsync git libboost-dev libwxgtk3.2-dev
+      - name: Check the portable implementation and deterministic corpus
+        run: |
+          cargo fmt --manifest-path rust/Cargo.toml -p kicad-math -p kicad-vector2wx-shim --check
+          cargo clippy --locked --manifest-path rust/Cargo.toml -p kicad-math -p kicad-vector2wx-shim --all-targets -j2 -- -D warnings
+          cargo test --locked --manifest-path rust/Cargo.toml -p kicad-math --lib vector2wx -j2
+          cargo test --locked --manifest-path rust/Cargo.toml -p kicad-vector2wx-shim -j2
+          cargo check --locked --manifest-path rust/Cargo.toml -p kicad-math --target wasm32-unknown-unknown -j2
+          python3 rust/kicad-vector2wx-shim/generate_cases.py --check
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-difftest -p kicad-vector2wx-shim -j2
+      - name: Build the genuine pinned own-library oracle
+        env:
+          LD_LIBRARY_PATH: ""
+        run: |
+          export PATH="/usr/bin:/bin:$PATH"
+          /usr/bin/python3 port/oracle/prepare.py --output-dir "$RUNNER_TEMP/vector2wx-stage"
+          bash port/oracle/build.sh "$RUNNER_TEMP/vector2wx-stage" "$PWD/port/oracle" "$RUNNER_TEMP/vector2wx-native"
+      - name: Compare every public case exactly and replay the controls on both sides
+        run: |
+          out="$RUNNER_TEMP/vector2wx-native"
+          oracle="$out/oracle-build/kicad-oracle"
+          "$oracle" --provenance > "$out/provenance.json"
+          python3 -c 'import json,sys; p=json.load(open(sys.argv[1])); print(json.dumps({k: v for k, v in p.items() if "wx" in k.lower() or "compiler" in k.lower()}, indent=1)[:4000])' "$out/provenance.json"
+          rust/target/debug/kicad-difftest compare --partial --unit "$UNIT" --root "$PWD" \
+            --oracle "$oracle" --rust "$PWD/rust/target/debug/kicad-vector2wx-shim" \
+            --report "$out/compare.json"
+          python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); print({k: r[k] for k in ("status","cases","compared","deferred","failures","unprocessed")})' "$out/compare.json"
+          python3 port/oracle/test_vector2wx_inputs.py "$oracle" "$PWD/rust/target/debug/kicad-vector2wx-shim"
+          "$oracle" < "port/cases/$UNIT.jsonl" > "$out/native.jsonl"
+      - name: Replay the complete corpus in import-free WebAssembly against the C++ replies
+        run: |
+          export KICAD_VECTOR2WX_WASM_REFERENCE="$RUNNER_TEMP/vector2wx-native/native.jsonl"
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-vector2wx-shim \
+            --example corpus_parity --features live-wasm --target wasm32-unknown-unknown --release -j2
+          node rust/kicad-vector2wx-shim/wasm-test.mjs rust/target/wasm32-unknown-unknown/release/examples/corpus_parity.wasm
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: vector2wx-live-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/vector2wx-native/compare.json
+            ${{ runner.temp }}/vector2wx-native/native.jsonl
+            ${{ runner.temp }}/vector2wx-native/oracle-build/oracle-provenance.json
+            ${{ runner.temp }}/vector2wx-native/oracle-build/compile_commands.json
+            ${{ runner.temp }}/vector2wx-native/oracle-build/binary.sha256
+            ${{ runner.temp }}/vector2wx-stage/source-manifest.json
+          retention-days: 14

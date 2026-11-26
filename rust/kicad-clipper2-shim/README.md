@@ -35,7 +35,6 @@ report `*_null`/`*_self`/`*_arg` identities and `PolyPath` nodes are numbered by
 - Trees are built under the host `Budget` `TREE_BUDGET` (the root plus one node per
   operation, 2^22 points); Execute replies carry the adapter's `"tree"` serialization.
 - `kicad-difftest compare --partial` compares every corpus case with the live oracle exactly.
-  Deferred cases name `ClipperBase::AddPaths`/`StripeIndex::BuildFromPath`
-  (`...src.thirdparty.pure.p001`) or `ClipperBase::ExecuteInternal` (`...p002`).
+  Deferred cases name `ClipperBase::ExecuteInternal` (`...src.thirdparty.pure.p002`).
 - `examples/corpus_parity.rs` replays the corpus and controls in import-free WebAssembly and
   requires the newly executed native replies (`.github/workflows/rust-clipper2-live.yml`).
