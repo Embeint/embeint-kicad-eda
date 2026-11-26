@@ -18,9 +18,16 @@ void RegisterDynamicRtree( REGISTRY& aRegistry );
 void RegisterCowPackedRtree( REGISTRY& aRegistry );
 void RegisterEdaAngleSource( REGISTRY& aRegistry );
 void RegisterArcChordParams( REGISTRY& aRegistry );
+void RegisterDistribute( REGISTRY& aRegistry );
 void RegisterClipper2CoreEngine( REGISTRY& aRegistry );
+void RegisterClipper2EngineP001( REGISTRY& aRegistry );
 void RegisterCoreP001( REGISTRY& aRegistry );
 void RegisterCoreIncludeP001( REGISTRY& aRegistry );
+void RegisterSeg( REGISTRY& aRegistry );
+void RegisterClipper2RectClip( REGISTRY& aRegistry );
+void RegisterCoreMapHelpers( REGISTRY& aRegistry );
+void RegisterTransformSource( REGISTRY& aRegistry );
+void RegisterVector2Wx( REGISTRY& aRegistry );
 void RegisterPoissonDisk( REGISTRY& aRegistry );
 
 
@@ -52,9 +59,16 @@ REGISTRY MakeRegistry()
     RegisterCowPackedRtree( registry );
     RegisterEdaAngleSource( registry );
     RegisterArcChordParams( registry );
+    RegisterDistribute( registry );
     RegisterClipper2CoreEngine( registry );
+    RegisterClipper2EngineP001( registry );
     RegisterCoreP001( registry );
     RegisterCoreIncludeP001( registry );
+    RegisterSeg( registry );
+    RegisterClipper2RectClip( registry );
+    RegisterCoreMapHelpers( registry );
+    RegisterTransformSource( registry );
+    RegisterVector2Wx( registry );
     RegisterPoissonDisk( registry );
     return registry;
 }

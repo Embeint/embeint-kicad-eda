@@ -1,0 +1,92 @@
+name: Rust distribute live validation
+
+# Scoped live evidence for libs.kimath.src.geometry.distribute.application.ui.p001: the genuine
+# pinned oracle against the Rust shim, the undefined-domain controls on both, and the corpus and
+# controls replayed in import-free wasm32 against this run's native C++ replies. The rust-port
+# job remains the gate.
+on:
+  pull_request:
+    branches: [rust]
+    paths:
+      - rust/kicad-distribute-shim/**
+      - rust/kicad-math/**
+      - rust/Cargo.toml
+      - rust/Cargo.lock
+      - port/oracle/**
+      - port/cases/libs.kimath.src.geometry.distribute.application.ui.p001.jsonl
+      - port/units/libs.kimath.src.geometry.distribute.application.ui.p001.toml
+      - .github/workflows/rust-distribute-live.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  distribute-live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: "2"
+      ORACLE_JOBS: "2"
+      UNIT: libs.kimath.src.geometry.distribute.application.ui.p001
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0 # The oracle exports the pinned upstream commit, not HEAD.
+      - name: Install toolchain and oracle dependencies
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal --component clippy,rustfmt --target wasm32-unknown-unknown
+          rustup default 1.99.1
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++ gcc cmake ninja-build python3 rsync git libboost-dev libwxgtk3.2-dev
+      - name: Check the portable implementation and deterministic corpus
+        run: |
+          cargo fmt --manifest-path rust/Cargo.toml -p kicad-math -p kicad-distribute-shim --check
+          cargo clippy --locked --manifest-path rust/Cargo.toml -p kicad-math -p kicad-distribute-shim --all-targets -j2 -- -D warnings
+          cargo test --locked --manifest-path rust/Cargo.toml -p kicad-math -p kicad-distribute-shim -j2
+          cargo check --locked --manifest-path rust/Cargo.toml -p kicad-math --target wasm32-unknown-unknown -j2
+          python3 rust/kicad-distribute-shim/generate_cases.py --check
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-difftest -p kicad-distribute-shim -j2
+      - name: Build the genuine pinned own-library oracle
+        env:
+          LD_LIBRARY_PATH: ""
+        run: |
+          export PATH="/usr/bin:/bin:$PATH"
+          /usr/bin/python3 port/oracle/prepare.py --output-dir "$RUNNER_TEMP/distribute-stage"
+          bash port/oracle/build.sh "$RUNNER_TEMP/distribute-stage" "$PWD/port/oracle" "$RUNNER_TEMP/distribute-native"
+      - name: Compare every public case exactly and replay the controls on both sides
+        run: |
+          out="$RUNNER_TEMP/distribute-native"
+          oracle="$out/oracle-build/kicad-oracle"
+          rust="$PWD/rust/target/debug/kicad-distribute-shim"
+          # The pinned reference symbols are linked from the audited kimath archive.
+          nm -C "$oracle" > "$out/symbols.txt"
+          for symbol in 'GetDeltasForDistributeByGaps(' 'GetDeltasForDistributeByPoints(' 'kimathLogOverflow('; do
+            grep -F -- "$symbol" "$out/symbols.txt" > /dev/null || { echo "missing $symbol"; exit 1; }
+          done
+          rust/target/debug/kicad-difftest compare --partial --unit "$UNIT" --root "$PWD" \
+            --oracle "$oracle" --rust "$rust" --report "$out/compare.json"
+          python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); print({k: r[k] for k in ("status","cases","compared","deferred","failures","unprocessed")})' "$out/compare.json"
+          python3 rust/kicad-distribute-shim/compare_controls.py --oracle "$oracle" --rust "$rust"
+          "$oracle" < "port/cases/$UNIT.jsonl" > "$out/native.jsonl"
+          python3 -c 'import json,sys; [print(json.dumps(json.loads(l)["request"])) for l in open(sys.argv[1])]' \
+            port/oracle/fixtures/distribute-controls.jsonl | "$oracle" > "$out/native-controls.jsonl"
+      - name: Replay the corpus and controls in import-free WebAssembly against the C++ replies
+        run: |
+          export KICAD_DISTRIBUTE_WASM_REFERENCE="$RUNNER_TEMP/distribute-native/native.jsonl"
+          export KICAD_DISTRIBUTE_WASM_CONTROL_REFERENCE="$RUNNER_TEMP/distribute-native/native-controls.jsonl"
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-distribute-shim \
+            --example corpus_parity --features live-wasm --target wasm32-unknown-unknown --release -j2
+          node rust/kicad-distribute-shim/wasm-test.mjs rust/target/wasm32-unknown-unknown/release/examples/corpus_parity.wasm
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: distribute-live-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/distribute-native/compare.json
+            ${{ runner.temp }}/distribute-native/symbols.txt
+            ${{ runner.temp }}/distribute-native/oracle-build/oracle-provenance.json
+            ${{ runner.temp }}/distribute-native/oracle-build/compile_commands.json
+            ${{ runner.temp }}/distribute-native/oracle-build/binary.sha256
+            ${{ runner.temp }}/distribute-stage/source-manifest.json
+          retention-days: 14
