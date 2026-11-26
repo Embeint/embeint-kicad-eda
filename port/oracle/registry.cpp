@@ -28,6 +28,7 @@ void RegisterClipper2RectClip( REGISTRY& aRegistry );
 void RegisterCoreMapHelpers( REGISTRY& aRegistry );
 void RegisterTransformSource( REGISTRY& aRegistry );
 void RegisterVector2Wx( REGISTRY& aRegistry );
+void RegisterPoissonDisk( REGISTRY& aRegistry );
 
 
 void REGISTRY::Add( const std::string& aUnit, const std::string& aUpstream, SHIM aShim )
@@ -68,6 +69,7 @@ REGISTRY MakeRegistry()
     RegisterCoreMapHelpers( registry );
     RegisterTransformSource( registry );
     RegisterVector2Wx( registry );
+    RegisterPoissonDisk( registry );
     return registry;
 }
 

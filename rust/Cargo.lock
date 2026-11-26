@@ -667,6 +667,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "kicad-boost-random"
+version = "0.1.0"
+
+[[package]]
 name = "kicad-clipper2"
 version = "0.1.0"
 dependencies = [
@@ -809,6 +813,9 @@ dependencies = [
 [[package]]
 name = "kicad-math"
 version = "0.1.0"
+dependencies = [
+ "kicad-boost-random",
+]
 
 [[package]]
 name = "kicad-math-shim"
@@ -841,6 +848,16 @@ version = "0.1.0"
 dependencies = [
  "kicad-difftest",
  "kicad-md5",
+ "serde_json",
+]
+
+[[package]]
+name = "kicad-poisson-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-boost-random",
+ "kicad-difftest",
+ "kicad-math",
  "serde_json",
 ]
 
