@@ -54,6 +54,21 @@ fn integer(v: &Value, name: &str) -> Result<i32, String> {
 fn bits(v: f64) -> Value {
     json!(format!("{:016x}", v.to_bits()))
 }
+/// An ELLIPSE end point as the C++ adapter encodes it: int components as numbers, double
+/// components as exact IEEE bits.
+trait EllipsePointReply {
+    fn reply(self) -> Value;
+}
+impl EllipsePointReply for Vector2<i32> {
+    fn reply(self) -> Value {
+        json!([self.x, self.y])
+    }
+}
+impl EllipsePointReply for Vector2<f64> {
+    fn reply(self) -> Value {
+        json!([bits(self.x), bits(self.y)])
+    }
+}
 fn array<'a>(v: &'a Value, name: &str) -> Result<&'a Vec<Value>, String> {
     v.get(name)
         .and_then(Value::as_array)
@@ -234,7 +249,7 @@ fn run(v: &Value) -> Result<Value, Error> {
         "ellipse" => {
             keys(v, &["op", "type", "endpoint"])?;
             let endpoint = text(v, "endpoint")?;
-            macro_rules! ellipse { ($t:ty) => {{ let e=Ellipse::<$t>::default(); match endpoint { "default"=>Ok(json!({"center":[e.center.x,e.center.y],"radii":[e.major_radius,e.minor_radius],"angles":([e.rotation,e.start_angle,e.end_angle].map(|a| bits(a.as_degrees())))})),"start"=>{e.arc_start_point()?; Ok(Value::Null)},"end"=>{e.arc_end_point()?;Ok(Value::Null)},_=>Err("unknown endpoint".to_string().into()) } }}; }
+            macro_rules! ellipse { ($t:ty) => {{ let e=Ellipse::<$t>::default(); match endpoint { "default"=>Ok(json!({"center":[e.center.x,e.center.y],"radii":[e.major_radius,e.minor_radius],"angles":([e.rotation,e.start_angle,e.end_angle].map(|a| bits(a.as_degrees())))})),"start"=>Ok(e.arc_start_point()?.reply()),"end"=>Ok(e.arc_end_point()?.reply()),_=>Err("unknown endpoint".to_string().into()) } }}; }
             match text(v, "type")? {
                 "i32" => ellipse!(i32),
                 "f64" => ellipse!(f64),
@@ -386,7 +401,7 @@ mod tests {
                 counts[1] += 1;
             }
         }
-        assert_eq!(counts, [19102, 2436]);
+        assert_eq!(counts, [19106, 2432]);
     }
     #[test]
     fn undefined_controls_keep_real_refusals_and_earlier_dependencies_distinct(

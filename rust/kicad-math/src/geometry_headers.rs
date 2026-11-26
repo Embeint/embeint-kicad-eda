@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Derived from KiCad ellipse.h / grid_geometry.h, copyright The KiCad Developers.
-//! Header-owned bodies only. Out-of-line operations retain their actual unit owners.
+//! Header-owned bodies only. Out-of-line operations retain their actual unit owners: the
+//! `ELLIPSE` source bodies, including `GetPointAtAngle`, are in [`crate::ellipse`].
 use crate::eda_angle::{missing, EdaAngle, GeometryResult};
+use crate::ellipse::EllipseCoord;
 use crate::{Vector2, Vector2D};
 
 #[derive(Clone, Copy, Debug)]
@@ -25,19 +27,14 @@ impl<T: Default> Default for Ellipse<T> {
         }
     }
 }
-impl<T> Ellipse<T> {
+impl<T: EllipseCoord> Ellipse<T> {
+    /// `GetArcStartPoint()`: `GetPointAtAngle( StartAngle )`.
     pub fn arc_start_point(&self) -> GeometryResult<Vector2<T>> {
         self.point_at_angle(self.start_angle)
     }
+    /// `GetArcEndPoint()`: `GetPointAtAngle( EndAngle )`.
     pub fn arc_end_point(&self) -> GeometryResult<Vector2<T>> {
         self.point_at_angle(self.end_angle)
-    }
-    fn point_at_angle(&self, _angle: EdaAngle) -> GeometryResult<Vector2<T>> {
-        // UNPORTED(libs.kimath.src.geometry.ellipse.application.ui.p001): ELLIPSE::GetPointAtAngle
-        missing(
-            "ELLIPSE::GetPointAtAngle",
-            "libs.kimath.src.geometry.ellipse.application.ui.p001",
-        )
     }
 }
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

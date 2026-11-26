@@ -44,17 +44,13 @@ fn normalization_preserves_signed_zero_but_orientation_canonicalizes_it() {
     }
 }
 #[test]
-fn default_ellipse_is_zero_length_and_callee_owners_are_preserved() {
+fn default_ellipse_endpoints_are_its_center_and_callee_owners_are_preserved() {
     let e = Ellipse::<i32>::default();
     assert_eq!((e.major_radius, e.minor_radius), (0, 0));
     assert_eq!(e.end_angle, ANGLE_0);
-    assert!(matches!(
-        e.arc_end_point(),
-        Err(GeometryError::Unported {
-            unit: "libs.kimath.src.geometry.ellipse.application.ui.p001",
-            ..
-        })
-    ));
+    // GetPointAtAngle (libs.kimath.src.geometry.ellipse.application.ui.p001) is wired.
+    assert_eq!(e.arc_end_point(), Ok(Vector2I::new(0, 0)));
+    assert_eq!(e.arc_start_point(), Ok(Vector2I::new(0, 0)));
     let a = GridGeometry {
         priority: 1,
         ..GridGeometry::default()
