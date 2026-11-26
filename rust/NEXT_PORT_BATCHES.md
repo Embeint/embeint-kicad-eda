@@ -2,7 +2,7 @@
 # Next Rust port batches
 
 Planning snapshot: 26 November 2026, accepted `rust` at
-`a862a3eb8ec5e6f3adfa9a6f562e2225de7871ad`. Maintain this plan on `main` as the
+`4738a9c23f8c6068784d26ba991a690044343892`. Maintain this plan on `main` as the
 port advances. This is a scheduling guide, not a claim list or a change to the
 port gates. The scoped draft PRs remain the authoritative claims.
 Recheck accepted dependencies and open
@@ -26,10 +26,14 @@ review and all applicable checks, then rebase-merged as `a862a3eb8e` on
 the reviewed tree `efe3862d1a3fb0722f0d94de92df814d56c08bbf`. The unit remains
 partial for its separately owned dependencies.
 
-Pending topics #73, #74, #76 and #79 now merge that accepted baseline. Each
+Pending topics #73, #74 and #76 merge the accepted pow baseline. Each
 merge was conflict-free; the imported diff equals exactly the accepted pow diff,
-and each resulting tree equals its precomputed merge tree. Their current heads
-need fresh CI; earlier fallback runs/results are historical source evidence.
+and each resulting tree equals its precomputed merge tree. Earlier fallback
+runs/results are historical source evidence. Extractor PR #79 has since passed
+all applicable checks and rebase-merged as `4738a9c23f`; its accepted tree equals
+reviewed tree `b060f4ffd13e113a5e43c639859b690683681e08`. Pending topics must
+import that accepted tool change before integration if their computed merge
+tree would otherwise differ from their reviewed head.
 
 ## Continuous four-stream cycle
 
@@ -42,7 +46,7 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 
 | Stream | Current assignment | Next dependency-ready work |
 | --- | --- | --- |
-| Geometry | SEG integration head `24df53e57c` and extractor integration head `59fa8ff9c5` await fresh CI on accepted pow; graph adoption pending. Ellipse PR #81 delivered and reviewed, documentation corrected at `5c42b69677`. Opus now assigned distribute. | Adopt graph after accepted tool fix; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
+| Geometry | SEG integration head `24df53e57c` awaits CI. Extractor PR #79 accepted as `4738a9c23f`; graph adoption is ready for the next free Opus slot. Ellipse PR #81 delivered and reviewed, documentation corrected at `5c42b69677`. Opus now assigned distribute. | Adopt graph with final-head provenance; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
 | Polygon operations | Engine PR #76 at `6f58bc73fa` awaits CI. Rectclip PR #77 delivered and reviewed without algorithmic blockers; owner note corrected at `87e2913afa`, hosted checks pending. Opus assigned transform as independent fallback. | Source p002 after accepted engine p001, then public wrapper headers after rectclip and p002. |
 | Core and general utilities | PR #73 integration head `26f11478b7` awaits fresh CI. Map helpers PR #78 corrected at `1cadc88eb8`, independent Sol recheck passed; status partial pending target wx qualification. Opus assigned arc_construction as independent fallback. | Hold wx_stl_compat reuse until map helpers is accepted. Keep pure headers partial for allocation, stream, concurrency and scoped-timer gaps. Audit UI core headers before line-chain work. |
 | Numeric backends and spatial follow-ups | Pow PR #80 accepted. R-tree follow-up PR #83 at `813623a66b` passed Sol review, hosted checks pending. Opus now assigned poisson_disk. | Model newly exposed kimathLogOverflow host effects with explicit ownership/host assertion policy; further measured numeric and spatial gaps. Audit copy-on-write code before claiming a similar fixed-depth problem. |
@@ -102,7 +106,7 @@ completed workspace validation.
 
 | Order | Assignment | Start condition | Result to demonstrate |
 | --- | --- | --- | --- |
-| 1 | Adopt corrected geometry dependency graph | After accepted extractor PR #79 | Replay final-head provenance, retain generated dependency capture and regenerate graph, units, measurement, drift and accounting through tooling. |
+| 1 | Adopt corrected geometry dependency graph | Ready: extractor PR #79 accepted; assign the next free Opus slot | Replay final-head provenance, retain generated dependency capture and regenerate graph, units, measurement, drift and accounting through tooling. |
 | 2 | `circle.cpp` (380 lines), then geometry headers UI p003 (1,686 lines), as separate unit PRs | Accepted SEG; resolve the VRML edge before claiming the header unit | Complete SEG inline operations and shared shape interfaces; rerun SEG and `poly_ystripes` continuations. |
 | 3 | Clipper2 source pure p002 (1,727 lines) | Accepted current engine p001 | Real `ExecuteInternal`, output builders and owned offset bodies; rerun the existing Execute cases through successful polygon operations. |
 | 4 | Audit kimathLogOverflow host effects | Independent ownership and assertion contract audit | Define faithful portable/host behavior for the 1,096 expanded-corpus logging deferrals before assigning implementation. Pow is already accepted. |
@@ -125,9 +129,18 @@ retaining all-body fallback for declaration-only cross-TU calls. Reported V5
 cache replay removes 1,798 edges, including 32 SHAPE cross-edges, without function,
 copy or wx-classification changes. The replay retains the original four fmt
 parse failures; it is not new completeness evidence. Canonical graph/units are
-unchanged: adoption is a separate post-review task, including retained generated
+unchanged: adoption is a separate task after the accepted tool change, including retained generated
 dependency capture, provenance, measurement, drift and accounting updates. The
 committed p003-to-VRML scheduling edge remains until that adoption is accepted.
+
+Final integration head `59fa8ff9c58ea926f439e482cab9905452252050` passed
+rust-preflight, rust-port, MSRV and progress-page build (deploy and resistor
+migration were inapplicable skips). The parent verified its delta from the
+reviewed tool head is exactly the accepted pow delta and its computed merge
+tree equals the reviewed integration tree. Rebase merge completed on
+26 November at 01:02 UTC as `4738a9c23f8c6068784d26ba991a690044343892`,
+with accepted tree `b060f4ffd13e113a5e43c639859b690683681e08`.
+No canonical graph or unit dependency change is implied by accepting the tool.
 
 The current unit records do **not** make `trigo.cpp`, `shape_arc.cpp` or
 `intersection.cpp` ready after SEG alone. `trigo.cpp` also requires
