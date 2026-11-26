@@ -54,7 +54,7 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 | --- | --- | --- |
 | Geometry | SEG passed checks, then imported accepted extractor #79 at `b908f439a0`; fresh CI required. Graph adoption active. Ellipse #81 has 11 reference-CI NaN mismatches at `5c42b69677`; focused Opus repair active, fresh Sol review required afterward. Distribute #84 passed Sol review at `33fa41f687`; hosted CI pending. Main Opus slot implements pinned hypot. | Adopt graph with final-head provenance; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
 | Polygon operations | Engine #76 passed checks at `6f58bc73fa`, then imported accepted extractor #79 at `401ebc2624`; fresh CI required. Rectclip #77 likewise awaits fresh CI at `b88832a7d2`. Transform #82 reviewed; reference prose corrected at `b2918f6b31`. Opus implementing graph adoption as independent fallback. | Source p002 after accepted engine p001, then public wrapper headers after rectclip and p002. |
-| Core and general utilities | PR #73 passed checks, then imported accepted extractor #79 at `ab6fd8f3ea`; fresh CI required. Map helpers #78 corrected at `1cadc88eb8`, Sol recheck passed; target wx qualification pending. Arc construction #85 passed source review, owner notes fixed at `eaa34442d1`. Freed Opus slot now implements vector2wx. | Hold wx_stl_compat reuse until map helpers is accepted. Keep pure headers partial for allocation, stream, concurrency and scoped-timer gaps. Audit UI core headers before line-chain work. |
+| Core and general utilities | PR #73 awaits fresh CI at `ab6fd8f3ea`. Map helpers #78 corrected at `1cadc88eb8`, Sol recheck passed; target wx qualification pending. Arc #85 owner notes fixed at `eaa34442d1`. Vector2wx #86 passed Sol review; wasm comment corrected at `3861aaa7b2`. Freed Opus slot now implements Unix policy. | Hold wx_stl_compat reuse until map helpers is accepted. Keep pure headers partial for allocation, stream, concurrency and scoped-timer gaps. Audit UI core headers before line-chain work. |
 | Numeric backends and spatial follow-ups | Pow PR #80 accepted. R-tree follow-up PR #83 at `813623a66b` passed Sol review, hosted checks pending. Opus now assigned poisson_disk. | Model newly exposed kimathLogOverflow host effects with explicit ownership/host assertion policy; further measured numeric and spatial gaps. Audit copy-on-write code before claiming a similar fixed-depth problem. |
 
 On each implementation completion, immediately inspect the result, start the
@@ -277,7 +277,8 @@ Keep one unit per claim/PR, even if one worker handles several sequentially.
 | C | `arc_construction.cpp` — 207 lines; delivered PR #85 | Sol found no source correctness defect; co-port owner notes fixed at `eaa34442d1`. Final-head hosted reference CI pending. |
 | D | `distribute.cpp` — 89 lines; delivered PR #84 | Sol independently replayed all 2,758 cases and 679 controls at `33fa41f687` without findings; hosted reference CI pending. |
 | E | `poisson_disk.cpp` — 143 lines; Opus active | Reproduce Boost MT19937, distribution algorithms, draw/evaluation order, trig bits and ordered samples. Bound tiny-radius storage/work; spacing alone is insufficient evidence. |
-| F | `vector2wx.h` — 56 lines; Opus active | All six point/size/vector conversions with accepted vector types and portable host-boundary values; exact signed component conversions. |
+| F | `vector2wx.h` — 56 lines; delivered PR #86 | Sol found no correctness blocker; wasm evidence comment corrected at `3861aaa7b2`. Final-head hosted CI pending. |
+| G | Unix `policy.cpp` — 35 lines; Opus active | Two genuine constant-return platform bodies; retain the ignored key argument without importing wxString behavior. No recorded hard dependencies. |
 
 Ellipse's local GCC 15.2/glibc 2.43 comparison reports 2,239 cases: 2,103 exact,
 136 deferred (100 logging and 36 hypot), zero failures, plus 234 identical
@@ -371,6 +372,24 @@ Existing arc-chord accessors are only a minimum co-port, so the larger unit
 remains blocked by its actual prerequisites. The fourth slot instead takes
 `libs.kimath.include.math.application.thin.replacement.p001` (vector2wx.h),
 whose six conversions have no recorded hard dependencies.
+
+Vector2wx PR #86 delivered all six conversions at `ebefd12bbe`. The worker
+reports 396 exact C++/Rust replies, 45 identical malformed controls with
+successful continuations, and import-free wasm agreement for the successful
+corpus. The actual local runtime is GCC 15.2/glibc 2.43/wx 3.2.9. Sol found no
+correctness blocker and independently passed scoped Windows tests, generator,
+fmt, clippy and portable wasm compilation; it did not rebuild the C++ oracle
+or execute wasm parity. Parent documentation-only fix
+`3861aaa7b28da15f21b7ec30cb84f18d011cbd90` narrows the wasm example's comment:
+it replays 396 successful public requests, while malformed controls and their
+continuations are checked in native processes. Unit status stays partial pending
+final-head hosted reference CI.
+
+The freed slot now takes `libs.kiplatform.os.unix.application.thin.replacement.p001`,
+the two functions in Unix policy.cpp. Both ignore their wxString argument,
+returning NOT_CONFIGURED and nullopt. Preserve the parameter through a minimal
+host-boundary value without adopting the unaccepted wxString model or porting
+the separate policy header's template body.
 
 Poisson disk is short but less predictable than its line count suggests.
 Check the pinned sources rather than the moving upstream version: even random
