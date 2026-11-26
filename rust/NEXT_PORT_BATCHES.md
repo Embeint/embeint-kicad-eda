@@ -43,6 +43,26 @@ tree would otherwise differ from their reviewed head.
 
 ## Continuous four-stream cycle
 
+Current provider interruption: all four Opus assignments stopped around
+02:10–02:11 UTC on 26 November with `503 AgentFleet routing authorization
+denied or unavailable`. There are currently zero running implementation
+streams. The capability catalog still advertises Opus 5.5, but that is not a
+successful execution-route check. Preserve the assigned work and requested
+model; continue available reviews and CI handling without repeated blind
+retries or a provider/model substitution. No reset time was supplied.
+
+Recovery points are preserved in their existing worktrees and local patch/
+untracked-file backup archives. Graph adoption remains at accepted
+`4738a9c23f` with 1,087 changed entries on
+`t3/adopt-canonical-graph-units`; its semantic/qualification checks and
+publication are unfinished. Unix policy [claim #89](https://github.com/Embeint/embeint-kicad-eda/pull/89)
+is at `82782c9c76` with 14 local changed entries. Unix system-info
+[claim #90](https://github.com/Embeint/embeint-kicad-eda/pull/90) is at
+`913d4ac93f` with 15 local changed entries. These are claim commits, not
+published implementation evidence. The core utility header checkout is clean
+at `4738a9c23f`, with no new claim or implementation. Resume/recover these
+assignments rather than creating overlapping replacement claims.
+
 Keep four independent implementation streams moving. The parent coordinates
 ownership, integration, reviews and refills; workers deliver one scoped unit or
 prerequisite fix at a time. Opus 5.5 implements and a separate Sol 6.1 reviewer
@@ -52,10 +72,10 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 
 | Stream | Current assignment | Next dependency-ready work |
 | --- | --- | --- |
-| Geometry | SEG awaits fresh CI at `b908f439a0`; graph adoption active. Ellipse #81 target repair at `fb6dd8632c` passed fresh Sol review; hosted CI pending. Distribute #84 and hypot #88 passed Sol review, hosted CI pending. Freed Opus slot now implements independent include/core utility headers. | Adopt graph with final-head provenance; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
-| Polygon operations | Engine #76 passed checks at `6f58bc73fa`, then imported accepted extractor #79 at `401ebc2624`; fresh CI required. Rectclip #77 likewise awaits fresh CI at `b88832a7d2`. Transform #82 reviewed; reference prose corrected at `b2918f6b31`. Opus implementing graph adoption as independent fallback. | Source p002 after accepted engine p001, then public wrapper headers after rectclip and p002. |
-| Core and general utilities | PR #73 awaits fresh CI at `ab6fd8f3ea`. Map helpers #78 corrected at `1cadc88eb8`, Sol recheck passed; target wx qualification pending. Arc #85 caller count/workflow fix pushed at `207f67b2cb`; fresh CI required. Vector2wx #86 passed Sol review; wasm comment corrected at `3861aaa7b2`. Freed Opus slot implements Unix policy. | Hold wx_stl_compat reuse until map helpers is accepted. Keep pure headers partial for allocation, stream, concurrency and scoped-timer gaps. Audit UI core headers before line-chain work. |
-| Numeric backends and spatial follow-ups | Pow #80 accepted. R-tree #83 at `813623a66b` passed Sol review, hosted checks pending. Poisson #87 passed Sol review; qualification prose fixed at `bed62f0c5b`. Freed Opus slot now implements Unix driver/system-info bodies. | Model newly exposed kimathLogOverflow host effects with explicit ownership/host assertion policy; further measured numeric and spatial gaps. Audit copy-on-write code before claiming a similar fixed-depth problem. |
+| Geometry | SEG awaits fresh CI at `b908f439a0`. Ellipse #81 target repair at `fb6dd8632c` passed fresh Sol review; hosted CI pending. Distribute #84 and hypot #88 passed Sol review, hosted CI pending. Core utility header assignment interrupted by provider failure before implementation. | Resume existing assignment when routing works; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
+| Polygon operations | Engine #76 awaits fresh CI at `401ebc2624`; rectclip #77 at `b88832a7d2`. Transform #82 reviewed at source head with prose fix `b2918f6b31`. Graph-adoption work is preserved but interrupted by provider failure. | Resume graph adoption with final-head provenance; source p002 after accepted engine p001, then wrapper headers after rectclip and p002. |
+| Core and general utilities | PR #73 awaits fresh CI at `ab6fd8f3ea`; map helpers #78 target wx qualification pending. Arc #85 caller fix at `207f67b2cb`; vector2wx #86 comment fix at `3861aaa7b2`, both awaiting CI. Unix policy claim #89 has preserved local implementation work; provider interrupted. | Recover existing claim without a duplicate port. Hold wx_stl_compat reuse until map helpers acceptance; keep pure-header partial contracts explicit. |
+| Numeric backends and spatial follow-ups | Pow #80 accepted. R-tree #83 and poisson #87 passed source review, hosted checks pending. Unix driver/system-info claim #90 has preserved local implementation work; provider interrupted. | Recover existing claim without a duplicate port. Keep logging host-effect and copy-on-write audits queued. |
 
 On each implementation completion, immediately inspect the result, start the
 independent Sol review and select the next unclaimed dependency-ready assignment.
@@ -122,7 +142,7 @@ integration; the earlier green run is historical evidence for the prior head.
 
 | Order | Assignment | Start condition | Result to demonstrate |
 | --- | --- | --- | --- |
-| 1 | Adopt corrected geometry dependency graph | Opus active on accepted extractor PR #79 | Replay final-head provenance, retain generated dependency capture and regenerate graph, units, measurement, drift and accounting through tooling. |
+| 1 | Adopt corrected geometry dependency graph | Existing Opus work interrupted by routing failure; generated output preserved | Complete final-head provenance, retained dependency capture and semantic validation before publication/review. |
 | 2 | `circle.cpp` (380 lines), then geometry headers UI p003 (1,686 lines), as separate unit PRs | Accepted SEG; resolve the VRML edge before claiming the header unit | Complete SEG inline operations and shared shape interfaces; rerun SEG and `poly_ystripes` continuations. |
 | 3 | Clipper2 source pure p002 (1,727 lines) | Accepted current engine p001 | Real `ExecuteInternal`, output builders and owned offset bodies; rerun the existing Execute cases through successful polygon operations. |
 | 4 | Audit kimathLogOverflow host effects | Independent ownership and assertion contract audit | Define faithful portable/host behavior for the 1,096 expanded-corpus logging deferrals before assigning implementation. Pow is already accepted. |
@@ -278,9 +298,9 @@ Keep one unit per claim/PR, even if one worker handles several sequentially.
 | D | `distribute.cpp` — 89 lines; delivered PR #84 | Sol independently replayed all 2,758 cases and 679 controls at `33fa41f687` without findings; hosted reference CI pending. |
 | E | `poisson_disk.cpp` — 143 lines; delivered PR #87 | Sol found no correctness defect in sampling, RNG or resource handling. Qualification prose fixed at `bed62f0c5b`; final-head hosted CI pending. |
 | F | `vector2wx.h` — 56 lines; delivered PR #86 | Sol found no correctness blocker; wasm evidence comment corrected at `3861aaa7b2`. Final-head hosted CI pending. |
-| G | Unix `policy.cpp` — 35 lines; Opus active | Two genuine constant-return platform bodies; retain the ignored key argument without importing wxString behavior. No recorded hard dependencies. |
-| H | Unix `drivers.cpp` + `sysinfo.cpp` — 70 lines; Opus active | Six genuine platform bodies; false results with unchanged, initialized output parameters, empty lifecycle and no synthetic OS queries. No recorded hard dependencies. |
-| I | `include/core` pure utility headers — 1,046 lines; Opus active | Callable storage copy/move/lifetime, intentional leak ownership, mirror operations, injected-clock throttle and exact type classifications. Separate from #73's libs/core headers; no recorded hard dependencies. |
+| G | Unix `policy.cpp` — 35 lines; provider interrupted, claim #89 | Two genuine constant-return platform bodies; retain the ignored key argument without importing wxString behavior. Recover existing local work. |
+| H | Unix `drivers.cpp` + `sysinfo.cpp` — 70 lines; provider interrupted, claim #90 | Six genuine platform bodies; unchanged initialized output parameters, empty lifecycle and no synthetic OS queries. Recover existing local work. |
+| I | `include/core` pure utility headers — 1,046 lines; provider interrupted before implementation | Callable copy/move/lifetime, leak ownership, mirror, injected-clock throttle and type classification. Separate from #73's libs/core headers. |
 
 Ellipse's local GCC 15.2/glibc 2.43 comparison reports 2,239 cases: 2,103 exact,
 136 deferred (100 logging and 36 hypot), zero failures, plus 234 identical
