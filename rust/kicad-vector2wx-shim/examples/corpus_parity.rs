@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Runtime probe against freshly collected native C++ replies, not stored goldens.
-//! Each request, and each malformed control followed by its continuation, runs through
-//! the same dispatch as the native shim; every reply must equal the native C++ reply
-//! exactly. The unit has no deferrals, so any non-result reply in the corpus fails.
+//! Each public corpus request runs through the same dispatch as the native shim;
+//! every reply must equal the native C++ reply exactly. Malformed controls and their
+//! continuations are checked separately in native processes. This wasm probe covers
+//! the 396 successful corpus requests, so any non-result reply fails.
 #![forbid(unsafe_code)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 use serde_json::Value;
