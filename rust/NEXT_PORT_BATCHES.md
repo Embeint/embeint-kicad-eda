@@ -2,7 +2,7 @@
 # Next Rust port batches
 
 Planning snapshot: 26 November 2026, accepted `rust` at
-`c45b38a2960fe8ccc67dace5f3bea8de96c0bf0c`. Maintain this plan on `main` as the
+`a862a3eb8ec5e6f3adfa9a6f562e2225de7871ad`. Maintain this plan on `main` as the
 port advances. This is a scheduling guide, not a claim list or a change to the
 port gates. The scoped draft PRs remain the authoritative claims.
 Recheck accepted dependencies and open
@@ -16,9 +16,20 @@ source bodies with no behavioral finding; its ownership-note finding is fixed
 in head `0e9845fad7eb4f38fb7d2fe21cf6d56fc467ecbc`. Its dedicated SEG and geometry
 checks passed. Developer preflight timed out during dependency bootstrap on the
 isolated runner before Rust checks; [hosted fallback run 45726912995](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45726912995)
-was dispatched for the same exact head. Acceptance remains pending. Do not base
-new port topics on these open topics: wait for accepted
-`rust`, or take independent work below.
+was dispatched for that earlier head. SEG now imports accepted pow and awaits
+fresh CI at `24df53e57c`. Use accepted rust for new topics, never an open topic.
+
+Pow [PR #80](https://github.com/Embeint/embeint-kicad-eda/pull/80) is accepted:
+reviewed implementation `e055b8ff6b5ccb474db28f947cb65aeb05b1b9a1` passed Sol
+review and all applicable checks, then rebase-merged as `a862a3eb8e` on
+26 November at 00:30 UTC. The computed merge tree and accepted tree both equal
+the reviewed tree `efe3862d1a3fb0722f0d94de92df814d56c08bbf`. The unit remains
+partial for its separately owned dependencies.
+
+Pending topics #73, #74, #76 and #79 now merge that accepted baseline. Each
+merge was conflict-free; the imported diff equals exactly the accepted pow diff,
+and each resulting tree equals its precomputed merge tree. Their current heads
+need fresh CI; earlier fallback runs/results are historical source evidence.
 
 ## Continuous four-stream cycle
 
@@ -31,10 +42,10 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 
 | Stream | Current assignment | Next dependency-ready work |
 | --- | --- | --- |
-| Geometry | SEG PR #74 awaits hosted preflight fallback; extractor PR #79 reviewed without blockers, optional replay guard fixed at `90c8c3a1ea`, graph adoption still pending. Opus assigned independent ellipse source unit. | Adopt graph after accepted tool fix; `circle.cpp` after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. Transform is further independent fallback work. |
-| Polygon operations | PR #76 source reviewed at `d138e88437`; missing global difftest registration fixed at `b8152a8f4d` after hosted gate failure. Formal local run: 881 exact / 26 deferred / 0 failed. Opus assigned rectclip p003. | Await fresh CI; source p002 after accepted p001, then public wrapper headers after rectclip and p002. |
-| Core and general utilities | PR #73 review documentation corrected at `5d99a6f8a1`; hosted preflight fallback dispatched after isolated-runner cancellation during workspace tests. Opus assigned independent map_helpers header unit. | Keep pure headers partial for allocation, stream, concurrency and scoped-timer gaps even after CI. Audit UI core headers before line-chain work; small-unit queue follows map helpers. |
-| Numeric backends and spatial follow-ups | Pow PR #80 at `e055b8ff6b` passes Sol source review and hosted locked-libm qualification; geometry/broader CI pending. Opus assigned R-tree depth-limit follow-up on accepted #61. | Model newly exposed kimathLogOverflow host effects with explicit ownership/host assertion policy; further measured numeric and spatial gaps. |
+| Geometry | SEG integration head `24df53e57c` and extractor integration head `59fa8ff9c5` await fresh CI on accepted pow; source reviews complete, graph adoption pending. Opus assigned ellipse. | Adopt graph after accepted tool fix; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. Transform is independent fallback work. |
+| Polygon operations | PR #76 integration head `6f58bc73fa` awaits fresh CI after the reviewed cleanup fix, registration correction and accepted pow merge. Opus assigned rectclip p003. | Source p002 after accepted p001, then public wrapper headers after rectclip and p002. |
+| Core and general utilities | PR #73 integration head `26f11478b7` awaits fresh CI; source review/doc corrections retain explicit partial contracts. Opus assigned map_helpers. | Keep pure headers partial for allocation, stream, concurrency and scoped-timer gaps even after CI. Audit UI core headers before line-chain work; small-unit queue follows map helpers. |
+| Numeric backends and spatial follow-ups | Pow PR #80 merged into accepted rust as `a862a3eb8e`. Opus assigned R-tree depth-limit follow-up on accepted #61. | Model newly exposed kimathLogOverflow host effects with explicit ownership/host assertion policy; further measured numeric and spatial gaps. |
 
 On each implementation completion, immediately inspect the result, start the
 independent Sol review and select the next unclaimed dependency-ready assignment.
@@ -82,7 +93,8 @@ failed long-context run; any further provider refusal remains a visible blocker.
 Core preflight run 45725447405 was cancelled during workspace testing, with no
 test assertion failure in the retained log; its core tests had passed. The exact
 cancellation cause is not established. [Hosted fallback run 45727170169](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45727170169)
-was dispatched for the unchanged reviewed head `5d99a6f8a1`. Do not describe this
+was dispatched for the then-current reviewed head `5d99a6f8a1`; its acceptance
+role is superseded by the new integration head. Do not describe this
 as the same bootstrap timeout observed on SEG or count the interrupted run as a
 completed workspace validation.
 
@@ -221,8 +233,8 @@ until measured against the current accepted corpus.
 Pow is now delivered as [PR #80](https://github.com/Embeint/embeint-kicad-eda/pull/80),
 implementation `e055b8ff6b5ccb474db28f947cb65aeb05b1b9a1`. The worker reports
 1,535,736 genuine locked-glibc records matching Windows native and import-free
-wasm in debug/release. Native Linux/WASI and geometry C++ comparison still need
-hosted evidence and Sol review. All 1,642 pow deferrals disappear on the original
+wasm in debug/release. Native Linux/WASI qualification and geometry C++ comparison subsequently passed
+hosted CI, and Sol review passed. All 1,642 pow deferrals disappear on the original
 geometry corpus, but only 877 become results: 765 now reach kimathLogOverflow.
 The added 633 cases give 491 results and 142 logging deferrals. Do not confuse
 the base/head Rust corpus comparison with native C++ agreement. A later focused
@@ -231,9 +243,9 @@ swallow overflow to turn these cases into successes; the expanded corpus reports
 1,096 total kimathLogOverflow deferrals (954 in the original corpus plus 142
 in the added cases). Sol independently reproduced the transition identities,
 verified all 657 table words against locked libm, and inspected passing hosted
-pow results on all six configurations. Geometry/broader CI still gates readiness.
-The active fourth stream instead takes
-the independent R-tree depth-limit work while pow is reviewed.
+pow results on all six configurations. All remaining applicable CI passed before
+the exact-tree merge into rust. The active fourth stream takes the independent
+R-tree depth-limit follow-up.
 
 Remove #61's fixed 64-level R-tree limit as a separate focused follow-up. Reuse
 the explicit-stack/active-node-budget approach demonstrated by closed #60,
