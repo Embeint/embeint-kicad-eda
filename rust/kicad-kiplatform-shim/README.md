@@ -58,18 +58,37 @@ run by `port/oracle/test_kiplatform_policy_inputs.py` with a successful
 continuation after each; they are refusal controls, never reference results.
 `--check` verifies both files.
 
-## Local evidence
+## Local evidence (host toolchain, not qualification)
 
-WSL Ubuntu host, g++ 15.2.0, wxWidgets 3.2.9, rustc 1.99.1, Node 22.22.1; the
-overlay was this branch's working tree before its implementation commit. This is
-not the ubuntu-24.04 hosted reference; hosted CI is the authority.
+Tested commit `c61c07592b64dec3b21b9e3d50e79695b0dce407` (accepted rust
+`98a12c1123` merged), staged from raw Git blobs (`core.autocrlf=false`,
+`core.eol=lf`; all 916 pinned reference files and 3,939 overlay files verified
+byte-identical to their blobs) into a dedicated WSL tree, oracle built with
+`build.sh` at `-j8` under the shared build lock.
 
-- `kicad-difftest compare --partial`: 34 cases, 34 compared, 0 deferred, 0 failures,
-  0 unprocessed; oracle and Rust output SHA-256 both
-  `1b6cff9ea321934aa63423e52f11ce492344fd9d46729119f01af9557e511820`.
-- Controls: 23 refusals with continuations on each binary, byte-identical replies.
-- Import-free wasm32 replay of all 34 against the fresh C++ replies passes.
-- `nm -C kicad-oracle` defines both `KIPLATFORM::POLICY::GetPolicyBool(wxString const&)`
-  and `GetPolicyEnumUInt(wxString const&)` (`T`); the adapter object carries
-  `R_X86_64_PLT32` call relocations to both, and `compile_commands.json` compiles the
-  pinned `libs/kiplatform/os/unix/policy.cpp`.
+Toolchain: WSL Ubuntu, g++ 15.2.0, glibc 2.43, wxWidgets 3.2.9, CMake 4.2.3,
+rustc 1.99.1, Node 22.22.1. This is **not** the GCC 13 / glibc 2.39 (ubuntu-24.04,
+wxWidgets 3.2.4) reference environment; no qualification result is claimed here.
+Hosted CI and reference-environment runs are the authority.
+
+- Pinned `libs/kiplatform/os/unix/policy.cpp`: SHA-256
+  `85d8a7f03cf8cf15b6e7007cbb8c72d6c1b04d11c061b68c83b2d828d505cd75`, equal to the
+  pin's blob and the source manifest (archive SHA-256
+  `d0bef2ffab07a3a2a9847824e80d879fc8523349503c2da5fbbe28197c08441f`);
+  `compile_commands.json` compiles it into `kicad-oracle`.
+- `nm -C kicad-oracle` defines `KIPLATFORM::POLICY::GetPolicyBool(wxString const&)` and
+  `GetPolicyEnumUInt(wxString const&)` (`T`); the adapter object has
+  `R_X86_64_PLT32` call relocations to both.
+- Oracle ctest: 14 of 14 pass, including `oracle-kiplatform-policy-inputs`.
+- `kicad-difftest compare --partial`: 36 cases, 36 compared, 0 deferred, 0 failures,
+  0 unprocessed; oracle and Rust output both SHA-256
+  `c79a22a5f355b31b9c51058cb7765be4c57483c3284f3035dcc0abdd34c0abe5` (cases
+  `1f8df908d1743f965ee4b83dd222751096bcaa68d30aac5117a66019dc4697f6`). No golden
+  was requested or blessed.
+- Refusal controls: 25 on each binary, each followed by a successful
+  continuation, replies byte-identical across oracle and Rust.
+- Import-free wasm32 replay of all 36 cases against this run's fresh C++ replies
+  passes.
+- Rust: `cargo fmt --check`, `clippy --all-targets -D warnings`, tests
+  (`kicad-kiplatform` 1, shim corpus 2, `kicad-map-helpers` 7) and the wasm32
+  check pass on this host and on Windows.
