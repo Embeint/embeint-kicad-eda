@@ -158,22 +158,17 @@ fn clean_up_releases_the_arenas() -> Result<()> {
 }
 
 #[test]
-fn calls_into_lines_2272_onward_are_typed_deferrals() -> Result<()> {
+fn calls_into_lines_2272_onward_continue_and_clipper_h_defers() -> Result<()> {
     let mut base = ClipperBase::default();
     base.add_paths(&vec![square()], PathType::Subject, false)?;
     base.reset()?;
     base.set_clip_type(ClipType::Union);
     base.set_fill_rule(FillRule::NonZero);
-    // The contributing square reaches CheckJoinLeft after AddLocalMinPoly.
-    assert_eq!(
-        base.insert_local_minima_into_ael(10),
-        Err(ClipperError::Unported {
-            upstream: "Clipper2Lib::ClipperBase::CheckJoinLeft",
-            unit: ENGINE_SRC_P002,
-        })
-    );
-    // Everything before the deferred call was done: the minimum's output record exists.
+    // The contributing square reaches CheckJoinLeft (src p002) after AddLocalMinPoly and
+    // continues: no left neighbour, so no join, and the right bound's scanline follows.
+    base.insert_local_minima_into_ael(10)?;
     assert_eq!(base.outrecs().len(), 1);
+    assert!(base.actives_head().is_some() && !base.scanlines()?.is_empty());
     assert_eq!(
         path2_contains_path1_paths(&square(), &square()),
         Err(ClipperError::Unported {

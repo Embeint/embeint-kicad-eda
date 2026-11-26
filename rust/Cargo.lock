@@ -683,6 +683,7 @@ version = "0.1.0"
 name = "kicad-clipper2"
 version = "0.1.0"
 dependencies = [
+ "kicad-core",
  "kicad-math",
 ]
 
