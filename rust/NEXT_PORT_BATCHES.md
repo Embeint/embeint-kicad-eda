@@ -212,13 +212,26 @@ retained in the private manual-validation workspace.
 
 ## Continuous four-stream cycle
 
-Current provider interruption: all four Opus assignments stopped around
-02:10–02:11 UTC on 26 November with `503 AgentFleet routing authorization
-denied or unavailable`. There are currently zero running implementation
-streams. The capability catalog still advertises Opus 5.5, but that is not a
-successful execution-route check. Preserve the assigned work and requested
-model; continue available reviews and CI handling without repeated blind
-retries or a provider/model substitution. No reset time was supplied.
+PR #75 is accepted on `main` at
+`0a012ba1afb4a192c0ccbbb34ff4bbe9314fe722`; its computed merge tree was
+verified. The completed implementation batch remains accepted on `rust` at
+`98a12c1123efc4904e0f0c5a59299452a7a15e5d`.
+
+On the user's instruction to continue, four recovery assignments were submitted
+to the existing `claudeAgent` provider with `claude-opus-5-5`: core utility
+headers, corrected graph adoption, Unix policy #89 and Unix system info #90.
+Each submission returned `starting`, without an executed-model record yet.
+This records dispatch, not proof that the earlier routing outage has cleared.
+Use completion events, not status polling or retry loops. A renewed routing
+failure must be reported without changing the requested model/provider.
+
+The earlier provider interruption stopped all four Opus assignments around
+02:10-02:11 UTC on 26 November with `503 AgentFleet routing authorization
+denied or unavailable`. Existing changes and claims remain preserved. Recovery
+workers have exclusive scope in those original checkouts and must safely merge
+accepted rust, retain all newly accepted metadata/registrations, and never import
+an open topic. Each completed implementation or graph adoption receives a fresh
+independent Sol 6.1 review of its concrete head before integration.
 
 Recovery points are preserved in their existing worktrees and local patch/
 untracked-file backup archives. Graph adoption remains at accepted
@@ -241,10 +254,10 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 
 | Stream | Current assignment | Next dependency-ready work |
 | --- | --- | --- |
-| Geometry | SEG #74, ellipse #81, distribute #84 and full hypot #88 are accepted. Core utility header assignment remains interrupted before implementation. | Resume the existing core assignment when Opus routing works; circle is now ready after SEG. Geometry headers p003 await graph adoption. |
-| Polygon operations | Engine #76, rectclip #77 and transform #82 are accepted. Graph-adoption work is preserved but interrupted by provider failure. | Resume graph adoption against the final accepted baseline, preserving all unit metadata; engine/offset source p002 can now start after engine p001. |
-| Core and general utilities | Core headers #73, map helpers #78, arc #85 and vector2wx #86 are accepted. Unix policy #89 remains a claim with unpublished local work. | Recover the existing Unix policy work without a duplicate claim. wx_stl_compat can reuse the accepted wxString model. |
-| Numeric backends and spatial follow-ups | Pow #80, full hypot #88, R-tree depth #83 and poisson #87 are accepted. Unix driver/system-info #90 remains a claim with unpublished local work. | Recover the existing Unix system-info work. Logging host effects and the copy-on-write depth audit remain queued. |
+| Geometry | SEG #74, ellipse #81, distribute #84 and full hypot #88 are accepted. Core utility header recovery submitted; the unit has no published implementation yet. | Finish the existing core recovery; circle is now ready after SEG. Geometry headers p003 await graph adoption. |
+| Polygon operations | Engine #76, rectclip #77 and transform #82 are accepted. Graph-adoption recovery submitted with the preserved generated work. | Resume graph adoption against the final accepted baseline, preserving all unit metadata; engine/offset source p002 can now start after engine p001. |
+| Core and general utilities | Core headers #73, map helpers #78, arc #85 and vector2wx #86 are accepted. Unix policy #89 recovery submitted; local implementation is still unpublished. | Recover the existing Unix policy work without a duplicate claim. wx_stl_compat can reuse the accepted wxString model. |
+| Numeric backends and spatial follow-ups | Pow #80, full hypot #88, R-tree depth #83 and poisson #87 are accepted. Unix driver/system-info #90 recovery submitted; local implementation is still unpublished. | Recover the existing Unix system-info work. Logging host effects and the copy-on-write depth audit remain queued. |
 
 On each implementation completion, immediately inspect the result, start the
 independent Sol review and select the next unclaimed dependency-ready assignment.
