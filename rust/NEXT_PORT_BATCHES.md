@@ -79,6 +79,33 @@ There are no implementation, corpus, refusal, golden or unit-status changes.
 Fresh hosted checks on these published heads are required before integration;
 this metadata review does not replace the original source reviews or CI.
 
+## R-tree and arc CI follow-up
+
+R-tree #83 completed all 15 checks on reviewed source `813623a66b` (12 success,
+three inapplicable skips). Its merge tree differed from that source after
+accepted rust advanced. The parent imported accepted `7a984a76e8` conflict-free
+as `0fdf2763e7b5013b1871dee778a6436128f1d41c`; its imported diff exactly equals
+the accepted delta and its tree equals precomputed
+`607657cb09a264e0928758a3a56f6d2b8215a98f`. Locked Cargo metadata passes.
+Runtime R-tree bodies are unchanged; fresh hosted checks remain required.
+
+Arc #85's earlier `arc-construction-live` run 45739086562 failed generator
+`--check` before any live comparison. Host sin/cos produced different tangent
+input bits on Windows and Linux. The parent corrected input construction to
+use deterministic decimal sine/cosine and powers of ten, retaining every case
+ID and changing only 19 random tangent inputs. Both platforms now pass generator
+checks. Fresh local comparison gives 2,892 exact results, 20 existing deferrals,
+zero failures and 20 matching controls; import-free wasm replay and five shim
+tests pass. The local GCC 15/glibc 2.43 oracle remains non-reference evidence.
+
+Current arc head `317c7b571c64eb4f0d2483a68033afaf470910f0`, tree
+`a829f00521e53f22fbeffd5bb74c99334d722490`, supersedes its batch integration
+head above. No runtime, guard, golden or status changed. Original source Sol
+review remains recorded; the parent handled this small generator fix directly.
+Unit validation passes. See `port/findings/arc-construction-portable-input-generation.md`
+on the arc topic. Final-head hosted CI must qualify the updated inputs before
+integration; earlier corpus comparisons remain historical evidence.
+
 ## Continuous four-stream cycle
 
 Current provider interruption: all four Opus assignments stopped around
@@ -112,8 +139,8 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 | --- | --- | --- |
 | Geometry | SEG #74 awaits fresh CI at `3a24cb5c7f`. Ellipse #81 target repair passed fresh Sol review and imports accepted core at `5e060eeb08`; hosted CI pending. Distribute #84 at `d528c0fbe4` and hypot #88 passed Sol review, hosted CI pending. Core utility header assignment interrupted by provider failure before implementation. | Resume existing assignment when routing works; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
 | Polygon operations | Engine #76 awaits fresh CI at `58067c5652`; rectclip #77 at `23117820ad`. Transform #82 source and prose correction reviewed; accepted core imported at `2057cbe194`. Graph-adoption work is preserved but interrupted by provider failure. | Resume graph adoption with final-head provenance; source p002 after accepted engine p001, then wrapper headers after rectclip and p002. |
-| Core and general utilities | PR #73 accepted as `7a984a76e8`, retaining partial contracts. Map helpers #78 at `b96acf7125`, arc #85 at `7fbeed303c` and vector2wx #86 at `a3ab12f1b7` await fresh integration checks after reviewed core imports. Unix policy #89 local work is preserved; provider interrupted. | Recover existing claim without a duplicate port. Hold wx_stl_compat reuse until map helpers acceptance; keep pure-header partial contracts explicit. |
-| Numeric backends and spatial follow-ups | Pow #80 accepted. R-tree #83 awaits final integration checks. Poisson #87 standalone wasm lockfile failure fixed and accepted core imported at `19e7851592`; fresh CI required. Unix driver/system-info claim #90 local work is preserved; provider interrupted. | Recover existing claim without a duplicate port. Keep logging host-effect and copy-on-write audits queued. |
+| Core and general utilities | PR #73 accepted as `7a984a76e8`, retaining partial contracts. Map helpers #78 at `b96acf7125`, arc #85 at `317c7b571c` and vector2wx #86 at `a3ab12f1b7` await fresh integration checks after reviewed core imports. Unix policy #89 local work is preserved; provider interrupted. | Recover existing claim without a duplicate port. Hold wx_stl_compat reuse until map helpers acceptance; keep pure-header partial contracts explicit. |
+| Numeric backends and spatial follow-ups | Pow #80 accepted. R-tree #83 source passed all applicable checks; accepted rust imported at `0fdf2763e7`, fresh CI pending. Poisson #87 standalone wasm lockfile failure fixed and accepted core imported at `19e7851592`; fresh CI required. Unix driver/system-info claim #90 local work is preserved; provider interrupted. | Recover existing claim without a duplicate port. Keep logging host-effect and copy-on-write audits queued. |
 
 On each implementation completion, immediately inspect the result, start the
 independent Sol review and select the next unclaimed dependency-ready assignment.
