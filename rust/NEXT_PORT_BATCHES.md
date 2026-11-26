@@ -2,7 +2,7 @@
 # Next Rust port batches
 
 Planning snapshot: 26 November 2026, accepted `rust` at
-`7a984a76e8073b7b6cdc01895da4bae126f05641`. Maintain this plan on `main` as the
+`4aaad9d2eb6673eb6f977b7a87a475e522b4b007`. Maintain this plan on `main` as the
 port advances. This is a scheduling guide, not a claim list or a change to the
 port gates. The scoped draft PRs remain the authoritative claims.
 Recheck accepted dependencies and open
@@ -154,6 +154,44 @@ clippy and locked wasm debug/release builds pass. Both wasm profiles replay all
 added. See `port/findings/hypot-wasm-harness-format-check.md` on the hypot topic.
 Fresh complete hosted qualification on the corrected head remains required;
 its new hosted fallback preflight is run `45823810813`.
+
+<!-- manual-integration:start -->
+## Manual final integration
+
+The user requested manual final CI while merging the reviewed implementation
+PRs. The parent integrates one topic at a time with accepted rust, preserves
+owned source blobs and shared registrations, and tests the resulting exact tree
+before publication and merge. The initial SEG head had all applicable hosted
+checks plus its exact-head hosted preflight fallback complete. Subsequent trees
+run the CI commands manually on the locked reference runtime.
+
+The private Linux validation root uses the unchanged input lock: all 249
+package archives and every recorded compiler/runtime file hash are verified.
+It runs GCC 13.3, glibc 2.39, libstdc++ 14 and wxWidgets 3.2.4, with the SSE2
+dispatch tunables. Rust is 1.99.1. This validates these integration trees; it
+does not adopt a new reference image or claim broader candidate qualification.
+
+Each manual gate runs workspace formatting/clippy, affected Rust tests, the
+genuine pinned C++ build and CTests, the resistor runtime check, the full
+registered-unit exact comparison/golden policy gate, refusal controls and
+portable wasm builds. Full workspace tests ran at the start; final combined
+workspace, MSRV, generators and wasm replay checks follow the last integration.
+
+| PR | Accepted commit | Tested tree |
+| --- | --- | --- |
+| #74 | `978956b9f700ad2a7d0e4fa2ebf96ae7ec7805d0` | `df93202fbb3455a013674814c5326812ec6a03a4` |
+| #76 | `8a5239afef31a33b4aae2dfe7cc0daace49ead04` | `659f371720baf03ac2c589e887c7ccbc8016a901` |
+| #77 | `4e77e346d3c2f086b5101ccff0839acd93389ebe` | `d10df659ae7189ab0cde70958887bff63b104b02` |
+| #78 | `8e4adefd4212c384759bc4e81948ef3d49c01839` | `855f6f2d5b8edaa9c92666d68583a7bcfd5f9389` |
+| #82 | `4aaad9d2eb6673eb6f977b7a87a475e522b4b007` | `2d1c6d8e2218b00d5e64d56775d7af268f7a77f7` |
+
+Pending this manual cycle: #81, #83, #84, #85, #86, #87, #88.
+
+Every accepted merge tree is checked against its manually tested tree. Normal
+merge commits are used only after GitHub explicitly refuses the rebase merge.
+Per-step source bindings, command logs, oracle hashes and exact reports are
+retained in the private manual-validation workspace.
+<!-- manual-integration:end -->
 
 ## Continuous four-stream cycle
 
