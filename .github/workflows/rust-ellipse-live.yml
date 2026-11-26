@@ -1,0 +1,77 @@
+name: Rust ellipse source live validation
+on:
+  pull_request:
+    branches: [rust]
+    paths:
+      - rust/kicad-ellipse-shim/**
+      - rust/kicad-math/**
+      - port/oracle/**
+      - port/cases/libs.kimath.src.geometry.ellipse.application.ui.p001.jsonl
+      - port/units/libs.kimath.src.geometry.ellipse.application.ui.p001.toml
+      - .github/workflows/rust-ellipse-live.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ellipse-live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CARGO_BUILD_JOBS: "2"
+      ORACLE_JOBS: "2"
+      GLIBC_TUNABLES: "glibc.cpu.hwcaps=-AVX,-AVX2,-FMA,-FMA4,-AVX512F"
+      LD_LIBRARY_PATH: ""
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - name: Install toolchain and oracle dependencies
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal --component clippy,rustfmt --target wasm32-unknown-unknown
+          rustup default 1.99.1
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++ gcc cmake ninja-build python3 rsync git libboost-dev libwxgtk3.2-dev
+      - name: Check portable implementation, generated corpus and controls
+        run: |
+          cargo fmt --manifest-path rust/Cargo.toml -p kicad-math -p kicad-ellipse-shim --check
+          cargo clippy --locked --manifest-path rust/Cargo.toml -p kicad-math -p kicad-ellipse-shim --all-targets -j2 -- -D warnings
+          cargo test --locked --manifest-path rust/Cargo.toml -p kicad-math -p kicad-ellipse-shim -j2
+          cargo check --locked --manifest-path rust/Cargo.toml -p kicad-math --target wasm32-unknown-unknown -j2
+          python3 rust/kicad-ellipse-shim/generate_cases.py --check
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-ellipse-shim -p kicad-difftest -j2
+      - name: Build genuine pinned own-library oracle
+        run: |
+          python3 port/oracle/prepare.py --output-dir "$RUNNER_TEMP/ellipse-stage"
+          bash port/oracle/build.sh "$RUNNER_TEMP/ellipse-stage" "$PWD/port/oracle" "$RUNNER_TEMP/ellipse-native"
+      - name: Compare every public case and separate undefined-domain controls
+        run: |
+          out="$RUNNER_TEMP/ellipse-native"
+          rust/target/debug/kicad-difftest compare --partial \
+            --unit libs.kimath.src.geometry.ellipse.application.ui.p001 --root "$PWD" \
+            --oracle "$out/oracle-build/kicad-oracle" --rust "$PWD/rust/target/debug/kicad-ellipse-shim" \
+            --report "$out/compare.json"
+          python3 rust/kicad-ellipse-shim/compare_controls.py \
+            --oracle "$out/oracle-build/kicad-oracle" --rust "$PWD/rust/target/debug/kicad-ellipse-shim"
+      - name: Execute every case and control in import-free WebAssembly
+        run: |
+          out="$RUNNER_TEMP/ellipse-native"
+          python3 -c "import json,sys; [print(json.dumps(json.loads(l)['request'])) for l in open(sys.argv[1])]" \
+            port/oracle/fixtures/ellipse-controls.jsonl > "$out/controls.jsonl"
+          cat port/cases/libs.kimath.src.geometry.ellipse.application.ui.p001.jsonl "$out/controls.jsonl" \
+            | rust/target/debug/kicad-ellipse-shim > "$out/rust-native.jsonl"
+          export KICAD_ELLIPSE_WASM_REFERENCE="$out/rust-native.jsonl"
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-ellipse-shim \
+            --example corpus_parity --features live-wasm --target wasm32-unknown-unknown --release -j2
+          node rust/kicad-ellipse-shim/wasm-test.mjs rust/target/wasm32-unknown-unknown/release/examples/corpus_parity.wasm
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: ellipse-live-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/ellipse-native/compare.json
+            ${{ runner.temp }}/ellipse-native/oracle-build/oracle-provenance.json
+            ${{ runner.temp }}/ellipse-native/oracle-build/compile_commands.json
+            ${{ runner.temp }}/ellipse-native/oracle-build/binary.sha256
+            ${{ runner.temp }}/ellipse-native/oracle-build/kicad-oracle
+            ${{ runner.temp }}/ellipse-stage/source-manifest.json
+          retention-days: 14

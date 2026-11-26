@@ -142,14 +142,47 @@ impl EllipseCoord for f64 {
         self
     }
     fn scaled_radius(major: Self, ratio: f64) -> Result<Self, EllipseError> {
-        Ok(fp::mul(major, ratio))
+        // Compiled as aRatio * MajorRadius: a NaN ratio wins over a NaN radius.
+        Ok(fp::mul(ratio, major))
     }
     fn mirrored(reference: Self, center: Self) -> Result<Self, EllipseError> {
         // The int literal 2 converts to 2.0 before the multiplication.
         Ok(fp::sub(fp::mul(2.0, reference), center))
     }
     fn offset(center: Vector2<Self>, rx: f64, ry: f64) -> GeometryResult<Vector2<Self>> {
-        Ok(Vector2::new(fp::add(center.x, rx), fp::add(center.y, ry)))
+        // Compiled as ( rx, ry ) + Center: a NaN offset wins over a NaN centre.
+        Ok(Vector2::new(fp::add(rx, center.x), fp::add(ry, center.y)))
+    }
+}
+
+/// How the oracle applies `Rotation.Sin()` to an operand. `EDA_ANGLE::Sin` returns the
+/// constants 1.0 and -1.0 for the normalized 90 and 270 degree branches, and GCC replaces the
+/// multiplication by those constants with a copy and a sign flip (`xorpd`). Neither quiets a
+/// signalling NaN and the flip negates a NaN, so they are kept distinct from a multiplication;
+/// every other branch, including glibc results that happen to equal +/-1, multiplies.
+#[derive(Clone, Copy)]
+enum SinFactor {
+    One,
+    MinusOne,
+    Value(f64),
+}
+impl SinFactor {
+    fn of(rotation: EdaAngle) -> Self {
+        let test = rotation.normalized().as_degrees();
+        if test == 90.0 {
+            Self::One
+        } else if test == 270.0 {
+            Self::MinusOne
+        } else {
+            Self::Value(rotation.sin())
+        }
+    }
+    fn times(self, operand: f64) -> f64 {
+        match self {
+            Self::One => operand,
+            Self::MinusOne => -operand,
+            Self::Value(sin) => fp::mul(operand, sin),
+        }
     }
 }
 
@@ -250,13 +283,17 @@ impl<T: EllipseCoord> Ellipse<T> {
     /// `GetPointAtAngle( angle )` in the ellipse's local (major, minor) frame.
     pub fn point_at_angle(&self, angle: EdaAngle) -> GeometryResult<Vector2<T>> {
         let t = angle.as_radians();
-        let ex = fp::mul(self.major_radius.to_f64(), glibc_trig::cos(t));
-        let ey = fp::mul(self.minor_radius.to_f64(), glibc_trig::sin(t));
+        // The oracle evaluates std::cos( t ) and std::sin( t ) with one glibc sincos call.
+        let (sin_t, cos_t) = glibc_trig::sincos(t);
+        let ex = fp::mul(self.major_radius.to_f64(), cos_t);
+        let ey = fp::mul(self.minor_radius.to_f64(), sin_t);
 
         let cos_r = self.rotation.cos();
-        let sin_r = self.rotation.sin();
-        let rx = fp::sub(fp::mul(ex, cos_r), fp::mul(ey, sin_r));
-        let ry = fp::add(fp::mul(ex, sin_r), fp::mul(ey, cos_r));
+        let sin_r = SinFactor::of(self.rotation);
+        // Compiled operand order (oracle disassembly): rx = ex * cosR - ey * sinR, but
+        // ry = ey * cosR + ex * sinR. The order decides only which of two NaNs survives.
+        let rx = fp::sub(fp::mul(cos_r, ex), sin_r.times(ey));
+        let ry = fp::add(fp::mul(cos_r, ey), sin_r.times(ex));
 
         T::offset(self.center, rx, ry)
     }
@@ -270,9 +307,12 @@ impl<T: EllipseCoord> Ellipse<T> {
         let dy = fp::sub(point.y.to_f64(), self.center.y.to_f64());
 
         let cos_rot = self.rotation.cos();
+        let sin_factor = SinFactor::of(self.rotation);
         let sin_rot = self.rotation.sin();
-        let lx = fp::add(fp::mul(dx, cos_rot), fp::mul(dy, sin_rot));
-        let ly = fp::add(fp::mul(-dx, sin_rot), fp::mul(dy, cos_rot));
+        let lx = fp::add(fp::mul(dx, cos_rot), sin_factor.times(dy));
+        // -dx * sinRot + dy * cosRot is compiled as dy * cosRot - sinRot * dx: equal for every
+        // value except the sign of a NaN dx, which the oracle keeps.
+        let ly = fp::sub(fp::mul(dy, cos_rot), fp::mul(sin_rot, dx));
 
         Ok(EdaAngle::new(
             glibc_libm::atan2(div(ly, b), div(lx, a)),
