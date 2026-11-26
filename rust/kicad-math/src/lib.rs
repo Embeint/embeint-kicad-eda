@@ -32,6 +32,8 @@
 //! the two wx host boundary types.
 //! Unit `libs.kimath.src.geometry.poisson_disk.application.pure.p001` owns [`poisson_disk`]
 //! (`geometry/poisson_disk.cpp`), drawing from the Boost.Random port in `kicad-boost-random`.
+//! Unit `include.core.application.pure.p001` owns [`mirror`] (`core/mirror.h`), including
+//! the `FLIP_DIRECTION` that [`ellipse`] uses.
 //! `libs.kimath.src.geometry.arc_construction.application.ui.p001` owns [`arc_construction`]
 //! (`geometry/arc_construction.cpp`).
 //!
@@ -57,6 +59,7 @@ mod fp;
 pub mod geometry_headers;
 mod hypot;
 pub mod math_util;
+pub mod mirror;
 pub mod poisson_disk;
 pub mod poly_ystripes;
 pub mod seg;

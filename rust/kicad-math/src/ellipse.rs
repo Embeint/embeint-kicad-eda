@@ -57,16 +57,11 @@ fn vector_error(e: VectorDomainError) -> GeometryError {
     }
 }
 
-/// `FLIP_DIRECTION` (`include/core/mirror.h`), co-ported with its two enumerators only; the
-/// header belongs to unit `include.core.application.pure.p001`. Any value other than
-/// `LEFT_RIGHT` takes `Mirror`'s `else` branches, exactly like `TopBottom`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum FlipDirection {
-    /// Flip left to right (around the Y axis).
-    LeftRight,
-    /// Flip top to bottom (around the X axis).
-    TopBottom,
-}
+/// `FLIP_DIRECTION` (`include/core/mirror.h`), co-ported here first and now defined with
+/// its whole domain in [`crate::mirror`], which belongs to unit
+/// `include.core.application.pure.p001`. Any value other than `LEFT_RIGHT` takes `Mirror`'s
+/// `else` branches, exactly like `TopBottom`.
+pub use crate::mirror::FlipDirection;
 
 /// The default arguments of both constructors: `aStartAngle = ANGLE_0`,
 /// `aEndAngle = FULL_CIRCLE`. C++ can omit the end angle alone or both, never only the start.

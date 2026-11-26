@@ -168,6 +168,11 @@ set_source_files_properties( "${ORACLE_OVERLAY}/reference/clipper2_rectclip_guar
 set( MAP_HELPERS_SHIM "${ORACLE_OVERLAY}/shims/core_map_helpers.cpp" )
 list( REMOVE_ITEM ORACLE_SHIMS "${MAP_HELPERS_SHIM}" )
 list( APPEND ORACLE_SHIMS "${MAP_HELPERS_SHIM}" )
+# The application include/core adapter follows every previously qualified adapter, so none
+# of its weak template copies (VECTOR2, EDA_ANGLE, JSON helpers) is selected ahead of theirs.
+set( CORE_APP_INCLUDE_SHIM "${ORACLE_OVERLAY}/shims/core_app_include_p001.cpp" )
+list( REMOVE_ITEM ORACLE_SHIMS "${CORE_APP_INCLUDE_SHIM}" )
+list( APPEND ORACLE_SHIMS "${CORE_APP_INCLUDE_SHIM}" )
 add_executable( kicad-oracle main.cpp protocol.cpp registry.cpp ${ORACLE_SHIMS}
                 reference/geometry_unreachable_config.cpp )
 target_include_directories( kicad-oracle PRIVATE "${ORACLE_OVERLAY}" "${CMAKE_BINARY_DIR}" )
@@ -175,11 +180,14 @@ target_link_libraries( kicad-oracle PRIVATE kimath nlohmann_json iec60664-refere
                        calculator-reader-reference clipper2-rectclip-replay )
 # shims/core_p001.cpp scripts the clock that the reference GetRunningMicroSecs reads,
 # and shims/core_include_p001.cpp the std::chrono::system_clock::now() that the
-# profile.h timers read (libstdc++'s high_resolution_clock). --wrap redirects only
+# profile.h timers read (libstdc++'s high_resolution_clock), and
+# shims/core_app_include_p001.cpp the std::chrono::steady_clock::now() that THROTTLE
+# reads. --wrap redirects only
 # static objects' references (unarmed calls forward to the real functions); shared
 # libraries keep the system clocks.
 set( ORACLE_CLOCK_WRAPS -Wl,--wrap=clock_gettime
-     -Wl,--wrap=_ZNSt6chrono3_V212system_clock3nowEv )
+     -Wl,--wrap=_ZNSt6chrono3_V212system_clock3nowEv
+     -Wl,--wrap=_ZNSt6chrono3_V212steady_clock3nowEv )
 target_link_options( kicad-oracle PRIVATE -Wl,--gc-sections ${ORACLE_CLOCK_WRAPS} )
 
 # Audit every build, including direct cmake --build calls and warm cache builds.
