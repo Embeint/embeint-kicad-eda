@@ -18,4 +18,6 @@ Opus 5.5. A one-off continuation probe detected that writer and exited without
 edits; the original retains sole ownership. Substantial corrections for #92 and
 #93 were submitted as fresh Opus implementation tasks. Fresh Sol reviews still
 wait for corrected concrete heads; no readiness claim or golden follows from
-dispatch. The fourth engine/offset source p002 refill awaits its isolated claim.
+dispatch. The fourth engine/offset source p002 refill is dispatched in a separate
+tool-prepared checkout from accepted rust; its scoped claim is pending. Dispatch
+is not a qualification result.

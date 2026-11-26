@@ -92,14 +92,31 @@ checkout, must merge only accepted rust, and must correct the actual review
 findings before a new independent Sol 6.1 review. They were starting at dispatch;
 that state alone is not proof of implementation or completion.
 
-There are three assigned implementation streams: the resumed circle task and
-the two correction tasks. The fourth refill is the dependency-ready, unclaimed
+Four implementation streams are assigned: the resumed circle task, the two
+correction tasks, and `rust-stream4-clipper-engine-offset-p002-opus55-20261127`.
+The fourth owns the selected dependency-ready
 `thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p002`: engine lines
 2272-3337 and offset lines 1-661, 1,727 owned lines. Both hard dependencies are
-accepted partials. The parent is moving coordination into a tool-managed
-`origin/rust` checkout before delegating a separate prepared checkout from that
-accepted base. The scoped draft PR, once created after a fresh overlap check,
-will be its claim; this plan does not reserve the unit.
+accepted partials. T3 created a clean coordination checkout at accepted
+`70888b5722`, then a separate child checkout on `t3/55a970b0` from that commit.
+Its actual prepared path and task identity are retained in the coordination
+ledger. The worker must recheck overlap and publish a scoped draft claim before
+implementation; claim creation is pending at this recording. This plan does not
+reserve a unit or claim implementation evidence from dispatch state.
+
+| Stream | Exclusive assignment | Prepared checkout / branch |
+| --- | --- | --- |
+| Circle | Original PR #95 task, automatically resumed on Opus 5.5 | Existing `t3/40b1b484` checkout; no replacement writer |
+| Core | PR #92 allocation/lifecycle/casting/lifetime corrections | Existing `t3/port-core-application-pure` checkout |
+| wx STL | PR #93 exceptions/unwinding/allocation corrections | Existing `t3/port-wx-stl-compat` checkout |
+| Polygon | Clipper engine remainder and offset source p002 | New tool-prepared `t3/55a970b0` checkout from accepted rust |
+
+Requested route for all new work is `claudeAgent` / `claude-opus-5-5`.
+Execution was independently confirmed for the original circle and the safe-exit
+probe. Correction/refill dispatches remain distinct from executed-model evidence,
+completed source, target comparison and fresh independent review. Parent
+coordination now runs on `t3/rust-port-coordination-20261127`; planning continues
+on its separate `main`-targeted branch without importing that topic into rust.
 
 No model/provider substitution or quota retry loop occurred. Another route
 failure must preserve/report work without repeated dispatch. The single
@@ -403,7 +420,7 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 | Stream | Current assignment | Next dependency-ready work |
 | --- | --- | --- |
 | Geometry | Core utility #92 corrections assigned; original circle #95 automatically resumed on Opus 5.5. | Complete existing circle and core work, then fresh Sol reviews; geometry p003 follows accepted circle. |
-| Polygon operations | Graph #94 is accepted at `70888b5722` after fresh review and exact-tree manual gate; metadata refresh is complete. | Engine/offset source p002 selected for a fresh isolated refill from accepted rust; claim pending. |
+| Polygon operations | Graph #94 is accepted at `70888b5722` after fresh review and exact-tree manual gate; metadata refresh is complete. | Engine/offset source p002 is assigned in a separate tool-prepared checkout from accepted rust; scoped claim pending. |
 | Core and general utilities | Unix policy #89 is accepted; wx STL #93 needs stream exception/guard/allocation corrections. | The wx stream exception/guard/allocation correction task is assigned to Opus; fresh Sol review follows delivery. |
 | Numeric backends and spatial follow-ups | Unix system-info #90 is accepted with exact-tree manual final CI. Circle #95 resumed automatically at reset with existing work preserved. | Finish the original circle assignment; logging effects and copy-on-write depth remain queued. |
 
