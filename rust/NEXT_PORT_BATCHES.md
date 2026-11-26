@@ -106,6 +106,30 @@ Unit validation passes. See `port/findings/arc-construction-portable-input-gener
 on the arc topic. Final-head hosted CI must qualify the updated inputs before
 integration; earlier corpus comparisons remain historical evidence.
 
+## Runner outage and hosted preflight fallback
+
+Runner audit on 26 November found `proxmox-kicad-isolated-01` offline, with
+15 developer preflight runs queued against `kicad-ci-isolated-linux-x64`.
+These are self-hosted waits. The authoritative hosted checks on current heads
+of #74, #76, #77, #78, #81, #82, #83, #84, #85, #86 and #87 have finished
+successfully. #88 has a separate `glibc-libm` failure in the source/harness
+check step, before numerical qualification, which still requires investigation.
+
+The parent cancelled the queued offline preflights for those 12 implementation
+PRs and dispatched the existing workflow's `use_hosted=true` fallback on each
+unchanged topic head. All 12 fallback runs were verified in progress. A job
+inspection confirms `ubuntu-24.04` and a GitHub Actions runner; hosted capacity
+is available. No runner configuration, check requirement, implementation or
+qualification rule was changed. The two interrupted claim-only topics #89/#90
+and the accepted-baseline preflight remain outside this dispatch batch.
+
+Fallback runs: #74 `45767628816`, #76 `45767638812`, #77 `45767647190`,
+#78 `45767655217`, #81 `45767663885`, #82 `45767671810`, #83 `45767681151`,
+#84 `45767689492`, #85 `45767698030`, #86 `45767706903`, #87 `45767715635`,
+and #88 `45767723841`. Await these outcomes before claiming complete checks.
+The offline runner remains an infrastructure issue; this existing fallback
+removes it from the current implementation PRs' completion path.
+
 ## Continuous four-stream cycle
 
 Current provider interruption: all four Opus assignments stopped around
