@@ -31,10 +31,10 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 
 | Stream | Current assignment | Next dependency-ready work |
 | --- | --- | --- |
-| Geometry | SEG PR #74 awaits hosted preflight fallback; extractor tool fix PR #79 at `664493feb0` in Sol review, graph adoption still pending. Opus assigned independent ellipse source unit. | Adopt graph after accepted tool fix; `circle.cpp` after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. Transform is further independent fallback work. |
+| Geometry | SEG PR #74 awaits hosted preflight fallback; extractor PR #79 reviewed without blockers, optional replay guard fixed at `90c8c3a1ea`, graph adoption still pending. Opus assigned independent ellipse source unit. | Adopt graph after accepted tool fix; `circle.cpp` after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. Transform is further independent fallback work. |
 | Polygon operations | PR #76 cleanup-observation fix at `d138e88437` accepted by Sol as explicitly partial pending CI; Opus assigned independent rectclip source p003. Local header deferrals reduced from 31 to 14. | Source p002 after accepted p001; then public wrapper headers after rectclip and p002. |
 | Core and general utilities | PR #73 review documentation corrected at `5d99a6f8a1`; hosted preflight fallback dispatched after isolated-runner cancellation during workspace tests. Opus assigned independent map_helpers header unit. | Keep pure headers partial for allocation, stream, concurrency and scoped-timer gaps even after CI. Audit UI core headers before line-chain work; small-unit queue follows map helpers. |
-| Numeric backends and spatial follow-ups | Opus implementing pinned glibc `pow` | R-tree depth-limit removal; further measured math/backend gaps, with explicit ownership and source-derived scope. |
+| Numeric backends and spatial follow-ups | Pow delivered in PR #80 at `e055b8ff6b`, Sol review/reference CI underway. Opus assigned R-tree depth-limit follow-up on the accepted #61 implementation. | Model the newly exposed kimathLogOverflow host effects with explicit ownership/host assertion policy; further measured numeric and spatial gaps. |
 
 On each implementation completion, immediately inspect the result, start the
 independent Sol review and select the next unclaimed dependency-ready assignment.
@@ -103,7 +103,11 @@ Reviews begin only after a concrete implementation head is available.
 ## Geometry dependency audit
 
 Tool fix delivered as [PR #79](https://github.com/Embeint/embeint-kicad-eda/pull/79),
-head `664493feb0684460b82ad9580d972cb6a7a5b27a`, now in independent Sol review.
+implementation `664493feb0684460b82ad9580d972cb6a7a5b27a`, independently reviewed
+by Sol with no blocking findings. The parent fixed its optional replay cache-race
+finding at `90c8c3a1ea241001c4e4d63e19ea7da931ca7e09`; all 40 extractor tests
+pass under WSL/libclang and Windows passes 27 with 13 expected skips. The old
+large replay evidence remains bound to its original aggregation identity.
 It resolves endpoints to each TU's local definition before aggregation while
 retaining all-body fallback for declaration-only cross-TU calls. Reported V5
 cache replay removes 1,798 edges, including 32 SHAPE cross-edges, without function,
@@ -213,6 +217,19 @@ qualification approach; model public wrapper semantics, NaN payload/sign,
 signed zero, subnormals and extreme exponents without host `powf` substitution.
 The reported 1,642 angle deferrals are a rerun target, not a promised reduction
 until measured against the current accepted corpus.
+
+Pow is now delivered as [PR #80](https://github.com/Embeint/embeint-kicad-eda/pull/80),
+implementation `e055b8ff6b5ccb474db28f947cb65aeb05b1b9a1`. The worker reports
+1,535,736 genuine locked-glibc records matching Windows native and import-free
+wasm in debug/release. Native Linux/WASI and geometry C++ comparison still need
+hosted evidence and Sol review. All 1,642 pow deferrals disappear on the original
+geometry corpus, but only 877 become results: 765 now reach kimathLogOverflow.
+The added 633 cases give 491 results and 142 logging deferrals. Do not confuse
+the base/head Rust corpus comparison with native C++ agreement. A later focused
+logging follow-up must implement the pinned host/assertion effects, not silently
+swallow overflow to turn these cases into successes; the expanded corpus reports
+954 total kimathLogOverflow deferrals. The active fourth stream instead takes
+the independent R-tree depth-limit work while pow is reviewed.
 
 Remove #61's fixed 64-level R-tree limit as a separate focused follow-up. Reuse
 the explicit-stack/active-node-budget approach demonstrated by closed #60,
