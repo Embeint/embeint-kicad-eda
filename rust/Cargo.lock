@@ -880,6 +880,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "kicad-seg-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-math",
+ "serde_json",
+]
+
+[[package]]
 name = "kicad-util-box-shim"
 version = "0.1.0"
 dependencies = [
