@@ -7,10 +7,10 @@ soft_depends_on = []
 est_lines = 127
 layer = 3
 tests = []
-status = "todo"
-claimed_by = ""
-claimed_at = ""
-notes = "Awaiting port and oracle cases."
+status = "claimed"
+claimed_by = "Karl Von Richter (Claude Code)"
+claimed_at = "2026-11-26T00:45:53Z"
+notes = "Claimed: porting std::hash<TRANSFORM>, InverseTransform, MapAngles, both TransformCoordinate overloads and operator== (accepted co-port) of libs/kimath/src/transform.cpp."
 coverage_gaps = []
 functions = ["c:@N@std@S@hash>#$@S@TRANSFORM@F@operator()#&1S0_#1", "c:@S@TRANSFORM@F@InverseTransform#1", "c:@S@TRANSFORM@F@MapAngles#*$@S@EDA_ANGLE#S0_#1", "c:@S@TRANSFORM@F@TransformCoordinate#&1$@S@BOX2>#$@S@VECTOR2>#I#1", "c:@S@TRANSFORM@F@TransformCoordinate#&1$@S@VECTOR2>#I#1", "c:@S@TRANSFORM@F@operator==#&1$@S@TRANSFORM#1"]
 schema_version = 1
