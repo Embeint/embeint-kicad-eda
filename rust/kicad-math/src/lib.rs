@@ -27,6 +27,10 @@
 //! `libs.kimath.src.geometry.distribute.application.ui.p001` owns [`distribute`]
 //! (`geometry/distribute.cpp`).
 //!
+//! Unit `libs.kimath.include.math.application.thin.replacement.p001` owns [`vector2wx`]
+//! (`math/vector2wx.h`): the six wxPoint/wxSize conversions, on plain value stand-ins for
+//! the two wx host boundary types.
+//!
 //! The `MATRIX3x3<double>` arithmetic is evaluated through private per-site code generated
 //! from the pinned oracle binary (`generated`) on explicit SSE2 NaN selection (`sse2`); see
 //! `port/findings/kimath-matrix-mixed-nan-payloads.md`.
@@ -61,6 +65,7 @@ mod sse2;
 pub mod stream;
 pub mod util;
 pub mod vector;
+pub mod vector2wx;
 pub mod wide_int;
 
 pub use box2::{Box2, Box2D, Box2I, Box2IMinMax, Box2L, BoxPointOperand, OptBox2I};

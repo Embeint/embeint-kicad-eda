@@ -132,6 +132,11 @@ list( REMOVE_ITEM ORACLE_SHIMS "${CLIPPER2_ENGINE_P001_SHIM}" )
 list( APPEND ORACLE_SHIMS "${CLIPPER2_ENGINE_P001_SHIM}" )
 set_source_files_properties( "${CLIPPER2_ENGINE_P001_SHIM}" PROPERTIES INCLUDE_DIRECTORIES
                              "${KICAD_REFERENCE_SOURCE}/thirdparty/clipper2/Clipper2Lib/src" )
+# The vector2wx adapter follows every previously qualified adapter, so none of its weak
+# template copies (VECTOR2, JSON helpers) is selected ahead of an earlier adapter's.
+set( VECTOR2WX_SHIM "${ORACLE_OVERLAY}/shims/vector2wx.cpp" )
+list( REMOVE_ITEM ORACLE_SHIMS "${VECTOR2WX_SHIM}" )
+list( APPEND ORACLE_SHIMS "${VECTOR2WX_SHIM}" )
 set( GEOMETRY_SHIM "${ORACLE_OVERLAY}/shims/geometry_headers.cpp" )
 list( REMOVE_ITEM ORACLE_SHIMS "${GEOMETRY_SHIM}" )
 list( APPEND ORACLE_SHIMS "${GEOMETRY_SHIM}" )
@@ -245,3 +250,7 @@ add_test( NAME oracle-core-include-p001-inputs
     COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_core_include_p001_inputs.py"
             "$<TARGET_FILE:kicad-oracle>" )
 set_tests_properties( oracle-core-include-p001-inputs PROPERTIES TIMEOUT 120 )
+add_test( NAME oracle-vector2wx-inputs
+    COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_vector2wx_inputs.py"
+            "$<TARGET_FILE:kicad-oracle>" )
+set_tests_properties( oracle-vector2wx-inputs PROPERTIES TIMEOUT 60 )

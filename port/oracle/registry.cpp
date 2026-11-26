@@ -27,6 +27,7 @@ void RegisterSeg( REGISTRY& aRegistry );
 void RegisterClipper2RectClip( REGISTRY& aRegistry );
 void RegisterCoreMapHelpers( REGISTRY& aRegistry );
 void RegisterTransformSource( REGISTRY& aRegistry );
+void RegisterVector2Wx( REGISTRY& aRegistry );
 
 
 void REGISTRY::Add( const std::string& aUnit, const std::string& aUpstream, SHIM aShim )
@@ -66,6 +67,7 @@ REGISTRY MakeRegistry()
     RegisterClipper2RectClip( registry );
     RegisterCoreMapHelpers( registry );
     RegisterTransformSource( registry );
+    RegisterVector2Wx( registry );
     return registry;
 }
 
