@@ -20,6 +20,7 @@ void RegisterEdaAngleSource( REGISTRY& aRegistry );
 void RegisterArcChordParams( REGISTRY& aRegistry );
 void RegisterClipper2CoreEngine( REGISTRY& aRegistry );
 void RegisterCoreP001( REGISTRY& aRegistry );
+void RegisterClipper2RectClip( REGISTRY& aRegistry );
 
 
 void REGISTRY::Add( const std::string& aUnit, const std::string& aUpstream, SHIM aShim )
@@ -52,6 +53,7 @@ REGISTRY MakeRegistry()
     RegisterArcChordParams( registry );
     RegisterClipper2CoreEngine( registry );
     RegisterCoreP001( registry );
+    RegisterClipper2RectClip( registry );
     return registry;
 }
 
