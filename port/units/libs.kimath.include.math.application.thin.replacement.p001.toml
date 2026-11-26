@@ -19,5 +19,5 @@ source_ranges = ["libs/kimath/include/math/vector2wx.h:1:56"]
 wx_class = "thin-replacement"
 
 [difftest]
-rust_package = "kicad-vector2wx-shim"
 rust_binary = "kicad-vector2wx-shim"
+rust_package = "kicad-vector2wx-shim"

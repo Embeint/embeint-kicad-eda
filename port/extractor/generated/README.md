@@ -23,7 +23,46 @@ The independent review of `d2bdddb904` verified those relations but found that
 `ce9681f06f` adds that guard. The guarded recapture at `2888cd057f`
 republished the same relations; its evidence remains below as history.
 
-## Freeze CLI compatibility correction (latest code)
+## Same-USR endpoint adoption (current artifacts)
+
+The reviewed fix in
+[the same-USR finding](../../findings/extractor-same-usr-definition-endpoints.md)
+resolves each call and override endpoint to the body its own TU defines. The
+root graph, inventory, manifest, report, measurement, drift reports and
+`port/units/` now use it. This is a read-only replay of the unchanged V5 parse
+cache under the new aggregation, not a new parse or parser qualification.
+
+- **Replay:** aggregation identity `30ca71dc` (final tool tree), parse runtime and
+  `extractor_sha256` still V5 `e1548c1f`. All 2,511 records were reused with zero
+  parses, the cache bytes were unchanged, and the same four `thirdparty/fmt`
+  parse failures remain. The replayed AST graph `75410331` and inventory
+  `b320d93f` are kept in `replay-extraction/`; the V5 original AST `40861e9c`
+  stays in `corrected-extraction/`.
+- **Generator dependencies:** the guarded capture was rerun against the replay
+  inventory and applied to the replayed canonical graph. Recipes, catalog, source
+  and generator relations equal the retained capture; only the capture's code and
+  inventory identities differ. The retained capture is correctly rejected on the
+  replay inventory.
+- **Graph changes:** functions, wx classification, definition copies and variants,
+  aliases, unresolved records, translation units and source accounting are
+  unchanged. 1,798 edges (1,355 static, 210 virtual, 233 override) and 11
+  overrides were removed and none added; each has an endpoint in one of the 207
+  same-USR copy groups. 25 edges into the VRML `SHAPE::~SHAPE` body are gone,
+  including the five from `libs.kimath.include.geometry.application.ui.p003`.
+  The three VRML `TranslateToSG` callers have no TU-local definition and still
+  reach both bodies.
+- **Unit records:** only `depends_on`, `soft_depends_on` and `layer` change.
+  Geometry p003 drops `plugins.3d.vrml.application.ui.p001` and moves from layer
+  13 to 5. Hard dependents of VRML p001 fall from 22 units to the VRML v1, v2,
+  generated v2 and x3d units. The records were merged with accepted `rust` at
+  `98a12c1123`; every status, claim, note, test and difftest field equals the
+  accepted record.
+
+Canonical graph `b2de2a7a`, inventory `7a14bda8`, manifest `2889bdc4` and
+units report `dcd77209`. Evidence is in `evidence/same-usr-adoption/` (adoption at
+`4738a9c23f`) and its `rust-98a12c11/` subdirectory (checks after the merge).
+
+## Freeze CLI compatibility correction
 
 Independent review of `6f02c95d98` closed the guarded-capture PATH substitution
 finding and reproduced the complete retained capture and artifacts. It found a
@@ -44,7 +83,7 @@ To reproduce their recorded capture/apply hashes, use that exact runtime commit,
 not the later freezer source. Future captures correctly identify their new code.
 A new independent review of this bounded correction remains required.
 
-## Verified Ninja recapture (retained current artifacts)
+## Verified Ninja recapture (historical)
 
 The independent review of `2888cd057f` verified the guarded artifacts but found
 that capture checked the recorded Ninja binary while invoking `ninja` through
@@ -158,9 +197,14 @@ fingerprints derived from it changed. Evidence is in
 
 | Refresh artifact | SHA256 |
 | --- | --- |
-| canonical graph.json.gz (verified Ninja, current) | `014f05141168b634cd4ef39a9cea434b696ae2d6d6230048e41af3f31738f342` |
-| canonical inventory.json (verified Ninja, current) | `41600e43a380594f88e7e9747398e01458c1e71e436d59c31ca23f92dfb603ed` |
-| generated-sources.json (verified Ninja, current) | `58bccc83c8a9d18c538d1e0df8d062c307cd0ac8816d96a0b126a74914277760` |
+| canonical graph.json.gz (same-USR adoption, current) | `b2de2a7a99cbfedbfb4f714c9939561418a12f873e86731f617afe44e8b7f9a1` |
+| canonical inventory.json (same-USR adoption, current) | `7a14bda8bd191801b2832a8b46f2cd4b668da12c9d262e55fba01a0bbb13392f` |
+| generated-sources.json (same-USR adoption, current) | `2889bdc4bd68d337e28d67cb82975429cece6eb9bade574abda2d90c697e6797` |
+| replayed AST graph.json.gz (same-USR adoption) | `754103312d4602dab3e4388f041bad413b3615d8452477810e262f8383d1be73` |
+| replayed inventory.json (same-USR adoption) | `b320d93f3eb2d9f450d40edd2a22dcd850d59565810540dd1476b773822bfd47` |
+| canonical graph.json.gz (verified Ninja, historical) | `014f05141168b634cd4ef39a9cea434b696ae2d6d6230048e41af3f31738f342` |
+| canonical inventory.json (verified Ninja, historical) | `41600e43a380594f88e7e9747398e01458c1e71e436d59c31ca23f92dfb603ed` |
+| generated-sources.json (verified Ninja, historical) | `58bccc83c8a9d18c538d1e0df8d062c307cd0ac8816d96a0b126a74914277760` |
 | canonical graph.json.gz (source-guarded 2888, historical) | `a04dffc7da914fa204ca0018a42fe53bfb9dbbeac65c2e279883cf8a6d691ba3` |
 | canonical inventory.json (source-guarded 2888, historical) | `33268efa748421dd0bf74e4d89399a19f95c350cfad43b31ad1c5f0f2f75b452` |
 | generated-sources.json (source-guarded 2888, historical, LF) | `b6fd50ad295ac1c78077e392fb7ffd26e9e64e2f6ef0ec05c0d95f74baf6a7b7` |
@@ -171,13 +215,15 @@ fingerprints derived from it changed. Evidence is in
 | D2 generated-sources.json (historical, LF) | `071a18f4c9ad6d0a6ed39ed84e4cbbc33f984f8bc4896b45f4e9de8b4a132792` |
 | generated-recipes.json.gz (D2 and guarded) | `f5a91a1c6f5e2357aeb1db4f6499be3ba7bca7cc3b46fea793c74de42257064e` |
 | pre-refresh canonical graph.json.gz | `146e2ccac0e8d0ba6d37ceadb26ae5a84d0223609dd55abebb0b5451bfe45735` |
-| units.json (unchanged) | `0aac539054de1437248d5f97c510efee16de779cf546919c136a23938b023753` |
+| units.json (same-USR adoption, current) | `dcd772091f0ae91899f78fa7a5b56b6267c1e24f62415464d4c2b3e88b078cd9` |
+| units.json (before the same-USR adoption) | `0aac539054de1437248d5f97c510efee16de779cf546919c136a23938b023753` |
 
 | Run | Recorded commands | Successful parses | Definition entries | Generated-build definitions | Edges |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Raw historical | 2,471/2,471 | 2,462 | 68,939 | 0 | 573,759 |
 | Reviewed a7 reconciled | 2,511/2,511 | 2,507 | 69,416 | 0 | 559,555 |
-| Corrected | 2,511/2,511 | 2,507 | 107,254 | 37,838 | 649,723 |
+| Corrected (V5 original AST) | 2,511/2,511 | 2,507 | 107,254 | 37,838 | 649,723 |
+| Corrected (same-USR replay, measured) | 2,511/2,511 (reused) | 2,507 | 107,254 | 37,838 | 647,925 |
 
 | Artifact | SHA256 |
 | --- | --- |
@@ -213,8 +259,9 @@ CI validates committed source snapshots, with `-text` preserving generated bytes
 Future source manifests exclude port tooling/artifact copies to avoid double counts.
 
 There are **1,801 units / 2,380,947 owned physical lines**,
-**392 layers**, **46,894 hard edges** and
-**9,548 back-edges**, dropped weight **106,538**.
+**377 layers**, **46,709 hard edges** and
+**9,496 back-edges**, dropped weight **105,471** (before the same-USR adoption:
+392 layers, 46,894 hard edges, 9,548 back-edges, weight 106,538).
 282 units exceed the 2,000-line target because functions
 and conservative enclosing ranges remain intact. The weighted greedy heuristic
 is deterministic, not a minimum feedback-arc solution. wx coupling is not a
@@ -259,3 +306,14 @@ See [VALIDATION.md](VALIDATION.md), [PILOTS.md](../PILOTS.md), the migration led
 and [measurement.json](measurement.json). The pilot scopes must be re-confirmed
 against these records; no old ID alone certifies unchanged scope. Stored cases
 and the three-live-green-pilot gate are separate from extraction validation.
+
+## Accepted Unix metadata refresh
+
+The same-USR graph remains unchanged from its independent review. After merging
+accepted rust `b98201bc6b` (Unix policy and system info), canonical generation
+preserves every unit metadata value and produces identical results twice.
+Measurement statuses now read 3 green, 26 partial, 64 blocked and 1,708 todo;
+drift covers 29 ported units against that explicit accepted source commit.
+See [the integration addendum](../../findings/extractor-same-usr-unix-integration.md)
+and `evidence/same-usr-adoption/rust-b98201bc/`. This refresh performs no parse
+and makes no additional source, runtime or completeness qualification claim.

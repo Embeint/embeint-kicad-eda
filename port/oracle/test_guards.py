@@ -12,7 +12,8 @@ import shutil
 import unittest
 
 from audit import (audit, check_flags, verify_source, check_resistor_reference,
-                   check_reader_reference, verify_reader_generated)
+                   check_reader_reference, check_kiplatform_unix_reference,
+                   verify_reader_generated)
 from pin import KICAD_PIN, SOURCE_PATHS
 
 
@@ -32,6 +33,24 @@ class Guards(unittest.TestCase):
                 check_reader_reference(commands[:index] + commands[index + 1:], link, source, build)
         with self.assertRaisesRegex(ValueError, "archive"):
             check_reader_reference(commands, ["g++ -o kicad-oracle"], source, build)
+
+    def test_kiplatform_unix_requires_both_pinned_sources_and_archive(self):
+        source = Path("/reference")
+        paths = [source / "libs/kiplatform/os/unix/drivers.cpp",
+                 source / "libs/kiplatform/os/unix/sysinfo.cpp"]
+        commands = [{"file": str(path), "arguments": ["g++", "-o",
+                    "CMakeFiles/kiplatform-unix-reference.dir/object.o"]} for path in paths]
+        link = ["g++ -o kicad-oracle libkiplatform-unix-reference.a"]
+        check_kiplatform_unix_reference(commands, link, source)
+        for index in range(len(commands)):
+            with self.subTest(missing=index), self.assertRaisesRegex(ValueError, "compilation"):
+                check_kiplatform_unix_reference(commands[:index] + commands[index + 1:], link, source)
+        substitute = commands + [{"file": "/overlay/sysinfo.cpp", "arguments": [
+            "g++", "-o", "CMakeFiles/kiplatform-unix-reference.dir/extra.o"]}]
+        with self.assertRaisesRegex(ValueError, "compilation"):
+            check_kiplatform_unix_reference(substitute, link, source)
+        with self.assertRaisesRegex(ValueError, "archive"):
+            check_kiplatform_unix_reference(commands, ["g++ -o kicad-oracle"], source)
 
     @unittest.skipUnless(shutil.which("cmake"), "CMake regenerates the fixture lexer")
     def test_generated_reader_source_is_regenerated_and_byte_checked(self):

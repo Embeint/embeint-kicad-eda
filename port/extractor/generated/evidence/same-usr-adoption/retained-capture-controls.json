@@ -1,0 +1,17 @@
+{
+  "retained_capture_code_sha256": "2b4eca5d431fd57fe824e54eaa384bea5215abe29cefa0cff9d9238269f4e929",
+  "retained_capture_inventory_sha256": "b9e6986b36529fdf4041712dfb258af050c2ff61bb3971875394eb16e2a47682",
+  "retained_capture_sha256": "7705a33563f736295944934e98f3fd629f869408a2d22e6a34a11501b0aac685",
+  "retained_on_replay": {
+    "error": "Capture source identity differs from the original parse",
+    "rejected": true,
+    "replay_inventory_sha256": "b320d93f3eb2d9f450d40edd2a22dcd850d59565810540dd1476b773822bfd47"
+  },
+  "retained_on_v5": {
+    "committed_refresh_code_sha256": "2b4eca5d431fd57fe824e54eaa384bea5215abe29cefa0cff9d9238269f4e929",
+    "final_head_refresh_code_sha256": "e81b9d9dfc2fa8d30d2a6f17ce44e044cabf7504b1ba09a5e5ee59da0f11c0cd",
+    "graph_equal_to_committed_except_refresh_code": true,
+    "inventory_equal_to_committed_except_refresh_code": true,
+    "manifest_byte_identical_to_committed": true
+  }
+}

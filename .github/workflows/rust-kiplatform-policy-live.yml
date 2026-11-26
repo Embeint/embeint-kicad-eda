@@ -1,0 +1,99 @@
+name: Rust kiplatform unix policy live validation
+
+# Scoped live evidence for libs.kiplatform.os.unix.application.thin.replacement.p001:
+# the genuine pinned policy.cpp in the oracle against the Rust shim, the refusal
+# controls on both, symbol binding, and the corpus replayed in import-free wasm32
+# against this run's native C++ replies. The rust-port job remains the gate.
+on:
+  pull_request:
+    branches: [rust]
+    paths:
+      - rust/kicad-kiplatform/**
+      - rust/kicad-kiplatform-shim/**
+      - rust/kicad-map-helpers/**
+      - rust/Cargo.toml
+      - rust/Cargo.lock
+      - port/oracle/**
+      - port/cases/libs.kiplatform.os.unix.application.thin.replacement.p001.jsonl
+      - port/units/libs.kiplatform.os.unix.application.thin.replacement.p001.toml
+      - .github/workflows/rust-kiplatform-policy-live.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  kiplatform-policy-live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: "2"
+      ORACLE_JOBS: "2"
+      UNIT: libs.kiplatform.os.unix.application.thin.replacement.p001
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0 # The oracle exports the pinned upstream commit, not HEAD.
+      - name: Install toolchain and oracle dependencies
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal --component clippy,rustfmt --target wasm32-unknown-unknown
+          rustup default 1.99.1
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++ gcc cmake ninja-build python3 rsync git libboost-dev libwxgtk3.2-dev
+      - name: Check the portable implementation and deterministic corpus
+        run: |
+          cargo fmt --manifest-path rust/Cargo.toml -p kicad-kiplatform -p kicad-kiplatform-shim --check
+          cargo clippy --locked --manifest-path rust/Cargo.toml -p kicad-kiplatform -p kicad-kiplatform-shim --all-targets -j2 -- -D warnings
+          cargo test --locked --manifest-path rust/Cargo.toml -p kicad-kiplatform -p kicad-kiplatform-shim -j2
+          cargo check --locked --manifest-path rust/Cargo.toml -p kicad-kiplatform -p kicad-map-helpers --target wasm32-unknown-unknown -j2
+          python3 rust/kicad-kiplatform-shim/generate_cases.py --check
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-difftest -p kicad-kiplatform-shim -j2
+      - name: Build the genuine pinned own-library oracle
+        env:
+          LD_LIBRARY_PATH: ""
+        run: |
+          export PATH="/usr/bin:/bin:$PATH"
+          /usr/bin/python3 port/oracle/prepare.py --output-dir "$RUNNER_TEMP/policy-stage"
+          bash port/oracle/build.sh "$RUNNER_TEMP/policy-stage" "$PWD/port/oracle" "$RUNNER_TEMP/policy-native"
+      - name: Check symbol binding, compare every case exactly and replay the controls
+        run: |
+          out="$RUNNER_TEMP/policy-native"
+          oracle="$out/oracle-build/kicad-oracle"
+          adapter="$out/oracle-build/CMakeFiles/kicad-oracle.dir/shims/kiplatform_policy.cpp.o"
+          nm -C "$oracle" | grep -F 'KIPLATFORM::POLICY::' > "$out/symbols.txt"
+          objdump -dr -C "$adapter" | grep -F 'R_X86_64_PLT32' > "$out/adapter-calls.txt"
+          for symbol in 'KIPLATFORM::POLICY::GetPolicyBool(wxString const&)' \
+                        'KIPLATFORM::POLICY::GetPolicyEnumUInt(wxString const&)'; do
+            grep -F " T $symbol" "$out/symbols.txt" > /dev/null || { echo "missing $symbol"; exit 1; }
+            grep -F "$symbol" "$out/adapter-calls.txt" > /dev/null || { echo "adapter does not call $symbol"; exit 1; }
+          done
+          grep -F '/oracle-src/reference/libs/kiplatform/os/unix/policy.cpp' \
+            "$out/oracle-build/compile_commands.json" > /dev/null
+          python3 -c 'import json,sys; print("wx", json.load(open(sys.argv[1]))["wx_version"])' \
+            "$out/oracle-build/oracle-provenance.json"
+          rust/target/debug/kicad-difftest compare --partial --unit "$UNIT" --root "$PWD" \
+            --oracle "$oracle" --rust "$PWD/rust/target/debug/kicad-kiplatform-shim" \
+            --report "$out/compare.json"
+          python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); print({k: r[k] for k in ("status","cases","compared","deferred","failures","unprocessed")}); sys.exit(r["compared"] != 36 or bool(r["deferred"]) or bool(r["failures"]))' "$out/compare.json"
+          python3 port/oracle/test_kiplatform_policy_inputs.py "$oracle" "$PWD/rust/target/debug/kicad-kiplatform-shim"
+          "$oracle" < "port/cases/$UNIT.jsonl" > "$out/native.jsonl"
+      - name: Replay the complete corpus in import-free WebAssembly against the C++ replies
+        run: |
+          export KICAD_KIPLATFORM_WASM_REFERENCE="$RUNNER_TEMP/policy-native/native.jsonl"
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-kiplatform-shim \
+            --example corpus_parity --features live-wasm --target wasm32-unknown-unknown --release -j2
+          node rust/kicad-kiplatform-shim/wasm-test.mjs rust/target/wasm32-unknown-unknown/release/examples/corpus_parity.wasm
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: kiplatform-policy-live-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/policy-native/compare.json
+            ${{ runner.temp }}/policy-native/symbols.txt
+            ${{ runner.temp }}/policy-native/adapter-calls.txt
+            ${{ runner.temp }}/policy-native/native.jsonl
+            ${{ runner.temp }}/policy-native/oracle-build/oracle-provenance.json
+            ${{ runner.temp }}/policy-native/oracle-build/compile_commands.json
+            ${{ runner.temp }}/policy-native/oracle-build/binary.sha256
+            ${{ runner.temp }}/policy-stage/source-manifest.json
+          retention-days: 14

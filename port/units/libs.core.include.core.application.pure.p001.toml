@@ -19,6 +19,6 @@ source_ranges = ["libs/core/include/core/arraydim.h:1:32", "libs/core/include/co
 wx_class = "pure"
 
 [difftest]
-rust_package = "kicad-core-include-shim"
-rust_binary = "kicad-core-include-shim"
 rust_args = []
+rust_binary = "kicad-core-include-shim"
+rust_package = "kicad-core-include-shim"

@@ -19,6 +19,6 @@ source_ranges = ["libs/core/include/core/map_helpers.h:1:122"]
 wx_class = "thin-replacement"
 
 [difftest]
-rust_package = "kicad-map-helpers-shim"
-rust_binary = "kicad-map-helpers-shim"
 rust_args = []
+rust_binary = "kicad-map-helpers-shim"
+rust_package = "kicad-map-helpers-shim"

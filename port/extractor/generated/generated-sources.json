@@ -65179,13 +65179,13 @@
   "generator_dependency_refresh": {
     "base_manifest_sha256": "a2466270bdf4aec52b7b8267140ac4b18c8295520c5b94e1ecb3dc8498dacb34",
     "base_recipes_sha256": "dff5b79afdbe58e2e4c7a4f0e4d8b093fd34a94a0302d38cddd6483660496951",
-    "capture_code_sha256": "2b4eca5d431fd57fe824e54eaa384bea5215abe29cefa0cff9d9238269f4e929",
-    "capture_sha256": "7705a33563f736295944934e98f3fd629f869408a2d22e6a34a11501b0aac685",
+    "capture_code_sha256": "e81b9d9dfc2fa8d30d2a6f17ce44e044cabf7504b1ba09a5e5ee59da0f11c0cd",
+    "capture_sha256": "b187a2dd84e652fba88e665fb74c6a2186074a17b62aa779d76f36fa039c19f9",
     "policy": "Post-parse generator dependency refresh. AST, definitions, calls, overrides, unresolved records, translation units, coverage and source bytes are those of the original parse (parse_* identities); only generator dependency metadata and the fingerprints derived from it were recaptured from the unchanged private build.",
     "source_identity": {
       "generation_inputs_sha256": "bf7a1689587de011b7f2b8879e7d6284827a451ee43155ad72b8963fe30a6de6",
       "hash_policy": "SHA-256 after CRLF-to-LF normalization, as in the original parse",
-      "inventory_sha256": "b9e6986b36529fdf4041712dfb258af050c2ff61bb3971875394eb16e2a47682",
+      "inventory_sha256": "b320d93f3eb2d9f450d40edd2a22dcd850d59565810540dd1476b773822bfd47",
       "source_commit": "3cd2c9afc6d2749b7d3a79fd1deaa86ac51cb3a7",
       "source_files_sha256": "3c0d96516f2c20ca5e7883aa7a549ed0e412a190b27af60012a4edfb0621122e",
       "source_root": "/home/karlvonrichter/kicad-port/extract-source",

@@ -1,0 +1,23 @@
+	Command being timed: "/home/karlvonrichter/kicad-port-extractor-venv/bin/python /mnt/c/Users/KarlVonRichter/.t3/canon-adopt-merge/scripts/graphcmp.py /mnt/c/Users/KarlVonRichter/.t3/canon-adopt-merge/rust-graph.json.gz /mnt/c/Users/KarlVonRichter/.t3/worktrees/embeint-kicad-eda/t3-290c6870-81dcfa65b1526978/port/extractor/generated/graph.json.gz /home/karlvonrichter/kicad-port/canonical-adopt-merge-98a12c11/old-units /home/karlvonrichter/kicad-port/canonical-adopt-merge-98a12c11/new-units /home/karlvonrichter/kicad-port/canonical-adopt-merge-98a12c11/graph-comparison.json"
+	User time (seconds): 41.51
+	System time (seconds): 21.33
+	Percent of CPU this job got: 96%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:05.22
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 10228272
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 8371481
+	Voluntary context switches: 2249
+	Involuntary context switches: 272
+	Swaps: 0
+	File system inputs: 273509
+	File system outputs: 32
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

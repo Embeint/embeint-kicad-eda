@@ -1,0 +1,32 @@
+{
+  "build_files_unchanged": 1612,
+  "capture_code_equals_final_head_refresh_code": true,
+  "capture_code_sha256": [
+    "2b4eca5d431fd57fe824e54eaa384bea5215abe29cefa0cff9d9238269f4e929",
+    "e81b9d9dfc2fa8d30d2a6f17ce44e044cabf7504b1ba09a5e5ee59da0f11c0cd"
+  ],
+  "differing_fields": [
+    "capture_code_sha256",
+    "source_identity"
+  ],
+  "differing_source_identity_fields": [
+    "inventory_sha256"
+  ],
+  "frozen_generated_inputs_verified": 178,
+  "generator_inputs_equal": true,
+  "new_capture_sha256": "b187a2dd84e652fba88e665fb74c6a2186074a17b62aa779d76f36fa039c19f9",
+  "ninja_catalog_equal_to_retained": true,
+  "ninja_target_records": 5709,
+  "recipe_records": 1435,
+  "recipes_raw_equal_to_committed": true,
+  "replay_inventory_sha256": "b320d93f3eb2d9f450d40edd2a22dcd850d59565810540dd1476b773822bfd47",
+  "retained_capture_sha256": "7705a33563f736295944934e98f3fd629f869408a2d22e6a34a11501b0aac685",
+  "source_files_equal": true,
+  "source_generator_dependencies_equal": true,
+  "source_identity_inventory_sha256": [
+    "b9e6986b36529fdf4041712dfb258af050c2ff61bb3971875394eb16e2a47682",
+    "b320d93f3eb2d9f450d40edd2a22dcd850d59565810540dd1476b773822bfd47"
+  ],
+  "tool_and_configuration_equal": true,
+  "verified_source_files": 9655
+}
