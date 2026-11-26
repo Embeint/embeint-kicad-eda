@@ -42,10 +42,10 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 
 | Stream | Current assignment | Next dependency-ready work |
 | --- | --- | --- |
-| Geometry | SEG integration head `24df53e57c` and extractor integration head `59fa8ff9c5` await fresh CI on accepted pow; source reviews complete, graph adoption pending. Opus assigned ellipse. | Adopt graph after accepted tool fix; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. Transform is independent fallback work. |
+| Geometry | SEG integration head `24df53e57c` and extractor integration head `59fa8ff9c5` await fresh CI on accepted pow; graph adoption pending. Ellipse PR #81 delivered and reviewed, documentation corrected at `5c42b69677`. Opus now assigned distribute. | Adopt graph after accepted tool fix; circle after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. |
 | Polygon operations | Engine PR #76 at `6f58bc73fa` awaits CI. Rectclip PR #77 delivered and reviewed without algorithmic blockers; owner note corrected at `87e2913afa`, hosted checks pending. Opus assigned transform as independent fallback. | Source p002 after accepted engine p001, then public wrapper headers after rectclip and p002. |
-| Core and general utilities | PR #73 integration head `26f11478b7` awaits fresh CI; source review/doc corrections retain explicit partial contracts. Opus assigned map_helpers. | Keep pure headers partial for allocation, stream, concurrency and scoped-timer gaps even after CI. Audit UI core headers before line-chain work; small-unit queue follows map helpers. |
-| Numeric backends and spatial follow-ups | Pow PR #80 merged into accepted rust as `a862a3eb8e`. Opus assigned R-tree depth-limit follow-up on accepted #61. | Model newly exposed kimathLogOverflow host effects with explicit ownership/host assertion policy; further measured numeric and spatial gaps. |
+| Core and general utilities | PR #73 integration head `26f11478b7` awaits fresh CI. Map helpers PR #78 corrected at `1cadc88eb8`, independent Sol recheck passed; status partial pending target wx qualification. Opus assigned arc_construction as independent fallback. | Hold wx_stl_compat reuse until map helpers is accepted. Keep pure headers partial for allocation, stream, concurrency and scoped-timer gaps. Audit UI core headers before line-chain work. |
+| Numeric backends and spatial follow-ups | Pow PR #80 accepted. R-tree follow-up PR #83 at `813623a66b` passed Sol review, hosted checks pending. Opus now assigned poisson_disk. | Model newly exposed kimathLogOverflow host effects with explicit ownership/host assertion policy; further measured numeric and spatial gaps. Audit copy-on-write code before claiming a similar fixed-depth problem. |
 
 On each implementation completion, immediately inspect the result, start the
 independent Sol review and select the next unclaimed dependency-ready assignment.
@@ -102,10 +102,10 @@ completed workspace validation.
 
 | Order | Assignment | Start condition | Result to demonstrate |
 | --- | --- | --- | --- |
-| 1 | Audit geometry-to-VRML dependency edges | Independent investigation now | Establish the correct destructor targets and a reproducible extractor regression before changing generated scheduling records. |
+| 1 | Adopt corrected geometry dependency graph | After accepted extractor PR #79 | Replay final-head provenance, retain generated dependency capture and regenerate graph, units, measurement, drift and accounting through tooling. |
 | 2 | `circle.cpp` (380 lines), then geometry headers UI p003 (1,686 lines), as separate unit PRs | Accepted SEG; resolve the VRML edge before claiming the header unit | Complete SEG inline operations and shared shape interfaces; rerun SEG and `poly_ystripes` continuations. |
 | 3 | Clipper2 source pure p002 (1,727 lines) | Accepted current engine p001 | Real `ExecuteInternal`, output builders and owned offset bodies; rerun the existing Execute cases through successful polygon operations. |
-| 4 | Pinned glibc `pow` backend | Independent of the three current topics; serialize overlapping math integration edits | Replace the angle backend deferral with exact native and wasm results, then rerun angle rounding cases. |
+| 4 | Audit kimathLogOverflow host effects | Independent ownership and assertion contract audit | Define faithful portable/host behavior for the 1,096 expanded-corpus logging deferrals before assigning implementation. Pow is already accepted. |
 
 Use the four streams above for the geometry sequence, Clipper2, core/general
 utilities and numeric/spatial follow-ups. Use the small units below when a
@@ -225,11 +225,32 @@ Keep one unit per claim/PR, even if one worker handles several sequentially.
 
 | Priority | Unit | Scope and validation focus |
 | --- | --- | --- |
-| A | `ellipse.cpp` — 127 lines | Wire `ELLIPSE::GetPointAtAngle` in the existing geometry header port; exact angle/rotation arithmetic and degenerate radii. |
-| B | `transform.cpp` — 127 lines | Integer transforms, composition/inverse behaviour and exact overflow domains; distinct from `transform_trs.cpp`. |
-| C | `arc_construction.cpp` — 207 lines | Degenerate and boundary constructions, exact rounding and existing vector/angle backends. |
-| D | `distribute.cpp` — 89 lines | Fewer than three items, negative gaps, fractional/tie rounding, original order and evaluated integer overflow. |
-| E | `poisson_disk.cpp` — 143 lines | Reproduce Boost MT19937, distribution algorithms, draw/evaluation order, trig bits and ordered samples. Bound tiny-radius storage/work; spacing alone is insufficient evidence. |
+| A | `ellipse.cpp` — 127 lines; delivered PR #81 | Sol found no functional defect; owner note and toolchain qualification fixed at `5c42b69677`. Hosted reference CI pending. |
+| B | `transform.cpp` — 127 lines; Opus active | Integer transforms, composition/inverse behaviour and exact overflow domains; distinct from `transform_trs.cpp`. |
+| C | `arc_construction.cpp` — 207 lines; Opus active | Degenerate and boundary constructions, exact rounding and existing vector/angle backends. |
+| D | `distribute.cpp` — 89 lines; Opus active | Fewer than three items, negative gaps, fractional/tie rounding, original order and evaluated integer overflow. |
+| E | `poisson_disk.cpp` — 143 lines; Opus active | Reproduce Boost MT19937, distribution algorithms, draw/evaluation order, trig bits and ordered samples. Bound tiny-radius storage/work; spacing alone is insufficient evidence. |
+
+Ellipse's local GCC 15.2/glibc 2.43 comparison reports 2,239 cases: 2,103 exact,
+136 deferred (100 logging and 36 hypot), zero failures, plus 234 identical
+undefined-behavior controls. Four header callers now return results, giving
+20,474 results and 1,697 deferrals. Sol independently checked implementation,
+defaults, continuations, scoped Rust checks and caller counts, but did not rerun
+the live oracle. Compiled NaN forms remain subject to final-head GCC 13/glibc
+2.39 hosted qualification. FLIP_DIRECTION is now recorded in its owning core
+header unit, which remains todo.
+
+Map helpers PR #78 initially claimed green after 3,084 exact replies. Sol found
+the implicit generic default skipped a copy and the UTF-8 logical limit counted
+the terminator. Both are fixed with regressions at `1cadc88eb8`. The parent
+reran 3,084 live C++/Rust/golden replies, 336 controls plus successful followups
+on both processes, and import-free wasm replay; all agree. The baseline prose
+incorrectly named wx 3.2.4, whereas its nested provenance records the actual
+local wx 3.2.9 binary. Immutable golden/evidence remain historical, corrected by
+an additive finding; the unit is partial pending target-runner evidence.
+Sol's fresh recheck of the corrected head found no remaining issue and
+independently passed seven library tests, two corpus/control tests and all
+3,084 fresh C++/Rust/golden comparisons.
 
 Poisson disk is short but less predictable than its line count suggests.
 Check the pinned sources rather than the moving upstream version: even random
@@ -258,8 +279,8 @@ swallow overflow to turn these cases into successes; the expanded corpus reports
 in the added cases). Sol independently reproduced the transition identities,
 verified all 657 table words against locked libm, and inspected passing hosted
 pow results on all six configurations. All remaining applicable CI passed before
-the exact-tree merge into rust. The active fourth stream takes the independent
-R-tree depth-limit follow-up.
+the exact-tree merge into rust. The fourth stream has delivered the R-tree
+depth-limit follow-up and now takes poisson_disk.
 
 Remove #61's fixed 64-level R-tree limit as a separate focused follow-up. Reuse
 the explicit-stack/active-node-budget approach demonstrated by closed #60,
@@ -267,6 +288,22 @@ without merging its obsolete topic branch. Preserve insertion/removal/query and
 cursor order, test defined trees deeper than 64, and check allocation refusal
 and interrupted-mutation lifecycle. Audit every remaining depth guard rather
 than raising the constant.
+
+R-tree follow-up delivered as [PR #83](https://github.com/Embeint/embeint-kicad-eda/pull/83),
+head `813623a66be8edd8957d69aca228e01d83bcb235`, passed Sol review and pending
+hosted checks. Opus reports 259 exact programs (76,820 steps), 27 matching
+refusal controls and import-free wasm agreement, including root levels up to 79.
+Search/removal and split propagation use explicit stacks/loops, with a separate
+active-node budget. A flat topology observation permits deep evidence; the
+nested state harness explicitly refuses above level 39. Review must assess
+that harness limitation separately from the removed portable depth guards.
+Deep orphan handling, other types and allocation exhaustion remain qualification
+gaps; status stays partial. The copy-on-write unit's depth tracking is a suggested
+audit, not evidence of the same fixed-limit defect.
+Sol independently checked stack transition order, ten behavior tests plus the
+refusal integration test, both generators and source/evidence hashes. The
+original 249 corpus lines remain an unchanged prefix. Live C++/wasm replay was
+not independently repeated by that reviewer; final-head hosted CI is required.
 
 For each assignment: audit every owned body and post-deferral continuation;
 run exact native difftests and the affected callers, scoped fmt/clippy/tests,
