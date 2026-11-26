@@ -86,17 +86,47 @@ def expand_virtual(calls, overrides):
     return sorted(out)
 
 
+def definition_location(record):
+    return record["file"], record["start"], record["end"]
+
+
+def locate_endpoints(result):
+    """Attach to each call/override endpoint the body its own TU defines.
+
+    A translation unit can contain at most one definition of a USR (one
+    definition rule), and an inline function or destructor must be defined in
+    every TU that odr-uses it. A TU-local definition is therefore the exact body
+    that TU's call or override refers to. A USR without a local definition (an
+    out-of-line function in another TU) gets None: the linker chooses its body,
+    which this source-level graph cannot see, so it stays conservative.
+    """
+    local = {usr: definition_location(record) for usr, record in result["functions"].items()}
+    calls = {(caller, local.get(caller), target, local.get(target), bool(virtual))
+             for caller, target, virtual in result["calls"]}
+    overrides = {(base, local.get(base), derived, local.get(derived))
+                 for base, derived in result["overrides"]}
+    return calls, overrides
+
+
 def materialize_definitions(functions, calls, overrides, locations):
     """Keep distinct source bodies sharing a USR across separate executables.
 
     Their per-configuration calls are conservatively unioned, as for ordinary
     definition variants. Stable copies give every physical body a unit owner.
+
+    Calls are `(caller, caller_location, target, target_location, virtual)` and
+    overrides `(base, base_location, derived, derived_location)` from
+    `locate_endpoints`. A recorded location selects only the body the reporting
+    TU itself defined, so two unrelated classes that happen to share a name in
+    separate components do not depend on each other. A None location (or a
+    legacy unlocated 3-/2-tuple) reaches every body sharing the USR.
     """
-    choices, copies = {}, {}
+    choices, copies, keys = {}, {}, {}
     for usr, records in sorted(locations.items()):
         primary = functions[usr]
-        primary_location = (primary["file"], primary["start"], primary["end"])
+        primary_location = definition_location(primary)
         choices[usr] = [usr]
+        keys[usr] = {primary_location: usr}
         for location, record in sorted(records.items()):
             if location == primary_location:
                 continue
@@ -106,10 +136,39 @@ def materialize_definitions(functions, calls, overrides, locations):
             functions[key] = dict(record, wx=list(primary["wx"]), clang_usr=usr)
             choices[usr].append(key)
             copies[key] = usr
-    expanded_calls = {(a, b, virtual) for caller, target, virtual in calls
-                      for a in choices.get(caller, [caller]) for b in choices.get(target, [target])}
-    expanded_overrides = {(a, b) for base, derived in overrides
-                          for a in choices.get(base, [base]) for b in choices.get(derived, [derived])}
+            keys[usr][location] = key
+
+    def bodies(usr, location):
+        if location is None:
+            return choices.get(usr, [usr])
+        known = keys.get(usr)
+        if known is None:
+            # Only one body was observed; its location is the primary record.
+            return [usr]
+        if tuple(location) not in known:
+            raise ValueError(f"Call endpoint location was not recorded as a definition: {usr} {location}")
+        return [known[tuple(location)]]
+
+    def located_calls():
+        for call in calls:
+            if len(call) == 3:
+                caller, target, virtual = call
+                yield caller, None, target, None, virtual
+            else:
+                yield call
+
+    def located_overrides():
+        for override in overrides:
+            if len(override) == 2:
+                base, derived = override
+                yield base, None, derived, None
+            else:
+                yield override
+
+    expanded_calls = {(a, b, virtual) for caller, caller_at, target, target_at, virtual in located_calls()
+                      for a in bodies(caller, caller_at) for b in bodies(target, target_at)}
+    expanded_overrides = {(a, b) for base, base_at, derived, derived_at in located_overrides()
+                          for a in bodies(base, base_at) for b in bodies(derived, derived_at)}
     return sorted(expanded_calls), sorted(expanded_overrides), copies
 
 
