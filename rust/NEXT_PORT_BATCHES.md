@@ -29,8 +29,8 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 | Stream | Current assignment | Next dependency-ready work |
 | --- | --- | --- |
 | Geometry | SEG PR #74 in reference CI after Sol review; Opus investigating/fixing the geometry-to-VRML extractor collision | `circle.cpp` after accepted SEG, then geometry headers p003, trigo, common kimath headers and arcs. Use ellipse or transform if acceptance/regeneration blocks the chain. |
-| Polygon operations | Delivered draft PR #76 at `96c1c83d80`; Sol review and reference CI underway. Local header deferrals reduced from 31 to 14. | Source p002 after accepted p001; rectclip p003 is independent fallback when Opus can run; then public wrapper headers. |
-| Core and general utilities | Recovered PR #73 at `eecececf42`; Sol replay agrees on 669 new and 6,227 existing cases. Review identified allocation, stream, concurrency and scoped-timer gaps; keep partial and correct the claims. | Complete review documentation and await reference CI; resume Opus work when available. Independent small-unit queue follows. Audit UI core headers before line-chain work. |
+| Polygon operations | PR #76 cleanup-observation fix at `d138e88437` in fresh Sol review/reference CI; Opus assigned independent rectclip source p003. Local header deferrals reduced from 31 to 14. | Source p002 after accepted p001; then public wrapper headers after rectclip and p002. |
+| Core and general utilities | PR #73 review documentation corrected at `5d99a6f8a1`; Sol replay agrees on 669 new and 6,227 existing cases. Opus assigned independent map_helpers header unit. | Keep pure headers partial for allocation, stream, concurrency and scoped-timer gaps even after CI. Audit UI core headers before line-chain work; small-unit queue follows map helpers. |
 | Numeric backends and spatial follow-ups | Opus implementing pinned glibc `pow` | R-tree depth-limit removal; further measured math/backend gaps, with explicit ownership and source-derived scope. |
 
 On each implementation completion, immediately inspect the result, start the
@@ -68,6 +68,13 @@ or claim four active implementers while the provider is unavailable. Continue
 available reviews, validation and integration; refill implementation slots once
 the requested provider can run again. Other running workers report their own
 outcomes through completion events.
+
+Subsequent core recovery verification completed successfully. The parent published
+the review documentation fix and assigned the next independent core unit
+(`libs.core.include.core.application.thin.replacement.p001`, map_helpers.h,
+122 lines, seven functions, no recorded dependencies) and polygon unit (rectclip
+source p003) to Opus. These are new work assignments, not repeated retries of the
+failed long-context run; any further provider refusal remains a visible blocker.
 
 ## Recommended next assignments
 
