@@ -29,10 +29,12 @@ sources and unbounded fixture domains are not qualified here.
 The isolated developer runner remains offline. Its queued run 45852706498 was
 cancelled and replaced with the existing hosted fallback
 [45858418153](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45858418153)
-on the same reviewed head. That fallback was pending at this recording; it
-provides ordinary developer preflight, separate from the completed target
-reference comparison. Repository settings and required checks are unchanged.
+on the same reviewed head. The fallback subsequently passed on the original head; its downloaded
+source and workflow SHAs both equal `ab2d7b683c`, and its outcome is success.
+It provides developer preflight separately from the target reference comparison. Repository settings and required checks are unchanged.
 
 [verification.json](verification.json) retains source/tree/merge bindings,
 actual target versions, comparison/binary hashes, artifact and full-log hashes,
 relevant control/wasm log lines, review disposition and fallback identity.
+
+The final combined tree is now accepted; see the [integration evidence](combined/README.md).

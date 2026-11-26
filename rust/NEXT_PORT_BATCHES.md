@@ -2,12 +2,79 @@
 # Next Rust port batches
 
 Planning snapshot: 27 November 2026, accepted `rust` at
-`98a12c1123efc4904e0f0c5a59299452a7a15e5d`. Maintain this plan on `main` as the
+`b98201bc6b4c9e90cf725a0ab62b29d7b7b37a42`. Maintain this plan on `main` as the
 port advances. This is a scheduling guide, not a claim list or a change to the
 port gates. The scoped draft PRs remain the authoritative claims.
 Recheck accepted dependencies and open
 claims before assigning work. Implementation uses Opus 5.5; each implementation
 receives an independent Sol 6.1 review of its exact head.
+
+## Current integration and correction queue
+
+Unix policy #89 is accepted as `925fab5de0c5721d0bd5c82c370386ea26e22001`.
+All applicable hosted checks and exact-head hosted fallback `45856821086`
+passed; the rebase merge preserved tested tree
+`6b2c6b73c1c481faf1f1f90f4e43ccf980fba205`. Source review and locked-reference
+manual checks passed. [Acceptance evidence](validation/2026-11-27-kiplatform-policy/README.md).
+
+Unix system-info #90 is accepted as
+`b98201bc6b4c9e90cf725a0ab62b29d7b7b37a42`, after merging only accepted rust
+into reviewed head `397629f3ec38ed1df8951cca4a5edae8a4444573`. A fresh Sol 6.1
+integration review found no actionable findings. User-authorized manual final CI
+on this exact combined tree passes: 29 units, 140,712 cases, 135,944 exact,
+4,768 explicit deferrals, zero failures/unprocessed; 460 workspace tests;
+15 oracle CTests; both platform control suites and import-free wasm replays;
+fmt, clippy, Rust 1.85 and portable builds. Previous 28 unit input/reply hashes
+are unchanged. GitHub refused rebase; the permitted normal merge preserves
+exact tested tree `bd5c03643276b1156c87bad6186b53e1e2d822b6`. Fresh hosted jobs
+were running at merge; manual results are recorded separately from their
+statuses. Original-head scoped hosted gates and fallback `45858418153` passed.
+[Combined acceptance evidence](validation/2026-11-27-kiplatform-sysinfo/combined/README.md).
+Both Unix units remain partial without goldens. Both merged PRs are unwatched.
+
+Graph adoption #94 received a clear independent source review at
+`f7dd7eac749c8d5c467b379da382f880a246a985`. The parent has merged accepted
+`b98201bc6b` without conflicts. Published refresh head
+`d3d65cb5ecf2f9f67b6b46e6a71b205e2db52d9c` preserves all 1,801 unit metadata
+values and the reviewed graph fields. Two canonical splitter runs agree; only
+two difftest table key orders change. Measurement now has 3 green/26 partial/
+64 blocked/1,708 todo, and drift covers 29 ported units. Focused extractor/site/
+tools/policy/default-validation/golden-policy checks pass; strict validation
+retains its known incomplete diagnostic. The graph and aggregation code are
+unchanged; this is not another parse. Fresh independent integration review
+`rust-review-graph94-unix-integration-sol61-20261127` and new hosted checks are
+pending on this exact head.
+
+Core utility headers #92 at `b48b95f893125e53b6f4bb484156d2abee43dcd5`
+received changes requested despite passing GCC 13 corpus qualification.
+INPLACE_FUNCTION must preserve no-wrapper-allocation and observable callable
+move/destruction/fallible-copy behavior. LEAK_AT_EXIT needs stable surviving
+storage and fallible initialization/retry. Generic IsA/dyn_cast fixtures and a
+safe mutable projection API are needed. Evaluate the reviewed safe stack_dst
+compatibility route before proposing a weaker source contract or any unsafe
+exception. MIRRORVAL target compiler order is already qualified.
+
+wx STL compatibility #93 at `6f272c818852adf3d640aee315d1f4756d86eaa8`
+received changes requested: implement throwing buffer/facet, sync and tied-stream
+paths; narrow the termination guard that rejects defined unwinding; replace
+infallible stream allocations; document algorithm licence/attribution. Record
+state/mask overlap as a harness restriction. Preserve the reference sentry
+profile and qualify its actual runtime/binary separately from GCC 15 diagnostics.
+Both PR descriptions now record these blockers and remain draft. Passing existing
+corpora does not clear them. Substantial corrections return to Opus and need
+fresh independent Sol reviews; no golden is proposed.
+
+Circle #95 hit the requested provider's 429 quota at 16:38:12 UTC on 26 November.
+Reported reset: **27 November 06:30:12 AEST** (20:30:12 UTC on 26 November),
+not a guarantee of successful execution. No retry loop or model/provider change.
+Its existing prepared checkout and claim are preserved at local head
+`1bbeb2e2d5c019becfa127b04f898754b9c93a09`, with tracked and untracked work
+backed up privately. Resume there after reset; do not create a duplicate claim.
+There are currently **zero active implementation streams**. Review, evidence,
+CI and accepted integration can continue while implementation quota is unavailable.
+A single continuation is scheduled for **27 November 06:31 AEST** to resume
+the preserved Opus work after the reported reset. It first checks for already
+resumed assignments and makes no repeated quota retry.
 
 The following historical notes preserve earlier heads and pending states. The
 manual final integration section records their accepted outcome.
@@ -212,6 +279,8 @@ retained in the private manual-validation workspace.
 
 ## Continuous four-stream cycle
 
+Historical recovery details below are superseded by the current queue above.
+
 PR #75 is accepted on `main` at
 `0a012ba1afb4a192c0ccbbb34ff4bbe9314fe722`; its computed merge tree was
 verified. The completed implementation batch remains accepted on `rust` at
@@ -304,10 +373,10 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 
 | Stream | Current assignment | Next dependency-ready work |
 | --- | --- | --- |
-| Geometry | SEG #74, ellipse #81, distribute #84 and full hypot #88 are accepted. Core utility header claim #92 is published; implementation remains in progress. | Finish the existing core recovery; circle is now ready after SEG. Geometry headers p003 await graph adoption. |
-| Polygon operations | Engine #76, rectclip #77 and transform #82 are accepted. Graph-adoption recovery submitted with the preserved generated work. | Resume graph adoption against the final accepted baseline, preserving all unit metadata; engine/offset source p002 can now start after engine p001. |
-| Core and general utilities | Core headers #73, map helpers #78, arc #85 and vector2wx #86 are accepted. Unix policy #89 delivered at `4f482553db`, source review and manual reference checks pass; hosted CI pending. wx STL compatibility claim #93 is now the stream assignment. | Finish #93 using accepted wx types; audit explicit-length/locale conversion and byte-oriented stream state. Integrate #89 after its gates pass. |
-| Numeric backends and spatial follow-ups | Pow #80, full hypot #88, R-tree depth #83 and poisson #87 are accepted. Unix system-info #90 delivered at `ab2d7b683c`, source review and target hosted gates pass; fallback preflight pending. Circle source p001 is now assigned. | Finish circle source p001, then geometry headers after graph adoption. Logging host effects and copy-on-write depth remain queued. |
+| Geometry | Core utility #92 needs lifecycle/allocation/lifetime and generic corrections; circle #95 partial work is preserved after quota failure. | Resume the original Opus work after quota reset; geometry p003 follows circle and graph acceptance. |
+| Polygon operations | Graph #94 source review clear; refresh published at `d3d65cb5ec`, fresh integration review and hosted checks pending. | Finish exact-tree graph validation/review, then refill with dependency-ready engine/offset work. |
+| Core and general utilities | Unix policy #89 is accepted; wx STL #93 needs stream exception/guard/allocation corrections. | Return substantial #93 corrections to Opus after quota reset, then fresh Sol review. |
+| Numeric backends and spatial follow-ups | Unix system-info #90 is accepted with exact-tree manual final CI. Circle #95 is paused by quota, with local work backed up. | Resume circle before taking another unit; logging effects and copy-on-write depth remain queued. |
 
 On each implementation completion, immediately inspect the result, start the
 independent Sol review and select the next unclaimed dependency-ready assignment.

@@ -42,3 +42,10 @@ or repeat the complete seven-function libm qualification.
 bindings, commands, result counts, per-unit input/output/binary hashes, source
 review disposition and hashes of the retained local logs. Full logs/reports
 remain in the parent's private manual reference workspace.
+
+PR #89 subsequently passed all applicable hosted checks and exact-head hosted
+preflight fallback 45856821086. It rebase-merged as
+`925fab5de0c5721d0bd5c82c370386ea26e22001`, with the tested tree unchanged.
+[accepted.json](accepted.json) records acceptance. The later [combined system-info
+run](../2026-11-27-kiplatform-sysinfo/combined/README.md) also preserves every
+policy input/reply hash and replays both units together.
