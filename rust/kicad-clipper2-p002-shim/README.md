@@ -43,7 +43,8 @@ digits, trees a preorder list of `{"parent", "hole", "polygon"}`.
 
 ## Guards and refusals
 
-Both programs refuse, with identical envelopes, before any reference code runs:
+Both programs refuse with identical envelopes. Parser/resource guards run before execution;
+the source-domain guards also inspect constructed groups and actual callback values:
 
 - Input domain (`invalid input: domain`): clipping coordinates outside Clipper2's declared
   `-MAX_COORD..MAX_COORD`; offset coordinates outside `±2^40`; NaN `ClipperD` coordinates.
@@ -54,11 +55,19 @@ Both programs refuse, with identical envelopes, before any reference code runs:
   request can produce must give at most 65,536 arc steps per circle (the reference's own
   formula, with the pinned `acos`) and at most 2^22 points in all. Within the guard the
   Rust host budgets are never reached; a native test checks the budget itself.
+- Undefined offset branches (`undefined behaviour: offset`): significant offsets of empty
+  non-Polygon paths, and non-Round singletons whose effective positive delta makes
+  `ceil(abs_delta)` exceed `INT_MAX`. Insignificant offsets remain admitted. Singleton
+  checks follow duplicate stripping, group reversal, default-delta mutation across groups,
+  and the actual callback entry, including callbacks retained by later executions.
 - Malformed requests: fields, enumerators, sizes, callback combinations.
 
 Callback exceptions are not modelled: the accepted callback types (`ZCallback64`,
 `ZCallbackD`, `DeltaCallback64`) return no error, so a throwing C++ callback has no Rust
-counterpart.
+counterpart. Independent review also demonstrated that a caught native callback unwind
+loses stored groups and the removed Z callback. These are unresolved source-contract
+omissions requiring an additive fallible callback interface and retained-state/lifecycle
+checks; partial status and successful corpus runs do not clear them.
 
 ## Deferrals
 
@@ -71,6 +80,9 @@ deferrals; the C++ runs the real bodies, and those cases are deferred, not compa
 
 - `generate_cases.py` writes the corpus (`port/cases/<unit>.jsonl`) and the controls
   (`port/oracle/fixtures/clipper2-engine-p002-controls.jsonl`); `--check` verifies both.
+  Star input coordinates use decimal Taylor evaluation rounded once to binary64, following
+  the accepted arc generator, so input generation does not depend on the host libm.
+  These generated coordinates are inputs only; every expected result comes from C++.
 - `kicad-difftest compare --partial` compares every case exactly; `compare_controls.py`
   requires identical refusals, each followed by an identical successful continuation;
   `examples/corpus_parity.rs` replays both in import-free wasm.

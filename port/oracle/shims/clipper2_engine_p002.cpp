@@ -8,8 +8,8 @@
 // public Clipper64/ClipperD/ClipperOffset operations, which reach every one of them; the
 // offset's file-local helpers are also called directly. Every request mirrors
 // rust/kicad-clipper2-p002-shim request for request, including its input domain and resource
-// guards, which refuse before any reference code runs. Doubles travel as their 16 hex digit
-// bit patterns.
+// guards. Source-domain guards inspect constructed groups and actual callback values before
+// undefined reference operations. Doubles travel as their 16 hex digit bit patterns.
 #include "registry.h"
 #include <algorithm>
 #include <cmath>
