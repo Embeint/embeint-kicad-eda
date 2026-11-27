@@ -29,6 +29,8 @@ jobs:
         run: |
           rustup toolchain install 1.99.1 --profile minimal --component clippy,rustfmt --target wasm32-unknown-unknown
           rustup default 1.99.1
+          # The image's packages.microsoft.com source is unused here and intermittently fails apt with 403.
+          for src in /etc/apt/sources.list.d/*; do if grep -qs packages.microsoft.com "$src"; then sudo rm -f "$src"; fi; done
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends g++ gcc cmake ninja-build python3 rsync git libboost-dev libwxgtk3.2-dev
       - name: Check portable implementation and generated corpus
