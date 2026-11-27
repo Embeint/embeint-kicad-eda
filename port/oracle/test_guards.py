@@ -13,7 +13,7 @@ import unittest
 
 from audit import (audit, check_flags, verify_source, check_resistor_reference,
                    check_reader_reference, check_kiplatform_unix_reference,
-                   verify_reader_generated)
+                   check_sexpr_reference, verify_reader_generated)
 from pin import KICAD_PIN, SOURCE_PATHS
 
 
@@ -51,6 +51,21 @@ class Guards(unittest.TestCase):
             check_kiplatform_unix_reference(substitute, link, source)
         with self.assertRaisesRegex(ValueError, "archive"):
             check_kiplatform_unix_reference(commands, ["g++ -o kicad-oracle"], source)
+
+    def test_sexpr_requires_the_pinned_source_and_archive(self):
+        source = Path("/reference")
+        commands = [{"file": str(source / "libs/sexpr/sexpr.cpp"), "arguments": [
+            "g++", "-o", "CMakeFiles/sexpr-reference.dir/object.o"]}]
+        link = ["g++ -o kicad-oracle libsexpr-reference.a"]
+        check_sexpr_reference(commands, link, source)
+        with self.assertRaisesRegex(ValueError, "compilation"):
+            check_sexpr_reference([], link, source)
+        substitute = commands + [{"file": "/overlay/sexpr_parser.cpp", "arguments": [
+            "g++", "-o", "CMakeFiles/sexpr-reference.dir/extra.o"]}]
+        with self.assertRaisesRegex(ValueError, "compilation"):
+            check_sexpr_reference(substitute, link, source)
+        with self.assertRaisesRegex(ValueError, "archive"):
+            check_sexpr_reference(commands, ["g++ -o kicad-oracle"], source)
 
     @unittest.skipUnless(shutil.which("cmake"), "CMake regenerates the fixture lexer")
     def test_generated_reader_source_is_regenerated_and_byte_checked(self):

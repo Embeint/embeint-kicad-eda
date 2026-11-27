@@ -23,4 +23,5 @@ SOURCE_PATHS = (
     "pcb_calculator/units_scales.h",
     "libs/kiplatform/os/unix/policy.cpp",
     "libs/kiplatform/os/unix/drivers.cpp", "libs/kiplatform/os/unix/sysinfo.cpp",
+    "libs/sexpr/include", "libs/sexpr/sexpr.cpp",
 )
