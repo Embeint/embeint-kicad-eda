@@ -11,8 +11,8 @@ use kicad_clipper2::clipper_engine::{
     ClipType, Clipper64, ClipperD, PolyTree, PolyTree64, PolyTreeD, ZCallback64, ZCallbackD,
 };
 use kicad_clipper2::offset::{
-    self, ClipperOffset, DeltaCallback64, EndType, JoinType, ARC_CONST, FLOATING_POINT_TOLERANCE,
-    PI,
+    self, ClipperOffset, DeltaCallback64, EndType, FallibleZCallback64, JoinType, ARC_CONST,
+    FLOATING_POINT_TOLERANCE, PI,
 };
 use kicad_clipper2::{
     Budget, ClipperError, Coord, FillRule, Path, Path64, PathD, Paths64, PathsD, Point64, PointD,
@@ -32,6 +32,10 @@ const MAX_GROUPS: usize = 64;
 const MAX_EXECUTES: usize = 4;
 const MAX_RUNS: i64 = 2;
 const MAX_TABLE: usize = 64;
+/// Callback call indices at which a callback may be asked to throw.
+const MAX_THROW_CALL: i64 = 1 << 20;
+/// The identifier a throwing Z callback adds to its call index (delta callbacks use the index).
+const Z_THROW: u64 = 1 << 32;
 /// Clipper2's declared coordinate range (`INT64_MAX >> 2`), the engine domain.
 const ENGINE_COORD: i64 = i64::MAX >> 2;
 /// The offset domain: coordinates and deltas whose offsets stay far inside the engine domain.
@@ -614,38 +618,96 @@ enum Kind {
 }
 
 /// The recording delta callback: returns `table[calls % len]` and logs
-/// `[curr, prev, path.size(), normals.size()]`.
-fn delta_recorder(table: &Rc<Vec<f64>>, calls: &Calls) -> DeltaCallback64 {
-    let (table, calls) = (Rc::clone(table), Rc::clone(calls));
+/// `[curr, prev, path.size(), normals.size()]`. At a call index listed in `throws` it throws
+/// (after logging) instead of returning.
+fn delta_recorder(table: &Rc<Vec<f64>>, calls: &Calls, throws: &Rc<Vec<u64>>) -> DeltaCallback64 {
+    let (table, calls, throws) = (Rc::clone(table), Rc::clone(calls), Rc::clone(throws));
     Box::new(
         move |path: &Path64, normals: &PathD, curr: usize, prev: usize| {
             let mut log = calls.borrow_mut();
-            let value = table
-                .get(log.len() % table.len().max(1))
-                .copied()
-                .unwrap_or(0.0);
+            let call = log.len();
+            let value = table.get(call % table.len().max(1)).copied().unwrap_or(0.0);
             log.push(json!([curr, prev, path.len(), normals.len()]));
-            value
+            if throws.contains(&(call as u64)) {
+                return Err(ClipperError::Callback(call as u64));
+            }
+            Ok(value)
         },
     )
 }
 
+/// The offset's Z recorder ([`z_recorder_64`]); at a call index listed in `throws` it throws
+/// after logging, before setting `pt.z`.
+fn z_recorder_offset(calls: &Calls, throws: &Rc<Vec<u64>>) -> FallibleZCallback64 {
+    let (calls, throws) = (Rc::clone(calls), Rc::clone(throws));
+    Box::new(
+        move |e1b: &Point64, e1t: &Point64, e2b: &Point64, e2t: &Point64, pt: &mut Point64| {
+            let entry = json!([
+                write_point(e1b),
+                write_point(e1t),
+                write_point(e2b),
+                write_point(e2t),
+                write_point(pt)
+            ]);
+            let call = calls.borrow().len() as u64;
+            let z = record(&calls, entry);
+            if throws.contains(&call) {
+                return Err(ClipperError::Callback(Z_THROW | call));
+            }
+            pt.z = z;
+            Ok(())
+        },
+    )
+}
+
+/// The call indices of one callback at which it throws (`throws.delta` or `throws.z`).
+fn throw_indices(v: &Value) -> R<Vec<u64>> {
+    let values = array(v, "throws")?;
+    if values.len() > MAX_TABLE {
+        return invalid("throws");
+    }
+    let mut out = Vec::new();
+    for value in values {
+        let call = i64_of(value)?;
+        if !(0..MAX_THROW_CALL).contains(&call) {
+            return invalid("throws");
+        }
+        grow(&mut out, call as u64)?;
+    }
+    Ok(out)
+}
+
+/// The reply member naming the callback that threw and its call index.
+fn thrown_value(id: u64) -> Value {
+    if id & Z_THROW != 0 {
+        json!({"callback": "z", "call": id & !Z_THROW})
+    } else {
+        json!({"callback": "delta", "call": id})
+    }
+}
+
 fn run_offset(v: &Value) -> R<Value> {
-    keys(
-        v,
-        &[
-            "op",
-            "groups",
-            "miter_limit",
-            "arc_tolerance",
-            "preserve_collinear",
-            "reverse_solution",
-            "z",
-            "delta_table",
-            "set_callback",
-            "executes",
-        ],
-    )?;
+    const FIELDS: [&str; 10] = [
+        "op",
+        "groups",
+        "miter_limit",
+        "arc_tolerance",
+        "preserve_collinear",
+        "reverse_solution",
+        "z",
+        "delta_table",
+        "set_callback",
+        "executes",
+    ];
+    // `throws` is optional: requests without it keep their original form.
+    let has_throws = v.as_object().is_some_and(|o| o.contains_key("throws"));
+    if has_throws {
+        let mut fields = FIELDS.to_vec();
+        fields.push("throws");
+        keys(v, &fields)?;
+    } else {
+        keys(v, &FIELDS)?;
+    }
     let mut count = Counter(0);
     let groups_in = array(at(v, "groups")?, "groups")?;
     if groups_in.len() > MAX_GROUPS {
@@ -704,6 +766,17 @@ fn run_offset(v: &Value) -> R<Value> {
         return invalid("callback");
     }
 
+    let (mut throw_delta, mut throw_z) = (Vec::new(), Vec::new());
+    if has_throws {
+        let throws = at(v, "throws")?;
+        keys(throws, &["delta", "z"])?;
+        throw_delta = throw_indices(at(throws, "delta")?)?;
+        throw_z = throw_indices(at(throws, "z")?)?;
+        if (!throw_delta.is_empty() && table.is_empty()) || (!throw_z.is_empty() && !use_recorder) {
+            return invalid("throws");
+        }
+    }
+
     let executes_in = array(at(v, "executes")?, "executes")?;
     if executes_in.is_empty() || executes_in.len() > MAX_EXECUTES {
         return invalid("executes");
@@ -756,6 +829,7 @@ fn run_offset(v: &Value) -> R<Value> {
     let z_calls: Calls = Rc::new(RefCell::new(Vec::new()));
     let delta_calls: Calls = Rc::new(RefCell::new(Vec::new()));
     let table = Rc::new(table);
+    let (throw_delta, throw_z) = (Rc::new(throw_delta), Rc::new(throw_z));
     let mut results = Vec::new();
     let mut groups_out = Vec::new();
     let mut norms = Value::Array(Vec::new());
@@ -763,10 +837,10 @@ fn run_offset(v: &Value) -> R<Value> {
     let mut co = ClipperOffset::new(miter_limit, arc_tolerance, preserve, reverse, OFFSET_BUDGET);
     let mut body = |results: &mut Vec<Value>| -> Result<(), ClipperError> {
         if use_recorder {
-            co.set_z_callback(Some(z_recorder_64(&z_calls)));
+            co.set_fallible_z_callback(Some(z_recorder_offset(&z_calls, &throw_z)))?;
         }
         if set_callback {
-            co.set_delta_callback(Some(delta_recorder(&table, &delta_calls)));
+            co.set_delta_callback(Some(delta_recorder(&table, &delta_calls, &throw_delta)));
         }
         for g in &groups {
             if g.single {
@@ -786,23 +860,35 @@ fn run_offset(v: &Value) -> R<Value> {
         for &(kind, delta) in &executes {
             let mut paths = Paths64::new();
             let mut tree = Value::Null;
-            match kind {
-                Kind::Paths => co.execute(delta, &mut paths)?,
-                Kind::Tree => {
-                    let mut polytree = PolyTree64::new(TREE_BUDGET)?;
-                    co.execute_tree(delta, &mut polytree)?;
-                    tree = write_tree(&polytree, write_path)?;
-                }
+            let mut polytree = PolyTree64::new(TREE_BUDGET)?;
+            let executed = match kind {
+                Kind::Paths => co.execute(delta, &mut paths),
+                Kind::Tree => co.execute_tree(delta, &mut polytree),
                 Kind::Callback => co.execute_with_delta_callback(
-                    Some(delta_recorder(&table, &delta_calls)),
+                    Some(delta_recorder(&table, &delta_calls, &throw_delta)),
                     &mut paths,
-                )?,
+                ),
+            };
+            // A callback exception ends only this execution: the reply records what it left
+            // (partial paths or tree, error code, retained groups) and the next one runs.
+            let thrown = match executed {
+                Ok(()) => None,
+                Err(ClipperError::Callback(id)) => Some(thrown_value(id)),
+                Err(other) => return Err(other),
+            };
+            if matches!(kind, Kind::Tree) {
+                tree = write_tree(&polytree, write_path)?;
             }
-            results.push(json!({
+            let mut result = json!({
                 "paths": write_paths(&paths),
                 "tree": tree,
                 "error_code": co.error_code(),
-            }));
+            });
+            if let Some(thrown) = thrown {
+                result["thrown"] = thrown;
+                result["groups"] = json!(co.groups().len());
+            }
+            results.push(result);
         }
         norms = write_path_d(co.norms());
         Ok(())

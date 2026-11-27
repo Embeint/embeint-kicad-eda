@@ -33,9 +33,13 @@ digits, trees a preorder list of `{"parent", "hole", "polygon"}`.
   `PreserveCollinear`, `ReverseSolution`, a Z recorder, an optional delta-callback table (the
   callback returns `table[calls % len]` and logs `[curr, prev, path size, normals size]`),
   whether it is assigned with `SetDeltaCallback`, and up to four executions (`paths`, `tree`
-  or `callback` = `Execute(DeltaCallback64, paths)`) on the same object. Replies: the groups as
-  constructed, each execution's paths/tree/error code, the final normals, and the callback
-  logs.
+  or `callback` = `Execute(DeltaCallback64, paths)`) on the same object. Optional `throws`
+  (`{"delta": [calls], "z": [calls]}`, 0-based cumulative call indices) makes the recording
+  callbacks throw at those calls after logging them (the Z recorder before setting `pt.z`).
+  A throw ends only that execution: its reply adds `thrown` (`{"callback", "call"}`) and the
+  retained group count to the partial paths/tree and error code the unwinding left, and the
+  next execution runs on the same object. Replies: the groups as constructed, each
+  execution's paths/tree/error code, the final normals, and the callback logs.
 - `helper`: `Hypot`, `GetUnitNormal`, `NormalizeVector`, `GetAvgUnitVector`, `AlmostZero`
   (default or given epsilon), `GetPerpendic`, `GetPerpendicD`, `NegatePath`, `IsClosedPath`
   and `GetLowestClosedPathInfo` (with the caller's initial `is_neg_area`, which the reference
@@ -62,12 +66,16 @@ the source-domain guards also inspect constructed groups and actual callback val
   and the actual callback entry, including callbacks retained by later executions.
 - Malformed requests: fields, enumerators, sizes, callback combinations.
 
-Callback exceptions are not modelled: the accepted callback types (`ZCallback64`,
-`ZCallbackD`, `DeltaCallback64`) return no error, so a throwing C++ callback has no Rust
-counterpart. Independent review also demonstrated that a caught native callback unwind
-loses stored groups and the removed Z callback. These are unresolved source-contract
-omissions requiring an additive fallible callback interface and retained-state/lifecycle
-checks; partial status and successful corpus runs do not clear them.
+Callback exceptions are modelled. The C++ adapter throws a private `CALLBACK_THROW` from
+its recording callbacks and catches it around each `Execute`; the Rust adapter returns
+`ClipperError::Callback` from `DeltaCallback64` and `FallibleZCallback64`. Both report what
+the exception left: the partial paths a delta callback exception leaves appended, the
+solution the finishing union cleared (or the tree it had built), error code, retained
+groups, and, through later executions and the logs, the retained callbacks, call counts and
+normals. `throws` requires a delta table for delta throws and the Z recorder for Z throws
+(`invalid input: throws`), and indices below 2^20. The pre-execution guard for empty open
+paths refuses the whole request even when a throw would have ended the execution before
+the path, so throw cases avoid empty open paths.
 
 ## Deferrals
 
