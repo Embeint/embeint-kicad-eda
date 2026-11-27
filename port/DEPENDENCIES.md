@@ -158,3 +158,29 @@ algorithms and draw counts, and `rand_mt` implements the reference `init_genrand
 Boost headers (the `rng` operation of the poisson disk shim) is the acceptance criterion. The
 crate has no dependencies; `kicad-math` depends on it, and the native `kicad-poisson-shim` reuses
 `kicad-difftest` and `serde_json`, already recorded.
+
+## stack_dst inline storage for INPLACE_FUNCTION
+
+`kicad-core` stores `INPLACE_FUNCTION`'s callable inline, without allocating, through
+`stack_dst` **0.8.2** (`https://github.com/thepowersgang/stack_dst-rs`, MIT OR Apache-2.0),
+used with default features disabled. It is vendored in `rust/vendor/stack_dst` with a
+reviewed compatibility patch and selected through `[patch.crates-io]`:
+[EMBEINT-PATCH.md](../rust/vendor/stack_dst/EMBEINT-PATCH.md) records the archive hash, the
+relaxed `typenum` pin (upstream's `=1.17` conflicts with the workspace's locked 1.20.1) and
+the added max-aligned buffer with separate metadata space. The vendored files keep their
+licence texts and are byte-identical to the crates.io archive apart from the listed changes.
+The type erasure is `unsafe` inside that crate; the port's crates remain
+`#![forbid(unsafe_code)]` and call only its safe API.
+
+The resolved closure added to `kicad-core`:
+
+| Package | Version | Licence |
+| --- | --- | --- |
+| stack_dst (patched; new buffer GPL-3.0-or-later) | 0.8.2 | (MIT OR Apache-2.0) AND GPL-3.0-or-later |
+| generic-array | 0.14.7 | MIT |
+| typenum | 1.20.1 | MIT OR Apache-2.0 |
+| version_check (build) | 0.9.5 | MIT OR Apache-2.0 |
+
+`generic-array` and `typenum` were already locked by the workspace. `generic-array`'s build
+script only queries the compiler version; nothing native is built or linked, and the crate
+builds for `wasm32-unknown-unknown`.

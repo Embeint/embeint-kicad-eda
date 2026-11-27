@@ -12,12 +12,24 @@ fn main() -> Result<(), String> {
     let mut reference = NATIVE.lines();
     let controls = CONTROLS
         .lines()
-        .map(|line| -> Result<String, String> {
+        .map(|line| -> Result<[String; 2], String> {
             let control: Value = serde_json::from_str(line).map_err(|e| e.to_string())?;
-            Ok(control["request"].to_string())
+            let case = control["request"]["case"]
+                .as_str()
+                .ok_or("missing control case")?;
+            let continuation = serde_json::json!({
+                "unit": "include.core.application.pure.p001",
+                "case": format!("after-{case}"),
+                "input": {"op": "enumerators"}
+            });
+            Ok([control["request"].to_string(), continuation.to_string()])
         })
         .collect::<Result<Vec<_>, _>>()?;
-    for request in CASES.lines().map(str::to_string).chain(controls) {
+    for request in CASES
+        .lines()
+        .map(str::to_string)
+        .chain(controls.into_iter().flatten())
+    {
         let expected: Value = serde_json::from_str(reference.next().ok_or("missing native reply")?)
             .map_err(|e| e.to_string())?;
         let actual = dispatch(&request);

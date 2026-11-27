@@ -1,0 +1,41 @@
+# stack_dst 0.8.2 from crates.io (archive sha256
+# 207b6c7f45471c8ad50acdf69a83931ce3b4166deba7b9dea435205374717629), patched for the
+# Embeint KiCad port. The upstream manifest is Cargo.toml.orig; EMBEINT-PATCH.md lists
+# every change and why.
+[package]
+name = "stack_dst"
+version = "0.8.2"
+rust-version = "1.51.0"
+authors = ["John Hodge <tpg@mutabah.net>"]
+edition = "2015"
+description = "A wrapper that allows storage of unsized values of up to a fixed size inline (without boxing)"
+repository = "https://github.com/thepowersgang/stack_dst-rs"
+readme = "README.md"
+license = "(MIT OR Apache-2.0) AND GPL-3.0-or-later"
+publish = false
+autotests = false
+
+[features]
+default = ["alloc", "const_generics"]
+alloc = []
+unsize = []
+const_generics = []
+full_const_generics = []
+
+[dependencies]
+generic-array = "0.14"
+# Upstream pins "=1.17" only to keep building on rustc 1.36; the workspace's rust-version
+# is 1.85 and already locks typenum 1.20 through hybrid-array.
+typenum = "1.17"
+
+[[test]]
+name = "fifo"
+path = "tests/fifo.rs"
+
+[[test]]
+name = "stack"
+path = "tests/stack.rs"
+
+[[test]]
+name = "value"
+path = "tests/value.rs"

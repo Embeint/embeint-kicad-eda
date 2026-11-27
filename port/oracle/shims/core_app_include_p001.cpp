@@ -14,6 +14,12 @@
 // explicit instantiation names may refer to private members ([temp.spec.general]/6): the
 // guards refuse exactly the undefined chrono arithmetic, and the leak cases report whether
 // the object exists. No member is written.
+//
+// Three harness types exercise the headers' generic code paths: FLAKY, whose default
+// constructor throws on demand (LEAK_AT_EXIT's retry after a failed initialization); PROBE,
+// a callable recording its special members (INPLACE_FUNCTION's moves, copies, failed copies
+// and destructions); and the FIX_* hierarchy with its own ClassOf predicates (IsA and
+// dyn_cast). None stands for a KiCad class.
 #include "registry.h"
 #include <core/inplace_function.h>
 #include <core/leak_at_exit.h>
@@ -31,6 +37,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <sstream>
 #include <string>
 #include <type_traits>
@@ -107,11 +114,51 @@ using LEAK_STRING = std::string;
 using LEAK_VECTOR = std::vector<int>;
 using LEAK_MAP = std::map<std::string, int>;
 using LEAK_SHARED = std::shared_ptr<std::string>;
+
+namespace
+{
+/// The exception the scripted FLAKY() constructor throws.
+struct FLAKY_FAILURE
+{
+};
+
+/// The FLAKY() script: failures still pending and constructor calls so far. Native harness
+/// state only; reset by every leak case.
+struct FLAKY_SCRIPT
+{
+    int64_t failures = 0;
+    int64_t attempts = 0;
+};
+
+FLAKY_SCRIPT g_flaky;
+
+/// A type whose value-initialization can throw; its value is the attempt that created it.
+struct FLAKY
+{
+    FLAKY()
+    {
+        ++g_flaky.attempts;
+
+        if( g_flaky.failures > 0 )
+        {
+            --g_flaky.failures;
+            throw FLAKY_FAILURE();
+        }
+
+        m_value = int( g_flaky.attempts );
+    }
+
+    int m_value = 0;
+};
+} // namespace
+
+using LEAK_FLAKY = FLAKY;
 LEAK_INSTANCE_ACCESS( LEAK_INT, int )
 LEAK_INSTANCE_ACCESS( LEAK_STRING, LEAK_STRING )
 LEAK_INSTANCE_ACCESS( LEAK_VECTOR, LEAK_VECTOR )
 LEAK_INSTANCE_ACCESS( LEAK_MAP, LEAK_MAP )
 LEAK_INSTANCE_ACCESS( LEAK_SHARED, LEAK_SHARED )
+LEAK_INSTANCE_ACCESS( LEAK_FLAKY, LEAK_FLAKY )
 
 namespace
 {
@@ -635,6 +682,10 @@ T DecodeLeak( const JSON& aValue )
 
         return out;
     }
+    else if constexpr( std::is_same_v<T, LEAK_FLAKY> )
+    {
+        Fail( "flaky values are set by construction" );
+    }
     else
     {
         Fail( "shared values are set by share" );
@@ -657,6 +708,10 @@ JSON EncodeLeak( const T& aValue )
     else if constexpr( std::is_same_v<T, LEAK_SHARED> )
     {
         return aValue ? JSON( *aValue ) : JSON();
+    }
+    else if constexpr( std::is_same_v<T, LEAK_FLAKY> )
+    {
+        return aValue.m_value;
     }
     else
     {
@@ -681,12 +736,30 @@ T& Access( LEAK_AT_EXIT<T>& aLeak, const std::string& aVia )
 }
 
 
+// An index into the pointers retained from destroyed wrappers.
+size_t RetainedIndex( const JSON& aStep, size_t aTaken )
+{
+    const int64_t index = Signed( Member( aStep, "index" ), "index", 0, int64_t( MAX_STEPS ) );
+
+    if( size_t( index ) >= aTaken )
+        Fail( "retained pointer not taken" );
+
+    return size_t( index );
+}
+
+
 template <typename T, typename TAG>
 JSON RunLeak( const JSON& aSteps )
 {
+    constexpr bool FLAKY_TYPE = std::is_same_v<T, LEAK_FLAKY>;
+    constexpr bool SIZED = !std::is_same_v<T, int> && !std::is_same_v<T, LEAK_SHARED> && !FLAKY_TYPE;
+
     std::array<std::optional<LEAK_AT_EXIT<T>>, LEAK_SLOTS> slots;
-    const LEAK_SHARED external = std::make_shared<std::string>( "leaked" );
+    std::vector<T*>              retained; // Get() results whose wrapper was destroyed
+    const LEAK_SHARED            external = std::make_shared<std::string>( "leaked" );
     JSON                         results = JSON::array();
+
+    g_flaky = FLAKY_SCRIPT();
 
     // Validate every step before any operation.
     for( const JSON& step : aSteps )
@@ -710,6 +783,47 @@ JSON RunLeak( const JSON& aSteps )
             continue;
         }
 
+        if( name == "fail_next" )
+        {
+            Fields( step, { "step", "count" } );
+
+            if constexpr( !FLAKY_TYPE )
+                Fail( "fail_next needs flaky" );
+
+            g_flaky.failures = Signed( Member( step, "count" ), "count", 0, int64_t( MAX_STEPS ) );
+            results.push_back( nullptr );
+            continue;
+        }
+
+        if( name == "attempts" )
+        {
+            Fields( step, { "step" } );
+
+            if constexpr( !FLAKY_TYPE )
+                Fail( "attempts needs flaky" );
+
+            results.push_back( g_flaky.attempts );
+            continue;
+        }
+
+        if( name == "read_retained" )
+        {
+            Fields( step, { "step", "index" } );
+            const size_t index = RetainedIndex( step, retained.size() );
+            results.push_back( EncodeLeak( *retained[index] ) );
+            continue;
+        }
+
+        if( name == "write_retained" )
+        {
+            Fields( step, { "step", "index", "value" } );
+            const size_t index = RetainedIndex( step, retained.size() );
+            T            value = DecodeLeak<T>( step.at( "value" ) );
+            *retained[index] = std::move( value );
+            results.push_back( nullptr );
+            continue;
+        }
+
         const int slot = int( Signed( Member( step, "slot" ), "slot", 0, LEAK_SLOTS - 1 ) );
         std::optional<LEAK_AT_EXIT<T>>& leak = slots[slot];
 
@@ -728,60 +842,77 @@ JSON RunLeak( const JSON& aSteps )
         if( !leak )
             Fail( "slot not constructed" );
 
-        if( name == "created" )
+        // A throwing FLAKY() leaves the once_flag unset; the step reports the exception.
+        try
         {
-            Fields( step, { "step", "slot" } );
-            results.push_back( ( *leak ).*InstanceMember( TAG() ) != nullptr );
-        }
-        else if( name == "identity" )
-        {
-            Fields( step, { "step", "slot" } );
-            T* const object = &leak->Get();
-            results.push_back( object == &**leak && object == leak->operator->()
-                               && object == &static_cast<T&>( *leak ) );
-        }
-        else if( name == "read" )
-        {
-            Fields( step, { "step", "slot", "via" } );
-            results.push_back( EncodeLeak( Access( *leak, Text( step, "via" ) ) ) );
-        }
-        else if( name == "write" )
-        {
-            Fields( step, { "step", "slot", "via", "value" } );
-            const std::string via = Text( step, "via" );
-            T                 value = DecodeLeak<T>( step.at( "value" ) );
-            Access( *leak, via ) = std::move( value );
-            results.push_back( nullptr );
-        }
-        else if( name == "share" )
-        {
-            Fields( step, { "step", "slot", "via" } );
+            if( name == "created" )
+            {
+                Fields( step, { "step", "slot" } );
+                results.push_back( ( *leak ).*InstanceMember( TAG() ) != nullptr );
+            }
+            else if( name == "identity" )
+            {
+                Fields( step, { "step", "slot" } );
+                T* const object = &leak->Get();
+                results.push_back( object == &**leak && object == leak->operator->()
+                                   && object == &static_cast<T&>( *leak ) );
+            }
+            else if( name == "read" )
+            {
+                Fields( step, { "step", "slot", "via" } );
+                results.push_back( EncodeLeak( Access( *leak, Text( step, "via" ) ) ) );
+            }
+            else if( name == "write" )
+            {
+                Fields( step, { "step", "slot", "via", "value" } );
+                const std::string via = Text( step, "via" );
+                T                 value = DecodeLeak<T>( step.at( "value" ) );
+                Access( *leak, via ) = std::move( value );
+                results.push_back( nullptr );
+            }
+            else if( name == "share" )
+            {
+                Fields( step, { "step", "slot", "via" } );
 
-            if constexpr( std::is_same_v<T, LEAK_SHARED> )
-                Access( *leak, Text( step, "via" ) ) = external;
+                if constexpr( std::is_same_v<T, LEAK_SHARED> )
+                    Access( *leak, Text( step, "via" ) ) = external;
+                else
+                    Fail( "share needs shared_string" );
+
+                results.push_back( nullptr );
+            }
+            else if( name == "size" )
+            {
+                Fields( step, { "step", "slot" } );
+
+                if constexpr( !SIZED )
+                    Fail( "size needs a container" );
+                else
+                    results.push_back( ( *leak )->size() );
+            }
+            else if( name == "release" )
+            {
+                // The object outlives its wrapper; the pointer stays usable.
+                Fields( step, { "step", "slot" } );
+                T* const object = &leak->Get();
+                leak.reset();
+                retained.push_back( object );
+                results.push_back( nullptr );
+            }
+            else if( name == "destroy" )
+            {
+                Fields( step, { "step", "slot" } );
+                leak.reset();
+                results.push_back( nullptr );
+            }
             else
-                Fail( "share needs shared_string" );
-
-            results.push_back( nullptr );
+            {
+                Fail( "unknown step" );
+            }
         }
-        else if( name == "size" )
+        catch( const FLAKY_FAILURE& )
         {
-            Fields( step, { "step", "slot" } );
-
-            if constexpr( std::is_same_v<T, int> || std::is_same_v<T, LEAK_SHARED> )
-                Fail( "size needs a container" );
-            else
-                results.push_back( ( *leak )->size() );
-        }
-        else if( name == "destroy" )
-        {
-            Fields( step, { "step", "slot" } );
-            leak.reset();
-            results.push_back( nullptr );
-        }
-        else
-        {
-            Fail( "unknown step" );
+            results.push_back( { { "exception", "construction failed" } } );
         }
     }
 
@@ -805,6 +936,8 @@ JSON Leak( const JSON& aInput )
         return RunLeak<LEAK_MAP, LEAK_MAP_TAG>( steps );
     if( type == "shared_string" )
         return RunLeak<LEAK_SHARED, LEAK_SHARED_TAG>( steps );
+    if( type == "flaky" )
+        return RunLeak<LEAK_FLAKY, LEAK_FLAKY_TAG>( steps );
 
     Fail( "unknown type" );
 }
@@ -1231,6 +1364,500 @@ JSON Function( const JSON& aInput )
 }
 
 
+// ---- inplace_function.h: the callable's special members -----------------------------------
+
+/// The events PROBE records, and how many more copies may succeed.
+struct PROBE_LOG
+{
+    std::vector<std::string> events;
+    int64_t                  copiesLeft = 0;
+};
+
+/// The exception PROBE's copy constructor throws once the case's copies are used up.
+struct PROBE_COPY_FAILURE
+{
+};
+
+/// A callable that records its construction, copies (and failed copies), moves, calls and
+/// destruction (of a live or a moved-from object).
+class PROBE
+{
+public:
+    PROBE( PROBE_LOG* aLog, int aId ) : m_log( aLog ), m_id( aId )
+    {
+        record( "construct " + std::to_string( m_id ) );
+    }
+
+    PROBE( const PROBE& aOther ) : m_log( aOther.m_log ), m_id( aOther.m_id )
+    {
+        if( m_log->copiesLeft == 0 )
+        {
+            record( "copy-failed " + std::to_string( m_id ) );
+            throw PROBE_COPY_FAILURE();
+        }
+
+        --m_log->copiesLeft;
+        record( "copy " + std::to_string( m_id ) );
+    }
+
+    PROBE( PROBE&& aOther ) noexcept : m_log( aOther.m_log ), m_id( aOther.m_id )
+    {
+        record( "move " + std::to_string( m_id ) );
+        aOther.m_moved = true;
+    }
+
+    PROBE& operator=( const PROBE& ) = delete;
+    PROBE& operator=( PROBE&& ) = delete;
+
+    ~PROBE()
+    {
+        record( "destroy " + std::to_string( m_id ) + ( m_moved ? " moved-from" : " live" ) );
+    }
+
+    long long operator()( int aArg ) const
+    {
+        record( "call " + std::to_string( m_id ) );
+        return (long long) m_id + aArg;
+    }
+
+private:
+    void record( std::string aEvent ) const { m_log->events.push_back( std::move( aEvent ) ); }
+
+    PROBE_LOG* m_log;
+    int        m_id;
+    bool       m_moved = false;
+};
+
+
+JSON Lifecycle( const JSON& aInput )
+{
+    using FN = INPLACE_FUNCTION<long long( int )>;
+
+    Fields( aInput, { "op", "copies", "steps" } );
+    PROBE_LOG log;
+    log.copiesLeft = Signed( Member( aInput, "copies" ), "copies", 0, int64_t( MAX_STEPS ) );
+    const JSON& steps = Array( aInput, "steps", MAX_STEPS );
+
+    for( const JSON& step : steps )
+    {
+        if( !step.is_object() || !step.contains( "step" ) )
+            Fail( "expected step object" );
+    }
+
+    std::array<std::optional<FN>, SLOTS> slots;
+    JSON                                 results = JSON::array();
+
+    auto slotOf = [&]( const JSON& aStep, const char* aName ) -> std::optional<FN>&
+    {
+        return slots[Signed( Member( aStep, aName ), aName, 0, SLOTS - 1 )];
+    };
+
+    auto live = [&]( const JSON& aStep, const char* aName ) -> FN&
+    {
+        std::optional<FN>& slot = slotOf( aStep, aName );
+
+        if( !slot )
+            Fail( "slot not constructed" );
+
+        return *slot;
+    };
+
+    auto vacant = [&]( const JSON& aStep ) -> std::optional<FN>&
+    {
+        std::optional<FN>& slot = slotOf( aStep, "slot" );
+
+        if( slot )
+            Fail( "slot already constructed" );
+
+        return slot;
+    };
+
+    auto readId = []( const JSON& aStep )
+    {
+        return int( Signed( Member( aStep, "id" ), "id", INT_MIN, INT_MAX ) );
+    };
+
+    for( const JSON& step : steps )
+    {
+        const std::string name = Text( step, "step" );
+        JSON              outcome = nullptr;
+
+        try
+        {
+            if( name == "copies" )
+            {
+                Fields( step, { "step", "count" } );
+                log.copiesLeft = Signed( Member( step, "count" ), "count", 0, int64_t( MAX_STEPS ) );
+            }
+            else if( name == "construct_empty" )
+            {
+                Fields( step, { "step", "slot" } );
+                vacant( step ).emplace();
+            }
+            else if( name == "construct" )
+            {
+                Fields( step, { "step", "slot", "id" } );
+                std::optional<FN>& slot = vacant( step );
+                const int          id = readId( step );
+                slot.emplace( PROBE( &log, id ) );
+            }
+            else if( name == "construct_copy" )
+            {
+                Fields( step, { "step", "slot", "id" } );
+                std::optional<FN>& slot = vacant( step );
+                const int          id = readId( step );
+                PROBE              probe( &log, id );
+                slot.emplace( probe );
+            }
+            else if( name == "copy_construct" )
+            {
+                Fields( step, { "step", "slot", "from" } );
+                FN& from = live( step, "from" );
+                vacant( step ).emplace( static_cast<const FN&>( from ) );
+            }
+            else if( name == "move_construct" )
+            {
+                Fields( step, { "step", "slot", "from" } );
+                FN& from = live( step, "from" );
+                vacant( step ).emplace( std::move( from ) );
+            }
+            else if( name == "assign" )
+            {
+                Fields( step, { "step", "slot", "id" } );
+                FN&       target = live( step, "slot" );
+                const int id = readId( step );
+                target = PROBE( &log, id );
+            }
+            else if( name == "assign_copy" )
+            {
+                Fields( step, { "step", "slot", "id" } );
+                FN&       target = live( step, "slot" );
+                const int id = readId( step );
+                PROBE     probe( &log, id );
+                target = probe;
+            }
+            else if( name == "copy_assign" )
+            {
+                Fields( step, { "step", "slot", "from" } );
+                FN& target = live( step, "slot" );
+                FN& from = live( step, "from" );
+                target = static_cast<const FN&>( from );
+            }
+            else if( name == "move_assign" )
+            {
+                Fields( step, { "step", "slot", "from" } );
+                FN& target = live( step, "slot" );
+                FN& from = live( step, "from" );
+                target = std::move( from );
+            }
+            else if( name == "destroy" )
+            {
+                Fields( step, { "step", "slot" } );
+                live( step, "slot" );
+                slotOf( step, "slot" ).reset();
+            }
+            else if( name == "bool" )
+            {
+                Fields( step, { "step", "slot" } );
+                outcome = bool( live( step, "slot" ) );
+            }
+            else if( name == "invoke" )
+            {
+                Fields( step, { "step", "slot", "arg" } );
+                const FN& function = live( step, "slot" );
+                const int arg = int( Signed( Member( step, "arg" ), "arg", INT_MIN, INT_MAX ) );
+
+                try
+                {
+                    outcome = { { "value", function( arg ) } };
+                }
+                catch( const std::bad_function_call& )
+                {
+                    outcome = { { "exception", "bad_function_call" } };
+                }
+            }
+            else
+            {
+                Fail( "unknown step" );
+            }
+        }
+        catch( const PROBE_COPY_FAILURE& )
+        {
+            outcome = { { "exception", "copy failed" } };
+        }
+
+        results.push_back( { { "outcome", outcome }, { "events", log.events } } );
+        log.events.clear();
+    }
+
+    // The remaining slots are destroyed in slot order.
+    for( std::optional<FN>& slot : slots )
+        slot.reset();
+
+    return { { "results", std::move( results ) }, { "final_events", log.events } };
+}
+
+
+// ---- typeinfo.h: IsA and dyn_cast over a fixture hierarchy --------------------------------
+
+// A generic hierarchy with its own ClassOf predicates (not a KiCad production class): it
+// instantiates the pinned IsA and dyn_cast templates and counts every ClassOf call.
+int g_classOfCalls = 0;
+
+enum class FIX_KIND
+{
+    BASE,
+    DERIVED,
+    LEAF,
+    OTHER,
+    NULLABLE,
+    MULTI
+};
+
+struct FIX_BASE
+{
+    FIX_BASE( FIX_KIND aKind, int aValue ) : m_kind( aKind ), m_value( aValue ) {}
+    virtual ~FIX_BASE() = default;
+
+    static bool ClassOf( const FIX_BASE* aItem )
+    {
+        ++g_classOfCalls;
+        return aItem != nullptr;
+    }
+
+    FIX_KIND m_kind;
+    int      m_value;
+};
+
+struct FIX_DERIVED : FIX_BASE
+{
+    using FIX_BASE::FIX_BASE;
+
+    static bool ClassOf( const FIX_BASE* aItem )
+    {
+        ++g_classOfCalls;
+        return aItem && ( aItem->m_kind == FIX_KIND::DERIVED || aItem->m_kind == FIX_KIND::LEAF );
+    }
+};
+
+struct FIX_LEAF : FIX_DERIVED
+{
+    using FIX_DERIVED::FIX_DERIVED;
+
+    static bool ClassOf( const FIX_BASE* aItem )
+    {
+        ++g_classOfCalls;
+        return aItem && aItem->m_kind == FIX_KIND::LEAF;
+    }
+};
+
+struct FIX_OTHER : FIX_BASE
+{
+    using FIX_BASE::FIX_BASE;
+
+    static bool ClassOf( const FIX_BASE* aItem )
+    {
+        ++g_classOfCalls;
+        return aItem && aItem->m_kind == FIX_KIND::OTHER;
+    }
+};
+
+/// Its ClassOf accepts a null pointer.
+struct FIX_NULLABLE : FIX_BASE
+{
+    using FIX_BASE::FIX_BASE;
+
+    static bool ClassOf( const FIX_BASE* aItem )
+    {
+        ++g_classOfCalls;
+        return !aItem || aItem->m_kind == FIX_KIND::NULLABLE;
+    }
+};
+
+/// A first polymorphic base, so FIX_BASE is not at offset 0 of FIX_MULTI.
+struct FIX_SIDE
+{
+    virtual ~FIX_SIDE() = default;
+    int m_tag = -1;
+};
+
+struct FIX_MULTI : FIX_SIDE, FIX_BASE
+{
+    explicit FIX_MULTI( int aValue ) : FIX_BASE( FIX_KIND::MULTI, aValue ) {}
+
+    static bool ClassOf( const FIX_BASE* aItem )
+    {
+        ++g_classOfCalls;
+        return aItem && aItem->m_kind == FIX_KIND::MULTI;
+    }
+};
+
+std::unique_ptr<FIX_BASE> BuildFixture( const std::string& aClass, int aValue )
+{
+    if( aClass == "base" )
+        return std::make_unique<FIX_BASE>( FIX_KIND::BASE, aValue );
+    if( aClass == "derived" )
+        return std::make_unique<FIX_DERIVED>( FIX_KIND::DERIVED, aValue );
+    if( aClass == "leaf" )
+        return std::make_unique<FIX_LEAF>( FIX_KIND::LEAF, aValue );
+    if( aClass == "other" )
+        return std::make_unique<FIX_OTHER>( FIX_KIND::OTHER, aValue );
+    if( aClass == "nullable" )
+        return std::make_unique<FIX_NULLABLE>( FIX_KIND::NULLABLE, aValue );
+    if( aClass == "multi" )
+        return std::make_unique<FIX_MULTI>( aValue );
+
+    Fail( "unknown class" );
+}
+
+
+/// A cast's result: null, or the value read through it and whether it is the original
+/// object's T part (dynamic_cast, independent of the templates).
+template <typename T>
+JSON CastResult( const T* aResult, const T* aExpected )
+{
+    if( !aResult )
+        return nullptr;
+
+    return { { "value", aResult->m_value }, { "same", aResult == aExpected } };
+}
+
+
+template <typename T>
+JSON ThroughBase( const std::string& aForm, FIX_BASE* aObject, const std::optional<int>& aWrite )
+{
+    const FIX_BASE* constObject = aObject;
+
+    if( aForm == "isa_ptr" )
+        return IsA<T>( constObject );
+    // The template argument may name the pointer type. The argument stays const: with a
+    // non-const pointer, IsA( const I& ) (I deduced as the pointer) is the better match and
+    // ClassOf( &aObject ) does not compile.
+    if( aForm == "isa_ptr_type" )
+        return IsA<T*>( constObject );
+    if( aForm == "isa_ref" )
+        return IsA<T>( *constObject );
+
+    const T* expected = dynamic_cast<const T*>( constObject );
+
+    if( aForm == "dyn_cast_const" )
+        return CastResult<T>( dyn_cast<const T*>( constObject ), expected );
+
+    T*   result = dyn_cast<T*>( aObject );
+    JSON reply = CastResult<T>( result, expected );
+
+    if( result && aWrite )
+        result->m_value = *aWrite;
+
+    return reply;
+}
+
+
+template <typename T>
+JSON ThroughDerived( const std::string& aForm, FIX_DERIVED* aObject )
+{
+    const FIX_DERIVED* constObject = aObject;
+
+    if( aForm == "derived_isa" )
+        return IsA<T>( constObject );
+
+    if constexpr( std::is_base_of_v<T, FIX_DERIVED> || std::is_base_of_v<FIX_DERIVED, T> )
+        return CastResult<T>( dyn_cast<T*>( aObject ), dynamic_cast<const T*>( constObject ) );
+    else
+        Fail( "cast does not compile" );
+}
+
+
+JSON Isa( const JSON& aInput )
+{
+    static const std::set<std::string> forms = { "isa_ptr",        "isa_ptr_type", "isa_ref",
+                                                 "dyn_cast_const", "dyn_cast",     "derived_isa",
+                                                 "derived_dyn_cast" };
+    static const std::set<std::string> targets = { "base",  "derived",  "leaf",
+                                                   "other", "nullable", "multi" };
+
+    Fields( aInput, { "op", "form", "target", "object", "write" } );
+    const std::string form = Text( aInput, "form" );
+
+    if( !forms.count( form ) )
+        Fail( "unknown form" );
+
+    const std::string target = Text( aInput, "target" );
+
+    if( !targets.count( target ) )
+        Fail( "unknown target" );
+
+    const JSON&               spec = aInput.at( "object" );
+    std::unique_ptr<FIX_BASE> object;
+
+    if( !spec.is_null() )
+    {
+        Fields( spec, { "class", "value" } );
+        const std::string cls = Text( spec, "class" );
+        const int         value = int( Signed( spec.at( "value" ), "value", INT_MIN, INT_MAX ) );
+        object = BuildFixture( cls, value );
+    }
+
+    std::optional<int> write;
+
+    if( !aInput.at( "write" ).is_null() )
+        write = int( Signed( aInput.at( "write" ), "write", INT_MIN, INT_MAX ) );
+
+    if( write && form != "dyn_cast" )
+        Fail( "only dyn_cast writes" );
+
+    if( form == "isa_ref" && !object )
+        Fail( "reference needs an object" );
+
+    const bool   derived = form.rfind( "derived_", 0 ) == 0;
+    FIX_DERIVED* derivedObject = dynamic_cast<FIX_DERIVED*>( object.get() );
+
+    if( derived && object && !derivedObject )
+        Fail( "object is not a FIX_DERIVED" );
+
+    if( form == "derived_dyn_cast" && target != "base" && target != "derived" && target != "leaf" )
+        Fail( "cast does not compile" );
+
+    g_classOfCalls = 0;
+    JSON result;
+
+    if( derived )
+    {
+        if( target == "base" )
+            result = ThroughDerived<FIX_BASE>( form, derivedObject );
+        else if( target == "derived" )
+            result = ThroughDerived<FIX_DERIVED>( form, derivedObject );
+        else if( target == "leaf" )
+            result = ThroughDerived<FIX_LEAF>( form, derivedObject );
+        else if( target == "other" )
+            result = ThroughDerived<FIX_OTHER>( form, derivedObject );
+        else if( target == "nullable" )
+            result = ThroughDerived<FIX_NULLABLE>( form, derivedObject );
+        else
+            result = ThroughDerived<FIX_MULTI>( form, derivedObject );
+    }
+    else
+    {
+        if( target == "base" )
+            result = ThroughBase<FIX_BASE>( form, object.get(), write );
+        else if( target == "derived" )
+            result = ThroughBase<FIX_DERIVED>( form, object.get(), write );
+        else if( target == "leaf" )
+            result = ThroughBase<FIX_LEAF>( form, object.get(), write );
+        else if( target == "other" )
+            result = ThroughBase<FIX_OTHER>( form, object.get(), write );
+        else if( target == "nullable" )
+            result = ThroughBase<FIX_NULLABLE>( form, object.get(), write );
+        else
+            result = ThroughBase<FIX_MULTI>( form, object.get(), write );
+    }
+
+    return { { "result", std::move( result ) },
+             { "class_of_calls", g_classOfCalls },
+             { "object", object ? JSON( object->m_value ) : JSON() } };
+}
+
+
 JSON Run( const JSON& aInput )
 {
     if( !aInput.is_object() || !aInput.contains( "op" ) )
@@ -1250,6 +1877,10 @@ JSON Run( const JSON& aInput )
         return Leak( aInput );
     if( op == "inplace_function" )
         return Function( aInput );
+    if( op == "inplace_lifecycle" )
+        return Lifecycle( aInput );
+    if( op == "isa" )
+        return Isa( aInput );
 
     Fail( "unknown operation" );
 }

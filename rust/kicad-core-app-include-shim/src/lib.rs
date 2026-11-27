@@ -7,8 +7,11 @@
 #![forbid(unsafe_code)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use kicad_core::inplace_function::{InplaceFunction, Target, DEFAULT_CAPACITY};
-use kicad_core::leak_at_exit::LeakAtExit;
+mod isa;
+mod lifecycle;
+
+use kicad_core::inplace_function::{Callable, InplaceFunction, DEFAULT_CAPACITY};
+use kicad_core::leak_at_exit::{InitFailure, LeakAtExit};
 use kicad_core::profile::{Milliseconds, TimePoint};
 use kicad_core::throttle::{SteadyClock, Throttle};
 use kicad_core::typeinfo::{self, KicadT};
@@ -16,6 +19,7 @@ use kicad_core::APP_INCLUDE_UNIT as UNIT;
 use kicad_math::mirror::{self, FlipDirection, MirrorValue};
 use kicad_math::Vector2;
 use serde_json::{json, Map, Value};
+use std::cell::Cell;
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
@@ -260,20 +264,112 @@ fn throttle(v: &Value) -> Res<Value> {
 
 // ---- leak_at_exit.h -----------------------------------------------------------------------
 
+/// The accessor a step names: `Get()`, `operator*`, `operator->` or `operator T&`.
+#[derive(Clone, Copy)]
+enum Via {
+    Get,
+    Deref,
+    Arrow,
+    Convert,
+}
+
+fn read_via(o: &Obj) -> Res<Via> {
+    match text(o, "via")?.as_str() {
+        "get" => Ok(Via::Get),
+        "deref" => Ok(Via::Deref),
+        "arrow" => Ok(Via::Arrow),
+        "convert" => Ok(Via::Convert),
+        _ => fail("unknown accessor"),
+    }
+}
+
+/// Why an access did not return the object (the exception `Get()` propagates).
+enum Failure {
+    Allocation,
+    Construction,
+}
+
+impl Failure {
+    fn encode(&self) -> Value {
+        match self {
+            Failure::Allocation => json!({"exception": "bad_alloc"}),
+            Failure::Construction => json!({"exception": "construction failed"}),
+        }
+    }
+}
+
+/// The scripted constructor of `flaky` (the C++ adapter's `FLAKY()`): it fails while
+/// failures are pending and otherwise records the attempt number it succeeded on.
+#[derive(Default)]
+struct InitScript {
+    failures: Cell<i64>,
+    attempts: Cell<i64>,
+}
+
+impl InitScript {
+    fn construct(&self) -> Result<Flaky, ()> {
+        self.attempts.set(self.attempts.get() + 1);
+        if self.failures.get() > 0 {
+            self.failures.set(self.failures.get() - 1);
+            return Err(());
+        }
+        Ok(Flaky(self.attempts.get() as i32))
+    }
+}
+
+/// A type whose value-initialization can fail; its value is the attempt that created it.
+struct Flaky(i32);
+
 /// A `LEAK_AT_EXIT<T>` instantiation of the cases.
-trait LeakType: Default {
+trait LeakType: Sized + 'static {
     const NAME: &'static str;
+    /// Whether `operator->()->size()` compiles (the containers).
+    const SIZED: bool;
     fn decode(v: &Value) -> Res<Self>;
     fn encode(&self) -> Value;
-    /// `->size()` for a container; `None` for `int` and the shared pointer.
+    /// `->size()` for a container; `None` for `int`, the shared pointer and `flaky`.
     fn size(&self) -> Option<usize>;
     /// The shared pointer instantiation's slot.
     fn shared(&mut self) -> Option<&mut Option<Rc<String>>> {
         None
     }
+    /// The accessor `via` (each is `Get()`), with the case's constructor script.
+    fn access<'a>(
+        leak: &'a mut LeakAtExit<Self>,
+        via: Via,
+        script: &InitScript,
+    ) -> Result<&'a mut Self, Failure>;
 }
+
+/// The accessors of a value-initialized (`T::default()`) instantiation.
+fn value_initialized<T: Default + 'static>(
+    leak: &mut LeakAtExit<T>,
+    via: Via,
+) -> Result<&mut T, Failure> {
+    match via {
+        Via::Get => leak.get(),
+        Via::Deref => leak.dereference(),
+        Via::Arrow => leak.arrow(),
+        Via::Convert => leak.as_reference(),
+    }
+    .map_err(|_| Failure::Allocation)
+}
+
+macro_rules! value_initialized_access {
+    () => {
+        fn access<'a>(
+            leak: &'a mut LeakAtExit<Self>,
+            via: Via,
+            _: &InitScript,
+        ) -> Result<&'a mut Self, Failure> {
+            value_initialized(leak, via)
+        }
+    };
+}
+
 impl LeakType for i32 {
     const NAME: &'static str = "int";
+    const SIZED: bool = false;
     fn decode(v: &Value) -> Res<Self> {
         Ok(signed(v, "value", i32::MIN.into(), i32::MAX.into())? as i32)
     }
@@ -283,9 +379,11 @@ impl LeakType for i32 {
     fn size(&self) -> Option<usize> {
         None
     }
+    value_initialized_access!();
 }
 impl LeakType for String {
     const NAME: &'static str = "string";
+    const SIZED: bool = true;
     fn decode(v: &Value) -> Res<Self> {
         v.as_str()
             .filter(|s| s.len() <= MAX_TEXT)
@@ -298,9 +396,11 @@ impl LeakType for String {
     fn size(&self) -> Option<usize> {
         Some(self.len())
     }
+    value_initialized_access!();
 }
 impl LeakType for Vec<i32> {
     const NAME: &'static str = "vector_int";
+    const SIZED: bool = true;
     fn decode(v: &Value) -> Res<Self> {
         let a = v
             .as_array()
@@ -316,9 +416,11 @@ impl LeakType for Vec<i32> {
     fn size(&self) -> Option<usize> {
         Some(self.len())
     }
+    value_initialized_access!();
 }
 impl LeakType for BTreeMap<String, i32> {
     const NAME: &'static str = "map_string_int";
+    const SIZED: bool = true;
     fn decode(v: &Value) -> Res<Self> {
         let a = v
             .as_array()
@@ -343,9 +445,11 @@ impl LeakType for BTreeMap<String, i32> {
     fn size(&self) -> Option<usize> {
         Some(self.len())
     }
+    value_initialized_access!();
 }
 impl LeakType for Option<Rc<String>> {
     const NAME: &'static str = "shared_string";
+    const SIZED: bool = false;
     fn decode(_: &Value) -> Res<Self> {
         fail("shared values are set by share")
     }
@@ -361,23 +465,51 @@ impl LeakType for Option<Rc<String>> {
     fn shared(&mut self) -> Option<&mut Option<Rc<String>>> {
         Some(self)
     }
+    value_initialized_access!();
+}
+impl LeakType for Flaky {
+    const NAME: &'static str = "flaky";
+    const SIZED: bool = false;
+    fn decode(_: &Value) -> Res<Self> {
+        fail("flaky values are set by construction")
+    }
+    fn encode(&self) -> Value {
+        json!(self.0)
+    }
+    fn size(&self) -> Option<usize> {
+        None
+    }
+    /// Every accessor is `Get()`, whose `new T()` may throw: the fallible initialization.
+    fn access<'a>(
+        leak: &'a mut LeakAtExit<Self>,
+        _: Via,
+        script: &InitScript,
+    ) -> Result<&'a mut Self, Failure> {
+        leak.try_get_with(|| script.construct())
+            .map_err(|failure| match failure {
+                InitFailure::Allocation(_) => Failure::Allocation,
+                InitFailure::Construction(()) => Failure::Construction,
+            })
+    }
 }
 
-/// `Get()`, `operator*`, `operator->` or `operator T&`.
-fn access<'a, T: LeakType>(leak: &'a mut LeakAtExit<T>, via: &str) -> Res<&'a mut T> {
-    match via {
-        "get" => Ok(leak.get()),
-        "deref" => Ok(leak.dereference()),
-        "arrow" => Ok(leak.arrow()),
-        "convert" => Ok(leak.as_reference()),
-        _ => fail("unknown accessor"),
+/// An index into the retained pointers.
+fn retained_index(o: &Obj, taken: usize) -> Res<usize> {
+    let index = signed(member(o, "index")?, "index", 0, MAX_STEPS as i64)? as usize;
+    if index >= taken {
+        return fail("retained pointer not taken");
     }
+    Ok(index)
 }
 
 fn run_leak<T: LeakType>(steps: &[Value]) -> Res<Value> {
     let mut slots: [Option<LeakAtExit<T>>; LEAK_SLOTS] = Default::default();
+    // Objects whose wrapper was destroyed, kept through the pointer `Get()` returned.
+    let mut retained: Vec<&'static mut T> = Vec::new();
     let external = Rc::new("leaked".to_string());
+    let script = InitScript::default();
     let shared = T::NAME == "shared_string";
+    let flaky = T::NAME == "flaky";
     let mut results = Vec::new();
 
     let steps = steps
@@ -392,13 +524,52 @@ fn run_leak<T: LeakType>(steps: &[Value]) -> Res<Value> {
     for o in steps {
         let step = Value::Object(o.clone());
         let name = text(o, "step")?;
-        if name == "use_count" {
-            fields(&step, &["step"])?;
-            if !shared {
-                return fail("use_count needs shared_string");
+        match name.as_str() {
+            "use_count" => {
+                fields(&step, &["step"])?;
+                if !shared {
+                    return fail("use_count needs shared_string");
+                }
+                results.push(json!(Rc::strong_count(&external)));
+                continue;
             }
-            results.push(json!(Rc::strong_count(&external)));
-            continue;
+            "fail_next" => {
+                fields(&step, &["step", "count"])?;
+                if !flaky {
+                    return fail("fail_next needs flaky");
+                }
+                let count = signed(member(o, "count")?, "count", 0, MAX_STEPS as i64)?;
+                script.failures.set(count);
+                results.push(Value::Null);
+                continue;
+            }
+            "attempts" => {
+                fields(&step, &["step"])?;
+                if !flaky {
+                    return fail("attempts needs flaky");
+                }
+                results.push(json!(script.attempts.get()));
+                continue;
+            }
+            "read_retained" => {
+                fields(&step, &["step", "index"])?;
+                let index = retained_index(o, retained.len())?;
+                if let Some(object) = retained.get(index) {
+                    results.push(object.encode());
+                }
+                continue;
+            }
+            "write_retained" => {
+                fields(&step, &["step", "index", "value"])?;
+                let index = retained_index(o, retained.len())?;
+                let value = T::decode(member(o, "value")?)?;
+                if let Some(object) = retained.get_mut(index) {
+                    **object = value;
+                }
+                results.push(Value::Null);
+                continue;
+            }
+            _ => {}
         }
         let slot = signed(member(o, "slot")?, "slot", 0, LEAK_SLOTS as i64 - 1)? as usize;
         let leak = slots.get_mut(slot).ok_or("integer out of range: slot")?;
@@ -422,41 +593,69 @@ fn run_leak<T: LeakType>(steps: &[Value]) -> Res<Value> {
             "identity" => {
                 fields(&step, &["step", "slot"])?;
                 // Every accessor returns the one object `Get()` created.
-                let first: *const T = object.get();
-                let same = core::ptr::eq(first, object.dereference())
-                    && core::ptr::eq(first, object.arrow())
-                    && core::ptr::eq(first, object.as_reference());
-                results.push(json!(same));
+                results.push(identity(object, &script));
             }
             "read" => {
                 fields(&step, &["step", "slot", "via"])?;
-                let via = text(o, "via")?;
-                results.push(access(object, &via)?.encode());
+                let via = read_via(o)?;
+                match T::access(object, via, &script) {
+                    Ok(value) => results.push(value.encode()),
+                    Err(failure) => results.push(failure.encode()),
+                }
             }
             "write" => {
                 fields(&step, &["step", "slot", "via", "value"])?;
-                let via = text(o, "via")?;
+                text(o, "via")?;
                 let value = T::decode(member(o, "value")?)?;
-                *access(object, &via)? = value;
-                results.push(Value::Null);
+                let via = read_via(o)?;
+                match T::access(object, via, &script) {
+                    Ok(target) => {
+                        *target = value;
+                        results.push(Value::Null);
+                    }
+                    Err(failure) => results.push(failure.encode()),
+                }
             }
             "share" => {
                 fields(&step, &["step", "slot", "via"])?;
                 if !shared {
                     return fail("share needs shared_string");
                 }
-                let via = text(o, "via")?;
-                if let Some(target) = access(object, &via)?.shared() {
-                    *target = Some(Rc::clone(&external));
+                let via = read_via(o)?;
+                match T::access(object, via, &script) {
+                    Ok(target) => {
+                        if let Some(target) = target.shared() {
+                            *target = Some(Rc::clone(&external));
+                        }
+                        results.push(Value::Null);
+                    }
+                    Err(failure) => results.push(failure.encode()),
                 }
-                results.push(Value::Null);
             }
             "size" => {
                 fields(&step, &["step", "slot"])?;
-                match object.arrow().size() {
-                    Some(size) => results.push(json!(size)),
-                    None => return fail("size needs a container"),
+                if !T::SIZED {
+                    return fail("size needs a container");
                 }
+                match T::access(object, Via::Arrow, &script) {
+                    Ok(value) => match value.size() {
+                        Some(size) => results.push(json!(size)),
+                        None => return fail("size needs a container"),
+                    },
+                    Err(failure) => results.push(failure.encode()),
+                }
+            }
+            "release" => {
+                // `T* p = &leak->Get();` then the wrapper is destroyed; `p` stays usable.
+                fields(&step, &["step", "slot"])?;
+                if let Err(failure) = T::access(object, Via::Get, &script) {
+                    results.push(failure.encode());
+                    continue;
+                }
+                if let Some(object) = leak.take().and_then(LeakAtExit::release) {
+                    retained.push(object);
+                }
+                results.push(Value::Null);
             }
             "destroy" => {
                 fields(&step, &["step", "slot"])?;
@@ -469,6 +668,23 @@ fn run_leak<T: LeakType>(steps: &[Value]) -> Res<Value> {
     Ok(json!({"results": results}))
 }
 
+/// Whether `Get()`, `operator*`, `operator->` and `operator T&` name one object, or the
+/// failure of the first access that failed.
+fn identity<T: LeakType>(leak: &mut LeakAtExit<T>, script: &InitScript) -> Value {
+    let first: *const T = match T::access(leak, Via::Get, script) {
+        Ok(first) => first,
+        Err(failure) => return failure.encode(),
+    };
+    let mut same = true;
+    for via in [Via::Deref, Via::Arrow, Via::Convert] {
+        match T::access(leak, via, script) {
+            Ok(other) => same &= core::ptr::eq(first, other),
+            Err(failure) => return failure.encode(),
+        }
+    }
+    json!(same)
+}
+
 fn leak_op(v: &Value) -> Res<Value> {
     let o = fields(v, &["op", "type", "steps"])?;
     let kind = text(o, "type")?;
@@ -479,6 +695,7 @@ fn leak_op(v: &Value) -> Res<Value> {
         "vector_int" => run_leak::<Vec<i32>>(steps),
         "map_string_int" => run_leak::<BTreeMap<String, i32>>(steps),
         "shared_string" => run_leak::<Option<Rc<String>>>(steps),
+        "flaky" => run_leak::<Flaky>(steps),
         _ => fail("unknown type"),
     }
 }
@@ -488,19 +705,19 @@ fn leak_op(v: &Value) -> Res<Value> {
 /// What a step does with the callable it names: construct a wrapper or assign one.
 trait Use<A, R> {
     type Out;
-    fn apply<F: Target<'static, A, R> + 'static>(self, callable: F) -> Self::Out;
+    fn apply<F: Callable<A, R> + 'static>(self, callable: F) -> Self::Out;
 }
 struct Construct<const CAP: usize>;
 impl<A: 'static, R: 'static, const CAP: usize> Use<A, R> for Construct<CAP> {
     type Out = InplaceFunction<'static, A, R, CAP>;
-    fn apply<F: Target<'static, A, R> + 'static>(self, callable: F) -> Self::Out {
+    fn apply<F: Callable<A, R> + 'static>(self, callable: F) -> Self::Out {
         InplaceFunction::from_callable(callable)
     }
 }
 struct Assign<'s, A, R, const CAP: usize>(&'s mut InplaceFunction<'static, A, R, CAP>);
 impl<A: 'static, R: 'static, const CAP: usize> Use<A, R> for Assign<'_, A, R, CAP> {
     type Out = ();
-    fn apply<F: Target<'static, A, R> + 'static>(self, callable: F) {
+    fn apply<F: Callable<A, R> + 'static>(self, callable: F) {
         self.0.assign_callable(callable);
     }
 }
@@ -842,7 +1059,10 @@ fn run_function<S: Signature, const CAP: usize, B: Big>(o: &Obj) -> Res<Value> {
             }
             "copy_construct" => {
                 fields(&step, &["step", "slot", "from"])?;
-                let copy = live(&mut slots, o, "from")?.clone();
+                // The lambdas' copy constructors cannot throw.
+                let copy = live(&mut slots, o, "from")?
+                    .try_clone()
+                    .map_err(|_| "copy failed".to_string())?;
                 let index = vacant(&slots, o)?;
                 if let Some(slot) = slots.get_mut(index) {
                     *slot = Some(copy);
@@ -872,16 +1092,25 @@ fn run_function<S: Signature, const CAP: usize, B: Big>(o: &Obj) -> Res<Value> {
                 let from = slot_index(o, "from")?;
                 live(&mut slots, o, "from")?;
                 let copy = o.get("step").and_then(Value::as_str) == Some("copy_assign");
-                // Assigning a wrapper to itself does nothing (this == &aOther); Rust's
-                // exclusive borrows cannot express that call, so it is not made.
-                if target != from {
+                if target == from {
+                    // `this == &aOther`: the operators' self-assignment branch.
+                    let function = live(&mut slots, o, "slot")?;
+                    if copy {
+                        function
+                            .try_copy_assign_self()
+                            .map_err(|_| "copy failed".to_string())?;
+                    } else {
+                        function.move_assign_self();
+                    }
+                } else {
                     let mut source = slots
                         .get_mut(from)
                         .and_then(Option::take)
                         .ok_or("slot not constructed")?;
+                    let mut copied = Ok(());
                     if let Some(Some(destination)) = slots.get_mut(target) {
                         if copy {
-                            destination.copy_assign(&source);
+                            copied = destination.try_copy_assign(&source);
                         } else {
                             destination.move_assign(&mut source);
                         }
@@ -889,6 +1118,7 @@ fn run_function<S: Signature, const CAP: usize, B: Big>(o: &Obj) -> Res<Value> {
                     if let Some(slot) = slots.get_mut(from) {
                         *slot = Some(source);
                     }
+                    copied.map_err(|_| "copy failed".to_string())?;
                 }
                 results.push(Value::Null);
             }
@@ -953,6 +1183,8 @@ fn run(v: &Value) -> Res<Value> {
         "throttle" => throttle(v),
         "leak_at_exit" => leak_op(v),
         "inplace_function" => function_op(v),
+        "inplace_lifecycle" => lifecycle::lifecycle_op(v),
+        "isa" => isa::isa_op(v),
         _ => fail("unknown operation"),
     }
 }
@@ -1005,8 +1237,8 @@ pub fn dispatch(line: &str) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
-    const CASES: usize = 3599;
-    const CONTROLS: usize = 293;
+    const CASES: usize = 4031;
+    const CONTROLS: usize = 336;
 
     #[test]
     fn public_cases_all_succeed() {

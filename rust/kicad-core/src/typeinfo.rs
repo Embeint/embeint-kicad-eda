@@ -622,16 +622,21 @@ pub const fn is_type_correct(a_type: KicadT) -> bool {
         || is_misc_type(a_type)
 }
 
-/// A class with the static `ClassOf( const I* )` that `IsA` and `dyn_cast` call. Every real
-/// implementation (the `EDA_ITEM` subclasses, `PNS::ITEM` subclasses) belongs to the unit
-/// that owns the class; none is ported yet.
+/// A class with the static `ClassOf( const I* )` that `IsA` and `dyn_cast` call. The
+/// production implementations (the `EDA_ITEM` subclasses, `PNS::ITEM` subclasses) belong to
+/// the units that own those classes; this unit's evidence uses fixture classes with their
+/// own predicates.
 pub trait ClassOf<I: ?Sized> {
     /// `T::ClassOf( aObject )`; `None` is a null pointer.
     fn class_of(object: Option<&I>) -> bool;
 
-    /// `static_cast<T*>( aObject )` after `ClassOf` accepted the object. C++ cannot fail
-    /// here; an implementation returns `None` only if it disagrees with its own `class_of`.
+    /// `static_cast<const T*>( aObject )` after `ClassOf` accepted the object. C++ cannot
+    /// fail here; an implementation returns `None` only if it disagrees with its own
+    /// `class_of`.
     fn static_cast(object: &I) -> Option<&Self>;
+
+    /// `static_cast<T*>( aObject )` on a non-const pointer: the same object, mutable.
+    fn static_cast_mut(object: &mut I) -> Option<&mut Self>;
 }
 
 /// `IsA<T>( const I* aObject )`: `aObject && T::ClassOf( aObject )`. A null pointer never
@@ -645,11 +650,22 @@ pub fn is_a_ref<T: ClassOf<I> + ?Sized, I: ?Sized>(object: &I) -> bool {
     T::class_of(Some(object))
 }
 
-/// `dyn_cast<Casted*>( aObject )`: the object as `T` when `T::ClassOf` accepts it (a null
-/// pointer included, which every real `ClassOf` rejects), otherwise `nullptr`.
+/// `dyn_cast<const Casted*>( aObject )`: the object as `T` when `T::ClassOf` accepts it,
+/// otherwise `nullptr`. Unlike `IsA`, a null pointer is passed to `ClassOf`; when a
+/// `ClassOf` accepts it the result is the null pointer `static_cast` makes of it.
 pub fn dyn_cast<T: ClassOf<I> + ?Sized, I: ?Sized>(object: Option<&I>) -> Option<&T> {
     if T::class_of(object) {
         return object.and_then(T::static_cast);
+    }
+
+    None
+}
+
+/// `dyn_cast<Casted*>( aObject )` on a non-const pointer: as [`dyn_cast`], and the result
+/// mutates the original object.
+pub fn dyn_cast_mut<T: ClassOf<I> + ?Sized, I: ?Sized>(object: Option<&mut I>) -> Option<&mut T> {
+    if T::class_of(object.as_deref()) {
+        return object.and_then(T::static_cast_mut);
     }
 
     None

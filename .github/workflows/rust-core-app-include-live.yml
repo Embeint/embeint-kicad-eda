@@ -6,6 +6,9 @@ on:
       - rust/kicad-core-app-include-shim/**
       - rust/kicad-core/**
       - rust/kicad-math/**
+      - rust/vendor/stack_dst/**
+      - rust/Cargo.toml
+      - rust/Cargo.lock
       - port/oracle/**
       - port/cases/include.core.application.pure.p001.jsonl
       - port/units/include.core.application.pure.p001.toml
@@ -37,6 +40,7 @@ jobs:
           cargo clippy --locked --manifest-path rust/Cargo.toml -p kicad-core -p kicad-math -p kicad-core-app-include-shim --all-targets -j2 -- -D warnings
           cargo test --locked --manifest-path rust/Cargo.toml -p kicad-core -p kicad-math -p kicad-core-app-include-shim -p kicad-ellipse-shim -j2
           cargo check --locked --manifest-path rust/Cargo.toml -p kicad-core -p kicad-math --target wasm32-unknown-unknown -j2
+          cargo test --manifest-path rust/vendor/stack_dst/Cargo.toml -j2
           python3 rust/kicad-core-app-include-shim/generate_cases.py --check
           cargo build --locked --manifest-path rust/Cargo.toml -p kicad-core-app-include-shim -p kicad-difftest -j2
       - name: Build genuine pinned own-library oracle
@@ -55,8 +59,7 @@ jobs:
       - name: Execute every case and control in import-free WebAssembly
         run: |
           out="$RUNNER_TEMP/app-include-native"
-          python3 -c "import json,sys; [print(json.dumps(json.loads(l)['request'], ensure_ascii=False)) for l in open(sys.argv[1], encoding='utf-8')]" \
-            port/oracle/fixtures/core-app-include-p001-controls.jsonl > "$out/controls.jsonl"
+          python3 rust/kicad-core-app-include-shim/compare_controls.py --write-requests "$out/controls.jsonl"
           cat port/cases/include.core.application.pure.p001.jsonl "$out/controls.jsonl" \
             | rust/target/debug/kicad-core-app-include-shim > "$out/rust-native.jsonl"
           export KICAD_CORE_APP_INCLUDE_WASM_REFERENCE="$out/rust-native.jsonl"

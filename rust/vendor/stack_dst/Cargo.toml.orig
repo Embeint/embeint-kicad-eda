@@ -1,0 +1,29 @@
+[package]
+name = "stack_dst"
+version = "0.8.2"
+rust-version = "1.36.0" # without "const_generics"
+authors = [ "John Hodge <tpg@mutabah.net>" ]
+description = "A wrapper that allows storage of unsized values of up to a fixed size inline (without boxing)"
+repository = "https://github.com/thepowersgang/stack_dst-rs"
+documentation = "http://thepowersgang.github.io/stack_dst-rs/target/doc/stack_dst/"
+readme = "README.md"
+keywords = ["stack", "dst"]
+license = "MIT OR Apache-2.0"
+
+[features]
+default = [ "alloc", "const_generics" ]
+
+alloc = []
+unsize = []
+const_generics = [] # increases MSRV to "1.51.0"
+# EXPERIMENTAL
+full_const_generics = []
+
+[package.metadata.docs.rs]
+all-features = true
+
+[dependencies]
+generic-array = "0.14"
+# Force typenum to not be 1.20 (or later), as that hits a recursion limit on rustc 1.36.0
+# > 1.18 and 1.19 also don't work, as they use `const _: ()`, which was unstable at the time.
+typenum = "=1.17"

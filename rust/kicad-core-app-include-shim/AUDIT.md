@@ -36,9 +36,29 @@ Status: **ported** (body and every branch ported, with successful oracle evidenc
 | `IsInstantiableType` | `IsNullType` early return; 4 `false` groups; `default` | ported | all 256 values |
 | `IsEeschemaType`, `IsPcbnewType`, `IsSingleLayerType`, `IsGerbviewType`, `IsPageLayoutEditorType`, `IsMiscType` | case lists + `default` | ported | all 256 values |
 | `IsTypeCorrect` | short-circuit `\|\|` of the six predicates | ported | all 256 values |
-| `IsA<T>( const I* )` | null pointer (no `ClassOf` call); `T::ClassOf` | ported, no evidence | see gaps |
-| `IsA<T>( const I& )` | `T::ClassOf( &aObject )` | ported, no evidence | see gaps |
-| `dyn_cast<Casted>( From )` | `ClassOf` true: `static_cast`; false: `nullptr` | ported, no evidence | see gaps |
+| `IsA<T>( const I* )` | null pointer (no `ClassOf` call); `T::ClassOf` true/false | ported | `isa-*` (`isa_ptr`, `isa_ptr_type`, `derived_isa`): null objects (0 calls), every class against every target |
+| `IsA<T>( const I& )` | `T::ClassOf( &aObject )` | ported | `isa-*` (`isa_ref`) |
+| `dyn_cast<Casted>( From )` | `ClassOf` true: `static_cast`; false: `nullptr`; a null pointer reaches `ClassOf` | ported (`dyn_cast`, `dyn_cast_mut`) | `isa-*` (`dyn_cast_const`, `dyn_cast`, `derived_dyn_cast`): accepted and rejected casts, null (1 call; `FIX_NULLABLE` accepts it and yields null), identity of the result with the original object, writes through the result |
+
+`IsA` and `dyn_cast` are templates over the class they test. Their evidence uses a generic
+fixture hierarchy compiled into both adapters with its own `ClassOf` predicates (on a class
+tag, counting calls): `FIX_BASE`, `FIX_DERIVED : FIX_BASE`, `FIX_LEAF : FIX_DERIVED`, the
+sibling `FIX_OTHER`, `FIX_NULLABLE` (whose `ClassOf` accepts a null pointer) and
+`FIX_MULTI : FIX_SIDE, FIX_BASE` (its C++ `static_cast` from `FIX_BASE*` adjusts the
+pointer). The oracle instantiates the pinned templates with them: `IsA<T>( const FIX_BASE* )`,
+`IsA<T*>( const FIX_BASE* )`, `IsA<T>( const FIX_BASE& )`, `IsA<T>( const FIX_DERIVED* )`,
+`dyn_cast<const T*>( const FIX_BASE* )`, `dyn_cast<T*>( FIX_BASE* )` and
+`dyn_cast<T*>( FIX_DERIVED* )` (up, identity and down casts; the casts that do not compile
+are refused). Each reply carries the template's result, the number of `ClassOf` calls, whether
+a cast result is the original object's part (C++: equal to `dynamic_cast`, independent of the
+templates) and the original object's value after a write through a non-const result. Rust
+implements `ClassOf` for the same classes (`static_cast_mut` gives the mutable projection) and
+calls `kicad_core::typeinfo`. (Passing a non-const pointer to `IsA` selects
+`IsA( const I& )` with `I` deduced as the pointer, a better match than the qualification
+conversion to `const I*`, and `ClassOf( &aObject )` then does not compile for these
+`ClassOf( const FIX_BASE* )` signatures; the cases pass const pointers. Rust's `is_a` takes
+`Option<&I>`.) KiCad's production hierarchies (`EDA_ITEM`, `PNS::ITEM`
+subclasses) and their `ClassOf` belong to the units that own them and are not qualified here.
 
 Integers outside [-128, 127] are refused (`integer out of range: value`): converting them to
 `KICAD_T` is undefined ([expr.static.cast]/10). Non-enumerators inside the range (for
@@ -92,69 +112,91 @@ conversion of the interval, `now - aInterval`, and `now - m_last` overflowing `i
 | Symbol | Branches | Status | Evidence |
 | --- | --- | --- | --- |
 | `LEAK_AT_EXIT()` | `m_instance( nullptr )` | ported | `created` is false after construction |
-| `Get()` | first call creates `new T()` (value-initialized); later calls return it | ported | `leak-*` for `int`, `std::string`, `std::vector<int>`, `std::map<std::string, int>`, `std::shared_ptr<std::string>` |
+| `Get()` | first call: `new T()` (allocate, then value-initialize) inside `call_once`; a throwing `T()` (or `bad_alloc`) leaves the flag unset, so the next call retries; later calls return the object | ported | `leak-*` for `int`, `std::string`, `std::vector<int>`, `std::map<std::string, int>`, `std::shared_ptr<std::string>`; `leak-lifetime-flaky-*`: a `FLAKY` whose constructor throws on demand, through every accessor, with the attempt count |
 | `operator*`, `operator->`, `operator T&` | `Get()` | ported | every accessor creates on first use; `identity` |
-| destructor (implicit) | never destroys `T` | ported | `shared_string`: `use_count` stays raised after `destroy` |
+| destructor (implicit) | never destroys or frees `T` | ported | `shared_string`: `use_count` stays raised after `destroy`; `release` + `read_retained` / `write_retained`: the object stays readable and writable through the pointer `Get()` returned after the wrapper is destroyed |
 | deleted copy/move | | compile-time | the Rust type is neither `Clone` nor `Copy` |
 
-`std::call_once` makes concurrent first accesses create one object; the Rust accessors take
-`&mut self` (one owner, as for the other ported `include/core` synchronization). A throwing
-`T()` or `std::bad_alloc` leaves the flag unset so a later access retries; `T::default()`
-cannot report failure, so that path has no Rust counterpart (see gaps).
+The object lives in its own heap allocation that is never freed (`Vec::try_reserve_exact`,
+then `Vec::leak`), so it survives the wrapper as the C++ object does; `LeakAtExit::release`
+destroys the wrapper and hands back the surviving `&'static mut T`, the counterpart of a
+pointer retained from `Get()`. Initialization fails where `new T()` fails: the allocation is
+reported (`InitFailure::Allocation`, no abort) and a failing constructor
+(`try_get_with`, `InitFailure::Construction`) releases the allocation; either way the wrapper
+stays uninitialized and the next access tries again. `std::call_once` makes concurrent first
+accesses create one object; the Rust accessors take `&mut self` (one owner, as for the other
+ported `include/core` synchronization). `T: Default` value-initialization (`get` and the
+accessors) has no typed constructor-failure channel; fallible constructors use `try_get_with`.
 
 ### inplace_function.h
 
 | Symbol | Branches | Status | Evidence |
 | --- | --- | --- | --- |
 | `INPLACE_FUNCTION()` | empty | ported | `construct_empty` |
-| `INPLACE_FUNCTION( F&& )` / `assign` | stores the callable; `static_assert`s | ported; asserts compile-time | `construct` for every callable kind of four signatures, two capacities |
-| copy constructor / `copyFrom` | empty source: nothing; else `COPY` | ported | `copy_construct` with live, empty and moved-from sources; `use_count` |
-| move constructor / `moveFrom` | empty source: nothing; else `MOVE` and reset the source | ported | `move_construct`; source then `false` and `bad_function_call` |
-| `operator=( const& )` | `this == &aOther`: nothing; else copy first, reset, move in | ported (self case: see differences) | `copy_assign`, including self |
-| `operator=( && )` | `this == &aOther`: nothing; else reset, move | ported (self case: see differences) | `move_assign`, including self |
-| `operator=( F&& )` | temporary, reset, move | ported | `assign` |
-| destructor / `reset` | `m_manage`: destroy, clear | ported | `destroy`; `final_use_count` after the remaining slots are destroyed |
+| `INPLACE_FUNCTION( F&& )` / `assign` | rvalue: move-construct into the storage; lvalue: copy-construct (may throw); `static_assert`s | ported (`from_callable`, `try_from_copy`); asserts compile-time | `construct` for every callable kind of four signatures, two capacities; `lifecycle-*`: `construct` (construct, move, destroy the moved-from temporary), `construct_copy` (copy or failed copy) |
+| copy constructor / `copyFrom` | empty source: nothing; else `COPY` (may throw: nothing constructed) | ported (`try_clone`) | `copy_construct` with live, empty and moved-from sources; `use_count`; lifecycle events, failing copies |
+| move constructor / `moveFrom` | empty source: nothing; else `MOVE`, then `aOther.reset()` destroys the moved-from source | ported (`take`) | `move_construct`; lifecycle events `move N`, `destroy N moved-from` |
+| `operator=( const& )` | `this == &aOther`: nothing; else copy first (a throwing copy leaves `*this` unchanged), reset, move in | ported (`try_copy_assign`, `try_copy_assign_self`) | `copy_assign`, including self (63 public self-assignments now call the portable self branch) and failing copies that keep the old target |
+| `operator=( && )` | `this == &aOther`: nothing; else reset, move | ported (`move_assign`, `move_assign_self`) | `move_assign`, including self (59 public self-assignments) |
+| `operator=( F&& )` | temporary, reset, move; lvalue `F`: the temporary copies first | ported (`assign_callable`, `try_assign_copy`) | `assign`; lifecycle `assign`, `assign_copy` |
+| destructor / `reset` | `m_manage`: destroy, clear | ported | `destroy`; `final_use_count` / `final_events` after the remaining slots are destroyed in slot order |
 | `operator bool` | `m_invoke != nullptr` | ported | `bool` |
 | `operator()` | empty: `std::bad_function_call`; else invoke | ported | `invoke` on empty and live wrappers |
 
-The callables are genuine lambdas in both adapters (`add`, `mul`, a capture-less `plain`, a
-`shared` lambda capturing a copy of the case's shared token, and a 48-byte `big` lambda for
-the 64-byte capacity). The token's `use_count` (C++ `std::shared_ptr`, Rust `Rc`) observes
-every copy, move and destruction of a stored callable. The QA scenarios of the pinned
-`qa/tests/common/test_inplace_function.cpp` are cases `inplace-qa-*`.
+**Storage.** The callable is constructed inside the wrapper, as in C++: `CAPACITY` payload
+bytes at 16-byte alignment in `stack_dst::Value<dyn _, MaxAlignBuf<CAPACITY>>` (the
+workspace's reviewed `stack_dst` 0.8.2 patch, `rust/vendor/stack_dst/EMBEINT-PATCH.md`),
+with a separate metadata word after the payload standing for `m_invoke`/`m_manage`. No
+wrapper storage operation allocates; a unit test checks that a stored callable's address lies inside the
+wrapper. The C++ `static_assert`s are separate compile-time assertions on the Rust callable
+type (`size_of <= CAPACITY`, `align_of <= 16`); they establish the Rust bound, not that a
+C++ compiler would lay out an equivalent lambda identically.
+
+**Lifecycle.** `kicad_core::inplace_function::Callable` carries the callable's special
+members: `move_construct` (the move constructor; the wrapper then drops the moved-from
+source as `moveFrom` resets it), `copy_construct` (the copy constructor, returning
+`CopyFailure` where the C++ throws) and `Drop` (the destructor). Rust closures have no move
+constructor and are relocated, which no program can observe; their copy is `Clone`. The
+`inplace_lifecycle` cases store the adapters' `PROBE`, a callable that records each special
+member, and compare the event sequence of every operation with the oracle's: e.g. a wrapper
+move is `move N` then `destroy N moved-from`, an rvalue assignment is `construct`, `move`
+(into the temporary), `destroy` of the old target, `move`, `destroy` of the moved-from
+storage and finally of the moved-from argument, and a copy assignment whose copy fails is
+`copy-failed N` with the old target kept.
+
+The callables of the `inplace_function` cases are genuine lambdas in both adapters (`add`,
+`mul`, a capture-less `plain`, a `shared` lambda capturing a copy of the case's shared token,
+and a 48-byte `big` lambda for the 64-byte capacity). The token's `use_count` (C++
+`std::shared_ptr`, Rust `Rc`) counts copies and destructions, not moves. The QA scenarios of
+the pinned `qa/tests/common/test_inplace_function.cpp` are cases `inplace-qa-*`.
 
 ## Differences that no case can observe, stated
 
-- **Storage.** The C++ constructs the callable in an inline buffer and never allocates. Safe
-  Rust cannot type-erase into inline storage (it needs `unsafe`; `smallbox`'s stable
-  coercion is a macro that expands to `unsafe` in the caller, refused by
-  `forbid(unsafe_code)`, and `stack_dst` pins `typenum = 1.17`, incompatible with the
-  workspace). The callable is boxed: an allocation (none for zero-sized callables) whose
-  failure aborts. Capacity and alignment remain compile-time requirements, checked against
-  the C++ limits (`DEFAULT_CAPACITY` = 4 pointers, `MAX_ALIGN` = 16), so exactly the C++
-  programs that compile, compile.
-- **MOVE then DESTROY of the source.** `moveFrom` move-constructs the callable and then
-  destroys the moved-from source. A Rust move relocates the callable; there is no moved-from
-  object to destroy. Only a callable with an observable moved-from destructor could tell.
-- **Self-assignment.** `fn = fn` and `fn = std::move( fn )` take the `this == &aOther` branch
-  and do nothing. Rust's exclusive borrows cannot express these calls, so the adapter makes
-  no call for them; the oracle runs the genuine C++ branch and the replies agree.
+- **Closure moves.** A Rust closure has no move constructor; the wrapper relocates it and
+  there is no moved-from closure to destroy. Callables with observable moves implement
+  `Callable::move_construct` and get the C++ sequence (`inplace_lifecycle`).
+- **Wrapper size.** The Rust wrapper is the payload, the metadata word and an `Option`
+  discriminant; the C++ is the payload and two function pointers. Layout is not an
+  observable of any operation and is not claimed equal.
 - **Return conversion.** `std::is_invocable_r_v<R, ...>` lets a callable return a type
   convertible to `R`; Rust callables return `R` itself.
+- **Allocation failure.** `LEAK_AT_EXIT`'s allocation failure path is ported and reported,
+  but neither adapter can make an allocation fail, so no case reaches it.
+- **Two proven-unreachable branches.** `INPLACE_FUNCTION`'s storage construction cannot fail
+  after its compile-time size and alignment assertions, and `LEAK_AT_EXIT`'s storage holds
+  the one object just pushed; each such branch is `unreachable!` with that justification.
 
 ## Remaining gaps (the unit stays partial)
 
-1. **`IsA` and `dyn_cast` have no successful-operation evidence.** Every real `ClassOf`
-   belongs to a `UI` unit that is still `todo` (the `EDA_ITEM` subclasses in `eeschema/`
-   and `pcbnew/`, the `PNS::ITEM` subclasses, e.g. `PNS::SEGMENT::ClassOf` in
-   `pcbnew.router.application.ui.p021`), and none of their headers is in the oracle closure
-   (`pns_via.h` pulls `padstack.h`; the `EDA_ITEM` classes pull `eda_item.h` and wx). No
-   stand-in hierarchy is used. The bodies are ported against a `ClassOf` trait; the owners
-   implement it when they are ported, and their cases exercise these templates.
-2. **Allocation failure.** `new T()` in `LEAK_AT_EXIT::Get` and the absence of any
-   allocation in `INPLACE_FUNCTION` are not mirrored (see above).
-3. **Qualification.** Local evidence is GCC 15 / glibc 2.43 (WSL); the qualified reference
-   is GCC 13 / glibc 2.39 (hosted `ubuntu-24.04`), which this PR's workflow runs.
+Fresh raw-blob local validation, buffer safety probes and exact counts are recorded in
+[VALIDATION.md](VALIDATION.md), including the local ellipse caller's remaining differences.
+
+1. **Qualification.** Local evidence is GCC 15 / glibc 2.43 (WSL); the qualified reference is
+   GCC 13 / glibc 2.39 (hosted `ubuntu-24.04`), which this PR's workflow runs. The new
+   lifecycle, lifetime and `IsA`/`dyn_cast` domains need that hosted run and a new
+   independent review before the unit can be considered for green.
+2. **Production `ClassOf`.** `IsA`/`dyn_cast` are qualified through the fixture hierarchy;
+   each production hierarchy's `ClassOf` is qualified by its owning unit when ported.
 
 ## Callers
 

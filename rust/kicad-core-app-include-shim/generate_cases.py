@@ -496,6 +496,370 @@ def function(out, rng):
         out.control(f'inplace-{name}', payload, message)
 
 
+def lifecycle(out, rng):
+    """INPLACE_FUNCTION with a callable that records its special members (PROBE)."""
+    def lc(copies, steps):
+        return {'op': 'inplace_lifecycle', 'copies': copies, 'steps': steps}
+
+    fixed = [
+        # Construction moves the temporary in and destroys it; a wrapper move constructs
+        # the callable in the new wrapper and destroys the moved-from source.
+        (1, [{'step': 'construct', 'slot': 0, 'id': 1}, {'step': 'move_construct', 'slot': 1, 'from': 0},
+             {'step': 'bool', 'slot': 0}, {'step': 'invoke', 'slot': 0, 'arg': 1},
+             {'step': 'invoke', 'slot': 1, 'arg': 2}, {'step': 'move_assign', 'slot': 0, 'from': 1},
+             {'step': 'invoke', 'slot': 0, 'arg': 3}]),
+        # Copy construction and copy assignment, then the budget runs out: the failing copy
+        # constructs nothing and the failing copy assignment keeps the old target.
+        (2, [{'step': 'construct', 'slot': 0, 'id': 7}, {'step': 'copy_construct', 'slot': 1, 'from': 0},
+             {'step': 'construct', 'slot': 2, 'id': 9}, {'step': 'copy_assign', 'slot': 2, 'from': 0},
+             {'step': 'invoke', 'slot': 2, 'arg': 0}, {'step': 'construct', 'slot': 3, 'id': 5},
+             {'step': 'copy_assign', 'slot': 3, 'from': 0}, {'step': 'invoke', 'slot': 3, 'arg': 0},
+             {'step': 'bool', 'slot': 3}, {'step': 'destroy', 'slot': 1},
+             {'step': 'copy_construct', 'slot': 1, 'from': 3}, {'step': 'copies', 'count': 1},
+             {'step': 'copy_construct', 'slot': 1, 'from': 3}, {'step': 'invoke', 'slot': 1, 'arg': -5}]),
+        # Assignment from rvalue and lvalue callables, including a failing lvalue copy.
+        (1, [{'step': 'construct_empty', 'slot': 0}, {'step': 'assign', 'slot': 0, 'id': 3},
+             {'step': 'assign', 'slot': 0, 'id': 4}, {'step': 'assign_copy', 'slot': 0, 'id': 5},
+             {'step': 'assign_copy', 'slot': 0, 'id': 6}, {'step': 'invoke', 'slot': 0, 'arg': 10},
+             {'step': 'construct_copy', 'slot': 1, 'id': 8}, {'step': 'copies', 'count': 1},
+             {'step': 'construct_copy', 'slot': 1, 'id': 8}, {'step': 'invoke', 'slot': 1, 'arg': 1}]),
+        # Self-assignment: neither operator touches the callable.
+        (0, [{'step': 'construct', 'slot': 0, 'id': 11}, {'step': 'copy_assign', 'slot': 0, 'from': 0},
+             {'step': 'move_assign', 'slot': 0, 'from': 0}, {'step': 'invoke', 'slot': 0, 'arg': 0},
+             {'step': 'construct_empty', 'slot': 1}, {'step': 'copy_assign', 'slot': 1, 'from': 1},
+             {'step': 'move_assign', 'slot': 1, 'from': 1}, {'step': 'invoke', 'slot': 1, 'arg': 0}]),
+        # Empty sources: copying or moving an empty wrapper calls no special member, and
+        # assigning one resets the target.
+        (3, [{'step': 'construct_empty', 'slot': 0}, {'step': 'copy_construct', 'slot': 1, 'from': 0},
+             {'step': 'move_construct', 'slot': 2, 'from': 0}, {'step': 'construct', 'slot': 3, 'id': 2},
+             {'step': 'copy_assign', 'slot': 3, 'from': 0}, {'step': 'bool', 'slot': 3},
+             {'step': 'assign', 'slot': 3, 'id': 4}, {'step': 'move_assign', 'slot': 3, 'from': 2},
+             {'step': 'invoke', 'slot': 3, 'arg': 1}]),
+        # The remaining wrappers are destroyed in slot order at the end.
+        (4, [{'step': 'construct', 'slot': 3, 'id': -1}, {'step': 'construct', 'slot': 1, 'id': I32[0]},
+             {'step': 'construct', 'slot': 0, 'id': I32[1]}, {'step': 'invoke', 'slot': 0, 'arg': I32[1]},
+             {'step': 'invoke', 'slot': 1, 'arg': I32[0]}]),
+    ]
+    n = 0
+    for copies, steps in fixed:
+        out.case(f'lifecycle-{n}', lc(copies, steps))
+        n += 1
+
+    def ident():
+        return rng.choice([0, 1, -1, I32[0], I32[1], rng.randint(*I32)])
+
+    for _ in range(96):
+        budget = rng.randint(0, 6)
+        copies = budget
+        # None: no wrapper; False: an empty wrapper; True: a wrapper holding a PROBE.
+        state = [None] * 4
+        steps = []
+        for _ in range(rng.randint(1, 32)):
+            slot = rng.randrange(4)
+            live = [i for i in range(4) if state[i] is not None]
+            if state[slot] is None:
+                choice = rng.choice(['construct', 'construct', 'construct_empty', 'construct_copy',
+                                     'copy_construct', 'move_construct'])
+                if choice in ('copy_construct', 'move_construct') and not live:
+                    choice = 'construct'
+                if choice == 'construct':
+                    steps.append({'step': 'construct', 'slot': slot, 'id': ident()})
+                    state[slot] = True
+                elif choice == 'construct_empty':
+                    steps.append({'step': 'construct_empty', 'slot': slot})
+                    state[slot] = False
+                elif choice == 'construct_copy':
+                    steps.append({'step': 'construct_copy', 'slot': slot, 'id': ident()})
+                    if budget:
+                        budget -= 1
+                        state[slot] = True
+                elif choice == 'copy_construct':
+                    source = rng.choice(live)
+                    steps.append({'step': 'copy_construct', 'slot': slot, 'from': source})
+                    if not state[source]:
+                        state[slot] = False
+                    elif budget:
+                        budget -= 1
+                        state[slot] = True
+                else:
+                    source = rng.choice(live)
+                    steps.append({'step': 'move_construct', 'slot': slot, 'from': source})
+                    state[slot] = state[source]
+                    state[source] = False
+                continue
+            kind = rng.choice(['bool', 'invoke', 'invoke', 'assign', 'assign_copy', 'copy_assign',
+                               'copy_assign', 'move_assign', 'destroy', 'copies'])
+            if kind == 'copies':
+                budget = rng.randint(0, 3)
+                steps.append({'step': 'copies', 'count': budget})
+            elif kind == 'bool':
+                steps.append({'step': 'bool', 'slot': slot})
+            elif kind == 'invoke':
+                steps.append({'step': 'invoke', 'slot': slot, 'arg': ident()})
+            elif kind == 'destroy':
+                steps.append({'step': 'destroy', 'slot': slot})
+                state[slot] = None
+            elif kind == 'assign':
+                steps.append({'step': 'assign', 'slot': slot, 'id': ident()})
+                state[slot] = True
+            elif kind == 'assign_copy':
+                steps.append({'step': 'assign_copy', 'slot': slot, 'id': ident()})
+                if budget:
+                    budget -= 1
+                    state[slot] = True
+            else:
+                source = rng.choice(live)
+                steps.append({'step': kind, 'slot': slot, 'from': source})
+                if source == slot:
+                    continue
+                if kind == 'move_assign':
+                    state[slot] = state[source]
+                    state[source] = False
+                elif not state[source]:
+                    state[slot] = False
+                elif budget:
+                    budget -= 1
+                    state[slot] = True
+        out.case(f'lifecycle-{n}', lc(copies, steps))
+        n += 1
+
+    bad = [
+        ('fields', {'op': 'inplace_lifecycle', 'copies': 0}, 'unexpected or missing field'),
+        ('copies-range', lc(-1, []), 'integer out of range: copies'),
+        ('copies-type', lc('1', []), 'integer out of range: copies'),
+        ('steps-long', lc(0, [{'step': 'construct_empty', 'slot': 0}] * 257), 'array too long: steps'),
+        ('step-object', lc(0, [3]), 'expected step object'),
+        ('unknown-step', lc(0, [{'step': 'call', 'slot': 0}]), 'unknown step'),
+        ('not-constructed', lc(0, [{'step': 'invoke', 'slot': 2, 'arg': 0}]), 'slot not constructed'),
+        ('twice', lc(0, [{'step': 'construct', 'slot': 0, 'id': 1}, {'step': 'construct', 'slot': 0, 'id': 2}]),
+         'slot already constructed'),
+        ('slot-range', lc(0, [{'step': 'construct', 'slot': 4, 'id': 1}]), 'integer out of range: slot'),
+        ('id-range', lc(0, [{'step': 'construct', 'slot': 0, 'id': 2**31}]), 'integer out of range: id'),
+        ('arg-range', lc(0, [{'step': 'construct', 'slot': 0, 'id': 1},
+                             {'step': 'invoke', 'slot': 0, 'arg': -2**31 - 1}]), 'integer out of range: arg'),
+        ('count-range', lc(0, [{'step': 'copies', 'count': 257}]), 'integer out of range: count'),
+        ('copy-from-dead', lc(1, [{'step': 'copy_construct', 'slot': 0, 'from': 1}]), 'slot not constructed'),
+        ('assign-dead', lc(1, [{'step': 'assign_copy', 'slot': 0, 'id': 1}]), 'slot not constructed'),
+        ('extra-field', lc(0, [{'step': 'construct_empty', 'slot': 0, 'id': 1}]), 'unexpected or missing field'),
+    ]
+    for name, payload, message in bad:
+        out.control(f'lifecycle-{name}', payload, message)
+
+
+def leak_lifetime(out, rng):
+    """LEAK_AT_EXIT objects that outlive their wrapper, and a constructor that throws."""
+    fixed = {
+        'int': [
+            [{'step': 'construct', 'slot': 0}, {'step': 'write', 'slot': 0, 'via': 'get', 'value': 41},
+             {'step': 'release', 'slot': 0}, {'step': 'read_retained', 'index': 0},
+             {'step': 'write_retained', 'index': 0, 'value': -7}, {'step': 'read_retained', 'index': 0},
+             {'step': 'construct', 'slot': 0}, {'step': 'created', 'slot': 0},
+             {'step': 'read', 'slot': 0, 'via': 'deref'}, {'step': 'read_retained', 'index': 0}],
+            # Release creates the object when no access has yet.
+            [{'step': 'construct', 'slot': 1}, {'step': 'release', 'slot': 1},
+             {'step': 'read_retained', 'index': 0}, {'step': 'construct', 'slot': 1},
+             {'step': 'write', 'slot': 1, 'via': 'convert', 'value': I32[1]}, {'step': 'release', 'slot': 1},
+             {'step': 'read_retained', 'index': 1}, {'step': 'read_retained', 'index': 0}],
+        ],
+        'string': [
+            [{'step': 'construct', 'slot': 0}, {'step': 'write', 'slot': 0, 'via': 'arrow', 'value': 'kept'},
+             {'step': 'release', 'slot': 0}, {'step': 'write_retained', 'index': 0, 'value': 'x' * 70},
+             {'step': 'read_retained', 'index': 0}],
+        ],
+        'vector_int': [
+            [{'step': 'construct', 'slot': 0}, {'step': 'write', 'slot': 0, 'via': 'get', 'value': [1, 2, 3]},
+             {'step': 'release', 'slot': 0}, {'step': 'read_retained', 'index': 0},
+             {'step': 'write_retained', 'index': 0, 'value': []}, {'step': 'read_retained', 'index': 0}],
+        ],
+        'map_string_int': [
+            [{'step': 'construct', 'slot': 1}, {'step': 'write', 'slot': 1, 'via': 'deref',
+                                                  'value': [['b', 2], ['a', 1]]},
+             {'step': 'release', 'slot': 1}, {'step': 'read_retained', 'index': 0}],
+        ],
+        'shared_string': [
+            [{'step': 'construct', 'slot': 0}, {'step': 'share', 'slot': 0, 'via': 'get'},
+             {'step': 'use_count'}, {'step': 'release', 'slot': 0}, {'step': 'use_count'},
+             {'step': 'read_retained', 'index': 0}],
+        ],
+        'flaky': [
+            # The first access throws twice; each failure leaves the object uncreated and
+            # the next access constructs again.
+            [{'step': 'construct', 'slot': 0}, {'step': 'fail_next', 'count': 2},
+             {'step': 'read', 'slot': 0, 'via': 'get'}, {'step': 'created', 'slot': 0},
+             {'step': 'attempts'}, {'step': 'read', 'slot': 0, 'via': 'deref'},
+             {'step': 'created', 'slot': 0}, {'step': 'read', 'slot': 0, 'via': 'arrow'},
+             {'step': 'created', 'slot': 0}, {'step': 'attempts'}, {'step': 'fail_next', 'count': 5},
+             {'step': 'read', 'slot': 0, 'via': 'convert'}, {'step': 'identity', 'slot': 0},
+             {'step': 'attempts'}],
+            # A failing identity or release keeps the wrapper; a later release keeps the
+            # object alive after the wrapper is gone.
+            [{'step': 'construct', 'slot': 1}, {'step': 'fail_next', 'count': 1},
+             {'step': 'identity', 'slot': 1}, {'step': 'fail_next', 'count': 1},
+             {'step': 'release', 'slot': 1}, {'step': 'created', 'slot': 1}, {'step': 'release', 'slot': 1},
+             {'step': 'read_retained', 'index': 0}, {'step': 'attempts'}, {'step': 'construct', 'slot': 1},
+             {'step': 'read', 'slot': 1, 'via': 'get'}, {'step': 'read_retained', 'index': 0}],
+            # Two wrappers construct separately; destroying one never touches the other.
+            [{'step': 'construct', 'slot': 0}, {'step': 'construct', 'slot': 1},
+             {'step': 'read', 'slot': 1, 'via': 'get'}, {'step': 'fail_next', 'count': 1},
+             {'step': 'read', 'slot': 0, 'via': 'get'}, {'step': 'read', 'slot': 0, 'via': 'get'},
+             {'step': 'destroy', 'slot': 1}, {'step': 'read', 'slot': 0, 'via': 'arrow'}, {'step': 'attempts'}],
+        ],
+    }
+    n = 0
+    for type_name, scripts in fixed.items():
+        for steps in scripts:
+            out.case(f'leak-lifetime-{type_name}-{n}', {'op': 'leak_at_exit', 'type': type_name, 'steps': steps})
+            n += 1
+    for type_name in ('flaky', 'int', 'string'):
+        for _ in range(16):
+            # The script's own model of the run: live wrappers, created objects, pending
+            # FLAKY() failures and retained pointers, so every step stays defined.
+            live = [False, False]
+            created = [False, False]
+            failures = 0
+            retained = 0
+            steps = []
+
+            def access(slot):
+                nonlocal failures
+                if created[slot]:
+                    return True
+                if failures:
+                    failures -= 1
+                    return False
+                created[slot] = True
+                return True
+
+            for _ in range(rng.randint(1, 28)):
+                if type_name == 'flaky' and rng.random() < 0.2:
+                    if rng.random() < 0.6:
+                        failures = rng.randint(0, 3)
+                        steps.append({'step': 'fail_next', 'count': failures})
+                    else:
+                        steps.append({'step': 'attempts'})
+                    continue
+                if retained and rng.random() < 0.2:
+                    index = rng.randrange(retained)
+                    if type_name == 'flaky' or rng.random() < 0.5:
+                        steps.append({'step': 'read_retained', 'index': index})
+                    else:
+                        steps.append({'step': 'write_retained', 'index': index,
+                                      'value': LEAK_VALUES[type_name](rng)})
+                    continue
+                slot = rng.randrange(2)
+                if not live[slot]:
+                    steps.append({'step': 'construct', 'slot': slot})
+                    live[slot] = True
+                    created[slot] = False
+                    continue
+                kinds = ['created', 'identity', 'read', 'release', 'destroy']
+                if type_name != 'flaky':
+                    kinds.append('write')
+                kind = rng.choice(kinds)
+                step = {'step': kind, 'slot': slot}
+                if kind in ('read', 'write'):
+                    step['via'] = rng.choice(VIAS)
+                if kind == 'write':
+                    step['value'] = LEAK_VALUES[type_name](rng)
+                steps.append(step)
+                if kind in ('identity', 'read', 'write'):
+                    access(slot)
+                elif kind == 'destroy':
+                    live[slot] = False
+                elif kind == 'release' and access(slot):
+                    live[slot] = False
+                    retained += 1
+            out.case(f'leak-lifetime-{type_name}-{n}', {'op': 'leak_at_exit', 'type': type_name, 'steps': steps})
+            n += 1
+
+    bad = [
+        ('fail-next-int', {'type': 'int', 'steps': [{'step': 'fail_next', 'count': 1}]}, 'fail_next needs flaky'),
+        ('attempts-string', {'type': 'string', 'steps': [{'step': 'attempts'}]}, 'attempts needs flaky'),
+        ('fail-next-range', {'type': 'flaky', 'steps': [{'step': 'fail_next', 'count': -1}]},
+         'integer out of range: count'),
+        ('retained-none', {'type': 'int', 'steps': [{'step': 'read_retained', 'index': 0}]},
+         'retained pointer not taken'),
+        ('retained-range', {'type': 'int', 'steps': [{'step': 'read_retained', 'index': 257}]},
+         'integer out of range: index'),
+        ('retained-past', {'type': 'int', 'steps': [{'step': 'construct', 'slot': 0}, {'step': 'release', 'slot': 0},
+                                                    {'step': 'read_retained', 'index': 1}]},
+         'retained pointer not taken'),
+        ('write-retained-flaky', {'type': 'flaky', 'steps': [{'step': 'construct', 'slot': 0},
+                                                             {'step': 'release', 'slot': 0},
+                                                             {'step': 'write_retained', 'index': 0, 'value': 1}]},
+         'flaky values are set by construction'),
+        ('write-flaky', {'type': 'flaky', 'steps': [{'step': 'construct', 'slot': 0},
+                                                    {'step': 'write', 'slot': 0, 'via': 'get', 'value': 1}]},
+         'flaky values are set by construction'),
+        ('size-flaky', {'type': 'flaky', 'steps': [{'step': 'construct', 'slot': 0}, {'step': 'fail_next', 'count': 1},
+                                                   {'step': 'size', 'slot': 0}]}, 'size needs a container'),
+        ('share-flaky', {'type': 'flaky', 'steps': [{'step': 'construct', 'slot': 0},
+                                                    {'step': 'share', 'slot': 0, 'via': 'get'}]},
+         'share needs shared_string'),
+        ('release-dead', {'type': 'int', 'steps': [{'step': 'construct', 'slot': 0}, {'step': 'release', 'slot': 0},
+                                                   {'step': 'release', 'slot': 0}]}, 'slot not constructed'),
+        ('release-fields', {'type': 'int', 'steps': [{'step': 'construct', 'slot': 0},
+                                                     {'step': 'release', 'slot': 0, 'via': 'get'}]},
+         'unexpected or missing field'),
+    ]
+    for name, payload, message in bad:
+        out.control(f'leak-lifetime-{name}', {'op': 'leak_at_exit', **payload}, message)
+
+
+ISA_FORMS = ['isa_ptr', 'isa_ptr_type', 'isa_ref', 'dyn_cast_const', 'dyn_cast', 'derived_isa', 'derived_dyn_cast']
+ISA_CLASSES = ['base', 'derived', 'leaf', 'other', 'nullable', 'multi']
+
+
+def isa(out, rng):
+    """IsA and dyn_cast over the adapters' fixture hierarchy, every compiling combination."""
+    def request(form, target, obj, write=None):
+        return {'op': 'isa', 'form': form, 'target': target, 'object': obj, 'write': write}
+
+    def value():
+        return rng.choice([0, -1, 1, I32[0], I32[1], rng.randint(*I32)])
+
+    n = 0
+    for form in ISA_FORMS:
+        for target in ISA_CLASSES:
+            if form == 'derived_dyn_cast' and target not in ('base', 'derived', 'leaf'):
+                continue
+            for cls in [None] + ISA_CLASSES:
+                if cls is None and form == 'isa_ref':
+                    continue
+                if form.startswith('derived_') and cls not in (None, 'derived', 'leaf'):
+                    continue
+                obj = None if cls is None else {'class': cls, 'value': value()}
+                out.case(f'isa-{n}', request(form, target, obj))
+                n += 1
+                if form == 'dyn_cast':
+                    out.case(f'isa-{n}', request(form, target, obj, value()))
+                    n += 1
+
+    obj = {'class': 'derived', 'value': 1}
+    bad = [
+        ('fields', {'op': 'isa', 'form': 'isa_ptr', 'target': 'base', 'object': None}, 'unexpected or missing field'),
+        ('form', request('isa_value', 'base', obj), 'unknown form'),
+        ('form-type', request(3, 'base', obj), 'expected string: form'),
+        ('target', request('isa_ptr', 'item', obj), 'unknown target'),
+        ('object-type', request('isa_ptr', 'base', 'derived'), 'expected object'),
+        ('object-fields', request('isa_ptr', 'base', {'class': 'derived'}), 'unexpected or missing field'),
+        ('class', request('isa_ptr', 'base', {'class': 'item', 'value': 1}), 'unknown class'),
+        ('value', request('isa_ptr', 'base', {'class': 'base', 'value': 2**31}), 'integer out of range: value'),
+        ('write-range', request('dyn_cast', 'base', obj, -2**31 - 1), 'integer out of range: write'),
+        ('write-form', request('dyn_cast_const', 'base', obj, 1), 'only dyn_cast writes'),
+        ('write-isa', request('isa_ptr', 'derived', obj, 1), 'only dyn_cast writes'),
+        ('ref-null', request('isa_ref', 'derived', None), 'reference needs an object'),
+        ('derived-base-object', request('derived_isa', 'base', {'class': 'base', 'value': 1}),
+         'object is not a FIX_DERIVED'),
+        ('derived-other-object', request('derived_dyn_cast', 'leaf', {'class': 'other', 'value': 1}),
+         'object is not a FIX_DERIVED'),
+        ('derived-cast-other', request('derived_dyn_cast', 'other', obj), 'cast does not compile'),
+        ('derived-cast-multi', request('derived_dyn_cast', 'multi', None), 'cast does not compile'),
+    ]
+    for name, payload, message in bad:
+        out.control(f'isa-{name}', payload, message)
+
+
 def general(out):
     out.control('unknown-op', {'op': 'typeid'}, 'unknown operation')
     out.control('op-type', {'op': 3}, 'expected string: op')
@@ -511,6 +875,11 @@ def generate():
     leak(out, rng)
     function(out, rng)
     general(out)
+    # The lifecycle, lifetime and IsA/dyn_cast domains follow with their own seeds, so the
+    # earlier cases and controls are unchanged.
+    lifecycle(out, random.Random(SEED + 1))
+    leak_lifetime(out, random.Random(SEED + 2))
+    isa(out, random.Random(SEED + 3))
     dump = lambda rows: ''.join(json.dumps(r, ensure_ascii=False, separators=(',', ':')) + '\n' for r in rows)
     return {CASES: dump(out.cases), CONTROLS: dump(out.controls)}
 
