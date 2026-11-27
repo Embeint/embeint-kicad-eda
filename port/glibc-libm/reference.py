@@ -14,6 +14,7 @@ import subprocess
 import sys
 import tempfile
 import domain
+import fma_domain
 import hypot_domain
 import pow_domain
 
@@ -23,20 +24,24 @@ spec=importlib.util.spec_from_file_location('trig_reference',HERE.parent/'glibc-
 trig=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(trig)
 FUNCTIONS=['atan','atan2','tan','asin','acos']
-# pow and hypot each have their own input domain and 24-byte (x, y, f) records.
-ALL_FUNCTIONS=FUNCTIONS+['pow','hypot']
-SEPARATE={'pow':'pow_domain','hypot':'hypot_domain'}
+# pow and hypot each have their own input domain and 24-byte (x, y, f) records; fma has a
+# 24-byte (x, y, z) domain and 32-byte (x, y, z, f) records.
+ALL_FUNCTIONS=FUNCTIONS+['pow','hypot','fma']
+SEPARATE={'pow':'pow_domain','hypot':'hypot_domain','fma':'fma_domain'}
+DOMAIN_WIDTH={'fma_domain':24}
 COMPARISONS=['native-debug','native-release','wasip1-debug','wasip1-release','unknown-debug','unknown-release']
 
 def load(): return json.loads((HERE/'qualification.json').read_text())
 def check_domain(path,key='domain'):
     want=load()[key]
-    trig.need(os.path.getsize(path)==want['count']*16,'domain size')
+    trig.need(os.path.getsize(path)==want['count']*DOMAIN_WIDTH.get(key,16),'domain size')
     trig.need(trig.sha256_file(path)==want['sha256'],'domain hash')
 
 def reference(out,mode=None):
     out=Path(out).resolve();out.mkdir(parents=True,exist_ok=True)
     prefix,key,width=(mode+'-',SEPARATE[mode],24) if mode else ('','domain',56)
+    inputs_width=DOMAIN_WIDTH.get(key,16)
+    if mode=='fma': width=32
     domain_path,records_path=out/(prefix+'domain.bin'),out/(prefix+'reference.bin')
     check_domain(domain_path,key)
     lock=trig.load_lock(HERE.parent/'glibc-trig/reference.lock.json')
@@ -63,7 +68,8 @@ def reference(out,mode=None):
         trig.need(records_path.stat().st_size==count*width,'reference size')
         with domain_path.open('rb') as inputs,records_path.open('rb') as records:
             for i in range(count):
-                trig.need(records.read(width)[:16]==inputs.read(16),f'reference input {i}')
+                trig.need(records.read(width)[:inputs_width]==inputs.read(inputs_width),
+                          f'reference input {i}')
         identity={'package':lock['package'],'download_url':url,'files':lock['files'],
                   'tunables':env['GLIBC_TUNABLES'],'dispatch':load()['dispatch'],
                   'probe_source_sha256':trig.sha256_file(HERE/'probe.c'),
@@ -88,6 +94,7 @@ def report(out):
         result[name]=results
     obj={'result':'PASS' if ok else 'FAIL','comparisons':result,'domain':load()['domain'],
          'pow_domain':load()['pow_domain'],'hypot_domain':load()['hypot_domain'],
+         'fma_domain':load()['fma_domain'],
          'sha256':{p.name:trig.sha256_file(p) for p in sorted(out.iterdir())
                    if p.is_file() and p.name!='report.json'}}
     (out/'report.json').write_text(json.dumps(obj,indent=2)+'\n')
@@ -103,7 +110,8 @@ def write_domain(out,module,name,key):
 def main():
     p=argparse.ArgumentParser()
     p.add_argument('command',choices=['domain','reference','pow-domain','pow-reference',
-                                      'hypot-domain','hypot-reference','report','wasi-test'])
+                                      'hypot-domain','hypot-reference','fma-domain',
+                                      'fma-reference','report','wasi-test'])
     p.add_argument('--out');a=p.parse_args()
     if a.command=='domain': write_domain(a.out,domain,'domain.bin','domain')
     elif a.command=='pow-domain': write_domain(a.out,pow_domain,'pow-domain.bin','pow_domain')
@@ -111,6 +119,8 @@ def main():
     elif a.command=='hypot-domain': write_domain(a.out,hypot_domain,'hypot-domain.bin','hypot_domain')
     elif a.command=='pow-reference': reference(a.out,'pow')
     elif a.command=='hypot-reference': reference(a.out,'hypot')
+    elif a.command=='fma-domain': write_domain(a.out,fma_domain,'fma-domain.bin','fma_domain')
+    elif a.command=='fma-reference': reference(a.out,'fma')
     elif a.command=='report': return 0 if report(a.out) else 1
     else: print(trig.wasi_test(sys.stdin.read()))
     return 0

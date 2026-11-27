@@ -1,4 +1,4 @@
-name: Rust glibc angle libm and pow fresh reference
+name: Rust glibc angle libm, pow, hypot and fma fresh reference
 on:
   pull_request:
     branches: [rust]
@@ -53,12 +53,15 @@ jobs:
         run: python3 port/glibc-libm/reference.py pow-domain --out "$OUT"
       - name: Generate fixed hypot boundaries and one million seeded hypot inputs
         run: python3 port/glibc-libm/reference.py hypot-domain --out "$OUT"
+      - name: Generate fixed fma branches and one million seeded fma inputs
+        run: python3 port/glibc-libm/reference.py fma-domain --out "$OUT"
       - name: Execute genuine locked glibc through its own loader
         id: reference
         run: |
           python3 port/glibc-libm/reference.py reference --out "$OUT"
           python3 port/glibc-libm/reference.py pow-reference --out "$OUT"
           python3 port/glibc-libm/reference.py hypot-reference --out "$OUT"
+          python3 port/glibc-libm/reference.py fma-reference --out "$OUT"
       - name: Native debug and release
         if: ${{ !cancelled() && steps.reference.outcome == 'success' }}
         shell: bash
@@ -70,6 +73,8 @@ jobs:
           export KICAD_GLIBC_LIBM_POW_COUNT=$(python3 -c 'import json; print(json.load(open("port/glibc-libm/qualification.json"))["pow_domain"]["count"])')
           export KICAD_GLIBC_LIBM_HYPOT_REFERENCE="$OUT/hypot-reference.bin"
           export KICAD_GLIBC_LIBM_HYPOT_COUNT=$(python3 -c 'import json; print(json.load(open("port/glibc-libm/qualification.json"))["hypot_domain"]["count"])')
+          export KICAD_GLIBC_LIBM_FMA_REFERENCE="$OUT/fma-reference.bin"
+          export KICAD_GLIBC_LIBM_FMA_COUNT=$(python3 -c 'import json; print(json.load(open("port/glibc-libm/qualification.json"))["fma_domain"]["count"])')
           for profile in dev release; do
             name=$([ "$profile" = dev ] && echo debug || echo release)
             cargo test --locked --manifest-path rust/Cargo.toml -p kicad-math --lib --profile "$profile" glibc_libm -- --include-ignored --nocapture 2>&1 | tee "$OUT/native-$name.log"
@@ -85,6 +90,8 @@ jobs:
           export KICAD_GLIBC_LIBM_POW_COUNT=$(python3 -c 'import json; print(json.load(open("port/glibc-libm/qualification.json"))["pow_domain"]["count"])')
           export KICAD_GLIBC_LIBM_HYPOT_REFERENCE="$OUT/hypot-reference.bin"
           export KICAD_GLIBC_LIBM_HYPOT_COUNT=$(python3 -c 'import json; print(json.load(open("port/glibc-libm/qualification.json"))["hypot_domain"]["count"])')
+          export KICAD_GLIBC_LIBM_FMA_REFERENCE="$OUT/fma-reference.bin"
+          export KICAD_GLIBC_LIBM_FMA_COUNT=$(python3 -c 'import json; print(json.load(open("port/glibc-libm/qualification.json"))["fma_domain"]["count"])')
           for profile in dev release; do
             name=$([ "$profile" = dev ] && echo debug || echo release)
             wasm=$(cargo test --locked --manifest-path rust/Cargo.toml -p kicad-math --lib --target wasm32-wasip1 --profile "$profile" --no-run --message-format=json | python3 port/glibc-libm/reference.py wasi-test)
@@ -98,6 +105,7 @@ jobs:
           count=$(python3 -c 'import json; print(json.load(open("port/glibc-libm/qualification.json"))["domain"]["count"])')
           pow_count=$(python3 -c 'import json; print(json.load(open("port/glibc-libm/qualification.json"))["pow_domain"]["count"])')
           hypot_count=$(python3 -c 'import json; print(json.load(open("port/glibc-libm/qualification.json"))["hypot_domain"]["count"])')
+          fma_count=$(python3 -c 'import json; print(json.load(open("port/glibc-libm/qualification.json"))["fma_domain"]["count"])')
           for profile in dev release; do
             name=$([ "$profile" = dev ] && echo debug || echo release)
             cargo build --locked --manifest-path port/glibc-libm/wasm/Cargo.toml --target wasm32-unknown-unknown --profile "$profile" -j3
@@ -105,6 +113,7 @@ jobs:
             node port/glibc-libm/wasm/check.mjs "$module" "$OUT/reference.bin" "$count" 2>&1 | tee "$OUT/unknown-$name.log"
             node port/glibc-libm/wasm/check_pow.mjs "$module" "$OUT/pow-reference.bin" "$pow_count" 2>&1 | tee -a "$OUT/unknown-$name.log"
             node port/glibc-libm/wasm/check_hypot.mjs "$module" "$OUT/hypot-reference.bin" "$hypot_count" 2>&1 | tee -a "$OUT/unknown-$name.log"
+            node port/glibc-libm/wasm/check_fma.mjs "$module" "$OUT/fma-reference.bin" "$fma_count" 2>&1 | tee -a "$OUT/unknown-$name.log"
           done
       - name: Report all required comparisons
         if: always()
