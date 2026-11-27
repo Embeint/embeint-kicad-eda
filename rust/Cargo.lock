@@ -867,6 +867,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "kicad-kiplatform-include-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-kiplatform",
+ "kicad-kiplatform-sysinfo",
+ "kicad-map-helpers",
+ "kicad-math",
+ "serde_json",
+]
+
+[[package]]
 name = "kicad-kiplatform-shim"
 version = "0.1.0"
 dependencies = [
