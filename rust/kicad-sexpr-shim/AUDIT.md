@@ -50,22 +50,33 @@ out-of-range `SEXPR_SCAN_ARG::Type`/`SEXPR_CHILDREN_ARG::Type` (the closed Rust 
 | `GetString`, `GetSymbol` | `SexprOps` | every special string; mismatches incl. the line-number message (lines -1, `INT32_MIN`, ...) | none |
 | `GetLongInteger`, `GetInteger` | `SexprOps` | special and random integers; `int32_t` truncation | none |
 | `GetDouble`, `GetFloat` | `SexprOps`, `double_to_float` | special bits (NaN payloads, subnormals, overflow), integers, 300 random | none |
-| `AsString` | `as_string` | 2,409 requests: atoms (1,500 random doubles, decision points), lists, upstream `AsStringList` example, levels incl. the default argument, wraps and `length_error` (41) | requests above the resource bounds are refused by both adapters (controls) |
+| `AsString` | `as_string` | 2,410 requests: atoms (1,500 random doubles, decision points), lists, upstream `AsStringList` example, levels incl. the default argument, wraps and `length_error` (35), deep chains of many short or `-DBL_MAX` doubles and a tree whose copy work is exactly the 2^30 bound | requests above the resource bounds, and the indentation of `max_size()` - 1 that the reference cannot allocate, are refused by both adapters (controls) |
 | `~SEXPR_LIST` | iterative `Drop` | every request; trees to depth 4,000 | unobservable |
 | 9 `operator<<` | `SexprList::insert_*` | `insert` (407): each overload, chains, returned list, resulting tree, float NaN promotion | none |
 | 7 `operator>>` | `SexprList::extract_*` | `extract` (544): each overload against each node type, accepted chains, exceptions, values, `m_inStreamChild` | past the end or null refused (controls) |
 | `doScan` | `SexprList::do_scan` | `scan` (300 here, 300 header): reads, `INVALID_TYPE` stop, `STRING` skip, `STRING_COMP` mismatch | `INT` on an integer is undefined (refused); `else` unreachable |
 | `doAddChildren` | `SexprList::do_add_children` | `add_children` (160 + 160), variadic (80 + 160) | `else` unreachable |
 
-## Evidence (local, diagnostic)
+## Evidence (local)
 
-GCC 15.2.0, glibc 2.43, rustc 1.99.1 on WSL, tested commit `cf5d83211b` (Rust and corpus;
-the oracle adapter is unchanged since `69056891dd`); the hosted GCC 13.3 / glibc 2.39 run of
-`rust-sexpr-live` is the reference.
+Tested commit `aaf6b3d57d`. Reference oracle built on WSL with the Ubuntu 24.04 GCC 13.3.0
+compiler packages (`g++-13` 13.3.0-6ubuntu2~24.04.1, extracted without installing: the hosted
+reference's headers and C++20 `std::string::max_size()` = 2^63 - 1) against the local glibc
+2.43; diagnostic oracle with the local GCC 15.2.0. rustc 1.99.0 on Windows. The hosted
+GCC 13.3 / glibc 2.39 run of `rust-sexpr-live` is the reference.
 
-- `kicad-difftest compare --partial`, header unit: 1,372 cases, 1,372 compared exactly,
-  0 deferred (previously 620), 0 failures.
-- Source unit: 6,240 cases, 6,240 compared exactly, 0 deferred, 0 failures.
-- `compare_controls.py`: 97 controls (48 header, 49 source) equal on both programs; none
-  defers.
-- Native/wasm replay of all 7,709 requests in import-free wasm32: identical.
+- GCC 13.3 oracle, `kicad-difftest compare --partial`: header unit 1,372 cases, 1,372 compared
+  exactly, 0 deferred (previously 620), 0 failures; source unit 6,241 cases, 6,241 compared
+  exactly, 0 deferred, 0 failures; `compare_controls.py`: 101 controls (48 header, 53 source)
+  equal on both programs, none defers.
+- The previous head `c4dd62a6df` against the same GCC 13.3 oracle reproduces the hosted
+  failure: 6,240 cases, 6,234 compared, 6 failures (the six
+  `as-string-*-level-4611686018427387903` cases of run 45946821035).
+- GCC 15.2 diagnostic oracle: both corpora compare exactly (1,372 and 6,241); 8 of the 101
+  controls differ, all at levels 2^62 - 1 and 2^63 + 2^62 - 1, where GCC 15's
+  `max_size()` = 2^63 - 2 makes the library throw `length_error`
+  (`port/findings/sexpr-string-max-size-toolchain.md`).
+- Native/wasm replay of all 7,714 requests in import-free wasm32 (Node 22.22.1): identical.
+- Generated public AsString outputs have exactly the lengths the generator's work model
+  predicts (for example 78,398 bytes for the 200-deep chain of 19,000 doubles `0.0`, and
+  5,356,727 for the tree at the work bound).
