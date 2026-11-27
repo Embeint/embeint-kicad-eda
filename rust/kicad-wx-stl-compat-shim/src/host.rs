@@ -1,17 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! The caller's program around the stream, as the C++ adapter builds it: its `SINK`
-//! stream buffer, its optional throwing `NUM_PUT` facet and its optional tied stream. Each
-//! operation may throw a `std::runtime_error` at a scripted call, and logs the same event
-//! trace as the C++ classes. Only the scripts and the trace live here; every stream
-//! behaviour is `kicad-wx-stl-compat`'s.
+//! stream buffer (or none), its optional scripted `NUM_PUT` facet and its optional tied
+//! stream. Each operation may throw a `std::runtime_error` at a scripted call, or be
+//! cancelled there (a forced unwind), and logs the same event trace as the C++ classes. Only
+//! the scripts and the trace live here; every stream behaviour is `kicad-wx-stl-compat`'s.
 
+use kicad_math::stream::FmtFlags;
 use kicad_wx_stl_compat::ostream::{
-    BadAlloc, InsertError, OStream, StockPut, StreamBuf, StreamHost, StreamRefusal,
+    stock_do_put_long, BadAlloc, CallContext, InsertError, IosBase, OStream, OstreambufIterator,
+    StreamBuf, StreamHost, StreamRefusal,
 };
 use serde_json::{json, Value};
 
-/// The most events one insertion can log is 30 (five sentries, each with two tied syncs,
-/// three buffer or facet events and one destructor sync); the trace refuses beyond this.
+/// The most events one insertion can log is 36 (five sentries, each with two tied syncs,
+/// the buffer, facet and cancellation events and one destructor sync); the trace refuses
+/// beyond this.
 pub const MAX_EVENTS: usize = 64;
 
 /// An exception a host operation throws, as the C++ adapter's classes throw it.
@@ -21,6 +24,14 @@ pub enum HostException {
     Runtime(&'static str),
     /// `std::bad_alloc` from the buffer's growth.
     BadAlloc,
+    /// The forced unwind (`abi::__forced_unwind`) of the thread's cancellation at a scripted
+    /// call, by the named operation.
+    ForcedUnwind(&'static str),
+}
+
+/// Both buffers and the facet throw the same exceptions.
+fn forced(exception: &HostException) -> bool {
+    matches!(exception, HostException::ForcedUnwind(_))
 }
 
 /// One logged host call; `n` is the number of bytes the main buffer held at the time.
@@ -30,6 +41,8 @@ enum Event {
     Eof(u8),
     /// A scripted `std::runtime_error` was thrown by the named operation.
     Throw(&'static str),
+    /// The named operation cancelled the thread.
+    Cancel(&'static str),
     /// The main buffer's `sync()` returned this.
     Sync(i32),
     /// The tied stream's buffer's `sync()` returned this.
@@ -58,27 +71,102 @@ impl Trace {
 /// A scripted call number: the call with this 0-based index throws.
 pub type CallIndex = Option<u64>;
 
-/// The facet script: the `do_put( long )` call that throws, before or after the stock body.
+/// When the scripted facet throws `std::runtime_error`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PutThrow {
+    /// Before it delegates to the stock body (after its `set_before` changes).
+    Before,
+    /// After it delegates (and its `set_after` changes).
+    After,
+    /// Never.
+    None,
+}
+
+/// Changes the scripted facet makes to its `ios_base&`: `width( w )`, `precision( p )`,
+/// `flags( f )`, each when given.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct IosChange {
+    pub width: Option<i64>,
+    pub precision: Option<i64>,
+    pub flags: Option<FmtFlags>,
+}
+
+impl IosChange {
+    fn apply(&self, io: &mut IosBase<'_>) {
+        if let Some(width) = self.width {
+            io.set_width(width);
+        }
+        if let Some(precision) = self.precision {
+            io.set_precision(precision);
+        }
+        if let Some(flags) = self.flags {
+            io.set_flags(flags);
+        }
+    }
+}
+
+/// The facet script. Each `do_put( long )` call logs itself, makes the `set_before`
+/// changes, throws when it is call `call` and `throw` is before, delegates `delegate` times
+/// to the stock body (with `fill` and `value` when given, else its own), makes the
+/// `set_after` changes, throws when it is call `call` and `throw` is after, and returns the
+/// last iterator.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PutScript {
     pub call: u64,
-    pub after: bool,
+    pub throw: PutThrow,
+    pub set_before: IosChange,
+    pub set_after: IosChange,
+    pub fill: Option<u8>,
+    pub value: Option<i64>,
+    pub delegate: u8,
 }
 
-/// The tied stream's buffer: unbounded (a flush never writes), with a scripted `sync()`.
+/// The operation whose call cancels the thread.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CancelOp {
+    Overflow,
+    Sync,
+    NumPut,
+    TieSync,
+}
+
+/// The cancellation script: `op`'s call with this 0-based index cancels the thread.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Cancel {
+    pub op: CancelOp,
+    pub call: u64,
+}
+
+impl Cancel {
+    fn hits(cancel: Option<Self>, op: CancelOp, index: u64) -> bool {
+        cancel.is_some_and(|c| c.op == op && c.call == index)
+    }
+}
+
+/// The tied stream's buffer: unbounded (a flush never writes), with a scripted `sync()`, or
+/// none.
 #[derive(Clone, Debug)]
 pub struct TieSink {
     sync_fails: bool,
     sync_throw: CallIndex,
+    cancel: Option<Cancel>,
+    null_rdbuf: bool,
     sync_calls: u64,
     pending: Vec<Event>,
 }
 
 impl TieSink {
-    pub fn new(sync_fails: bool, sync_throw: CallIndex) -> Self {
+    pub fn new(
+        sync_fails: bool,
+        sync_throw: CallIndex,
+        cancel: Option<Cancel>,
+        null_rdbuf: bool,
+    ) -> Self {
         Self {
             sync_fails,
             sync_throw,
+            cancel,
+            null_rdbuf,
             sync_calls: 0,
             pending: Vec::new(),
         }
@@ -100,6 +188,14 @@ impl TieSink {
 impl StreamHost for TieSink {
     type Exception = HostException;
 
+    fn is_forced_unwind(exception: &HostException) -> bool {
+        forced(exception)
+    }
+
+    fn has_rdbuf(&self) -> bool {
+        !self.null_rdbuf
+    }
+
     fn overflow(&mut self, _byte: u8) -> Result<bool, HostException> {
         // flush() never writes.
         Ok(true)
@@ -108,6 +204,10 @@ impl StreamHost for TieSink {
     fn sync(&mut self) -> Result<i32, HostException> {
         let index = self.sync_calls;
         self.sync_calls += 1;
+        if Cancel::hits(self.cancel, CancelOp::TieSync, index) {
+            self.note(Event::Cancel("tie_sync"));
+            return Err(HostException::ForcedUnwind("tie_sync"));
+        }
         if Some(index) == self.sync_throw {
             self.note(Event::Throw("tie_sync"));
             return Err(HostException::Runtime("tie_sync"));
@@ -118,18 +218,31 @@ impl StreamHost for TieSink {
     }
 }
 
-/// The main stream's buffer, facet and tie.
+/// The main stream's buffer (or none), facet and tie.
 #[derive(Debug)]
 pub struct Sink {
     buf: StreamBuf,
+    null_rdbuf: bool,
     overflow_throw: CallIndex,
     overflow_calls: u64,
     sync_throw: CallIndex,
     sync_calls: u64,
     put: Option<PutScript>,
     put_calls: u64,
+    cancel: Option<Cancel>,
     tie: Option<OStream<TieSink>>,
     trace: Trace,
+}
+
+/// The main buffer's scripts.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct SinkScripts {
+    pub overflow_throw: CallIndex,
+    pub sync_throw: CallIndex,
+    pub put: Option<PutScript>,
+    pub cancel: Option<Cancel>,
+    /// The stream is constructed on a null `rdbuf()`.
+    pub null_rdbuf: bool,
 }
 
 impl Sink {
@@ -138,18 +251,18 @@ impl Sink {
     pub fn new(
         capacity: Option<usize>,
         sync_fails: bool,
-        overflow_throw: CallIndex,
-        sync_throw: CallIndex,
-        put: Option<PutScript>,
+        scripts: SinkScripts,
     ) -> Result<Self, StreamRefusal> {
         Ok(Self {
             buf: StreamBuf::new(capacity, sync_fails)?,
-            overflow_throw,
+            null_rdbuf: scripts.null_rdbuf,
+            overflow_throw: scripts.overflow_throw,
             overflow_calls: 0,
-            sync_throw,
+            sync_throw: scripts.sync_throw,
             sync_calls: 0,
-            put,
+            put: scripts.put,
             put_calls: 0,
+            cancel: scripts.cancel,
             tie: None,
             trace: Trace::default(),
         })
@@ -189,6 +302,7 @@ impl Sink {
                 .map(|&(n, event)| match event {
                     Event::Eof(byte) => json!(["eof", n, byte]),
                     Event::Throw(what) => json!(["throw", n, what]),
+                    Event::Cancel(what) => json!(["cancel", n, what]),
                     Event::Sync(result) => json!(["sync", n, result]),
                     Event::TieSync(result) => json!(["tie_sync", n, result]),
                     Event::DoPut(value) => json!(["do_put", n, value]),
@@ -206,9 +320,21 @@ impl Sink {
 impl StreamHost for Sink {
     type Exception = HostException;
 
+    fn is_forced_unwind(exception: &HostException) -> bool {
+        forced(exception)
+    }
+
+    fn has_rdbuf(&self) -> bool {
+        !self.null_rdbuf
+    }
+
     fn overflow(&mut self, byte: u8) -> Result<bool, HostException> {
         let index = self.overflow_calls;
         self.overflow_calls += 1;
+        if Cancel::hits(self.cancel, CancelOp::Overflow, index) {
+            self.log(Event::Cancel("overflow"));
+            return Err(HostException::ForcedUnwind("overflow"));
+        }
         if Some(index) == self.overflow_throw {
             self.log(Event::Throw("overflow"));
             return Err(HostException::Runtime("overflow"));
@@ -226,6 +352,10 @@ impl StreamHost for Sink {
     fn sync(&mut self) -> Result<i32, HostException> {
         let index = self.sync_calls;
         self.sync_calls += 1;
+        if Cancel::hits(self.cancel, CancelOp::Sync, index) {
+            self.log(Event::Cancel("sync"));
+            return Err(HostException::ForcedUnwind("sync"));
+        }
         if Some(index) == self.sync_throw {
             self.log(Event::Throw("sync"));
             return Err(HostException::Runtime("sync"));
@@ -238,36 +368,53 @@ impl StreamHost for Sink {
         Ok(result)
     }
 
-    fn do_put_long(&mut self, stock: StockPut<'_>) -> Result<bool, HostException> {
+    fn do_put_long(
+        &mut self,
+        out: OstreambufIterator,
+        io: &mut IosBase<'_>,
+        fill: u8,
+        value: i64,
+    ) -> Result<OstreambufIterator, InsertError<HostException>> {
         let Some(script) = self.put else {
             // The stock facet: no hook and no event.
-            return stock.put(self);
+            return stock_do_put_long(self, out, io, fill, value);
         };
         let index = self.put_calls;
         self.put_calls += 1;
-        self.log(Event::DoPut(stock.value()));
-        let throws = index == script.call;
-        if throws && !script.after {
-            self.log(Event::Throw("num_put"));
-            return Err(HostException::Runtime("num_put"));
+        self.log(Event::DoPut(value));
+        if Cancel::hits(self.cancel, CancelOp::NumPut, index) {
+            self.log(Event::Cancel("num_put"));
+            return Err(InsertError::Host(HostException::ForcedUnwind("num_put")));
         }
-        let failed = stock.put(self)?;
+        script.set_before.apply(io);
+        let throws = script.throw != PutThrow::None && index == script.call;
+        if throws && script.throw == PutThrow::Before {
+            self.log(Event::Throw("num_put"));
+            return Err(InsertError::Host(HostException::Runtime("num_put")));
+        }
+        let fill = script.fill.unwrap_or(fill);
+        let value = script.value.unwrap_or(value);
+        let mut out = out;
+        for _ in 0..script.delegate {
+            out = stock_do_put_long(self, out, io, fill, value)?;
+        }
+        script.set_after.apply(io);
         if throws {
             self.log(Event::Throw("num_put"));
-            return Err(HostException::Runtime("num_put"));
+            return Err(InsertError::Host(HostException::Runtime("num_put")));
         }
-        Ok(failed)
+        Ok(out)
     }
 
     fn has_tie(&self) -> bool {
         self.tie.is_some()
     }
 
-    fn flush_tie(&mut self) -> Result<(), InsertError<HostException>> {
+    fn flush_tie(&mut self, context: CallContext) -> Result<(), InsertError<HostException>> {
         let Some(tie) = self.tie.as_mut() else {
             return Ok(());
         };
-        let result = tie.flush();
+        let result = tie.flush(context);
         let pending = core::mem::take(&mut tie.host_mut().pending);
         for event in pending {
             self.log(event);

@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright The KiCad Developers, see AUTHORS.txt for contributors.
-// The stream algorithms (sentry, __ostream_insert/_fill/_write, _M_insert, flush,
-// _M_insert_int, __int_to_char, __add_grouping, the default xsputn and the numpunct twin
-// facet) are reimplemented from the GNU ISO C++ Library (libstdc++, GCC 13.3.0, 14.2.0 and
-// 15.2.0): Copyright (C) 1997-2024 Free Software Foundation, Inc., GPL-3.0-or-later with the
-// GCC Runtime Library Exception 3.1. No libstdc++ text is copied; this file is distributed
-// under GPL-3.0-or-later, which that licence permits without the exception. See
-// rust/kicad-wx-stl-compat-shim/AUDIT.md (Licence and attribution).
+// The stream algorithms (basic_ios::clear, sentry, __ostream_insert/_fill/_write, _M_insert,
+// flush, _M_insert_int, __int_to_char, __add_grouping, __pad, ostreambuf_iterator, the
+// default xsputn and the numpunct twin facet) and the exception runtime's behaviour they
+// depend on (the uncaught count of __cxa_rethrow/__cxa_begin_catch and the forced-unwind and
+// noexcept handling of the personality routine) are reimplemented from the GNU ISO C++
+// Library (libstdc++ and libsupc++, GCC 13.3.0, 14.2.0 and 15.2.0): Copyright (C) 1997-2024
+// Free Software Foundation, Inc., GPL-3.0-or-later with the GCC Runtime Library Exception
+// 3.1. The abort on a forced unwind that is not rethrown follows the GNU C Library 2.39
+// (nptl/unwind.c): Copyright (C) 2003-2024 Free Software Foundation, Inc.,
+// LGPL-2.1-or-later. No library text is copied; this file is distributed under
+// GPL-3.0-or-later, which those licences permit (LGPL-2.1 section 3; without the runtime
+// exception). See rust/kicad-wx-stl-compat-shim/AUDIT.md (Licence and attribution).
 
 //! `std::ostream& operator<<( std::ostream& out, const wxSize& size )` and
 //! `std::ostream& operator<<( std::ostream& out, const wxPoint& pt )`
@@ -22,35 +27,49 @@
 //!
 //! The output therefore depends on the stream's state, flags, width, fill, locale, tie and
 //! buffer. [`OStream`] models what libstdc++ does with them for a `char` stream. What the
-//! caller's program supplies around the stream (its `streambuf`, the `num_put<char>` facet of
-//! its locale and its `tie()`) is a [`StreamHost`], whose operations may throw as the C++
-//! virtuals may. Every libstdc++ function involved is the same in the GCC 13.3 headers, the
-//! GCC 14 runtime and the GCC 15/16 sources, except the sentry destructor ([`SentryFlush`]):
+//! caller's program supplies around the stream (its `streambuf`, which may be null, the
+//! `num_put<char>` facet of its locale and its `tie()`) is a [`StreamHost`], whose operations
+//! may throw as the C++ virtuals may, including the distinguished forced unwind
+//! (`abi::__forced_unwind`, thread cancellation). Whether an exception is already propagating
+//! where the operator is called is the explicit [`CallContext`]. Every libstdc++ function
+//! involved is the same in the GCC 13.3 headers, the GCC 14 runtime and the GCC 15/16
+//! sources, except the sentry destructor ([`SentryFlush`]):
 //!
+//! - `basic_ios::clear( state )` (`basic_ios.tcc`) stores `state`, or `state | badbit` when
+//!   `rdbuf()` is null, and throws `ios_base::failure` when the stored state intersects
+//!   `exceptions()`. `setstate( s )` is `clear( rdstate() | s )`. `init( nullptr )` starts
+//!   with `badbit`, so a stream without a buffer is never good.
 //! - `sentry( os )` (`ostream.tcc`): if `tie()` is set and the stream is good,
 //!   `tie()->flush()`, whose exception propagates out of the operator (no sentry exists to
 //!   destroy); then the sentry is good, or else `failbit` is set through `setstate` when
-//!   `badbit` is set. `setstate( s )` is `clear( rdstate() | s )`, which throws
-//!   `ios_base::failure` when the new state intersects `exceptions()`.
+//!   `badbit` is set.
 //! - `operator<<( ostream&, const char* )` is `__ostream_insert( out, s, strlen( s ) )`
 //!   (`ostream_insert.h`): a sentry; if it is good, padding to `width()` with `fill()` before
 //!   the text unless `adjustfield` is exactly `left` (after it then), each fill byte through
 //!   `sputc` and the text through one `sputn`; a short write sets `badbit` and stops; then
-//!   `width( 0 )`. Anything thrown inside (a `setstate` failure or a buffer exception) is
-//!   caught: `_M_setstate( badbit )` sets `badbit` and rethrows the same object only when
-//!   `exceptions()` contains `badbit`; the width is then not reset.
+//!   `width( 0 )`. A forced unwind thrown inside is caught first
+//!   (`catch( __forced_unwind& )`): `_M_setstate( badbit )` and an unconditional rethrow.
+//!   Anything else thrown inside (a `setstate` failure or a buffer exception) is caught:
+//!   `_M_setstate( badbit )` sets `badbit` and rethrows the same object only when
+//!   `exceptions()` contains `badbit`. Either way a propagating exception skips `width( 0 )`.
 //! - `operator<<( int )` inserts `static_cast<long>( n )`, or
 //!   `static_cast<long>( static_cast<unsigned int>( n ) )` when `basefield` is exactly `oct`
 //!   or `hex`, through `_M_insert`: a sentry; if it is good, the imbued facet's
-//!   `num_put::put` (for the stock facet `_M_insert_int`: digits, the `numpunct` grouping, a
-//!   sign or `0`/`0x`/`0X` prefix, `width( 0 )` and one `sputn` of the field); anything thrown
-//!   is caught as above; a failed iterator sets `badbit` through `setstate` after the `try`
-//!   block, within the sentry's scope.
-//! - `~sentry` (`ostream`/`ostream.h`) does nothing while an exception propagates; otherwise,
-//!   for a `unitbuf` stream, see [`SentryFlush`].
-//! - `flush()` ([`OStream::flush`], reached through a tied stream) is a sentry, `pubsync()`
-//!   in a `try` block (`-1` adds `badbit` through `setstate` after it, a throw is
-//!   `_M_setstate( badbit )`), and the sentry's destructor.
+//!   `num_put::put( *this, *this, fill(), v )`, which passes the stream itself as the
+//!   facet's mutable `ios_base&` ([`IosBase`]); for the stock facet `_M_insert_int`
+//!   ([`stock_do_put_long`]: digits, the `numpunct` grouping, a sign or `0`/`0x`/`0X` prefix,
+//!   padding to `io.width()` by `__pad`, `io.width( 0 )` and one `sputn` of the field); the
+//!   same two handlers catch what is thrown; a failed iterator sets `badbit` through
+//!   `setstate` after the `try` block, within the sentry's scope.
+//! - `~sentry` (`ostream`/`ostream.h`) does nothing while `uncaught_exception()` is true:
+//!   during the unwinding of an exception from the operator, a rethrown forced unwind
+//!   included (`__cxa_rethrow` counts it as uncaught and nothing uncounts it), and whenever the
+//!   [`CallContext`] says an exception was already propagating. Otherwise, for a `unitbuf`
+//!   stream with a buffer, see [`SentryFlush`].
+//! - `flush()` ([`OStream::flush`], reached through a tied stream) returns at once when
+//!   `rdbuf()` is null; otherwise it is a sentry, `pubsync()` in a `try` block with the same
+//!   two handlers (`-1` adds `badbit` through `setstate` after it), and the sentry's
+//!   destructor.
 
 use alloc::vec::Vec;
 
@@ -65,11 +84,37 @@ pub const MAX_SINK_CAPACITY: usize = 1 << 20;
 /// buffer would otherwise grow by the whole padding.
 pub const MAX_UNBOUNDED_WIDTH: i64 = 1 << 20;
 
-/// The grouping bytes [`NumPunct`] keeps. An `int` inserted as a `long` has at most 11
-/// digits (octal of `UINT_MAX`), so `__add_grouping` reads at most its first 10 group sizes
-/// and compares its index with the last one: any longer grouping behaves as its first 32
-/// bytes do.
+/// The grouping bytes [`NumPunct`] keeps. A `long` has at most 22 digits (octal of
+/// `ULONG_MAX`, which a facet can format), so `__add_grouping` reads at most its first 21
+/// group sizes and compares its index with the last one: any longer grouping behaves as its
+/// first 32 bytes do.
 pub const GROUPING_PREFIX: usize = 32;
+
+/// Port bound on the `io.width()` the stock `num_put<char>::do_put( long )` pads to. The
+/// reference builds the padded field in `alloca( width )` stack storage, so a width this
+/// large is outside any stack the reference runs on.
+pub const MAX_PAD_WIDTH: i64 = 1 << 20;
+
+/// The C++ context an operator is called in.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct CallContext {
+    /// `std::uncaught_exception()` is true where the operator is called: an exception is
+    /// already propagating, as when the operator runs in a destructor during stack
+    /// unwinding. Every `~sentry` of the operator, and of the `flush()` of a tied stream it
+    /// calls, then does nothing.
+    pub uncaught_exception: bool,
+}
+
+impl CallContext {
+    /// No exception is propagating.
+    pub const NORMAL: Self = Self {
+        uncaught_exception: false,
+    };
+    /// Called while an exception propagates.
+    pub const UNWINDING: Self = Self {
+        uncaught_exception: true,
+    };
+}
 
 /// `std::ios_base::iostate`: the three error bits (`goodbit` is none of them).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -128,7 +173,9 @@ pub enum SentryFlush {
     Unconditional,
     /// libstdc++ from GCC 15 (checked in 15.2.0 and the GCC 16 development sources of the
     /// local host's runtime, LWG 4188): only when the stream is also `good()`; exceptions are
-    /// disabled and anything `sync()` throws is caught, so a failure only sets `badbit`.
+    /// disabled and anything `sync()` throws is caught by `catch( ... )`, so a failure only
+    /// sets `badbit`. A forced unwind caught there is not rethrown, so glibc aborts the
+    /// process ([`InsertError::Abort`]).
     WhenGood,
 }
 
@@ -187,14 +234,18 @@ impl Default for NumPunct {
     }
 }
 
-/// A port refusal of a stream configuration or insertion: nothing was changed.
+/// A port refusal of a stream configuration or insertion.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum StreamRefusal {
-    /// A [`StreamBuf`] larger than [`MAX_SINK_CAPACITY`].
+    /// A [`StreamBuf`] larger than [`MAX_SINK_CAPACITY`]; nothing was changed.
     Capacity { requested: usize, maximum: usize },
     /// An insertion with `width()` above [`MAX_UNBOUNDED_WIDTH`] into a host that reports no
-    /// capacity.
+    /// capacity; refused before any change.
     UnboundedWidth { requested: i64, maximum: i64 },
+    /// The stock `do_put( long )` asked to pad to an `io.width()` above [`MAX_PAD_WIDTH`]
+    /// (which a host facet can set), or its padded field could not be allocated. Refused
+    /// before that body changed anything; the stream keeps what earlier steps did.
+    PadWidth { requested: i64, maximum: i64 },
 }
 
 /// How a stream operation ended other than normally.
@@ -205,24 +256,131 @@ pub enum InsertError<E> {
     /// stream's state shows which threw). The stream keeps every change made before it.
     Failure,
     /// An exception thrown by a host operation, propagated unchanged; the stream keeps every
-    /// change made before it.
+    /// change made before it. A forced unwind ([`StreamHost::is_forced_unwind`]) always
+    /// propagates.
     Host(E),
     /// [`SentryFlush::Unconditional`] only: `sync()` or `setstate( badbit )` threw inside
-    /// `~sentry`, so the reference process calls `std::terminate`. The streams hold the state
-    /// reached.
+    /// `~sentry` (a forced unwind included), so the reference process calls
+    /// `std::terminate`. The streams hold the state reached.
     Terminate,
-    /// Refused by the port before any change.
+    /// [`SentryFlush::WhenGood`] only: the destructor's `catch( ... )` caught a forced unwind
+    /// from `sync()` and did not rethrow it, so glibc aborts the process (`FATAL: exception
+    /// not rethrown`). The streams hold the state reached, with that stream's exception mask
+    /// still disabled by the destructor.
+    Abort,
+    /// Refused by the port; see [`StreamRefusal`] for what was changed.
     Refused(StreamRefusal),
 }
 
+/// `ostreambuf_iterator<char>` as `num_put` uses it: whether a write through it failed. A
+/// failed iterator writes nothing more.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct OstreambufIterator {
+    failed: bool,
+}
+
+impl OstreambufIterator {
+    /// `ostreambuf_iterator( out )` on the stream's buffer: not failed.
+    pub const fn new() -> Self {
+        Self { failed: false }
+    }
+
+    /// `failed()`.
+    pub const fn failed(self) -> bool {
+        self.failed
+    }
+}
+
+/// The `ios_base&` a `num_put::do_put` receives, which is the stream being written: its
+/// formatting state, which the facet may read and change exactly as `io.flags( f )`,
+/// `io.width( w )` and `io.precision( p )` change the stream, and the `numpunct<char>` of
+/// its locale, which the stock body reads through `io.getloc()`.
+///
+/// Not modelled: a facet that calls `io.imbue()`, uses `iword`/`pword` or
+/// `register_callback`, or reaches the `basic_ios` (state, mask, fill, buffer) through a
+/// downcast.
+#[derive(Debug)]
+pub struct IosBase<'a> {
+    flags: &'a mut FmtFlags,
+    width: &'a mut i64,
+    precision: &'a mut i64,
+    numpunct: &'a NumPunct,
+}
+
+impl<'a> IosBase<'a> {
+    /// The `ios_base` part of a stream, for calling a facet outside an insertion.
+    pub fn new(
+        flags: &'a mut FmtFlags,
+        width: &'a mut i64,
+        precision: &'a mut i64,
+        numpunct: &'a NumPunct,
+    ) -> Self {
+        Self {
+            flags,
+            width,
+            precision,
+            numpunct,
+        }
+    }
+
+    /// `flags()`.
+    pub fn flags(&self) -> FmtFlags {
+        *self.flags
+    }
+
+    /// `flags( flags )`: the previous flags.
+    pub fn set_flags(&mut self, flags: FmtFlags) -> FmtFlags {
+        core::mem::replace(self.flags, flags)
+    }
+
+    /// `width()`.
+    pub fn width(&self) -> i64 {
+        *self.width
+    }
+
+    /// `width( width )`: the previous width.
+    pub fn set_width(&mut self, width: i64) -> i64 {
+        core::mem::replace(self.width, width)
+    }
+
+    /// `precision()`.
+    pub fn precision(&self) -> i64 {
+        *self.precision
+    }
+
+    /// `precision( precision )`: the previous precision.
+    pub fn set_precision(&mut self, precision: i64) -> i64 {
+        core::mem::replace(self.precision, precision)
+    }
+
+    /// The `numpunct<char>` of `getloc()`.
+    pub fn numpunct(&self) -> &NumPunct {
+        self.numpunct
+    }
+}
+
 /// What the C++ program supplies around a stream: its `streambuf` (with no put area, so
-/// every `sputc` is an `overflow`), the `num_put<char>` facet of its locale and its `tie()`.
+/// every `sputc` is an `overflow`; or none, [`has_rdbuf`](Self::has_rdbuf)), the
+/// `num_put<char>` facet of its locale and its `tie()`.
 ///
 /// Each operation may throw, as the C++ virtual may: `Err` is the thrown object, which the
 /// stream propagates unchanged wherever libstdc++ rethrows it.
 pub trait StreamHost {
     /// A C++ exception thrown by a host operation.
     type Exception;
+
+    /// Whether `exception` is a forced unwind (`abi::__forced_unwind`, as thread
+    /// cancellation throws), which libstdc++'s stream functions catch separately and always
+    /// rethrow. The host decides; the default is none.
+    fn is_forced_unwind(_exception: &Self::Exception) -> bool {
+        false
+    }
+
+    /// Whether `rdbuf()` is not null. Without a buffer the stream is never good, `flush()`
+    /// does nothing and no buffer operation below is called.
+    fn has_rdbuf(&self) -> bool {
+        true
+    }
 
     /// `sputc( byte )`, i.e. `overflow( byte )`: `Ok(true)` when accepted, `Ok(false)` for
     /// `eof()`.
@@ -246,11 +404,21 @@ pub trait StreamHost {
     /// `pubsync()`, i.e. `sync()`.
     fn sync(&mut self) -> Result<i32, Self::Exception>;
 
-    /// `num_put<char>::do_put( out, io, fill, long )` of the imbued facet, which returns the
-    /// iterator's `failed()`. The default is the stock facet: [`StockPut::put`]. A host facet
-    /// may call it before or after throwing.
-    fn do_put_long(&mut self, stock: StockPut<'_>) -> Result<bool, Self::Exception> {
-        stock.put(self)
+    /// `num_put<char>::do_put( out, io, fill, long )` of the imbued facet: the iterator it
+    /// returns. `io` is the stream being written, which the facet may change. The default
+    /// is the stock facet, [`stock_do_put_long`], which a host facet may call (with any
+    /// iterator, `ios_base`, fill and value, any number of times) before or after changing
+    /// `io` or throwing. An `Err` other than [`InsertError::Host`] or
+    /// [`InsertError::Failure`] (an `ios_base::failure` the facet throws) leaves the
+    /// operator unchanged.
+    fn do_put_long(
+        &mut self,
+        out: OstreambufIterator,
+        io: &mut IosBase<'_>,
+        fill: u8,
+        value: i64,
+    ) -> Result<OstreambufIterator, InsertError<Self::Exception>> {
+        stock_do_put_long(self, out, io, fill, value)
     }
 
     /// Whether `tie()` is not null.
@@ -258,9 +426,9 @@ pub trait StreamHost {
         false
     }
 
-    /// `tie()->flush()`, called only when [`has_tie`](Self::has_tie) and the stream is good.
-    /// A tied [`OStream`] gives [`OStream::flush`].
-    fn flush_tie(&mut self) -> Result<(), InsertError<Self::Exception>> {
+    /// `tie()->flush()`, called only when [`has_tie`](Self::has_tie) and the stream is good,
+    /// in the operator's `context`. A tied [`OStream`] gives [`OStream::flush`].
+    fn flush_tie(&mut self, _context: CallContext) -> Result<(), InsertError<Self::Exception>> {
         Ok(())
     }
 
@@ -344,34 +512,89 @@ impl StreamHost for StreamBuf {
     }
 }
 
-/// The longest integer field: 11 octal digits, 10 separators and a two-byte prefix.
-const FIELD: usize = 32;
+/// The longest unpadded `long` field: 22 octal digits, 21 separators and a two-byte prefix.
+const FIELD: usize = 48;
 
-/// The formatted field of the stock `num_put<char>::do_put( long )`, ready for its single
-/// `sputn`.
-#[derive(Clone, Copy, Debug)]
-pub struct StockPut<'a> {
+/// The stock `num_put<char>::do_put( out, io, fill, long )`, i.e. `_M_insert_int<long>`
+/// (`locale_facets.tcc`): the field formatted from `io.flags()` and the `numpunct` of
+/// `io.getloc()`; when `io.width()` exceeds it, `__pad` to that width with `fill`
+/// (`adjustfield` exactly `left`: after the field; exactly `internal`: after a leading sign,
+/// or a leading `0x`/`0X`; otherwise before it); `io.width( 0 )`; then `__write` through
+/// `out`: one `sputn` of the whole field unless `out` has already failed, and the returned
+/// iterator has failed when that write was short. A buffer exception propagates as
+/// [`InsertError::Host`]; a width above [`MAX_PAD_WIDTH`] is refused before any change.
+pub fn stock_do_put_long<H: StreamHost + ?Sized>(
+    host: &mut H,
+    out: OstreambufIterator,
+    io: &mut IosBase<'_>,
+    fill: u8,
     value: i64,
-    field: &'a [u8],
+) -> Result<OstreambufIterator, InsertError<H::Exception>> {
+    let flags = io.flags();
+    let field = format_long(flags, io.numpunct(), value);
+    let length = i64::try_from(field.len).unwrap_or(i64::MAX);
+    let width = io.width();
+    if width > length {
+        let refused = InsertError::Refused(StreamRefusal::PadWidth {
+            requested: width,
+            maximum: MAX_PAD_WIDTH,
+        });
+        let total = match usize::try_from(width) {
+            Ok(total) if width <= MAX_PAD_WIDTH => total,
+            _ => return Err(refused),
+        };
+        let mut padded = Vec::new();
+        if padded.try_reserve_exact(total).is_err() {
+            return Err(refused);
+        }
+        pad(&mut padded, flags, fill, total, field.as_slice());
+        io.set_width(0);
+        write_field(host, out, &padded)
+    } else {
+        io.set_width(0);
+        write_field(host, out, field.as_slice())
+    }
 }
 
-impl StockPut<'_> {
-    /// The value being inserted.
-    pub const fn value(&self) -> i64 {
-        self.value
+/// `__write( out, s, n )`: `out._M_put( s, n )`.
+fn write_field<H: StreamHost + ?Sized>(
+    host: &mut H,
+    out: OstreambufIterator,
+    bytes: &[u8],
+) -> Result<OstreambufIterator, InsertError<H::Exception>> {
+    if out.failed {
+        return Ok(out);
     }
+    let written = host.xsputn(bytes).map_err(InsertError::Host)?;
+    Ok(OstreambufIterator {
+        failed: written != bytes.len(),
+    })
+}
 
-    /// The bytes the stock facet writes.
-    pub const fn field(&self) -> &[u8] {
-        self.field
+/// `__pad<char>::_S_pad`: `field` padded with `fill` to `total` bytes (more than its
+/// length), in reserved storage.
+fn pad(out: &mut Vec<u8>, flags: FmtFlags, fill: u8, total: usize, field: &[u8]) {
+    let padding = total.saturating_sub(field.len());
+    let left = flags.left && !flags.right && !flags.internal;
+    let internal = flags.internal && !flags.left && !flags.right;
+    if left {
+        out.extend_from_slice(field);
+        out.resize(total, fill);
+        return;
     }
-
-    /// The rest of the stock `_M_insert_int`: `__write` of the field through the
-    /// `ostreambuf_iterator`, one `sputn`; the iterator has `failed()` when it was short.
-    /// A buffer exception propagates.
-    pub fn put<H: StreamHost + ?Sized>(self, host: &mut H) -> Result<bool, H::Exception> {
-        Ok(host.xsputn(self.field)? != self.field.len())
-    }
+    let kept = if !internal {
+        0
+    } else {
+        match field {
+            [b'-' | b'+', ..] => 1,
+            [b'0', b'x' | b'X', ..] => 2,
+            _ => 0,
+        }
+    };
+    let (head, tail) = field.split_at(kept.min(field.len()));
+    out.extend_from_slice(head);
+    out.resize(head.len() + padding, fill);
+    out.extend_from_slice(tail);
 }
 
 /// A fixed buffer filled from the front; bytes beyond its size are dropped, which the
@@ -409,7 +632,8 @@ impl Field {
 
 /// A `std::ostream` (`basic_ostream<char>`) on a [`StreamHost`].
 ///
-/// `precision()` is carried for completeness; integer and string output do not read it.
+/// `precision()` is carried because a host facet may read and change it; integer and string
+/// output do not read it.
 #[derive(Debug, PartialEq, Eq)]
 pub struct OStream<H> {
     /// `flags()`.
@@ -450,9 +674,15 @@ impl<E> Raised<E> {
 }
 
 impl<H: StreamHost> OStream<H> {
-    /// `std::ostream out( &buf )`: good, `skipws | dec`, width 0, precision 6, fill `' '`,
-    /// no exceptions, the classic locale, and the reference runtime's sentry.
+    /// `std::ostream out( buf )`: `skipws | dec`, width 0, precision 6, fill `' '`, no
+    /// exceptions, the classic locale, and the reference runtime's sentry; good, or `badbit`
+    /// when the host has no buffer (`basic_ios::init( nullptr )`).
     pub fn new(host: H) -> Self {
+        let state = if host.has_rdbuf() {
+            IoState::default()
+        } else {
+            IoState::BAD
+        };
         Self {
             flags: FmtFlags {
                 skipws: true,
@@ -464,7 +694,7 @@ impl<H: StreamHost> OStream<H> {
             fill: b' ',
             numpunct: NumPunct::default(),
             sentry_flush: SentryFlush::default(),
-            state: IoState::default(),
+            state,
             exceptions: IoState::default(),
             host,
         }
@@ -490,9 +720,14 @@ impl<H: StreamHost> OStream<H> {
         &mut self.host
     }
 
-    /// `clear( state )`: set the state, throwing when it intersects `exceptions()`.
+    /// `clear( state )`: store the state (with `badbit` added when there is no buffer),
+    /// throwing when it intersects `exceptions()`.
     pub fn clear(&mut self, state: IoState) -> Result<(), Thrown> {
-        self.state = state;
+        self.state = if self.host.has_rdbuf() {
+            state
+        } else {
+            state.union(IoState::BAD)
+        };
         if self.exceptions.intersects(self.state) {
             return Err(Thrown);
         }
@@ -511,11 +746,14 @@ impl<H: StreamHost> OStream<H> {
         self.clear(self.state.union(bits))
     }
 
-    /// `catch( ... ) { _M_setstate( badbit ); }`: set `badbit` and rethrow the same object
-    /// only when `exceptions()` contains it.
+    /// `catch( __forced_unwind& ) { _M_setstate( badbit ); throw; }` and then
+    /// `catch( ... ) { _M_setstate( badbit ); }`: set `badbit` (without consulting the
+    /// buffer, as `_M_setstate` does not), then rethrow the same object when it is a forced
+    /// unwind or when `exceptions()` contains `badbit`.
     fn caught(&mut self, raised: Raised<H::Exception>) -> Result<(), InsertError<H::Exception>> {
         self.state.bad = true;
-        if self.exceptions.bad {
+        let forced = matches!(&raised, Raised::Host(exception) if H::is_forced_unwind(exception));
+        if forced || self.exceptions.bad {
             return Err(raised.into_error());
         }
         Ok(())
@@ -528,9 +766,9 @@ impl<H: StreamHost> OStream<H> {
 
     /// `basic_ostream::sentry::sentry( *this )`: whether the sentry is good. A throw from the
     /// tie's flush or from `setstate` leaves no sentry to destroy.
-    fn sentry_enter(&mut self) -> Result<bool, InsertError<H::Exception>> {
+    fn sentry_enter(&mut self, context: CallContext) -> Result<bool, InsertError<H::Exception>> {
         if self.host.has_tie() && self.state.is_good() {
-            self.host.flush_tie()?;
+            self.host.flush_tie(context)?;
         }
         if self.state.is_good() {
             return Ok(true);
@@ -542,27 +780,52 @@ impl<H: StreamHost> OStream<H> {
         Ok(false)
     }
 
-    /// `~sentry()` when no exception is propagating (during unwinding it does nothing).
-    fn sentry_exit(&mut self) -> Result<(), InsertError<H::Exception>> {
-        if !self.flags.unitbuf {
+    /// `~sentry()` when the operator's own exception is not propagating (then it does
+    /// nothing, and callers return before reaching this). It also does nothing in a context
+    /// where an exception was already propagating.
+    fn sentry_exit(&mut self, context: CallContext) -> Result<(), InsertError<H::Exception>> {
+        if !self.flags.unitbuf || context.uncaught_exception {
             return Ok(());
         }
         match self.sentry_flush {
-            SentryFlush::Unconditional => match self.host.sync() {
-                // Thrown out of a noexcept destructor.
-                Err(_) => return Err(InsertError::Terminate),
-                Ok(-1) => {
-                    if self.setstate(IoState::BAD).is_err() {
-                        return Err(InsertError::Terminate);
+            SentryFlush::Unconditional => {
+                // if( _M_os.rdbuf() && _M_os.rdbuf()->pubsync() == -1 ) setstate( badbit ),
+                // in a noexcept destructor.
+                if !self.host.has_rdbuf() {
+                    return Ok(());
+                }
+                match self.host.sync() {
+                    // Thrown out of a noexcept destructor, a forced unwind included.
+                    Err(_) => return Err(InsertError::Terminate),
+                    Ok(-1) => {
+                        if self.setstate(IoState::BAD).is_err() {
+                            return Err(InsertError::Terminate);
+                        }
+                    }
+                    Ok(_) => {}
+                }
+            }
+            SentryFlush::WhenGood => {
+                if !self.state.is_good() {
+                    return Ok(());
+                }
+                // _Disable_exceptions for the scope, which restores the mask on exit.
+                let mask = core::mem::take(&mut self.exceptions);
+                if self.host.has_rdbuf() {
+                    match self.host.sync() {
+                        Ok(-1) => self.state.bad = true,
+                        Ok(_) => {}
+                        // catch( ... ) { setstate( badbit ); }, which ends a forced unwind
+                        // without rethrowing it: the process aborts inside the scope.
+                        Err(exception) => {
+                            self.state.bad = true;
+                            if H::is_forced_unwind(&exception) {
+                                return Err(InsertError::Abort);
+                            }
+                        }
                     }
                 }
-                Ok(_) => {}
-            },
-            SentryFlush::WhenGood => {
-                // _Disable_exceptions, and catch( ... ) { setstate( badbit ); }.
-                if self.state.is_good() && !matches!(self.host.sync(), Ok(result) if result != -1) {
-                    self.state.bad = true;
-                }
+                self.exceptions = mask;
             }
         }
         Ok(())
@@ -617,19 +880,27 @@ impl<H: StreamHost> OStream<H> {
     }
 
     /// `operator<<( ostream&, const char* )` of a string literal: `__ostream_insert`.
-    fn insert_literal(&mut self, text: &[u8]) -> Result<(), InsertError<H::Exception>> {
+    fn insert_literal(
+        &mut self,
+        text: &[u8],
+        context: CallContext,
+    ) -> Result<(), InsertError<H::Exception>> {
         // The literals are a few bytes long; the conversion cannot fail.
         let length = i64::try_from(text.len()).unwrap_or(i64::MAX);
-        if self.sentry_enter()? {
+        if self.sentry_enter(context)? {
             if let Err(raised) = self.ostream_insert_body(text, length) {
                 self.caught(raised)?;
             }
         }
-        self.sentry_exit()
+        self.sentry_exit(context)
     }
 
     /// `operator<<( int )` through `_M_insert<long>`.
-    fn insert_int(&mut self, value: i32) -> Result<(), InsertError<H::Exception>> {
+    fn insert_int(
+        &mut self,
+        value: i32,
+        context: CallContext,
+    ) -> Result<(), InsertError<H::Exception>> {
         let flags = self.flags;
         let oct = flags.oct && !flags.dec && !flags.hex;
         let hex = flags.hex && !flags.dec && !flags.oct;
@@ -638,72 +909,42 @@ impl<H: StreamHost> OStream<H> {
         } else {
             i64::from(value)
         };
-        if self.sentry_enter()? {
-            let field = self.num_put_field(value);
-            let stock = StockPut {
-                value,
-                field: field.as_slice(),
+        if self.sentry_enter(context)? {
+            let fill = self.fill;
+            // __np.put( *this, *this, this->fill(), __v ): the stream is the facet's ios_base.
+            let mut io = IosBase {
+                flags: &mut self.flags,
+                width: &mut self.width,
+                precision: &mut self.precision,
+                numpunct: &self.numpunct,
             };
-            match self.host.do_put_long(stock) {
+            let put = self
+                .host
+                .do_put_long(OstreambufIterator::new(), &mut io, fill, value);
+            match put {
                 // __np.put( ... ).failed(): setstate( __err ) runs outside the try block,
                 // within the sentry's scope.
-                Ok(true) => self
+                Ok(out) if out.failed() => self
                     .setstate(IoState::BAD)
                     .map_err(|Thrown| InsertError::Failure)?,
-                Ok(false) => {}
-                Err(exception) => self.caught(Raised::Host(exception))?,
+                Ok(_) => {}
+                Err(InsertError::Host(exception)) => self.caught(Raised::Host(exception))?,
+                Err(InsertError::Failure) => self.caught(Raised::Failure)?,
+                // Not an exception the try block handles.
+                Err(other) => return Err(other),
             }
         }
-        self.sentry_exit()
+        self.sentry_exit(context)
     }
 
-    /// The field the stock `num_put<char>::_M_insert_int<long>` writes, without allocating.
-    ///
-    /// This currently models the non-padding path because the host hook cannot mutate
-    /// this stream's ios state. A C++ facet can change width before stock formatting;
-    /// that missing context and padding path are recorded as a review finding.
-    fn num_put_field(&self, value: i64) -> Field {
-        let flags = self.flags;
-        let octal = flags.oct && !flags.dec && !flags.hex;
-        let hexadecimal = flags.hex && !flags.dec && !flags.oct;
-        let decimal = !octal && !hexadecimal;
-
-        let mut field = Field::new();
-        if decimal {
-            if value < 0 {
-                field.push(b'-');
-            } else if flags.showpos {
-                field.push(b'+');
-            }
-        } else if flags.showbase && value != 0 {
-            field.push(b'0');
-            if hexadecimal {
-                field.push(if flags.uppercase { b'X' } else { b'x' });
-            }
+    /// `basic_ostream::flush()`, as `tie()->flush()` calls it on a tied stream, in the
+    /// caller's `context`.
+    pub fn flush(&mut self, context: CallContext) -> Result<(), InsertError<H::Exception>> {
+        // if( __streambuf_type* __buf = this->rdbuf() ): no sentry without a buffer.
+        if !self.host.has_rdbuf() {
+            return Ok(());
         }
-
-        // __unsigned_type( __v ) for a positive value or a non-decimal base (whose value
-        // came from an unsigned int, so is nonnegative), else -__unsigned_type( __v ): both
-        // are the magnitude.
-        let digits = int_to_char(value.unsigned_abs(), octal, hexadecimal, flags.uppercase);
-        let grouping = self.numpunct.effective_grouping();
-        match grouping.first() {
-            Some(&first) if group_size(first) > 0 && first != CHAR_MAX => {
-                add_grouping(
-                    &mut field,
-                    self.numpunct.thousands_sep,
-                    grouping,
-                    digits.as_slice(),
-                );
-            }
-            _ => field.extend(digits.as_slice()),
-        }
-        field
-    }
-
-    /// `basic_ostream::flush()`, as `tie()->flush()` calls it on a tied stream.
-    pub fn flush(&mut self) -> Result<(), InsertError<H::Exception>> {
-        if self.sentry_enter()? {
+        if self.sentry_enter(context)? {
             match self.host.sync() {
                 // __err |= badbit; setstate( __err ) after the try block.
                 Ok(-1) => self
@@ -713,8 +954,52 @@ impl<H: StreamHost> OStream<H> {
                 Err(exception) => self.caught(Raised::Host(exception))?,
             }
         }
-        self.sentry_exit()
+        self.sentry_exit(context)
     }
+}
+
+/// The field the stock `num_put<char>::_M_insert_int<long>` formats before padding, without
+/// allocating: from `flags` (`basefield`, `showpos`, `showbase`, `uppercase`) and the
+/// grouping of `numpunct`.
+fn format_long(flags: FmtFlags, numpunct: &NumPunct, value: i64) -> Field {
+    let octal = flags.oct && !flags.dec && !flags.hex;
+    let hexadecimal = flags.hex && !flags.dec && !flags.oct;
+    let decimal = !octal && !hexadecimal;
+
+    let mut field = Field::new();
+    if decimal {
+        if value < 0 {
+            field.push(b'-');
+        } else if flags.showpos {
+            field.push(b'+');
+        }
+    } else if flags.showbase && value != 0 {
+        field.push(b'0');
+        if hexadecimal {
+            field.push(if flags.uppercase { b'X' } else { b'x' });
+        }
+    }
+
+    // ( __v > 0 || !__dec ) ? __unsigned_type( __v ) : -__unsigned_type( __v ).
+    let magnitude = if value > 0 || !decimal {
+        u64::from_ne_bytes(value.to_ne_bytes())
+    } else {
+        value.unsigned_abs()
+    };
+    let digits = int_to_char(magnitude, octal, hexadecimal, flags.uppercase);
+    let grouping = numpunct.effective_grouping();
+    match grouping.first() {
+        Some(&first) if group_size(first) > 0 && first != CHAR_MAX => {
+            add_grouping(
+                &mut field,
+                numpunct.thousands_sep,
+                grouping,
+                digits.as_slice(),
+            );
+        }
+        _ => field.extend(digits.as_slice()),
+    }
+    field
 }
 
 /// `__numeric_traits<char>::__max` on the reference platform (signed `char`).
@@ -809,34 +1094,36 @@ fn check_resources<H: StreamHost>(out: &OStream<H>) -> Result<(), InsertError<H:
 }
 
 /// `std::ostream& operator<<( std::ostream& out, const wxSize& size )`:
-/// `out << " width=\"" << size.GetWidth() << "\" height=\"" << size.GetHeight() << "\""`.
-/// Returns the same stream; a propagated exception stops the chain.
+/// `out << " width=\"" << size.GetWidth() << "\" height=\"" << size.GetHeight() << "\""`,
+/// called in `context`. Returns the same stream; a propagated exception stops the chain.
 pub fn insert_wx_size<'a, H: StreamHost>(
     out: &'a mut OStream<H>,
     size: &WxSize,
+    context: CallContext,
 ) -> Result<&'a mut OStream<H>, InsertError<H::Exception>> {
     check_resources(out)?;
-    out.insert_literal(b" width=\"")?;
-    out.insert_int(size.x)?;
-    out.insert_literal(b"\" height=\"")?;
-    out.insert_int(size.y)?;
-    out.insert_literal(b"\"")?;
+    out.insert_literal(b" width=\"", context)?;
+    out.insert_int(size.x, context)?;
+    out.insert_literal(b"\" height=\"", context)?;
+    out.insert_int(size.y, context)?;
+    out.insert_literal(b"\"", context)?;
     Ok(out)
 }
 
 /// `std::ostream& operator<<( std::ostream& out, const wxPoint& pt )`:
-/// `out << " x=\"" << pt.x << "\" y=\"" << pt.y << "\""`. Returns the same stream; a
-/// propagated exception stops the chain.
+/// `out << " x=\"" << pt.x << "\" y=\"" << pt.y << "\""`, called in `context`. Returns the
+/// same stream; a propagated exception stops the chain.
 pub fn insert_wx_point<'a, H: StreamHost>(
     out: &'a mut OStream<H>,
     point: &WxPoint,
+    context: CallContext,
 ) -> Result<&'a mut OStream<H>, InsertError<H::Exception>> {
     check_resources(out)?;
-    out.insert_literal(b" x=\"")?;
-    out.insert_int(point.x)?;
-    out.insert_literal(b"\" y=\"")?;
-    out.insert_int(point.y)?;
-    out.insert_literal(b"\"")?;
+    out.insert_literal(b" x=\"", context)?;
+    out.insert_int(point.x, context)?;
+    out.insert_literal(b"\" y=\"", context)?;
+    out.insert_int(point.y, context)?;
+    out.insert_literal(b"\"", context)?;
     Ok(out)
 }
 
@@ -846,6 +1133,8 @@ mod tests {
 
     type Stream = OStream<StreamBuf>;
 
+    const N: CallContext = CallContext::NORMAL;
+
     fn stream(capacity: Option<usize>) -> Result<Stream, StreamRefusal> {
         Ok(OStream::new(StreamBuf::new(capacity, false)?))
     }
@@ -853,13 +1142,13 @@ mod tests {
     #[test]
     fn default_stream_formats_both_members() -> Result<(), StreamRefusal> {
         let mut out = stream(None)?;
-        assert!(insert_wx_size(&mut out, &WxSize::new(i32::MIN, i32::MAX)).is_ok());
+        assert!(insert_wx_size(&mut out, &WxSize::new(i32::MIN, i32::MAX), N).is_ok());
         assert_eq!(
             out.host().bytes(),
             b" width=\"-2147483648\" height=\"2147483647\""
         );
         let mut out = stream(None)?;
-        assert!(insert_wx_point(&mut out, &WxPoint::new(0, -7)).is_ok());
+        assert!(insert_wx_point(&mut out, &WxPoint::new(0, -7), N).is_ok());
         assert_eq!(out.host().bytes(), b" x=\"0\" y=\"-7\"");
         Ok(())
     }
@@ -869,7 +1158,7 @@ mod tests {
         let mut out = stream(None)?;
         out.width = 6;
         out.fill = 0xFF;
-        assert!(insert_wx_point(&mut out, &WxPoint::new(1, 2)).is_ok());
+        assert!(insert_wx_point(&mut out, &WxPoint::new(1, 2), N).is_ok());
         assert_eq!(out.host().bytes(), b"\xFF\xFF x=\"1\" y=\"2\"");
         assert_eq!(out.width, 0);
         Ok(())
@@ -880,7 +1169,7 @@ mod tests {
         let mut out = stream(None)?;
         out.numpunct = NumPunct::new(b'.', &[1, 2]);
         out.flags.showpos = true;
-        assert!(insert_wx_point(&mut out, &WxPoint::new(123_456, -5)).is_ok());
+        assert!(insert_wx_point(&mut out, &WxPoint::new(123_456, -5), N).is_ok());
         assert_eq!(out.host().bytes(), b" x=\"+1.23.45.6\" y=\"-5\"");
 
         let mut out = stream(None)?;
@@ -888,7 +1177,7 @@ mod tests {
         out.flags.oct = true;
         out.flags.showbase = true;
         out.numpunct = NumPunct::new(b',', &[1]);
-        assert!(insert_wx_point(&mut out, &WxPoint::new(-1, 0)).is_ok());
+        assert!(insert_wx_point(&mut out, &WxPoint::new(-1, 0), N).is_ok());
         // The widest field: 11 octal digits, 10 separators and the prefix.
         assert_eq!(out.host().bytes(), b" x=\"03,7,7,7,7,7,7,7,7,7,7\" y=\"0\"");
 
@@ -897,13 +1186,13 @@ mod tests {
         out.flags.hex = true;
         out.flags.showbase = true;
         out.flags.uppercase = true;
-        assert!(insert_wx_point(&mut out, &WxPoint::new(-1, 0)).is_ok());
+        assert!(insert_wx_point(&mut out, &WxPoint::new(-1, 0), N).is_ok());
         assert_eq!(out.host().bytes(), b" x=\"0XFFFFFFFF\" y=\"0\"");
 
         // The grouping ends at its first NUL byte: [3, 0] groups by three throughout.
         let mut out = stream(None)?;
         out.numpunct = NumPunct::new(b',', &[3, 0, 1]);
-        assert!(insert_wx_point(&mut out, &WxPoint::new(i32::MAX, 0)).is_ok());
+        assert!(insert_wx_point(&mut out, &WxPoint::new(i32::MAX, 0), N).is_ok());
         assert_eq!(out.host().bytes(), b" x=\"2,147,483,647\" y=\"0\"");
 
         // A grouping longer than the kept prefix behaves as the prefix.
@@ -918,7 +1207,7 @@ mod tests {
     #[test]
     fn short_write_sets_badbit_and_later_sentries_set_failbit() -> Result<(), StreamRefusal> {
         let mut out = stream(Some(6))?;
-        assert!(insert_wx_point(&mut out, &WxPoint::new(12, 3)).is_ok());
+        assert!(insert_wx_point(&mut out, &WxPoint::new(12, 3), N).is_ok());
         assert_eq!(out.host().bytes(), b" x=\"12");
         assert_eq!(
             out.rdstate(),
@@ -933,7 +1222,7 @@ mod tests {
         assert_eq!(out.set_exceptions(IoState::BAD), Ok(()));
         out.width = 9;
         assert_eq!(
-            insert_wx_point(&mut out, &WxPoint::new(1, 2)).err(),
+            insert_wx_point(&mut out, &WxPoint::new(1, 2), N).err(),
             Some(InsertError::Failure)
         );
         // The throw skipped width( 0 ).
@@ -952,7 +1241,7 @@ mod tests {
                 eof: true,
                 fail: false,
             });
-            let _ = insert_wx_size(&mut out, &WxSize::new(1, 1));
+            let _ = insert_wx_size(&mut out, &WxSize::new(1, 1), N);
             Ok((out.rdstate(), out.host().sync_calls()))
         };
         let all = IoState {
@@ -991,7 +1280,7 @@ mod tests {
             out.flags.unitbuf = true;
             out.width = width;
             assert_eq!(out.set_exceptions(IoState::BAD), Ok(()));
-            let reply = insert_wx_point(&mut out, &WxPoint::new(1, 2)).err();
+            let reply = insert_wx_point(&mut out, &WxPoint::new(1, 2), N).err();
             assert_eq!(reply, Some(outcome), "{capacity} {width}");
             assert_eq!(out.host().sync_calls(), syncs);
         }
@@ -1000,7 +1289,7 @@ mod tests {
         out.sentry_flush = SentryFlush::WhenGood;
         assert_eq!(out.set_exceptions(IoState::BAD), Ok(()));
         assert_eq!(
-            insert_wx_point(&mut out, &WxPoint::new(1, 2)).err(),
+            insert_wx_point(&mut out, &WxPoint::new(1, 2), N).err(),
             Some(InsertError::Failure)
         );
         assert_eq!(
@@ -1021,7 +1310,7 @@ mod tests {
         assert_eq!(out.clear(eof), Ok(()));
         assert_eq!(out.set_exceptions(eof), Err(Thrown));
         // No setstate runs for a stream that is not bad: the insertion returns quietly.
-        assert!(insert_wx_size(&mut out, &WxSize::new(1, 2)).is_ok());
+        assert!(insert_wx_size(&mut out, &WxSize::new(1, 2), N).is_ok());
         assert_eq!((out.host().bytes(), out.rdstate()), (&b""[..], eof));
         Ok(())
     }
@@ -1032,8 +1321,13 @@ mod tests {
         bytes: Vec<u8>,
         overflow_throw: Option<usize>,
         overflow_calls: usize,
+        overflow_cancel: Option<usize>,
         put_throw_after: bool,
+        /// The facet sets this width, `showpos` and precision 42, then delegates.
+        put_width: Option<i64>,
         sync_throws: bool,
+        sync_cancels: bool,
+        null_rdbuf: bool,
         tie: Option<OStream<StreamBuf>>,
     }
 
@@ -1043,6 +1337,8 @@ mod tests {
         Put,
         Sync,
         Alloc,
+        /// A forced unwind.
+        Cancel,
     }
 
     impl StreamHost for Scripted {
@@ -1051,6 +1347,9 @@ mod tests {
         fn overflow(&mut self, byte: u8) -> Result<bool, Exc> {
             let call = self.overflow_calls;
             self.overflow_calls += 1;
+            if Some(call) == self.overflow_cancel {
+                return Err(Exc::Cancel);
+            }
             if Some(call) == self.overflow_throw {
                 return Err(Exc::Overflow);
             }
@@ -1060,26 +1359,50 @@ mod tests {
         }
 
         fn sync(&mut self) -> Result<i32, Exc> {
+            if self.sync_cancels {
+                return Err(Exc::Cancel);
+            }
             if self.sync_throws {
                 return Err(Exc::Sync);
             }
             Ok(0)
         }
 
-        fn do_put_long(&mut self, stock: StockPut<'_>) -> Result<bool, Exc> {
-            let failed = stock.put(self)?;
-            if self.put_throw_after {
-                return Err(Exc::Put);
+        fn has_rdbuf(&self) -> bool {
+            !self.null_rdbuf
+        }
+
+        fn do_put_long(
+            &mut self,
+            out: OstreambufIterator,
+            io: &mut IosBase<'_>,
+            fill: u8,
+            value: i64,
+        ) -> Result<OstreambufIterator, InsertError<Exc>> {
+            if let Some(width) = self.put_width {
+                io.set_width(width);
+                let mut flags = io.flags();
+                flags.showpos = true;
+                io.set_flags(flags);
+                io.set_precision(42);
             }
-            Ok(failed)
+            let out = stock_do_put_long(self, out, io, fill, value)?;
+            if self.put_throw_after {
+                return Err(InsertError::Host(Exc::Put));
+            }
+            Ok(out)
+        }
+
+        fn is_forced_unwind(exception: &Exc) -> bool {
+            *exception == Exc::Cancel
         }
 
         fn has_tie(&self) -> bool {
             self.tie.is_some()
         }
 
-        fn flush_tie(&mut self) -> Result<(), InsertError<Exc>> {
-            match self.tie.as_mut().map(OStream::flush) {
+        fn flush_tie(&mut self, context: CallContext) -> Result<(), InsertError<Exc>> {
+            match self.tie.as_mut().map(|tie| tie.flush(context)) {
                 Some(Err(InsertError::Failure)) => Err(InsertError::Failure),
                 Some(Err(InsertError::Terminate)) => Err(InsertError::Terminate),
                 Some(Err(_)) => Err(InsertError::Host(Exc::Alloc)),
@@ -1099,7 +1422,7 @@ mod tests {
             if mask_bad {
                 assert_eq!(out.set_exceptions(IoState::BAD), Ok(()));
             }
-            let reply = insert_wx_point(&mut out, &WxPoint::new(123, 4)).err();
+            let reply = insert_wx_point(&mut out, &WxPoint::new(123, 4), N).err();
             assert_eq!(out.host().bytes, b" x=\"12");
             if mask_bad {
                 assert_eq!(reply, Some(InsertError::Host(Exc::Overflow)));
@@ -1118,7 +1441,7 @@ mod tests {
         });
         assert_eq!(out.set_exceptions(IoState::BAD), Ok(()));
         assert_eq!(
-            insert_wx_size(&mut out, &WxSize::new(7, 8)).err(),
+            insert_wx_size(&mut out, &WxSize::new(7, 8), N).err(),
             Some(InsertError::Host(Exc::Put))
         );
         assert_eq!(out.host().bytes, b" width=\"7");
@@ -1141,7 +1464,7 @@ mod tests {
             out.flags.unitbuf = true;
             out.sentry_flush = flush;
             assert_eq!(
-                insert_wx_point(&mut out, &WxPoint::new(1, 2)).err(),
+                insert_wx_point(&mut out, &WxPoint::new(1, 2), N).err(),
                 outcome
             );
             assert_eq!(out.rdstate().bad, bad);
@@ -1154,7 +1477,7 @@ mod tests {
             tie: Some(OStream::new(StreamBuf::new(None, false)?)),
             ..Scripted::default()
         });
-        assert!(insert_wx_point(&mut out, &WxPoint::new(1, 2)).is_ok());
+        assert!(insert_wx_point(&mut out, &WxPoint::new(1, 2), N).is_ok());
         assert_eq!(
             out.host().tie.as_ref().map(|t| t.host().sync_calls()),
             Some(5)
@@ -1169,7 +1492,7 @@ mod tests {
             ..Scripted::default()
         });
         assert_eq!(
-            insert_wx_point(&mut out, &WxPoint::new(1, 2)).err(),
+            insert_wx_point(&mut out, &WxPoint::new(1, 2), N).err(),
             Some(InsertError::Failure)
         );
         assert!(out.host().bytes.is_empty() && out.rdstate().is_good());
@@ -1193,10 +1516,262 @@ mod tests {
         let mut before = stream(None)?;
         before.width = MAX_UNBOUNDED_WIDTH + 1;
         assert!(matches!(
-            insert_wx_size(&mut out, &WxSize::new(0, 0)),
+            insert_wx_size(&mut out, &WxSize::new(0, 0), N),
             Err(InsertError::Refused(_))
         ));
         assert_eq!(out, before);
         Ok(())
+    }
+
+    const BAD_FAIL: IoState = IoState {
+        bad: true,
+        eof: false,
+        fail: true,
+    };
+
+    #[test]
+    fn an_insertion_during_unwinding_never_flushes_in_a_destructor() -> Result<(), StreamRefusal> {
+        // Good, unitbuf, failing sync and badbit in the mask terminate after the first
+        // literal normally; while another exception propagates every ~sentry does nothing.
+        let run = |context| -> Result<_, StreamRefusal> {
+            let mut out = OStream::new(StreamBuf::new(None, true)?);
+            out.flags.unitbuf = true;
+            assert_eq!(out.set_exceptions(IoState::BAD), Ok(()));
+            let reply = insert_wx_point(&mut out, &WxPoint::new(1, 2), context).err();
+            Ok((
+                reply,
+                out.host().bytes().to_vec(),
+                out.host().sync_calls(),
+                out.rdstate(),
+            ))
+        };
+        assert_eq!(
+            run(N)?,
+            (
+                Some(InsertError::Terminate),
+                b" x=\"".to_vec(),
+                1,
+                IoState::BAD
+            )
+        );
+        assert_eq!(
+            run(CallContext::UNWINDING)?,
+            (None, b" x=\"1\" y=\"2\"".to_vec(), 0, IoState::default())
+        );
+
+        // The context reaches the tied stream's flush: its body still syncs, its own
+        // unitbuf destructor does not.
+        for (context, syncs) in [(N, 10), (CallContext::UNWINDING, 5)] {
+            let mut tie = OStream::new(StreamBuf::new(None, false)?);
+            tie.flags.unitbuf = true;
+            let mut out = OStream::new(Scripted {
+                tie: Some(tie),
+                ..Scripted::default()
+            });
+            assert!(insert_wx_point(&mut out, &WxPoint::new(1, 2), context).is_ok());
+            assert_eq!(
+                out.host().tie.as_ref().map(|t| t.host().sync_calls()),
+                Some(syncs)
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn a_facet_changes_the_stream_it_formats() {
+        // The facet sets width 6, showpos and precision 42, then delegates to the stock body,
+        // which pads and resets the width.
+        let mut out = OStream::new(Scripted {
+            put_width: Some(6),
+            ..Scripted::default()
+        });
+        out.fill = b'*';
+        assert!(insert_wx_point(&mut out, &WxPoint::new(7, 8), N).is_ok());
+        assert_eq!(out.host().bytes, b" x=\"****+7\" y=\"****+8\"");
+        assert!(out.flags.showpos);
+        assert_eq!((out.width, out.precision), (0, 42));
+
+        // Internal adjustment pads after the sign or the 0x prefix.
+        for (hex, value, field) in [(false, -5, &b"-****5"[..]), (true, 255, &b"0x**ff"[..])] {
+            let mut out = OStream::new(Scripted {
+                put_width: Some(6),
+                ..Scripted::default()
+            });
+            out.fill = b'*';
+            out.flags = FmtFlags {
+                dec: !hex,
+                hex,
+                internal: true,
+                showbase: true,
+                ..FmtFlags::default()
+            };
+            assert!(insert_wx_size(&mut out, &WxSize::new(value, 0), N).is_ok());
+            assert_eq!(out.host().bytes.get(8..14), Some(field));
+        }
+    }
+
+    #[test]
+    fn the_stock_body_formats_any_long_with_the_io_flags() -> Result<(), StreamRefusal> {
+        let check = |flags: FmtFlags,
+                     grouping: &[u8],
+                     value: i64,
+                     expected: &[u8]|
+         -> Result<(), StreamRefusal> {
+            let mut buf = StreamBuf::new(None, false)?;
+            let numpunct = NumPunct::new(b',', grouping);
+            let (mut flags, mut width, mut precision) = (flags, 0, 6);
+            let mut io = IosBase::new(&mut flags, &mut width, &mut precision, &numpunct);
+            let out = stock_do_put_long(&mut buf, OstreambufIterator::new(), &mut io, b' ', value);
+            assert_eq!(out, Ok(OstreambufIterator::new()));
+            assert_eq!(buf.bytes(), expected);
+            Ok(())
+        };
+        let dec = FmtFlags {
+            dec: true,
+            ..FmtFlags::default()
+        };
+        check(dec, &[], i64::MIN, b"-9223372036854775808")?;
+        let hex = FmtFlags {
+            hex: true,
+            ..FmtFlags::default()
+        };
+        // A negative long in a non-decimal base is its two's complement.
+        check(hex, &[], -1, b"ffffffffffffffff")?;
+        let oct = FmtFlags {
+            oct: true,
+            showbase: true,
+            ..FmtFlags::default()
+        };
+        // The widest field: 22 octal digits, 21 separators and the prefix.
+        check(
+            oct,
+            &[1],
+            -1,
+            b"01,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7",
+        )
+    }
+
+    #[test]
+    fn a_failed_iterator_writes_nothing_more_and_wide_padding_is_refused(
+    ) -> Result<(), StreamRefusal> {
+        // A short write fails the iterator; a second write through it is skipped.
+        let mut buf = StreamBuf::new(Some(2), false)?;
+        let numpunct = NumPunct::default();
+        let (mut flags, mut width, mut precision) = (FmtFlags::default(), 0, 6);
+        let mut io = IosBase::new(&mut flags, &mut width, &mut precision, &numpunct);
+        let first = stock_do_put_long(&mut buf, OstreambufIterator::new(), &mut io, b' ', 123);
+        assert_eq!(first.clone().map(OstreambufIterator::failed), Ok(true));
+        let second = first.and_then(|it| stock_do_put_long(&mut buf, it, &mut io, b' ', 4));
+        assert_eq!(second.map(OstreambufIterator::failed), Ok(true));
+        assert_eq!(buf.bytes(), b"12");
+
+        io.set_width(MAX_PAD_WIDTH + 1);
+        assert_eq!(
+            stock_do_put_long(&mut buf, OstreambufIterator::new(), &mut io, b' ', 4),
+            Err(InsertError::Refused(StreamRefusal::PadWidth {
+                requested: MAX_PAD_WIDTH + 1,
+                maximum: MAX_PAD_WIDTH
+            }))
+        );
+        assert_eq!(io.width(), MAX_PAD_WIDTH + 1);
+        Ok(())
+    }
+
+    #[test]
+    fn a_forced_unwind_always_propagates_after_setting_badbit() {
+        // Mask empty: an ordinary exception is swallowed, a forced unwind is not; the width
+        // reset is skipped and no later sentry adds failbit.
+        let mut out = OStream::new(Scripted {
+            overflow_cancel: Some(0),
+            ..Scripted::default()
+        });
+        out.width = 9;
+        assert_eq!(
+            insert_wx_point(&mut out, &WxPoint::new(1, 2), N).err(),
+            Some(InsertError::Host(Exc::Cancel))
+        );
+        assert_eq!(
+            (out.rdstate(), out.width, out.host().overflow_calls),
+            (IoState::BAD, 9, 1)
+        );
+
+        // The rethrow counts as uncaught: the unitbuf destructor it passes does nothing,
+        // although a destructor that runs normally would throw from its sync.
+        let mut out = OStream::new(Scripted {
+            overflow_cancel: Some(1),
+            sync_throws: true,
+            ..Scripted::default()
+        });
+        out.flags.unitbuf = true;
+        assert_eq!(
+            insert_wx_point(&mut out, &WxPoint::new(1, 2), N).err(),
+            Some(InsertError::Host(Exc::Cancel))
+        );
+
+        // A forced unwind from a destructor's sync: thrown out of the GCC 14 noexcept
+        // destructor, swallowed (and so aborted) by the GCC 15 one.
+        for (flush, outcome, mask) in [
+            (
+                SentryFlush::Unconditional,
+                InsertError::Terminate,
+                IoState::FAIL,
+            ),
+            (
+                SentryFlush::WhenGood,
+                InsertError::Abort,
+                IoState::default(),
+            ),
+        ] {
+            let mut out = OStream::new(Scripted {
+                sync_cancels: true,
+                ..Scripted::default()
+            });
+            out.flags.unitbuf = true;
+            out.sentry_flush = flush;
+            assert_eq!(out.set_exceptions(IoState::FAIL), Ok(()));
+            assert_eq!(
+                insert_wx_point(&mut out, &WxPoint::new(1, 2), N).err(),
+                Some(outcome)
+            );
+            assert_eq!(out.exceptions(), mask);
+            assert_eq!(out.host().bytes, b" x=\"");
+        }
+    }
+
+    #[test]
+    fn a_stream_without_a_buffer_is_never_good() {
+        let mut out = OStream::new(Scripted {
+            null_rdbuf: true,
+            sync_throws: true,
+            ..Scripted::default()
+        });
+        assert_eq!(out.rdstate(), IoState::BAD);
+        assert_eq!(out.clear(IoState::default()), Ok(()));
+        assert_eq!(out.rdstate(), IoState::BAD);
+        out.width = 9;
+        out.flags.unitbuf = true;
+        // The first sentry adds failbit; no buffer operation runs, the width is kept and no
+        // destructor syncs.
+        assert!(insert_wx_point(&mut out, &WxPoint::new(1, 2), N).is_ok());
+        assert_eq!(
+            (out.rdstate(), out.width, out.host().overflow_calls),
+            (BAD_FAIL, 9, 0)
+        );
+        // With badbit in the mask, the clear that stores the forced badbit throws.
+        let mut out = OStream::new(Scripted {
+            null_rdbuf: true,
+            ..Scripted::default()
+        });
+        assert_eq!(out.set_exceptions(IoState::BAD), Err(Thrown));
+
+        // A tied stream without a buffer: its flush does nothing, not even a sentry.
+        let mut tie = OStream::new(Scripted {
+            null_rdbuf: true,
+            sync_throws: true,
+            ..Scripted::default()
+        });
+        tie.flags.unitbuf = true;
+        assert_eq!(tie.flush(N), Ok(()));
+        assert_eq!(tie.rdstate(), IoState::BAD);
     }
 }

@@ -23,9 +23,10 @@
 //!   library's `mbsrtowcs` in the current `LC_CTYPE` locale. The locale is an explicit input.
 //! - `operator<<( std::ostream&, const wxSize& )` and `operator<<( std::ostream&, const
 //!   wxPoint& )` ([`ostream::insert_wx_size`], [`ostream::insert_wx_point`]), which insert into
-//!   the caller's stream; [`ostream::OStream`] models that stream's state byte for byte, and
-//!   [`ostream::StreamHost`] the caller's buffer, `num_put` facet and tie, whose operations
-//!   may throw.
+//!   the caller's stream; [`ostream::OStream`] models that stream's state byte for byte,
+//!   [`ostream::StreamHost`] the caller's buffer (possibly null), `num_put` facet (which may
+//!   change the stream it formats) and tie, whose operations may throw or force an unwind,
+//!   and [`ostream::CallContext`] whether an exception is already propagating.
 //!
 //! The `USE_KICAD_WXSTRING_HASH` body (`std::hash<wxString>::operator()`) is not compiled in
 //! the audited configuration: nothing in the pinned tree or its build defines the macro, and
