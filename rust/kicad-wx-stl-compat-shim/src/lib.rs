@@ -731,4 +731,4 @@ pub fn dispatch_with(line: &str, flush: SentryFlush) -> Value {
 }
 
 /// The number of requests in the committed public corpus.
-pub const CORPUS_CASES: usize = 4719;
+pub const CORPUS_CASES: usize = 5709;

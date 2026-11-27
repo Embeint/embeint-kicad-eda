@@ -14,6 +14,9 @@ const CONTROLS: &str = include_str!("../../../port/oracle/fixtures/wx-stl-compat
 
 /// The cases of the first corpus, all of which come first and are unchanged.
 const FIRST_CORPUS: usize = 3329;
+/// The cases before the call context, facet changes, forced unwinding and null buffers,
+/// which follow them unchanged.
+const SECOND_CORPUS: usize = 4719;
 
 fn has_flag(flags: &Value, flag: &str) -> bool {
     flags.as_array().is_some_and(|f| f.contains(&json!(flag)))
@@ -34,16 +37,27 @@ fn every_public_case_succeeds_and_insertions_return_the_same_stream(
             .is_some_and(|op| op.starts_with("insert_"))
         {
             assert_eq!(reply["result"]["same_stream"], json!(true), "{reply}");
-            // The operators never change flags, precision, fill or the exception mask.
+            // The operators never change the fill or the exception mask, nor the precision
+            // unless a facet sets it.
             let stream = &request["input"]["stream"];
+            let put = &stream["host"]["num_put"];
+            let sets_precision = ["set_before", "set_after"]
+                .iter()
+                .any(|set| !put[set]["precision"].is_null());
             for field in ["fill", "precision", "exceptions"] {
-                assert_eq!(reply["result"][field], stream[field], "{field}: {reply}");
+                if field != "precision" || !sets_precision {
+                    assert_eq!(reply["result"][field], stream[field], "{field}: {reply}");
+                }
             }
             // The trace and tie appear exactly for scripted requests; a setup failure
-            // exactly when the state intersects the mask.
+            // exactly when the state (with badbit for a null buffer) intersects the mask.
             let scripted = stream.get("host").is_some();
             assert_eq!(reply["result"].get("events").is_some(), scripted);
-            let state = stream["state"].as_array().cloned().unwrap_or_default();
+            let mut state = stream["state"].as_array().cloned().unwrap_or_default();
+            let null_rdbuf = stream["host"]["null_rdbuf"] == json!(true);
+            if null_rdbuf {
+                state.push(json!("bad"));
+            }
             let overlap = state
                 .iter()
                 .any(|bit| has_flag(&stream["exceptions"], bit.as_str().unwrap_or("")));
@@ -60,13 +74,45 @@ fn every_public_case_succeeds_and_insertions_return_the_same_stream(
                 ));
             }
             let outcome = reply["result"]["outcome"].as_str().unwrap_or("").to_owned();
+            let unwinding = request["input"]["unwinding"] == json!(true);
+            if count < SECOND_CORPUS {
+                assert!(request["input"].get("unwinding").is_none());
+                assert_ne!(outcome, "forced_unwind");
+            }
+            // While another exception propagates no destructor syncs, so none terminates,
+            // and the outer exception is untouched.
+            if unwinding {
+                assert_ne!(outcome, "terminate", "{reply}");
+                assert_eq!(reply["result"]["outer_preserved"], json!(true));
+            }
+            // A stream without a buffer is never written or synced and stays bad.
+            if null_rdbuf {
+                assert_eq!(reply["result"]["bytes"], json!(""));
+                assert_eq!(reply["result"]["sync_calls"], json!(0));
+                assert!(has_flag(&reply["result"]["state"], "bad"));
+            }
+            // A forced unwind always leaves badbit set on the stream it passed: the main
+            // stream, or the tied stream whose flush was cancelled.
+            if outcome == "forced_unwind" {
+                assert!(
+                    has_flag(&reply["result"]["state"], "bad")
+                        || has_flag(&reply["result"]["tie"]["state"], "bad"),
+                    "{reply}"
+                );
+            }
             *outcomes.entry(outcome).or_default() += 1;
         }
         count += 1;
     }
     assert_eq!(count, CORPUS_CASES);
     // Every defined outcome is reached on the reference runtime model.
-    for outcome in ["returned", "ios_failure", "runtime_error", "terminate"] {
+    for outcome in [
+        "returned",
+        "ios_failure",
+        "runtime_error",
+        "terminate",
+        "forced_unwind",
+    ] {
         assert!(
             outcomes.get(outcome).is_some_and(|&n| n > 0),
             "{outcomes:?}"
@@ -86,14 +132,23 @@ fn runtimes_differ_only_through_a_unitbuf_destructor() -> Result<(), serde_json:
         if reference != later {
             let stream = &request["input"]["stream"];
             // Only a sentry destructor differs, and it acts only on a unitbuf stream: the
-            // main stream or the tied one.
+            // main stream (unitbuf from the start or set by its facet) or the tied one.
             assert!(
                 has_flag(&stream["flags"], "unitbuf")
+                    || has_flag(&reference["result"]["flags"], "unitbuf")
                     || has_flag(&stream["host"]["tie"]["flags"], "unitbuf"),
                 "{reference}"
             );
-            // The GCC 15 destructor never terminates.
+            // The GCC 15 destructor never terminates; it aborts only on a forced unwind it
+            // swallowed, which the reference destructor terminates on.
             assert_ne!(later["result"]["outcome"], json!("terminate"), "{later}");
+            if later["result"]["outcome"] == json!("abort") {
+                assert_eq!(
+                    reference["result"]["outcome"],
+                    json!("terminate"),
+                    "{later}"
+                );
+            }
             if reference["result"]["outcome"] == json!("terminate") {
                 terminating += 1;
             }
@@ -155,6 +210,6 @@ fn controls_are_refused_with_the_recorded_message_and_continue() -> Result<(), s
         );
         count += 1;
     }
-    assert_eq!(count, 140);
+    assert_eq!(count, 217);
     Ok(())
 }

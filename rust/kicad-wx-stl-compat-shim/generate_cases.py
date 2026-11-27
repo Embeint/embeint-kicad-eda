@@ -18,9 +18,13 @@ the defined paths the first corpus left out: the destructor flush that terminate
 reference process (and the failing first writes that unwind past it), states the mask
 intersects (setup's exception caught, then the insertion), and scripted host operations: a
 buffer overflow, a sync() or the num_put facet's do_put throwing std::runtime_error at a
-given call, and a tied stream with its own state, mask, unitbuf and sync. Requests whose
-answer differs between libstdc++ runtimes (the unitbuf destructor) are ordinary cases: the
-reference runtime decides them.
+given call, and a tied stream with its own state, mask, unitbuf and sync. After those, from
+their own generators again: the operator called while another exception propagates, a
+facet that changes the stream it formats (width, precision and flags, its own fill and long
+value, zero or two stock calls), a host operation that cancels the insertion's thread
+(forced unwind), and null buffers for the stream and its tie. Requests whose answer differs
+between libstdc++ runtimes (the unitbuf destructor) are ordinary cases: the reference
+runtime decides them.
 
 Malformed and out-of-contract requests are written to a separate fixture with the exact
 refusal both programs must give; they never enter the public corpus.
@@ -473,6 +477,279 @@ def random_host_cases(c, rng):
                              put, tie))
 
 
+def put_script(call=0, throw='none', set_before=None, set_after=None, fill=None, value=None, delegate=None):
+    script = {'call': call, 'throw': throw}
+    for key, item in (('set_before', set_before), ('set_after', set_after), ('fill', fill), ('value', value),
+                      ('delegate', delegate)):
+        if item is not None:
+            script[key] = item
+    return script
+
+
+def change(width=None, precision=None, flags=None):
+    return {'width': width, 'precision': precision, 'flags': flags}
+
+
+def scripted(overflow_throw=None, sync_throw=None, num_put=None, tie=None, null_rdbuf=None, cancel=None):
+    value = host(overflow_throw, sync_throw, num_put, tie)
+    if null_rdbuf is not None:
+        value['null_rdbuf'] = null_rdbuf
+    if cancel is not None:
+        value['cancel'] = cancel
+    return value
+
+
+def insert_unwinding(c, case, op, value, unwinding=True, **changes):
+    c.add(case, {'op': op, 'value': list(value), 'stream': stream(**changes), 'unwinding': unwinding})
+
+
+def unwinding_cases(c):
+    """The operator called from a destructor while std::runtime_error( "outer" ) propagates:
+    every ~sentry, the tied stream's included, does nothing, so nothing a destructor would
+    flush (or terminate in) happens; exceptions from the operator still reach the caller."""
+    states = {'good': [], 'eof': ['eof'], 'bad': ['bad']}
+    masks = {'none': [], 'bad': ['bad'], 'fail': ['fail']}
+    flush = {'plain': (['dec'], False), 'unitbuf': (['dec', 'unitbuf'], False),
+             'unitbuf-sync-fails': (['dec', 'unitbuf'], True)}
+    for tag, op in OPS:
+        for sname, state in states.items():
+            for mname, mask in masks.items():
+                for fname, (flags, sync_fails) in flush.items():
+                    insert_unwinding(c, f'{tag}-unwinding-{sname}-mask-{mname}-{fname}', op, (12, -345),
+                                     state=state, exceptions=mask, flags=flags, sync_fails=sync_fails, width=12)
+        # The reference terminates after the first literal here without the outer exception.
+        for width in (0, 3, 9):
+            insert_unwinding(c, f'{tag}-unwinding-would-terminate-w{width}', op, (1, 2),
+                             flags=['dec', 'unitbuf'], sync_fails=True, exceptions=['bad'], width=width)
+            insert_unwinding(c, f'{tag}-unwinding-false-would-terminate-w{width}', op, (1, 2), unwinding=False,
+                             flags=['dec', 'unitbuf'], sync_fails=True, exceptions=['bad'], width=width)
+        for capacity in (0, LITERAL[tag], LITERAL[tag] + 1, 30):
+            for mname in ('none', 'bad'):
+                insert_unwinding(c, f'{tag}-unwinding-cap{capacity:02d}-mask-{mname}', op, (12, -345),
+                                 capacity=capacity, flags=['dec', 'unitbuf'], sync_fails=True,
+                                 exceptions=masks[mname])
+        for k in range(0, 4):
+            for mname in ('none', 'bad'):
+                insert_unwinding(c, f'{tag}-unwinding-sync-throw-{k}-mask-{mname}', op, (7, -8),
+                                 flags=['dec', 'unitbuf'], exceptions=masks[mname], host=host(sync_throw=k))
+        for k in (0, 5, 9):
+            for mname in ('none', 'bad'):
+                insert_unwinding(c, f'{tag}-unwinding-overflow-throw-{k}-mask-{mname}', op, (12, -345),
+                                 flags=['dec', 'unitbuf'], exceptions=masks[mname], host=host(overflow_throw=k))
+        for when in ('before', 'after'):
+            insert_unwinding(c, f'{tag}-unwinding-num-put-{when}', op, (-1234, 56), exceptions=['bad'],
+                             flags=['dec', 'unitbuf'], host=host(num_put={'call': 1, 'throw': when}))
+        ties = {'ok': (False, None), 'fails': (True, None), 'throw0': (False, 0), 'throw2': (False, 2)}
+        for yname, (sync_fails, sync_throw) in ties.items():
+            for mname in ('none', 'bad'):
+                insert_unwinding(c, f'{tag}-unwinding-tie-unitbuf-sync-{yname}-mask-{mname}', op, (5, -6),
+                                 flags=['dec', 'unitbuf'], sync_fails=True,
+                                 host=host(tie=tie_stream(flags=['unitbuf'], exceptions=masks[mname],
+                                                          sync_fails=sync_fails, sync_throw=sync_throw)))
+
+
+ADJUST = {'none': [], 'left': ['left'], 'right': ['right'], 'internal': ['internal'],
+          'left-internal': ['left', 'internal']}
+
+
+def facet_cases(c):
+    """A num_put facet that changes the stream it formats (its ios_base&) before or after
+    delegating to the stock body, which then pads to the width it finds and resets it, with
+    the base, sign and prefix flags it finds; the facet may also pass its own fill and long
+    value, or delegate zero or two times."""
+    probe = put_script(set_before=change(6, 42, ['dec', 'skipws', 'showpos']))
+    for tag, op in OPS:
+        insert(c, f'{tag}-facet-probe', op, (7, 8), fill=0x2A, host=host(num_put=probe))
+        for aname, extra in ADJUST.items():
+            for width in (-1, 0, 1, 5, 6, 12, 40):
+                for vname, value, base in [('neg', (-12, 34), ['dec']), ('pos', (5, 0), ['dec', 'showpos']),
+                                           ('hex', (255, 0), ['hex', 'showbase']),
+                                           ('hex-upper', (48879, 1), ['hex', 'showbase', 'uppercase']),
+                                           ('oct', (8, 0), ['oct', 'showbase'])]:
+                    if width in (1, 5) and vname not in ('neg', 'hex'):
+                        continue
+                    script = put_script(set_before=change(width, None, base + extra))
+                    insert(c, f'{tag}-facet-pad-{aname}-w{width}-{vname}', op, value, fill=0x2A,
+                           host=host(num_put=script))
+        insert(c, f'{tag}-facet-pad-wide', op, (5, 6), fill=0x2E,
+               host=host(num_put=put_script(set_before=change(4096, None, None))))
+        for fname, fill in [('nul', 0x00), ('ff', 0xFF), ('same', None)]:
+            insert(c, f'{tag}-facet-fill-{fname}', op, (-3, 4), fill=0x2A,
+                   host=host(num_put=put_script(set_before=change(7, None, ['dec', 'internal']), fill=fill)))
+        # Flags changed from decimal: the value converted for decimal is formatted in another
+        # base, its long two's complement when negative.
+        for fname, flags in [('hex', ['hex']), ('oct', ['oct']), ('hex-showbase-upper', ['hex', 'showbase', 'uppercase']),
+                             ('oct-showbase', ['oct', 'showbase']), ('none', []), ('every', [
+                                 'boolalpha', 'dec', 'fixed', 'hex', 'internal', 'left', 'oct', 'right', 'scientific',
+                                 'showbase', 'showpoint', 'showpos', 'skipws', 'unitbuf', 'uppercase'])]:
+            insert(c, f'{tag}-facet-flags-{fname}', op, (-1, INT_MAX),
+                   host=host(num_put=put_script(set_before=change(None, None, flags))))
+        # Flags changed to decimal from hex: the value was converted through unsigned int.
+        insert(c, f'{tag}-facet-flags-hex-to-dec', op, (-1, -2), flags=['hex'],
+               host=host(num_put=put_script(set_before=change(None, None, ['dec', 'showpos']))))
+        # The facet's own long values: the full 64-bit range in every base.
+        for vname, value in [('min', I64_MIN), ('max', I64_MAX), ('minus-one', -1), ('zero', 0),
+                             ('big', 0x123456789ABCDEF)]:
+            for fname, flags in [('dec', ['dec', 'showpos']), ('hex', ['hex', 'showbase']),
+                                 ('oct', ['oct', 'showbase'])]:
+                for gname, grouping in [('none', []), ('one', [1]), ('three', [3])]:
+                    if gname != 'none' and vname in ('zero', 'big'):
+                        continue
+                    insert(c, f'{tag}-facet-value-{vname}-{fname}-group-{gname}', op, (1, 2), grouping=grouping,
+                           thousands_sep=0x27,
+                           host=host(num_put=put_script(set_before=change(None, None, flags), value=value)))
+            insert(c, f'{tag}-facet-value-{vname}-padded', op, (1, 2), fill=0x23,
+                   host=host(num_put=put_script(set_before=change(30, None, ['dec', 'internal']), value=value)))
+        # Precision is carried, not read.
+        for p in (I64_MIN, -1, 0, I64_MAX):
+            insert(c, f'{tag}-facet-precision-{p}', op, (1, 2),
+                   host=host(num_put=put_script(set_after=change(None, p, None))))
+        # A width set after delegating survives into the next literal's padding.
+        for aname in ('none', 'left'):
+            for width in (0, 3, 10):
+                insert(c, f'{tag}-facet-after-width-{aname}-{width}', op, (1, 2), fill=0x2D,
+                       flags=['dec'] + ADJUST[aname], host=host(num_put=put_script(set_after=change(width, None, None))))
+        insert(c, f'{tag}-facet-after-flags-unitbuf', op, (1, 2), sync_fails=True,
+               host=host(num_put=put_script(set_after=change(None, None, ['dec', 'unitbuf']))))
+        # Zero or two stock calls; a short buffer fails the iterator, so the second writes nothing.
+        for delegate in (0, 2):
+            for capacity in (None, LITERAL[tag] + 1, LITERAL[tag] + 3):
+                cap = 'unbounded' if capacity is None else f'cap{capacity:02d}'
+                insert(c, f'{tag}-facet-delegate-{delegate}-{cap}', op, (123, 4), capacity=capacity,
+                       host=host(num_put=put_script(delegate=delegate, set_before=change(5, None, None))))
+        # The changes made before a throw survive it: the exception skips the stock reset.
+        for when in ('before', 'after'):
+            for mname, mask in [('none', []), ('bad', ['bad'])]:
+                insert(c, f'{tag}-facet-throw-{when}-mask-{mname}', op, (-1234, 56), exceptions=mask,
+                       host=host(num_put=put_script(0, when, set_before=change(9, 3, ['hex', 'showbase']),
+                                                    set_after=change(11, 4, None))))
+        # A padded field that the buffer cuts short or throws inside.
+        for capacity in (LITERAL[tag], LITERAL[tag] + 3, LITERAL[tag] + 8):
+            for mname, mask in [('none', []), ('bad', ['bad'])]:
+                insert(c, f'{tag}-facet-padded-cap{capacity:02d}-mask-{mname}', op, (-5, 6), capacity=capacity,
+                       exceptions=mask, fill=0x2A,
+                       host=host(num_put=put_script(set_before=change(8, None, ['dec', 'internal']))))
+        for k in (LITERAL[tag], LITERAL[tag] + 4):
+            insert(c, f'{tag}-facet-padded-overflow-throw-{k}', op, (-5, 6), exceptions=['bad'], fill=0x2A,
+                   host=host(overflow_throw=k, num_put=put_script(set_before=change(8, None, None))))
+
+
+def facet_random_cases(c, rng):
+    names = ['boolalpha', 'dec', 'fixed', 'hex', 'internal', 'left', 'oct', 'right', 'scientific', 'showbase',
+             'showpoint', 'showpos', 'skipws', 'unitbuf', 'uppercase']
+    for tag, op in OPS:
+        for k in range(32):
+            def ios():
+                if rng.random() < 0.3:
+                    return None
+                return change(rng.choice([None, -5, 0, 4, 9, 17, 25]), rng.choice([None, 0, 13]),
+                              rng.choice([None, [n for n in names if rng.random() < 0.25]]))
+            script = put_script(rng.randint(0, 2), rng.choice(['before', 'after', 'none', 'none']),
+                                set_before=ios(), set_after=ios(),
+                                fill=rng.choice([None, None, 0x2B, 0x00]),
+                                value=rng.choice([None, None, rng.randint(I64_MIN, I64_MAX), rng.randint(-999, 999)]),
+                                delegate=rng.choice([None, None, 0, 2]))
+            insert(c, f'{tag}-facet-random-{k:02d}', op, (rng.randint(INT_MIN, INT_MAX), rng.randint(-99, 99)),
+                   exceptions=rng.choice([[], [], ['bad']]), flags=rng.choice([['dec'], ['hex'], ['oct', 'showbase']]),
+                   fill=0x2E, capacity=rng.choice([None, None, 12, 30]), grouping=rng.choice([[], [3], [1, 2]]),
+                   host=host(num_put=script))
+
+
+def forced_unwind_cases(c):
+    """A host operation cancels the insertion's thread: libstdc++ catches the forced unwind
+    first, sets badbit and always rethrows it, whatever the mask; the rethrown unwind is
+    uncaught for every destructor it passes. A forced unwind out of a destructor's own sync
+    terminates the reference (and aborts a GCC 15 runtime, whose destructor swallows it)."""
+    masks = {'none': [], 'bad': ['bad'], 'fail': ['fail']}
+    for tag, op in OPS:
+        full = len((' width="12" height="-345"' if tag == 'size' else ' x="12" y="-345"').encode())
+        for k in range(0, full + 1):
+            for mname, mask in masks.items():
+                if mname == 'fail' and k % 4 != 0:
+                    continue
+                insert(c, f'{tag}-cancel-overflow-{k:02d}-mask-{mname}', op, (12, -345), exceptions=mask, width=0,
+                       host=scripted(cancel={'op': 'overflow', 'call': k}))
+        for name, extra in [('right', []), ('left', ['left'])]:
+            for k in (0, 7, 8, 11, 12):
+                insert(c, f'{tag}-cancel-overflow-pad-{name}-{k:02d}', op, (1, 2), flags=['dec'] + extra, width=12,
+                       fill=0x23, host=scripted(cancel={'op': 'overflow', 'call': k}))
+        # unitbuf, a sync that would throw: the destructors the unwind passes do nothing.
+        for k in (0, 3, LITERAL[tag] + 1):
+            for mname in ('none', 'bad'):
+                insert(c, f'{tag}-cancel-overflow-{k:02d}-unitbuf-sync-throw-mask-{mname}', op, (12, -345),
+                       flags=['dec', 'unitbuf'], exceptions=masks[mname],
+                       host=scripted(sync_throw=0, cancel={'op': 'overflow', 'call': k}))
+            insert(c, f'{tag}-cancel-overflow-{k:02d}-unitbuf-sync-fails', op, (12, -345), flags=['dec', 'unitbuf'],
+                   sync_fails=True, exceptions=['bad'], host=scripted(cancel={'op': 'overflow', 'call': k}))
+        # The cancellation precedes a runtime_error scripted for the same call.
+        insert(c, f'{tag}-cancel-overflow-before-throw', op, (12, -345), exceptions=['bad'],
+               host=scripted(overflow_throw=2, cancel={'op': 'overflow', 'call': 2}))
+        insert(c, f'{tag}-cancel-overflow-never', op, (12, -345),
+               host=scripted(cancel={'op': 'overflow', 'call': MAX_CAPACITY}))
+        insert(c, f'{tag}-cancel-overflow-cap', op, (12, -345), capacity=LITERAL[tag] + 1,
+               host=scripted(cancel={'op': 'overflow', 'call': LITERAL[tag] + 1}))
+        # A cancelled destructor sync.
+        for k in range(0, 6):
+            for mname, mask in masks.items():
+                for state_name, state in [('good', []), ('eof', ['eof'])]:
+                    insert(c, f'{tag}-cancel-sync-{k}-mask-{mname}-{state_name}', op, (7, -8), state=state,
+                           exceptions=mask, flags=['dec', 'unitbuf'], host=scripted(cancel={'op': 'sync', 'call': k}))
+        insert(c, f'{tag}-cancel-sync-no-unitbuf', op, (7, -8), host=scripted(cancel={'op': 'sync', 'call': 0}))
+        # A cancelled facet call, before its stock body.
+        for call in (0, 1):
+            for mname, mask in masks.items():
+                insert(c, f'{tag}-cancel-num-put-{call}-mask-{mname}', op, (-1234, 56), exceptions=mask,
+                       flags=['dec', 'unitbuf'],
+                       host=scripted(num_put=put_script(set_before=change(9, None, None)),
+                                     cancel={'op': 'num_put', 'call': call}))
+        insert(c, f'{tag}-cancel-num-put-without-facet', op, (-1234, 56),
+               host=scripted(cancel={'op': 'num_put', 'call': 0}))
+        # A cancelled tied flush: the tied stream sets badbit and rethrows; there is no main
+        # sentry yet.
+        for k in range(0, 4):
+            for tname, tflags in [('plain', []), ('unitbuf', ['unitbuf'])]:
+                for mname in ('none', 'bad'):
+                    insert(c, f'{tag}-cancel-tie-sync-{k}-{tname}-mask-{mname}', op, (5, -6),
+                           flags=['dec', 'unitbuf'],
+                           host=scripted(tie=tie_stream(flags=tflags, exceptions=masks[mname]),
+                                         cancel={'op': 'tie_sync', 'call': k}))
+
+
+def null_rdbuf_cases(c):
+    """A stream constructed on a null rdbuf() is bad from the start, and clear() keeps badbit,
+    so every sentry fails and nothing is written; the destructor never syncs and flush() of a
+    tied stream without a buffer does nothing."""
+    states = {'good': [], 'eof': ['eof'], 'fail': ['fail']}
+    masks = {'none': [], 'bad': ['bad'], 'fail': ['fail'], 'eof': ['eof']}
+    for tag, op in OPS:
+        for sname, state in states.items():
+            for mname, mask in masks.items():
+                for fname, flags in [('plain', ['dec']), ('unitbuf', ['dec', 'unitbuf'])]:
+                    insert(c, f'{tag}-null-rdbuf-{sname}-mask-{mname}-{fname}', op, (3, 4), state=state,
+                           exceptions=mask, flags=flags, width=9, sync_fails=True, host=scripted(null_rdbuf=True))
+        insert(c, f'{tag}-null-rdbuf-false', op, (3, 4), host=scripted(null_rdbuf=False))
+        insert(c, f'{tag}-null-rdbuf-with-tie', op, (3, 4), flags=['dec', 'unitbuf'],
+               host=scripted(null_rdbuf=True, tie=tie_stream(sync_fails=True, exceptions=['bad'])))
+        insert(c, f'{tag}-null-rdbuf-with-facet-and-cancel', op, (3, 4),
+               host=scripted(null_rdbuf=True, num_put=put_script(throw='before'),
+                             cancel={'op': 'overflow', 'call': 0}))
+        # A tied stream without a buffer: never flushed, whatever its scripts.
+        for tsname, tstate in [('good', []), ('eof', ['eof'])]:
+            for tmname, tmask in [('none', []), ('bad', ['bad']), ('fail', ['fail'])]:
+                for tfname, tflags in [('plain', []), ('unitbuf', ['unitbuf'])]:
+                    tie = dict(tie_stream(tstate, tmask, tflags, True, 0), null_rdbuf=True)
+                    insert(c, f'{tag}-tie-null-rdbuf-{tsname}-mask-{tmname}-{tfname}', op, (5, -6),
+                           flags=['dec', 'unitbuf'], host=scripted(tie=tie))
+        insert(c, f'{tag}-tie-null-rdbuf-false', op, (5, -6),
+               host=scripted(tie=dict(tie_stream(sync_fails=True), null_rdbuf=False)))
+        insert(c, f'{tag}-tie-null-rdbuf-cancel', op, (5, -6),
+               host=scripted(tie=dict(tie_stream(), null_rdbuf=True), cancel={'op': 'tie_sync', 'call': 0}))
+        insert(c, f'{tag}-null-rdbuf-both', op, (5, -6), flags=['dec', 'unitbuf'],
+               host=scripted(null_rdbuf=True, tie=dict(tie_stream(), null_rdbuf=True)))
+        insert_unwinding(c, f'{tag}-null-rdbuf-unwinding', op, (5, -6), flags=['dec', 'unitbuf'],
+                         exceptions=['fail'], host=scripted(null_rdbuf=True))
+
+
 def generate_cases():
     rng = random.Random(SEED)
     corpus = Corpus()
@@ -489,6 +766,13 @@ def generate_cases():
     sync_throw_cases(corpus)
     tie_cases(corpus)
     random_host_cases(corpus, random.Random(SEED + 1))
+    # The call context, mutable facet state, forced unwinding and null buffers, after every
+    # earlier request.
+    unwinding_cases(corpus)
+    facet_cases(corpus)
+    facet_random_cases(corpus, random.Random(SEED + 2))
+    forced_unwind_cases(corpus)
+    null_rdbuf_cases(corpus)
     return corpus.rows
 
 
@@ -625,6 +909,86 @@ def generate_controls():
     add('insert-order-tie-fields', {'op': 'insert_point', 'value': [1, 2],
                                     'stream': dict(good, host=host(tie=dict(ok_tie, state=['x'], flags=['y'])))},
         'expected iostate')
+    # The call context, the facet's changes, forced unwinding and null buffers.
+    for name, value, message in [('number', 1, 'expected unwinding'), ('null', None, 'expected unwinding'),
+                                 ('string', 'true', 'expected unwinding')]:
+        add(f'insert-unwinding-{name}', {'op': 'insert_point', 'value': [1, 2], 'stream': good, 'unwinding': value},
+            message)
+    add('insert-context-field', {'op': 'insert_point', 'value': [1, 2], 'stream': good, 'context': True},
+        'unexpected or missing field')
+    ok_put = {'call': 0, 'throw': 'none'}
+    ok_change = {'width': None, 'precision': None, 'flags': None}
+    new_hosts = [
+        ('null-rdbuf-number', dict(host(), null_rdbuf=1), 'expected null_rdbuf'),
+        ('null-rdbuf-null', dict(host(), null_rdbuf=None), 'expected null_rdbuf'),
+        ('cancel-number', dict(host(), cancel=1), 'expected cancel'),
+        ('cancel-null', dict(host(), cancel=None), 'expected cancel'),
+        ('cancel-missing', dict(host(), cancel={'op': 'overflow'}), 'expected cancel'),
+        ('cancel-extra', dict(host(), cancel={'op': 'overflow', 'call': 0, 'when': 1}), 'expected cancel'),
+        ('cancel-op', dict(host(), cancel={'op': 'xsputn', 'call': 0}), 'expected cancel'),
+        ('cancel-op-number', dict(host(), cancel={'op': 1, 'call': 0}), 'expected cancel'),
+        ('cancel-call-null', dict(host(), cancel={'op': 'sync', 'call': None}), 'expected cancel'),
+        ('cancel-call-negative', dict(host(), cancel={'op': 'overflow', 'call': -1}), 'expected cancel'),
+        ('cancel-sync-big', dict(host(), cancel={'op': 'sync', 'call': 65}), 'expected cancel'),
+        ('cancel-num-put-big', dict(host(), cancel={'op': 'num_put', 'call': 65}), 'expected cancel'),
+        ('cancel-overflow-big', dict(host(), cancel={'op': 'overflow', 'call': MAX_CAPACITY + 1}),
+         'expected cancel'),
+        ('put-throw-never', host(num_put={'call': 0, 'throw': 'never'}), 'expected num_put'),
+        ('put-extra', host(num_put=dict(ok_put, width=3)), 'expected num_put'),
+        ('put-set-number', host(num_put=dict(ok_put, set_before=5)), 'expected num_put'),
+        ('put-set-null', host(num_put=dict(ok_put, set_after=None)), 'expected num_put'),
+        ('put-set-missing', host(num_put=dict(ok_put, set_before={'width': 1})), 'expected num_put'),
+        ('put-set-extra', host(num_put=dict(ok_put, set_after=dict(ok_change, fill=1))), 'expected num_put'),
+        ('put-set-width-big', host(num_put=dict(ok_put, set_before=dict(ok_change, width=4097))),
+         'expected num_put'),
+        ('put-set-width-float', host(num_put=dict(ok_put, set_before=dict(ok_change, width=1.5))),
+         'expected num_put'),
+        ('put-set-precision-big', host(num_put=dict(ok_put, set_after=dict(ok_change, precision=2 ** 63))),
+         'expected num_put'),
+        ('put-set-flags-name', host(num_put=dict(ok_put, set_before=dict(ok_change, flags=['hexadecimal']))),
+         'expected num_put'),
+        ('put-set-flags-string', host(num_put=dict(ok_put, set_before=dict(ok_change, flags='hex'))),
+         'expected num_put'),
+        ('put-fill-big', host(num_put=dict(ok_put, fill=256)), 'expected num_put'),
+        ('put-fill-null', host(num_put=dict(ok_put, fill=None)), 'expected num_put'),
+        ('put-value-big', host(num_put=dict(ok_put, value=2 ** 63)), 'expected num_put'),
+        ('put-value-float', host(num_put=dict(ok_put, value=1.0)), 'expected num_put'),
+        ('put-delegate-big', host(num_put=dict(ok_put, delegate=3)), 'expected num_put'),
+        ('put-delegate-negative', host(num_put=dict(ok_put, delegate=-1)), 'expected num_put'),
+        ('tie-null-rdbuf', host(tie=dict(ok_tie, null_rdbuf='yes')), 'expected null_rdbuf'),
+        ('tie-cancel-field', host(tie=dict(ok_tie, cancel={'op': 'sync', 'call': 0})),
+         'unexpected or missing tie field'),
+    ]
+    for name, value, message in new_hosts:
+        for op in ('insert_size', 'insert_point'):
+            add(f'{op}-{name}', {'op': op, 'value': [1, 2], 'stream': dict(good, host=value)}, message)
+    cancel = dict(host(), cancel={'op': 'overflow', 'call': 0})
+    add('insert-unwinding-excludes-cancel', {'op': 'insert_size', 'value': [1, 2], 'unwinding': True,
+                                             'stream': dict(good, host=cancel)}, 'unwinding excludes cancel')
+    add('insert-unwinding-false-with-cancel-ok-then-width', {
+        'op': 'insert_size', 'value': [1, 2], 'unwinding': False,
+        'stream': dict(good, width=MAX_CAPACITY + 1, host=cancel)}, 'unbounded width exceeds limit')
+    add('insert-order-unwinding-before-stream', {'op': 'insert_size', 'value': [1, 2], 'unwinding': 1,
+                                                 'stream': dict(good, fill=999)}, 'expected unwinding')
+    add('insert-order-value-before-unwinding', {'op': 'insert_size', 'value': [1], 'unwinding': 1,
+                                                'stream': good}, 'expected point')
+    add('insert-order-cancel-conflict-before-width', {
+        'op': 'insert_point', 'value': [1, 2], 'unwinding': True,
+        'stream': dict(good, width=MAX_CAPACITY + 1, host=cancel)}, 'unwinding excludes cancel')
+    add('insert-order-host-fields-before-null-rdbuf', {
+        'op': 'insert_point', 'value': [1, 2], 'stream': dict(good, host=dict(host(num_put=1), null_rdbuf=1))},
+        'expected num_put')
+    add('insert-order-null-rdbuf-before-cancel', {
+        'op': 'insert_point', 'value': [1, 2], 'stream': dict(good, host=dict(host(), null_rdbuf=1, cancel=1))},
+        'expected null_rdbuf')
+    add('insert-order-tie-before-null-rdbuf', {
+        'op': 'insert_point', 'value': [1, 2],
+        'stream': dict(good, host=dict(host(tie=dict(ok_tie, sync_throw=65, null_rdbuf='x')), null_rdbuf=1))},
+        'expected sync_throw')
+    add('insert-order-put-call-before-changes', {
+        'op': 'insert_point', 'value': [1, 2],
+        'stream': dict(good, host=host(num_put={'call': 99, 'throw': 'none', 'set_before': 5}))},
+        'expected num_put')
     return rows
 
 
