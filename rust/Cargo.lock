@@ -1018,6 +1018,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "kicad-sexpr"
+version = "0.1.0"
+
+[[package]]
 name = "kicad-transform-shim"
 version = "0.1.0"
 dependencies = [
