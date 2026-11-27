@@ -302,9 +302,14 @@ mod tests {
                 193,
             ),
             (
-                "libs.kimath.include.geometry.application.ui.p003",
-                "SEG::Square",
-                107,
+                "libs.kimath.src.geometry.circle.application.ui.p001",
+                "wxOnAssert",
+                17,
+            ),
+            (
+                "libs.kimath.src.trigo.application.ui.p001",
+                "CalcArcMid",
+                70,
             ),
             (
                 "libs.kimath.include.math.application.ui.p002",
@@ -364,11 +369,14 @@ mod tests {
     }
 
     /// No adapter domain restricts ConstructFromTanTanPt: degenerate lines and large
-    /// coordinates reach the body, whose first call defers to the actual owner.
+    /// coordinates reach the body. With the seg.h bodies ported, the degenerate first line is
+    /// parallel to the second, the long second line is within one unit of parallel too (both
+    /// complete the parallel branch), and the third's ApproxParallel SquaredLength overflows
+    /// int. These are native replies only; the oracle corpus is the reference.
     #[test]
     fn tan_tan_requests_reach_the_body() {
         let c = json!({"center": [0, 0], "radius": 1});
-        for (a, b, p) in [
+        for ((a, b, p), expected) in [
             (
                 json!([[0, 0], [0, 0]]),
                 json!([[0, 1], [1, 1]]),
@@ -384,16 +392,21 @@ mod tests {
                 json!([[i32::MAX, i32::MIN], [i32::MIN, i32::MAX]]),
                 json!([i32::MIN, i32::MAX]),
             ),
-        ] {
+        ]
+        .into_iter()
+        .zip([
+            json!({"result": {"circle": {"center": [0, 1], "radius": 1}, "returns_self": true}}),
+            json!({"result": {"circle": {"center": [0, 1], "radius": 1}, "returns_self": true}}),
+            json!({"error": {"kind": "invalid_input", "message": "undefined circle operation"}}),
+        ]) {
             let input = json!({"op": "tan_tan_pt", "circle": c, "line_a": a, "line_b": b,
                                "point": p});
             let reply = dispatch(&json!({"unit": UNIT, "case": "c", "input": input}).to_string());
-            assert_eq!(
-                reply["error"],
-                json!({"kind": "unported", "unit": "libs.kimath.include.geometry.application.ui.p003",
-                       "upstream": "SEG::Square"}),
-                "{reply}"
-            );
+            let outcome = ["result", "error"]
+                .iter()
+                .filter_map(|k| reply.get(*k).map(|v| (k.to_string(), v.clone())))
+                .collect::<serde_json::Map<_, _>>();
+            assert_eq!(Value::Object(outcome), expected, "{reply}");
         }
     }
 }

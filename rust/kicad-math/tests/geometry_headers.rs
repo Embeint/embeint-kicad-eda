@@ -92,13 +92,17 @@ fn stripes_preserve_holes_union_and_rebuild_early_returns() -> GeometryResult<()
     assert_eq!(index.contains(Vector2I::new(10, 10), None), Ok(true));
     assert_eq!(index.contains(Vector2I::new(50, 50), None), Ok(false));
     assert_eq!(index.contains(Vector2I::new(10, 10), Some(10)), Ok(true));
-    assert!(matches!(
-        index.contains(Vector2I::new(101, 50), Some(2)),
-        Err(GeometryError::Unported {
-            upstream: "SEG::Square",
-            ..
-        })
-    ));
+    // The accuracy fallback (SEG::Square, then each non-hole edge's squared distance).
+    assert_eq!(index.contains(Vector2I::new(101, 50), Some(2)), Ok(true));
+    assert_eq!(index.contains(Vector2I::new(102, 50), Some(2)), Ok(true));
+    assert_eq!(index.contains(Vector2I::new(103, 50), Some(2)), Ok(false));
+    // Inside the hole: its edges (25 away) are skipped, the outline is 50 away.
+    assert_eq!(index.contains(Vector2I::new(50, 50), Some(30)), Ok(false));
+    assert_eq!(index.contains(Vector2I::new(50, 50), Some(50)), Ok(true));
+    assert_eq!(
+        index.contains(Vector2I::new(50, 50), Some(i32::MAX)),
+        Ok(true)
+    );
     let polys: Vec<_> = (0..9)
         .map(|_| PolygonContours {
             outline: &square,

@@ -1,0 +1,82 @@
+name: Rust seg.h and shape header live validation
+on:
+  pull_request:
+    branches: [rust]
+    paths:
+      - rust/kicad-shape-headers-shim/**
+      - rust/kicad-math/**
+      # The case generator reuses the seg and circle generators' exact mirrors.
+      - rust/kicad-seg-shim/generate_cases.py
+      - rust/kicad-circle-shim/generate_cases.py
+      - port/oracle/**
+      - port/cases/libs.kimath.include.geometry.application.ui.p003.jsonl
+      - port/units/libs.kimath.include.geometry.application.ui.p003.toml
+      - .github/workflows/rust-shape-headers-live.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  shape-headers-live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CARGO_BUILD_JOBS: "2"
+      ORACLE_JOBS: "2"
+      GLIBC_TUNABLES: "glibc.cpu.hwcaps=-AVX,-AVX2,-FMA,-FMA4,-AVX512F"
+      LD_LIBRARY_PATH: ""
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - name: Install toolchain and oracle dependencies
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal --component clippy,rustfmt --target wasm32-unknown-unknown
+          rustup default 1.99.1
+          # The image's packages.microsoft.com source is unused here and intermittently fails apt with 403.
+          for src in /etc/apt/sources.list.d/*; do if grep -qs packages.microsoft.com "$src"; then sudo rm -f "$src"; fi; done
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++ gcc cmake ninja-build python3 rsync git libboost-dev libwxgtk3.2-dev
+      - name: Check portable implementation, generated corpus and controls
+        run: |
+          cargo fmt --manifest-path rust/Cargo.toml -p kicad-math -p kicad-shape-headers-shim --check
+          cargo clippy --locked --manifest-path rust/Cargo.toml -p kicad-math -p kicad-shape-headers-shim --all-targets -j2 -- -D warnings
+          cargo test --locked --manifest-path rust/Cargo.toml -p kicad-math -p kicad-shape-headers-shim -j2
+          cargo check --locked --manifest-path rust/Cargo.toml -p kicad-math --target wasm32-unknown-unknown -j2
+          python3 rust/kicad-shape-headers-shim/generate_cases.py --check
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-shape-headers-shim -p kicad-difftest -j2
+      - name: Build genuine pinned own-library oracle
+        run: |
+          python3 port/oracle/prepare.py --output-dir "$RUNNER_TEMP/shape-headers-stage"
+          bash port/oracle/build.sh "$RUNNER_TEMP/shape-headers-stage" "$PWD/port/oracle" "$RUNNER_TEMP/shape-headers-native"
+      - name: Compare every public case and separate undefined-domain controls
+        run: |
+          out="$RUNNER_TEMP/shape-headers-native"
+          rust/target/debug/kicad-difftest compare --partial \
+            --unit libs.kimath.include.geometry.application.ui.p003 --root "$PWD" \
+            --oracle "$out/oracle-build/kicad-oracle" --rust "$PWD/rust/target/debug/kicad-shape-headers-shim" \
+            --report "$out/compare.json"
+          python3 rust/kicad-shape-headers-shim/compare_controls.py \
+            --oracle "$out/oracle-build/kicad-oracle" --rust "$PWD/rust/target/debug/kicad-shape-headers-shim"
+      - name: Execute every case and control in import-free WebAssembly
+        run: |
+          out="$RUNNER_TEMP/shape-headers-native"
+          python3 -c "import json,sys; [print(json.dumps(json.loads(l)['request'])) for l in open(sys.argv[1])]" \
+            port/oracle/fixtures/shape-headers-controls.jsonl > "$out/controls.jsonl"
+          cat port/cases/libs.kimath.include.geometry.application.ui.p003.jsonl "$out/controls.jsonl" \
+            | rust/target/debug/kicad-shape-headers-shim > "$out/rust-native.jsonl"
+          export KICAD_SHAPE_HEADERS_WASM_REFERENCE="$out/rust-native.jsonl"
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-shape-headers-shim \
+            --example corpus_parity --features live-wasm --target wasm32-unknown-unknown --release -j2
+          node rust/kicad-shape-headers-shim/wasm-test.mjs rust/target/wasm32-unknown-unknown/release/examples/corpus_parity.wasm
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: shape-headers-live-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/shape-headers-native/compare.json
+            ${{ runner.temp }}/shape-headers-native/oracle-build/oracle-provenance.json
+            ${{ runner.temp }}/shape-headers-native/oracle-build/compile_commands.json
+            ${{ runner.temp }}/shape-headers-native/oracle-build/binary.sha256
+            ${{ runner.temp }}/shape-headers-native/oracle-build/kicad-oracle
+            ${{ runner.temp }}/shape-headers-stage/source-manifest.json
+          retention-days: 14
