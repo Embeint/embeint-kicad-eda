@@ -1,0 +1,67 @@
+{
+  "reviewed_head": "48e156721a92296c99b4b9e8222a73855fadc30b",
+  "reviewed_tree": "3fb9617db557e7b6d460c5e16d622a290c74a443",
+  "verdict": "changes required",
+  "model": "gpt-6.1-sol",
+  "task_alias": "node:delegated-task:a0182f52-97b4-4eb6-abcc-4b97d5276437",
+  "user_clarified_original_review_run": 2,
+  "raw_report_sha256": "0c41d5b2c30ab9d0e287140a5bcd4d67b66cb2386a40622fc72181165041baec",
+  "committed_lf_report_sha256": "0c41d5b2c30ab9d0e287140a5bcd4d67b66cb2386a40622fc72181165041baec",
+  "remaining_findings": [
+    {
+      "severity": "P1",
+      "description": "Admitted tan-tan input reaches INT_MIN - 1 in PerpendicularSeg",
+      "line_a": [
+        [
+          0,
+          0
+        ],
+        [
+          65536,
+          1
+        ]
+      ],
+      "line_b": [
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          65536
+        ]
+      ],
+      "point": [
+        32766,
+        -32768
+      ],
+      "oracle_control_required": true,
+      "rust_classification": "Earlier genuine SEG::Square unported, rather than anticipating later undefined arithmetic"
+    },
+    {
+      "severity": "P2",
+      "description": "Seven assertion-handler effects absent from portable continuation"
+    }
+  ],
+  "later_corrections_not_reviewed": {
+    "head": "0aa3752c1687581a34c64096075926abc015ba74",
+    "corrected": [
+      "Test helper odd-half midpoint rounding",
+      "Unsupported remainder coverage and assertion-site counts",
+      "Stale intermediate-bound source comment"
+    ],
+    "not_corrected": [
+      "Actual admitted overflow",
+      "Assertion effects"
+    ]
+  },
+  "review_validation": {
+    "exact": 4616,
+    "deferred": 362,
+    "failures": 0,
+    "control_requests": 81,
+    "native_wasm_requests": 5059,
+    "sanitizer_rebuild": "Not performed; shared lock busy"
+  },
+  "later_head_approved": false
+}

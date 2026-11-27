@@ -46,3 +46,20 @@ verdict. Current head0aa3752c16 additionally retracts the stale intermediate
 bound in adapter source comments. No third review retry is launched. Both
 interrupted reviews remain partial evidence; neither approves the unresolved
 assertion or domain findings. Guard code and numerical behavior remain unchanged.
+
+The user-clarified original review subsequently completed on its second run.
+[completed-review.md](completed-review.md) and [completed-review.json](completed-review.json)
+supersede the earlier claim that no completed verdict exists. The verdict requests
+changes at the original `48e156721a` head, without approving later parent fixes.
+It establishes an actual P1 admitted-domain defect: lines `(0,0)->(65536,1)` and
+`(0,0)->(1,65536)`, point `(32766,-32768)`, reach tangent point
+`(INT_MIN,-32768)` and then `INT_MIN - 1` in PerpendicularSeg. The existing genuine
+SEG guard rejects that next operation. The oracle needs a source-derived guard
+and a separate control; Rust must remain honestly deferred at the earlier genuine
+SEG::Square call. The P2 missing assertion-handler effect also remains.
+
+The midpoint, unsupported remainder coverage and assertion counts were corrected
+on later heads, which this verdict did not review. Its raw source and committed
+LF report digests are both retained; no report contents were rewritten. The
+separate follow-up review remains interrupted. No new parent retry or reviewer
+model substitution was used to obtain this completed result. PR #95 remains held.

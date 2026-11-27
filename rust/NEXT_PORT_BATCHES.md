@@ -18,7 +18,7 @@ Accepted rust remains `70888b572202033a6522f2f271b10cc908f74dfe`.
 | --- | --- | --- |
 | Core #92 | Quota failure; local `80e7fdad4e` and unfinished corrections preserved | Reconcile original ownership before any authorized Opus continuation; finish allocation/lifecycle/cast/lifetime work, then fresh review |
 | wx #93 | `4aaae34988cd6af451b045556f08b6ddce895074`; allocating Clone fixed | Four substantive unwind/facet/null-buffer findings remain; fresh review after correction |
-| Circle #95 | `0aa3752c1687581a34c64096075926abc015ba74`; two provider-interrupted reviews | Assertion effects, domain argument and completed independent review remain; no third retry/model substitution |
+| Circle #95 | `0aa3752c1687581a34c64096075926abc015ba74`; original review completed with changes required at old48e | P1 admitted-domain signed overflow and P2 assertion effects remain; later-head review follows corrections |
 | Clipper #96 | `5b145ba4d1f3c8e804031613c5df1a01345321fb`; three bounded review fixes published | Add fallible callback behavior and retain groups/Z callback on failure, then fresh review |
 
 For #96, fresh locked GCC13/glibc2.39/wx3.2.4 evidence at code commit
@@ -34,6 +34,21 @@ These manual target results are not hosted CI status or independent approval.
 No new implementation or reviewer retry, timer or model substitution was
 started. Existing PR watches remain; source findings block integration even
 when checks pass. No current implementation writer is claimed active.
+
+The user-clarified original circle review has now completed: its concrete P1
+example reaches `INT_MIN - 1` in PerpendicularSeg despite the adapter bounds.
+[Full verdict and reproduction](validation/2026-11-27-circle/completed-review.md)
+are bound to old head48e, not later parent corrections. Assertions also remain
+unrepresented; midpoint and coverage fixes on later heads do not clear either.
+
+The recurring preflight queue is separately addressed by
+[CI routing PR #97](https://github.com/Embeint/embeint-kicad-eda/pull/97). The sole
+isolated runner is offline, so pushes now default to hosted Ubuntu, with manual
+isolated opt-in retained. Fresh Sol review has no routing objections and its one
+doc note is fixed. A real automatic push started on GitHub Ubuntu. All four stuck
+port-head preflights were replaced with hosted runs and observed in progress.
+[Routing/run evidence](validation/2026-11-27-preflight-routing/README.md) records
+the snapshot; final-head checks and merge remain pending. Source blockers persist.
 
 ### Earlier coordination snapshots (superseded by the queue above)
 
