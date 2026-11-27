@@ -44,14 +44,23 @@
 //! Engine bodies written in `clipper.engine.cpp` belong to the
 //! `thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p001`/`p002` units. Lines 1-2271 (unit
 //! p001) are ported in [`engine_p001`], lines 2272-3337 in [`engine_p002`] and
-//! `clipper.offset.cpp` in [`offset`] (unit p002). Calls into the unported `clipper.h` bodies
-//! (unit `thirdparty.clipper2.clipper2lib.include.clipper2.thirdparty.pure.p002`) return
-//! [`ClipperError::Unported`] at that call, naming the owning unit.
+//! `clipper.offset.cpp` in [`offset`] (unit p002). `clipper.rectclip.cpp` is ported in
+//! [`rectclip`] (unit src p003).
+//!
+//! Unit `thirdparty.clipper2.clipper2lib.include.clipper2.thirdparty.pure.p002` owns the
+//! remaining headers: [`clipper`] (`clipper.h`), [`clipper_minkowski`]
+//! (`clipper.minkowski.h`), [`clipper_triangulation`] (`clipper.triangulation.h` and
+//! `clipper.version.h`), and the `clipper.offset.h`/`clipper.rectclip.h` declarations co-ported
+//! in [`offset`] and [`rectclip`]. `Triangulate`'s body (`clipper.triangulation.cpp`, which
+//! KiCad does not compile) returns [`ClipperError::Unported`] naming its owning unit.
 
 use std::borrow::Cow;
 
+pub mod clipper;
 pub mod clipper_core;
 pub mod clipper_engine;
+pub mod clipper_minkowski;
+pub mod clipper_triangulation;
 pub mod engine_p001;
 pub mod engine_p002;
 pub mod offset;
@@ -66,6 +75,9 @@ pub const UNIT: &str = "thirdparty.clipper2.clipper2lib.include.clipper2.thirdpa
 pub const ENGINE_SRC_P001: &str = "thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p001";
 /// Owner of `clipper.engine.cpp` lines 2272-3337 and `clipper.offset.cpp`.
 pub const ENGINE_SRC_P002: &str = "thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p002";
+/// Owner of `clipper.h`, `clipper.minkowski.h`, `clipper.offset.h`, `clipper.rectclip.h`,
+/// `clipper.triangulation.h` and `clipper.version.h`.
+pub const INCLUDE_P002: &str = clipper::UNIT;
 
 /// `Clipper2Lib::Clipper2Exception`: `what()` returns the description it was built with.
 ///
