@@ -22,6 +22,8 @@
 #include <cstdint>
 #include <csignal>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <exception>
 #include <fcntl.h>
 #include <functional>
@@ -30,6 +32,7 @@
 #include <iostream>
 #include <locale>
 #include <map>
+#include <memory>
 #include <new>
 #include <ostream>
 #include <pthread.h>
@@ -37,6 +40,7 @@
 #include <streambuf>
 #include <string>
 #include <string_view>
+#include <sys/mman.h>
 #include <sys/wait.h>
 #include <type_traits>
 #include <unistd.h>
@@ -52,6 +56,21 @@ static_assert( std::is_same_v<decltype( wxPoint::x ), int> && std::is_same_v<dec
 static_assert( CHAR_MIN < 0, "numpunct grouping bytes are signed chars on the reference platform" );
 static_assert( sizeof( std::streamsize ) == 8, "widths and precisions are 64-bit" );
 static_assert( sizeof( long ) == 8, "num_put<char>::do_put( long ) values are 64-bit" );
+
+
+/// The exit status of a child that received SIGABRT.
+constexpr int WX_STL_COMPAT_ABORT_STATUS = 5;
+
+extern "C"
+{
+/// The child's SIGABRT handler. It only ends the process (std::_Exit is signal-safe); the
+/// oracle process builds the reply from the shared record after the child has ended.
+[[noreturn]] static void WxStlCompatAbortExit( int )
+{
+    std::_Exit( WX_STL_COMPAT_ABORT_STATUS );
+}
+}
+
 
 namespace
 {
@@ -71,6 +90,10 @@ constexpr int64_t MAX_DELEGATE = 2;
 // buffer, facet and cancellation events and one destructor sync); the trace refuses beyond
 // this.
 constexpr size_t  MAX_EVENTS = 64;
+// The largest serialized cancellation snapshot: the hexadecimal sink bytes (at most 2^20
+// bytes and a few padded fields) with the trace and the fixed fields. A larger one is a
+// harness failure.
+constexpr size_t  MAX_SNAPSHOT = size_t( 6 ) << 20;
 
 [[noreturn]] void Fail( const std::string& aMessage )
 {
@@ -344,11 +367,49 @@ private:
 
 class SINK;
 
+
+/// What a child shares with the oracle process, so that an insertion that ends in an abort
+/// is reported without any work in a signal handler. Each stream is constructed in its
+/// slot, so that its ios_base and basic_ios members are read after the child has ended. The
+/// host fields (sink bytes, sync counts, trace, setup results) are a snapshot the host takes
+/// in ordinary context when it cancels the insertion's thread: an abort is only reached
+/// from there through the runtime's destructor catch( ... ), which runs no host code, and a
+/// host call after the snapshot marks it stale.
+struct ABORT_RECORD
+{
+    alignas( std::ostream ) unsigned char main[sizeof( std::ostream )];
+    alignas( std::ostream ) unsigned char tie[sizeof( std::ostream )];
+    bool   cancelled = false;
+    bool   stale = false;
+    bool   oversized = false;
+    size_t length = 0;
+    /// The serialized reply at the cancellation; only its first `length` bytes are written.
+    char   snapshot[MAX_SNAPSHOT];
+};
+
+
+/// The child's record and the snapshot its host takes on cancelling the thread.
+ABORT_RECORD*          g_abortRecord = nullptr;
+std::function<void()>* g_cancelSnapshot = nullptr;
+
+
+/// Called at the start of every host operation: one after a cancellation snapshot makes
+/// that snapshot stale.
+void HostCall()
+{
+    if( g_abortRecord && g_abortRecord->cancelled )
+        g_abortRecord->stale = true;
+}
+
+
 /// Cancels the calling thread at a scripted host call: pthread_testcancel() then throws the
 /// forced unwind (abi::__forced_unwind) out of the host operation. Only an insertion run on
-/// its own thread is scripted to reach this.
+/// its own thread is scripted to reach this. The host fields are recorded first.
 [[noreturn]] void ForceUnwind()
 {
+    if( g_cancelSnapshot )
+        ( *g_cancelSnapshot )();
+
     pthread_setcancelstate( PTHREAD_CANCEL_ENABLE, nullptr );
     pthread_setcanceltype( PTHREAD_CANCEL_DEFERRED, nullptr );
     pthread_cancel( pthread_self() );
@@ -389,6 +450,8 @@ public:
 protected:
     int_type overflow( int_type aChar ) override
     {
+        HostCall();
+
         if( traits_type::eq_int_type( aChar, traits_type::eof() ) )
             return traits_type::not_eof( aChar );
 
@@ -418,6 +481,7 @@ protected:
 
     int sync() override
     {
+        HostCall();
         const uint64_t index = m_syncCalls++;
 
         if( m_syncCancel >= 0 && index == static_cast<uint64_t>( m_syncCancel ) )
@@ -535,6 +599,7 @@ public:
 protected:
     iter_type do_put( iter_type aOut, std::ios_base& aIo, char aFill, long aValue ) const override
     {
+        HostCall();
         const uint64_t index = m_calls++;
         m_events.Log( "do_put", static_cast<int64_t>( aValue ) );
 
@@ -631,9 +696,8 @@ int64_t CallIndex( const JSON& aValue, int64_t aMax, const char* aMessage )
 }
 
 
-/// The reply for the state reached, from the child's terminate or SIGABRT handler.
+/// The reply for the state reached, from the child's terminate handler.
 std::function<JSON()>* g_terminateReport = nullptr;
-std::function<JSON()>* g_abortReport = nullptr;
 
 
 [[noreturn]] void WriteAndExit( int aFd, const JSON& aReply )
@@ -673,16 +737,143 @@ int g_replyFd = -1;
 }
 
 
-/// The GCC 15 and later sentry destructor catches a forced unwind with catch( ... ) and does
-/// not rethrow it, so glibc aborts the process ("FATAL: exception not rethrown"). The child
-/// reports the state reached at that moment. The reference libstdc++ 14 never gets here.
-void ReportAbort( int )
+/// Gives private libstdc++ members, through an explicit instantiation (which may name
+/// them), as member pointers: the stream fields read from an ended child's stream image.
+template <typename TAG, typename TAG::TYPE MEMBER>
+struct PRIVATE_MEMBER
 {
-    if( !g_abortReport )
-        _exit( 4 );
+    friend typename TAG::TYPE Member( TAG ) { return MEMBER; }
+};
 
-    WriteAndExit( g_replyFd, ( *g_abortReport )() );
+#define WX_STL_COMPAT_MEMBER( TAG, CLASS, TYPE_, NAME )                                     \
+    struct TAG                                                                              \
+    {                                                                                       \
+        using TYPE = TYPE_ CLASS::*;                                                        \
+        friend TYPE Member( TAG );                                                          \
+    };                                                                                      \
+    template struct PRIVATE_MEMBER<TAG, &CLASS::NAME>
+
+WX_STL_COMPAT_MEMBER( IOS_STATE, std::ios_base, std::ios::iostate, _M_streambuf_state );
+WX_STL_COMPAT_MEMBER( IOS_EXCEPTIONS, std::ios_base, std::ios::iostate, _M_exception );
+WX_STL_COMPAT_MEMBER( IOS_FLAGS, std::ios_base, std::ios::fmtflags, _M_flags );
+WX_STL_COMPAT_MEMBER( IOS_WIDTH, std::ios_base, std::streamsize, _M_width );
+WX_STL_COMPAT_MEMBER( IOS_PRECISION, std::ios_base, std::streamsize, _M_precision );
+WX_STL_COMPAT_MEMBER( IOS_FILL, std::basic_ios<char>, char, _M_fill );
+WX_STL_COMPAT_MEMBER( IOS_FILL_INIT, std::basic_ios<char>, bool, _M_fill_init );
+#undef WX_STL_COMPAT_MEMBER
+
+
+/// Byte offsets of the stream fields within a complete std::ostream object, measured on a
+/// probe of the same type (its virtual ios_base base has the same place in every one).
+struct IMAGE_OFFSETS
+{
+    size_t state, exceptions, flags, width, precision, fill, fillInit;
+};
+
+
+const IMAGE_OFFSETS& ImageOffsets()
+{
+    static const IMAGE_OFFSETS offsets = []()
+    {
+        const std::ostream                probe( nullptr );
+        const std::ios_base&              base = probe;
+        const std::basic_ios<char>&       ios = probe;
+        const uintptr_t                   start = reinterpret_cast<uintptr_t>( &probe );
+        auto at = [&]( const void* aField ) { return static_cast<size_t>( reinterpret_cast<uintptr_t>( aField ) - start ); };
+
+        return IMAGE_OFFSETS{ at( &( base.*Member( IOS_STATE{} ) ) ),
+                              at( &( base.*Member( IOS_EXCEPTIONS{} ) ) ),
+                              at( &( base.*Member( IOS_FLAGS{} ) ) ),
+                              at( &( base.*Member( IOS_WIDTH{} ) ) ),
+                              at( &( base.*Member( IOS_PRECISION{} ) ) ),
+                              at( &( ios.*Member( IOS_FILL{} ) ) ),
+                              at( &( ios.*Member( IOS_FILL_INIT{} ) ) ) };
+    }();
+
+    return offsets;
 }
+
+
+template <typename T>
+T ImageValue( const unsigned char* aSlot, size_t aOffset )
+{
+    static_assert( std::is_trivially_copyable_v<T> );
+    T value;
+    std::memcpy( &value, aSlot + aOffset, sizeof( value ) );
+    return value;
+}
+
+
+/// Replaces the stream fields of a reply with those of the ended child's stream image: the
+/// state the runtime reached, including what its destructor did after the last host call.
+void ImageFields( JSON& aReply, const unsigned char* aSlot, bool aMain )
+{
+    const IMAGE_OFFSETS& at = ImageOffsets();
+    aReply["state"] = EmitNames( ImageValue<std::ios::iostate>( aSlot, at.state ), IOSTATE );
+    aReply["exceptions"] = EmitNames( ImageValue<std::ios::iostate>( aSlot, at.exceptions ), IOSTATE );
+
+    if( !aMain )
+        return;
+
+    // fill() would widen a fill that was never set; the adapter always sets it.
+    if( !ImageValue<bool>( aSlot, at.fillInit ) )
+        throw std::runtime_error( "aborted stream fill not initialised" );
+
+    aReply["fill"] = static_cast<int>( static_cast<unsigned char>( ImageValue<char>( aSlot, at.fill ) ) );
+    aReply["flags"] = EmitNames( ImageValue<std::ios::fmtflags>( aSlot, at.flags ), FMTFLAGS );
+    aReply["precision"] = static_cast<int64_t>( ImageValue<std::streamsize>( aSlot, at.precision ) );
+    aReply["width"] = static_cast<int64_t>( ImageValue<std::streamsize>( aSlot, at.width ) );
+}
+
+
+/// The shared record of one insertion: an anonymous shared mapping that the child inherits
+/// and the oracle process reads after the child has ended. The snapshot pages are only
+/// touched when written.
+class SHARED_RECORD
+{
+public:
+    SHARED_RECORD()
+    {
+        void* memory = mmap( nullptr, sizeof( ABORT_RECORD ), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS,
+                             -1, 0 );
+
+        if( memory == MAP_FAILED )
+            throw std::runtime_error( "insertion record mapping failed" );
+
+        m_record = new( memory ) ABORT_RECORD;
+    }
+
+    ~SHARED_RECORD()
+    {
+        std::destroy_at( m_record );
+        munmap( m_record, sizeof( ABORT_RECORD ) );
+    }
+
+    SHARED_RECORD( const SHARED_RECORD& ) = delete;
+    SHARED_RECORD& operator=( const SHARED_RECORD& ) = delete;
+
+    ABORT_RECORD& operator*() const { return *m_record; }
+    ABORT_RECORD* operator->() const { return m_record; }
+
+private:
+    ABORT_RECORD* m_record = nullptr;
+};
+
+
+/// A std::ostream constructed in a slot of the shared record, destroyed with this holder.
+struct SHARED_STREAM
+{
+    SHARED_STREAM( unsigned char* aSlot, std::streambuf* aBuffer ) :
+            stream( *new( aSlot ) std::ostream( aBuffer ) )
+    {}
+
+    ~SHARED_STREAM() { std::destroy_at( &stream ); }
+
+    SHARED_STREAM( const SHARED_STREAM& ) = delete;
+    SHARED_STREAM& operator=( const SHARED_STREAM& ) = delete;
+
+    std::ostream& stream;
+};
 
 
 /// The thread body for an insertion that a host operation may cancel.
@@ -709,14 +900,49 @@ struct DURING_UNWINDING
 };
 
 
-/// Runs aRun in a child process, which writes its reply to a pipe. Every insertion runs this
-/// way so that a std::terminate inside it is observed, not fatal to the oracle.
-JSON Isolated( const std::function<JSON()>& aRun )
+/// Reads a file descriptor to its end.
+std::string ReadAll( int aFd )
 {
+    std::string text;
+    char        chunk[4096];
+
+    for( ;; )
+    {
+        const ssize_t got = read( aFd, chunk, sizeof( chunk ) );
+
+        if( got < 0 && errno == EINTR )
+            continue;
+
+        if( got <= 0 )
+            break;
+
+        text.append( chunk, static_cast<size_t>( got ) );
+    }
+
+    return text;
+}
+
+
+/// Runs aRun in a child process, which writes its reply to a pipe. Every insertion runs this
+/// way so that a std::terminate inside it is observed, not fatal to the oracle. A child that
+/// receives SIGABRT only exits with WX_STL_COMPAT_ABORT_STATUS; if glibc reported a forced
+/// unwind that was not rethrown, aAborted builds the reply here, outside any signal handler,
+/// from what the ended child left in shared memory. The child's diagnostics are captured and
+/// copied to this process's stderr.
+JSON Isolated( const std::function<JSON()>& aRun, const std::function<JSON()>& aAborted )
+{
+    const int errorFd = memfd_create( "wx-stl-compat-stderr", MFD_CLOEXEC );
+
+    if( errorFd < 0 )
+        throw std::runtime_error( "insertion stderr capture failed" );
+
     int pipeFds[2];
 
     if( pipe( pipeFds ) != 0 )
+    {
+        close( errorFd );
         throw std::runtime_error( "insertion pipe failed" );
+    }
 
     std::cout.flush();
     std::cerr.flush();
@@ -724,7 +950,12 @@ JSON Isolated( const std::function<JSON()>& aRun )
     const pid_t pid = fork();
 
     if( pid < 0 )
+    {
+        close( pipeFds[0] );
+        close( pipeFds[1] );
+        close( errorFd );
         throw std::runtime_error( "insertion fork failed" );
+    }
 
     if( pid == 0 )
     {
@@ -734,9 +965,12 @@ JSON Isolated( const std::function<JSON()>& aRun )
         if( null >= 0 )
             dup2( null, STDOUT_FILENO );
 
+        if( dup2( errorFd, STDERR_FILENO ) < 0 )
+            _exit( 4 );
+
         g_replyFd = pipeFds[1];
         std::set_terminate( ReportTermination );
-        std::signal( SIGABRT, ReportAbort );
+        std::signal( SIGABRT, WxStlCompatAbortExit );
 
         try
         {
@@ -749,35 +983,40 @@ JSON Isolated( const std::function<JSON()>& aRun )
     }
 
     close( pipeFds[1] );
-    std::string text;
-    char        chunk[4096];
-
-    for( ;; )
-    {
-        const ssize_t got = read( pipeFds[0], chunk, sizeof( chunk ) );
-
-        if( got < 0 && errno == EINTR )
-            continue;
-
-        if( got <= 0 )
-            break;
-
-        text.append( chunk, static_cast<size_t>( got ) );
-    }
-
+    const std::string text = ReadAll( pipeFds[0] );
     close( pipeFds[0] );
     int status = 0;
 
     while( waitpid( pid, &status, 0 ) < 0 )
     {
         if( errno != EINTR )
+        {
+            close( errorFd );
             throw std::runtime_error( "insertion wait failed" );
+        }
     }
 
-    if( !WIFEXITED( status ) || WEXITSTATUS( status ) != 0 || text.empty() )
-        throw std::runtime_error( "insertion child failed" );
+    // The child's writes moved the shared file offset to their end.
+    const std::string errors = lseek( errorFd, 0, SEEK_SET ) == 0 ? ReadAll( errorFd ) : std::string();
+    close( errorFd );
+    std::cerr << errors;
+    JSON reply;
 
-    JSON reply = JSON::parse( text );
+    if( WIFEXITED( status ) && WEXITSTATUS( status ) == WX_STL_COMPAT_ABORT_STATUS )
+    {
+        // nptl/unwind.c unwind_cleanup: __libc_fatal, which writes this and aborts.
+        if( !text.empty() || errors.find( "FATAL: exception not rethrown\n" ) == std::string::npos )
+            throw std::runtime_error( "insertion child aborted without an unrethrown forced unwind" );
+
+        reply = aAborted();
+    }
+    else
+    {
+        if( !WIFEXITED( status ) || WEXITSTATUS( status ) != 0 || text.empty() )
+            throw std::runtime_error( "insertion child failed" );
+
+        reply = JSON::parse( text );
+    }
 
     if( reply.contains( "_overrun" ) )
         Fail( "event limit exceeded" );
@@ -971,9 +1210,12 @@ JSON Insert( const JSON& aInput )
     if( !bounded && width > MAX_UNBOUNDED_WIDTH )
         Fail( "unbounded width exceeds limit" );
 
+    const SHARED_RECORD record;
+
     return Isolated(
             [&]() -> JSON
             {
+                g_abortRecord = &*record;
                 EVENTS events;
                 SINK   sink( bounded ? static_cast<size_t>( capacity ) : SIZE_MAX, syncFails, overflowThrow,
                              syncThrow, cancelOverflow, cancelSync, events, "sync" );
@@ -983,8 +1225,9 @@ JSON Insert( const JSON& aInput )
                 // throw leaves the mask set and is caught.
                 SINK         tieSink( SIZE_MAX, tieSyncFails, -1, tieSyncThrow, -1, cancelTieSync, events,
                                       "tie_sync" );
-                std::ostream tiedStream( tied && tieNullBuffer ? nullptr : &tieSink );
-                bool         tieSetupFailure = false;
+                SHARED_STREAM tiedHolder( record->tie, tied && tieNullBuffer ? nullptr : &tieSink );
+                std::ostream& tiedStream = tiedHolder.stream;
+                bool          tieSetupFailure = false;
 
                 if( tied )
                 {
@@ -1001,8 +1244,9 @@ JSON Insert( const JSON& aInput )
                     }
                 }
 
-                std::ostream out( nullBuffer ? nullptr : &sink );
-                std::locale  locale( std::locale::classic(), new NUMPUNCT( separator, grouping ) );
+                SHARED_STREAM outHolder( record->main, nullBuffer ? nullptr : &sink );
+                std::ostream& out = outHolder.stream;
+                std::locale   locale( std::locale::classic(), new NUMPUNCT( separator, grouping ) );
 
                 if( put.present )
                     locale = std::locale( locale, new NUM_PUT( put, events ) );
@@ -1072,9 +1316,28 @@ JSON Insert( const JSON& aInput )
                 };
 
                 std::function<JSON()> onTerminate = [&]() { return report( "terminate", nullptr, true ); };
-                std::function<JSON()> onAbort = [&]() { return report( "abort", nullptr, true ); };
                 g_terminateReport = &onTerminate;
-                g_abortReport = &onAbort;
+
+                // Taken in the host operation that cancels the thread, before the forced
+                // unwind: the reply an abort would give, whose stream fields the oracle
+                // process then replaces with the stream images (ImageFields).
+                std::function<void()> onCancel = [&]()
+                {
+                    const std::string text = report( "abort", nullptr, true ).dump();
+
+                    if( text.size() > MAX_SNAPSHOT )
+                    {
+                        record->oversized = true;
+                    }
+                    else
+                    {
+                        std::memcpy( record->snapshot, text.data(), text.size() );
+                        record->length = text.size();
+                    }
+
+                    record->cancelled = true;
+                };
+                g_cancelSnapshot = &onCancel;
                 const VALUE value( x, y );
                 const char* outcome = nullptr;
                 std::string what;
@@ -1144,6 +1407,20 @@ JSON Insert( const JSON& aInput )
 
                 return report( outcome, std::string_view( outcome ) == "runtime_error" ? what.c_str() : nullptr,
                                same );
+            },
+            // In this process, after the child has ended with an abort.
+            [&]() -> JSON
+            {
+                if( !record->cancelled || record->stale || record->oversized )
+                    throw std::runtime_error( "insertion aborted without a valid cancellation snapshot" );
+
+                JSON reply = JSON::parse( std::string_view( record->snapshot, record->length ) );
+                ImageFields( reply, record->main, true );
+
+                if( reply.contains( "tie" ) )
+                    ImageFields( reply["tie"], record->tie, false );
+
+                return reply;
             } );
 }
 
