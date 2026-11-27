@@ -226,6 +226,14 @@ list( REMOVE_ITEM ORACLE_SHIMS "${SHAPE_HEADERS_P003_SHIM}" )
 # adapter's.
 set( CLIPPER2_INCLUDE_P002_SHIM "${ORACLE_OVERLAY}/shims/clipper2_include_p002.cpp" )
 list( REMOVE_ITEM ORACLE_SHIMS "${CLIPPER2_INCLUDE_P002_SHIM}" )
+# The kiplatform public header adapter and its probe follow every previously qualified object,
+# the clipper.h/clipper.minkowski.h header adapter included, so none of their weak template
+# copies (wxString, std::function, JSON helpers) is selected ahead of an earlier adapter's.
+# The probe compiles the pinned io.h, secrets.h and ui.h with namespace KIPLATFORM renamed and
+# defines only symbols in that renamed namespace, never a genuine KIPLATFORM function.
+set( KIPLATFORM_INCLUDE_P001_SHIM "${ORACLE_OVERLAY}/shims/kiplatform_include_p001.cpp" )
+list( REMOVE_ITEM ORACLE_SHIMS "${KIPLATFORM_INCLUDE_P001_SHIM}" )
+set( KIPLATFORM_INCLUDE_P001_PROBE "${ORACLE_OVERLAY}/reference/kiplatform_include_probe.cpp" )
 # Its undefined-behaviour replay: the adapter's request evaluation compiled against the pinned,
 # unmodified clipper.engine.cpp, clipper.offset.cpp and clipper.rectclip.cpp (renamed
 # namespace) with UBSan in trap mode and _GLIBCXX_ASSERTIONS, run only in a forked child. It
@@ -241,7 +249,8 @@ add_executable( kicad-oracle main.cpp protocol.cpp registry.cpp ${ORACLE_SHIMS}
                 reference/geometry_unreachable_config.cpp "${KIPLATFORM_POLICY_SHIM}"
                 "${KIPLATFORM_POLICY_SOURCE}" "${CLIPPER2_ENGINE_P002_SHIM}"
                 "${WX_STL_COMPAT_SHIM}" "${SEXPR_SHIM}" "${SHAPE_HEADERS_P003_SHIM}"
-                "${CLIPPER2_INCLUDE_P002_SHIM}" )
+                "${CLIPPER2_INCLUDE_P002_SHIM}" "${KIPLATFORM_INCLUDE_P001_SHIM}"
+                "${KIPLATFORM_INCLUDE_P001_PROBE}" )
 target_include_directories( kicad-oracle PRIVATE "${ORACLE_OVERLAY}" "${CMAKE_BINARY_DIR}"
                             "${KICAD_REFERENCE_SOURCE}/libs/kiplatform/include" )
 target_link_libraries( kicad-oracle PRIVATE kimath nlohmann_json iec60664-reference resistor-reference
@@ -286,7 +295,8 @@ add_executable( oracle-dispatch-test EXCLUDE_FROM_ALL test_dispatch.cpp protocol
                 "${KIPLATFORM_POLICY_SHIM}" "${KIPLATFORM_POLICY_SOURCE}"
                 "${CLIPPER2_ENGINE_P002_SHIM}" "${WX_STL_COMPAT_SHIM}" "${SEXPR_SHIM}"
                 "${SHAPE_HEADERS_P003_SHIM}"
-                "${CLIPPER2_INCLUDE_P002_SHIM}" )
+                "${CLIPPER2_INCLUDE_P002_SHIM}" "${KIPLATFORM_INCLUDE_P001_SHIM}"
+                "${KIPLATFORM_INCLUDE_P001_PROBE}" )
 target_include_directories( oracle-dispatch-test PRIVATE "${ORACLE_OVERLAY}"
                             "${KICAD_REFERENCE_SOURCE}/libs/kiplatform/include" )
 target_link_libraries( oracle-dispatch-test PRIVATE kimath nlohmann_json iec60664-reference
@@ -346,6 +356,10 @@ add_test( NAME oracle-kiplatform-unix-p001-inputs
     COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_kiplatform_unix_p001_inputs.py"
             "$<TARGET_FILE:kicad-oracle>" )
 set_tests_properties( oracle-kiplatform-unix-p001-inputs PROPERTIES TIMEOUT 60 )
+add_test( NAME oracle-kiplatform-include-p001-inputs
+    COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_kiplatform_include_p001_inputs.py"
+            "$<TARGET_FILE:kicad-oracle>" )
+set_tests_properties( oracle-kiplatform-include-p001-inputs PROPERTIES TIMEOUT 60 )
 add_test( NAME oracle-wx-stl-compat-inputs
     COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_wx_stl_compat_inputs.py"
             "$<TARGET_FILE:kicad-oracle>" )
