@@ -42,6 +42,7 @@
 #include <sch_painter.h>
 #include <wx/dirdlg.h>
 #include <wx/msgdlg.h>
+#include <wx/filedlg.h>
 #include <kiplatform/environment.h>
 #include <kiplatform/ui.h>
 
@@ -196,6 +197,7 @@ bool DIALOG_PLOT_SCHEMATIC::TransferDataToWindow()
     return true;
 }
 
+
 /**
  * @todo Copy of DIALOG_PLOT::onOutputDirectoryBrowseClicked in dialog_plot.cpp, maybe merge to
  *       a common method.
@@ -240,6 +242,7 @@ void DIALOG_PLOT_SCHEMATIC::onOutputDirectoryBrowseClicked( wxCommandEvent& even
     m_outputPath->SetValue( dirName.GetFullPath() );
 }
 
+
 void DIALOG_PLOT_SCHEMATIC::onDrawingSheetBrowseClicked( wxCommandEvent& event )
 {
     wxString     projectPath = Prj().GetProjectPath();
@@ -255,6 +258,7 @@ void DIALOG_PLOT_SCHEMATIC::onDrawingSheetBrowseClicked( wxCommandEvent& event )
 
     m_drawingSheet->SetValue( filePath );
 }
+
 
 PLOT_FORMAT DIALOG_PLOT_SCHEMATIC::getPlotFileFormat()
 {
@@ -419,7 +423,6 @@ void DIALOG_PLOT_SCHEMATIC::plotSchematic( bool aPlotAll )
     plotOpts.m_pngDPI = m_pngDPI->GetValue();
     plotOpts.m_pngAntialias = m_pngAntialias->GetValue();
     plotOpts.m_variant = getSelectedVariant();
-
     schPlotter->Plot( getPlotFileFormat(), plotOpts, &renderSettings, &m_MessagesBox->Reporter() );
 
     if( getPlotFileFormat() == PLOT_FORMAT::PDF && m_openFileAfterPlot->GetValue() )
