@@ -79,3 +79,12 @@ sine >= 1/8) and refused as "outside the verified domain" otherwise, by both pro
 outside the verified domain). Rust: 3880 results, 221 typed deferrals (71 `SHAPE_ARC` copy
 constructor, 30 three-point constructor, 2 `SHAPE_ARC::BBox`, 34 `RotatePoint`, 20
 `SHAPE::Collide`, 40 `SHAPE_COMPOUND` out-of-line, 24 `SHAPE_ELLIPSE` constructors).
+
+## Evidence
+
+Local diagnostic run (GCC 15.2 / glibc 2.43 oracle in WSL, native Rust on Windows): p003 3880
+compared, 221 deferred, 0 mismatches, 446/446 controls identical; seg 9503 compared, 0 deferred,
+1887/1887 controls; circle 4636 compared, 342 deferred, 0 mismatches, 84 controls as recorded;
+4547 p003 requests identical in import-free wasm. The hosted `rust-shape-headers-live`,
+`rust-seg-live` and `rust-circle-live` runs are the reference. Details and the verified-domain
+rationale: `port/findings/shape-headers-p003-port.md`.
