@@ -35,6 +35,7 @@ void RegisterVector2Wx( REGISTRY& aRegistry );
 void RegisterPoissonDisk( REGISTRY& aRegistry );
 void RegisterKiplatformPolicy( REGISTRY& aRegistry );
 void RegisterKiplatformUnixP001( REGISTRY& aRegistry );
+void RegisterCoreWxStlCompat( REGISTRY& aRegistry );
 
 
 void REGISTRY::Add( const std::string& aUnit, const std::string& aUpstream, SHIM aShim )
@@ -82,6 +83,7 @@ REGISTRY MakeRegistry()
     RegisterPoissonDisk( registry );
     RegisterKiplatformPolicy( registry );
     RegisterKiplatformUnixP001( registry );
+    RegisterCoreWxStlCompat( registry );
     return registry;
 }
 
