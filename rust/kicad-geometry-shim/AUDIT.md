@@ -25,7 +25,7 @@ The canonical `Vector2<T>` and source-unit `rescale_i32` are reused.
 | ELLIPSE<T> default and GetArcStart/EndPoint | Generic canonical Vector2 fields; default radii/angles zero; wrappers forward actual start/end angles | i32/f64 defaults and both default end points observed against the real endpoint APIs | GetPointAtAngle is wired to `libs.kimath.src.geometry.ellipse.application.ui.p001` (`kicad_math::ellipse`), whose corpus also exercises these wrappers on constructed, mirrored ellipses. Out-of-line constructors/mirror/evaluation are not owned here |
 | GRID_GEOMETRY default members and TakesPrecedenceOver | Cartesian default, zero fields; priority unequal branch; both Area calls and strict comparison continuation | Higher/lower unsigned priorities including UINT_MAX; equal-priority reference executes real Area | `libs.kimath.src.geometry.grid_geometry.application.ui.p001`: Area; Snap/Contains are out of line |
 | POLY_YSTRIPES_INDEX default/Build/yToStripe | Clear before early return; sum all vertices; skip short/horizontal rings; outline/hole edges, sqrt/clamp, Y bounds/ceil height, inclusive stripe insertion; Linux signed narrowing | C++ adapter constructs genuine SHAPE_POLY_SET; empty/degenerate/repeated vertices, holes, winding, overlapping outlines, nine outlines, extreme Y, rebuild and fixed-seed rectangles | yRange==0 after nonhorizontal filtering is unreachable; 65536-stripe cap needs >2^32 edges and cannot be reached before signed totalEdges overflow |
-| Contains | Empty early return; stack/heap crossing counters; source >= crossing convention; accepted rescale; per-outline parity union; accuracy<=1 bypass; full fallback loops and hole skip after deferred Square | Interior, boundary, holes, union, outside, accuracy defaults/-1/0/1/2/10; genuine successful inside results even with accuracy>1 | `libs.kimath.include.geometry.application.ui.p003`: SEG::Square; then `libs.kimath.src.geometry.seg.application.ui.p001`: SquaredDistance. The latter continuation is implemented but currently unreachable after the Square deferral |
+| Contains | Empty early return; stack/heap crossing counters; source >= crossing convention; accepted rescale; per-outline parity union; accuracy<=1 bypass; full fallback loops and hole skip after Square | Interior, boundary, holes, union, outside, accuracy defaults/-1/0/1/2/10; the accuracy>1 fallback, including the `square-continuation-*` cases (squared-distance boundary, hole skip, unindexed horizontal edges, clamped stripes, accuracy INT_MAX) | SEG::Square is the ported seg.h body of `libs.kimath.include.geometry.application.ui.p003` (wired by PR #99, which removed this unit's deferral), then the accepted SquaredDistance of `libs.kimath.src.geometry.seg.application.ui.p001` |
 
 ## Contour boundary and safety
 
@@ -67,6 +67,9 @@ acos mismatch; see port/findings/geometry-angle-libm-portability.md. The corpus 
 failures/unprocessed cases. Of the controls, three are actual Rust
 overflow refusals and four stop at an earlier SEG::Square dependency; C++ refuses
 all seven undefined inputs. These are not successful geometry operations.
+(Historical counts above. Since PR #99 wired SEG::Square, all seven controls are refused by
+both programs at the same overflow, and the corpus has 22,199 requests including 28
+`square-continuation-*` cases; see the unit record's notes.)
 
 ## Pinned source identities
 
