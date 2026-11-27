@@ -1,0 +1,116 @@
+name: Rust Clipper2 clipper.h and Minkowski headers (include p002) live validation
+on:
+  pull_request:
+    branches: [rust]
+    paths:
+      - rust/kicad-clipper2/**
+      - rust/kicad-clipper2-include-p002-shim/**
+      - rust/kicad-clipper2-p002-shim/**
+      - rust/kicad-clipper2-shim/**
+      - rust/kicad-clipper2-engine-shim/**
+      - rust/kicad-clipper2-rectclip-shim/**
+      - rust/kicad-math/**
+      - rust/kicad-core/**
+      - rust/kicad-difftest/**
+      - rust/Cargo.toml
+      - rust/Cargo.lock
+      - port/oracle/**
+      - port/cases/thirdparty.clipper2.clipper2lib.include.clipper2.thirdparty.pure.p002.jsonl
+      - port/units/thirdparty.clipper2.clipper2lib.include.clipper2.thirdparty.pure.p002.toml
+      - .github/workflows/rust-clipper2-include-p002-live.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  clipper2-include-p002-live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      CARGO_BUILD_JOBS: "2"
+      ORACLE_JOBS: "2"
+      UNIT: thirdparty.clipper2.clipper2lib.include.clipper2.thirdparty.pure.p002
+      GLIBC_TUNABLES: "glibc.cpu.hwcaps=-AVX,-AVX2,-FMA,-FMA4,-AVX512F"
+      LD_LIBRARY_PATH: ""
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - name: Install toolchain and oracle dependencies
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal --component clippy,rustfmt --target wasm32-unknown-unknown
+          rustup default 1.99.1
+          # The image's packages.microsoft.com source is unused here and intermittently fails apt with 403.
+          for src in /etc/apt/sources.list.d/*; do if grep -qs packages.microsoft.com "$src"; then sudo rm -f "$src"; fi; done
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++ gcc cmake ninja-build python3 rsync git libboost-dev libwxgtk3.2-dev
+      - name: Record the runtime
+        run: |
+          mkdir -p "$RUNNER_TEMP/clipper2-include-p002-native"
+          {
+            echo "head: $(git rev-parse HEAD)"
+            echo "runner: $(uname -srm)"
+            gcc --version | head -1
+            ldd --version | head -1
+            dpkg-query -W -f='${Package} ${Version}\n' libwxgtk3.2-dev libstdc++-13-dev 2>/dev/null || true
+            rustc --version
+            node --version
+          } | tee "$RUNNER_TEMP/clipper2-include-p002-native/runtime.txt"
+      - name: Check the portable implementation and the generated corpus
+        run: |
+          cargo fmt --manifest-path rust/Cargo.toml -p kicad-clipper2 -p kicad-math -p kicad-clipper2-include-p002-shim -p kicad-clipper2-engine-shim --check
+          cargo clippy --locked --manifest-path rust/Cargo.toml -p kicad-clipper2 -p kicad-math -p kicad-clipper2-include-p002-shim -p kicad-clipper2-engine-shim --all-targets -j2 -- -D warnings
+          cargo test --locked --manifest-path rust/Cargo.toml -p kicad-clipper2 -p kicad-math -p kicad-clipper2-include-p002-shim -p kicad-clipper2-p002-shim -p kicad-clipper2-shim -p kicad-clipper2-engine-shim -p kicad-clipper2-rectclip-shim -j2
+          cargo check --locked --manifest-path rust/Cargo.toml -p kicad-clipper2 -p kicad-math --target wasm32-unknown-unknown -j2
+          python3 rust/kicad-clipper2-include-p002-shim/generate_cases.py --check
+          python3 rust/kicad-clipper2-p002-shim/generate_cases.py --check
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-clipper2-include-p002-shim -p kicad-clipper2-p002-shim -p kicad-clipper2-shim -p kicad-clipper2-engine-shim -p kicad-clipper2-rectclip-shim -p kicad-difftest -j2
+      - name: Build the genuine pinned own-library oracle
+        run: |
+          python3 port/oracle/prepare.py --output-dir "$RUNNER_TEMP/clipper2-include-p002-stage"
+          bash port/oracle/build.sh "$RUNNER_TEMP/clipper2-include-p002-stage" "$PWD/port/oracle" "$RUNNER_TEMP/clipper2-include-p002-native"
+      - name: Compare every public case exactly and the separate refusal controls
+        run: |
+          out="$RUNNER_TEMP/clipper2-include-p002-native"
+          rust/target/debug/kicad-difftest compare --partial --unit "$UNIT" --root "$PWD" \
+            --oracle "$out/oracle-build/kicad-oracle" --rust "$PWD/rust/target/debug/kicad-clipper2-include-p002-shim" \
+            --report "$out/compare.json"
+          python3 -c "import json,sys; r=json.load(open(sys.argv[1])); print({k: r[k] for k in ('status','cases','compared','deferred','failures','unprocessed')})" "$out/compare.json"
+          python3 rust/kicad-clipper2-include-p002-shim/compare_controls.py \
+            --oracle "$out/oracle-build/kicad-oracle" --rust "$PWD/rust/target/debug/kicad-clipper2-include-p002-shim"
+      - name: Rerun the accepted Clipper2 callers against the same oracle
+        run: |
+          out="$RUNNER_TEMP/clipper2-include-p002-native"
+          for pair in \
+            thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p002:kicad-clipper2-p002-shim \
+            thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p001:kicad-clipper2-engine-shim \
+            thirdparty.clipper2.clipper2lib.include.clipper2.thirdparty.pure.p001:kicad-clipper2-shim \
+            thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p003:kicad-clipper2-rectclip-shim; do
+            unit=${pair%%:*}; shim=${pair#*:}
+            rust/target/debug/kicad-difftest compare --partial --unit "$unit" --root "$PWD" \
+              --oracle "$out/oracle-build/kicad-oracle" --rust "$PWD/rust/target/debug/$shim" \
+              --report "$out/compare-$shim.json"
+            python3 -c "import json,sys; r=json.load(open(sys.argv[1])); print(sys.argv[2], {k: r[k] for k in ('status','cases','compared','deferred','failures','unprocessed')})" "$out/compare-$shim.json" "$unit"
+            python3 "rust/$shim/compare_controls.py" \
+              --oracle "$out/oracle-build/kicad-oracle" --rust "$PWD/rust/target/debug/$shim"
+          done
+      - name: Replay the corpus and controls in import-free WebAssembly
+        run: |
+          out="$RUNNER_TEMP/clipper2-include-p002-native"
+          rust/target/debug/kicad-clipper2-include-p002-shim < "port/cases/$UNIT.jsonl" > "$out/rust-native.jsonl"
+          export KICAD_CLIPPER2_INCLUDE_P002_WASM_REFERENCE="$out/rust-native.jsonl"
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-clipper2-include-p002-shim \
+            --example corpus_parity --features live-wasm --target wasm32-unknown-unknown --release -j2
+          node rust/kicad-clipper2-include-p002-shim/wasm-test.mjs rust/target/wasm32-unknown-unknown/release/examples/corpus_parity.wasm
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: clipper2-include-p002-live-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/clipper2-include-p002-native/runtime.txt
+            ${{ runner.temp }}/clipper2-include-p002-native/compare*.json
+            ${{ runner.temp }}/clipper2-include-p002-native/rust-native.jsonl
+            ${{ runner.temp }}/clipper2-include-p002-native/oracle-build/oracle-provenance.json
+            ${{ runner.temp }}/clipper2-include-p002-native/oracle-build/compile_commands.json
+            ${{ runner.temp }}/clipper2-include-p002-native/oracle-build/binary.sha256
+            ${{ runner.temp }}/clipper2-include-p002-stage/source-manifest.json
+          retention-days: 14

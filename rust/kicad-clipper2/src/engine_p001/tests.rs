@@ -158,7 +158,7 @@ fn clean_up_releases_the_arenas() -> Result<()> {
 }
 
 #[test]
-fn calls_into_lines_2272_onward_continue_and_clipper_h_defers() -> Result<()> {
+fn calls_into_lines_2272_onward_and_clipper_h_continue() -> Result<()> {
     let mut base = ClipperBase::default();
     base.add_paths(&vec![square()], PathType::Subject, false)?;
     base.reset()?;
@@ -169,13 +169,9 @@ fn calls_into_lines_2272_onward_continue_and_clipper_h_defers() -> Result<()> {
     base.insert_local_minima_into_ael(10)?;
     assert_eq!(base.outrecs().len(), 1);
     assert!(base.actives_head().is_some() && !base.scanlines()?.is_empty());
-    assert_eq!(
-        path2_contains_path1_paths(&square(), &square()),
-        Err(ClipperError::Unported {
-            upstream: "Clipper2Lib::Path2ContainsPath1<int64_t>",
-            unit: INCLUDE_P002,
-        })
-    );
+    // Path2ContainsPath1<int64_t> (clipper.h, include p002) now runs: every vertex of the
+    // same square is on its boundary, so the result is false.
+    assert_eq!(path2_contains_path1_paths(&square(), &square()), Ok(false));
     Ok(())
 }
 

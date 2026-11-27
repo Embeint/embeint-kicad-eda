@@ -3261,13 +3261,9 @@ impl ClipperBase {
 }
 
 /// `template <typename T> bool Path2ContainsPath1(const Path<T>& path1, const Path<T>& path2)`
-/// (`clipper.h`), called with the two cleaned paths.
-fn path2_contains_path1_paths(_path1: &Path64, _path2: &Path64) -> Result<bool> {
-    // UNPORTED(thirdparty.clipper2.clipper2lib.include.clipper2.thirdparty.pure.p002): Clipper2Lib::Path2ContainsPath1<int64_t>
-    Err(ClipperError::Unported {
-        upstream: "Clipper2Lib::Path2ContainsPath1<int64_t>",
-        unit: INCLUDE_P002,
-    })
+/// (`clipper.h`, unit [`INCLUDE_P002`]), called with the two cleaned paths.
+fn path2_contains_path1_paths(path1: &Path64, path2: &Path64) -> Result<bool> {
+    crate::clipper::path2_contains_path1(path1, path2)
 }
 
 #[cfg(test)]
