@@ -1,0 +1,3 @@
+# Keep the crates.io bytes (CRLF included) so the vendored files can be checked against
+# the published archive; see EMBEINT-PATCH.md.
+* -text

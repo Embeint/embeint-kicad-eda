@@ -3,7 +3,12 @@
 //! `port/oracle/shims/kimath_src_arc_construction.cpp`: 32-bit integer points and exact IEEE
 //! tangent bits in, every `ARC_SOLUTION` field out (doubles as exact IEEE bits).
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 use kicad_math::arc_construction::{
     arc_from_start_end_center_drag, arc_from_start_end_mid_drag, arc_from_start_tangent_end,
     arc_through_points, project_to_chord_bisector, ArcSolution, UNIT,

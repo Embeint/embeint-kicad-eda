@@ -5,7 +5,12 @@
 //! limits, `rng` makes direct draws from the Boost.Random port it uses. IEEE values travel as
 //! exact bit strings. See README.md for the operation schema.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 
 use kicad_boost_random::{Mt19937, UniformIntDistribution, UniformRealDistribution};
 use kicad_math::poisson_disk::{toroidal_unit_tile, TileError, TileLimits, UNIT};

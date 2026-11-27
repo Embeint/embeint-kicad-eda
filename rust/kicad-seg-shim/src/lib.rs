@@ -4,7 +4,12 @@
 //! every observable value out exactly. Key and argument validation follow the C++ adapter's
 //! order and messages; an undefined pinned evaluation is the same `invalid_input` refusal.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 use kicad_math::seg::{Seg, SegError, UNIT};
 use kicad_math::{Vector2, Vector2I};
 use serde_json::{json, Value};

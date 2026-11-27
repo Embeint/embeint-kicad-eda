@@ -3,7 +3,12 @@
 //! Pinned COW and packed R-trees. The node, slab, Hilbert and GNU ordering
 //! implementations belong to the accepted sibling crates and are reused here.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 mod cow;
 mod packed;
 pub use cow::{Budget, CowCursor, CowForest, TreeId};

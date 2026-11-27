@@ -5,7 +5,12 @@
 //! validates fields in the same order with the same messages, and serialises the
 //! same state.  Nodes are numbered by first allocation and items by their index.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 
 use kicad_rtree_node::{
     hilbert_nd2d, hilbert_xy2d, overlap_mask_2d, AllocatorId, Coord, NodeData, NodeHandle, Payload,

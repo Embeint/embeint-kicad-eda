@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 
 //! Portable port of KiCad's Unix `libs/kiplatform/os/unix/drivers.cpp` and
 //! `libs/kiplatform/os/unix/sysinfo.cpp` at pin

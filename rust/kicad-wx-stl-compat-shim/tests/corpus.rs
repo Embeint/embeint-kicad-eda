@@ -2,7 +2,12 @@
 //! Rust-only checks of the committed corpus and refusal controls. The exact C++ comparison
 //! is the live difftest; these keep the Rust side's counts, its successful replies and a
 //! few structural invariants explicit.
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 
 use kicad_wx_stl_compat::ostream::SentryFlush;
 use kicad_wx_stl_compat_shim::{dispatch, dispatch_with, CORPUS_CASES, UNIT};

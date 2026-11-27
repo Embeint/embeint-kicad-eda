@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 
 //! JSONL adapter for unit `libs.kiplatform.os.unix.application.thin.replacement.p001`.
 //! It mirrors `port/oracle/shims/kiplatform_policy.cpp` field for field, including

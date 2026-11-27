@@ -2,7 +2,12 @@
 // Derived from Clipper2 2.0.1 (Copyright Angus Johnson 2010-2025), Boost Software
 // License 1.0; see LICENSE-BSL-1.0. Port: Embeint, GPL-3.0-or-later.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 
 //! Faithful port of `thirdparty/clipper2/Clipper2Lib/include/clipper2/clipper.core.h` and
 //! `clipper.engine.h` at KiCad pin 4cf939778df04d2b747bb2c4714fc5014a7565c7 (Clipper2 2.0.1).

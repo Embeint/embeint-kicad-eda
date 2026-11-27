@@ -2,7 +2,12 @@
 //! JSONL adapter for `libs.kimath.src.geometry.eda_angle.application.pure.p001`. It mirrors
 //! `port/oracle/shims/kimath_src_eda_angle.cpp`: exact IEEE bits in, returned values out.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 use kicad_math::eda_angle::{AngleUnit, EdaAngle};
 use kicad_math::eda_angle_source::UNIT;
 use serde_json::{json, Value};

@@ -5,7 +5,12 @@
 //! corpus holds only successful requests, so any non-result reply fails. Malformed controls
 //! and their continuations are checked separately in native processes.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 use kicad_wx_stl_compat::ostream::SentryFlush;
 use serde_json::Value;
 const CASES: &str =

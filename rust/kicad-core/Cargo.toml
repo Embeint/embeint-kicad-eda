@@ -10,3 +10,5 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+# Inline storage for INPLACE_FUNCTION (patched; see ../vendor/stack_dst/EMBEINT-PATCH.md).
+stack_dst = { version = "0.8.2", default-features = false }

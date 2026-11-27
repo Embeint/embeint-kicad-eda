@@ -4,7 +4,12 @@
 //! reproduce the native reply exactly: every public reply and every continuation is a result, and
 //! every refusal control is the same `invalid_input` refusal. The unit has no deferrals.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 use serde_json::Value;
 const CASES: &str = include_str!(
     "../../../port/cases/libs.kimath.src.geometry.poisson_disk.application.pure.p001.jsonl"

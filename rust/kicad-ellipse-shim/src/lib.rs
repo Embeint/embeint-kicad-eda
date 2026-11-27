@@ -4,7 +4,12 @@
 //! and every angle as exact IEEE bits, the same step sequence on one object, and the same
 //! refusal object where the pinned evaluation is undefined.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 use kicad_math::eda_angle::{EdaAngle, GeometryError};
 use kicad_math::ellipse::{ArcAngles, EllipseCoord, EllipseError, FlipDirection, UNIT};
 use kicad_math::geometry_headers::Ellipse;

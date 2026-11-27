@@ -5,8 +5,9 @@
 # embeint-mcp are native only (sockets, processes): the gate 4 MCP server, see MCP.md.
 
 [workspace]
+exclude = ["vendor/stack_dst"]
 resolver = "2"
-members = ["embeint-layout", "embeint-web", "embeint-layout-cli", "embeint-ipc", "embeint-mcp", "kicad-difftest", "kicad-md5", "kicad-md5-shim", "kicad-hash", "kicad-hash-shim", "kicad-iec60664", "kicad-iec60664-shim", "kicad-resistors", "kicad-resistors-shim", "kicad-math", "kicad-math-shim", "kicad-math-util-shim", "kicad-vector-shim", "kicad-geometry-shim", "kicad-util-box-shim", "kicad-eda-angle-shim", "kicad-arc-chord-shim", "kicad-rtree-node", "kicad-rtree-node-shim", "kicad-rtree", "kicad-rtree-shim", "kicad-rtree-cow-packed", "kicad-rtree-cow-packed-shim", "kicad-clipper2", "kicad-clipper2-shim", "kicad-core", "kicad-core-shim", "kicad-core-include-shim", "kicad-seg-shim", "kicad-clipper2-engine-shim", "kicad-clipper2-rectclip-shim", "kicad-map-helpers", "kicad-map-helpers-shim", "kicad-transform-shim", "kicad-distribute-shim", "kicad-vector2wx-shim", "kicad-boost-random", "kicad-poisson-shim", "kicad-arc-construction-shim", "kicad-ellipse-shim", "kicad-kiplatform", "kicad-kiplatform-shim", "kicad-kiplatform-sysinfo", "kicad-kiplatform-sysinfo-shim", "kicad-clipper2-p002-shim", "kicad-circle-shim", "kicad-wx-stl-compat", "kicad-wx-stl-compat-shim"]
+members = ["embeint-layout", "embeint-web", "embeint-layout-cli", "embeint-ipc", "embeint-mcp", "kicad-difftest", "kicad-md5", "kicad-md5-shim", "kicad-hash", "kicad-hash-shim", "kicad-iec60664", "kicad-iec60664-shim", "kicad-resistors", "kicad-resistors-shim", "kicad-math", "kicad-math-shim", "kicad-math-util-shim", "kicad-vector-shim", "kicad-geometry-shim", "kicad-util-box-shim", "kicad-eda-angle-shim", "kicad-arc-chord-shim", "kicad-rtree-node", "kicad-rtree-node-shim", "kicad-rtree", "kicad-rtree-shim", "kicad-rtree-cow-packed", "kicad-rtree-cow-packed-shim", "kicad-clipper2", "kicad-clipper2-shim", "kicad-core", "kicad-core-shim", "kicad-core-include-shim", "kicad-seg-shim", "kicad-clipper2-engine-shim", "kicad-clipper2-rectclip-shim", "kicad-map-helpers", "kicad-map-helpers-shim", "kicad-transform-shim", "kicad-distribute-shim", "kicad-vector2wx-shim", "kicad-boost-random", "kicad-poisson-shim", "kicad-arc-construction-shim", "kicad-ellipse-shim", "kicad-kiplatform", "kicad-kiplatform-shim", "kicad-kiplatform-sysinfo", "kicad-kiplatform-sysinfo-shim", "kicad-clipper2-p002-shim", "kicad-circle-shim", "kicad-wx-stl-compat", "kicad-wx-stl-compat-shim", "kicad-core-app-include-shim"]
 
 [workspace.package]
 version = "0.1.0"
@@ -26,3 +27,8 @@ serde_json = { version = "1", default-features = false, features = ["std", "pres
 opt-level = 3
 lto = true
 codegen-units = 1
+
+# stack_dst 0.8.2 with a reviewed compatibility patch (vendor/stack_dst/EMBEINT-PATCH.md):
+# its typenum pin relaxed and a max-aligned inline buffer for INPLACE_FUNCTION.
+[patch.crates-io]
+stack_dst = { path = "vendor/stack_dst" }

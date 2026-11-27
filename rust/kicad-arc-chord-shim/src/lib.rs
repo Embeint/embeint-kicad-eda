@@ -3,7 +3,12 @@
 //! mirrors `port/oracle/shims/kimath_src_arc_chord_params.cpp`: 32-bit integer points in,
 //! every observable value out as exact IEEE bits.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 use kicad_math::arc_chord_params::{ArcChordError, ArcChordParams, UNIT};
 use kicad_math::eda_angle::GeometryError;
 use kicad_math::{Vector2, Vector2D, Vector2I};

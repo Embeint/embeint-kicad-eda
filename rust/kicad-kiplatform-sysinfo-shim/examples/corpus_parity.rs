@@ -4,7 +4,12 @@
 //! must be a successful result and the Rust reply must equal it exactly; there are
 //! no expected deferrals. The case count must equal `expected-replies.json`.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 use serde_json::Value;
 const CASES: &str =
     include_str!("../../../port/cases/libs.kiplatform.os.unix.application.pure.p001.jsonl");

@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 
 //! Portable port of KiCad `libs/core` at pin 4cf939778df04d2b747bb2c4714fc5014a7565c7:
 //!
@@ -9,7 +14,10 @@
 //! * unit `libs.core.include.core.application.pure.p001`: the `libs/core/include/core`
 //!   header bodies (`OBSERVABLE<T>`, the `profile.h` timers, counters and latency
 //!   probe members, `KI_UNION_FIND`, `KI_MST::FilterKruskal`, `MINOPTMAX<T>`,
-//!   `KISPINLOCK`, `SYNC_QUEUE<T>`, `arrayDim`, `ignore_unused`, `to_underlying`).
+//!   `KISPINLOCK`, `SYNC_QUEUE<T>`, `arrayDim`, `ignore_unused`, `to_underlying`);
+//! * unit `include.core.application.pure.p001`: the application `include/core` header
+//!   bodies (`INPLACE_FUNCTION`, `LEAK_AT_EXIT<T>`, `THROTTLE`, `KICAD_T` with its
+//!   predicates, `IsA` and `dyn_cast`); its `mirror.h` bodies are in `kicad_math::mirror`.
 //!
 //! The crate has no filesystem, clock, thread or global state. Time is supplied by
 //! the host through [`profile::RunningClock`] and [`profile::ChronoClock`]; observable
@@ -19,6 +27,8 @@
 pub mod base64;
 pub mod filter_kruskal;
 pub mod helpers;
+pub mod inplace_function;
+pub mod leak_at_exit;
 pub mod minoptmax;
 pub mod observable;
 pub mod observable_template;
@@ -26,6 +36,8 @@ pub mod profile;
 pub mod spinlock;
 pub mod stdalgo;
 pub mod sync_queue;
+pub mod throttle;
+pub mod typeinfo;
 pub mod union_find;
 pub mod version_compare;
 
@@ -43,9 +55,19 @@ pub mod include_core {
     };
 }
 
+/// The application header unit's `rust_module` (its `mirror.h` bodies are
+/// `kicad_math::mirror`).
+pub mod app_include_core {
+    pub use crate::{inplace_function, leak_at_exit, throttle, typeinfo};
+}
+
 /// The port unit of `libs/core`'s sources.
 pub const UNIT: &str = "libs.core.application.pure.p001";
 
 /// The unit owning the `libs/core/include/core` header bodies (`OBSERVABLE<T>`,
 /// `PROF_TIMER`, `LATENCY_PROBE` inline members, ...).
 pub const HEADER_UNIT: &str = "libs.core.include.core.application.pure.p001";
+
+/// The unit owning the application `include/core` header bodies (`INPLACE_FUNCTION`,
+/// `LEAK_AT_EXIT`, `mirror.h`, `THROTTLE`, `typeinfo.h`).
+pub const APP_INCLUDE_UNIT: &str = "include.core.application.pure.p001";

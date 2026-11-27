@@ -4,7 +4,12 @@
 //! must reproduce the native reply exactly. The corpus has no expected deferral, so any Rust
 //! deferral or error, and any unsuccessful native reply, fails the probe.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 use serde_json::Value;
 const CASES: &str = include_str!(
     "../../../port/cases/libs.kimath.src.geometry.distribute.application.ui.p001.jsonl"

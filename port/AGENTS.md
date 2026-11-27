@@ -134,10 +134,11 @@ where the result is visual. Never relax comparison or hide a broken case.
 
 Portable crates build for `wasm32-unknown-unknown`: no filesystem, sockets,
 processes, threads or GUI types. Hosts supply I/O and execution. Use
-`#![forbid(unsafe_code)]`; no `unwrap`, `expect`, `panic!`, `todo!` or
-`unimplemented!`. Use checked arithmetic and input bounds, typed errors and bounded
-input-driven recursion. Avoid panic-prone indexing/allocation from untrusted
-counts. No global, mutable static or thread-local state. Results must be
+`#![forbid(unsafe_code)]`; no `unwrap`, `expect`, `panic!`, `unreachable!`, `todo!`
+or `unimplemented!` (each crate denies `clippy::unwrap_used`, `clippy::expect_used`,
+`clippy::panic` and `clippy::unreachable`). Use checked arithmetic and input
+bounds, typed errors and bounded input-driven recursion. Avoid panic-prone
+indexing/allocation from untrusted counts. No global, mutable static or thread-local state. Results must be
 deterministic, independent of clocks, addresses, hash iteration or earlier calls;
 use stable ordering and fixed-seed generators. The same input must yield the same
 native and wasm result. Do not apply portable restrictions to native harness/host

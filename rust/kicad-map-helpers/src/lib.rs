@@ -5,6 +5,7 @@
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,
+    clippy::unreachable,
     clippy::indexing_slicing
 )]
 

@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 use kicad_math::eda_angle::{UNIT, *};
 use kicad_math::geometry_headers::{Ellipse, GridGeometry, GridKind};
 use kicad_math::poly_ystripes::{PolyYstripesIndex, PolygonContours};

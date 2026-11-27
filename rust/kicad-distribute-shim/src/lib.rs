@@ -6,7 +6,12 @@
 //! reply lists each call's deltas, or the signed overflow that leaves the pinned C++ undefined.
 //! A refused call does not stop the independent calls after it.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 use kicad_math::distribute::{
     get_deltas_for_distribute_by_gaps, get_deltas_for_distribute_by_points, DistributeError, UNIT,
 };

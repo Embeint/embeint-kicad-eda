@@ -4,7 +4,12 @@
 //! exact IEEE bits, one operation per request, and the same `invalid_input` refusal where the
 //! pinned evaluation is undefined.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 use kicad_math::circle::{Circle, CircleError, UNIT};
 use kicad_math::seg::Seg;
 use kicad_math::{Vector2, Vector2D, Vector2I};

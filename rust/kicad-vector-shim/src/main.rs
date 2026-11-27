@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 
 //! Native JSONL adapter for unit `libs.kimath.include.math.application.ui.p002`.
 //! It mirrors `port/oracle/shims/kimath_header_hash.cpp` operation for operation,

@@ -5,7 +5,12 @@
 //! field order, input domain and resource guards, and replies. Points are `[x, y, z]`; doubles
 //! travel as their 16 lowercase hex digit bit patterns.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 
 use kicad_clipper2::clipper_engine::{
     ClipType, Clipper64, ClipperD, PolyTree, PolyTree64, PolyTreeD, ZCallback64, ZCallbackD,

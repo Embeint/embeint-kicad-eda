@@ -9,7 +9,12 @@
 //! steps on one `ClipperBase` and `ReuseableDataContainer64` and dumps the complete engine
 //! state afterwards. See README.md for the step list and the refusal rules.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 
 use kicad_clipper2::clipper_engine::{
     Active, ActiveId, ClipType, ClipperBase, HorzSegment, IntersectNode, JoinWith, LocalMinimaId,

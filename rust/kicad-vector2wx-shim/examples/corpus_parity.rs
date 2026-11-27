@@ -5,7 +5,12 @@
 //! continuations are checked separately in native processes. This wasm probe covers
 //! the 396 successful corpus requests, so any non-result reply fails.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 use serde_json::Value;
 const CASES: &str = include_str!(
     "../../../port/cases/libs.kimath.include.math.application.thin.replacement.p001.jsonl"

@@ -7,7 +7,12 @@
 //! and run `node rust/kicad-hash/wasm-test.mjs PATH`; `main` returns non-zero unless the wasm
 //! results reproduce the native digest exactly (every value, NaN bits included).
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 
 #[path = "../../kicad-hash-shim/src/operations.rs"]
 #[allow(dead_code)]

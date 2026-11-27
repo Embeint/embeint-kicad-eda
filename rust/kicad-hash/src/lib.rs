@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 
 //! Port of unit `libs.kimath.include.application.pure.p001` at KiCad pin
 //! 4cf939778df04d2b747bb2c4714fc5014a7565c7: the header-only utilities in

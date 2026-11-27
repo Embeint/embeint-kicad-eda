@@ -4,7 +4,12 @@
 //! and refusal messages; the operation schema is in README.md. Only validation, conversion
 //! and calls into `kicad-wx-stl-compat` live here.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 
 use std::collections::BTreeMap;
 
