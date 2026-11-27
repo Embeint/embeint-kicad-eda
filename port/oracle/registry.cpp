@@ -39,6 +39,7 @@ void RegisterCoreWxStlCompat( REGISTRY& aRegistry );
 void RegisterCoreAppIncludeP001( REGISTRY& aRegistry );
 void RegisterSexprInclude( REGISTRY& aRegistry );
 void RegisterShapeHeadersP003( REGISTRY& aRegistry );
+void RegisterClipper2IncludeP002( REGISTRY& aRegistry );
 void RegisterSexprSource( REGISTRY& aRegistry );
 
 
@@ -91,6 +92,7 @@ REGISTRY MakeRegistry()
     RegisterCoreAppIncludeP001( registry );
     RegisterSexprInclude( registry );
     RegisterShapeHeadersP003( registry );
+    RegisterClipper2IncludeP002( registry );
     RegisterSexprSource( registry );
     return registry;
 }

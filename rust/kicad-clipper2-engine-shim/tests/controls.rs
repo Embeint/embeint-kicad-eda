@@ -40,8 +40,10 @@ fn corpus_is_answered_with_results_or_owned_deferrals() {
         ));
         deferred += 1;
     }
+    // Since include p002 supplies Path2ContainsPath1<int64_t>, the fixed corpus has no
+    // deferrals left; one that reappears fails here (and must name its owning unit above).
     assert!(
-        results > 850 && deferred > 0,
+        results > 850 && deferred == 0,
         "{results} results, {deferred} deferred"
     );
 }

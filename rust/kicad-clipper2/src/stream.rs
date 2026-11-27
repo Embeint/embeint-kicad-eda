@@ -8,7 +8,7 @@
 //! state. [`kicad_math::StreamState`] models that state as libstdc++ (the oracle's library)
 //! applies it in the classic locale; `double` and `const char*` insertions reuse
 //! `kicad_math`. This module adds `operator<<( long )`, which `int64_t` is on the LP64
-//! oracle, and `std::endl`.
+//! oracle, `operator<<( unsigned long )`, which `size_t` is, and `std::endl`.
 
 use kicad_math::stream::insert_str;
 use kicad_math::{StreamError, StreamInsert, StreamState};
@@ -43,6 +43,37 @@ pub fn insert_i64(value: i64, state: &mut StreamState) -> Result<String, StreamE
         format!("-{}", value.unsigned_abs())
     } else if flags.showpos {
         format!("+{value}")
+    } else {
+        format!("{value}")
+    };
+    Ok(pad_number(text, state))
+}
+
+/// `operator<<( unsigned long )`: libstdc++ `num_put::_M_insert_int` for an unsigned value
+/// (`size_t` on the LP64 oracle; added for the `clipper.h` `PolyTree` insertions).
+///
+/// As [`insert_i64`], except that decimal output never has a sign: `showpos` applies only to
+/// signed types.
+pub fn insert_u64(value: u64, state: &mut StreamState) -> Result<String, StreamError> {
+    state.validate()?;
+    let flags = state.flags;
+    let octal = flags.oct && !flags.hex && !flags.dec;
+    let hexadecimal = flags.hex && !flags.oct && !flags.dec;
+    let text = if octal || hexadecimal {
+        let digits = if octal {
+            format!("{value:o}")
+        } else if flags.uppercase {
+            format!("{value:X}")
+        } else {
+            format!("{value:x}")
+        };
+        let base = match (flags.showbase && value != 0, octal, flags.uppercase) {
+            (false, _, _) => "",
+            (true, true, _) => "0",
+            (true, false, false) => "0x",
+            (true, false, true) => "0X",
+        };
+        format!("{base}{digits}")
     } else {
         format!("{value}")
     };
@@ -122,5 +153,20 @@ mod tests {
         state.flags.internal = true;
         assert_eq!(insert_i64(-12, &mut state), Ok("-***12".into()));
         assert_eq!(state.width, 0);
+    }
+
+    #[test]
+    fn unsigned_long_insertion_has_no_sign() {
+        let mut state = StreamState::default();
+        state.flags.showpos = true;
+        assert_eq!(
+            insert_u64(u64::MAX, &mut state),
+            Ok("18446744073709551615".into())
+        );
+        state.flags.dec = false;
+        state.flags.oct = true;
+        state.flags.showbase = true;
+        assert_eq!(insert_u64(8, &mut state), Ok("010".into()));
+        assert_eq!(insert_u64(0, &mut state), Ok("0".into()));
     }
 }

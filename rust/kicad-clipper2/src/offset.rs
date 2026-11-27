@@ -15,8 +15,9 @@
 //! asks for unbounded memory). Both callbacks may throw in C++: a [`DeltaCallback64`] or
 //! [`FallibleZCallback64`] returns that exception as an error, which propagates out of
 //! `Execute` at once and leaves the state the unwinding C++ leaves (the groups and both
-//! callbacks stay in the object, never moved out, so a native unwind keeps them too). `Ellipse` (`clipper.h`), used for a single point with round
-//! joins, stays owned by that header unit and returns [`ClipperError::Unported`] at its call.
+//! callbacks stay in the object, never moved out, so a native unwind keeps them too). `Ellipse`
+//! (`clipper.h`), used for a single point with round joins, is that header unit's port in
+//! [`crate::clipper::ellipse`]; its points count against the same budget.
 //!
 //! Floating point follows the oracle's `-ffp-contract=off` in source order. `std::sin`,
 //! `std::cos`, `std::acos` and `std::atan2` are the pinned glibc 2.39 bodies from
@@ -252,16 +253,6 @@ pub fn negate_path(path: &mut PathD) {
         pt.x = -pt.x;
         pt.y = -pt.y;
     }
-}
-
-/// `template <typename T> Path<T> Ellipse(const Point<T>& center, double radiusX,
-/// double radiusY, size_t steps)` (`clipper.h`).
-fn ellipse(_center: &Point64, _radius_x: f64, _radius_y: f64, _steps: u64) -> Result<Path64> {
-    // UNPORTED(thirdparty.clipper2.clipper2lib.include.clipper2.thirdparty.pure.p002): Clipper2Lib::Ellipse<int64_t>
-    Err(ClipperError::Unported {
-        upstream: "Clipper2Lib::Ellipse<int64_t>",
-        unit: INCLUDE_P002,
-    })
 }
 
 // --- ClipperOffset::Group ----------------------------------------------------------------
@@ -887,7 +878,11 @@ impl ClipperOffset {
                     } else {
                         0
                     }; // #617
-                    self.path_out = ellipse(&pt, radius, radius, steps)?;
+                       // `Ellipse` (`clipper.h`, unit [`INCLUDE_P002`]); its points count against
+                       // the host budget like every other produced point.
+                    let remaining = self.budget.points.saturating_sub(self.points);
+                    self.path_out = crate::clipper::ellipse(&pt, radius, radius, steps, remaining)?;
+                    self.admit(self.path_out.len())?;
                     for p in self.path_out.iter_mut() {
                         p.z = pt.z;
                     }
