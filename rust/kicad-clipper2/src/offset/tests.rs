@@ -41,18 +41,33 @@ fn miter_square_grows_by_delta() {
 }
 
 #[test]
-fn single_round_point_defers_to_the_header_unit() {
+fn single_round_point_builds_an_ellipse() {
+    // Ellipse<int64_t> (clipper.h, include p002) now runs; the value is the oracle's reply to
+    // InflatePaths({{(5, 5)}}, 4.0, Round, Polygon) (port/oracle/shims/clipper2_include_p002.cpp).
     let mut co = ClipperOffset::with_defaults(BUDGET);
     assert!(co
         .add_path(&vec![Point64::xy(5, 5)], JoinType::Round, EndType::Polygon)
         .is_ok());
     let mut out = Paths64::new();
+    assert_eq!(co.execute(4.0, &mut out), Ok(()));
+    let xy: Vec<Vec<(i64, i64)>> = out
+        .iter()
+        .map(|p| p.iter().map(|q| (q.x, q.y)).collect())
+        .collect();
     assert_eq!(
-        co.execute(4.0, &mut out),
-        Err(ClipperError::Unported {
-            upstream: "Clipper2Lib::Ellipse<int64_t>",
-            unit: INCLUDE_P002,
-        })
+        xy,
+        vec![vec![
+            (9, 3),
+            (9, 7),
+            (5, 9),
+            (4, 9),
+            (2, 8),
+            (1, 6),
+            (1, 4),
+            (2, 2),
+            (4, 1),
+            (5, 1)
+        ]]
     );
 }
 
