@@ -816,12 +816,14 @@ def source_cases(rng, controls):
         add(f'extract-random-{i}', {'op': 'extract', 'tree': nodes, 'targets': targets}, error)
 
     # doScan and doAddChildren, through Scan, AddChildren and the variadic constructor.
-    count = 0
+    count = attempt = 0
     while count < 300:
         nodes, args = scan_request(rng)
         outcome, _ = scan_outcome(nodes, args)
+        attempt += 1
         if outcome == 'undefined':
-            add(f'scan-undefined-{count}', {'op': 'scan', 'tree': nodes, 'args': args}, UNDEFINED)
+            add(f'scan-undefined-{attempt}', {'op': 'scan', 'tree': nodes, 'args': args},
+                UNDEFINED)
             continue
         add(f'scan-{count}', {'op': 'scan', 'tree': nodes, 'args': args})
         count += 1
@@ -831,6 +833,31 @@ def source_cases(rng, controls):
     for i in range(80):
         add(f'construct-variadic-{i}', {'op': 'construct_list', 'ctor': 'variadic',
                                         'args': rand_children_args(rng)})
+
+    # The list members on random list nodes (random paths mostly reach atoms).
+    for i in range(300):
+        nodes = tree(rng, max_nodes=30, max_depth=5, root_list=True)
+        root = parse(nodes)
+        path, node = rng.choice([(p, n) for p, n in located(root) if n[0] == 'list'])
+        method = rng.choice(('GetChildren', 'GetChild', 'GetNumberOfChildren', 'GetList',
+                             'AddChild', 'AsString'))
+        extra = getter_extra(rng, node, method)
+        add(f'getter-list-{i}', getter(nodes, path, method, **extra),
+            getter_error(root, path, method, extra))
+
+    # Extraction chains whose every target accepts its child, ending at the last child.
+    for i in range(200):
+        count = rng.randint(1, 12)
+        kids = [atom(rng) for _ in range(count)]
+        targets = []
+        for kid in kids:
+            if rng.random() < 0.1:
+                targets.append({'kind': 'isexprable'})
+            targets.append(target_for(rng, kid[0]))
+        targets = targets[:MAX_ARGS]
+        nodes = [['list', rand_line(rng), count]] + kids
+        error = UNDEFINED if extract_outcome(nodes, targets) == 'undefined' else None
+        add(f'extract-accepted-{i}', {'op': 'extract', 'tree': nodes, 'targets': targets}, error)
     return corpus
 
 
