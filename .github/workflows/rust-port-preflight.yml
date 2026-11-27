@@ -18,7 +18,11 @@ on:
         type: string
         default: ""
       use_hosted:
-        description: Use GitHub for a baseline or temporary fallback
+        description: Force GitHub Ubuntu (also overrides use_isolated)
+        type: boolean
+        default: false
+      use_isolated:
+        description: Opt into the cached isolated runner; verify it is online first
         type: boolean
         default: false
 
@@ -26,7 +30,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: rust-preflight-${{ inputs.branch || github.ref_name }}-${{ inputs.use_hosted && 'hosted' || 'auto' }}
+  group: rust-preflight-${{ inputs.branch || github.ref_name }}-${{ github.event_name == 'workflow_dispatch' && inputs.use_isolated && !inputs.use_hosted && vars.KICAD_CI_RUNNER_ENABLED == 'true' && 'isolated' || 'hosted' }}
   cancel-in-progress: true
 
 env:
@@ -42,7 +46,9 @@ jobs:
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
       (github.ref == 'refs/heads/rust' || startsWith(github.ref, 'refs/heads/t3/')) &&
       github.event.deleted != true
-    runs-on: ${{ fromJSON(vars.KICAD_CI_RUNNER_ENABLED == 'true' && !inputs.use_hosted && '["kicad-ci-isolated-linux-x64"]' || '["ubuntu-24.04"]') }}
+    # Push feedback must not wait indefinitely for an offline cached runner.
+    # Keep that runner available only through an explicit enabled manual opt-in.
+    runs-on: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.use_isolated && !inputs.use_hosted && vars.KICAD_CI_RUNNER_ENABLED == 'true' && '["kicad-ci-isolated-linux-x64"]' || '["ubuntu-24.04"]') }}
     timeout-minutes: 30
     steps:
       - name: Resolve an exact trusted repository source
