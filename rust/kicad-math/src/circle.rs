@@ -43,8 +43,8 @@ pub const UNIT: &str = "libs.kimath.src.geometry.circle.application.ui.p001";
 pub const CIRCLE_HEADER_UNIT: &str = "libs.kimath.include.geometry.application.pure.p001";
 /// Owner of `trigo.h`, whose inline `RotatePoint( VECTOR2I&, const EDA_ANGLE& )` is called.
 pub const TRIGO_HEADER_UNIT: &str = "libs.kimath.include.application.ui.p001";
-/// Owner of `trigo.cpp` (`CalcArcMid`).
-pub const TRIGO_UNIT: &str = "libs.kimath.src.trigo.application.ui.p001";
+/// Owner of `trigo.cpp` (`CalcArcMid`, called through [`crate::trigo`]).
+pub const TRIGO_UNIT: &str = crate::trigo::UNIT;
 
 /// `SHAPE::MIN_PRECISION_IU` (geometry/shape.h:129), the rounding margin of the
 /// on-circumference and tangent tests, from its owner's port.
@@ -133,6 +133,17 @@ impl From<SegError> for CircleError {
     }
 }
 
+impl From<crate::trigo::TrigoError> for CircleError {
+    fn from(error: crate::trigo::TrigoError) -> Self {
+        match error {
+            crate::trigo::TrigoError::Unported { upstream, unit } => {
+                Self::Unported { upstream, unit }
+            }
+            crate::trigo::TrigoError::Undefined => Self::Undefined,
+        }
+    }
+}
+
 impl From<GeometryError> for CircleError {
     fn from(error: GeometryError) -> Self {
         match error {
@@ -212,16 +223,19 @@ impl Callees for Pinned {
 
     fn calc_arc_mid(
         &self,
-        _start: Vector2I,
-        _end: Vector2I,
-        _center: Vector2I,
-        _min_arc_angle: bool,
+        start: Vector2I,
+        end: Vector2I,
+        center: Vector2I,
+        min_arc_angle: bool,
     ) -> CircleResult<Vector2I> {
-        // UNPORTED(libs.kimath.src.trigo.application.ui.p001): CalcArcMid
-        Err(CircleError::Unported {
-            upstream: "CalcArcMid",
-            unit: TRIGO_UNIT,
-        })
+        // The trigo.cpp body (libs.kimath.src.trigo.application.ui.p001), which itself defers at
+        // the trigo.h RotatePoint( VECTOR2I&, const VECTOR2I&, const EDA_ANGLE& ) wrapper.
+        Ok(crate::trigo::calc_arc_mid(
+            start,
+            end,
+            center,
+            min_arc_angle,
+        )?)
     }
 
     fn rotate_point(&self, _point: &mut Vector2I, _angle: EdaAngle) -> CircleResult<()> {
@@ -715,6 +729,36 @@ mod tests {
         }
     }
 
+    /// The trigo.h `RotatePoint( VECTOR2I&, const VECTOR2I&, const EDA_ANGLE& )` inline body,
+    /// forwarding to the ported trigo.cpp overload, for continuation tests only.
+    struct ForwardedHeader;
+
+    impl crate::trigo::HeaderCallees for ForwardedHeader {
+        fn rotate_vector2i_about(
+            &self,
+            point: &mut Vector2I,
+            centre: Vector2I,
+            angle: EdaAngle,
+        ) -> crate::trigo::TrigoResult<()> {
+            crate::trigo::rotate_point_i_about(
+                &mut point.x,
+                &mut point.y,
+                centre.x,
+                centre.y,
+                angle,
+            )
+        }
+
+        fn rotate_vector2d(
+            &self,
+            point: &mut Vector2D,
+            angle: EdaAngle,
+        ) -> crate::trigo::TrigoResult<()> {
+            crate::trigo::rotate_point_d(&mut point.x, &mut point.y, angle);
+            Ok(())
+        }
+    }
+
     impl Callees for Transcribed {
         fn approx_parallel(&self, _a: &Seg, _b: &Seg) -> CircleResult<bool> {
             Ok(self.parallel)
@@ -727,12 +771,19 @@ mod tests {
         }
         fn calc_arc_mid(
             &self,
-            _s: Vector2I,
-            _e: Vector2I,
-            _c: Vector2I,
-            _m: bool,
+            s: Vector2I,
+            e: Vector2I,
+            c: Vector2I,
+            m: bool,
         ) -> CircleResult<Vector2I> {
-            Pinned.calc_arc_mid(_s, _e, _c, _m)
+            // The ported trigo.cpp body, with its trigo.h wrapper forwarded (test only).
+            Ok(crate::trigo::calc_arc_mid_with(
+                &ForwardedHeader,
+                s,
+                e,
+                c,
+                m,
+            )?)
         }
         fn rotate_point(&self, point: &mut Vector2I, angle: EdaAngle) -> CircleResult<()> {
             let mut angle = angle;
@@ -900,12 +951,16 @@ mod tests {
         let b = Seg::new(v(0, 50), v(100, 50));
         c.construct_from_tan_tan_pt(&a, &b, v(10, 25))?;
         assert_eq!(c, Circle::with_center_radius(v(-15, 25), 25));
-        // General: IntersectLines is ported; CalcArcMid is the first unported call.
+        // General: IntersectLines and CalcArcMid (trigo.cpp) are ported; CalcArcMid's trigo.h
+        // RotatePoint wrapper is the first unported call.
         let b = Seg::new(v(0, 0), v(0, 100));
         let mut c = Circle::new();
         assert_eq!(
             c.construct_from_tan_tan_pt(&a, &b, v(10, 20)).map(|c| *c),
-            Err(unported("CalcArcMid", TRIGO_UNIT))
+            Err(unported(
+                crate::trigo::ROTATE_VECTOR2I_ABOUT,
+                TRIGO_HEADER_UNIT
+            ))
         );
         Ok(())
     }
@@ -926,8 +981,11 @@ mod tests {
         Ok(())
     }
 
+    /// The general branch through CalcArcMid (trigo.cpp, ported) and its forwarded trigo.h
+    /// wrapper. The expected circles are the pinned oracle's replies to the same requests
+    /// (GCC 13.3 build of the trigo adapter's branch, tan_tan_pt with a default circle).
     #[test]
-    fn tan_tan_pt_general_continuation_until_calc_arc_mid() -> CircleResult<()> {
+    fn tan_tan_pt_general_continuation_through_calc_arc_mid() -> CircleResult<()> {
         let t = Transcribed::new(false);
         let a = Seg::new(v(0, 0), v(100, 0));
         let b = Seg::new(v(0, 0), v(0, 100));
@@ -935,13 +993,15 @@ mod tests {
         let mut c = Circle::with_center_radius(v(7, 7), 9);
         c.construct_from_tan_tan_pt_with(&t, &a, &b, v(0, 0))?;
         assert_eq!(c, Circle::with_center_radius(v(0, 0), 0));
-        // Otherwise CalcArcMid is reached and defers.
+        // Otherwise CalcArcMid runs and the construction completes.
         let mut c = Circle::new();
-        assert_eq!(
-            c.construct_from_tan_tan_pt_with(&t, &a, &b, v(10, 20))
-                .map(|c| *c),
-            Err(unported("CalcArcMid", TRIGO_UNIT))
-        );
+        c.construct_from_tan_tan_pt_with(&t, &a, &b, v(10, 20))?;
+        assert_eq!(c, Circle::with_center_radius(v(50, 50), 50));
+        let a = Seg::new(v(0, 0), v(1000, 300));
+        let b = Seg::new(v(0, 0), v(-200, 900));
+        let mut c = Circle::new();
+        c.construct_from_tan_tan_pt_with(&t, &a, &b, v(150, 400))?;
+        assert_eq!(c, Circle::with_center_radius(v(657, 1121), 884));
         Ok(())
     }
 

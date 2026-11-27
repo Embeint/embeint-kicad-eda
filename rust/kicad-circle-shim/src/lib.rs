@@ -307,8 +307,9 @@ mod tests {
                 17,
             ),
             (
-                "libs.kimath.src.trigo.application.ui.p001",
-                "CalcArcMid",
+                // CalcArcMid (trigo.cpp) is ported; it defers at its trigo.h wrapper.
+                "libs.kimath.include.application.ui.p001",
+                "RotatePoint(VECTOR2I&, const VECTOR2I&, EDA_ANGLE)",
                 70,
             ),
             (

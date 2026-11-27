@@ -8,8 +8,8 @@ overflow or std::abs( INT_MIN ), with the refusal both programs must give). No r
 written anywhere: the split replays only the pinned integer arithmetic exactly (Python
 integers for int/int64_t/__int128, IEEE binary64 sqrt and products for Resize's lengths).
 
-A few controls are undefined only after a call the Rust port defers (RotatePoint, or CalcArcMid
-in ConstructFromTanTanPt): they carry "rust_unported" and check that the oracle refuses while Rust
+A few controls are undefined only after a call the Rust port defers (RotatePoint, or the trigo.h
+RotatePoint wrapper inside CalcArcMid in ConstructFromTanTanPt): they carry "rust_unported" and check that the oracle refuses while Rust
 defers to that exact owner first. SEG::Square, SEG::SquaredLength, SEG::Center and
 SEG::IntersectLines are ported by the seg.h header unit and are no longer deferrals. Intersect( CIRCLE ) requests whose solutions would need a
 non-cardinal rotation are generated only where every solution sum is far inside the int range.
@@ -40,7 +40,9 @@ M_SQRT1_2 = float.fromhex('0x1.6a09e667f3bcdp-1')
 UNDEFINED = {'kind': 'invalid_input', 'message': 'undefined circle operation'}
 ROTATE = {'upstream': 'RotatePoint(VECTOR2I&, EDA_ANGLE)',
           'unit': 'libs.kimath.include.application.ui.p001'}
-CALC_ARC_MID = {'upstream': 'CalcArcMid', 'unit': 'libs.kimath.src.trigo.application.ui.p001'}
+# CalcArcMid (trigo.cpp) is ported; Rust defers at its trigo.h RotatePoint wrapper.
+CALC_ARC_MID = {'upstream': 'RotatePoint(VECTOR2I&, const VECTOR2I&, EDA_ANGLE)',
+                'unit': 'libs.kimath.include.application.ui.p001'}
 # The bound of the public tan-tan selection (a generation choice, not an adapter domain).
 TAN_TAN_BOUND = 2**16
 
@@ -584,7 +586,7 @@ def generate():
         tan_tan(f'rand-{i}', init, la, lb, p)
 
     # Undefined ConstructFromTanTanPt requests. With owner set, Rust reaches that deferral
-    # (CalcArcMid, in the general branch) before the undefined operation; otherwise Rust refuses
+    # (CalcArcMid's trigo.h RotatePoint wrapper, in the general branch) before the undefined operation; otherwise Rust refuses
     # the request as the oracle does.
     def tan_tan_control(name, la, lb, p, owner=None):
         inp = {'op': 'tan_tan_pt', 'circle': circ(*init), 'line_a': [list(q) for q in la],

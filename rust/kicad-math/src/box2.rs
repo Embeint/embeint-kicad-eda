@@ -726,14 +726,18 @@ fn segment_intersects<T: BoxCoord>(
     d: Vector2<T>,
 ) -> Result<bool> {
     // The actual callee takes VECTOR2I, so converting vector constructors execute first.
-    for p in [a, b, c, d] {
-        p.x.int()?;
-        p.y.int()?;
+    let mut points = [Vector2I::default(); 4];
+    for (point, p) in points.iter_mut().zip([a, b, c, d]) {
+        *point = Vector2::new(p.x.int()?, p.y.int()?);
     }
-    // UNPORTED(libs.kimath.src.trigo.application.ui.p001): SegmentIntersectsSegment
-    Err(VectorDomainError::Unported {
-        upstream: "SegmentIntersectsSegment",
-        unit: "libs.kimath.src.trigo.application.ui.p001",
+    let [a, b, c, d] = points;
+    // SegmentIntersectsSegment (trigo.cpp, libs.kimath.src.trigo.application.ui.p001) with the
+    // default nullptr intersection point.
+    crate::trigo::segment_intersects_segment(a, b, c, d, None).map_err(|e| match e {
+        crate::trigo::TrigoError::Undefined => VectorDomainError::IntegerOverflow,
+        crate::trigo::TrigoError::Unported { upstream, unit } => {
+            VectorDomainError::Unported { upstream, unit }
+        }
     })
 }
 fn rotate(_p: &mut Vector2I, _angle: EdaAngle) -> Result<()> {

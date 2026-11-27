@@ -37,7 +37,7 @@ live reports; a mapping is not proof of complete qualification.
 | Move/Offset/GetWithOffset | checked coordinate writes x then y; copied result preserves validity | offset/offset_xy/move/with_offset |
 | Contains point/xy/box | extended relative coords, negative sizes, inclusive boundaries, short circuit origin/end | contains/contains_xy/contains_box with inside/edge/outside cases |
 | Intersects box, Intersect | normalize copies; extended ends vs narrowed getters; inclusive intersects, strict positive-area intersection; zero-box fallback | intersects/intersect with separated/edge/degenerate/inverted boxes |
-| Intersects segment | contains short circuits, three side calls, false continuation | segment-*; actual SegmentIntersectsSegment call defers to libs.kimath.src.trigo.application.ui.p001 |
+| Intersects segment | contains short circuits, three side calls, false continuation | segment-* and segment-continuation-*; SegmentIntersectsSegment is the ported trigo.cpp body (`kicad_math::trigo`, unit libs.kimath.src.trigo.application.ui.p001) |
 | Intersects rotated box | invalid short circuit, normalized angle, epsilon cardinal branches, 90-degree +1 inflation, A/B/C loops | rotated-* exercises invalid/0/180/360/90/270/epsilon/general; RotatePoint calls defer to libs.kimath.include.application.ui.p001; all loops/continuations implemented but deferred general path not executed |
 | IntersectsCircle/IntersectsCircleEdge | invalid short circuit, normalized nearest/farthest, squared comparisons, width int/2 vs double/2, +1 outer margin, inner test | circle/circle_edge including zero/negative radii and widths |
 | Inflate/GetInflated overloads, inflateAxis | positive/negative sizes, collapse branches, outward coordinate clamps, x-then-y writes | inflate/inflated/uniform, box-random-* and direct outward saturation test |
@@ -155,3 +155,16 @@ transport; two additional separate UB controls exercise finite overflow. The
 15,905-case retained snapshot predates this correction; current-head scoped CI
 qualifies the 15,931-case corpus and 18 controls. Four safe-helper cases also verify that end
 getters skipped by IsBOX2Safe are not pre-rejected for otherwise-unused overflow.
+
+## trigo.cpp caller wiring
+
+`SegmentIntersectsSegment` now calls the port of `libs.kimath.src.trigo.application.ui.p001`
+(`kicad_math::trigo::segment_intersects_segment`, default `nullptr` point) after the existing
+`VECTOR2I` conversions; its undefined evaluations map to the box refusal and its deferrals keep
+their owners. The 63 former `SegmentIntersectsSegment` deferrals all compare exactly, and 135
+`segment-continuation-*` cases (i32, i64 and f64 boxes; hits and misses on each side, touching
+corners, segments along a side, coordinates below 2^30 so every int64 product is defined) reach
+the three side calls. Local diagnostic difftest against a GCC 13.3 oracle build: 16,066 cases,
+14,527 compared, 1,539 deferred (1,447 kimathLogOverflow, 78 header RotatePoint, 10 vector
+formatting, 4 SHAPE_ARC::BBox), 0 failures, all 19 controls as recorded. The hosted
+rust-util-box-live run remains the reference.
