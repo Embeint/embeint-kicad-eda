@@ -22,6 +22,7 @@ refuses while Rust defers to that exact owner first.
 --check verifies the committed files equal the generator output.
 """
 import argparse
+import decimal
 import json
 import math
 from pathlib import Path
@@ -748,7 +749,7 @@ def gen_nan_orders(c):
     # Finite inputs whose squares and products overflow or underflow.
     for k in range(200):
         def big():
-            mag = 10.0 ** rng.uniform(150, 308) if rng.random() < 0.8 else 10.0 ** rng.uniform(-320, -150)
+            mag = pow10(rng.uniform(150, 308)) if rng.random() < 0.8 else pow10(rng.uniform(-320, -150))
             return bits(math.copysign(mag, rng.random() - 0.5))
         s, m, e = [(big(), big()) for _ in range(3)]
         c.add(f'arc_center_d-big-r{k}', {'op': 'arc_center_d', 'start': list(s), 'mid': list(m),
@@ -770,6 +771,17 @@ def generate():
 
 def lines_text(items):
     return ''.join(json.dumps(x, separators=(',', ':'), sort_keys=True) + '\n' for x in items)
+
+
+def pow10(exponent):
+    """10 ** exponent rounded to a double without the host libm: `float ** float` calls the
+    platform's pow, whose last bit differs between glibc and the Windows runtime, which made the
+    committed corpus depend on the machine that generated it."""
+    with decimal.localcontext() as ctx:
+        ctx.prec = 60
+        ctx.Emin = -decimal.MAX_EMAX
+        ctx.Emax = decimal.MAX_EMAX
+        return float(decimal.Decimal(10) ** decimal.Decimal(exponent))
 
 
 def main():
