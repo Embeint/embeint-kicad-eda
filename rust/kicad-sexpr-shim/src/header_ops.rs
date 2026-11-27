@@ -88,7 +88,7 @@ pub fn run(op: &str, input: &Map<String, Value>) -> Result<Value, Error> {
     }
 }
 
-fn construct_list(input: &Map<String, Value>) -> Result<Value, Error> {
+pub fn construct_list(input: &Map<String, Value>) -> Result<Value, Error> {
     let list = match text(input, "ctor")? {
         "default" => {
             keys(input, &["op", "ctor"])?;

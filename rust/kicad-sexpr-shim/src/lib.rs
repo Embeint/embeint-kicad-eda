@@ -3,7 +3,8 @@
 //! one operation per request (`input.op`), the encoding of [`codec`], and the same
 //! `invalid_input` refusal where the pinned evaluation is undefined.
 //!
-//! Registered units: `libs.sexpr.include.sexpr.application.pure.p001` ([`header_ops`]).
+//! Registered units: `libs.sexpr.include.sexpr.application.pure.p001` ([`header_ops`]) and
+//! `libs.sexpr.application.pure.p001` ([`source_ops`]).
 #![forbid(unsafe_code)]
 #![deny(
     clippy::unwrap_used,
@@ -15,9 +16,10 @@
 pub mod args;
 pub mod codec;
 pub mod header_ops;
+pub mod source_ops;
 
 use codec::{object, text, Error};
-use kicad_sexpr::HEADER_UNIT;
+use kicad_sexpr::{HEADER_UNIT, SOURCE_UNIT};
 use serde_json::{json, Value};
 
 fn run(unit: &str, input: &Value) -> Result<Value, Error> {
@@ -25,6 +27,7 @@ fn run(unit: &str, input: &Value) -> Result<Value, Error> {
     let op = text(input, "op")?;
     match unit {
         HEADER_UNIT => header_ops::run(op, input),
+        SOURCE_UNIT => source_ops::run(op, input),
         _ => Err("unknown operation".into()),
     }
 }
@@ -69,7 +72,7 @@ pub fn dispatch(line: &str) -> Value {
         );
     }
     let name = unit.as_str().unwrap_or_default();
-    if name != HEADER_UNIT {
+    if name != HEADER_UNIT && name != SOURCE_UNIT {
         return failure(unit, case, "unknown_unit", "unit has no registered shim");
     }
     match run(name, &request["input"]) {
@@ -147,70 +150,69 @@ mod tests {
         assert_eq!(reply["error"]["message"], "tree too deep");
     }
 
-    /// Count each public case's outcome: a result, or the upstream symbol it defers to.
-    fn outcomes(corpus: &str) -> std::collections::BTreeMap<String, usize> {
-        let mut counts = std::collections::BTreeMap::new();
+    /// Every public case of a corpus must give a result: no deferral or refusal remains.
+    fn all_succeed(corpus: &str) -> usize {
+        let mut count = 0;
         for line in corpus.lines() {
             let reply = dispatch(line);
-            let key = if reply.get("result").is_some() {
-                "result".to_string()
-            } else {
-                assert_eq!(reply["error"]["kind"], "unported", "{reply}");
-                assert_eq!(reply["error"]["unit"], kicad_sexpr::SOURCE_UNIT, "{reply}");
-                reply["error"]["upstream"]
-                    .as_str()
-                    .unwrap_or_default()
-                    .to_string()
-            };
-            *counts.entry(key).or_insert(0) += 1;
+            assert!(reply.get("result").is_some(), "{reply}");
+            count += 1;
         }
-        counts
+        count
     }
 
     #[test]
-    fn header_cases_succeed_or_defer_to_the_source_unit() {
-        let counts = outcomes(include_str!(
+    fn header_cases_all_succeed() {
+        let count = all_succeed(include_str!(
             "../../../port/cases/libs.sexpr.include.sexpr.application.pure.p001.jsonl"
         ));
-        let expected = [
-            ("SEXPR::SEXPR_LIST::doAddChildren", 320),
-            ("SEXPR::SEXPR_LIST::doScan", 300),
-            ("result", 752),
-        ]
-        .into_iter()
-        .map(|(k, n)| (k.to_string(), n))
-        .collect();
-        assert_eq!(counts, expected);
+        assert_eq!(count, 1372);
     }
 
     #[test]
-    fn controls_refuse_or_defer_exactly_as_recorded() -> Result<(), serde_json::Error> {
+    fn source_cases_all_succeed() {
+        let count = all_succeed(include_str!(
+            "../../../port/cases/libs.sexpr.application.pure.p001.jsonl"
+        ));
+        assert_eq!(count, SOURCE_CASES);
+    }
+
+    /// The source corpus size (generate_cases.py).
+    const SOURCE_CASES: usize = 5765;
+    /// The control count (generate_cases.py).
+    const CONTROLS: usize = 97;
+
+    #[test]
+    fn controls_refuse_exactly_as_recorded() -> Result<(), serde_json::Error> {
         let mut count = 0;
         for line in include_str!("../../../port/oracle/fixtures/sexpr-controls.jsonl").lines() {
             let control: Value = serde_json::from_str(line)?;
             let request = &control["request"];
+            assert!(
+                control.get("rust_unported").is_none(),
+                "{}",
+                request["case"]
+            );
             let reply = dispatch(&request.to_string());
-            let error = match control.get("rust_unported") {
-                Some(owner) => {
-                    json!({"kind": "unported", "unit": owner["unit"], "upstream": owner["upstream"]})
-                }
-                None => control["error"].clone(),
-            };
-            let expected =
-                json!({"case": request["case"], "error": error, "unit": request["unit"]});
+            let expected = json!({"case": request["case"], "error": control["error"], "unit": request["unit"]});
             assert_eq!(reply, expected, "{}", request["case"]);
             count += 1;
         }
-        assert_eq!(count, 48);
+        assert_eq!(count, CONTROLS);
         Ok(())
     }
 
     #[test]
-    fn source_unit_is_not_registered_here() {
+    fn unknown_units_are_refused() {
+        let reply = dispatch(
+            &json!({"unit": "libs.sexpr.application.ui.p001", "case": "t", "input": {"op": "x"}})
+                .to_string(),
+        );
+        assert_eq!(reply["error"]["kind"], "unknown_unit");
         let reply = dispatch(
             &json!({"unit": kicad_sexpr::SOURCE_UNIT, "case": "t", "input": {"op": "x"}})
                 .to_string(),
         );
-        assert_eq!(reply["error"]["kind"], "unknown_unit");
+        assert_eq!(reply["error"]["message"], "unknown operation");
     }
 }
