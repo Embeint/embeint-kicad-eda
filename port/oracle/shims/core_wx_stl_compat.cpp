@@ -4,8 +4,10 @@
 // here (std::less<wxPoint>::operator(), TowxString and the wxSize/wxPoint stream insertions),
 // on the distribution wxWidgets 3.2 wchar_t build. Only validation, conversion, the caller's
 // program around the stream (its buffer, an optional throwing num_put facet and an optional
-// tied stream), process isolation and serialization live here; every result comes from the
-// library bodies and the distribution libstdc++. The schema is in
+// tied stream), the call context (an insertion run from a destructor while an exception
+// propagates, or on a thread that a host operation cancels), process isolation and
+// serialization live here; every result comes from the library bodies and the
+// distribution libstdc++. The schema is in
 // rust/kicad-wx-stl-compat-shim/README.md; the Rust adapter mirrors this file's validation
 // order and messages.
 #include "registry.h"
@@ -18,6 +20,7 @@
 #include <clocale>
 #include <cstddef>
 #include <cstdint>
+#include <csignal>
 #include <cstdio>
 #include <exception>
 #include <fcntl.h>
@@ -29,6 +32,7 @@
 #include <map>
 #include <new>
 #include <ostream>
+#include <pthread.h>
 #include <stdexcept>
 #include <streambuf>
 #include <string>
@@ -47,6 +51,7 @@ static_assert( sizeof( wchar_t ) == 4 && WCHAR_MIN < 0 && sizeof( int ) == 4,
 static_assert( std::is_same_v<decltype( wxPoint::x ), int> && std::is_same_v<decltype( wxSize::x ), int> );
 static_assert( CHAR_MIN < 0, "numpunct grouping bytes are signed chars on the reference platform" );
 static_assert( sizeof( std::streamsize ) == 8, "widths and precisions are 64-bit" );
+static_assert( sizeof( long ) == 8, "num_put<char>::do_put( long ) values are 64-bit" );
 
 namespace
 {
@@ -59,8 +64,12 @@ constexpr size_t  MAX_GROUPING = 16;
 constexpr size_t  MAX_SINK_CAPACITY = size_t( 1 ) << 20;
 constexpr int64_t MAX_UNBOUNDED_WIDTH = int64_t( 1 ) << 20;
 constexpr int64_t MAX_SCRIPT_CALL = 64;
-// One insertion logs at most 30 events (five sentries, each with two tied syncs, three
-// buffer or facet events and one destructor sync); the trace refuses beyond this.
+// The largest width the scripted facet sets: the stock do_put pads in alloca storage.
+constexpr int64_t MAX_FACET_WIDTH = 4096;
+constexpr int64_t MAX_DELEGATE = 2;
+// One insertion logs at most 36 events (five sentries, each with two tied syncs, the
+// buffer, facet and cancellation events and one destructor sync); the trace refuses beyond
+// this.
 constexpr size_t  MAX_EVENTS = 64;
 
 [[noreturn]] void Fail( const std::string& aMessage )
@@ -79,6 +88,48 @@ void Keys( const JSON& aValue, std::initializer_list<const char*> aFields, const
         if( !aValue.contains( field ) )
             Fail( aMessage );
     }
+}
+
+
+/// An object with every required field and no field outside the required and optional ones.
+void KeysWith( const JSON& aValue, std::initializer_list<const char*> aRequired,
+               std::initializer_list<const char*> aOptional, const char* aMessage )
+{
+    if( !aValue.is_object() )
+        Fail( aMessage );
+
+    for( const char* field : aRequired )
+    {
+        if( !aValue.contains( field ) )
+            Fail( aMessage );
+    }
+
+    for( const auto& item : aValue.items() )
+    {
+        bool known = false;
+
+        for( const char* field : aRequired )
+            known = known || item.key() == field;
+
+        for( const char* field : aOptional )
+            known = known || item.key() == field;
+
+        if( !known )
+            Fail( aMessage );
+    }
+}
+
+
+/// An optional boolean field; absent is false.
+bool OptionalBool( const JSON& aValue, const char* aField, const char* aMessage )
+{
+    if( !aValue.contains( aField ) )
+        return false;
+
+    if( !aValue.at( aField ).is_boolean() )
+        Fail( aMessage );
+
+    return aValue.at( aField ).get<bool>();
 }
 
 
@@ -293,6 +344,19 @@ private:
 
 class SINK;
 
+/// Cancels the calling thread at a scripted host call: pthread_testcancel() then throws the
+/// forced unwind (abi::__forced_unwind) out of the host operation. Only an insertion run on
+/// its own thread is scripted to reach this.
+[[noreturn]] void ForceUnwind()
+{
+    pthread_setcancelstate( PTHREAD_CANCEL_ENABLE, nullptr );
+    pthread_setcanceltype( PTHREAD_CANCEL_DEFERRED, nullptr );
+    pthread_cancel( pthread_self() );
+    pthread_testcancel();
+    _exit( 4 );
+}
+
+
 /// The trace of host calls, shared by the main buffer, the tied buffer and the facet. Each
 /// event is [kind, n, detail], n being the bytes the main buffer held at the time.
 struct EVENTS
@@ -308,14 +372,15 @@ struct EVENTS
 /// The caller's stream buffer: no put area, so sputc and the default xsputn reach
 /// overflow() byte by byte; it accepts up to a capacity, then returns eof(). sync() counts
 /// its calls and returns -1 when configured to fail. The overflow and sync calls with the
-/// scripted 0-based indexes throw std::runtime_error instead.
+/// scripted 0-based indexes cancel the thread, or throw std::runtime_error, instead.
 class SINK : public std::streambuf
 {
 public:
     SINK( size_t aCapacity, bool aSyncFails, int64_t aOverflowThrow, int64_t aSyncThrow,
-          EVENTS& aEvents, const char* aSyncName ) :
+          int64_t aOverflowCancel, int64_t aSyncCancel, EVENTS& aEvents, const char* aSyncName ) :
             m_capacity( aCapacity ), m_syncFails( aSyncFails ), m_overflowThrow( aOverflowThrow ),
-            m_syncThrow( aSyncThrow ), m_events( aEvents ), m_syncName( aSyncName )
+            m_syncThrow( aSyncThrow ), m_overflowCancel( aOverflowCancel ), m_syncCancel( aSyncCancel ),
+            m_events( aEvents ), m_syncName( aSyncName )
     {}
 
     const std::string& Bytes() const { return m_bytes; }
@@ -328,6 +393,12 @@ protected:
             return traits_type::not_eof( aChar );
 
         const uint64_t index = m_overflowCalls++;
+
+        if( m_overflowCancel >= 0 && index == static_cast<uint64_t>( m_overflowCancel ) )
+        {
+            m_events.Log( "cancel", "overflow" );
+            ForceUnwind();
+        }
 
         if( m_overflowThrow >= 0 && index == static_cast<uint64_t>( m_overflowThrow ) )
         {
@@ -349,6 +420,12 @@ protected:
     {
         const uint64_t index = m_syncCalls++;
 
+        if( m_syncCancel >= 0 && index == static_cast<uint64_t>( m_syncCancel ) )
+        {
+            m_events.Log( "cancel", m_syncName );
+            ForceUnwind();
+        }
+
         if( m_syncThrow >= 0 && index == static_cast<uint64_t>( m_syncThrow ) )
         {
             m_events.Log( "throw", m_syncName );
@@ -365,6 +442,8 @@ private:
     bool        m_syncFails;
     int64_t     m_overflowThrow;
     int64_t     m_syncThrow;
+    int64_t     m_overflowCancel;
+    int64_t     m_syncCancel;
     EVENTS&     m_events;
     const char* m_syncName;
     std::string m_bytes;
@@ -385,8 +464,61 @@ void EVENTS::Log( const char* aKind, const JSON& aDetail )
 }
 
 
-/// A num_put<char> whose do_put( long ) call with the scripted 0-based index throws
-/// std::runtime_error, before or after the stock body. The stock body is the classic
+/// Changes a scripted facet makes to its ios_base& (the stream being written), each when
+/// given: width( w ), precision( p ), flags( f ).
+struct IOS_CHANGE
+{
+    bool               setWidth = false;
+    int64_t            width = 0;
+    bool               setPrecision = false;
+    int64_t            precision = 0;
+    bool               setFlags = false;
+    std::ios::fmtflags flags{};
+
+    void Apply( std::ios_base& aIo ) const
+    {
+        if( setWidth )
+            aIo.width( width );
+
+        if( setPrecision )
+            aIo.precision( precision );
+
+        if( setFlags )
+            aIo.flags( flags );
+    }
+};
+
+
+enum class PUT_THROW
+{
+    BEFORE,
+    AFTER,
+    NONE
+};
+
+
+/// The facet script; see NUM_PUT.
+struct PUT_SCRIPT
+{
+    bool       present = false;
+    int64_t    call = -1;
+    PUT_THROW  when = PUT_THROW::NONE;
+    IOS_CHANGE before;
+    IOS_CHANGE after;
+    bool       setFill = false;
+    char       fill = 0;
+    bool       setValue = false;
+    long       value = 0;
+    int64_t    delegate = 1;
+    int64_t    cancel = -1;
+};
+
+
+/// A num_put<char> whose do_put( long ) logs each call, cancels the thread at the scripted
+/// cancellation call, makes the set_before changes to aIo, throws std::runtime_error at the
+/// scripted call when that is before, delegates `delegate` times to the stock body (with the
+/// scripted fill and value when given), makes the set_after changes, throws at the scripted
+/// call when that is after, and returns the last iterator. The stock body is the classic
 /// locale's num_put<char> object, reached through the runtime's use_facet and a virtual
 /// put(): a qualified call of the inline num_put<char>::do_put would instantiate
 /// _M_insert_int and its __use_cache<__numpunct_cache<char>> here, and that copy would
@@ -395,8 +527,8 @@ void EVENTS::Log( const char* aKind, const JSON& aDetail )
 class NUM_PUT : public std::num_put<char>
 {
 public:
-    NUM_PUT( int64_t aCall, bool aAfter, EVENTS& aEvents ) :
-            m_call( aCall ), m_after( aAfter ), m_events( aEvents ),
+    NUM_PUT( const PUT_SCRIPT& aScript, EVENTS& aEvents ) :
+            m_script( aScript ), m_events( aEvents ),
             m_stock( std::use_facet<std::num_put<char>>( std::locale::classic() ) )
     {}
 
@@ -404,17 +536,33 @@ protected:
     iter_type do_put( iter_type aOut, std::ios_base& aIo, char aFill, long aValue ) const override
     {
         const uint64_t index = m_calls++;
-        const bool     throws = index == static_cast<uint64_t>( m_call );
         m_events.Log( "do_put", static_cast<int64_t>( aValue ) );
 
-        if( throws && !m_after )
+        if( m_script.cancel >= 0 && index == static_cast<uint64_t>( m_script.cancel ) )
+        {
+            m_events.Log( "cancel", "num_put" );
+            ForceUnwind();
+        }
+
+        m_script.before.Apply( aIo );
+        const bool throws = m_script.when != PUT_THROW::NONE && index == static_cast<uint64_t>( m_script.call );
+
+        if( throws && m_script.when == PUT_THROW::BEFORE )
         {
             m_events.Log( "throw", "num_put" );
             throw std::runtime_error( "num_put" );
         }
 
-        // The stock facet formats with aIo's locale (its numpunct), as the base body does.
-        iter_type out = m_stock.put( aOut, aIo, aFill, aValue );
+        // The stock facet formats with aIo's flags, width and locale (its numpunct), as the
+        // base body does.
+        const char fill = m_script.setFill ? m_script.fill : aFill;
+        const long value = m_script.setValue ? m_script.value : aValue;
+        iter_type  out = aOut;
+
+        for( int64_t i = 0; i < m_script.delegate; ++i )
+            out = m_stock.put( out, aIo, fill, value );
+
+        m_script.after.Apply( aIo );
 
         if( throws )
         {
@@ -426,12 +574,49 @@ protected:
     }
 
 private:
-    int64_t                     m_call;
-    bool                        m_after;
-    EVENTS&                     m_events;
-    const std::num_put<char>&   m_stock;
-    mutable uint64_t            m_calls = 0;
+    PUT_SCRIPT                m_script;
+    EVENTS&                   m_events;
+    const std::num_put<char>& m_stock;
+    mutable uint64_t          m_calls = 0;
 };
+
+
+/// set_before/set_after of a num_put script: {"width", "precision", "flags"}, each null or
+/// a value.
+IOS_CHANGE IosChange( const JSON& aPut, const char* aField )
+{
+    IOS_CHANGE change;
+
+    if( !aPut.contains( aField ) )
+        return change;
+
+    const JSON& value = aPut.at( aField );
+    Keys( value, { "width", "precision", "flags" }, "expected num_put" );
+
+    if( !value.at( "width" ).is_null() )
+    {
+        if( !Integer( value.at( "width" ), INT64_MIN, MAX_FACET_WIDTH, change.width ) )
+            Fail( "expected num_put" );
+
+        change.setWidth = true;
+    }
+
+    if( !value.at( "precision" ).is_null() )
+    {
+        if( !Integer( value.at( "precision" ), INT64_MIN, INT64_MAX, change.precision ) )
+            Fail( "expected num_put" );
+
+        change.setPrecision = true;
+    }
+
+    if( !value.at( "flags" ).is_null() )
+    {
+        change.flags = Names<std::ios::fmtflags>( value.at( "flags" ), FMTFLAGS, "expected num_put" );
+        change.setFlags = true;
+    }
+
+    return change;
+}
 
 
 /// A scripted call index: null (none) or an integer in [0, aMax].
@@ -446,8 +631,9 @@ int64_t CallIndex( const JSON& aValue, int64_t aMax, const char* aMessage )
 }
 
 
-/// The reply for the state reached, from the child or its terminate handler.
+/// The reply for the state reached, from the child's terminate or SIGABRT handler.
 std::function<JSON()>* g_terminateReport = nullptr;
+std::function<JSON()>* g_abortReport = nullptr;
 
 
 [[noreturn]] void WriteAndExit( int aFd, const JSON& aReply )
@@ -487,6 +673,42 @@ int g_replyFd = -1;
 }
 
 
+/// The GCC 15 and later sentry destructor catches a forced unwind with catch( ... ) and does
+/// not rethrow it, so glibc aborts the process ("FATAL: exception not rethrown"). The child
+/// reports the state reached at that moment. The reference libstdc++ 14 never gets here.
+void ReportAbort( int )
+{
+    if( !g_abortReport )
+        _exit( 4 );
+
+    WriteAndExit( g_replyFd, ( *g_abortReport )() );
+}
+
+
+/// The thread body for an insertion that a host operation may cancel.
+void* RunInsertion( void* aBody )
+{
+    ( *static_cast<std::function<void()>*>( aBody ) )();
+    return nullptr;
+}
+
+
+/// Runs the insertion in its destructor, while the exception thrown in its scope
+/// propagates: std::uncaught_exceptions() is 1 throughout the insertion.
+struct DURING_UNWINDING
+{
+    const std::function<void()>& body;
+
+    ~DURING_UNWINDING()
+    {
+        if( std::uncaught_exceptions() != 1 )
+            _exit( 4 );
+
+        body();
+    }
+};
+
+
 /// Runs aRun in a child process, which writes its reply to a pipe. Every insertion runs this
 /// way so that a std::terminate inside it is observed, not fatal to the oracle.
 JSON Isolated( const std::function<JSON()>& aRun )
@@ -514,6 +736,7 @@ JSON Isolated( const std::function<JSON()>& aRun )
 
         g_replyFd = pipeFds[1];
         std::set_terminate( ReportTermination );
+        std::signal( SIGABRT, ReportAbort );
 
         try
         {
@@ -566,8 +789,10 @@ JSON Isolated( const std::function<JSON()>& aRun )
 template <typename VALUE>
 JSON Insert( const JSON& aInput )
 {
-    Keys( aInput, { "op", "value", "stream" }, "unexpected or missing field" );
+    KeysWith( aInput, { "op", "value", "stream" }, { "unwinding" }, "unexpected or missing field" );
     const auto [x, y] = Point( aInput.at( "value" ) );
+    // Run the operator from a destructor while std::runtime_error( "outer" ) propagates.
+    const bool  unwinding = OptionalBool( aInput, "unwinding", "expected unwinding" );
     const JSON& s = aInput.at( "stream" );
 
     // Ten required fields and an optional "host".
@@ -616,48 +841,84 @@ JSON Insert( const JSON& aInput )
 
     const bool syncFails = s.at( "sync_fails" ).get<bool>();
 
-    // The host scripts: which overflow/sync/do_put call throws, and the tied stream.
+    // The host scripts: which overflow/sync/do_put call throws or cancels the thread, the
+    // facet's changes, the tied stream and null buffers.
     int64_t            overflowThrow = -1;
     int64_t            syncThrow = -1;
-    int64_t            putCall = -1;
-    bool               putAfter = false;
+    PUT_SCRIPT         put;
     bool               tied = false;
     std::ios::iostate  tieState{};
     std::ios::iostate  tieMask{};
     std::ios::fmtflags tieFlags{};
     bool               tieSyncFails = false;
     int64_t            tieSyncThrow = -1;
+    bool               tieNullBuffer = false;
+    bool               nullBuffer = false;
+    bool               cancelled = false;
+    int64_t            cancelOverflow = -1;
+    int64_t            cancelSync = -1;
+    int64_t            cancelTieSync = -1;
 
     if( scripted )
     {
         const JSON& host = s.at( "host" );
-        Keys( host, { "overflow_throw", "sync_throw", "num_put", "tie" }, "unexpected or missing host field" );
+        KeysWith( host, { "overflow_throw", "sync_throw", "num_put", "tie" }, { "null_rdbuf", "cancel" },
+                  "unexpected or missing host field" );
         overflowThrow = CallIndex( host.at( "overflow_throw" ), static_cast<int64_t>( MAX_SINK_CAPACITY ),
                                    "expected overflow_throw" );
         syncThrow = CallIndex( host.at( "sync_throw" ), MAX_SCRIPT_CALL, "expected sync_throw" );
-        const JSON& put = host.at( "num_put" );
+        const JSON& putJson = host.at( "num_put" );
 
-        if( !put.is_null() )
+        if( !putJson.is_null() )
         {
-            Keys( put, { "call", "throw" }, "expected num_put" );
+            KeysWith( putJson, { "call", "throw" }, { "set_before", "set_after", "fill", "value", "delegate" },
+                      "expected num_put" );
+            put.present = true;
 
-            if( !Integer( put.at( "call" ), 0, MAX_SCRIPT_CALL, putCall ) || !put.at( "throw" ).is_string() )
+            if( !Integer( putJson.at( "call" ), 0, MAX_SCRIPT_CALL, put.call ) || !putJson.at( "throw" ).is_string() )
                 Fail( "expected num_put" );
 
-            const std::string& when = put.at( "throw" ).get_ref<const std::string&>();
+            const std::string& when = putJson.at( "throw" ).get_ref<const std::string&>();
 
-            if( when != "before" && when != "after" )
+            if( when == "before" )
+                put.when = PUT_THROW::BEFORE;
+            else if( when == "after" )
+                put.when = PUT_THROW::AFTER;
+            else if( when == "none" )
+                put.when = PUT_THROW::NONE;
+            else
                 Fail( "expected num_put" );
 
-            putAfter = when == "after";
+            put.before = IosChange( putJson, "set_before" );
+            put.after = IosChange( putJson, "set_after" );
+
+            if( putJson.contains( "fill" ) )
+            {
+                put.fill = Byte( putJson.at( "fill" ), "expected num_put" );
+                put.setFill = true;
+            }
+
+            if( putJson.contains( "value" ) )
+            {
+                int64_t value = 0;
+
+                if( !Integer( putJson.at( "value" ), INT64_MIN, INT64_MAX, value ) )
+                    Fail( "expected num_put" );
+
+                put.value = static_cast<long>( value );
+                put.setValue = true;
+            }
+
+            if( putJson.contains( "delegate" ) && !Integer( putJson.at( "delegate" ), 0, MAX_DELEGATE, put.delegate ) )
+                Fail( "expected num_put" );
         }
 
         const JSON& tie = host.at( "tie" );
 
         if( !tie.is_null() )
         {
-            Keys( tie, { "state", "exceptions", "flags", "sync_fails", "sync_throw" },
-                  "unexpected or missing tie field" );
+            KeysWith( tie, { "state", "exceptions", "flags", "sync_fails", "sync_throw" }, { "null_rdbuf" },
+                      "unexpected or missing tie field" );
             tied = true;
             tieState = Names<std::ios::iostate>( tie.at( "state" ), IOSTATE, "expected iostate" );
             tieMask = Names<std::ios::iostate>( tie.at( "exceptions" ), IOSTATE, "expected iostate" );
@@ -668,8 +929,44 @@ JSON Insert( const JSON& aInput )
 
             tieSyncFails = tie.at( "sync_fails" ).get<bool>();
             tieSyncThrow = CallIndex( tie.at( "sync_throw" ), MAX_SCRIPT_CALL, "expected sync_throw" );
+            tieNullBuffer = OptionalBool( tie, "null_rdbuf", "expected null_rdbuf" );
+        }
+
+        nullBuffer = OptionalBool( host, "null_rdbuf", "expected null_rdbuf" );
+
+        if( host.contains( "cancel" ) )
+        {
+            const JSON& cancel = host.at( "cancel" );
+            Keys( cancel, { "op", "call" }, "expected cancel" );
+
+            if( !cancel.at( "op" ).is_string() )
+                Fail( "expected cancel" );
+
+            const std::string& op = cancel.at( "op" ).get_ref<const std::string&>();
+            int64_t*           target = nullptr;
+
+            if( op == "overflow" )
+                target = &cancelOverflow;
+            else if( op == "sync" )
+                target = &cancelSync;
+            else if( op == "num_put" )
+                target = &put.cancel;
+            else if( op == "tie_sync" )
+                target = &cancelTieSync;
+            else
+                Fail( "expected cancel" );
+
+            const int64_t maximum = op == "overflow" ? static_cast<int64_t>( MAX_SINK_CAPACITY ) : MAX_SCRIPT_CALL;
+
+            if( !Integer( cancel.at( "call" ), 0, maximum, *target ) )
+                Fail( "expected cancel" );
+
+            cancelled = true;
         }
     }
+
+    if( unwinding && cancelled )
+        Fail( "unwinding excludes cancel" );
 
     if( !bounded && width > MAX_UNBOUNDED_WIDTH )
         Fail( "unbounded width exceeds limit" );
@@ -679,13 +976,14 @@ JSON Insert( const JSON& aInput )
             {
                 EVENTS events;
                 SINK   sink( bounded ? static_cast<size_t>( capacity ) : SIZE_MAX, syncFails, overflowThrow,
-                             syncThrow, events, "sync" );
+                             syncThrow, cancelOverflow, cancelSync, events, "sync" );
                 events.main = &sink;
 
                 // The tied stream: its flags, clear( state ), then exceptions( mask ), whose
                 // throw leaves the mask set and is caught.
-                SINK         tieSink( SIZE_MAX, tieSyncFails, -1, tieSyncThrow, events, "tie_sync" );
-                std::ostream tiedStream( &tieSink );
+                SINK         tieSink( SIZE_MAX, tieSyncFails, -1, tieSyncThrow, -1, cancelTieSync, events,
+                                      "tie_sync" );
+                std::ostream tiedStream( tied && tieNullBuffer ? nullptr : &tieSink );
                 bool         tieSetupFailure = false;
 
                 if( tied )
@@ -703,11 +1001,11 @@ JSON Insert( const JSON& aInput )
                     }
                 }
 
-                std::ostream out( &sink );
+                std::ostream out( nullBuffer ? nullptr : &sink );
                 std::locale  locale( std::locale::classic(), new NUMPUNCT( separator, grouping ) );
 
-                if( putCall >= 0 )
-                    locale = std::locale( locale, new NUM_PUT( putCall, putAfter, events ) );
+                if( put.present )
+                    locale = std::locale( locale, new NUM_PUT( put, events ) );
 
                 out.imbue( locale );
                 out.flags( flags );
@@ -730,6 +1028,8 @@ JSON Insert( const JSON& aInput )
                     setupFailure = true;
                 }
 
+                bool outerPreserved = false;
+
                 auto report = [&]( const char* aOutcome, const char* aWhat, bool aSame ) -> JSON
                 {
                     JSON reply{ { "bytes", Hex( sink.Bytes() ) },
@@ -745,6 +1045,9 @@ JSON Insert( const JSON& aInput )
 
                     if( setupFailure )
                         reply["setup_failure"] = true;
+
+                    if( unwinding )
+                        reply["outer_preserved"] = outerPreserved;
 
                     if( aWhat )
                         reply["what"] = aWhat;
@@ -769,29 +1072,78 @@ JSON Insert( const JSON& aInput )
                 };
 
                 std::function<JSON()> onTerminate = [&]() { return report( "terminate", nullptr, true ); };
+                std::function<JSON()> onAbort = [&]() { return report( "abort", nullptr, true ); };
                 g_terminateReport = &onTerminate;
+                g_abortReport = &onAbort;
                 const VALUE value( x, y );
+                const char* outcome = nullptr;
+                std::string what;
+                bool        same = true;
 
-                try
+                // A forced unwind is caught by none of these: it ends the insertion's thread.
+                std::function<void()> call = [&]()
                 {
-                    std::ostream& ( *insert )( std::ostream&, const VALUE& ) = &operator<<;
-                    const bool same = &insert( out, value ) == &out;
-                    return report( "returned", nullptr, same );
-                }
-                catch( const std::ios_base::failure& )
+                    try
+                    {
+                        std::ostream& ( *insert )( std::ostream&, const VALUE& ) = &operator<<;
+                        same = &insert( out, value ) == &out;
+                        outcome = "returned";
+                    }
+                    catch( const std::ios_base::failure& )
+                    {
+                        outcome = "ios_failure";
+                    }
+                    catch( const std::runtime_error& error )
+                    {
+                        // Copied: what() of the propagated object itself.
+                        what = error.what();
+                        outcome = "runtime_error";
+                    }
+                    catch( const std::bad_alloc& )
+                    {
+                        outcome = "bad_alloc";
+                    }
+                };
+
+                if( unwinding )
                 {
-                    return report( "ios_failure", nullptr, true );
+                    try
+                    {
+                        DURING_UNWINDING guard{ call };
+                        throw std::runtime_error( "outer" );
+                    }
+                    catch( const std::runtime_error& error )
+                    {
+                        outerPreserved = std::string_view( error.what() ) == "outer";
+                    }
                 }
-                catch( const std::runtime_error& error )
+                else if( cancelled )
                 {
-                    // Copied: what() of the propagated object itself.
-                    const std::string what = error.what();
-                    return report( "runtime_error", what.c_str(), true );
+                    // Its own thread, so that only the insertion is cancelled; the streams
+                    // stay on this one.
+                    pthread_t thread;
+
+                    if( pthread_create( &thread, nullptr, RunInsertion, &call ) != 0 )
+                        throw std::runtime_error( "insertion thread failed" );
+
+                    void* status = nullptr;
+
+                    if( pthread_join( thread, &status ) != 0 )
+                        throw std::runtime_error( "insertion join failed" );
+
+                    if( status == PTHREAD_CANCELED )
+                        outcome = "forced_unwind";
                 }
-                catch( const std::bad_alloc& )
+                else
                 {
-                    return report( "bad_alloc", nullptr, true );
+                    call();
                 }
+
+                if( !outcome )
+                    throw std::runtime_error( "insertion ended without an outcome" );
+
+                return report( outcome, std::string_view( outcome ) == "runtime_error" ? what.c_str() : nullptr,
+                               same );
             } );
 }
 
