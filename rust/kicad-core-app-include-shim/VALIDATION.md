@@ -67,3 +67,24 @@ That safe public dependency path has a dedicated panic regression test. The
 portable crates retain `forbid(unsafe_code)`; the dependency review covers the safe
 constructor, dereference and destruction paths used by this port. See
 [the patch review](../vendor/stack_dst/EMBEINT-PATCH.md).
+
+## Storage-invariant correction, 27 November 2026
+
+The review of `638d74e5e5` found two `unreachable!` branches (a panic, which the port rules
+forbid). Commit `397b5b8550` reports them as typed errors (`StorageInvariant`, `CopyError`,
+`InitFailure::Storage`; see [AUDIT.md](AUDIT.md)) and denies `clippy::unreachable` in every
+port crate. The C++ adapter, oracle sources, corpus and controls are unchanged since
+`638d74e5e5`, so the preserved r3 raw-blob oracle (SHA-256 `24ae74fc...faf4`) still applies.
+Checked on the exported raw-blob tree of `397b5b8550` in WSL (Rust 1.99.1, Node 22.22.1):
+
+- 4,031 public cases exact, zero deferred or failed; 336 controls refused identically, each
+  followed by a successful continuation.
+- The 4,703 native replies are byte-identical to the r3 pre-correction replies, and all of
+  them agree in import-free wasm32.
+- Workspace rustfmt, Clippy with `-D warnings` and workspace tests pass; the generator
+  `--check`, vendor tests and the portable wasm32 builds pass.
+- Miri nightly with strict provenance passes the three `inplace_function` tests and, with
+  intentional leak checking disabled, the two `leak_at_exit` tests.
+
+No case or control reaches either invariant error, as expected; the Rust adapter would
+refuse such a request rather than encode a C++ exception.

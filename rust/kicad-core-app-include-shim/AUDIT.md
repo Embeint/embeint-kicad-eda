@@ -189,7 +189,7 @@ the pinned `qa/tests/common/test_inplace_function.cpp` are cases `inplace-qa-*`.
   `CopyError` on the copy paths), propagated through every constructor and assignment, and
   `LEAK_AT_EXIT` reads its object back with `first_mut` and returns `InitFailure::Storage`.
   A failure keeps the C++ order: what is built before a reset is built first, so the
-  destination is unchanged, as with `CopyFailure`. Both adapters refuse such a request
+  destination is unchanged, as with `CopyFailure`. The Rust adapter refuses such a request
   instead of encoding a C++ exception, since no C++ exception stands for either; no case or
   control reaches one. `clippy::unreachable` is denied in every port crate.
 
