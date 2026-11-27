@@ -2,43 +2,22 @@
 use super::*;
 
 const CASES: usize = 9503;
-const SQUARE_DEFERRALS: usize = 858;
-const CONTROLS: usize = 1690;
+const CONTROLS: usize = 1887;
 
 #[test]
-fn public_cases_succeed_or_defer_only_to_the_header_owner() {
-    let (mut results, mut deferred) = (0, 0);
+fn every_public_case_succeeds() {
+    // The seg.h SEG::Square and SEG::SquaredLength are ported by the header unit
+    // (libs.kimath.include.geometry.application.ui.p003), so no public case defers.
+    let mut results = 0;
     for line in
         include_str!("../../../port/cases/libs.kimath.src.geometry.seg.application.ui.p001.jsonl")
             .lines()
     {
         let reply = dispatch(line);
-        if reply.get("result").is_some() {
-            results += 1;
-            continue;
-        }
-        // The public corpus is the defined domain: the only non-result is the typed deferral
-        // of SEG::Square, which every approximate comparison reaches first.
-        assert_eq!(
-            reply["error"],
-            json!({"kind": "unported", "upstream": "SEG::Square",
-                   "unit": "libs.kimath.include.geometry.application.ui.p003"}),
-            "{line} -> {reply}"
-        );
-        let op = serde_json::from_str::<Value>(line)
-            .ok()
-            .and_then(|v| v["input"]["op"].as_str().map(str::to_owned));
-        assert!(
-            matches!(
-                op.as_deref(),
-                Some("approx_collinear" | "approx_parallel" | "approx_perpendicular")
-            ),
-            "{line}"
-        );
-        deferred += 1;
+        assert!(reply.get("result").is_some(), "{line} -> {reply}");
+        results += 1;
     }
-    assert_eq!(results + deferred, CASES);
-    assert_eq!(deferred, SQUARE_DEFERRALS);
+    assert_eq!(results, CASES);
 }
 
 #[test]
