@@ -206,23 +206,21 @@ jobs:
         with:
           fetch-depth: 0
           path: source
-      # Measurement tooling only: no topic-branch code/history is merged into
-      # this unit PR. Its image remains an unqualified candidate.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          ref: 33535308d33e019f04af6e089b14ca593ea84ccb
-          fetch-depth: 0
-          path: reference-tools
-      - name: Build and verify the pinned measurement image twice
+      # The measurement image is the candidate locked at the migrated revision itself:
+      # its lock must contain the packages the current oracle needs (the font
+      # libraries since candidate-2; the compiler, libm, runtime and Rust identity
+      # files are those of candidate-1 used by the original migration). The image
+      # remains an unqualified candidate.
+      - name: Build and verify the locked measurement image twice
         env:
           ORACLE_JOBS: "2"
         run: |
-          bash reference-tools/port/reference-env/qualify.sh \
-            --revision 33535308d33e019f04af6e089b14ca593ea84ccb \
+          bash source/port/reference-env/qualify.sh \
+            --revision "$GITHUB_SHA" \
             --work "$HOME/resistor-reference-image" --rebuild-check --sweep-count 200000
       - name: Seal the exact migration source
         run: |
-          tool="$PWD/reference-tools/port/reference-env/tools/source_binding.py"
+          tool="$PWD/source/port/reference-env/tools/source_binding.py"
           python3 "$tool" export --repo "$PWD/source" --revision "$GITHUB_SHA" \
             --out "$HOME/resistor-source-bundle"
           digest=$(sha256sum "$HOME/resistor-source-bundle/source.json" | cut -d' ' -f1)
