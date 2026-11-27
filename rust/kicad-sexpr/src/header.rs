@@ -300,7 +300,7 @@ pub enum ViewMut<'a> {
 }
 
 /// `class SEXPR`: what every node is. The inline members of `sexpr.h` are provided here;
-/// the out-of-line members of `sexpr.cpp` are in [`crate::sexpr_cpp`].
+/// the out-of-line members of `sexpr.cpp` are [`crate::sexpr_cpp::SexprOps`].
 pub trait Node {
     /// The node as its concrete type.
     fn view(&self) -> View<'_>;
@@ -466,12 +466,11 @@ pub enum ScanArgType {
 }
 
 /// What a [`ScanArg`] holds: the destination of a read, or the string to compare with.
-// Read only by `doScan`, which is deferred to the source unit in this revision.
-#[allow(dead_code)]
 #[derive(Debug)]
 pub(crate) enum ScanTarget<'a> {
-    /// `u.int_value`.
-    Int(&'a mut i32),
+    /// `u.int_value`. `doScan` would store a `double` through it, which is undefined, so the
+    /// port never writes it.
+    Int(#[allow(dead_code)] &'a mut i32),
     /// `u.dbl_value`.
     Double(&'a mut f64),
     /// `u.str_value`.
@@ -587,8 +586,6 @@ pub enum ChildrenArgType {
 }
 
 /// What a [`ChildrenArg`] holds.
-// Read only by `doAddChildren`, which is deferred to the source unit in this revision.
-#[allow(dead_code)]
 #[derive(Debug)]
 pub(crate) enum ChildrenValue {
     /// `u.int_value`.

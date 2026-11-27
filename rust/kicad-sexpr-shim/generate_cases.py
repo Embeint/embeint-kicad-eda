@@ -2,14 +2,16 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Generate the fixed-seed libs/sexpr corpora and undefined-domain controls.
 
-Writes port/cases/libs.sexpr.include.sexpr.application.pure.p001.jsonl (header unit) and
+Writes port/cases/libs.sexpr.include.sexpr.application.pure.p001.jsonl (header unit),
+port/cases/libs.sexpr.application.pure.p001.jsonl (source unit, sexpr.cpp) and
 port/oracle/fixtures/sexpr-controls.jsonl. With --check, regenerate in memory and fail when
 a committed file differs.
 
-Every public case is inside the pinned evaluation's defined domain; a request whose
-evaluation would reach undefined behaviour (an out-of-range m_children[] access, a null child
-dereference, doScan's INT branch writing a double through an int32_t*) is classified here by
-an exact replay of the reference control flow and goes to the controls instead, with the
+Every public case is inside the pinned evaluation's defined domain and the adapters'
+resource bounds; a request whose evaluation would reach undefined behaviour (an out-of-range
+m_children[] access, a null child dereference, doScan's INT branch writing a double through
+an int32_t*) or exceed an AsString bound is classified here by an exact replay of the
+reference control flow and the adapters' guards, and goes to the controls instead, with the
 refusal both adapters must give. Only generated data is used.
 """
 import argparse
@@ -31,12 +33,6 @@ MAX_DEPTH = 4000
 MAX_ARGS = 16
 INT32 = (-2**31, 2**31 - 1)
 INT64 = (-2**63, 2**63 - 1)
-# The header unit's Scan/AddChildren/variadic constructor reach doScan/doAddChildren, which
-# the source unit owns; in this revision the Rust port defers them.
-DEFERRED = {
-    'scan': {'upstream': 'SEXPR::SEXPR_LIST::doScan', 'unit': SOURCE},
-    'add_children': {'upstream': 'SEXPR::SEXPR_LIST::doAddChildren', 'unit': SOURCE},
-}
 
 
 def hexs(data):
@@ -413,8 +409,7 @@ def header_cases(rng, controls):
         if outcome == 'undefined':
             if len(controls) < 40:
                 controls.append(control(HEADER, f'control-scan-{len(controls)}',
-                                        {'op': 'scan', 'tree': root, 'args': args},
-                                        rust_unported=DEFERRED['scan']))
+                                        {'op': 'scan', 'tree': root, 'args': args}))
             continue
         corpus.add(f'scan-{count}', {'op': 'scan', 'tree': root, 'args': args})
         count += 1
@@ -425,11 +420,592 @@ def header_cases(rng, controls):
     return corpus
 
 
-def control(unit, name, input_, error=None, rust_unported=None):
-    record = {'error': error or UNDEFINED, 'request': {'unit': unit, 'case': name, 'input': input_}}
-    if rust_unported:
-        record['rust_unported'] = rust_unported
-    return record
+def control(unit, name, input_, error=None):
+    return {'error': error or UNDEFINED, 'request': {'unit': unit, 'case': name, 'input': input_}}
+
+
+# --- Source unit (sexpr.cpp) --------------------------------------------------------------
+
+# std::string::max_size() of the reference build (GCC 13.3 libstdc++ headers, C++20, LP64:
+# ( size_t( -1 ) - 1 ) / 2) and the AsString request bounds (identical in both adapters).
+# GCC 14 and later headers give 2^63 - 2, which moves only the levels whose indentation is
+# 2^63 - 2 beside the newline (port/findings/sexpr-string-max-size-toolchain.md).
+STRING_MAX = 2**63 - 1
+MAX_INDENT = 1 << 20
+MAX_OUTPUT = 64 << 20
+MAX_WORK = 1 << 30
+TOO_LARGE = {'kind': 'invalid_input', 'message': 'as_string output too large'}
+MAX_SOURCE_CONTROLS = 30
+
+SPECIAL_FLOAT_BITS = [
+    0x00000000, 0x80000000, 0x7f800000, 0xff800000, 0x7fc00000, 0xffc00000, 0x7f800001,
+    0x7fa00000, 0xff800001, 0x7fffffff, 0xffffffff, 0x00000001, 0x80000001, 0x007fffff,
+    0x00800000, 0x7f7fffff, 0xff7fffff, 0x3f800000, 0xbf800000, 0x3eaaaaab, 0x4b800001,
+]
+
+# AsString levels: the default argument (None), small levels, the indentation bound, and
+# levels whose size_t indentation wraps or exceeds max_size() (length_error). 2^62 - 1 indents
+# by max_size() - 1, the largest append accepts beside the newline; 2^62 throws.
+SPECIAL_LEVELS = [None, 0, 1, 2, 3, 7, 100, 2**19, 2**61, 2**62 - 2, 2**62 - 1, 2**62,
+                  2**63 - 1, 2**63, 2**63 + 1, 2**63 + 2**61, 2**63 + 2**62, 2**64 - 1]
+# The same boundary reached through the wrapping size_t product (2^63 + 2^62 throws). Only the
+# fixed shapes use it, so the random cases' level draws are unchanged.
+WRAPPED_BOUNDARY_LEVELS = [2**63 + 2**62 - 1]
+
+
+def float_bits(pattern):
+    return f'{pattern:08x}'
+
+
+def rand_float(rng):
+    choice = rng.random()
+    if choice < 0.3:
+        return float_bits(rng.choice(SPECIAL_FLOAT_BITS))
+    if choice < 0.6:
+        return float_bits(rng.getrandbits(32))
+    return struct.pack('>f', struct.unpack('>f', struct.pack('>f', rng.uniform(-1e6, 1e6)))[0]).hex()
+
+
+def parse(nodes):
+    """The nested form of a pre-order tree: None, ['list', entry, children] or ['atom', entry]."""
+    root = None
+    stack = []
+    for entry in nodes:
+        if entry[0] == 'null':
+            node = None
+        elif entry[0] == 'list':
+            node = ['list', entry, []]
+        else:
+            node = ['atom', entry]
+        if stack:
+            stack[-1][0][2].append(node)
+            stack[-1][1] -= 1
+        else:
+            root = node
+        if node is not None and node[0] == 'list' and entry[2] > 0:
+            stack.append([node, entry[2]])
+        while stack and stack[-1][1] == 0:
+            stack.pop()
+    return root
+
+
+def located(root):
+    """Every non-null node with its m_children path from the root, in pre-order."""
+    out = []
+    stack = [([], root)]
+    while stack:
+        path, node = stack.pop()
+        out.append((path, node))
+        if node[0] == 'list':
+            for i in range(len(node[2]) - 1, -1, -1):
+                if node[2][i] is not None:
+                    stack.append((path + [i], node[2][i]))
+    return out
+
+
+def double_text(pattern):
+    """SEXPR::AsString of a double atom: fmt {:.10g}, or {:.10f} without trailing zeros and
+    point when that has an exponent. fmt prints a NaN's sign, which Python drops."""
+    value = double_value(pattern)
+    if value != value:
+        return '-nan' if int(pattern, 16) >> 63 else 'nan'
+    out = format(value, '.10g')
+    if 'e' in out:
+        out = format(value, '.10f').rstrip('0')
+        if len(out) > 1 and out[-1] == '.':
+            out = out[:-1]
+    return out
+
+
+def integer_text(value):
+    """SEXPR::AsString of an integer atom: GetInteger() (int64 to int32) through operator<<."""
+    return str((value + 2**31) % 2**32 - 2**31)
+
+
+def atom_size(entry):
+    """The exact length of an atom's AsString text."""
+    kind, value = entry[0], entry[1]
+    if kind == 'string':
+        return len(value) // 2 + 2
+    if kind == 'symbol':
+        return len(value) // 2
+    if kind == 'integer':
+        return len(integer_text(value))
+    return len(double_text(value))
+
+
+def as_string_outcome(root, level):
+    """Replay the adapters' AsString guard: 'ok', 'length_error' (thrown by the library),
+    'undefined' (a null child) or 'too_large' (a resource bound). Each node counts the exact
+    bytes its own frame writes (a list's newline, indentation, parentheses and separators; an
+    atom's text) once towards the output and once per enclosing frame towards the work."""
+    total = work = 0
+    stack = [(root, level, 1)]
+    while stack:
+        node, at, depth = stack.pop()
+        if node is None:
+            return 'undefined'
+        if node[0] == 'list':
+            local = 1 if at else 0
+            indent = (at * 2) % 2**64
+            if STRING_MAX - local < indent:
+                return 'length_error'
+            if indent > MAX_INDENT:
+                return 'too_large'
+            kids = node[2]
+            size = local + indent + 2 + max(len(kids) - 1, 0)
+            for i in range(len(kids) - 1, -1, -1):
+                stack.append((kids[i], (at + 1) % 2**64, depth + 1))
+        else:
+            size = atom_size(node[1])
+        total += size
+        work += size * depth
+        if total > MAX_OUTPUT or work > MAX_WORK:
+            return 'too_large'
+    return 'ok'
+
+
+def as_string_work(root, level):
+    """Output length and copy work of AsString (the sum of every frame's result length)."""
+    total = work = 0
+    stack = [(root, level, 1)]
+    while stack:
+        node, at, depth = stack.pop()
+        if node[0] == 'list':
+            kids = node[2]
+            size = (1 if at else 0) + (at * 2) % 2**64 + 2 + max(len(kids) - 1, 0)
+            stack.extend((kid, at + 1, depth + 1) for kid in kids)
+        else:
+            size = atom_size(node[1])
+        total += size
+        work += size * depth
+    return total, work
+
+
+def leaf_chain(depth, count, pattern):
+    """depth nested lists, the innermost holding count double atoms with these bits."""
+    return ([['list', None, 1] for _ in range(depth - 1)] + [['list', None, count]]
+            + [['double', bits_of(pattern), None] for _ in range(count)])
+
+
+LONG_DOUBLE = 0xffefffffffffffff  # -DBL_MAX: 310 bytes in fixed notation, the longest text
+
+
+def work_bound_tree(root_symbol):
+    """A root list holding a 199-deep chain, whose leaf holds 17090 -DBL_MAX doubles and a
+    250-byte symbol, then a symbol of root_symbol bytes: AsString(0) copy work is exactly
+    MAX_WORK at 1087 bytes and MAX_WORK + 2 at 1088."""
+    nodes = leaf_chain(199, 17090, LONG_DOUBLE)
+    nodes[198][2] = 17091
+    nodes.append(['symbol', hexs(b'a' * 250), None])
+    return [['list', None, 2]] + nodes + [['symbol', hexs(b'b' * root_symbol), None]]
+
+
+def getter_error(root, path, method, extra):
+    """The refusal a getter request must get, or None when its evaluation is defined."""
+    node = None
+    for candidate_path, candidate in located(root):
+        if candidate_path == path:
+            node = candidate
+            break
+    assert node is not None, path
+    if method == 'GetChild' and node[0] == 'list' and extra['index'] >= len(node[2]):
+        return UNDEFINED
+    if method == 'AsString':
+        outcome = as_string_outcome(node, extra['level'] or 0)
+        if outcome == 'undefined':
+            return UNDEFINED
+        if outcome == 'too_large':
+            return TOO_LARGE
+    return None
+
+
+def getter(nodes, path, method, **extra):
+    return {'op': 'getter', 'tree': nodes, 'path': path, 'method': method, **extra}
+
+
+GETTERS = ['GetChildren', 'GetChild', 'GetNumberOfChildren', 'GetLongInteger', 'GetInteger',
+           'GetFloat', 'GetDouble', 'GetString', 'GetSymbol', 'GetList', 'AsString', 'AddChild']
+
+
+def getter_extra(rng, node, method):
+    if method == 'GetChild':
+        if node[0] == 'list' and node[2] and rng.random() < 0.9:
+            return {'index': rng.randrange(len(node[2]))}
+        return {'index': rng.choice((0, 1, 5, 2**32, 2**64 - 1))}
+    if method == 'AsString':
+        return {'level': rng.choice(SPECIAL_LEVELS) if rng.random() < 0.3
+                else rng.choice((None, 0, rng.randint(0, 40)))}
+    if method == 'AddChild':
+        roll = rng.random()
+        return {'child': None if roll < 0.15 else chain(rng.randint(2, 30)) if roll < 0.25
+                else tree(rng, max_nodes=12)}
+    return {}
+
+
+def item(rng):
+    """One operator<< right operand."""
+    kind = rng.choice(('double', 'float', 'int64', 'int32', 'string', 'out_string',
+                       'isexprable', 'list', 'sexpr'))
+    if kind == 'double':
+        return {'kind': kind, 'value': rand_double(rng)}
+    if kind == 'float':
+        return {'kind': kind, 'value': rand_float(rng)}
+    if kind == 'int64':
+        return {'kind': kind, 'value': rand_int(rng)}
+    if kind == 'int32':
+        return {'kind': kind, 'value': rand_int32(rng)}
+    if kind == 'string':
+        return {'kind': kind, 'value': hexs(rand_bytes(rng))}
+    if kind == 'out_string':
+        return {'kind': kind, 'symbol': rng.random() < 0.5, 'value': hexs(rand_bytes(rng))}
+    if kind == 'isexprable':
+        return {'kind': kind}
+    if kind == 'list':
+        return {'kind': kind, 'tree': None if rng.random() < 0.15
+                else tree(rng, max_nodes=10, root_list=True)}
+    return {'kind': kind, 'tree': None if rng.random() < 0.15 else tree(rng, max_nodes=10)}
+
+
+def target(rng, kind=None):
+    """One operator>> right operand with a random initial value."""
+    kind = kind or rng.choice(('int32', 'int64', 'float', 'double', 'string', 'in_string',
+                               'isexprable'))
+    if kind == 'int32':
+        return {'kind': kind, 'initial': rand_int32(rng)}
+    if kind == 'int64':
+        return {'kind': kind, 'initial': rand_int(rng)}
+    if kind == 'float':
+        return {'kind': kind, 'initial': rand_float(rng)}
+    if kind == 'double':
+        return {'kind': kind, 'initial': rand_double(rng)}
+    if kind == 'string':
+        return {'kind': kind, 'initial': hexs(rand_bytes(rng))}
+    if kind == 'in_string':
+        return {'kind': kind, 'symbol': rng.random() < 0.5, 'initial': hexs(rand_bytes(rng))}
+    return {'kind': kind}
+
+
+def target_for(rng, child_kind):
+    """A target the operator for child_kind accepts."""
+    options = {'integer': ['int32', 'int64'], 'double': ['float', 'double'],
+               'string': ['string', 'in_string'], 'symbol': ['in_string']}.get(child_kind)
+    if not options:
+        return target(rng)
+    out = target(rng, rng.choice(options))
+    if out['kind'] == 'in_string':
+        out['symbol'] = child_kind == 'symbol'
+    return out
+
+
+def extract_outcome(nodes, targets):
+    """Replay the operator>> chain: 'undefined' when a dereferenced child is past the end or
+    null, otherwise 'ok' (the chain may stop at an exception)."""
+    kids = children(nodes)
+    index = 0
+    for t in targets:
+        if t['kind'] == 'isexprable':
+            continue
+        if index >= len(kids) or kind_of(kids[index]) == 'null':
+            return 'undefined'
+        kind = kind_of(kids[index])
+        accepted = {'int32': kind == 'integer', 'int64': kind == 'integer',
+                    'float': kind == 'double', 'double': kind == 'double',
+                    'string': kind == 'string',
+                    'in_string': kind == ('symbol' if t.get('symbol') else 'string')}[t['kind']]
+        if not accepted:
+            return 'ok'
+        index += 1
+    return 'ok'
+
+
+def extract_request(rng):
+    count = rng.randint(0, 10)
+    kids = []
+    for _ in range(count):
+        roll = rng.random()
+        kids.append([['null']] if roll < 0.04 else
+                    tree(rng, max_nodes=4, root_list=True) if roll < 0.12 else [atom(rng)])
+    nodes = [['list', rand_line(rng), count]] + [n for k in kids for n in k]
+    targets = []
+    index = 0
+    for _ in range(rng.randint(1, MAX_ARGS)):
+        roll = rng.random()
+        if roll < 0.08:
+            targets.append({'kind': 'isexprable'})
+            continue
+        if index < count and roll < 0.85:
+            targets.append(target_for(rng, kind_of(kids[index])))
+        else:
+            targets.append(target(rng))
+        index += 1
+    return nodes, targets
+
+
+def source_cases(rng, controls):
+    corpus = Corpus(SOURCE)
+
+    def add(name, input_, error=None):
+        if error is None:
+            corpus.add(name, input_)
+        elif len(controls) < MAX_SOURCE_CONTROLS:
+            controls.append(control(SOURCE, f'control-source-{name}', input_, error))
+
+    # Typed accessors and AsString on every atom type, with each special value.
+    lines_ = [None, 0, 1, -1, INT32[0], INT32[1], 77]
+    for i, value in enumerate(SPECIAL_INTS):
+        nodes = [['integer', value, rng.choice(lines_)]]
+        for method in ('GetLongInteger', 'GetInteger', 'GetDouble', 'GetFloat'):
+            add(f'integer-{i}-{method}', getter(nodes, [], method))
+        add(f'integer-{i}-AsString', getter(nodes, [], 'AsString', level=None))
+    doubles = [bits_of(b) for b in SPECIAL_DOUBLE_BITS] + [bits(v) for v in SPECIAL_DOUBLES]
+    # The general/fixed decision points of {:.10g}: a few ulps around each power of ten.
+    for exponent in range(-12, 13):
+        base = struct.unpack('>Q', struct.pack('>d', 10.0 ** exponent))[0]
+        doubles += [bits_of(base + delta) for delta in (-2, -1, 0, 1, 2)]
+    for i, value in enumerate(doubles):
+        nodes = [['double', value, rng.choice(lines_)]]
+        for method in ('GetDouble', 'GetFloat'):
+            add(f'double-{i}-{method}', getter(nodes, [], method))
+        add(f'double-{i}-AsString', getter(nodes, [], 'AsString', level=None))
+    for i in range(1500):
+        add(f'double-random-{i}-AsString',
+            getter([['double', rand_double(rng), None]], [], 'AsString',
+                   level=rng.choice((None, 0, 3))))
+    for i in range(300):
+        add(f'double-random-{i}-GetFloat', getter([['double', rand_double(rng), None]], [],
+                                                  'GetFloat'))
+    for i, text in enumerate(SPECIAL_STRINGS):
+        for kind in ('string', 'symbol'):
+            nodes = [[kind, hexs(text), rng.choice(lines_)]]
+            for method in ('GetString', 'GetSymbol', 'AsString'):
+                extra = {'level': None} if method == 'AsString' else {}
+                add(f'{kind}-{i}-{method}', getter(nodes, [], method, **extra))
+
+    # Every member on every node type: the type checks and their messages (GetSymbol names
+    # the stored line number).
+    samples = {'list': [['list', None, 2], ['integer', 1, None], ['null']],
+               'integer': [['integer', -3, None]], 'double': [['double', bits(0.5), None]],
+               'string': [['string', hexs(b's'), None]], 'symbol': [['symbol', hexs(b'y'), None]]}
+    for kind, nodes in samples.items():
+        for line in (None, 0, -1, INT32[0], INT32[1], 4242):
+            # The root with this line: a list's line is its second field, an atom's its third.
+            first = nodes[0]
+            entry = ['list', line, first[2]] if kind == 'list' else [first[0], first[1], line]
+            tree_ = [entry] + nodes[1:]
+            for method in GETTERS:
+                extra = {'GetChild': {'index': 1}, 'AsString': {'level': 0},
+                         'AddChild': {'child': [['symbol', hexs(b'c'), 9]]}}.get(method, {})
+                add(f'type-{kind}-line-{line}-{method}', getter(tree_, [], method, **extra),
+                    getter_error(parse(tree_), [], method, extra))
+
+    # Random trees: a random member on a random node.
+    for i in range(900):
+        nodes = tree(rng, max_nodes=30, max_depth=5)
+        root = parse(nodes)
+        path, node = rng.choice(located(root))
+        method = rng.choice(GETTERS)
+        extra = getter_extra(rng, node, method)
+        add(f'getter-random-{i}', getter(nodes, path, method, **extra),
+            getter_error(root, path, method, extra))
+
+    # AsString on lists: the upstream AsStringList example, nesting, separators, levels and
+    # deep or wide trees within the bounds.
+    upstream = [['list', None, 5], ['symbol', hexs(b'symbol'), None], ['list', None, 3],
+                ['integer', 2, None], ['double', bits(42.42), None],
+                ['string', hexs(b'substring'), None], ['integer', 1, None],
+                ['double', bits(3.14), None], ['string', hexs(b'string'), None]]
+    add('as-string-upstream-example', getter(upstream, [], 'AsString', level=None))
+    add('as-string-upstream-example-sublist', getter(upstream, [1], 'AsString', level=None))
+    shapes = {
+        'empty': [['list', None, 0]],
+        'nested-empty': [['list', None, 2], ['list', None, 0], ['list', None, 1], ['list', 3, 0]],
+        'chain-500': chain(500),
+        'chain-1000': chain(1000, ('string', hexs(b'leaf'), None)),
+        'wide-2000': wide(rng, 2000),
+        'long-strings': [['list', None, 2], ['string', hexs(bytes(range(256)) * 200), None],
+                         ['symbol', hexs(b'\x00' * 4000), None]],
+    }
+    for name, nodes in shapes.items():
+        for level in SPECIAL_LEVELS + WRAPPED_BOUNDARY_LEVELS:
+            root = parse(nodes)
+            extra = {'level': level}
+            add(f'as-string-{name}-level-{level}', getter(nodes, [], 'AsString', **extra),
+                getter_error(root, [], 'AsString', extra))
+    # Deep chains whose leaf holds many short doubles: practical requests far inside the work
+    # bound once each atom counts its formatted length, and long doubles nearer to it.
+    for name, depth, count, pattern in (('short', 200, 19000, 0), ('short', 1000, 1000, 0),
+                                        ('long', 200, 1000, LONG_DOUBLE)):
+        nodes = leaf_chain(depth, count, pattern)
+        for level in (None, 1):
+            extra = {'level': level}
+            assert getter_error(parse(nodes), [], 'AsString', extra) is None, name
+            add(f'as-string-chain-{depth}-{name}-doubles-{count}-level-{level}',
+                getter(nodes, [], 'AsString', **extra))
+    # The copy work exactly at its bound (its control one symbol byte longer is above it).
+    nodes = work_bound_tree(1087)
+    assert as_string_work(parse(nodes), 0)[1] == MAX_WORK
+    assert getter_error(parse(nodes), [], 'AsString', {'level': None}) is None
+    add('as-string-work-at-bound', getter(nodes, [], 'AsString', level=None))
+    for i in range(400):
+        nodes = tree(rng, max_nodes=40, max_depth=6, nulls=False)
+        root = parse(nodes)
+        path, node = rng.choice(located(root))
+        extra = {'level': rng.choice(SPECIAL_LEVELS) if rng.random() < 0.25
+                 else rng.choice((None, 0, 1, rng.randint(0, 60)))}
+        add(f'as-string-random-{i}', getter(nodes, path, 'AsString', **extra),
+            getter_error(root, path, 'AsString', extra))
+
+    # GetChild on every index of lists holding null children, AddChild of null and deep
+    # children, GetChildren of a wide list.
+    with_nulls = [['list', 5, 4], ['null'], ['integer', 1, None], ['null'], ['list', None, 0]]
+    for index in range(4):
+        add(f'get-child-nulls-{index}', getter(with_nulls, [], 'GetChild', index=index))
+    for method in ('GetChildren', 'GetNumberOfChildren', 'GetList'):
+        add(f'nulls-{method}', getter(with_nulls, [], method))
+        add(f'wide-{method}', getter(wide(rng, 2000), [], method))
+    for name, child in (('null', None), ('chain', chain(200)), ('atom', [['double', bits(1.5), 3]])):
+        add(f'add-child-{name}', getter(with_nulls, [], 'AddChild', child=child))
+        add(f'add-child-nested-{name}', getter(with_nulls, [3], 'AddChild', child=child))
+
+    # operator<<: every overload, alone and chained, with special values.
+    for kind, values in (('double', doubles[:40]), ('float', [float_bits(b) for b in SPECIAL_FLOAT_BITS]),
+                         ('int64', SPECIAL_INTS), ('int32', [0, 1, -1, INT32[0], INT32[1]])):
+        add(f'insert-{kind}-specials', {'op': 'insert', 'tree': [['list', None, 0]],
+                                         'items': [{'kind': kind, 'value': v} for v in values[:16]]})
+        if len(values) > 16:
+            add(f'insert-{kind}-specials-2', {'op': 'insert', 'tree': [['list', None, 0]],
+                                               'items': [{'kind': kind, 'value': v}
+                                                         for v in values[16:32]]})
+    for i in range(400):
+        add(f'insert-random-{i}', {'op': 'insert', 'tree': tree(rng, max_nodes=10, root_list=True),
+                                   'items': [item(rng) for _ in range(rng.randint(1, MAX_ARGS))]})
+
+    # operator>>: each target kind against each child kind (accepting, refusing and the
+    # string extraction of a symbol, which passes its test and then throws in GetString).
+    child_kinds = {'integer': ['integer', 9, None], 'double': ['double', bits(-2.25), None],
+                   'string': ['string', hexs(b'st'), None], 'symbol': ['symbol', hexs(b'sy'), 7],
+                   'list': ['list', None, 0]}
+    for child_name, child in child_kinds.items():
+        for kind in ('int32', 'int64', 'float', 'double', 'string', 'in_string', 'isexprable'):
+            for symbol in ((False, True) if kind == 'in_string' else (None,)):
+                t = target(rng, kind)
+                if symbol is not None:
+                    t['symbol'] = symbol
+                nodes = [['list', None, 2], child, ['integer', 1, None]]
+                add(f'extract-{kind}-{symbol}-from-{child_name}',
+                    {'op': 'extract', 'tree': nodes, 'targets': [t, target(rng, 'int64')]})
+    for i in range(500):
+        nodes, targets = extract_request(rng)
+        error = UNDEFINED if extract_outcome(nodes, targets) == 'undefined' else None
+        add(f'extract-random-{i}', {'op': 'extract', 'tree': nodes, 'targets': targets}, error)
+
+    # doScan and doAddChildren, through Scan, AddChildren and the variadic constructor.
+    count = attempt = 0
+    while count < 300:
+        nodes, args = scan_request(rng)
+        outcome, _ = scan_outcome(nodes, args)
+        attempt += 1
+        if outcome == 'undefined':
+            add(f'scan-undefined-{attempt}', {'op': 'scan', 'tree': nodes, 'args': args},
+                UNDEFINED)
+            continue
+        add(f'scan-{count}', {'op': 'scan', 'tree': nodes, 'args': args})
+        count += 1
+    for i in range(160):
+        add(f'add-children-{i}', {'op': 'add_children', 'tree': tree(rng, max_nodes=16, root_list=True),
+                                  'args': rand_children_args(rng)})
+    for i in range(80):
+        add(f'construct-variadic-{i}', {'op': 'construct_list', 'ctor': 'variadic',
+                                        'args': rand_children_args(rng)})
+
+    # The list members on random list nodes (random paths mostly reach atoms).
+    for i in range(300):
+        nodes = tree(rng, max_nodes=30, max_depth=5, root_list=True)
+        root = parse(nodes)
+        path, node = rng.choice([(p, n) for p, n in located(root) if n[0] == 'list'])
+        method = rng.choice(('GetChildren', 'GetChild', 'GetNumberOfChildren', 'GetList',
+                             'AddChild', 'AsString'))
+        extra = getter_extra(rng, node, method)
+        add(f'getter-list-{i}', getter(nodes, path, method, **extra),
+            getter_error(root, path, method, extra))
+
+    # Extraction chains whose every target accepts its child, ending at the last child.
+    for i in range(200):
+        count = rng.randint(1, 12)
+        kids = [atom(rng) for _ in range(count)]
+        targets = []
+        for kid in kids:
+            if rng.random() < 0.1:
+                targets.append({'kind': 'isexprable'})
+            targets.append(target_for(rng, kid[0]))
+        targets = targets[:MAX_ARGS]
+        nodes = [['list', rand_line(rng), count]] + kids
+        error = UNDEFINED if extract_outcome(nodes, targets) == 'undefined' else None
+        add(f'extract-accepted-{i}', {'op': 'extract', 'tree': nodes, 'targets': targets}, error)
+    return corpus
+
+
+def source_controls():
+    """The source unit's undefined evaluations and resource bounds, equal on both sides."""
+    out = []
+
+    def add(name, input_, error=UNDEFINED):
+        out.append(control(SOURCE, f'control-source-{name}', input_, error))
+
+    two = [['list', None, 2], ['integer', 1, None], ['symbol', hexs(b'b'), None]]
+    add('get-child-empty', getter([['list', None, 0]], [], 'GetChild', index=0))
+    add('get-child-past-end', getter(two, [], 'GetChild', index=2))
+    add('get-child-max-index', getter(two, [], 'GetChild', index=2**64 - 1))
+    add('as-string-null-root-child', getter([['list', None, 1], ['null']], [], 'AsString',
+                                            level=None))
+    add('as-string-null-after-siblings',
+        getter([['list', None, 3], ['integer', 1, None], ['list', None, 1], ['null'],
+                ['string', hexs(b'x'), None]], [], 'AsString', level=0))
+    add('as-string-chain-max-depth', getter(chain(MAX_DEPTH), [], 'AsString', level=None),
+        TOO_LARGE)
+    add('as-string-chain-1300', getter(chain(1300), [], 'AsString', level=None), TOO_LARGE)
+    add('as-string-indent-above-bound', getter([['list', None, 0]], [], 'AsString',
+                                               level=2**19 + 1), TOO_LARGE)
+    add('as-string-child-indent-above-bound', getter([['list', None, 1], ['list', None, 0]], [],
+                                                     'AsString', level=2**19), TOO_LARGE)
+    add('as-string-unallocatable-indent', getter([['list', None, 0]], [], 'AsString',
+                                                 level=2**62 - 1), TOO_LARGE)
+    add('as-string-unallocatable-wrapped-indent',
+        getter([['list', None, 0]], [], 'AsString', level=2**63 + 2**62 - 1), TOO_LARGE)
+    # The same deep chains with long doubles: genuinely expensive copy work above the bound.
+    for depth, count in ((200, 19000), (3000, 3000)):
+        nodes = leaf_chain(depth, count, LONG_DOUBLE)
+        assert as_string_outcome(parse(nodes), 0) == 'too_large'
+        add(f'as-string-chain-{depth}-long-doubles-{count}',
+            getter(nodes, [], 'AsString', level=None), TOO_LARGE)
+    nodes = work_bound_tree(1088)
+    assert as_string_work(parse(nodes), 0)[1] == MAX_WORK + 2
+    assert as_string_outcome(parse(nodes), 0) == 'too_large'
+    add('as-string-work-above-bound', getter(nodes, [], 'AsString', level=None), TOO_LARGE)
+    add('extract-empty', {'op': 'extract', 'tree': [['list', None, 0]],
+                          'targets': [{'kind': 'int32', 'initial': 0}]})
+    add('extract-past-end', {'op': 'extract', 'tree': two,
+                             'targets': [{'kind': 'int64', 'initial': 0},
+                                         {'kind': 'in_string', 'symbol': True, 'initial': ''},
+                                         {'kind': 'isexprable'},
+                                         {'kind': 'double', 'initial': bits(0.0)}]})
+    add('extract-null-child', {'op': 'extract', 'tree': [['list', None, 1], ['null']],
+                               'targets': [{'kind': 'string', 'initial': ''}]})
+    add('scan-int-writes-double', {'op': 'scan', 'tree': [['list', None, 1], ['integer', -1, None]],
+                                   'args': [{'kind': 'int', 'initial': 3}]})
+    add('scan-past-end', {'op': 'scan', 'tree': [['list', None, 0]],
+                          'args': [{'kind': 'string', 'initial': ''}]})
+    add('getter-path-through-atom', getter(two, [0, 0], 'GetList'),
+        {'kind': 'invalid_input', 'message': 'invalid path'})
+    add('getter-path-to-null', getter([['list', None, 1], ['null']], [0], 'GetList'),
+        {'kind': 'invalid_input', 'message': 'invalid path'})
+    add('getter-unknown-method', getter(two, [], 'GetParent'),
+        {'kind': 'invalid_input', 'message': 'unknown method'})
+    add('insert-17-items', {'op': 'insert', 'tree': [['list', None, 0]],
+                            'items': [{'kind': 'isexprable'}] * (MAX_ARGS + 1)},
+        {'kind': 'invalid_input', 'message': 'argument count out of range'})
+    return out
 
 
 def fixed_controls():
@@ -451,21 +1027,17 @@ def fixed_controls():
     out.append(control(HEADER, 'control-scan-past-end',
                        {'op': 'scan', 'tree': [['list', None, 1], ['symbol', '61', None]],
                         'args': [{'kind': 'string', 'initial': ''},
-                                 {'kind': 'string', 'initial': ''}]},
-                       rust_unported=DEFERRED['scan']))
+                                 {'kind': 'string', 'initial': ''}]}))
     out.append(control(HEADER, 'control-scan-empty-list',
                        {'op': 'scan', 'tree': [['list', None, 0]],
-                        'args': [{'kind': 'double', 'initial': bits(1.0)}]},
-                       rust_unported=DEFERRED['scan']))
+                        'args': [{'kind': 'double', 'initial': bits(1.0)}]}))
     out.append(control(HEADER, 'control-scan-null-child',
                        {'op': 'scan', 'tree': [['list', None, 2], ['integer', 1, None], ['null']],
                         'args': [{'kind': 'long_int', 'initial': 0},
-                                 {'kind': 'string', 'initial': ''}]},
-                       rust_unported=DEFERRED['scan']))
+                                 {'kind': 'string', 'initial': ''}]}))
     out.append(control(HEADER, 'control-scan-int-writes-double',
                        {'op': 'scan', 'tree': [['list', None, 1], ['integer', 5, None]],
-                        'args': [{'kind': 'int', 'initial': 0}]},
-                       rust_unported=DEFERRED['scan']))
+                        'args': [{'kind': 'int', 'initial': 0}]}))
     return out
 
 
@@ -478,8 +1050,14 @@ def generate():
     controls = []
     header = header_cases(rng, controls)
     controls = fixed_controls() + controls
+    # The source corpus continues the same generator after the header corpus, so the header
+    # corpus is unchanged by it.
+    generated = []
+    source = source_cases(rng, generated)
+    controls += source_controls() + generated
     return {
         CASES / f'{HEADER}.jsonl': lines(header.records),
+        CASES / f'{SOURCE}.jsonl': lines(source.records),
         CONTROLS: lines(controls),
     }
 

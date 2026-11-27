@@ -4,9 +4,10 @@
 #![forbid(unsafe_code)]
 use kicad_sexpr_shim::dispatch;
 use serde_json::Value;
-const CORPORA: &[&str] = &[include_str!(
-    "../../../port/cases/libs.sexpr.include.sexpr.application.pure.p001.jsonl"
-)];
+const CORPORA: &[&str] = &[
+    include_str!("../../../port/cases/libs.sexpr.include.sexpr.application.pure.p001.jsonl"),
+    include_str!("../../../port/cases/libs.sexpr.application.pure.p001.jsonl"),
+];
 const CONTROLS: &str = include_str!("../../../port/oracle/fixtures/sexpr-controls.jsonl");
 const NATIVE: &str = include_str!(env!("KICAD_SEXPR_WASM_REFERENCE"));
 fn main() -> Result<(), String> {

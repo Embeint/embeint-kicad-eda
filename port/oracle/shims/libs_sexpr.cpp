@@ -12,7 +12,13 @@
 // result. Before a call whose pinned evaluation could be undefined (an out-of-range
 // m_children[] access, a null child dereference, doScan writing a double through an
 // int32_t*), a guard walks the reference control flow over the decoded tree and refuses the
-// request with "undefined sexpr operation".
+// request with "undefined sexpr operation". AsString requests whose output or copy work
+// (both counted from the exact bytes each node writes) exceeds a fixed bound are refused as
+// "as_string output too large".
+//
+// Units: libs.sexpr.include.sexpr.application.pure.p001 (runHeader: the inline header
+// bodies) and libs.sexpr.application.pure.p001 (runSource: the sexpr.cpp members and
+// operators; doScan and doAddChildren are reached by both units' scan and add_children).
 //
 // Encoding (identical in rust/kicad-sexpr-shim/src/codec.rs): strings are lowercase hex,
 // doubles their 16 hex IEEE bits, trees flat pre-order arrays of ["list", line, n],
@@ -43,11 +49,17 @@ using SEXPR::SEXPR_LIST;
 using NODE = SEXPR::SEXPR;
 
 constexpr const char* HEADER_UNIT = "libs.sexpr.include.sexpr.application.pure.p001";
+constexpr const char* SOURCE_UNIT = "libs.sexpr.application.pure.p001";
 constexpr const char* UNDEFINED = "undefined sexpr operation";
 constexpr size_t MAX_NODES = 20000;
 constexpr size_t MAX_DEPTH = 4000;
 constexpr size_t MAX_STRING = 65536;
 constexpr size_t MAX_ARGS = 16;
+// AsString resource bounds (identical in rust/kicad-sexpr-shim/src/source_ops.rs).
+constexpr uint64_t    MAX_INDENT = uint64_t( 1 ) << 20;
+constexpr uint64_t    MAX_OUTPUT = uint64_t( 64 ) << 20;
+constexpr uint64_t    MAX_WORK = uint64_t( 1 ) << 30;
+constexpr const char* TOO_LARGE = "as_string output too large";
 
 
 // Explicit instantiation may name a private member; the friend returns its pointer.
@@ -214,6 +226,21 @@ JSON bits64( double aValue )
     char text[17];
     std::snprintf( text, sizeof( text ), "%016llx",
                    static_cast<unsigned long long>( std::bit_cast<uint64_t>( aValue ) ) );
+    return std::string( text );
+}
+
+
+float readF32( const JSON& aValue )
+{
+    return std::bit_cast<float>( static_cast<uint32_t>( readBitsText( aValue, 8 ) ) );
+}
+
+
+JSON bits32( float aValue )
+{
+    char text[9];
+    std::snprintf( text, sizeof( text ), "%08x",
+                   static_cast<unsigned>( std::bit_cast<uint32_t>( aValue ) ) );
     return std::string( text );
 }
 
@@ -484,6 +511,34 @@ JSON library( F aCall )
     catch( const std::bad_alloc& error )
     {
         return exceptionResult( "std::bad_alloc", error.what() );
+    }
+}
+
+
+// The {"type", "what"} of a library exception aCall throws, or null when it returns.
+template <typename F>
+JSON caught( F aCall )
+{
+    try
+    {
+        aCall();
+        return nullptr;
+    }
+    catch( const SEXPR::INVALID_TYPE_EXCEPTION& error )
+    {
+        return JSON{ { "type", "SEXPR::INVALID_TYPE_EXCEPTION" }, { "what", hex( error.what() ) } };
+    }
+    catch( const std::invalid_argument& error )
+    {
+        return JSON{ { "type", "std::invalid_argument" }, { "what", hex( error.what() ) } };
+    }
+    catch( const std::length_error& error )
+    {
+        return JSON{ { "type", "std::length_error" }, { "what", hex( error.what() ) } };
+    }
+    catch( const std::bad_alloc& error )
+    {
+        return JSON{ { "type", "std::bad_alloc" }, { "what", hex( error.what() ) } };
     }
 }
 
@@ -1016,6 +1071,534 @@ JSON runHeader( const JSON& aInput )
         return addChildren( aInput );
     refuse( "unknown operation" );
 }
+
+
+// ---------------------------------------------------------------------------------------
+// libs.sexpr.application.pure.p001
+
+std::vector<uint64_t> readPath( const JSON& aValue )
+{
+    if( !aValue.is_array() || aValue.size() > MAX_DEPTH )
+        refuse( "invalid path" );
+    std::vector<uint64_t> path;
+    for( const JSON& step : aValue )
+    {
+        if( !step.is_number_unsigned() )
+            refuse( "invalid path" );
+        path.push_back( step.get<uint64_t>() );
+    }
+    return path;
+}
+
+
+// The node reached through m_children: every step a list, an index in range, a non-null child.
+NODE* navigate( NODE* aRoot, const std::vector<uint64_t>& aPath )
+{
+    NODE* node = aRoot;
+    for( uint64_t step : aPath )
+    {
+        if( !node->IsList() )
+            refuse( "invalid path" );
+        const SEXPR::SEXPR_VECTOR& children = static_cast<SEXPR_LIST*>( node )->m_children;
+        if( step >= children.size() || !children[step] )
+            refuse( "invalid path" );
+        node = children[step];
+    }
+    return node;
+}
+
+
+// Walk every node AsString( aLevel ) opens, in its order, with the level it passes and the
+// node's depth below aRoot (aRoot at depth 1). A null child would be dereferenced (undefined)
+// and is refused; an indentation that append refuses with length_error ends the walk (the
+// library throws there). Before that, an indentation above MAX_INDENT, an output above
+// MAX_OUTPUT or a copy work above MAX_WORK is refused as a resource bound. Each node counts
+// the exact bytes its own frame writes besides its children's text (a list's newline,
+// indentation, parentheses and the spaces between its children; an atom's formatted text,
+// integers and doubles formatted by the library itself) once towards the output and once per
+// frame that holds them (its depth) towards the work: the sum of every frame's result length.
+void guardAsString( const NODE* aRoot, uint64_t aLevel )
+{
+    struct ITEM
+    {
+        const NODE* node;
+        uint64_t    level;
+        uint64_t    depth;
+    };
+
+    const uint64_t    maxSize = std::string().max_size();
+    uint64_t          total = 0;
+    uint64_t          work = 0;
+    std::vector<ITEM> stack{ { aRoot, aLevel, 1 } };
+    while( !stack.empty() )
+    {
+        const ITEM item = stack.back();
+        stack.pop_back();
+        uint64_t bytes = 0;
+        if( !item.node )
+            refuse( UNDEFINED );
+        if( item.node->IsList() )
+        {
+            const uint64_t local = item.level != 0 ? 1 : 0;
+            const uint64_t indent = item.level * 2; // size_t arithmetic, modulo 2^64
+            if( maxSize - local < indent )
+                return;
+            if( indent > MAX_INDENT )
+                refuse( TOO_LARGE );
+            const SEXPR::SEXPR_VECTOR& children =
+                    static_cast<const SEXPR_LIST*>( item.node )->m_children;
+            bytes = local + indent + 2 + ( children.empty() ? 0 : children.size() - 1 );
+            for( size_t i = children.size(); i-- > 0; )
+                stack.push_back( { children[i], item.level + 1, item.depth + 1 } );
+        }
+        else if( item.node->IsString() )
+        {
+            bytes = static_cast<const SEXPR::SEXPR_STRING*>( item.node )->m_value.size() + 2;
+        }
+        else if( item.node->IsSymbol() )
+        {
+            bytes = static_cast<const SEXPR::SEXPR_SYMBOL*>( item.node )->m_value.size();
+        }
+        else
+        {
+            // An integer or double atom: its text as AsString formats it. A failure
+            // (bad_alloc) is left to the library call, which raises it too.
+            try
+            {
+                bytes = item.node->AsString().size();
+            }
+            catch( ... )
+            {
+                return;
+            }
+        }
+        total += bytes;
+        work += bytes * item.depth;
+        if( total > MAX_OUTPUT || work > MAX_WORK )
+            refuse( TOO_LARGE );
+    }
+}
+
+
+// One SEXPR member on the node reached from the root through aInput.path.
+JSON getter( const JSON& aInput )
+{
+    const std::string method = readText( aInput, "method" );
+    const char*       extra = nullptr;
+    if( method == "GetChild" )
+        extra = "index";
+    else if( method == "AsString" )
+        extra = "level";
+    else if( method == "AddChild" )
+        extra = "child";
+    else if( method != "GetChildren" && method != "GetNumberOfChildren"
+             && method != "GetLongInteger" && method != "GetInteger" && method != "GetFloat"
+             && method != "GetDouble" && method != "GetString" && method != "GetSymbol"
+             && method != "GetList" )
+        refuse( "unknown method" );
+    if( extra )
+        checkKeys( aInput, { "op", "tree", "path", "method", extra } );
+    else
+        checkKeys( aInput, { "op", "tree", "path", "method" } );
+    std::unique_ptr<NODE> tree = readTree( aInput.at( "tree" ) );
+    NODE*                 node = navigate( tree.get(), readPath( aInput.at( "path" ) ) );
+
+    if( method == "GetChildren" )
+    {
+        return library(
+                [&]
+                {
+                    const SEXPR::SEXPR_VECTOR* children = node->GetChildren();
+                    JSON                       trees = JSON::array();
+                    for( const NODE* child : *children )
+                        trees.push_back( dump( child ) );
+                    const bool same =
+                            children == &static_cast<const SEXPR_LIST*>( node )->m_children;
+                    return JSON{ { "children", trees }, { "same_vector", same } };
+                } );
+    }
+    if( method == "GetChild" )
+    {
+        const uint64_t index = readU64( aInput.at( "index" ) );
+        if( node->IsList() && index >= static_cast<SEXPR_LIST*>( node )->m_children.size() )
+            refuse( UNDEFINED );
+        return library(
+                [&]
+                {
+                    const NODE* child = node->GetChild( index );
+                    const bool  same =
+                            child == static_cast<const SEXPR_LIST*>( node )->m_children[index];
+                    return JSON{ { "child", child ? dump( child ) : JSON( nullptr ) },
+                                 { "same_object", same } };
+                } );
+    }
+    if( method == "GetNumberOfChildren" )
+    {
+        return library(
+                [&] { return JSON{ { "value", uint64_t( node->GetNumberOfChildren() ) } }; } );
+    }
+    if( method == "GetLongInteger" )
+        return library( [&] { return JSON{ { "value", node->GetLongInteger() } }; } );
+    if( method == "GetInteger" )
+        return library( [&] { return JSON{ { "value", node->GetInteger() } }; } );
+    if( method == "GetFloat" )
+        return library( [&] { return JSON{ { "value", bits32( node->GetFloat() ) } }; } );
+    if( method == "GetDouble" )
+        return library( [&] { return JSON{ { "value", bits64( node->GetDouble() ) } }; } );
+    if( method == "GetString" )
+        return library( [&] { return JSON{ { "value", hex( node->GetString() ) } }; } );
+    if( method == "GetSymbol" )
+        return library( [&] { return JSON{ { "value", hex( node->GetSymbol() ) } }; } );
+    if( method == "GetList" )
+    {
+        return library(
+                [&]
+                {
+                    SEXPR_LIST* list = node->GetList();
+                    return JSON{ { "same_object", static_cast<NODE*>( list ) == node },
+                                 { "tree", dump( list ) } };
+                } );
+    }
+    if( method == "AsString" )
+    {
+        const JSON& level = aInput.at( "level" );
+        // A null level calls AsString() with its default argument.
+        const std::optional<uint64_t> value =
+                level.is_null() ? std::nullopt : std::optional<uint64_t>( readU64( level ) );
+        guardAsString( node, value.value_or( 0 ) );
+        return library(
+                [&]
+                {
+                    const std::string text = value ? node->AsString( *value ) : node->AsString();
+                    return JSON{ { "value", hex( text ) } };
+                } );
+    }
+    // AddChild: the list owns the child once it is added; on a throw it stays with the adapter.
+    std::unique_ptr<NODE> child = readOptionalTree( aInput.at( "child" ) );
+    return library(
+            [&]
+            {
+                node->AddChild( child.get() );
+                child.release();
+                return JSON{ { "tree", dump( node ) } };
+            } );
+}
+
+
+// One operator<< right operand.
+struct ITEM
+{
+    enum class KIND
+    {
+        DOUBLE,
+        FLOAT,
+        INT64,
+        INT32,
+        STRING,
+        OUT_STRING,
+        ISEXPRABLE,
+        LIST,
+        SEXPR
+    } kind = KIND::DOUBLE;
+    double                      d = 0;
+    float                       f = 0;
+    int64_t                     l = 0;
+    int32_t                     i = 0;
+    std::string                 s;
+    bool                        symbol = false;
+    std::unique_ptr<SEXPR_LIST> list;
+    std::unique_ptr<NODE>       tree;
+};
+
+
+ITEM readItem( const JSON& aValue )
+{
+    if( !aValue.is_object() )
+        refuse( "expected object" );
+    ITEM              item;
+    const std::string kind = readText( aValue, "kind" );
+    using K = ITEM::KIND;
+    if( kind == "double" )
+    {
+        checkKeys( aValue, { "kind", "value" } );
+        item.kind = K::DOUBLE;
+        item.d = readF64( aValue.at( "value" ) );
+    }
+    else if( kind == "float" )
+    {
+        checkKeys( aValue, { "kind", "value" } );
+        item.kind = K::FLOAT;
+        item.f = readF32( aValue.at( "value" ) );
+    }
+    else if( kind == "int64" )
+    {
+        checkKeys( aValue, { "kind", "value" } );
+        item.kind = K::INT64;
+        item.l = readI64( aValue.at( "value" ) );
+    }
+    else if( kind == "int32" )
+    {
+        checkKeys( aValue, { "kind", "value" } );
+        item.kind = K::INT32;
+        item.i = readI32( aValue.at( "value" ) );
+    }
+    else if( kind == "string" )
+    {
+        checkKeys( aValue, { "kind", "value" } );
+        item.kind = K::STRING;
+        item.s = readHex( aValue.at( "value" ) );
+    }
+    else if( kind == "out_string" )
+    {
+        checkKeys( aValue, { "kind", "symbol", "value" } );
+        item.kind = K::OUT_STRING;
+        item.s = readHex( aValue.at( "value" ) );
+        item.symbol = readBool( aValue.at( "symbol" ) );
+    }
+    else if( kind == "isexprable" )
+    {
+        checkKeys( aValue, { "kind" } );
+        item.kind = K::ISEXPRABLE;
+    }
+    else if( kind == "list" )
+    {
+        checkKeys( aValue, { "kind", "tree" } );
+        item.kind = K::LIST;
+        if( !aValue.at( "tree" ).is_null() )
+            item.list = readList( aValue.at( "tree" ) );
+    }
+    else if( kind == "sexpr" )
+    {
+        checkKeys( aValue, { "kind", "tree" } );
+        item.kind = K::SEXPR;
+        item.tree = readOptionalTree( aValue.at( "tree" ) );
+    }
+    else
+    {
+        refuse( "unknown argument kind" );
+    }
+    return item;
+}
+
+
+// list << item << ...: each operator<< overload on the list, with the list it returns.
+JSON insert( const JSON& aInput )
+{
+    checkKeys( aInput, { "op", "tree", "items" } );
+    std::unique_ptr<SEXPR_LIST> list = readList( aInput.at( "tree" ) );
+    std::vector<ITEM>           items;
+    for( const JSON& item : argList( aInput.at( "items" ) ) )
+        items.push_back( readItem( item ) );
+    return library(
+            [&]
+            {
+                bool returnsSelf = true;
+                for( ITEM& item : items )
+                {
+                    SEXPR_LIST* returned = nullptr;
+                    using K = ITEM::KIND;
+                    switch( item.kind )
+                    {
+                    case K::DOUBLE: returned = &( *list << item.d ); break;
+                    case K::FLOAT: returned = &( *list << item.f ); break;
+                    case K::INT64: returned = &( *list << item.l ); break;
+                    case K::INT32: returned = &( *list << item.i ); break;
+                    case K::STRING: returned = &( *list << std::string( item.s ) ); break;
+                    case K::OUT_STRING:
+                    {
+                        const std::string& value = item.s;
+                        returned = &( *list << ( item.symbol ? SEXPR::AsSymbol( value )
+                                                             : SEXPR::AsString( value ) ) );
+                        break;
+                    }
+                    case K::ISEXPRABLE:
+                    {
+                        const SEXPR::ISEXPRABLE object{};
+                        returned = &( *list << object );
+                        break;
+                    }
+                    case K::LIST: returned = &( *list << item.list.release() ); break;
+                    case K::SEXPR: returned = &( *list << item.tree.release() ); break;
+                    }
+                    returnsSelf = returnsSelf && returned == list.get();
+                }
+                return JSON{ { "in_stream_child", inStreamChild( *list ) },
+                             { "returns_self", returnsSelf },
+                             { "tree", dump( list.get() ) } };
+            } );
+}
+
+
+// One operator>> right operand and the value it holds.
+struct TARGET
+{
+    enum class KIND
+    {
+        INT32,
+        INT64,
+        FLOAT,
+        DOUBLE,
+        STRING,
+        IN_STRING,
+        ISEXPRABLE
+    } kind = KIND::INT32;
+    int32_t     i = 0;
+    int64_t     l = 0;
+    float       f = 0;
+    double      d = 0;
+    std::string s;
+    bool        symbol = false;
+};
+
+
+TARGET readTarget( const JSON& aValue )
+{
+    if( !aValue.is_object() )
+        refuse( "expected object" );
+    TARGET            target;
+    const std::string kind = readText( aValue, "kind" );
+    using K = TARGET::KIND;
+    if( kind == "int32" )
+    {
+        checkKeys( aValue, { "kind", "initial" } );
+        target.kind = K::INT32;
+        target.i = readI32( aValue.at( "initial" ) );
+    }
+    else if( kind == "int64" )
+    {
+        checkKeys( aValue, { "kind", "initial" } );
+        target.kind = K::INT64;
+        target.l = readI64( aValue.at( "initial" ) );
+    }
+    else if( kind == "float" )
+    {
+        checkKeys( aValue, { "kind", "initial" } );
+        target.kind = K::FLOAT;
+        target.f = readF32( aValue.at( "initial" ) );
+    }
+    else if( kind == "double" )
+    {
+        checkKeys( aValue, { "kind", "initial" } );
+        target.kind = K::DOUBLE;
+        target.d = readF64( aValue.at( "initial" ) );
+    }
+    else if( kind == "string" )
+    {
+        checkKeys( aValue, { "kind", "initial" } );
+        target.kind = K::STRING;
+        target.s = readHex( aValue.at( "initial" ) );
+    }
+    else if( kind == "in_string" )
+    {
+        checkKeys( aValue, { "kind", "symbol", "initial" } );
+        target.kind = K::IN_STRING;
+        target.symbol = readBool( aValue.at( "symbol" ) );
+        target.s = readHex( aValue.at( "initial" ) );
+    }
+    else if( kind == "isexprable" )
+    {
+        checkKeys( aValue, { "kind" } );
+        target.kind = K::ISEXPRABLE;
+    }
+    else
+    {
+        refuse( "unknown argument kind" );
+    }
+    return target;
+}
+
+
+// list >> target >> ...: each operator>> overload in turn; the chain stops at the first
+// exception, reported with every target's value. Every overload but the ISEXPRABLE one
+// dereferences GetChild( m_inStreamChild ), which is refused when it is past the last child
+// or null.
+JSON extract( const JSON& aInput )
+{
+    checkKeys( aInput, { "op", "tree", "targets" } );
+    std::unique_ptr<SEXPR_LIST> list = readList( aInput.at( "tree" ) );
+    std::vector<TARGET>         targets;
+    for( const JSON& target : argList( aInput.at( "targets" ) ) )
+        targets.push_back( readTarget( target ) );
+    uint64_t completed = 0;
+    bool     returnsSelf = true;
+    JSON     raised = nullptr;
+    using K = TARGET::KIND;
+    for( TARGET& target : targets )
+    {
+        if( target.kind != K::ISEXPRABLE )
+        {
+            const int index = inStreamChild( *list );
+            if( index < 0 || static_cast<size_t>( index ) >= list->m_children.size()
+                || !list->m_children[index] )
+                refuse( UNDEFINED );
+        }
+        SEXPR_LIST* returned = nullptr;
+        raised = caught(
+                [&]
+                {
+                    switch( target.kind )
+                    {
+                    case K::INT32: returned = &( *list >> target.i ); break;
+                    case K::INT64: returned = &( *list >> target.l ); break;
+                    case K::FLOAT: returned = &( *list >> target.f ); break;
+                    case K::DOUBLE: returned = &( *list >> target.d ); break;
+                    case K::STRING: returned = &( *list >> target.s ); break;
+                    case K::IN_STRING:
+                        returned = &( *list >> ( target.symbol ? SEXPR::AsSymbol( target.s )
+                                                               : SEXPR::AsString( target.s ) ) );
+                        break;
+                    case K::ISEXPRABLE:
+                    {
+                        SEXPR::ISEXPRABLE object;
+                        returned = &( *list >> object );
+                        break;
+                    }
+                    }
+                } );
+        if( !raised.is_null() )
+            break;
+        returnsSelf = returnsSelf && returned == list.get();
+        completed++;
+    }
+    JSON values = JSON::array();
+    for( const TARGET& target : targets )
+    {
+        switch( target.kind )
+        {
+        case K::INT32: values.push_back( target.i ); break;
+        case K::INT64: values.push_back( target.l ); break;
+        case K::FLOAT: values.push_back( bits32( target.f ) ); break;
+        case K::DOUBLE: values.push_back( bits64( target.d ) ); break;
+        case K::STRING:
+        case K::IN_STRING: values.push_back( hex( target.s ) ); break;
+        case K::ISEXPRABLE: values.push_back( nullptr ); break;
+        }
+    }
+    return JSON{ { "completed", completed },
+                 { "exception", raised },
+                 { "in_stream_child", inStreamChild( *list ) },
+                 { "returns_self", returnsSelf },
+                 { "targets", values } };
+}
+
+
+JSON runSource( const JSON& aInput )
+{
+    const std::string op = readText( aInput, "op" );
+    if( op == "getter" )
+        return getter( aInput );
+    if( op == "insert" )
+        return insert( aInput );
+    if( op == "extract" )
+        return extract( aInput );
+    if( op == "scan" )
+        return scan( aInput );
+    if( op == "add_children" )
+        return addChildren( aInput );
+    if( op == "construct_list" )
+        return constructList( aInput );
+    refuse( "unknown operation" );
+}
 } // namespace
 
 namespace oracle
@@ -1023,5 +1606,11 @@ namespace oracle
 void RegisterSexprInclude( REGISTRY& aRegistry )
 {
     aRegistry.Add( HEADER_UNIT, "libs/sexpr/include/sexpr/*.h", runHeader );
+}
+
+
+void RegisterSexprSource( REGISTRY& aRegistry )
+{
+    aRegistry.Add( SOURCE_UNIT, "libs/sexpr/sexpr.cpp", runSource );
 }
 } // namespace oracle

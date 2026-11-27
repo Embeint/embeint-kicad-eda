@@ -40,6 +40,7 @@ void RegisterCoreAppIncludeP001( REGISTRY& aRegistry );
 void RegisterSexprInclude( REGISTRY& aRegistry );
 void RegisterShapeHeadersP003( REGISTRY& aRegistry );
 void RegisterClipper2IncludeP002( REGISTRY& aRegistry );
+void RegisterSexprSource( REGISTRY& aRegistry );
 
 
 void REGISTRY::Add( const std::string& aUnit, const std::string& aUpstream, SHIM aShim )
@@ -92,6 +93,7 @@ REGISTRY MakeRegistry()
     RegisterSexprInclude( registry );
     RegisterShapeHeadersP003( registry );
     RegisterClipper2IncludeP002( registry );
+    RegisterSexprSource( registry );
     return registry;
 }
 

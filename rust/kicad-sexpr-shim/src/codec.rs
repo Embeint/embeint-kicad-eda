@@ -56,6 +56,11 @@ impl From<String> for Error {
 /// The reply for a library failure: an exception the reference throws is a result (its type
 /// and `what()`); an undefined evaluation is refused and an unported call deferred.
 pub fn raised(error: SexprError) -> Result<Value, Error> {
+    exception(error).map(|value| json!({"exception": value}))
+}
+
+/// An exception's `{"type", "what"}`, or the refusal/deferral for other failures.
+pub fn exception(error: SexprError) -> Result<Value, Error> {
     let (kind, what): (&str, Vec<u8>) = match error {
         SexprError::InvalidType(exception) => {
             ("SEXPR::INVALID_TYPE_EXCEPTION", exception.what().to_vec())
@@ -66,7 +71,7 @@ pub fn raised(error: SexprError) -> Result<Value, Error> {
         SexprError::Undefined => return Err(UNDEFINED.into()),
         SexprError::Unported { upstream, unit } => return Err(Error::Unported { upstream, unit }),
     };
-    Ok(json!({"exception": {"type": kind, "what": hex(&what)}}))
+    Ok(json!({"type": kind, "what": hex(&what)}))
 }
 
 pub fn object(value: &Value) -> Result<&Map<String, Value>, Error> {
