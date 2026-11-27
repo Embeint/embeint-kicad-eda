@@ -15,5 +15,7 @@
 #include "clipper.rectclip.cpp"
 
 #define INCLUDE_P002_NS include_p002_guard
+// Enables the replay-only flag bounds trace (GCC 13.3's vector<bool> has no subscript assertion).
+#define INCLUDE_P002_REPLAY 1
 #include "clipper2_include_p002_ops.inc"
 #undef Clipper2Lib

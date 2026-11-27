@@ -572,6 +572,20 @@ fn steps_per_360(abs_delta: f64, arc_tolerance: f64) -> f64 {
     std_min(PI / acos(1.0 - arc_tol / abs_delta), abs_delta * PI)
 }
 
+/// Whether `ScalePaths<int64_t, double>(paths, scale, ...)` reports `range_error_i`: its own
+/// bounds test on `GetBounds<double, double>` (comparisons only, defined for every input).
+fn scale_range_error(paths: &[PathD], scale: f64) -> R<bool> {
+    let r = kicad_clipper2::clipper_core::get_bounds_paths::<f64, f64>(paths)?;
+    let (min, max) = (
+        kicad_clipper2::clipper_core::MIN_COORD_D,
+        kicad_clipper2::clipper_core::MAX_COORD_D,
+    );
+    Ok(r.left * scale < min
+        || r.right * scale > max
+        || r.top * scale < min
+        || r.bottom * scale > max)
+}
+
 fn offset_finite(value: f64) -> bool {
     value.is_finite() && value.abs() <= OFFSET_LIMIT
 }
@@ -644,7 +658,12 @@ fn run_inflate<T: Wire>(v: &Value) -> R<Value> {
     }
     let round = jt == JoinType::Round || et == EndType::Round;
     if T::DOUBLE {
-        if precision_in_range(precision) && delta != 0.0 {
+        // `ScalePaths<int64_t, double>` throws "Values exceed permitted range" before any
+        // conversion or offset work: that defined error needs no offset bound.
+        if precision_in_range(precision)
+            && delta != 0.0
+            && !scale_range_error(&as_paths_d(&paths), pow10(precision))?
+        {
             let scale = pow10(precision);
             for p in paths.iter().flatten() {
                 if !offset_finite(p.x.to_f64() * scale) || !offset_finite(p.y.to_f64() * scale) {
@@ -1465,16 +1484,72 @@ fn rdp_calls(len: usize) -> usize {
     len.saturating_mul(4).saturating_add(16)
 }
 
+/// The C++ adapter's `RdpNanGuard`: follow `RDP(path, 0, len - 1, ...)`'s calls in the
+/// reference's order and refuse the request if one repeats an active ancestor's arguments
+/// (a recursion that never ends) or the calls exceed `max_calls`. Each step uses the port's
+/// comparisons and `PerpendicDistFromLineSqrd` in the reference's order, so an overflow the
+/// reference reaches first is reported first here too.
+fn rdp_nan_guard<T: Coord>(path: &[Point<T>], eps_sqrd: f64, max_calls: usize) -> R<()> {
+    let point = |i: usize| {
+        path.get(i)
+            .ok_or(E::Clip(ClipperError::Undefined("RDP index")))
+    };
+    let mut pending: Vec<(usize, usize, usize)> = vec![(0, path.len().saturating_sub(1), 0)];
+    let mut chain: Vec<(usize, usize)> = Vec::new();
+    let mut calls = 0usize;
+    while let Some((begin, end_in, depth)) = pending.pop() {
+        calls += 1;
+        if calls > max_calls {
+            return invalid("epsilon");
+        }
+        chain.truncate(depth);
+        if chain.contains(&(begin, end_in)) {
+            return invalid("epsilon");
+        }
+        chain.push((begin, end_in));
+        let (mut end, mut idx, mut max_d) = (end_in, 0usize, 0.0);
+        while end > begin && point(begin)? == point(end)? {
+            end -= 1;
+        }
+        for i in begin.wrapping_add(1)..end {
+            let d = kicad_clipper2::clipper_core::perpendic_dist_from_line_sqrd(
+                point(i)?,
+                point(begin)?,
+                point(end)?,
+            )?;
+            if d <= max_d {
+                continue;
+            }
+            max_d = d;
+            idx = i;
+        }
+        if max_d <= eps_sqrd {
+            continue;
+        }
+        if idx < end.wrapping_sub(1) {
+            pending.push((idx, end, depth + 1));
+        }
+        if idx > begin.wrapping_add(1) {
+            pending.push((begin, idx, depth + 1));
+        }
+    }
+    Ok(())
+}
+
 fn run_rdp<T: Wire>(v: &Value) -> R<Value> {
     keys(v, &["op", "type", "form", "value", "epsilon"])?;
     let mut count = Counter(0);
     let (single, paths) = read_form::<T>(v, &mut count)?;
     max_path_length(&paths, MAX_RDP)?;
     let epsilon = f64_of(at(v, "epsilon")?)?;
-    if epsilon.is_nan() {
-        return invalid("epsilon");
-    }
     let calls = rdp_calls(MAX_RDP);
+    // A NaN epsilon can make RDP recurse forever; only those paths (and ones beyond the call
+    // bound) are refused. Shorter paths are copied without an RDP call.
+    if epsilon.is_nan() {
+        for path in paths.iter().filter(|p| p.len() >= 5) {
+            rdp_nan_guard(path, kicad_clipper2::clipper_core::sqr(epsilon), calls)?;
+        }
+    }
     if single {
         let Some(path) = paths.first() else {
             return invalid("path");

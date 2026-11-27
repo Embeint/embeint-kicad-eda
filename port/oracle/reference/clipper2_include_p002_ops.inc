@@ -7,7 +7,9 @@
 //   archive (namespace Clipper2Lib), which produces every reply;
 // - in reference/clipper2_include_p002_guard.cpp against a UBSan/_GLIBCXX_ASSERTIONS
 //   compilation of the same pinned sources (namespace Clipper2Lib renamed by macro), run in a
-//   forked child first to decide whether the reference evaluation is undefined.
+//   forked child first to decide whether the reference evaluation is undefined. That file also
+//   defines INCLUDE_P002_REPLAY, which adds explicit std::vector<bool> bounds traces the
+//   library's assertions do not provide on GCC 13.3 (RunDetail); they never change a reply.
 //
 // The including file defines INCLUDE_P002_NS and has included registry.h and the Clipper2
 // headers. Every request validates its whole input and applies the domain and resource guards
@@ -42,6 +44,8 @@ constexpr size_t  MAX_NODES = 4096;
 constexpr size_t  MAX_VALUES = 4096;
 constexpr size_t  MAX_SIMPLIFY = 4096;
 constexpr size_t  MAX_RDP = 1024;
+// RDP calls per path for a NaN epsilon (rdp_calls in the Rust shim): 4 * MAX_RDP + 16.
+constexpr size_t  MAX_RDP_CALLS = MAX_RDP * 4 + 16;
 constexpr size_t  MAX_QUADS = size_t( 1 ) << 14;
 constexpr size_t  MAX_FLAGS = 4096;
 constexpr size_t  MAX_GROUPS = 16;
@@ -423,6 +427,17 @@ bool PrecisionInRange( int aPrecision )
 }
 
 
+/// Whether `ScalePaths<int64_t, double>(aPaths, aScale, ...)` reports `range_error_i`: its
+/// own bounds test, on the bounds it computes (`GetBounds<double, double>`), which only
+/// compares and so is defined for every input.
+bool ScaleRangeError( const c2::PathsD& aPaths, double aScale )
+{
+    const c2::RectD r = c2::GetBounds<double, double>( aPaths );
+    return ( r.left * aScale ) < c2::min_coord || ( r.right * aScale ) > c2::max_coord
+           || ( r.top * aScale ) < c2::min_coord || ( r.bottom * aScale ) > c2::max_coord;
+}
+
+
 template <typename F>
 JSON Guarded( F aCall, const char* aField )
 {
@@ -681,7 +696,12 @@ JSON RunInflate( const JSON& aIn )
 
     if constexpr( D )
     {
-        if( PrecisionInRange( precision ) && delta != 0.0 )
+        // ScalePaths<int64_t, double> throws "Values exceed permitted range" when the scaled
+        // bounds leave min_coord..max_coord, after the constructor has only stored its
+        // arguments and before any conversion or offset work: that defined error needs no
+        // offset bound, so the guard applies only when the scaling succeeds.
+        if( PrecisionInRange( precision ) && delta != 0.0
+            && !ScaleRangeError( paths, Pow10( precision ) ) )
         {
             const double scale = Pow10( precision );
 
@@ -1491,6 +1511,75 @@ JSON RunContains( const JSON& aIn )
 }
 
 
+/// Follow `RDP(path, 0, len - 1, epsSqrd, flags)`'s calls in the reference's order (the
+/// `begin..idx` call returns before the `idx..end` call starts) and refuse the request if one
+/// repeats an active ancestor's arguments or the calls exceed `MAX_RDP_CALLS`.
+///
+/// A call's control flow depends only on `path`, `begin` and `end` (it writes `flags` but never
+/// reads them), so a call that repeats an active ancestor's arguments recurses forever; a
+/// recursion that never ends must repeat one, since the arguments are indices of `path`.
+/// This happens only for a NaN `epsSqrd`, when `max_d <= epsSqrd` never returns early and no
+/// point moves `idx` off 0. Each step uses the reference's own comparisons and
+/// `PerpendicDistFromLineSqrd` in the same order, so arithmetic the reference evaluates
+/// first (an overflow the replay traps) is reached first here too.
+template <typename T>
+void RdpNanGuard( const c2::Path<T>& aPath, double aEpsSqrd )
+{
+    struct CALL
+    {
+        size_t begin, end, depth;
+    };
+
+    std::vector<CALL>                      pending{ { 0, aPath.size() - 1, 0 } };
+    std::vector<std::pair<size_t, size_t>> chain;
+    size_t                                 calls = 0;
+
+    while( !pending.empty() )
+    {
+        const CALL call = pending.back();
+        pending.pop_back();
+
+        if( ++calls > MAX_RDP_CALLS )
+            Invalid( "epsilon" );
+
+        // Return from every call deeper than this one's parent.
+        chain.resize( std::min( chain.size(), call.depth ) );
+
+        if( std::find( chain.begin(), chain.end(), std::make_pair( call.begin, call.end ) )
+            != chain.end() )
+            Invalid( "epsilon" );
+
+        chain.emplace_back( call.begin, call.end );
+        size_t begin = call.begin, end = call.end, idx = 0;
+        double max_d = 0;
+
+        while( end > begin && aPath[begin] == aPath[end] )
+            --end;
+
+        for( size_t i = begin + 1; i < end; ++i )
+        {
+            double d = c2::PerpendicDistFromLineSqrd( aPath[i], aPath[begin], aPath[end] );
+
+            if( d <= max_d )
+                continue;
+
+            max_d = d;
+            idx = i;
+        }
+
+        if( max_d <= aEpsSqrd )
+            continue;
+
+        // Pushed in reverse so that the begin..idx call runs first.
+        if( idx < end - 1 )
+            pending.push_back( { idx, end, call.depth + 1 } );
+
+        if( idx > begin + 1 )
+            pending.push_back( { begin, idx, call.depth + 1 } );
+    }
+}
+
+
 template <typename T>
 JSON RunRdp( const JSON& aIn )
 {
@@ -1508,9 +1597,16 @@ JSON RunRdp( const JSON& aIn )
     MaxPathLength( paths, MAX_RDP );
     const double epsilon = F64( At( aIn, "epsilon" ) );
 
-    // A NaN epsilon makes RDP recurse forever on nearly every path: a harness limit.
+    // A NaN epsilon can make RDP recurse forever; only those paths (and ones beyond the call
+    // bound) are refused. Shorter paths are copied without an RDP call.
     if( std::isnan( epsilon ) )
-        Invalid( "epsilon" );
+    {
+        for( const c2::Path<T>& path : paths )
+        {
+            if( path.size() >= 5 )
+                RdpNanGuard( path, c2::Sqr( epsilon ) );
+        }
+    }
 
     if( single )
         return WritePath<T>( c2::RamerDouglasPeucker( paths[0], epsilon ) );
@@ -1592,6 +1688,63 @@ JSON RunMinkowski( const JSON& aIn )
 }
 
 
+#ifdef INCLUDE_P002_REPLAY
+// The replay's subscript checks come from _GLIBCXX_ASSERTIONS, but GCC 13.3's
+// std::vector<bool>::operator[] has none (GCC 15's has), and UBSan cannot see a read of a spare
+// bit in an allocated word. So the replay (only) first reads the flags at the indices
+// details::GetNext and details::GetPrior read, in their order, and traps, as a failed
+// assertion would, on one outside the vector. The genuine evaluation is unchanged.
+//
+// Within SimplifyPath these functions cannot overrun: its loop keeps at least two vertices
+// unflagged (it stops when GetPrior and GetNext agree), and RDP and RamerDouglasPeucker only
+// index flags with vertex indices (findings: clipper2-include-p002-port.md).
+bool TraceFlag( const std::vector<bool>& aFlags, size_t aIndex )
+{
+    if( aIndex >= aFlags.size() )
+        __builtin_trap();
+
+    return aFlags[aIndex];
+}
+
+
+void TraceGetNext( size_t aCurrent, size_t aHigh, const std::vector<bool>& aFlags )
+{
+    ++aCurrent;
+
+    while( aCurrent <= aHigh && TraceFlag( aFlags, aCurrent ) )
+        ++aCurrent;
+
+    if( aCurrent <= aHigh )
+        return;
+
+    aCurrent = 0;
+
+    while( TraceFlag( aFlags, aCurrent ) )
+        ++aCurrent;
+}
+
+
+void TraceGetPrior( size_t aCurrent, size_t aHigh, const std::vector<bool>& aFlags )
+{
+    if( aCurrent == 0 )
+        aCurrent = aHigh;
+    else
+        --aCurrent;
+
+    while( aCurrent > 0 && TraceFlag( aFlags, aCurrent ) )
+        --aCurrent;
+
+    if( !TraceFlag( aFlags, aCurrent ) )
+        return;
+
+    aCurrent = aHigh;
+
+    while( TraceFlag( aFlags, aCurrent ) )
+        --aCurrent;
+}
+#endif
+
+
 JSON RunDetail( const JSON& aIn )
 {
     Keys( aIn, { "op", "fn", "current", "high", "flags" } );
@@ -1612,6 +1765,13 @@ JSON RunDetail( const JSON& aIn )
     // SimplifyPath's contract: one flag per vertex, high the last index.
     if( high + 1 != flags.size() || current > high )
         Invalid( "detail" );
+
+#ifdef INCLUDE_P002_REPLAY
+    if( fn == "get_next" )
+        TraceGetNext( current, high, flags );
+    else if( fn == "get_prior" )
+        TraceGetPrior( current, high, flags );
+#endif
 
     if( fn == "get_next" )
         return c2::details::GetNext( current, high, flags );

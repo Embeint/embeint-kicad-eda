@@ -9,7 +9,8 @@
 // by a hand-written model: every request first runs in a forked child on
 // reference/clipper2_include_p002_guard.cpp, the same evaluation compiled against the pinned
 // clipper.engine.cpp, clipper.offset.cpp and clipper.rectclip.cpp with UBSan in trap mode and
-// _GLIBCXX_ASSERTIONS. A trap, failed assertion or fault there refuses the request as
+// _GLIBCXX_ASSERTIONS (plus explicit std::vector<bool> bounds traces for GetNext/GetPrior, which
+// GCC 13.3's assertions do not check). A trap, failed assertion or fault there refuses the request as
 // "undefined behaviour: <op>"; a child that exceeds the replay time or memory limit refuses
 // it as "harness limit: <op>" (a harness bound, not a claim about the reference). Only a
 // cleanly finished replay lets the genuine call run. Triangulate is declared by
