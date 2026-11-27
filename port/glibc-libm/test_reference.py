@@ -9,6 +9,7 @@ import unittest
 HERE=Path(__file__).resolve().parent
 sys.path.insert(0,str(HERE))
 import domain
+import fma_domain
 import hypot_domain
 import pow_domain
 import reference as ref
@@ -43,14 +44,19 @@ class ReferenceTests(unittest.TestCase):
             self.assertFalse(ref.report(d),'pow is required on every target')
             pow_line=f"glibc_libm pow: {ref.load()['pow_domain']['count']} records, 0 mismatches\n"
             hypot_line=f"glibc_libm hypot: {ref.load()['hypot_domain']['count']} records, 0 mismatches\n"
+            fma_line=f"glibc_libm fma: {ref.load()['fma_domain']['count']} records, 0 mismatches\n"
             for name in ref.COMPARISONS:(Path(d)/(name+'.log')).write_text(angle+pow_line)
             self.assertFalse(ref.report(d),'hypot is required on every target')
-            lines=angle+pow_line+hypot_line
-            (Path(d)/'native-debug.log').write_text(angle+f'glibc_libm pow: {count} records, 0 mismatches\n'+hypot_line)
+            for name in ref.COMPARISONS:(Path(d)/(name+'.log')).write_text(angle+pow_line+hypot_line)
+            self.assertFalse(ref.report(d),'fma is required on every target')
+            lines=angle+pow_line+hypot_line+fma_line
+            (Path(d)/'native-debug.log').write_text(angle+f'glibc_libm pow: {count} records, 0 mismatches\n'+hypot_line+fma_line)
             for name in ref.COMPARISONS[1:]:(Path(d)/(name+'.log')).write_text(lines)
             self.assertFalse(ref.report(d),'pow needs its own record count')
-            (Path(d)/'native-debug.log').write_text(angle+pow_line+f'glibc_libm hypot: {count} records, 0 mismatches\n')
+            (Path(d)/'native-debug.log').write_text(angle+pow_line+f'glibc_libm hypot: {count} records, 0 mismatches\n'+fma_line)
             self.assertFalse(ref.report(d),'hypot needs its own record count')
+            (Path(d)/'native-debug.log').write_text(angle+pow_line+hypot_line+f'glibc_libm fma: {count} records, 0 mismatches\n')
+            self.assertFalse(ref.report(d),'fma needs its own record count')
             for name in ref.COMPARISONS:(Path(d)/(name+'.log')).write_text(lines)
             self.assertTrue(ref.report(d))
             path=Path(d)/'unknown-release.log';path.write_text(lines+lines)
@@ -117,6 +123,31 @@ class HypotDomainTests(unittest.TestCase):
             p=Path(d)/'hypot-domain.bin';hypot_domain.write(p)
             with self.assertRaises(ref.trig.Refused):ref.check_domain(p,'pow_domain')
             ref.check_domain(p,'hypot_domain')
+
+class FmaDomainTests(unittest.TestCase):
+    def test_fma_generator_hash_and_order(self):
+        fixed=fma_domain.fixed()
+        self.assertEqual(fixed,sorted(set(fixed)))
+        self.assertEqual(len(fixed),ref.load()['fma_domain']['fixed_count'])
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(fma_domain.write(Path(d)/'fma-domain.bin'),ref.load()['fma_domain'])
+    def test_fma_source_branches_are_present(self):
+        fixed=set(fma_domain.fixed())
+        b,S,inf=domain.bits,domain.SIGN,fma_domain.INF
+        # Special returns: (z + x) + y, x * y for a zero z, x * y + z with every NaN order.
+        for q in fma_domain.QNANS+fma_domain.SNANS:
+            for t in [(b(1.0),b(2.0),q),(q,b(2.0),0),(inf,0,q),(q,q|S,b(1.0)),(b(1.0),q,q|S)]:
+                self.assertIn(t,fixed)
+        for t in [(inf,0,b(1.0)),(inf|S,inf,0),(b(2.0),b(1.5),inf|S),(fma_domain.MAX_FINITE,b(2.0),0)]:
+            self.assertIn(t,fixed)
+        # Exponent thresholds: certain overflow (ue + ve > 3070), tiny product (< 968).
+        exps={((x>>52)&0x7ff)+((y>>52)&0x7ff) for x,y,_ in fixed}
+        for total in (967,968,969,1076,1077,3016,3017,3070,3071): self.assertIn(total,exps)
+    def test_fma_domain_rejected_under_other_keys(self):
+        with tempfile.TemporaryDirectory() as d:
+            p=Path(d)/'fma-domain.bin';fma_domain.write(p)
+            with self.assertRaises(ref.trig.Refused):ref.check_domain(p,'hypot_domain')
+            ref.check_domain(p,'fma_domain')
 
 class SourceTransportTests(unittest.TestCase):
     def test_mirror_fallback_keeps_hash_mandatory(self):

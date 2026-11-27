@@ -42,6 +42,7 @@ void RegisterSexprInclude( REGISTRY& aRegistry );
 void RegisterShapeHeadersP003( REGISTRY& aRegistry );
 void RegisterClipper2IncludeP002( REGISTRY& aRegistry );
 void RegisterSexprSource( REGISTRY& aRegistry );
+void RegisterTrigoSource( REGISTRY& aRegistry );
 
 
 void REGISTRY::Add( const std::string& aUnit, const std::string& aUpstream, SHIM aShim )
@@ -95,6 +96,7 @@ REGISTRY MakeRegistry()
     RegisterShapeHeadersP003( registry );
     RegisterClipper2IncludeP002( registry );
     RegisterSexprSource( registry );
+    RegisterTrigoSource( registry );
     RegisterKiplatformIncludeP001( registry );
     return registry;
 }

@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 //! Public facade over the private `glibc_trig` and `glibc_libm` backends, for ports in other
-//! crates whose pinned C++ calls `std::sin`, `std::cos`, `std::acos`, `std::atan2` or
-//! `std::pow` on a `double` (first user: the Clipper2 `ClipperOffset` port in
+//! crates whose pinned C++ calls `std::sin`, `std::cos`, `std::acos`, `std::atan2`,
+//! `std::pow` or `std::fma` on a `double` (first user: the Clipper2 `ClipperOffset` port in
 //! `kicad-clipper2`; `pow` is `std::pow(10, precision)` in the Clipper2 `clipper.h` and
-//! `clipper.minkowski.h` wrappers).
+//! `clipper.minkowski.h` wrappers; `fma` is the explicit `std::fma` of trigo.cpp's three-point
+//! `CalcArcCenter`, which GCC calls in libm on the baseline x86-64 target).
 //!
 //! Value contract: each function returns exactly the bits of the pinned reference C library,
 //! glibc 2.39's baseline SSE2 variant (`__sin_sse2`, `__cos_sse2`, `__ieee754_acos`,
-//! `__ieee754_atan2`, `pow@@GLIBC_2.29` over `__ieee754_pow_sse2`), natively and in WebAssembly, without the host libm. It assumes the
+//! `__ieee754_atan2`, `pow@@GLIBC_2.29` over `__ieee754_pow_sse2`, `fma@@GLIBC_2.2.5` over
+//! `__fma_sse2`), natively and in WebAssembly, without the host libm. It assumes the
 //! default round-to-nearest mode with gradual underflow, like the backends. errno, floating
 //! point exception flags and other rounding modes are not modelled.
 //!
@@ -42,6 +44,13 @@ pub fn pow(x: f64, y: f64) -> f64 {
     crate::glibc_libm::pow(x, y)
 }
 
+/// `std::fma(double x, double y, double z)`: glibc 2.39 `fma@@GLIBC_2.2.5` (`__fma_sse2`), in
+/// the argument order of the compiled call. GCC treats the two factors as commutative and may
+/// pass them swapped; which one a caller passes first decides which NaN survives.
+pub fn fma(x: f64, y: f64, z: f64) -> f64 {
+    crate::glibc_libm::fma(x, y, z)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -72,6 +81,12 @@ mod tests {
                     crate::glibc_libm::atan2(y, x).to_bits()
                 );
                 assert_eq!(pow(x, y).to_bits(), crate::glibc_libm::pow(x, y).to_bits());
+                for &z in &samples {
+                    assert_eq!(
+                        fma(x, y, z).to_bits(),
+                        crate::glibc_libm::fma(x, y, z).to_bits()
+                    );
+                }
             }
         }
     }

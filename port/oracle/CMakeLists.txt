@@ -226,8 +226,13 @@ list( REMOVE_ITEM ORACLE_SHIMS "${SHAPE_HEADERS_P003_SHIM}" )
 # adapter's.
 set( CLIPPER2_INCLUDE_P002_SHIM "${ORACLE_OVERLAY}/shims/clipper2_include_p002.cpp" )
 list( REMOVE_ITEM ORACLE_SHIMS "${CLIPPER2_INCLUDE_P002_SHIM}" )
+# The trigo.cpp source adapter follows every previously qualified object, the clipper.h header
+# adapter included, so none of its weak template copies (VECTOR2, SEG, EDA_ANGLE, JSON helpers)
+# is selected ahead of an earlier adapter's and every accepted selection is unchanged.
+set( TRIGO_SOURCE_P001_SHIM "${ORACLE_OVERLAY}/shims/trigo_source_p001.cpp" )
+list( REMOVE_ITEM ORACLE_SHIMS "${TRIGO_SOURCE_P001_SHIM}" )
 # The kiplatform public header adapter and its probe follow every previously qualified object,
-# the clipper.h/clipper.minkowski.h header adapter included, so none of their weak template
+# the clipper.h header and trigo.cpp source adapters included, so none of their weak template
 # copies (wxString, std::function, JSON helpers) is selected ahead of an earlier adapter's.
 # The probe compiles the pinned io.h, secrets.h and ui.h with namespace KIPLATFORM renamed and
 # defines only symbols in that renamed namespace, never a genuine KIPLATFORM function.
@@ -249,8 +254,8 @@ add_executable( kicad-oracle main.cpp protocol.cpp registry.cpp ${ORACLE_SHIMS}
                 reference/geometry_unreachable_config.cpp "${KIPLATFORM_POLICY_SHIM}"
                 "${KIPLATFORM_POLICY_SOURCE}" "${CLIPPER2_ENGINE_P002_SHIM}"
                 "${WX_STL_COMPAT_SHIM}" "${SEXPR_SHIM}" "${SHAPE_HEADERS_P003_SHIM}"
-                "${CLIPPER2_INCLUDE_P002_SHIM}" "${KIPLATFORM_INCLUDE_P001_SHIM}"
-                "${KIPLATFORM_INCLUDE_P001_PROBE}" )
+                "${CLIPPER2_INCLUDE_P002_SHIM}" "${TRIGO_SOURCE_P001_SHIM}"
+                "${KIPLATFORM_INCLUDE_P001_SHIM}" "${KIPLATFORM_INCLUDE_P001_PROBE}" )
 target_include_directories( kicad-oracle PRIVATE "${ORACLE_OVERLAY}" "${CMAKE_BINARY_DIR}"
                             "${KICAD_REFERENCE_SOURCE}/libs/kiplatform/include" )
 target_link_libraries( kicad-oracle PRIVATE kimath nlohmann_json iec60664-reference resistor-reference
@@ -295,8 +300,8 @@ add_executable( oracle-dispatch-test EXCLUDE_FROM_ALL test_dispatch.cpp protocol
                 "${KIPLATFORM_POLICY_SHIM}" "${KIPLATFORM_POLICY_SOURCE}"
                 "${CLIPPER2_ENGINE_P002_SHIM}" "${WX_STL_COMPAT_SHIM}" "${SEXPR_SHIM}"
                 "${SHAPE_HEADERS_P003_SHIM}"
-                "${CLIPPER2_INCLUDE_P002_SHIM}" "${KIPLATFORM_INCLUDE_P001_SHIM}"
-                "${KIPLATFORM_INCLUDE_P001_PROBE}" )
+                "${CLIPPER2_INCLUDE_P002_SHIM}" "${TRIGO_SOURCE_P001_SHIM}"
+                "${KIPLATFORM_INCLUDE_P001_SHIM}" "${KIPLATFORM_INCLUDE_P001_PROBE}" )
 target_include_directories( oracle-dispatch-test PRIVATE "${ORACLE_OVERLAY}"
                             "${KICAD_REFERENCE_SOURCE}/libs/kiplatform/include" )
 target_link_libraries( oracle-dispatch-test PRIVATE kimath nlohmann_json iec60664-reference
