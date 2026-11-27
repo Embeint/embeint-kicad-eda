@@ -46,22 +46,79 @@ fn minmax3_follows_libstdcxx_order() {
 }
 
 #[test]
-fn fma_is_fused_and_nan_rules_are_explicit() {
+fn fma_is_the_facade_glibc_body() {
     // 1 + 2^-52 squared minus 1 keeps the 2^-104 term only when fused.
     let x = 1.0 + f64::EPSILON;
     assert_eq!(
         fma(x, x, -1.0),
         2.0 * f64::EPSILON + f64::EPSILON * f64::EPSILON
     );
+    // glibc evaluates the invalid product before adding z: its indefinite NaN wins over z's.
+    let qnan = f64::from_bits(0x7ff8_0000_0000_1234);
     assert_eq!(
-        fma(f64::INFINITY, 0.0, 1.0).to_bits(),
+        fma(f64::INFINITY, 0.0, qnan).to_bits(),
         0xfff8_0000_0000_0000
     );
-    assert_eq!(
-        fma(1.0, f64::from_bits(0x7ff0_0000_0000_0001), 2.0).to_bits(),
-        0x7ff8_0000_0000_0001
-    );
+    // x's NaN wins over y's (mulsd with x as the destination).
+    let other = f64::from_bits(0xfff8_0000_0000_00bb);
+    assert_eq!(fma(qnan, other, 1.0).to_bits(), qnan.to_bits());
+    assert_eq!(fma(other, qnan, 1.0).to_bits(), other.to_bits());
     assert_eq!(fma(2.0, 3.0, f64::INFINITY), f64::INFINITY);
+}
+
+fn bits(p: Vector2D) -> (u64, u64) {
+    (p.x.to_bits(), p.y.to_bits())
+}
+
+/// The review reproducers of PR #103: the compiled operand order decides the NaN sign.
+#[test]
+fn arc_center_nan_follows_the_compiled_order() -> TrigoResult<()> {
+    let h = f64::from_bits;
+    // ( 0, 0 ), ( 0, +inf ), ( 0, 10 ): the pinned reply is ( -NaN, -NaN ).
+    let c = calc_arc_center_d(d(0.0, 0.0), d(0.0, f64::INFINITY), d(0.0, 10.0))?;
+    assert_eq!(bits(c), (0xfff8_0000_0000_0000, 0xfff8_0000_0000_0000));
+    // ( 1e-300, 100 ), ( 0, 1e300 ), ( 1e-300, -0 ): finite inputs, overflow inside.
+    let c = calc_arc_center_d(
+        d(h(0x01a5_6e1f_c2f8_f359), 100.0),
+        d(0.0, h(0x7e37_e43c_8800_759c)),
+        d(h(0x01a5_6e1f_c2f8_f359), -0.0),
+    )?;
+    assert_eq!(bits(c), (0xfff0_0000_0000_0000, 0xfff8_0000_0000_0000));
+    Ok(())
+}
+
+#[test]
+fn rotation_about_a_centre_keeps_the_centre_nan() {
+    let (mut x, mut y) = (0.0, f64::from_bits(0x7ff8_0000_0000_00aa));
+    rotate_point_d_about(
+        &mut x,
+        &mut y,
+        0.0,
+        f64::from_bits(0x7ff8_0000_0000_00bb),
+        ANGLE_0,
+    );
+    assert_eq!((x.to_bits(), y.to_bits()), (0, 0x7ff8_0000_0000_00bb));
+    let (mut x, mut y) = (f64::from_bits(0x7ff8_0000_0000_00aa), 1.0);
+    rotate_point_d_about(
+        &mut x,
+        &mut y,
+        f64::from_bits(0xfff8_0000_0000_00bb),
+        0.0,
+        ANGLE_45,
+    );
+    assert_eq!(x.to_bits(), 0xfff8_0000_0000_00bb);
+}
+
+#[test]
+fn minmax_precondition() {
+    let nan = f64::NAN;
+    assert!(minmax_precondition_holds(0.0, 1.0, 2.0));
+    assert!(minmax_precondition_holds(0.0, nan, 0.0));
+    assert!(minmax_precondition_holds(0.0, nan, -0.0));
+    assert!(minmax_precondition_holds(nan, nan, 5.0));
+    assert!(minmax_precondition_holds(nan, nan, nan));
+    assert!(!minmax_precondition_holds(0.0, 1.0, nan));
+    assert!(!minmax_precondition_holds(nan, 0.0, f64::INFINITY));
 }
 
 #[test]

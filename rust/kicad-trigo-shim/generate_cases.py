@@ -4,8 +4,9 @@
 
 Writes port/cases/<unit>.jsonl (requests whose pinned evaluation is defined) and
 port/oracle/fixtures/trigo-controls.jsonl (requests whose pinned evaluation reaches signed
-overflow, the negation or std::abs of the minimum, or a NaN in std::minmax, with the refusal both
-programs must give). No result is written anywhere: the split replays only the pinned integer
+overflow, the negation or std::abs of the minimum, or a std::minmax whose values break the strict
+weak ordering requirement (a NaN with two non-equivalent values), with the refusal both programs
+must give). No result is written anywhere: the split replays only the pinned integer
 arithmetic exactly (Python integers for int, int64_t and __int128; IEEE binary64 products and
 quotients, which Python evaluates exactly as the oracle does without contraction).
 
@@ -339,6 +340,29 @@ def raise_undefined():
     raise Undefined
 
 
+def minmax_defined(a, b, c):
+    """std::minmax( { a, b, c } )'s strict weak ordering requirement on these values: only the
+    transitivity of equivalence can fail, exactly when a NaN (equivalent to everything) is given
+    with two non-NaN values that are not equivalent (+0 and -0 are equivalent)."""
+    finite = [v for v in (a, b, c) if v == v]
+    return len(finite) == 3 or all(not (v < finite[0] or finite[0] < v) for v in finite)
+
+
+def value(h):
+    """The double of a hex bit string (NaN payloads are only checked for NaN-ness here)."""
+    return raw(h)
+
+
+def arc_center_d_classify(s, m, e):
+    """degenerateArcCenter calls std::minmax on the x and then the y triple first."""
+    def check():
+        xs = [value(p[0]) for p in (s, m, e)]
+        ys = [value(p[1]) for p in (s, m, e)]
+        if not minmax_defined(*xs) or not minmax_defined(*ys):
+            raise Undefined
+    return check
+
+
 def pt(p):
     return [p[0], p[1]]
 
@@ -634,11 +658,101 @@ def gen_arc_centers(c, rng):
                ((0.5, 0.25), (100.75, 0.125), (200.0, 0.0)), ((2.0**60, 3.0), (2.0**60 + 1e5, 1e5), (2.0**60, 2e5))]
     for k, (s, m, e) in enumerate(special):
         three(f'arc_center_d-special-{k}', 'arc_center_d', s, m, e)
-    # Controls: NaN coordinates break std::minmax's strict weak ordering.
+    # NaN coordinates: x { NaN, 1, 2 } and y { 0, 10, -NaN } break std::minmax's strict weak
+    # ordering (controls); y { 0, NaN, 0 } does not, and takes the cluster mean (a case).
     for k, (s, m, e) in enumerate([((math.nan, 0.0), (1.0, 1.0), (2.0, 0.0)),
                                    ((0.0, 0.0), (1.0, math.nan), (2.0, 0.0)),
                                    ((0.0, 0.0), (10.0, 10.0), (20.0, -math.nan))]):
-        three(f'arc_center_d-nan-{k}', 'arc_center_d', s, m, e, raise_undefined)
+        three(f'arc_center_d-nan-{k}', 'arc_center_d', s, m, e,
+              arc_center_d_classify(ptd(s), ptd(m), ptd(e)))
+
+
+# NaN payloads and signs (quiet and signalling), for the operand order of each compiled site.
+NANS = ['7ff80000000000aa', 'fff80000000000bb', '7ff800000000cccc', '7ff00000000000dd',
+        'fff40000000000ee']
+SMALL = [0.0, -0.0, 1.0, -1.0, 10.0, 100.0, math.inf, -math.inf, 1e300, -1e300, 1e-300, 5e-324]
+
+
+def gen_nan_orders(c):
+    """Defined requests whose result is a NaN chosen by operand order: RotatePoint about a centre
+    and the three-point VECTOR2D CalcArcCenter (its inlined det2 calls, the std::fma arguments and
+    the final sums), with NaN inputs that keep std::minmax defined, internal invalid operations
+    from infinities, and overflow from finite inputs. Their own seed leaves the earlier cases
+    unchanged."""
+    rng = random.Random(SEED + 103)
+    # The PR #103 review reproducers.
+    c.add('rot-da-review-payload', {'op': 'rotate_d_about', 'point': ['0000000000000000', NANS[0]],
+                                    'center': ['0000000000000000', '7ff80000000000bb'],
+                                    'angle': '0000000000000000'})
+    review = [('inf', ('0000000000000000', '0000000000000000'), ('0000000000000000', '7ff0000000000000'),
+               ('0000000000000000', '4024000000000000')),
+              ('finite', ('01a56e1fc2f8f359', '4059000000000000'), ('0000000000000000', '7e37e43c8800759c'),
+               ('01a56e1fc2f8f359', '8000000000000000'))]
+    for name, s, m, e in review:
+        c.add(f'arc_center_d-review-{name}', {'op': 'arc_center_d', 'start': list(s), 'mid': list(m),
+                                              'end': list(e)})
+    # RotatePoint( double*, double*, double, double, EDA_ANGLE ): NaNs in the point and the centre
+    # together, on both axes, through the shortcuts and the general sin/cos path.
+    pool = NANS[:2] + [NANS[3]] + [bits(v) for v in (math.inf, -math.inf, 0.0, 1.5, -0.0)]
+    i = 0
+    for a in pool:
+        for b in pool:
+            for angle in [0.0, 90.0, 180.0, 270.0, 45.0, 33.0, math.nan, math.inf]:
+                c.add(f'rot-da-nan-{i}', {'op': 'rotate_d_about', 'point': [a, b], 'center': [b, a],
+                                          'angle': bits(angle)})
+                i += 1
+
+    def axis(mode):
+        if mode == 'finite':
+            return [bits(rng.choice(SMALL + [rng.uniform(-1e3, 1e3)])) for _ in range(3)]
+        if mode == 'allnan':
+            return [rng.choice(NANS) for _ in range(3)]
+        if mode == 'onenan':
+            v = rng.choice(SMALL + [rng.uniform(-1e3, 1e3)])
+            out = [bits(v), bits(-v if v == 0 and rng.random() < 0.5 else v), rng.choice(NANS)]
+        elif mode == 'twonan':
+            out = [bits(rng.choice(SMALL)), rng.choice(NANS), rng.choice(NANS)]
+        else:
+            # A NaN with two distinct values: undefined (a control).
+            a = rng.choice(SMALL)
+            b = rng.choice([v for v in SMALL if v != a])
+            out = [bits(a), bits(b), rng.choice(NANS)]
+        rng.shuffle(out)
+        return out
+
+    # NaNs on one axis (the other finite), or on both axes with each point's x and y sharing a
+    # payload: the coincidence tests' SquaredEuclideanNorm then never adds two different NaNs.
+    # 'both' draws both axes independently; where a difference has two different NaNs, the vector
+    # owner's deferral (VECTOR floating arithmetic: distinct NaN operands) is reached first.
+    nan_modes = ['allnan'] * 5 + ['onenan'] * 4 + ['twonan'] * 3 + ['bad']
+    kinds = ['x'] * 8 + ['y'] * 8 + ['diag'] * 3 + ['both']
+    for k in range(600):
+        kind = rng.choice(kinds)
+        if kind == 'diag':
+            xs = axis('allnan')
+            ys = list(xs)
+        elif kind == 'both':
+            xs, ys = axis(rng.choice(nan_modes)), axis(rng.choice(nan_modes))
+        else:
+            xs, ys = axis(rng.choice(nan_modes)), axis('finite')
+            if kind == 'y':
+                xs, ys = ys, xs
+        s, m, e = (xs[0], ys[0]), (xs[1], ys[1]), (xs[2], ys[2])
+        c.add(f'arc_center_d-nan-r{k}', {'op': 'arc_center_d', 'start': list(s), 'mid': list(m),
+                                         'end': list(e)}, arc_center_d_classify(s, m, e))
+    # No NaN input: invalid operations (inf - inf, 0 * inf) inside det2 and the fma calls.
+    for k in range(600):
+        s, m, e = [(bits(rng.choice(SMALL)), bits(rng.choice(SMALL))) for _ in range(3)]
+        c.add(f'arc_center_d-sv-r{k}', {'op': 'arc_center_d', 'start': list(s), 'mid': list(m),
+                                        'end': list(e)})
+    # Finite inputs whose squares and products overflow or underflow.
+    for k in range(200):
+        def big():
+            mag = 10.0 ** rng.uniform(150, 308) if rng.random() < 0.8 else 10.0 ** rng.uniform(-320, -150)
+            return bits(math.copysign(mag, rng.random() - 0.5))
+        s, m, e = [(big(), big()) for _ in range(3)]
+        c.add(f'arc_center_d-big-r{k}', {'op': 'arc_center_d', 'start': list(s), 'mid': list(m),
+                                         'end': list(e)})
 
 
 def generate():
@@ -650,6 +764,7 @@ def generate():
     gen_arc_mid(c, rng)
     gen_rotations(c, rng)
     gen_arc_centers(c, rng)
+    gen_nan_orders(c)
     return c
 
 

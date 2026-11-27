@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use super::*;
 use std::collections::BTreeMap;
-const CASES: usize = 4106;
-const CONTROLS: usize = 226;
+const CASES: usize = 5987;
+const CONTROLS: usize = 260;
 
 /// Every public case either succeeds or defers to exactly these owners, these many times.
 #[test]
@@ -46,12 +46,19 @@ fn public_cases_succeed_or_defer_to_their_actual_owners() {
             "kimathLogOverflow",
             56,
         ),
+        // Coincidence tests of three-point VECTOR2D centres whose difference has two different
+        // NaNs: the vector owner defers that SquaredEuclideanNorm sum.
+        (
+            "libs.kimath.include.math.application.ui.p002",
+            "VECTOR floating arithmetic: distinct NaN operands",
+            34,
+        ),
     ]
     .into_iter()
     .map(|(u, s, n)| ((u.to_string(), s.to_string()), n))
     .collect();
     assert_eq!(deferred, expected);
-    assert_eq!(ok, 3525);
+    assert_eq!(ok, 5372);
     assert_eq!(ok + deferred.values().sum::<usize>(), CASES);
 }
 

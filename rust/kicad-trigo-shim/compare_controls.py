@@ -3,7 +3,8 @@
 """Undefined-domain controls never enter the successful public corpus.
 
 Each control is a request whose pinned trigo.cpp evaluation reaches signed overflow, the negation or
-std::abs of INT_MIN, or a NaN in std::minmax (classified by generate_cases.py's exact integer replay). The C++ adapter's
+std::abs of INT_MIN, or a std::minmax given a NaN with two non-equivalent values (classified by
+generate_cases.py's exact integer replay and strict weak ordering check). The C++ adapter's
 guard must refuse it with exactly the recorded error. Rust must give the same refusal, except
 for a control marked "rust_unported": there the undefined operation follows a call the Rust port
 defers, and Rust must defer to exactly that owner instead. With --rust only, the Rust side is

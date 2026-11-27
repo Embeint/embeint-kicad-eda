@@ -25,10 +25,16 @@
 //!
 //! Arithmetic follows the source expression order without contraction, on the accepted
 //! [`EdaAngle`], [`Vector2`], [`Seg`], `KiROUND` ([`round_i32`]) and `KI_INT128` bodies.
-//! `double` operations use the reference platform's NaN rules ([`fp`]). The explicit
-//! `std::fma` calls (in `det2` and the three-point `CalcArcCenter`) are the correctly rounded
-//! IEEE fused multiply-add ([`fma`]). `std::minmax( { a, b, c } )` is libstdc++'s
-//! `__minmax_element` order ([`minmax3`]).
+//! `double` operations use the reference platform's NaN rules ([`fp`]): x86 SSE2 keeps the NaN
+//! of an instruction's destination (first) operand. Which C++ operand GCC 13.3 makes the
+//! destination is a property of each compiled site, so where it is not the left operand (the
+//! three-point `CalcArcCenter`, including its inlined `det2` calls, and `RotatePoint` about a
+//! centre) the operands are written in the compiled order, citing the instruction in the pinned
+//! oracle's trigo.cpp.o. Only the surviving NaN differs; every non-NaN value is the same. The
+//! explicit `std::fma` calls are libm calls on the baseline x86-64 target and go through the
+//! accepted facade to glibc 2.39 `__fma_sse2` ([`reference_libm::fma`]), with the arguments in
+//! the compiled call's order (GCC swaps the two factors at several sites).
+//! `std::minmax( { a, b, c } )` is libstdc++'s `__minmax_element` order ([`minmax3`]).
 //!
 //! Signed overflow and the negation or `std::abs` of the minimum are undefined in the C++ and
 //! are refused with [`TrigoError::Undefined`] at the first such operation. A `KiROUND`
@@ -36,6 +42,7 @@
 use crate::eda_angle::{self, EdaAngle, GeometryError, ANGLE_0, ANGLE_180, ANGLE_270};
 use crate::eda_angle::{ANGLE_360, ANGLE_90};
 use crate::fp;
+use crate::reference_libm;
 use crate::seg::{Seg, SegError};
 use crate::util::round_i32;
 use crate::vector::{Vector2, Vector2D, Vector2I, Vector2L, VectorDomainError};
@@ -106,25 +113,10 @@ fn div(a: f64, b: f64) -> f64 {
     eda_angle::div(a, b)
 }
 
-/// `std::fma( x, y, z )`: the single correctly rounded IEEE fused multiply-add. For finite
-/// operands the value is unique and NaN cannot occur, so [`f64::mul_add`] is exact on every
-/// target. With an infinite or NaN operand the non-NaN result is equally fixed by IEEE 754; a
-/// NaN result is spelled out as glibc's special-operand path computes it (`x * y + z` in SSE2,
-/// or `( z + x ) + y` for an infinite `z`, which is never NaN there): the first NaN operand in
-/// `x, y, z` order quieted, otherwise x86's negative indefinite NaN. Wasm does not specify NaN
-/// propagation, so the rule is explicit here.
+/// `std::fma( x, y, z )` as the compiled call passes it: `fma@plt`, glibc 2.39 `__fma_sse2`
+/// through the accepted facade.
 fn fma(x: f64, y: f64, z: f64) -> f64 {
-    let result = x.mul_add(y, z);
-    if !result.is_nan() {
-        return result;
-    }
-    const QUIET: u64 = 0x0008_0000_0000_0000;
-    for operand in [x, y, z] {
-        if operand.is_nan() {
-            return f64::from_bits(operand.to_bits() | QUIET);
-        }
-    }
-    f64::from_bits(0xfff8_0000_0000_0000)
+    reference_libm::fma(x, y, z)
 }
 
 /// `std::minmax( { a, b, c } )` (libstdc++ `std::__minmax_element` with `operator<`, GCC
@@ -438,8 +430,11 @@ pub fn rotate_point_d_about(px: &mut f64, py: &mut f64, cx: f64, cy: f64, angle:
 
     rotate_point_d(&mut ox, &mut oy, angle);
 
-    *px = fp::add(ox, cx);
-    *py = fp::add(oy, cy);
+    // `*pX = ox + cx;` compiles as `addsd 0x18(%rsp),%xmm0` with cx in %xmm0 (trigo.cpp.o
+    // RotatePoint(double*, double*, double, double, const EDA_ANGLE&)+0x61), so a NaN cx
+    // survives over a NaN ox; likewise for y (+0x67).
+    *px = fp::add(cx, ox);
+    *py = fp::add(cy, oy);
 }
 
 /// `RotatePoint( double* pX, double* pY, const EDA_ANGLE& aAngle )`.
@@ -604,13 +599,72 @@ fn collinear_arc_center(start: Vector2D, end: Vector2D) -> TrigoResult<Vector2D>
     Ok(mid + Vector2::new(chord.y, -chord.x).resize(COLLINEAR_RADIUS)?)
 }
 
-/// `det2`: Kahan's a*d - b*c, accurate to about one ulp despite the cancellation
-fn det2(a: f64, b: f64, c: f64, d: f64) -> f64 {
-    let w = fp::mul(b, c);
-    let e = fma(-b, c, w);
-    let f = fma(a, d, -w);
+/// The operand placement GCC 13.3 chose for one inlined `det2` (`w = b * c`,
+/// `e = std::fma( -b, c, w )`, `f = std::fma( a, d, -w )`, `return f + e`). Each flag swaps
+/// the two operands of one operation; values are unchanged, only the surviving NaN differs.
+#[derive(Clone, Copy)]
+struct Det2Order {
+    /// `w` computed as `c * b`.
+    w_cb: bool,
+    /// `e` called as `fma( c, -b, w )`.
+    e_cb: bool,
+    /// `f` called as `fma( d, a, -w )`.
+    f_da: bool,
+    /// The result summed as `e + f`.
+    sum_ef: bool,
+}
 
-    fp::add(f, e)
+/// `det2( bx, by, cx, cy )`, the denominator (trigo.cpp.o three-point CalcArcCenter
+/// +0x1a3 `mulsd %xmm1,%xmm2` = by * cx, +0x1d6 `fma( cx, -by, w )`, +0x1fb
+/// `fma( bx, cy, -w )`, +0x200 `addsd 0x10(%rsp),%xmm0` = f + e).
+const DET2_DENOMINATOR: Det2Order = Det2Order {
+    w_cb: false,
+    e_cb: true,
+    f_da: false,
+    sum_ef: false,
+};
+
+/// `det2( b2, c2, by, cy )` for ux (+0x3de `mulsd %xmm0,%xmm2` = by * c2, +0x3ec
+/// `fma( by, -c2, w )`, +0x411 `fma( cy, b2, -w )`, +0x485 `addsd 0x8(%rsp),%xmm7` = e + f).
+const DET2_UX: Det2Order = Det2Order {
+    w_cb: true,
+    e_cb: true,
+    f_da: true,
+    sum_ef: true,
+};
+
+/// `det2( c2, b2, cx, bx )` for uy (+0x438 `mulsd %xmm5,%xmm2` = b2 * cx, +0x446
+/// `fma( cx, -b2, w )`, +0x471 `fma( bx, c2, -w )`, +0x494 `addsd %xmm0,%xmm1` = e + f).
+const DET2_UY: Det2Order = Det2Order {
+    w_cb: false,
+    e_cb: true,
+    f_da: true,
+    sum_ef: true,
+};
+
+/// `det2`: Kahan's a*d - b*c, accurate to about one ulp despite the cancellation
+fn det2(a: f64, b: f64, c: f64, d: f64, order: Det2Order) -> f64 {
+    let w = if order.w_cb {
+        fp::mul(c, b)
+    } else {
+        fp::mul(b, c)
+    };
+    let e = if order.e_cb {
+        fma(c, -b, w)
+    } else {
+        fma(-b, c, w)
+    };
+    let f = if order.f_da {
+        fma(d, a, -w)
+    } else {
+        fma(a, d, -w)
+    };
+
+    if order.sum_ef {
+        fp::add(e, f)
+    } else {
+        fp::add(f, e)
+    }
 }
 
 /// `snapArcCenter`: prefer a nice 100 nm or 10 nm center when it still lies on the circle to
@@ -712,9 +766,13 @@ fn unclamped_arc_center(start: Vector2I, mid: Vector2I, end: Vector2I) -> TrigoR
 
 /// `CalcArcCenter( const VECTOR2D& aStart, const VECTOR2D& aMid, const VECTOR2D& aEnd )`.
 ///
-/// The C++ passes the coordinates to `std::minmax`, whose `operator<` must be a strict weak
-/// ordering: a NaN coordinate violates that library precondition, so callers (the oracle
-/// adapter included) do not pass one. This port evaluates such input by the libstdc++ order.
+/// The C++ passes each coordinate triple to `std::minmax`, whose `operator<` must induce a
+/// strict weak ordering on those values. A NaN is equivalent to every value, so a triple with a
+/// NaN and two non-NaN values that are not equivalent breaks the transitivity of equivalence
+/// and the call is undefined; [`minmax_precondition_holds`] decides it, and callers (the oracle
+/// adapter included) do not pass such input. Every other triple, NaNs included, is defined and
+/// evaluated here in the libstdc++ order. The later radii `std::minmax` in `snapArcCenter` is
+/// reached only for a finite centre, which needs finite inputs, so it never sees a NaN.
 pub fn calc_arc_center_d(start: Vector2D, mid: Vector2D, end: Vector2D) -> TrigoResult<Vector2D> {
     if let Some(center) = degenerate_arc_center(start, mid, end)? {
         return Ok(center);
@@ -728,21 +786,45 @@ pub fn calc_arc_center_d(start: Vector2D, mid: Vector2D, end: Vector2D) -> Trigo
 
     let b2 = fma(bx, bx, fp::mul(by, by));
     let c2 = fma(cx, cx, fp::mul(cy, cy));
-    let d = fp::mul(2.0, det2(bx, by, cx, cy));
+    // 2.0 * det compiles as det + det (+0x222): the same value and NaN.
+    let d = fp::mul(2.0, det2(bx, by, cx, cy, DET2_DENOMINATOR));
 
     if d == 0.0 {
         return collinear_arc_center(start, end);
     }
 
-    let ux = div(det2(b2, c2, by, cy), d);
-    let uy = div(det2(c2, b2, cx, bx), d);
+    let ux = div(det2(b2, c2, by, cy, DET2_UX), d);
+    let uy = div(det2(c2, b2, cx, bx, DET2_UY), d);
 
+    // `VECTOR2D( aStart.x + ux, aStart.y + uy )` compiles as ux + start.x and uy + start.y
+    // (+0x4ba `addsd %xmm7,%xmm0`, +0x4b6 `addsd %xmm6,%xmm1`).
     snap_arc_center(
-        Vector2::new(fp::add(start.x, ux), fp::add(start.y, uy)),
+        Vector2::new(fp::add(ux, start.x), fp::add(uy, start.y)),
         start,
         mid,
         end,
     )
+}
+
+/// Whether `std::minmax( { a, b, c } )` with `operator<` meets its requirement that `<` induce
+/// a strict weak ordering on these values ([alg.sorting.general]). Irreflexivity and
+/// transitivity of `<` always hold for doubles; only the transitivity of equivalence can fail.
+/// It fails exactly when a NaN (equivalent to every value) is given with two non-NaN values
+/// that are not equivalent to each other. `+0` and `-0` are equivalent.
+pub fn minmax_precondition_holds(a: f64, b: f64, c: f64) -> bool {
+    let mut first: Option<f64> = None;
+    let mut distinct = false;
+    let mut nan = false;
+    for value in [a, b, c] {
+        if value.is_nan() {
+            nan = true;
+        } else if let Some(reference) = first {
+            distinct |= value < reference || reference < value;
+        } else {
+            first = Some(value);
+        }
+    }
+    !(nan && distinct)
 }
 
 /// `std::clamp( v, lo, hi )` (libstdc++: `v < lo ? lo : hi < v ? hi : v`), spelled out so the
