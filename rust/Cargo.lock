@@ -680,6 +680,15 @@ name = "kicad-boost-random"
 version = "0.1.0"
 
 [[package]]
+name = "kicad-circle-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-math",
+ "serde_json",
+]
+
+[[package]]
 name = "kicad-clipper2"
 version = "0.1.0"
 dependencies = [
@@ -1042,6 +1051,24 @@ version = "0.1.0"
 dependencies = [
  "kicad-difftest",
  "kicad-math",
+ "serde_json",
+]
+
+[[package]]
+name = "kicad-wx-stl-compat"
+version = "0.1.0"
+dependencies = [
+ "kicad-map-helpers",
+ "kicad-math",
+]
+
+[[package]]
+name = "kicad-wx-stl-compat-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-math",
+ "kicad-wx-stl-compat",
  "serde_json",
 ]
 

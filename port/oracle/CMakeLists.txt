@@ -199,9 +199,15 @@ set( CLIPPER2_ENGINE_P002_SHIM "${ORACLE_OVERLAY}/shims/clipper2_engine_p002.cpp
 list( REMOVE_ITEM ORACLE_SHIMS "${CLIPPER2_ENGINE_P002_SHIM}" )
 set_source_files_properties( "${CLIPPER2_ENGINE_P002_SHIM}" PROPERTIES INCLUDE_DIRECTORIES
                              "${KICAD_REFERENCE_SOURCE}/thirdparty/clipper2/Clipper2Lib/src" )
+# The wx_stl_compat adapter follows every previously qualified object, the policy adapter
+# and its pinned source included, so none of its weak wxString/std::map/JSON template
+# copies is selected ahead of an earlier adapter's and every accepted selection is unchanged.
+set( WX_STL_COMPAT_SHIM "${ORACLE_OVERLAY}/shims/core_wx_stl_compat.cpp" )
+list( REMOVE_ITEM ORACLE_SHIMS "${WX_STL_COMPAT_SHIM}" )
 add_executable( kicad-oracle main.cpp protocol.cpp registry.cpp ${ORACLE_SHIMS}
                 reference/geometry_unreachable_config.cpp "${KIPLATFORM_POLICY_SHIM}"
-                "${KIPLATFORM_POLICY_SOURCE}" "${CLIPPER2_ENGINE_P002_SHIM}" )
+                "${KIPLATFORM_POLICY_SOURCE}" "${CLIPPER2_ENGINE_P002_SHIM}"
+                "${WX_STL_COMPAT_SHIM}" )
 target_include_directories( kicad-oracle PRIVATE "${ORACLE_OVERLAY}" "${CMAKE_BINARY_DIR}"
                             "${KICAD_REFERENCE_SOURCE}/libs/kiplatform/include" )
 target_link_libraries( kicad-oracle PRIVATE kimath nlohmann_json iec60664-reference resistor-reference
@@ -244,7 +250,7 @@ add_test( NAME oracle-iec60664-build-guards
 add_executable( oracle-dispatch-test EXCLUDE_FROM_ALL test_dispatch.cpp protocol.cpp registry.cpp
                 ${ORACLE_SHIMS} reference/geometry_unreachable_config.cpp
                 "${KIPLATFORM_POLICY_SHIM}" "${KIPLATFORM_POLICY_SOURCE}"
-                "${CLIPPER2_ENGINE_P002_SHIM}" )
+                "${CLIPPER2_ENGINE_P002_SHIM}" "${WX_STL_COMPAT_SHIM}" )
 target_include_directories( oracle-dispatch-test PRIVATE "${ORACLE_OVERLAY}"
                             "${KICAD_REFERENCE_SOURCE}/libs/kiplatform/include" )
 target_link_libraries( oracle-dispatch-test PRIVATE kimath nlohmann_json iec60664-reference
@@ -304,3 +310,7 @@ add_test( NAME oracle-kiplatform-unix-p001-inputs
     COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_kiplatform_unix_p001_inputs.py"
             "$<TARGET_FILE:kicad-oracle>" )
 set_tests_properties( oracle-kiplatform-unix-p001-inputs PROPERTIES TIMEOUT 60 )
+add_test( NAME oracle-wx-stl-compat-inputs
+    COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_wx_stl_compat_inputs.py"
+            "$<TARGET_FILE:kicad-oracle>" )
+set_tests_properties( oracle-wx-stl-compat-inputs PROPERTIES TIMEOUT 60 )
