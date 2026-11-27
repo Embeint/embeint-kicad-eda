@@ -29,11 +29,14 @@ its closure (`text_attributes.cpp`, `markup_parser.cpp` with PEGTL, `string_util
 `pkg-config`; every workflow that builds the shared oracle now installs them, because
 `rust-port.yml` replays every unit's cases on one oracle.
 
-Not changed: `port/reference-env` (an unqualified candidate image whose package lock does not
-include these packages; its next lock refresh must add them before it can build this oracle,
-so until then the dispatch-only image builds of the current oracle, such as `rust-port.yml`'s
-`migrate_resistor_sse2` job, would fail at configuration) and `rust-kimath-nan.yml`, which
-builds a pinned historical revision.
+The locked reference image (`port/reference-env`) installs only its locked packages, offline,
+so the same packages were added to its candidate selection and the lock re-resolved with
+`tools/lock_inputs.py` from the same base image and archive snapshot: candidate-2 adds 39
+packages and changes none of candidate-1's (libm record, Rust and toolchain identity files
+included). `rust-port.yml`'s dispatch-only `migrate_resistor_sse2` job built its image from an
+old tools revision with the candidate-1 lock; it now builds the image from the migrated
+revision's own lock. `rust-kimath-nan.yml`'s frozen-reference job is unchanged: it builds a
+pinned historical revision that needs no font libraries, in the image its locks were bound to.
 
 The adapter sets the protected/private members the out-of-line loaders would set
 (`m_fontName`, `m_fontFileName`, `m_face`) through explicit-instantiation member pointers, as
@@ -69,15 +72,22 @@ nullptr`, which sets `badbit` outside any sentry; in the C locale it happens onl
 `wxFAIL_MSG` path. A local probe (glibc 2.43, wx 3.2.9) confirmed the libc-then-UTF-8 order
 and the masked NUL byte; the oracle cases confirm the rest.
 
-## 5. Refusals of defined inputs
+## 5. Assertions and termination are observed
 
-Two classes of defined evaluations are refused identically by both programs instead of being
-observed: names reaching `wxFAIL_MSG` (the handler is a wx host effect that may block on stdin
-or abort; the Rust port defers it as `UNPORTED(include.font.application.ui.p001) wxOnAssert`
-and implements the continuation), and `unitbuf` streams with a failing `sync()` and a nonempty
-exception mask, where libstdc++ 14's `noexcept` sentry destructor may call `std::terminate`.
-Observing termination needs the forked-child machinery of the wx-stl-compat adapter; that is
-left for a later unit that needs it.
+An earlier head refused two classes of defined evaluations; the review of `e36cd8131d` showed
+that both have observable reference outcomes, and they are now public cases
+(`port/findings/font-header-p001-review-e36c.md`):
+
+- Names reaching `wxFAIL_MSG`. Without a `wxApp`, wx 3.2.4's default handler
+  (`wxDefaultAssertHandler` -> `ShowAssertDialog` -> non-Windows `DoShowAssertDialog`) logs the
+  message and returns `false`, so `wxTrapInAssert` stays false and the conversion fails as
+  described above. The oracle records the `wxOnAssert` arguments around that handler. The Rust
+  port receives them through a typed callee: production defers as
+  `UNPORTED(include.font.application.ui.p001) wxOnAssert`; a returning host continues.
+- `unitbuf` streams with a failing `sync()`: libstdc++ 14's `noexcept` `~sentry` calls
+  `setstate( badbit )`, which terminates only when `badbit` is in the mask; otherwise the
+  insertion returns or throws normally. The oracle runs every insertion in a forked child
+  whose terminate handler reports the state reached.
 
 ## 6. Runtime sentry behaviour
 

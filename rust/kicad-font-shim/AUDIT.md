@@ -15,10 +15,10 @@ at KiCad `4cf939778df04d2b747bb2c4714fc5014a7565c7`. Every function in the unit 
 | `FONT::~FONT` | `Drop` of the members | empty body | every case constructs and destroys its font | none |
 | `FONT::IsStroke/IsOutline/IsBold/IsItalic` (defaults) | `Font` provided methods | `return false` | `queries-base-*` (13 names), `queries-outline-*` for `IsStroke` | none |
 | `FONT::GetName` | `Font::get_name` | returns `m_fontName` | `queries-*`, `outline-*`: every unit including NUL, surrogates, negatives | none |
-| `FONT::NameAsToken` | `Font::name_as_token`, `wx_conv::utf8_str` | `GetName().utf8_str().data()`: strict UTF-8 of every unit (explicit length, past NUL units) into `m_fontName`'s own conversion cache, read up to the first NUL byte; a failed conversion points to a static `""` | `name_as_token-*`: 39 cases over 14 names (NUL units, a unit 0x80000000 giving a NUL byte, 0x80000041, surrogates, astral) on every font kind | names with a code above U+10FFFF anywhere reach `wxFAIL_MSG` (21 controls; `UNPORTED(include.font.application.ui.p001) wxOnAssert`, in-crate tests) |
+| `FONT::NameAsToken` | `Font::name_as_token`, `wx_conv::utf8_str` | `GetName().utf8_str().data()`: strict UTF-8 of every unit (explicit length, past NUL units) into `m_fontName`'s own conversion cache, read up to the first NUL byte; a failed conversion points to a static `""` | `name_as_token-*`: 60 cases over 20 names (NUL units, a unit 0x80000000 giving a NUL byte, 0x80000041, surrogates, astral, and 6 names with a code above U+10FFFF) on every font kind, with the `wxOnAssert` calls made | the 21 cases reaching `wxFAIL_MSG` defer at `UNPORTED(include.font.application.ui.p001) wxOnAssert` in production; with the returning assertion host their arguments and the empty-token continuation compare exactly |
 | `FONT::Draw` (cursorless overload) | `font::draw` | forwards with cursor `VECTOR2I( 0, 0 )`, every other argument unchanged | 12 cases: oracle result (`aGal == nullptr` returns), Rust defers | continuation `FONT::Draw` with cursor is `UNPORTED(common.font.application.ui.p001)` |
 | `FONT::linesCount` | `Font::lines_count`, `font::lines_count` | empty string 0; `std::count` over all but the last unit, + 1, modulo 2^32 | `lines_count-*`: 74 texts (newline runs, NUL, CR, negative and wide units, 4096 newlines) on base and outline fonts, 148 cases | none |
-| `operator<<( ostream&, const FONT& )` | `font_stream::insert_font` | eight insertions, each through its sentry; the name through wx's `operator<<( ostream&, const wxString& )` (`wxConvWhateverWorks`: libc in the C locale, then strict UTF-8; null buffer -> `setstate( badbit )`) | `insert-*`: 2008 cases over every font kind and name, 16 scripted query combinations, 8 states x 8 masks, widths -5..40 with each adjustment, fills, capacities 0..4096, unitbuf with sync success/failure, no buffer, both overloads | names reaching `wxFAIL_MSG` refused (12 controls; the assertion is `UNPORTED(include.font.application.ui.p001) wxOnAssert`, covered by in-crate tests only); unitbuf + failing sync + nonempty mask refused (114 controls); no tie, throwing buffer or unwinding context |
+| `operator<<( ostream&, const FONT& )` | `font_stream::insert_font` | eight insertions, each through its sentry; the name through wx's `operator<<( ostream&, const wxString& )` (`wxConvWhateverWorks`: libc in the C locale, then strict UTF-8; null buffer -> `setstate( badbit )`) | `insert-*`: 2402 cases over every font kind and name, 16 scripted query combinations, 8 states x 8 masks, widths -5..40 with each adjustment, fills, capacities 0..4096, unitbuf with sync success/failure (278 with a failing sync and a nonempty mask: 91 terminate, 34 return, 153 throw), no buffer, both overloads; names reaching `wxFAIL_MSG` in order after insertions that throw, terminate or set the state | the 84 cases whose conversion reaches `wxFAIL_MSG` defer at `wxOnAssert` in production and compare exactly with the returning host; no tie, throwing buffer or unwinding context |
 | `operator<<( ostream&, const FONT* )` | `font_stream::insert_font_ptr` | `os << *aFont` | about half of the `insert-*` cases | null pointer refused (2 controls, undefined) |
 | `OUTLINE_FONT::EMBEDDING_PERMISSION` | `outline_font::EmbeddingPermission` | five enumerators | `text_style` (values 0..4) | none |
 | `OUTLINE_FONT::IsOutline` | `Font::is_outline` | `true` | `outline-*`, `queries-outline-*` | none |
@@ -60,12 +60,22 @@ into the string's `mutable` `m_convertedToChar` cache and returns a non-owning
 `ConvertedBuffer::AsScopedBuffer`). The pointer therefore stays valid until that wxString is
 converted again or destroyed; the evaluation is defined and compared.
 
-## Domain refusals that exclude defined inputs
+## Assertions and termination are observed, not refused
 
-Three refusal classes exclude evaluations that are defined in C++ but that this adapter does
-not observe: a name whose conversion reaches `wxFAIL_MSG`, in the stream operator (126 insert
-controls include 12 such names) or in `NameAsToken` (21 controls); the wx assertion handler
-is a host effect the adapter would block or abort on; and a `unitbuf` stream with a failing `sync()`
-and a nonempty exception mask, where the GCC 14 runtime's `noexcept` sentry destructor may call
-`std::terminate`. The wx-stl-compat adapter observes termination in a forked child; this
-adapter does not, so both programs refuse those requests identically.
+The review of `e36cd8131d` found that the adapter refused two classes of defined evaluations.
+Both are now public cases (`port/findings/font-header-p001-review-e36c.md`):
+
+- `wxFAIL_MSG` in a name conversion (`wx/strconv.cpp:1165`, `wxMBConvStrictUTF8::FromWChar`):
+  the oracle wraps the process's assertion handler for the operation, records the
+  `wxOnAssert` arguments in the reply and calls the wrapped handler, which without a `wxApp`
+  logs and returns (wx 3.2.4 `wxDefaultAssertHandler` -> `ShowAssertDialog` ->
+  `DoShowAssertDialog` returns `false`). Rust receives the same arguments through the typed
+  `wx_conv::OnAssert` callee. Production defers (105 cases: 21 `NameAsToken`, 84 stream);
+  `--assert-host=returning` records and returns, and `check_deferrals.py` requires that run to
+  leave only the 12 Draw deferrals.
+- A `unitbuf` stream whose failing `sync()` makes `~sentry`'s `setstate( badbit )` throw: every
+  insertion runs in a forked child whose terminate handler reports the state reached, as the
+  accepted wx-stl-compat adapter does; Rust reports the accepted model's `Terminate`.
+
+The remaining refusals are undefined evaluations (2 null `FONT*`, 110 `faceSize` /
+`subscriptSize` overflow or out-of-range conversion) and 1 malformed request.
