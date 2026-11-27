@@ -12,7 +12,10 @@
 //! [`DeltaCallback64`], [`Group`]'s members and [`ClipperOffset`]'s members, constructor,
 //! accessors, `Clear`, `SetZCallback` and `SetDeltaCallback`, plus an explicit host [`Budget`]
 //! on the points one execution may produce (a huge delta with a fine arc tolerance otherwise
-//! asks for unbounded memory). `Ellipse` (`clipper.h`), used for a single point with round
+//! asks for unbounded memory). Both callbacks may throw in C++: a [`DeltaCallback64`] or
+//! [`FallibleZCallback64`] returns that exception as an error, which propagates out of
+//! `Execute` at once and leaves the state the unwinding C++ leaves (the groups and both
+//! callbacks stay in the object, never moved out, so a native unwind keeps them too). `Ellipse` (`clipper.h`), used for a single point with round
 //! joins, stays owned by that header unit and returns [`ClipperError::Unported`] at its call.
 //!
 //! Floating point follows the oracle's `-ffp-contract=off` in source order. `std::sin`,
@@ -27,10 +30,10 @@ use crate::clipper_core::{
     strip_duplicates_path, translate_point, FillRule, Path64, PathD, Paths64, Point64, PointD,
     Rect64,
 };
-use crate::clipper_engine::{ClipType, Clipper64, PolyTree64, ZCallback64};
+use crate::clipper_engine::{ClipType, Clipper64, PolyTree64, ZCallback64, ZCallbackSlot};
 use crate::{copy_of, push, reserve, Budget, ClipperError, Result};
 use kicad_math::reference_libm::{acos, atan2, cos, sin};
-use std::cell::Cell;
+use std::cell::RefCell;
 use std::rc::Rc;
 
 /// This port unit.
@@ -53,6 +56,10 @@ const MAX_DBL: f64 = f64::MAX;
 
 const INDEX: ClipperError = ClipperError::Undefined("vector index out of range");
 const I64_OVERFLOW: ClipperError = ClipperError::Undefined("int64_t overflow");
+/// The offset's `zCallback64_` reached from inside its own call (no ported caller can).
+const REENTRANT: ClipperError = ClipperError::Undefined("re-entrant ClipperOffset Z callback");
+/// `groups_` changed while an execution reads them (no ported caller can).
+const GROUPS_IN_USE: ClipperError = ClipperError::Undefined("ClipperOffset groups in use");
 
 /// `enum class JoinType { Square, Bevel, Round, Miter }`. "Square: Joins are 'squared' at
 /// exactly the offset distance (more complex code). Bevel: Similar to Square, but the offset
@@ -79,8 +86,22 @@ pub enum EndType {
 }
 
 /// `DeltaCallback64`: `double(const Path64& path, const PathD& path_normals, size_t curr_idx,
-/// size_t prev_idx)`.
-pub type DeltaCallback64 = Box<dyn FnMut(&Path64, &PathD, usize, usize) -> f64>;
+/// size_t prev_idx)`. The `std::function` may throw: an `Err` (normally
+/// [`ClipperError::Callback`]) is that exception. It leaves `group_delta_` unassigned and
+/// propagates out of `Execute` at once, with the state the unwinding C++ leaves: the groups,
+/// both callbacks, the normals and the paths already appended to the caller's `Paths64`.
+pub type DeltaCallback64 = Box<dyn FnMut(&Path64, &PathD, usize, usize) -> Result<f64>>;
+
+/// A `ZCallback64` for [`ClipperOffset`] that may throw: an `Err` is the exception, which ends
+/// the finishing union and `Execute` at once (see [`ClipperOffset::set_fallible_z_callback`]).
+pub type FallibleZCallback64 =
+    Box<dyn FnMut(&Point64, &Point64, &Point64, &Point64, &mut Point64) -> Result<()>>;
+
+/// `ClipperOffset::zCallback64_`, shared with the proxy `ExecuteInternal` binds
+/// (`std::bind(&ZCB, this, ...)`), so the clipper reads the callback the offset holds at the
+/// time of the call. The callback is only borrowed for its call, never moved out, so it stays
+/// assigned however the call ends.
+pub type SharedOffsetZCallback = Rc<RefCell<Option<FallibleZCallback64>>>;
 
 /// `std::min(a, b)`: `(b < a) ? b : a`.
 fn std_min(a: f64, b: f64) -> f64 {
@@ -298,16 +319,17 @@ pub struct ClipperOffset {
     step_cos: f64,
     norms: PathD,
     path_out: Path64,
-    groups: Vec<Group>,
+    /// `groups_`. An execution reads a shared handle instead of moving them out, so they stay
+    /// in place however it ends (a callback error or a native unwind), as in the C++.
+    groups: Rc<Vec<Group>>,
     join_type: JoinType,
     end_type: EndType,
     miter_limit: f64,
     arc_tolerance: f64,
     preserve_collinear: bool,
     reverse_solution: bool,
-    /// `zCallback64_`, shared with the proxy `ExecuteInternal` binds (`std::bind(&ZCB, this,
-    /// ...)`), so the clipper reads the callback this object holds at the time of the call.
-    z_callback: Rc<Cell<Option<ZCallback64>>>,
+    /// `zCallback64_` ([`SharedOffsetZCallback`]).
+    z_callback: SharedOffsetZCallback,
     delta_callback: Option<DeltaCallback64>,
     /// Host limit on the points one execution produces (offset paths and their copies).
     budget: Budget,
@@ -348,14 +370,14 @@ impl ClipperOffset {
             step_cos: 0.0,
             norms: PathD::new(),
             path_out: Path64::new(),
-            groups: Vec::new(),
+            groups: Rc::new(Vec::new()),
             join_type: JoinType::Bevel,
             end_type: EndType::Polygon,
             miter_limit,
             arc_tolerance,
             preserve_collinear,
             reverse_solution,
-            z_callback: Rc::new(Cell::new(None)),
+            z_callback: Rc::new(RefCell::new(None)),
             delta_callback: None,
             budget,
             points: 0,
@@ -374,7 +396,10 @@ impl ClipperOffset {
 
     /// `void Clear()`.
     pub fn clear(&mut self) {
-        self.groups.clear();
+        match Rc::get_mut(&mut self.groups) {
+            Some(groups) => groups.clear(),
+            None => self.groups = Rc::new(Vec::new()),
+        }
         self.norms.clear();
     }
 
@@ -418,9 +443,25 @@ impl ClipperOffset {
         self.reverse_solution = reverse_solution;
     }
 
-    /// `void SetZCallback(ZCallback64 cb)`; `None` is an empty `std::function`.
-    pub fn set_z_callback(&mut self, cb: Option<ZCallback64>) {
-        self.z_callback.set(cb);
+    /// `void SetZCallback(ZCallback64 cb)` for a callback that never throws; `None` is an
+    /// empty `std::function`.
+    pub fn set_z_callback(&mut self, cb: Option<ZCallback64>) -> Result<()> {
+        self.set_fallible_z_callback(cb.map(|mut cb| -> FallibleZCallback64 {
+            Box::new(move |bot1, top1, bot2, top2, ip| {
+                cb(bot1, top1, bot2, top2, ip);
+                Ok(())
+            })
+        }))
+    }
+
+    /// `void SetZCallback(ZCallback64 cb)` for a callback that may throw; `None` is an empty
+    /// `std::function`. A callback `Err` ends the finishing union and `Execute` with that
+    /// error, as the exception unwinds the C++: the local clipper is discarded (the paths it
+    /// already built into the caller's `Paths64` or `PolyTree64` remain), and the groups, both
+    /// callbacks and the normals stay as they were.
+    pub fn set_fallible_z_callback(&mut self, cb: Option<FallibleZCallback64>) -> Result<()> {
+        *self.z_callback.try_borrow_mut().map_err(|_| REENTRANT)? = cb;
+        Ok(())
     }
 
     /// `void SetDeltaCallback(DeltaCallback64 cb)`; `None` is an empty `std::function`.
@@ -431,6 +472,11 @@ impl ClipperOffset {
     /// The groups added so far (`groups_`).
     pub fn groups(&self) -> &[Group] {
         &self.groups
+    }
+
+    /// `groups_.emplace_back(...)`.
+    fn push_group(&mut self, group: Group) -> Result<()> {
+        push(Rc::get_mut(&mut self.groups).ok_or(GROUPS_IN_USE)?, group)
     }
 
     /// The normals of the last path offset (`norms`).
@@ -466,7 +512,7 @@ impl ClipperOffset {
         let mut paths = Paths64::new();
         push(&mut paths, copy_of(path)?)?;
         let group = Group::new(&paths, jt, et)?;
-        push(&mut self.groups, group)
+        self.push_group(group)
     }
 
     /// `void AddPaths(const Paths64 &paths, JoinType jt_, EndType et_)`.
@@ -475,7 +521,7 @@ impl ClipperOffset {
             return Ok(());
         }
         let group = Group::new(paths, jt, et)?;
-        push(&mut self.groups, group)
+        self.push_group(group)
     }
 
     /// `void BuildNormals(const Path64& path)`.
@@ -648,7 +694,7 @@ impl ClipperOffset {
         }
 
         if let Some(cb) = self.delta_callback.as_mut() {
-            self.group_delta = cb(path, &self.norms, j, k);
+            self.group_delta = cb(path, &self.norms, j, k)?;
             if group.is_reversed {
                 self.group_delta = -self.group_delta;
             }
@@ -750,7 +796,7 @@ impl ClipperOffset {
     ) -> Result<()> {
         // do the line start cap
         if let Some(cb) = self.delta_callback.as_mut() {
-            self.group_delta = cb(path, &self.norms, 0, 0);
+            self.group_delta = cb(path, &self.norms, 0, 0)?;
         }
         self.offset_cap(path, 0)?;
 
@@ -772,7 +818,7 @@ impl ClipperOffset {
 
         // do the line end cap
         if let Some(cb) = self.delta_callback.as_mut() {
-            self.group_delta = cb(path, &self.norms, high_i, high_i);
+            self.group_delta = cb(path, &self.norms, high_i, high_i)?;
         }
         self.offset_cap(path, high_i)?;
 
@@ -822,7 +868,7 @@ impl ClipperOffset {
             if path_len == 1 {
                 // single point
                 if let Some(cb) = self.delta_callback.as_mut() {
-                    self.group_delta = cb(path, &self.norms, 0, 0);
+                    self.group_delta = cb(path, &self.norms, 0, 0)?;
                     if group.is_reversed {
                         self.group_delta = -self.group_delta;
                     }
@@ -886,7 +932,7 @@ impl ClipperOffset {
     }
 
     /// `void ZCB(const Point64& bot1, const Point64& top1, const Point64& bot2,
-    /// const Point64& top2, Point64& ip)`.
+    /// const Point64& top2, Point64& ip)`; an error is the user callback's exception.
     pub fn zcb(
         &mut self,
         bot1: &Point64,
@@ -894,14 +940,14 @@ impl ClipperOffset {
         bot2: &Point64,
         top2: &Point64,
         ip: &mut Point64,
-    ) {
-        offset_zcb(&self.z_callback, bot1, top1, bot2, top2, ip);
+    ) -> Result<()> {
+        offset_zcb(&self.z_callback, bot1, top1, bot2, top2, ip)
     }
 
     /// `size_t CalcSolutionCapacity()`.
     pub fn calc_solution_capacity(&self) -> usize {
         let mut result = 0usize;
-        for g in &self.groups {
+        for g in self.groups.iter() {
             result = result.wrapping_add(if g.end_type == EndType::Joined {
                 g.paths_in.len().wrapping_mul(2)
             } else {
@@ -915,7 +961,7 @@ impl ClipperOffset {
     /// orientation between groups".
     pub fn check_reverse_orientation(&self) -> bool {
         let mut is_reversed_orientation = false;
-        for g in &self.groups {
+        for g in self.groups.iter() {
             if g.end_type == EndType::Polygon {
                 is_reversed_orientation = g.is_reversed;
                 break;
@@ -924,7 +970,7 @@ impl ClipperOffset {
         is_reversed_orientation
     }
 
-    /// The group loop of `ExecuteInternal`, on the groups taken out of `self`.
+    /// The group loop of `ExecuteInternal`, on a shared handle to `groups_`.
     fn offset_groups(
         &mut self,
         groups: &[Group],
@@ -977,9 +1023,10 @@ impl ClipperOffset {
         }
         reserve_total(solution, self.calc_solution_capacity())?;
 
-        let groups = ::core::mem::take(&mut self.groups);
+        // The handle keeps `groups_` in place: a callback error returns here with them intact.
+        let groups = Rc::clone(&self.groups);
         let offset = self.offset_groups(&groups, delta, solution);
-        self.groups = groups;
+        drop(groups);
         offset?;
 
         if solution.is_empty() {
@@ -993,16 +1040,9 @@ impl ClipperOffset {
         // the solution should retain the orientation of the input
         c.base
             .set_reverse_solution(self.reverse_solution != paths_reversed);
-        let shared = Rc::clone(&self.z_callback);
-        c.set_z_callback(Some(Box::new(
-            move |bot1: &Point64,
-                  top1: &Point64,
-                  bot2: &Point64,
-                  top2: &Point64,
-                  ip: &mut Point64| {
-                offset_zcb(&shared, bot1, top1, bot2, top2, ip);
-            },
-        )));
+        c.base.set_z_callback_slot(ZCallbackSlot::OffsetProxy {
+            callback: Rc::clone(&self.z_callback),
+        });
         c.add_subject(solution)?;
         let fill_rule = if paths_reversed {
             FillRule::Negative
@@ -1045,26 +1085,29 @@ impl ClipperOffset {
     }
 }
 
-/// `ClipperOffset::ZCB` on the object's `zCallback64_`. The callback is taken out of its cell
-/// for the call and put back afterwards (nothing else can reach the cell meanwhile).
-fn offset_zcb(
-    z_callback: &Cell<Option<ZCallback64>>,
+/// `ClipperOffset::ZCB` on the object's `zCallback64_`. The callback is borrowed for the call,
+/// so it stays assigned when it returns an error or unwinds; an error propagates unchanged.
+pub(crate) fn offset_zcb(
+    z_callback: &RefCell<Option<FallibleZCallback64>>,
     bot1: &Point64,
     top1: &Point64,
     bot2: &Point64,
     top2: &Point64,
     ip: &mut Point64,
-) {
+) -> Result<()> {
     if bot1.z != 0 && ((bot1.z == bot2.z) || (bot1.z == top2.z)) {
         ip.z = bot1.z;
     } else if bot2.z != 0 && (bot2.z == top1.z) {
         ip.z = bot2.z;
     } else if top1.z != 0 && (top1.z == top2.z) {
         ip.z = top1.z;
-    } else if let Some(mut cb) = z_callback.take() {
-        cb(bot1, top1, bot2, top2, ip);
-        z_callback.set(Some(cb));
+    } else {
+        let mut slot = z_callback.try_borrow_mut().map_err(|_| REENTRANT)?;
+        if let Some(cb) = slot.as_mut() {
+            cb(bot1, top1, bot2, top2, ip)?;
+        }
     }
+    Ok(())
 }
 
 #[cfg(test)]

@@ -403,6 +403,12 @@ pub enum ZCallbackSlot {
         inv_scale: f64,
         callback: SharedZCallbackD,
     },
+    /// `std::bind(&ClipperOffset::ZCB, this, ...)`, assigned by `ClipperOffset::ExecuteInternal`:
+    /// the bound object's `zCallback64_`, whose fallible call ends the engine operation with
+    /// the callback's error, as the C++ exception unwinds out of `Execute`.
+    OffsetProxy {
+        callback: crate::offset::SharedOffsetZCallback,
+    },
 }
 
 impl ::core::fmt::Debug for ZCallbackSlot {
@@ -411,6 +417,7 @@ impl ::core::fmt::Debug for ZCallbackSlot {
             Self::Empty => "Empty",
             Self::User(_) => "User",
             Self::ClipperDProxy { .. } => "ClipperDProxy",
+            Self::OffsetProxy { .. } => "OffsetProxy",
         })
     }
 }
@@ -421,6 +428,7 @@ pub enum ZCallbackKind {
     Empty,
     User,
     ClipperDProxy,
+    OffsetProxy,
 }
 
 /// `class ClipperBase`: engine state. Fields follow the header's declarations and default
@@ -549,6 +557,7 @@ impl ClipperBase {
             ZCallbackSlot::Empty => ZCallbackKind::Empty,
             ZCallbackSlot::User(_) => ZCallbackKind::User,
             ZCallbackSlot::ClipperDProxy { .. } => ZCallbackKind::ClipperDProxy,
+            ZCallbackSlot::OffsetProxy { .. } => ZCallbackKind::OffsetProxy,
         }
     }
 }

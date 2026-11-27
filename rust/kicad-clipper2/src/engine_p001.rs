@@ -976,6 +976,9 @@ impl ClipperBase {
             } => crate::clipper_engine::clipper_d_zcb(
                 *inv_scale, callback, e1bot, e1top, e2bot, e2top, pt,
             ),
+            ZCallbackSlot::OffsetProxy { callback } => {
+                crate::offset::offset_zcb(callback, e1bot, e1top, e2bot, e2top, pt)
+            }
         }
     }
 
