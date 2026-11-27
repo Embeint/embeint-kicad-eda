@@ -10,27 +10,6 @@ fn d(x: f64, y: f64) -> Vector2D {
     Vector2::new(x, y)
 }
 
-/// Test-only header callees: the bodies `trigo.h` inlines, forwarding to this unit's
-/// out-of-line `RotatePoint` overloads, so the continuations after the header calls can be
-/// exercised. Not production code and not oracle evidence by itself.
-struct Forwarding;
-
-impl HeaderCallees for Forwarding {
-    fn rotate_vector2i_about(
-        &self,
-        point: &mut Vector2I,
-        centre: Vector2I,
-        angle: EdaAngle,
-    ) -> TrigoResult<()> {
-        rotate_point_i_about(&mut point.x, &mut point.y, centre.x, centre.y, angle)
-    }
-
-    fn rotate_vector2d(&self, point: &mut Vector2D, angle: EdaAngle) -> TrigoResult<()> {
-        rotate_point_d(&mut point.x, &mut point.y, angle);
-        Ok(())
-    }
-}
-
 #[test]
 fn minmax3_follows_libstdcxx_order() {
     assert_eq!(minmax3(1.0, 2.0, 3.0), (1.0, 3.0));
@@ -242,24 +221,19 @@ fn rotations() -> TrigoResult<()> {
 }
 
 #[test]
-fn arc_mid_defers_at_the_header_and_continues() -> TrigoResult<()> {
-    let deferral = Err(TrigoError::Unported {
-        upstream: ROTATE_VECTOR2I_ABOUT,
-        unit: TRIGO_HEADER_UNIT,
-    });
-    assert_eq!(calc_arc_mid(v(100, 0), v(0, 100), v(0, 0), true), deferral);
+fn arc_mid_through_the_header_wrapper() -> TrigoResult<()> {
     assert_eq!(
-        calc_arc_mid_with(&Forwarding, v(100, 0), v(0, 100), v(0, 0), true)?,
+        calc_arc_mid(v(100, 0), v(0, 100), v(0, 0), true)?,
         v(71, 71)
     );
     assert_eq!(
-        calc_arc_mid_with(&Forwarding, v(100, 0), v(0, 100), v(0, 0), false)?,
+        calc_arc_mid(v(100, 0), v(0, 100), v(0, 0), false)?,
         v(-71, -71)
     );
     // The pinned oracle's reply to arc_mid ( 1000, 300 ), ( -200, 900 ), ( 0, 0 ) with the
     // default argument: a general (non-shortcut) rotation.
     assert_eq!(
-        calc_arc_mid_with(&Forwarding, v(1000, 300), v(-200, 900), v(0, 0), true)?,
+        calc_arc_mid(v(1000, 300), v(-200, 900), v(0, 0), true)?,
         v(528, 901)
     );
     // The differences come before the header call.
@@ -275,15 +249,12 @@ fn arc_center_from_angle() -> TrigoResult<()> {
     // A zero angle returns the chord midpoint before the header call.
     let c = calc_arc_center_angle(d(0.0, 0.0), d(10.0, 0.0), ANGLE_0)?;
     assert_eq!((c.x, c.y), (5.0, 0.0));
-    assert_eq!(
-        calc_arc_center_angle(d(0.0, 0.0), d(10.0, 0.0), ANGLE_90),
-        Err(TrigoError::Unported {
-            upstream: ROTATE_VECTOR2D,
-            unit: TRIGO_HEADER_UNIT
-        })
-    );
+    // 90 degrees: d = 5 * cot 45 degrees, the chord's half turned by -90 degrees.
+    let c = calc_arc_center_angle(d(0.0, 0.0), d(10.0, 0.0), ANGLE_90)?;
+    assert_eq!(c.x, 5.0);
+    assert!((c.y - 5.0).abs() < 1e-9);
     // 180 degrees: the center is the chord midpoint (d is cot 90 = 0 here).
-    let c = calc_arc_center_angle_with(&Forwarding, d(0.0, 0.0), d(10.0, 0.0), ANGLE_180)?;
+    let c = calc_arc_center_angle(d(0.0, 0.0), d(10.0, 0.0), ANGLE_180)?;
     assert_eq!((c.x, c.y), (5.0, 0.0));
     Ok(())
 }

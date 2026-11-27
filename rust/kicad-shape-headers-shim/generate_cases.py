@@ -47,7 +47,6 @@ ARC_UNIT = 'libs.kimath.src.geometry.shape_arc.application.ui.p001'
 COMPOUND_UNIT = 'libs.kimath.src.geometry.shape_compound.application.ui.p001'
 ELLIPSE_UNIT = 'libs.kimath.src.geometry.shape_ellipse.application.ui.p001'
 COLLISIONS_UNIT = 'libs.kimath.src.geometry.shape_collisions.application.ui.p001'
-TRIGO_HEADER_UNIT = 'libs.kimath.include.application.ui.p001'
 UTIL_UNIT = 'libs.kimath.src.math.util.application.ui.p001'
 DEFERRALS = {
     'arc_ctor': ('SHAPE_ARC::SHAPE_ARC(const VECTOR2I&, const VECTOR2I&, const VECTOR2I&, int)',
@@ -59,7 +58,6 @@ DEFERRALS = {
                       ELLIPSE_UNIT),
     'ellipse_arc_radii': ('SHAPE_ELLIPSE::SHAPE_ELLIPSE(const VECTOR2I&, int, int, const EDA_ANGLE&, '
                           'const EDA_ANGLE&, const EDA_ANGLE&)', ELLIPSE_UNIT),
-    'rotate': ('RotatePoint(VECTOR2I&, const VECTOR2I&, EDA_ANGLE)', TRIGO_HEADER_UNIT),
     'collide_shape': ('SHAPE::Collide(const SHAPE*, int, int*, VECTOR2I*)', COLLISIONS_UNIT),
     'compound_clone': ('SHAPE_COMPOUND::Clone', COMPOUND_UNIT),
     'compound_bbox': ('SHAPE_COMPOUND::BBox', COMPOUND_UNIT),
@@ -477,9 +475,11 @@ class Run:
             if kind == 'circle':
                 ox, oy = subI(state[1], center)
                 # Only the cardinal branches negate; the generator keeps every rotation within
-                # 2^29 of a centre within 2^29, so the final sums cannot overflow.
+                # 2^29 of a centre within 2^29, so the final sums cannot overflow. The trigo.h
+                # wrapper is ported (libs.kimath.include.application.ui.p001) and a rotation is
+                # always a script's last call, so the rotated centre is not replayed.
                 assert all(abs(v) <= 2**29 for v in (ox, oy) + center), c
-                self.defer('rotate')
+                self.labels.add('circle-rotate')
             else:
                 compound_domain(state)
                 if not all(within(v) for v in center):
@@ -839,7 +839,7 @@ def shape_candidates(rng):
                         {'op': 'shape', 'shape': {'kind': 'circle', 'ctor': 'center_radius',
                                                   'center': [0, 0], 'radius': 0},
                          'calls': [call]}))
-    # Rotations (deferred in Rust) as the last call, within the safe range.
+    # Rotations as the last call, within the safe range.
     for n in range(40):
         spec = circle_spec(rng, 10**6, 'center_radius')
         call = {'call': 'rotate', 'angle': bits(rng.choice(ANGLES + [rng.uniform(-400, 400)]))}
@@ -1067,7 +1067,7 @@ REQUIRED_LABELS = {
     'circle-ctor-default', 'circle-ctor-center_radius', 'circle-ctor-circle', 'circle-ctor-copy',
     'arc-ctor-default', 'arc-ctor-three_point', 'ellipse-ctor-default', 'ellipse-ctor-radii',
     'ellipse-ctor-arc_radii', 'compound-ctor', 'add-null', 'shape-type-named',
-    'shape-type-unnamed',
+    'shape-type-unnamed', 'circle-rotate',
 }
 
 

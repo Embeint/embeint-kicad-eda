@@ -32,16 +32,6 @@ fn public_cases_succeed_or_defer_to_their_actual_owners() {
     }
     let expected: BTreeMap<(String, String), usize> = [
         (
-            "libs.kimath.include.application.ui.p001",
-            "RotatePoint(VECTOR2D&, EDA_ANGLE)",
-            214,
-        ),
-        (
-            "libs.kimath.include.application.ui.p001",
-            "RotatePoint(VECTOR2I&, const VECTOR2I&, EDA_ANGLE)",
-            311,
-        ),
-        (
             "libs.kimath.src.math.util.application.ui.p001",
             "kimathLogOverflow",
             56,
@@ -58,7 +48,7 @@ fn public_cases_succeed_or_defer_to_their_actual_owners() {
     .map(|(u, s, n)| ((u.to_string(), s.to_string()), n))
     .collect();
     assert_eq!(deferred, expected);
-    assert_eq!(ok, 5372);
+    assert_eq!(ok, 5897);
     assert_eq!(ok + deferred.values().sum::<usize>(), CASES);
 }
 

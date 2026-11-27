@@ -9,19 +9,19 @@
 //! Every member is inline except `Format` and `TransformToPolygon` (shape_circle.cpp, not
 //! ported here). The wrapped [`Circle`] uses the accepted circle.cpp port, and `Collide( SEG )`
 //! the accepted seg.cpp `NearestPoint`. `Rotate` calls trigo.h's
-//! `RotatePoint( VECTOR2I&, const VECTOR2I&, const EDA_ANGLE& )`, which is not ported yet.
+//! `RotatePoint( VECTOR2I&, const VECTOR2I&, const EDA_ANGLE& )` ([`crate::trigo_header`]).
 use core::any::Any;
 
 use crate::box2::Box2I;
 use crate::circle::Circle;
 use crate::eda_angle::EdaAngle;
 use crate::seg::Seg;
-use crate::shape::{unported, Shape, ShapeError, ShapeResult, ShapeType};
+use crate::shape::{Shape, ShapeError, ShapeResult, ShapeType};
 use crate::util;
 use crate::vector::{Vector2, Vector2I};
 
 /// Owner of trigo.h (`RotatePoint( VECTOR2I&, const VECTOR2I&, const EDA_ANGLE& )`).
-pub const TRIGO_HEADER_UNIT: &str = "libs.kimath.include.application.ui.p001";
+pub const TRIGO_HEADER_UNIT: &str = crate::trigo_header::UNIT;
 
 /// `SHAPE_CIRCLE`: a solid circle.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -185,11 +185,15 @@ impl Shape for ShapeCircle {
     }
 
     /// `Rotate`: `RotatePoint( m_circle.Center, aCenter, aAngle )`.
-    fn rotate(&mut self, _angle: EdaAngle, _center: Vector2I) -> ShapeResult<()> {
-        // UNPORTED(libs.kimath.include.application.ui.p001): RotatePoint(VECTOR2I&, const VECTOR2I&, EDA_ANGLE)
-        unported(
-            "RotatePoint(VECTOR2I&, const VECTOR2I&, EDA_ANGLE)",
-            TRIGO_HEADER_UNIT,
+    fn rotate(&mut self, angle: EdaAngle, center: Vector2I) -> ShapeResult<()> {
+        // The trigo.h wrapper (libs.kimath.include.application.ui.p001).
+        crate::trigo_header::rotate_point_about(&mut self.circle.center, center, angle).map_err(
+            |e| match e {
+                crate::trigo::TrigoError::Undefined => ShapeError::Undefined,
+                crate::trigo::TrigoError::Unported { upstream, unit } => {
+                    ShapeError::Unported { upstream, unit }
+                }
+            },
         )
     }
 

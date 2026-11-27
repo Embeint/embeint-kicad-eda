@@ -15,13 +15,11 @@
 //! `unclampedArcCenter` with their constants. `CircleCenterFrom3Points` is compiled out
 //! (`USE_ALTERNATE_CENTER_ALGO` is not defined) and is not ported.
 //!
-//! Two bodies call inline wrappers of `trigo.h`, which belongs to
-//! `libs.kimath.include.application.ui.p001` and is not ported: `CalcArcMid` calls
+//! Two bodies call inline wrappers of `trigo.h`, which `libs.kimath.include.application.ui.p001`
+//! ports in [`crate::trigo_header`]: `CalcArcMid` calls
 //! `RotatePoint( VECTOR2I&, const VECTOR2I&, const EDA_ANGLE& )` and the chord/angle
-//! `CalcArcCenter` calls `RotatePoint( VECTOR2D&, const EDA_ANGLE& )`. Those calls return
-//! [`TrigoError::Unported`] naming that owner, through the [`HeaderCallees`] seam, and the
-//! continuation after each of them is implemented (and exercised by in-crate tests through a
-//! forwarding seam, which is not oracle evidence).
+//! `CalcArcCenter` calls `RotatePoint( VECTOR2D&, const EDA_ANGLE& )`. Both forward to overloads
+//! of this unit.
 //!
 //! Arithmetic follows the source expression order without contraction, on the accepted
 //! [`EdaAngle`], [`Vector2`], [`Seg`], `KiROUND` ([`round_i32`]) and `KI_INT128` bodies.
@@ -44,19 +42,13 @@ use crate::eda_angle::{ANGLE_360, ANGLE_90};
 use crate::fp;
 use crate::reference_libm;
 use crate::seg::{Seg, SegError};
+use crate::trigo_header;
 use crate::util::round_i32;
 use crate::vector::{Vector2, Vector2D, Vector2I, Vector2L, VectorDomainError};
 use crate::wide_int::{cross_wide, to_double, KiInt128, WideIntError};
 
 /// This unit.
 pub const UNIT: &str = "libs.kimath.src.trigo.application.ui.p001";
-/// Owner of `trigo.h`, whose inline `RotatePoint` wrappers two bodies call.
-pub const TRIGO_HEADER_UNIT: &str = "libs.kimath.include.application.ui.p001";
-/// The `trigo.h` wrapper `CalcArcMid` calls.
-pub const ROTATE_VECTOR2I_ABOUT: &str = "RotatePoint(VECTOR2I&, const VECTOR2I&, EDA_ANGLE)";
-/// The `trigo.h` wrapper the chord/angle `CalcArcCenter` calls.
-pub const ROTATE_VECTOR2D: &str = "RotatePoint(VECTOR2D&, EDA_ANGLE)";
-
 /// Why a trigo operation produced no value.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TrigoError {
@@ -137,47 +129,6 @@ fn minmax3(a: f64, b: f64, c: f64) -> (f64, f64) {
 
 fn dvec(v: Vector2I) -> Vector2D {
     Vector2::new(f64::from(v.x), f64::from(v.y))
-}
-
-/// The `trigo.h` inline wrappers that trigo.cpp bodies call, as one seam so their
-/// continuations can be exercised by in-crate tests. [`PinnedHeader`] is the only production
-/// implementation.
-pub(crate) trait HeaderCallees {
-    /// `RotatePoint( VECTOR2I& aPoint, const VECTOR2I& aCentre, const EDA_ANGLE& aAngle )`.
-    fn rotate_vector2i_about(
-        &self,
-        point: &mut Vector2I,
-        centre: Vector2I,
-        angle: EdaAngle,
-    ) -> TrigoResult<()>;
-    /// `RotatePoint( VECTOR2D& point, const EDA_ANGLE& aAngle )`.
-    fn rotate_vector2d(&self, point: &mut Vector2D, angle: EdaAngle) -> TrigoResult<()>;
-}
-
-/// The pinned header callees: typed deferrals to the unported `trigo.h` owner.
-pub(crate) struct PinnedHeader;
-
-impl HeaderCallees for PinnedHeader {
-    fn rotate_vector2i_about(
-        &self,
-        _point: &mut Vector2I,
-        _centre: Vector2I,
-        _angle: EdaAngle,
-    ) -> TrigoResult<()> {
-        // UNPORTED(libs.kimath.include.application.ui.p001): RotatePoint(VECTOR2I&, const VECTOR2I&, EDA_ANGLE)
-        Err(TrigoError::Unported {
-            upstream: ROTATE_VECTOR2I_ABOUT,
-            unit: TRIGO_HEADER_UNIT,
-        })
-    }
-
-    fn rotate_vector2d(&self, _point: &mut Vector2D, _angle: EdaAngle) -> TrigoResult<()> {
-        // UNPORTED(libs.kimath.include.application.ui.p001): RotatePoint(VECTOR2D&, EDA_ANGLE)
-        Err(TrigoError::Unported {
-            upstream: ROTATE_VECTOR2D,
-            unit: TRIGO_HEADER_UNIT,
-        })
-    }
 }
 
 /// `IsPointOnSegment( aSegStart, aSegEnd, aTestPoint )`: whether the test point lies on the
@@ -339,16 +290,6 @@ pub fn calc_arc_mid(
     center: Vector2I,
     min_arc_angle: bool,
 ) -> TrigoResult<Vector2I> {
-    calc_arc_mid_with(&PinnedHeader, start, end, center, min_arc_angle)
-}
-
-pub(crate) fn calc_arc_mid_with(
-    header: &impl HeaderCallees,
-    start: Vector2I,
-    end: Vector2I,
-    center: Vector2I,
-    min_arc_angle: bool,
-) -> TrigoResult<Vector2I> {
     let start_vector = start.checked_sub(center)?;
     let end_vector = end.checked_sub(center)?;
 
@@ -363,7 +304,7 @@ pub(crate) fn calc_arc_mid_with(
     }
 
     let mut new_mid = start;
-    header.rotate_vector2i_about(&mut new_mid, center, mid_point_rot_angle)?;
+    trigo_header::rotate_point_about(&mut new_mid, center, mid_point_rot_angle)?;
 
     Ok(new_mid)
 }
@@ -476,18 +417,9 @@ pub fn calc_arc_center_angle(
     end: Vector2D,
     angle: EdaAngle,
 ) -> TrigoResult<Vector2D> {
-    calc_arc_center_angle_with(&PinnedHeader, start, end, angle)
-}
-
-pub(crate) fn calc_arc_center_angle_with(
-    header: &impl HeaderCallees,
-    a_start: Vector2D,
-    a_end: Vector2D,
-    a_angle: EdaAngle,
-) -> TrigoResult<Vector2D> {
-    let mut angle = a_angle;
-    let mut start = a_start;
-    let mut end = a_end;
+    let mut angle = angle;
+    let mut start = start;
+    let mut end = end;
 
     if angle < ANGLE_0 {
         core::mem::swap(&mut start, &mut end);
@@ -520,7 +452,7 @@ pub(crate) fn calc_arc_center_angle_with(
     let mut vec2 = (end - start).resize(d)?;
     let vc = (end - start).resize(div(chord, 2.0))?;
 
-    header.rotate_vector2d(&mut vec2, -ANGLE_90)?;
+    trigo_header::rotate_point_d(&mut vec2, -ANGLE_90);
 
     Ok(start + vc + vec2)
 }

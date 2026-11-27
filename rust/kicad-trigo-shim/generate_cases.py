@@ -15,9 +15,10 @@ does not evaluate: such a request is admitted only where every rotated value wit
 magnitude bound keeps the following int sums in range, and is otherwise dropped. Angles taken by
 EDA_ANGLE( VECTOR2D ) from atan2 are treated the same way.
 
-A few controls are undefined only after a call the Rust port defers (the trigo.h RotatePoint
-wrapper in CalcArcMid, or a logging KiROUND): they carry "rust_unported" and check that the oracle
-refuses while Rust defers to that exact owner first.
+A few controls are undefined only after a call the Rust port defers (a logging KiROUND): they
+carry "rust_unported" and check that the oracle refuses while Rust defers to that exact owner
+first. The trigo.h RotatePoint wrapper CalcArcMid calls is ported
+(libs.kimath.include.application.ui.p001) and refuses exactly as the trigo.cpp overload.
 
 --check verifies the committed files equal the generator output.
 """
@@ -37,8 +38,6 @@ INT_MIN, INT_MAX = -2**31, 2**31 - 1
 I64_MIN, I64_MAX = -2**63, 2**63 - 1
 M_SQRT1_2 = float.fromhex('0x1.6a09e667f3bcdp-1')
 UNDEFINED = {'kind': 'invalid_input', 'message': 'undefined trigo operation'}
-HEADER_ROTATE = {'upstream': 'RotatePoint(VECTOR2I&, const VECTOR2I&, EDA_ANGLE)',
-                 'unit': 'libs.kimath.include.application.ui.p001'}
 LOG_OVERFLOW = {'upstream': 'kimathLogOverflow', 'unit': 'libs.kimath.src.math.util.application.ui.p001'}
 SEED = 20261127
 
@@ -282,11 +281,9 @@ def replay_arc_mid(start, end, center, min_arc):
         angle = normalize180(sa - ea) / 2
         if not min_arc:
             angle += 180.0
-    try:
-        replay_rotate_about(start, center, angle)
-    except (Undefined, DeferredUndefined):
-        # Everything after the differences follows the deferred trigo.h wrapper in Rust.
-        raise DeferredUndefined(HEADER_ROTATE)
+    # The trigo.h wrapper (libs.kimath.include.application.ui.p001, ported) forwards to the
+    # trigo.cpp overload, so its refusals and logging KiROUND deferrals are that overload's.
+    replay_rotate_about(start, center, angle)
 
 
 # ---------------------------------------------------------------------------------------------

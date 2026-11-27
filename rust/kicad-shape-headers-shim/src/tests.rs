@@ -37,11 +37,6 @@ fn public_cases_succeed_or_defer_to_their_actual_owners() {
         ),
         (ARC, "SHAPE_ARC::BBox", 2),
         (
-            "libs.kimath.include.application.ui.p001",
-            "RotatePoint(VECTOR2I&, const VECTOR2I&, EDA_ANGLE)",
-            34,
-        ),
-        (
             "libs.kimath.src.geometry.shape_collisions.application.ui.p001",
             "SHAPE::Collide(const SHAPE*, int, int*, VECTOR2I*)",
             20,
@@ -72,7 +67,7 @@ fn public_cases_succeed_or_defer_to_their_actual_owners() {
     .map(|(u, s, n)| ((u.to_string(), s.to_string()), n))
     .collect();
     assert_eq!(deferred, expected);
-    assert_eq!(ok, 4006);
+    assert_eq!(ok, 4040);
     assert_eq!(ok + deferred.values().sum::<usize>(), CASES);
 }
 
