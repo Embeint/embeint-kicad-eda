@@ -386,6 +386,20 @@ bool NameReachesAssert( const std::vector<wchar_t>& aName )
 }
 
 
+/// Whether NameAsToken's utf8_str() reaches wxFAIL_MSG: it converts every unit with an
+/// explicit length (past NUL units) through wxMBConvStrictUTF8.
+bool AnyUnitReachesAssert( const std::vector<wchar_t>& aName )
+{
+    for( wchar_t unit : aName )
+    {
+        if( ( static_cast<uint32_t>( unit ) & 0x7fffffffu ) > 0x10ffffu )
+            return true;
+    }
+
+    return false;
+}
+
+
 JSON StateJSON( std::ios::iostate aState )
 {
     return JSON{ { "bad", ( aState & std::ios::badbit ) != 0 },
@@ -653,9 +667,15 @@ JSON Run( const JSON& aInput )
     if( op == "name_as_token" )
     {
         Keys( aInput, { "op", "font" } );
-        (void) MakeFont( aInput.at( "font" ), false );
-        // The pointer refers to a destroyed wxScopedCharBuffer: any use is undefined.
-        Fail( UNDEFINED );
+        FONT_HOLDER holder = MakeFont( aInput.at( "font" ), false );
+
+        if( AnyUnitReachesAssert( holder.name ) )
+            Fail( OUTSIDE );
+
+        // In the wchar_t build the pointer is into m_fontName's own conversion cache, valid
+        // until the name is converted again.
+        const char* token = holder.font->NameAsToken();
+        return JSON{ { "bytes", Hex( std::string( token ) ) } };
     }
 
     if( op == "insert" )

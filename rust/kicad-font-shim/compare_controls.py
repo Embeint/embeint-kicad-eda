@@ -2,10 +2,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Controls never enter the successful public corpus.
 
-Each control is a request whose pinned evaluation is undefined (NameAsToken's dangling
-pointer, a null FONT pointer, signed overflow or an out-of-range conversion in faceSize), is
-malformed in a way the refusal order exercises, or leaves the adapter's verified domain (a
-name conversion reaching wxFAIL_MSG, a unitbuf stream whose failing sync could throw from a
+Each control is a request whose pinned evaluation is undefined (a null FONT pointer, signed
+overflow or an out-of-range conversion in faceSize), is malformed in a way the refusal order
+exercises, or leaves the adapter's verified domain (a name conversion reaching wxFAIL_MSG in
+the stream operator or NameAsToken, a unitbuf stream whose failing sync could throw from a
 noexcept sentry destructor); generate_cases.py classifies them. The C++ adapter must refuse
 each with exactly the recorded error, and Rust must give the same refusal. With --rust only,
 the Rust side is checked alone.

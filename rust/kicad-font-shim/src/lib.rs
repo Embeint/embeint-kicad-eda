@@ -66,6 +66,9 @@ impl From<FontError> for Error {
     fn from(e: FontError) -> Self {
         match e {
             FontError::Undefined { .. } => Self::Invalid(UNDEFINED.into()),
+            FontError::Alloc { upstream } => {
+                Self::Invalid(format!("allocation refused: {upstream}"))
+            }
             FontError::Unported { upstream, unit } => Self::Unported { upstream, unit },
         }
     }
@@ -305,6 +308,13 @@ fn outline_of(holder: &mut Holder) -> Result<&mut OutlineFont> {
     }
 }
 
+/// See the C++ adapter's `AnyUnitReachesAssert`: the strict encoder of `utf8_str()` runs over
+/// every unit, past NUL units.
+fn any_unit_reaches_assert(name: &[WChar]) -> bool {
+    name.iter()
+        .any(|&unit| u32::from_ne_bytes(unit.to_ne_bytes()) & 0x7FFF_FFFF > 0x10_FFFF)
+}
+
 /// See the C++ adapter's `NameReachesAssert`.
 fn name_reaches_assert(name: &[WChar]) -> bool {
     for &unit in name {
@@ -533,8 +543,10 @@ fn run(input: &Value, options: Options) -> Result<Value> {
         "name_as_token" => {
             keys(input, &["op", "font"], &[])?;
             let holder = make_font(field(input, "font")?, false)?;
-            holder.font.name_as_token()?;
-            Err(UNDEFINED.into())
+            if any_unit_reaches_assert(&holder.name) {
+                return Err(OUTSIDE.into());
+            }
+            Ok(json!({"bytes": hex(&holder.font.name_as_token()?)}))
         }
         "insert" => run_insert(input, options),
         "draw" => {
@@ -727,8 +739,8 @@ mod tests {
     fn refusals_and_deferrals() {
         let base = json!({"kind": "base", "name": []});
         assert_eq!(
-            reply(json!({"op": "name_as_token", "font": base}))["error"]["message"],
-            json!(UNDEFINED)
+            reply(json!({"op": "name_as_token", "font": base}))["result"]["bytes"],
+            json!("")
         );
         let outline = json!({"kind": "outline", "name": [], "file": [], "face": null,
                              "fake_bold": false, "fake_ital": false});

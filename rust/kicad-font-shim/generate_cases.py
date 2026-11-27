@@ -83,6 +83,10 @@ def reaches_assert(name):
     return False
 
 
+def any_unit_reaches_assert(name):
+    return any((unit & 0xFFFFFFFF) & 0x7FFFFFFF > 0x10FFFF for unit in name)
+
+
 def face_size_defined(size):
     scaled = size * 64
     if not INT_MIN <= scaled <= INT_MAX:
@@ -163,10 +167,14 @@ def generate():
                            ('outline', outline_font(NAMES['ascii']))):
             add(f'lines_count-{kind}-{index}', {'op': 'lines_count', 'font': font, 'text': units})
 
-    # NameAsToken: the returned pointer always dangles.
-    for kind, font in (('base', base_font(NAMES['ascii'])), ('outline', outline_font([])),
-                       ('scripted', scripted_font([], True, False, True, False))):
-        add(f'name_as_token-{kind}', {'op': 'name_as_token', 'font': font}, UNDEFINED)
+    # NameAsToken: utf8_str() of every unit, read up to the first NUL byte.
+    token_names = dict(NAMES, **{f'assert-{k}': v for k, v in ASSERT_NAMES.items()})
+    token_names['nul-masked-tail'] = [0x41, INT_MIN, 0x10FFFF]
+    for key, name in token_names.items():
+        for kind, font in (('base', base_font(name)), ('outline', outline_font(name, [0x66], 1)),
+                           ('scripted', scripted_font(name, True, False, True, False))):
+            add(f'name_as_token-{kind}-{key}', {'op': 'name_as_token', 'font': font},
+                OUTSIDE if any_unit_reaches_assert(name) else None)
 
     # operator<< for both overloads.
     insert_index = 0

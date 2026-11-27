@@ -25,7 +25,8 @@
 //! - [`font_stream`]: both `operator<<` of `font.h`, writing into the accepted byte-exact
 //!   `std::ostream` model of `kicad-wx-stl-compat`, with the wxWidgets string insertion
 //!   (`wxConvWhateverWorks`) they reach;
-//! - [`outline_font`]: `KIFONT::OUTLINE_FONT`'s inline members and constants.
+//! - [`outline_font`]: `KIFONT::OUTLINE_FONT`'s inline members and constants;
+//! - [`wx_conv`]: the wxWidgets wide-to-narrow conversions those bodies reach.
 //!
 //! Fonts are kept out of `kicad-core` (which the plan lists for L1 too) so that `libs/core`
 //! consumers do not pull the math, wxString and stream models, and so the FreeType/HarfBuzz
@@ -42,6 +43,7 @@ pub mod font;
 pub mod font_stream;
 pub mod outline_font;
 pub mod text_style;
+pub mod wx_conv;
 
 /// The unit this crate ports so far.
 pub const UNIT: &str = "include.font.application.ui.p001";
@@ -55,7 +57,7 @@ pub const OUTLINE_FONT_CPP_UNIT: &str = "common.font.application.ui.p002";
 
 /// The unit record's `rust_module`.
 pub mod include_font {
-    pub use crate::{font, font_stream, outline_font, text_style};
+    pub use crate::{font, font_stream, outline_font, text_style, wx_conv};
 }
 
 /// Why a font operation did not produce the reference result.
@@ -68,6 +70,9 @@ pub enum FontError {
         upstream: &'static str,
         reason: &'static str,
     },
+    /// The port could not allocate a result the reference would allocate (where the
+    /// reference would throw `std::bad_alloc`).
+    Alloc { upstream: &'static str },
     /// The body calls a function whose port is not available yet.
     Unported {
         upstream: &'static str,
@@ -81,6 +86,7 @@ impl core::fmt::Display for FontError {
             Self::Undefined { upstream, reason } => {
                 write!(formatter, "{upstream} is undefined here: {reason}")
             }
+            Self::Alloc { upstream } => write!(formatter, "{upstream} could not allocate"),
             Self::Unported { upstream, unit } => {
                 write!(formatter, "{upstream} is unported ({unit})")
             }

@@ -26,6 +26,7 @@ use kicad_map_helpers::wx_string::{WChar, WxString};
 use kicad_math::Vector2I;
 
 use crate::text_style::TextStyleFlags;
+use crate::wx_conv;
 use crate::{FontError, FONT_CPP_UNIT};
 
 /// The out-of-line `FONT::Draw` with a cursor, which the inline overload calls.
@@ -97,17 +98,22 @@ pub trait Font {
         &self.font_base().font_name
     }
 
-    /// `const char* NameAsToken() const { return GetName().utf8_str().data(); }`.
+    /// `const char* NameAsToken() const { return GetName().utf8_str().data(); }`: the bytes the
+    /// returned pointer reads, up to its NUL ([`wx_conv::utf8_str`]).
     ///
-    /// `utf8_str()` returns a `wxScopedCharBuffer` temporary owning the converted bytes (the
-    /// pinned wchar_t build converts into a new buffer); it is destroyed at the end of the
-    /// return statement, so the returned pointer dangles and every use of it is undefined
-    /// (`port/upstream-issues/font-name-as-token-dangling-buffer.md`). There is no reference
-    /// result to reproduce, so this always refuses.
+    /// The pointer is not into the destroyed `wxScopedCharBuffer` temporary: in the wchar_t
+    /// build that buffer is a non-owning view of `m_fontName`'s own conversion cache (or of a
+    /// static `""` when the conversion fails), so it stays valid until the name is converted
+    /// again or destroyed (`port/findings/font-header-p001-port.md`). A name holding a code
+    /// above U+10FFFF reaches the deferred `wxOnAssert`.
     fn name_as_token(&self) -> Result<Vec<u8>, FontError> {
-        Err(FontError::Undefined {
-            upstream: NAME_AS_TOKEN_UPSTREAM,
-            reason: "returns a pointer into a destroyed temporary buffer",
+        wx_conv::utf8_str(self.get_name(), &mut wx_conv::deferred_assert).map_err(|error| {
+            match error {
+                wx_conv::ConvError::Font(error) => error,
+                wx_conv::ConvError::Alloc => FontError::Alloc {
+                    upstream: NAME_AS_TOKEN_UPSTREAM,
+                },
+            }
         })
     }
 
@@ -224,10 +230,7 @@ mod tests {
         let font = Plain(base);
         assert!(!font.is_stroke() && !font.is_outline() && !font.is_bold() && !font.is_italic());
         assert_eq!(font.get_name().units(), &[0x4B, 0]);
-        assert!(matches!(
-            font.name_as_token(),
-            Err(FontError::Undefined { .. })
-        ));
+        assert_eq!(font.name_as_token(), Ok(b"K".to_vec()));
         Ok(())
     }
 
