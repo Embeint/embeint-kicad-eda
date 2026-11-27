@@ -49,6 +49,7 @@ pub use header::{
     ScanArg, ScanArgType, Sexpr, SexprDouble, SexprInteger, SexprList, SexprString, SexprSymbol,
     SexprType, SexprVector, StdException, View, ViewMut,
 };
+pub use sexpr_cpp::SexprOps;
 
 /// The header unit's identifier.
 pub const HEADER_UNIT: &str = "libs.sexpr.include.sexpr.application.pure.p001";

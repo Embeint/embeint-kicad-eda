@@ -10,3 +10,5 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+kicad-math = { path = "../kicad-math" }
+kicad-wx-stl-compat = { path = "../kicad-wx-stl-compat" }

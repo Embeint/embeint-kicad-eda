@@ -1020,6 +1020,10 @@ dependencies = [
 [[package]]
 name = "kicad-sexpr"
 version = "0.1.0"
+dependencies = [
+ "kicad-math",
+ "kicad-wx-stl-compat",
+]
 
 [[package]]
 name = "kicad-sexpr-shim"
