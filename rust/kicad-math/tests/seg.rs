@@ -46,15 +46,21 @@ fn hand_worked_results() -> Result<(), SegError> {
 }
 
 #[test]
-fn header_bodies_remain_owned_deferrals() {
+fn header_bodies_are_wired() -> Result<(), SegError> {
+    // SEG::Square and SEG::SquaredLength are the seg.h bodies of the header unit.
+    assert_eq!(
+        HEADER_UNIT,
+        "libs.kimath.include.geometry.application.ui.p003"
+    );
     let s = Seg::new(p(0, 0), p(10, 0));
-    let deferred = |upstream| SegError::Unported {
-        upstream,
-        unit: HEADER_UNIT,
-    };
-    assert_eq!(s.approx_collinear(&s, 1), Err(deferred("SEG::Square")));
-    assert_eq!(s.approx_parallel(&s, 1), Err(deferred("SEG::Square")));
-    assert_eq!(s.approx_perpendicular(&s), Err(deferred("SEG::Square")));
+    assert!(s.approx_collinear(&Seg::new(p(20, 1), p(30, 1)), 1)?);
+    assert!(!s.approx_collinear(&Seg::new(p(20, 2), p(30, 2)), 1)?);
+    assert!(s.approx_parallel(&Seg::new(p(0, 50), p(10, 50)), 1)?);
+    assert!(s.approx_perpendicular(&Seg::new(p(3, 0), p(3, 9)))?);
+    // ApproxParallel's SquaredLength: A - B overflows int.
+    let wide = Seg::new(p(i32::MIN, 0), p(i32::MAX, 0));
+    assert_eq!(wide.approx_parallel(&s, 1), Err(SegError::Undefined));
+    Ok(())
 }
 
 #[test]

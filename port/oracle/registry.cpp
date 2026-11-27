@@ -38,6 +38,7 @@ void RegisterKiplatformUnixP001( REGISTRY& aRegistry );
 void RegisterCoreWxStlCompat( REGISTRY& aRegistry );
 void RegisterCoreAppIncludeP001( REGISTRY& aRegistry );
 void RegisterSexprInclude( REGISTRY& aRegistry );
+void RegisterShapeHeadersP003( REGISTRY& aRegistry );
 void RegisterSexprSource( REGISTRY& aRegistry );
 
 
@@ -89,6 +90,7 @@ REGISTRY MakeRegistry()
     RegisterCoreWxStlCompat( registry );
     RegisterCoreAppIncludeP001( registry );
     RegisterSexprInclude( registry );
+    RegisterShapeHeadersP003( registry );
     RegisterSexprSource( registry );
     return registry;
 }

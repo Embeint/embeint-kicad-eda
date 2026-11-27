@@ -8,9 +8,10 @@ overflow or std::abs( INT_MIN ), with the refusal both programs must give). No r
 written anywhere: the split replays only the pinned integer arithmetic exactly (Python
 integers for int/int64_t/__int128, IEEE binary64 sqrt and products for Resize's lengths).
 
-A few controls are undefined only after a call the Rust port defers (RotatePoint, or SEG::Square
-through ApproxParallel): they carry "rust_unported" and check that the oracle refuses while Rust
-defers to that exact owner first. Intersect( CIRCLE ) requests whose solutions would need a
+A few controls are undefined only after a call the Rust port defers (RotatePoint, or CalcArcMid
+in ConstructFromTanTanPt): they carry "rust_unported" and check that the oracle refuses while Rust
+defers to that exact owner first. SEG::Square, SEG::SquaredLength, SEG::Center and
+SEG::IntersectLines are ported by the seg.h header unit and are no longer deferrals. Intersect( CIRCLE ) requests whose solutions would need a
 non-cardinal rotation are generated only where every solution sum is far inside the int range.
 
 ConstructFromTanTanPt is not replayed here (its CalcArcMid needs atan2 and a general rotation).
@@ -39,7 +40,7 @@ M_SQRT1_2 = float.fromhex('0x1.6a09e667f3bcdp-1')
 UNDEFINED = {'kind': 'invalid_input', 'message': 'undefined circle operation'}
 ROTATE = {'upstream': 'RotatePoint(VECTOR2I&, EDA_ANGLE)',
           'unit': 'libs.kimath.include.application.ui.p001'}
-SQUARE = {'upstream': 'SEG::Square', 'unit': 'libs.kimath.include.geometry.application.ui.p003'}
+CALC_ARC_MID = {'upstream': 'CalcArcMid', 'unit': 'libs.kimath.src.trigo.application.ui.p001'}
 # The bound of the public tan-tan selection (a generation choice, not an adapter domain).
 TAN_TAN_BOUND = 2**16
 
@@ -582,21 +583,25 @@ def generate():
         p = (o[0] + rng.randint(-1500, 1500), o[1] + rng.randint(-1500, 1500))
         tan_tan(f'rand-{i}', init, la, lb, p)
 
-    # Undefined ConstructFromTanTanPt requests. Rust defers at SEG::Square (the first statement
-    # of ApproxParallel) before any of them, so each is checked as that deferral.
-    def tan_tan_control(name, la, lb, p):
-        c.add_deferred_control(f'tan_tan_pt-{name}',
-                               {'op': 'tan_tan_pt', 'circle': circ(*init),
-                                'line_a': [list(q) for q in la], 'line_b': [list(q) for q in lb],
-                                'point': list(p)}, SQUARE)
+    # Undefined ConstructFromTanTanPt requests. With owner set, Rust reaches that deferral
+    # (CalcArcMid, in the general branch) before the undefined operation; otherwise Rust refuses
+    # the request as the oracle does.
+    def tan_tan_control(name, la, lb, p, owner=None):
+        inp = {'op': 'tan_tan_pt', 'circle': circ(*init), 'line_a': [list(q) for q in la],
+               'line_b': [list(q) for q in lb], 'point': list(p)}
+        if owner:
+            c.add_deferred_control(f'tan_tan_pt-{name}', inp, owner)
+        else:
+            c.controls.append({'error': UNDEFINED,
+                               'request': c.request(f'control-tan_tan_pt-{name}', inp)})
 
     # Both inside the earlier sufficient domain. The first review's trace: actTanA is
     # (INT_MIN, -32768), then PerpendicularSeg adds Perpendicular()'s x of -1 to INT_MIN.
     tan_tan_control('review-perpendicular', ((0, 0), (65536, 1)), ((0, 0), (1, 65536)),
-                    (32766, -32768))
+                    (32766, -32768), CALC_ARC_MID)
     # The follow-up review's UBSan sweep over the genuine sources (seed 25).
     tan_tan_control('review-sweep', ((-64561, -62774), (61438, 63223)),
-                    ((42568, -43794), (-24787, 13026)), (-6633, 29240))
+                    ((42568, -43794), (-24787, 13026)), (-6633, 29240), CALC_ARC_MID)
     # ApproxParallel's SquaredLength: A - B overflows int.
     tan_tan_control('approx-parallel-length', ((INT_MIN, 0), (INT_MAX, 0)), ((0, 5), (10, 5)),
                     (0, 0))
