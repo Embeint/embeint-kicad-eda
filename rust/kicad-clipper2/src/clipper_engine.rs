@@ -8,15 +8,15 @@
 //! [`ClipperBase`] and links them with typed indices ([`VertexId`], [`OutPtId`], ...); a null
 //! pointer is `None`. [`PolyTree`] is a slot arena whose first slot is the tree root. Members whose
 //! bodies are written in `clipper.engine.cpp` are owned by the engine source units: lines 1-2271
-//! are ported in [`crate::engine_p001`]; the inline bodies here call them, and calls into lines
-//! 2272 onward return [`ClipperError::Unported`] at that call.
+//! are ported in [`crate::engine_p001`] and lines 2272 onward in [`crate::engine_p002`]; the
+//! inline bodies here call them.
 
 use crate::clipper_core::{
     area, check_precision_range, scale_path, scale_paths, FillRule, Path, Path64, PathD, Paths64,
     PathsD, Point64, PointD, PointInPolygonResult, Rect64,
 };
 use crate::engine_p001::VertexListSlot;
-use crate::{copy_of, push, reserve, Budget, ClipperError, Coord, Result, ENGINE_SRC_P002};
+use crate::{copy_of, push, reserve, Budget, ClipperError, Coord, Result};
 use std::cell::RefCell;
 use std::collections::BinaryHeap;
 use std::rc::Rc;
@@ -403,6 +403,12 @@ pub enum ZCallbackSlot {
         inv_scale: f64,
         callback: SharedZCallbackD,
     },
+    /// `std::bind(&ClipperOffset::ZCB, this, ...)`, assigned by `ClipperOffset::ExecuteInternal`:
+    /// the bound object's `zCallback64_`, whose fallible call ends the engine operation with
+    /// the callback's error, as the C++ exception unwinds out of `Execute`.
+    OffsetProxy {
+        callback: crate::offset::SharedOffsetZCallback,
+    },
 }
 
 impl ::core::fmt::Debug for ZCallbackSlot {
@@ -411,6 +417,7 @@ impl ::core::fmt::Debug for ZCallbackSlot {
             Self::Empty => "Empty",
             Self::User(_) => "User",
             Self::ClipperDProxy { .. } => "ClipperDProxy",
+            Self::OffsetProxy { .. } => "OffsetProxy",
         })
     }
 }
@@ -421,6 +428,7 @@ pub enum ZCallbackKind {
     Empty,
     User,
     ClipperDProxy,
+    OffsetProxy,
 }
 
 /// `class ClipperBase`: engine state. Fields follow the header's declarations and default
@@ -549,21 +557,8 @@ impl ClipperBase {
             ZCallbackSlot::Empty => ZCallbackKind::Empty,
             ZCallbackSlot::User(_) => ZCallbackKind::User,
             ZCallbackSlot::ClipperDProxy { .. } => ZCallbackKind::ClipperDProxy,
+            ZCallbackSlot::OffsetProxy { .. } => ZCallbackKind::OffsetProxy,
         }
-    }
-
-    /// `bool ExecuteInternal(ClipType ct, FillRule ft, bool use_polytrees)`.
-    pub fn execute_internal(
-        &mut self,
-        _ct: ClipType,
-        _ft: FillRule,
-        _use_polytrees: bool,
-    ) -> Result<bool> {
-        // UNPORTED(thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p002): Clipper2Lib::ClipperBase::ExecuteInternal
-        Err(ClipperError::Unported {
-            upstream: "Clipper2Lib::ClipperBase::ExecuteInternal",
-            unit: ENGINE_SRC_P002,
-        })
     }
 }
 
@@ -986,22 +981,15 @@ impl Clipper64 {
         Ok(self.base.succeeded)
     }
 
-    /// `void BuildPaths64(Paths64& solutionClosed, Paths64* solutionOpen)`.
-    fn build_paths64(&mut self, _closed: &mut Paths64, _open: Option<&mut Paths64>) -> Result<()> {
-        // UNPORTED(thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p002): Clipper2Lib::Clipper64::BuildPaths64
-        Err(ClipperError::Unported {
-            upstream: "Clipper2Lib::Clipper64::BuildPaths64",
-            unit: ENGINE_SRC_P002,
-        })
+    /// `void BuildPaths64(Paths64& solutionClosed, Paths64* solutionOpen)`
+    /// ([`crate::engine_p002`]).
+    fn build_paths64(&mut self, closed: &mut Paths64, open: Option<&mut Paths64>) -> Result<()> {
+        self.base.build_paths64(closed, open)
     }
 
-    /// `void BuildTree64(PolyPath64& polytree, Paths64& open_paths)`.
-    fn build_tree64(&mut self, _polytree: &mut PolyTree64, _open: &mut Paths64) -> Result<()> {
-        // UNPORTED(thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p002): Clipper2Lib::Clipper64::BuildTree64
-        Err(ClipperError::Unported {
-            upstream: "Clipper2Lib::Clipper64::BuildTree64",
-            unit: ENGINE_SRC_P002,
-        })
+    /// `void BuildTree64(PolyPath64& polytree, Paths64& open_paths)` ([`crate::engine_p002`]).
+    fn build_tree64(&mut self, polytree: &mut PolyTree64, open: &mut Paths64) -> Result<()> {
+        self.base.build_tree64(polytree, open)
     }
 }
 
@@ -1259,22 +1247,15 @@ impl ClipperD {
         Ok(self.base.succeeded)
     }
 
-    /// `void BuildPathsD(PathsD& solutionClosed, PathsD* solutionOpen)`.
-    fn build_paths_d(&mut self, _closed: &mut PathsD, _open: Option<&mut PathsD>) -> Result<()> {
-        // UNPORTED(thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p002): Clipper2Lib::ClipperD::BuildPathsD
-        Err(ClipperError::Unported {
-            upstream: "Clipper2Lib::ClipperD::BuildPathsD",
-            unit: ENGINE_SRC_P002,
-        })
+    /// `void BuildPathsD(PathsD& solutionClosed, PathsD* solutionOpen)`
+    /// ([`crate::engine_p002`]).
+    fn build_paths_d(&mut self, closed: &mut PathsD, open: Option<&mut PathsD>) -> Result<()> {
+        self.base.build_paths_d(closed, open, self.inv_scale)
     }
 
-    /// `void BuildTreeD(PolyPathD& polytree, PathsD& open_paths)`.
-    fn build_tree_d(&mut self, _polytree: &mut PolyTreeD, _open: &mut PathsD) -> Result<()> {
-        // UNPORTED(thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p002): Clipper2Lib::ClipperD::BuildTreeD
-        Err(ClipperError::Unported {
-            upstream: "Clipper2Lib::ClipperD::BuildTreeD",
-            unit: ENGINE_SRC_P002,
-        })
+    /// `void BuildTreeD(PolyPathD& polytree, PathsD& open_paths)` ([`crate::engine_p002`]).
+    fn build_tree_d(&mut self, polytree: &mut PolyTreeD, open: &mut PathsD) -> Result<()> {
+        self.base.build_tree_d(polytree, open, self.inv_scale)
     }
 }
 

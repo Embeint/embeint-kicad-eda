@@ -7,9 +7,9 @@
 //! The file-local helpers, `StripeIndex`, the point-in-polygon tests on output rings,
 //! `AddPaths_`, `ReuseableDataContainer64` and the `ClipperBase` members from the destructor
 //! to `IntersectEdges`, in the reference's order. Lines 2272 onward belong to
-//! `thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p002`; calls into them
-//! (`Split`, `CheckJoinLeft`, `CheckJoinRight`, `SwapPositionsInAEL`) return
-//! [`ClipperError::Unported`] at the call, after every mutation the reference makes before it.
+//! `thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p002` and are ported in
+//! [`crate::engine_p002`]; the bodies here call them (`Split`, `CheckJoinLeft`,
+//! `CheckJoinRight`, `SwapPositionsInAEL`) directly.
 //! The cleaned-path fallback of `Path2ContainsPath1` calls the `clipper.h` template, owned by
 //! `thirdparty.clipper2.clipper2lib.include.clipper2.thirdparty.pure.p002`, and is deferred to it
 //! the same way.
@@ -31,7 +31,7 @@ use crate::clipper_engine::{
     LocalMinimaId, OutPt, OutPtId, OutRec, OutRecId, PathType, StripeEdge, StripeIndex, Vertex,
     VertexFlags, VertexId, ZCallbackSlot,
 };
-use crate::{push, reserve, with_capacity, ClipperError, Result, ENGINE_SRC_P002};
+use crate::{push, reserve, with_capacity, ClipperError, Result};
 use std::cell::Cell;
 use std::rc::Rc;
 
@@ -41,19 +41,19 @@ pub const UNIT: &str = crate::ENGINE_SRC_P001;
 pub const INCLUDE_P002: &str =
     "thirdparty.clipper2.clipper2lib.include.clipper2.thirdparty.pure.p002";
 
-const NULL: ClipperError = ClipperError::Undefined("null pointer dereference");
-const DELETED: ClipperError = ClipperError::Undefined("use of a deleted engine record");
+pub(crate) const NULL: ClipperError = ClipperError::Undefined("null pointer dereference");
+pub(crate) const DELETED: ClipperError = ClipperError::Undefined("use of a deleted engine record");
 const DANGLING_VERTEX: ClipperError =
     ClipperError::Undefined("use of a vertex its ReuseableDataContainer64 freed");
-const ENDLESS: ClipperError = ClipperError::Undefined("non-terminating pointer walk");
-const INT_OVERFLOW: ClipperError = ClipperError::Undefined("int overflow");
+pub(crate) const ENDLESS: ClipperError = ClipperError::Undefined("non-terminating pointer walk");
+pub(crate) const INT_OVERFLOW: ClipperError = ClipperError::Undefined("int overflow");
 const I64_OVERFLOW: ClipperError = ClipperError::Undefined("int64_t overflow");
 const STALE_ITERATOR: ClipperError = ClipperError::Undefined("use of an invalidated iterator");
 
 /// `-std::numeric_limits<double>::max()` / `max()`: the dx of horizontal edges.
 const MAX_DBL: f64 = f64::MAX;
 
-fn some<T>(value: Option<T>) -> Result<T> {
+pub(crate) fn some<T>(value: Option<T>) -> Result<T> {
     value.ok_or(NULL)
 }
 
@@ -70,32 +70,37 @@ fn rebind(from: VertexId, link: Option<VertexId>) -> Option<VertexId> {
 
 /// A walk over `limit` records at most; the reference loops forever on a malformed link
 /// structure, which is refused here.
-struct Walk(usize);
+pub(crate) struct Walk(usize);
 
 impl Walk {
-    fn new(records: usize) -> Self {
+    pub(crate) fn new(records: usize) -> Self {
         Self(records.saturating_add(2))
     }
 
+    /// A walk allowing at most `steps` steps.
+    pub(crate) fn limit(steps: usize) -> Self {
+        Self(steps)
+    }
+
     /// A walk allowing `records * records` steps (nested restarts such as `FixSelfIntersects`).
-    fn squared(records: usize) -> Self {
+    pub(crate) fn squared(records: usize) -> Self {
         let n = records.saturating_add(2);
         Self(n.saturating_mul(n))
     }
 
-    fn step(&mut self) -> Result<()> {
+    pub(crate) fn step(&mut self) -> Result<()> {
         self.0 = self.0.checked_sub(1).ok_or(ENDLESS)?;
         Ok(())
     }
 }
 
 /// `int64_t` subtraction.
-fn sub64(a: i64, b: i64) -> Result<i64> {
+pub(crate) fn sub64(a: i64, b: i64) -> Result<i64> {
     a.checked_sub(b).ok_or(I64_OVERFLOW)
 }
 
 /// `int64_t` addition.
-fn add64(a: i64, b: i64) -> Result<i64> {
+pub(crate) fn add64(a: i64, b: i64) -> Result<i64> {
     a.checked_add(b).ok_or(I64_OVERFLOW)
 }
 
@@ -173,7 +178,7 @@ pub fn intersect_list_sort(a: &IntersectNode, b: &IntersectNode) -> bool {
 
 /// `std::stable_sort` with a strict weak ordering `less`: a bottom-up merge sort whose scratch
 /// space is reserved fallibly. Stability makes the permutation identical to the reference's.
-fn stable_sort<T: Copy>(items: &mut [T], less: impl Fn(&T, &T) -> bool) -> Result<()> {
+pub(crate) fn stable_sort<T: Copy>(items: &mut [T], less: impl Fn(&T, &T) -> bool) -> Result<()> {
     let n = items.len();
     if n < 2 {
         return Ok(());
@@ -826,7 +831,7 @@ impl ClipperBase {
             .ok_or(DELETED)
     }
 
-    fn ae_mut(&mut self, id: ActiveId) -> Result<&mut Active> {
+    pub(crate) fn ae_mut(&mut self, id: ActiveId) -> Result<&mut Active> {
         self.active_edges
             .get_mut(id.0)
             .and_then(Option::as_mut)
@@ -841,7 +846,7 @@ impl ClipperBase {
             .ok_or(DELETED)
     }
 
-    fn op_mut(&mut self, id: OutPtId) -> Result<&mut OutPt> {
+    pub(crate) fn op_mut(&mut self, id: OutPtId) -> Result<&mut OutPt> {
         self.out_pts
             .get_mut(id.0)
             .and_then(Option::as_mut)
@@ -853,7 +858,7 @@ impl ClipperBase {
         self.outrec_list.get(id.0).ok_or(DELETED)
     }
 
-    fn or_mut(&mut self, id: OutRecId) -> Result<&mut OutRec> {
+    pub(crate) fn or_mut(&mut self, id: OutRecId) -> Result<&mut OutRec> {
         self.outrec_list.get_mut(id.0).ok_or(DELETED)
     }
 
@@ -971,6 +976,9 @@ impl ClipperBase {
             } => crate::clipper_engine::clipper_d_zcb(
                 *inv_scale, callback, e1bot, e1top, e2bot, e2top, pt,
             ),
+            ZCallbackSlot::OffsetProxy { callback } => {
+                crate::offset::offset_zcb(callback, e1bot, e1top, e2bot, e2top, pt)
+            }
         }
     }
 
@@ -1003,7 +1011,7 @@ impl ClipperBase {
     }
 
     /// `delete op`.
-    fn delete_out_pt(&mut self, id: OutPtId) -> Result<()> {
+    pub(crate) fn delete_out_pt(&mut self, id: OutPtId) -> Result<()> {
         let slot = self.out_pts.get_mut(id.0).ok_or(DELETED)?;
         if slot.take().is_none() {
             return Err(DELETED);
@@ -1011,23 +1019,23 @@ impl ClipperBase {
         Ok(())
     }
 
-    fn ael_walk(&self) -> Walk {
+    pub(crate) fn ael_walk(&self) -> Walk {
         Walk::new(self.active_edges.len())
     }
 
-    fn ring_walk(&self) -> Walk {
+    pub(crate) fn ring_walk(&self) -> Walk {
         Walk::new(self.out_pts.len())
     }
 
-    fn owner_walk(&self) -> Walk {
+    pub(crate) fn owner_walk(&self) -> Walk {
         Walk::new(self.outrec_list.len())
     }
 
-    fn lm_of(&self, e: ActiveId) -> Result<&LocalMinima> {
+    pub(crate) fn lm_of(&self, e: ActiveId) -> Result<&LocalMinima> {
         self.local_minima(some(self.active(e)?.local_min)?)
     }
 
-    fn outrec_of(&self, e: ActiveId) -> Result<OutRecId> {
+    pub(crate) fn outrec_of(&self, e: ActiveId) -> Result<OutRecId> {
         some(self.active(e)?.outrec)
     }
 
@@ -3249,54 +3257,6 @@ impl ClipperBase {
             }
         }
         Ok(())
-    }
-
-    // --- callees in clipper.engine.cpp lines 2272 onward ----------------------------------
-
-    /// `void Split(Active& e, const Point64& pt)`.
-    pub fn split(&mut self, _e: ActiveId, _pt: &Point64) -> Result<()> {
-        // UNPORTED(thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p002): Clipper2Lib::ClipperBase::Split
-        Err(ClipperError::Unported {
-            upstream: "Clipper2Lib::ClipperBase::Split",
-            unit: ENGINE_SRC_P002,
-        })
-    }
-
-    /// `inline void CheckJoinLeft(Active& e, const Point64& pt, bool check_curr_x = false)`.
-    pub fn check_join_left(
-        &mut self,
-        _e: ActiveId,
-        _pt: &Point64,
-        _check_curr_x: bool,
-    ) -> Result<()> {
-        // UNPORTED(thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p002): Clipper2Lib::ClipperBase::CheckJoinLeft
-        Err(ClipperError::Unported {
-            upstream: "Clipper2Lib::ClipperBase::CheckJoinLeft",
-            unit: ENGINE_SRC_P002,
-        })
-    }
-
-    /// `inline void CheckJoinRight(Active& e, const Point64& pt, bool check_curr_x = false)`.
-    pub fn check_join_right(
-        &mut self,
-        _e: ActiveId,
-        _pt: &Point64,
-        _check_curr_x: bool,
-    ) -> Result<()> {
-        // UNPORTED(thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p002): Clipper2Lib::ClipperBase::CheckJoinRight
-        Err(ClipperError::Unported {
-            upstream: "Clipper2Lib::ClipperBase::CheckJoinRight",
-            unit: ENGINE_SRC_P002,
-        })
-    }
-
-    /// `void SwapPositionsInAEL(Active& e1, Active& e2)`.
-    pub fn swap_positions_in_ael(&mut self, _e1: ActiveId, _e2: ActiveId) -> Result<()> {
-        // UNPORTED(thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p002): Clipper2Lib::ClipperBase::SwapPositionsInAEL
-        Err(ClipperError::Unported {
-            upstream: "Clipper2Lib::ClipperBase::SwapPositionsInAEL",
-            unit: ENGINE_SRC_P002,
-        })
     }
 }
 

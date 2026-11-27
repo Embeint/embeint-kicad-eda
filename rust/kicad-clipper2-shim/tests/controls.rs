@@ -41,10 +41,9 @@ fn corpus_is_answered_with_results_or_owned_deferrals() {
         ));
         deferred += 1;
     }
-    assert!(
-        results > 1000 && deferred > 0,
-        "{results} results, {deferred} deferred"
-    );
+    // Engine source p002 now supplies ExecuteInternal and the output builders, so the corpus
+    // may answer every case; any remaining deferral must still name its owner.
+    assert!(results > 1000, "{results} results, {deferred} deferred");
 }
 
 #[test]
