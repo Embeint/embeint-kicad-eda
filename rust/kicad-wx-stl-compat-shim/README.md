@@ -71,7 +71,10 @@ because the state intersects the mask is caught: the mask stays set and the inse
 The C++ adapter runs each insertion in a forked child, so that a `std::terminate` (the
 libstdc++ 14 sentry destructor when `sync()` throws, a forced unwind included, or fails
 with `badbit` in the mask) or an abort (a GCC 15 or later destructor that swallows a forced
-unwind) is observed and reported rather than ending the oracle.
+unwind) is observed and reported rather than ending the oracle. An abort's reply is built by
+the oracle process after the child has ended. Its host fields come from a snapshot taken
+when the host cancelled the thread, and its stream fields from the stream objects, which
+live in shared memory. The child's `SIGABRT` handler only exits.
 
 An insertion's result reports `bytes` (lowercase hex of everything written), `state`,
 `exceptions`, `flags`, `width`, `precision`, `fill`, `sync_calls` (calls of the buffer's
@@ -80,7 +83,7 @@ argument; `true` when it did not return). `outcome` is `returned`, `ios_failure`
 (`ios_base::failure` propagated), `runtime_error` (a scripted exception propagated; `what`
 gives its message), `bad_alloc`, `forced_unwind` (the insertion's thread was cancelled and
 ended), `terminate` (the state is the one reached when `std::terminate` was called) or
-`abort` (the same for glibc's abort; GCC 15 or later runtimes only). `setup_failure: true`
+`abort` (the state when glibc aborted the process; GCC 15 or later runtimes only). `setup_failure: true`
 is added when setup's `exceptions( mask )` threw. With `host`, the result adds `events`, the trace of host calls
 as `[kind, n, detail]` (`n`: bytes in the main buffer at the time): `["eof", n, byte]`,
 `["throw", n, "overflow" | "sync" | "num_put" | "tie_sync"]`,

@@ -157,10 +157,20 @@ header, and #1 through `std::less<wxPoint>{}`: all resolve to the out-of-line de
   `pthread_testcancel()`, so glibc's forced unwind leaves it. The adapter's own handlers
   catch none of it; the joined thread's `PTHREAD_CANCELED` gives the `forced_unwind` outcome.
 - The C++ adapter runs each insertion in a forked child that writes its reply to a pipe
-  and installs a terminate handler and a `SIGABRT` handler reporting the state reached. A
-  destructor that terminates the reference process (or aborts a GCC 15 or later one) is
-  therefore an observed `terminate` (or `abort`) outcome, not a refusal, and every other
-  request in the process continues.
+  and installs a terminate handler reporting the state reached. A destructor that
+  terminates the reference process is therefore an observed `terminate` outcome, not a
+  refusal, and every other request in the process continues.
+- An abort (GCC 15 or later only) is reported without work in a signal handler. The
+  child's `SIGABRT` handler only calls `std::_Exit` with a dedicated status (signal-safe).
+  Both streams are constructed in an anonymous shared mapping. When a host operation
+  cancels the thread it first records, in ordinary context, the host fields of the reply
+  (bytes, sync counts, trace, setup results). After the child has ended, the oracle process
+  requires glibc's `FATAL: exception not rethrown` on the child's captured stderr, and a
+  snapshot that no later host call made stale. It then builds the reply from that snapshot
+  and takes `state`, `exceptions`, `flags`, `width`, `precision` and `fill` from the ended
+  child's stream images (libstdc++'s `ios_base`/`basic_ios` members, named through an
+  explicit instantiation). The images give the state reached after the destructor's
+  `catch( ... )` set `badbit`, which runs no host code.
 - The only domain refusals left are the port bound below and `unwinding excludes cancel`.
   217 refusal controls (`port/oracle/fixtures/wx-stl-compat-controls.jsonl`) cover malformed
   envelopes, stream, host, facet, cancellation and tie fields, check order and those
@@ -184,9 +194,10 @@ header, and #1 through `std::less<wxPoint>{}`: all resolve to the out-of-line de
 
 - `std::bad_alloc` from the reference runtime itself (the numpunct cache, the locale) and
   `std::bad_alloc` from the adapter's buffer are not exercised: the Rust buffer's
-  `BadAlloc` path is modelled and unit-checked, not compared. The adapter's terminate and
-  `SIGABRT` reporters build JSON and so allocate; they are not allocation-safe, and a
-  reporting failure would surface as a harness failure, not as a result.
+  `BadAlloc` path is modelled and unit-checked, not compared. The adapter's terminate
+  reporter and its cancellation snapshot build JSON and so allocate; they are not
+  allocation-safe, and a reporting failure would surface as a harness failure, not as a
+  result. Neither runs in a signal handler.
 - A tied stream that has its own tie is expressible (a tied `OStream` whose host ties
   another) but the adapters tie at most one stream, untied itself; tie cycles are undefined
   and not modelled.
