@@ -1,0 +1,104 @@
+{
+  "cause": "KICAD_CI_RUNNER_ENABLED=true while sole matching runner proxmox-kicad-isolated-01 is offline",
+  "repository_settings_changed": false,
+  "fix_pr": 97,
+  "url": "https://github.com/Embeint/embeint-kicad-eda/pull/97",
+  "head": "eea5e2c142105a5c0b8cff300becbdba5ef12bea",
+  "branch": "t3/fix-rust-preflight-hosted-default",
+  "reviewed_code_head": "054d5b258e07ec80ba2eb5a547d2192c192d85bb",
+  "source_review": "Fresh Sol6.1: no routing/admission objections; one P3 README note corrected in docs-only follow-up",
+  "local_validation": "8 Linux admission/source tests; actionlint1.7.12; diff whitespace pass",
+  "automatic_hosted_proof": {
+    "run": 45913906805,
+    "head": "054d5b258e07ec80ba2eb5a547d2192c192d85bb",
+    "snapshot": "in_progress",
+    "labels": [
+      "ubuntu-24.04"
+    ],
+    "runner": "GitHub Actions 1000021693"
+  },
+  "replacement_runs": [
+    {
+      "pr": 92,
+      "head": "b48b95f893125e53b6f4bb484156d2abee43dcd5",
+      "branch": "t3/port-core-application-pure",
+      "cancelled_run": 45857309852,
+      "hosted_run": 45913716204,
+      "snapshot_status": "in_progress",
+      "snapshot_conclusion": null,
+      "jobs": [
+        {
+          "name": "rust-preflight",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "runner_name": "GitHub Actions 1000021689",
+          "status": "in_progress",
+          "conclusion": null
+        }
+      ]
+    },
+    {
+      "pr": 93,
+      "head": "4aaae34988cd6af451b045556f08b6ddce895074",
+      "branch": "t3/port-wx-stl-compat",
+      "cancelled_run": 45899587452,
+      "hosted_run": 45913723351,
+      "snapshot_status": "in_progress",
+      "snapshot_conclusion": null,
+      "jobs": [
+        {
+          "name": "rust-preflight",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "runner_name": "GitHub Actions 1000021690",
+          "status": "in_progress",
+          "conclusion": null
+        }
+      ]
+    },
+    {
+      "pr": 95,
+      "head": "0aa3752c1687581a34c64096075926abc015ba74",
+      "branch": "t3/port-circle-geometry",
+      "cancelled_run": 45898971132,
+      "hosted_run": 45913730970,
+      "snapshot_status": "in_progress",
+      "snapshot_conclusion": null,
+      "jobs": [
+        {
+          "name": "rust-preflight",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "runner_name": "GitHub Actions 1000021691",
+          "status": "in_progress",
+          "conclusion": null
+        }
+      ]
+    },
+    {
+      "pr": 96,
+      "head": "5b145ba4d1f3c8e804031613c5df1a01345321fb",
+      "branch": "t3/clipper2-pure-p002-port",
+      "cancelled_run": 45901398493,
+      "hosted_run": 45913737971,
+      "snapshot_status": "in_progress",
+      "snapshot_conclusion": null,
+      "jobs": [
+        {
+          "name": "rust-preflight",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "runner_name": "GitHub Actions 1000021692",
+          "status": "in_progress",
+          "conclusion": null
+        }
+      ]
+    }
+  ],
+  "merge_state": "ready for final-head CI; not yet merged",
+  "scope": "Developer preflight routing only; source port findings and qualification gates remain"
+}

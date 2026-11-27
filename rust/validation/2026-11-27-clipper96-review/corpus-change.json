@@ -1,0 +1,27 @@
+{
+  "old_head": "6234371e6f9f2eb9ef7ba743eb872287ded1e4b7",
+  "old_cases_sha256": "d4b5375bcd8b7a16baa756af236f4048b260f3647b6dfca1054e6e8df8d827b4",
+  "new_cases_sha256": "75ad32c782398024ed160f13df9292b83c8c8e5c1a94796892bd1fec348b8859",
+  "changed_cases": [
+    "big-star"
+  ],
+  "added_cases": [
+    "offset-empty-insignificant-0",
+    "offset-empty-insignificant-1",
+    "offset-empty-insignificant-2",
+    "offset-empty-insignificant-3",
+    "offset-empty-insignificant-4",
+    "offset-empty-polygon",
+    "offset-singleton-int-max-0",
+    "offset-singleton-int-max-1",
+    "offset-singleton-int-max-3",
+    "offset-large-multipoint",
+    "offset-singleton-callback-small",
+    "offset-singleton-callback-negative-skip",
+    "offset-singleton-callback-reversed-skip",
+    "offset-large-table-multipoint-only"
+  ],
+  "old_cases": 1557,
+  "new_cases": 1571,
+  "new_controls": 44
+}

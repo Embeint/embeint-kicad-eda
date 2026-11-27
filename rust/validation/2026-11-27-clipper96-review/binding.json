@@ -1,0 +1,23 @@
+{
+  "kicad_pin": "4cf939778df04d2b747bb2c4714fc5014a7565c7",
+  "overlay_revision": "fba034bbf4f5014268c8ccdba09044b8e191fcc5",
+  "overlay_dirty_at_export": false,
+  "reference_file_count": 918,
+  "compilers": {
+    "/usr/bin/g++": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+  },
+  "system_libc_version": "glibc 2.39",
+  "wx_version": "3.2.4",
+  "floating_point": {
+    "contract": "off",
+    "fast_math": false
+  },
+  "source_manifest_sha256": "454da57773d1d96756f41dd902945a2e9594ffc39c7df99542ab79e186b7b932",
+  "oracle_binary_sha256": "5a314864353ffa1f9f1df33b9bf7522d1b2bded03fb37f72acfe104103563ae4",
+  "verified_raw_overlay_files": 102,
+  "raw_export_files": 4085,
+  "tested_tree": "37e645e9b4bb3384c372c1150e5af51d28a7d66c",
+  "raw_source_archive_sha256": "d2fe7a9a03dc062ebd744b32aa2e00716f5d57ac4f263cf6993268f38a727c48",
+  "final_published_head": "5b145ba4d1f3c8e804031613c5df1a01345321fb",
+  "after_test_changes": "documentation and adapter header comment only; no behavior changes"
+}

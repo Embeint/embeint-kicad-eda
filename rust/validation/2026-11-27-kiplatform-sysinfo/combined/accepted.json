@@ -1,0 +1,26 @@
+{
+  "pr": 90,
+  "head": "397629f3ec38ed1df8951cca4a5edae8a4444573",
+  "base": "925fab5de0c5721d0bd5c82c370386ea26e22001",
+  "accepted": "b98201bc6b4c9e90cf725a0ab62b29d7b7b37a42",
+  "tree": "bd5c03643276b1156c87bad6186b53e1e2d822b6",
+  "mergedAt": "2026-11-26T17:20:07Z",
+  "rebase_refusal": "GraphQL: This branch can't be rebased (mergePullRequest)",
+  "source_review": "Sol6.1 source and integration no actionable findings",
+  "reference": "User-authorized manual final CI on locked GCC13/glibc2.39/wx3.2.4 runtime passed",
+  "summary": {
+    "cases": 140712,
+    "compared": 135944,
+    "deferred": 4768,
+    "failures": 0,
+    "unprocessed": 0,
+    "units": 29,
+    "tests": {
+      "suites": 147,
+      "passed": 460,
+      "failed": 0,
+      "ignored": 5
+    }
+  },
+  "hosted_on_combined_head_at_merge": "Pending; manual result is not a GitHub check status."
+}

@@ -2,12 +2,269 @@
 # Next Rust port batches
 
 Planning snapshot: 27 November 2026, accepted `rust` at
-`98a12c1123efc4904e0f0c5a59299452a7a15e5d`. Maintain this plan on `main` as the
+`70888b572202033a6522f2f271b10cc908f74dfe`. Maintain this plan on `main` as the
 port advances. This is a scheduling guide, not a claim list or a change to the
 port gates. The scoped draft PRs remain the authoritative claims.
 Recheck accepted dependencies and open
 claims before assigning work. Implementation uses Opus 5.5; each implementation
 receives an independent Sol 6.1 review of its exact head.
+
+## Current integration and correction queue
+
+Current state after all delivered reviews: **no topic is ready to merge**.
+Accepted rust remains `70888b572202033a6522f2f271b10cc908f74dfe`.
+
+| Topic | Current state | Next required work |
+| --- | --- | --- |
+| Core #92 | Quota failure; local `80e7fdad4e` and unfinished corrections preserved | Reconcile original ownership before any authorized Opus continuation; finish allocation/lifecycle/cast/lifetime work, then fresh review |
+| wx #93 | `4aaae34988cd6af451b045556f08b6ddce895074`; allocating Clone fixed | Four substantive unwind/facet/null-buffer findings remain; fresh review after correction |
+| Circle #95 | `0aa3752c1687581a34c64096075926abc015ba74`; original review completed with changes required at old48e | P1 admitted-domain signed overflow and P2 assertion effects remain; later-head review follows corrections |
+| Clipper #96 | `5b145ba4d1f3c8e804031613c5df1a01345321fb`; three bounded review fixes published | Add fallible callback behavior and retain groups/Z callback on failure, then fresh review |
+
+For #96, fresh locked GCC13/glibc2.39/wx3.2.4 evidence at code commit
+`fba034bbf4f5014268c8ccdba09044b8e191fcc5` passes 1,551 exact/20 deferred over
+1,571 cases, all 44 refusal controls with continuations, all 15 oracle CTests,
+accepted caller suites and import-free wasm. Generator checking now reproduces
+on Windows and Linux. Only existing `big-star` changes, with 14 valid cases and
+21 controls added. The published head adds documentation and an adapter comment
+only afterward. [Review/correction evidence](validation/2026-11-27-clipper96-review/README.md)
+retains source/binary bindings and the unresolved callback source-contract gap.
+These manual target results are not hosted CI status or independent approval.
+
+No new implementation or reviewer retry, timer or model substitution was
+started. Existing PR watches remain; source findings block integration even
+when checks pass. No current implementation writer is claimed active.
+
+The user-clarified original circle review has now completed: its concrete P1
+example reaches `INT_MIN - 1` in PerpendicularSeg despite the adapter bounds.
+[Full verdict and reproduction](validation/2026-11-27-circle/completed-review.md)
+are bound to old head48e, not later parent corrections. Assertions also remain
+unrepresented; midpoint and coverage fixes on later heads do not clear either.
+
+The recurring preflight queue is separately addressed by
+[CI routing PR #97](https://github.com/Embeint/embeint-kicad-eda/pull/97). The sole
+isolated runner is offline, so pushes now default to hosted Ubuntu, with manual
+isolated opt-in retained. Fresh Sol review has no routing objections and its one
+doc note is fixed. A real automatic push started on GitHub Ubuntu. All four stuck
+port-head preflights were replaced with hosted runs and observed in progress.
+[Routing/run evidence](validation/2026-11-27-preflight-routing/README.md) records
+the snapshot; final-head checks and merge remain pending. Source blockers persist.
+
+### Earlier coordination snapshots (superseded by the queue above)
+
+Latest wx state: independent review of #93 head058165f437 requests changes.
+Parent fix `4aaae34988cd6af451b045556f08b6ddce895074` removes allocating Clone
+from StreamBuf/OStream and shim Sink;20tests/fmt/clippy/wasm/generator pass,
+public cases and insertion behavior unchanged. Four source gaps remain:
+ambient unwind context(P1), mutable facet ios state/padding, forced-unwind
+propagation and null-buffer behavior. They require substantive corrections and
+a fresh review afterward; no readiness is claimed from CI/partial status.
+The saved local reference export has880CRLF-only differences across918raw
+pinned blobs, so previous raw-byte-export claims are corrected. See the
+[full review and parent check record](validation/2026-11-27-wx-stream-review/README.md).
+No replacement implementation dispatch is started after the quota failure.
+
+
+Latest circle state: #95 is at `0aa3752c1687581a34c64096075926abc015ba74`.
+The follow-up Sol review on6b36ef0440 was stopped by the same provider content
+flag, so both review attempts lack a completed verdict. No third retry or
+unasked reviewer model change is started. Parent also removed the stale2^24
+safety claim from the adapter's source comments; no guard or numerical behavior
+changed. The assertion-effect and adapter-safety findings remain open and the
+PR stays draft/partial. wx #93 and Clipper #96 reviews remain pending as last
+dispatched; core #92 recovery remains quota-blocked and preserved. Earlier
+pending-circle-review entries below are superseded by this failure state.
+
+
+Circle #95 is now at parent correction head
+`6b36ef0440da28259f8761773c91a95815e2b0da`. The first Sol review stopped on a
+provider content flag and is not approval. Its partial findings identify an
+unrepresented wxCHECK_MSG assertion effect and an unproven tan-tan safety bound;
+those remain readiness blockers. Parent corrected only test-helper odd-half
+rounding and unsupported remainder-case coverage, with 10 scoped tests,
+generator check (unchanged 4,978 public/81 controls), fmt and clippy passing.
+A fresh review `rust-review-circle95-followup-sol61-20261127` must finish on
+this exact head. Earlier hosted results remain bound only to 48e156721a.
+The new additive finding is on the circle topic; no production algorithm,
+public input, refusal or golden changed to conceal the blockers.
+
+Clipper engine/offset #96 delivered at
+`6234371e6f9f2eb9ef7ba743eb872287ded1e4b7`, based on accepted `70888b5722`.
+Fresh Sol review `rust-review-clipper96-sol61-20261127` and hosted target checks
+are pending. Worker GCC15/glibc2.43 diagnostics report 1,537 exact/20 deferred
+from1,557 cases, source p001901/6 (was881/26), header p0011,587/0 (was1,573/14)
+and unchanged rectclip1,574/0, zero failures. These are not target evidence.
+The agreed public reference_libm facade forwards to unchanged accepted bodies;
+core stdalgo sort is reused. Review must assess callback exceptions, skipped
+defined NaN input, domain/budget limits, owner notes and all newly wired callers.
+Partial/no golden remains. Isolated preflight45898141144 is replaced by hosted
+fallback45898637501, pending at dispatch.
+
+All three delivered topics (#93/#95/#96) now await independent review/checks;
+core #92 retains preserved unpublished corrections after quota failure. No
+implementation worker is currently claimed active and no new Opus dispatch or
+timer follows the failure. Earlier stream/claim entries below are historical
+snapshots; they do not override these concrete heads or remaining findings.
+
+
+wx STL #93 corrections are delivered at
+`058165f437c59b26afc27423e651c7f1f7fcb2b3`, merged only with accepted
+`70888b5722`. Fresh Sol 6.1 review
+`rust-review-wx93-corrected-sol61-20261127` is pending, alongside the circle
+review. New hosted wx-stl-compat-live/rust-port checks are running; target
+qualification for the corrected head is not yet recorded. The isolated
+preflight 45897037536 is explicitly replaced by hosted fallback 45897326341,
+pending. The worker reports 4,719 local diagnostic matches, 140 controls and
+native/wasm agreement; loading only target libstdc++ into a local GCC15/glibc2.43
+process is also diagnostic, not a target run. The original 3,329 cases remain
+an unchanged prefix. Exception identity/events, actual forked termination
+observations, setup state/mask overlap, fallible allocation and licence notices
+are corrected in source according to the worker; independent review must assess
+them and the documented remaining source/harness gaps before readiness.
+
+Current ownership state: circle #95 and corrected wx #93 await fresh reviews;
+core #92 is preserved after quota failure; Clipper engine/offset remains the
+only implementation assignment unfinished as last dispatched. No replacement
+Opus task or quota timer is started after the new failure. The assignment
+snapshot below records prior dispatch state, not four currently active writers.
+
+
+Latest completion/quota update: circle #95 delivered at
+`48e156721a92296c99b4b9e8222a73855fadc30b`, with all 13 source bodies and
+continuations implemented. The parent verified scoped hosted target run
+45893397767: 4,978 cases, 4,616 exact, 362 deferred, zero failures on GCC 13.3/
+glibc 2.39/wx 3.2.4. Controls are 77 matching refusals plus four oracle refusals
+after a prior Rust RotatePoint deferral; wasm parity is against native Rust on
+all 5,059 requests. Global rust-port and other applicable live jobs pass.
+Fresh Sol 6.1 review `rust-review-circle95-sol61-20261127` is pending; partial,
+no golden and stated tan-tan/intersection harness gaps remain. Isolated preflight
+45893393494 is replaced by hosted fallback 45896654915, pending.
+[Target evidence](validation/2026-11-27-circle/README.md).
+
+The core #92 correction task then hit another 429 quota failure, reporting a
+reset after 4h16m30s. No retry/substitute or new implementation refill was
+submitted after that failure. Original checkout/claim remains exclusive at
+local commit `80e7fdad4e5879bfe2c005f55d5ea5377172e1b6`, with substantial
+staged/unstaged corrections, a local stack_dst compatibility patch and two
+untracked fixture modules. Private working/index patches, untracked ZIP, local
+commit bundle and hashes preserve it; no source edit or validation/approval is
+inferred from this backup. Do not dispatch a duplicate if the provider later
+automatically resumes this task. wx #93 and engine/offset assignments remain
+unfinished as last dispatched; circle has moved to review. There are no longer
+four active implementers. Review/CI/evidence work can continue without claiming
+the requested Opus route is available for another implementation dispatch.
+
+
+Unix policy #89 is accepted as `925fab5de0c5721d0bd5c82c370386ea26e22001`.
+All applicable hosted checks and exact-head hosted fallback `45856821086`
+passed; the rebase merge preserved tested tree
+`6b2c6b73c1c481faf1f1f90f4e43ccf980fba205`. Source review and locked-reference
+manual checks passed. [Acceptance evidence](validation/2026-11-27-kiplatform-policy/README.md).
+
+Unix system-info #90 is accepted as
+`b98201bc6b4c9e90cf725a0ab62b29d7b7b37a42`, after merging only accepted rust
+into reviewed head `397629f3ec38ed1df8951cca4a5edae8a4444573`. A fresh Sol 6.1
+integration review found no actionable findings. User-authorized manual final CI
+on this exact combined tree passes: 29 units, 140,712 cases, 135,944 exact,
+4,768 explicit deferrals, zero failures/unprocessed; 460 workspace tests;
+15 oracle CTests; both platform control suites and import-free wasm replays;
+fmt, clippy, Rust 1.85 and portable builds. Previous 28 unit input/reply hashes
+are unchanged. GitHub refused rebase; the permitted normal merge preserves
+exact tested tree `bd5c03643276b1156c87bad6186b53e1e2d822b6`. Fresh hosted jobs
+were running at merge; manual results are recorded separately from their
+statuses. Original-head scoped hosted gates and fallback `45858418153` passed.
+[Combined acceptance evidence](validation/2026-11-27-kiplatform-sysinfo/combined/README.md).
+Both Unix units remain partial without goldens. Both merged PRs are unwatched.
+
+Graph adoption #94 is accepted as
+`70888b572202033a6522f2f271b10cc908f74dfe`, rebase-merged from reviewed head
+`d3d65cb5ecf2f9f67b6b46e6a71b205e2db52d9c`. Accepted tree
+`73ca919b04fab75da9b2250f40b722a22d4bde7a` equals the reviewed/tested tree.
+The original source review and fresh independent Sol 6.1 integration review
+found no actionable findings. All 1,801 records preserve accepted non-graph
+metadata and reviewed graph fields; two splitter runs, measurement and both
+drift outputs reproduce exactly. Counts are 3 green, 26 partial, 64 blocked,
+1,708 todo and 29 ported units. The graph/code are unchanged by this refresh;
+no new parse or completeness qualification is claimed.
+
+The authorized manual gate on this exact head passes 140,712 cases with
+135,944 exact, 4,768 explicit deferrals, zero failures/unprocessed. All 29 units'
+inputs/replies equal the accepted baseline, and all 15 oracle CTests pass.
+Source-bound native binaries were reused because every runtime/harness/workflow
+input equals the already tested accepted tree; this is not a fresh build or
+workspace/wasm rerun. Full source accounting, fmt and policy tests pass. Initial
+local scaffolding omissions and the BOM error remain documented separately.
+All completed hosted checks, including every live job and MSRV, pass; isolated
+preflight 45867748826 is replaced by successful exact-head hosted fallback
+45868907057. Hosted rust-port was still running at the decision; manual results
+are not its status. #94 is merged and unwatched.
+[Acceptance evidence](validation/2026-11-27-graph-adoption/README.md).
+
+Core utility headers #92 at `b48b95f893125e53b6f4bb484156d2abee43dcd5`
+received changes requested despite passing GCC 13 corpus qualification.
+INPLACE_FUNCTION must preserve no-wrapper-allocation and observable callable
+move/destruction/fallible-copy behavior. LEAK_AT_EXIT needs stable surviving
+storage and fallible initialization/retry. Generic IsA/dyn_cast fixtures and a
+safe mutable projection API are needed. Evaluate the reviewed safe stack_dst
+compatibility route before proposing a weaker source contract or any unsafe
+exception. MIRRORVAL target compiler order is already qualified.
+
+wx STL compatibility #93 at `6f272c818852adf3d640aee315d1f4756d86eaa8`
+received changes requested: implement throwing buffer/facet, sync and tied-stream
+paths; narrow the termination guard that rejects defined unwinding; replace
+infallible stream allocations; document algorithm licence/attribution. Record
+state/mask overlap as a harness restriction. Preserve the reference sentry
+profile and qualify its actual runtime/binary separately from GCC 15 diagnostics.
+Both PR descriptions now record these blockers and remain draft. Passing existing
+corpora does not clear them. Substantial corrections return to Opus and need
+fresh independent Sol reviews; no golden is proposed.
+
+The reported Opus quota reset has now passed. At 20:30:13 UTC on 26 November,
+the original circle #95 delegate automatically resumed in its preserved checkout;
+its executed model is confirmed as `claude-opus-5-5`. The scheduled parent
+continuation first saw no pending tasks, but a separate one-off continuation
+probe detected the original writer's edits and exited without changing anything.
+Thread/process ownership was then reconciled. The original circle worker remains
+the sole writer; it has been sent accepted `70888b5722` integration requirements.
+The preserved backup and unpublished work remain intact. Do not resume another
+circle implementer or use the probe's stale checkout snapshot as current state.
+
+Two substantive correction tasks were submitted on the same requested route:
+`rust-correct-core92-opus55-20261127` and
+`rust-correct-wx93-opus55-20261127`. Each owns its existing clean original
+checkout, must merge only accepted rust, and must correct the actual review
+findings before a new independent Sol 6.1 review. They were starting at dispatch;
+that state alone is not proof of implementation or completion.
+
+Four implementation streams are assigned: the resumed circle task, the two
+correction tasks, and `rust-stream4-clipper-engine-offset-p002-opus55-20261127`.
+The fourth owns the selected dependency-ready
+`thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p002`: engine lines
+2272-3337 and offset lines 1-661, 1,727 owned lines. Both hard dependencies are
+accepted partials. T3 created a clean coordination checkout at accepted
+`70888b5722`, then a separate child checkout on `t3/55a970b0` from that commit.
+Its actual prepared path and task identity are retained in the coordination
+ledger. The worker must recheck overlap and publish a scoped draft claim before
+implementation; claim creation is pending at this recording. This plan does not
+reserve a unit or claim implementation evidence from dispatch state.
+
+| Stream | Exclusive assignment | Prepared checkout / branch |
+| --- | --- | --- |
+| Circle | Original PR #95 task, automatically resumed on Opus 5.5 | Existing `t3/40b1b484` checkout; no replacement writer |
+| Core | PR #92 allocation/lifecycle/casting/lifetime corrections | Existing `t3/port-core-application-pure` checkout |
+| wx STL | PR #93 exceptions/unwinding/allocation corrections | Existing `t3/port-wx-stl-compat` checkout |
+| Polygon | Clipper engine remainder and offset source p002 | New tool-prepared `t3/55a970b0` checkout from accepted rust |
+
+Requested route for all new work is `claudeAgent` / `claude-opus-5-5`.
+Execution was independently confirmed for the original circle and the safe-exit
+probe. Correction/refill dispatches remain distinct from executed-model evidence,
+completed source, target comparison and fresh independent review. Parent
+coordination now runs on `t3/rust-port-coordination-20261127`; planning continues
+on its separate `main`-targeted branch without importing that topic into rust.
+
+No model/provider substitution or quota retry loop occurred. Another route
+failure must preserve/report work without repeated dispatch. The single
+scheduled continuation is now executing; no further timer is created.
 
 The following historical notes preserve earlier heads and pending states. The
 manual final integration section records their accepted outcome.
@@ -212,25 +469,90 @@ retained in the private manual-validation workspace.
 
 ## Continuous four-stream cycle
 
-Current provider interruption: all four Opus assignments stopped around
-02:10–02:11 UTC on 26 November with `503 AgentFleet routing authorization
-denied or unavailable`. There are currently zero running implementation
-streams. The capability catalog still advertises Opus 5.5, but that is not a
-successful execution-route check. Preserve the assigned work and requested
-model; continue available reviews and CI handling without repeated blind
-retries or a provider/model substitution. No reset time was supplied.
+Historical recovery details below are superseded by the current queue above.
 
-Recovery points are preserved in their existing worktrees and local patch/
-untracked-file backup archives. Graph adoption remains at accepted
+PR #75 is accepted on `main` at
+`0a012ba1afb4a192c0ccbbb34ff4bbe9314fe722`; its computed merge tree was
+verified. The completed implementation batch remains accepted on `rust` at
+`98a12c1123efc4904e0f0c5a59299452a7a15e5d`.
+
+On the user's instruction to continue, four recovery assignments were submitted
+to the existing `claudeAgent` provider with `claude-opus-5-5`: core utility
+headers, corrected graph adoption, Unix policy #89 and Unix system info #90.
+The first recovery has now delivered: Unix policy #89 at
+`4f482553db5ded162af1c3d35552ef51ca731a78`, with an executed-model record of
+`claude-opus-5-5`. This proves that the requested route executed successfully;
+it does not retroactively qualify the previous interrupted work. Source review
+by a fresh Sol 6.1 delegate found no findings at this exact head. Local evidence
+is 36 exact public cases, zero deferrals and 25 separate refusal controls on
+GCC 15/glibc 2.43/wx 3.2.9. The parent has now supplied GCC 13/glibc 2.39/wx 3.2.4 evidence:
+36 exact policy cases, 25 matching controls, wasm replay, Rust 1.85 and the full
+registered-unit gate pass. All 27 previously accepted unit input/output hashes
+are unchanged. Hosted CI still runs.
+[Reference evidence](validation/2026-11-27-kiplatform-policy/README.md) records
+commands, hashes and scoped limitations.
+The unit stays partial, with no blessed golden and the inherited wx/harness
+qualification limits retained.
+
+Runner inspection found `proxmox-kicad-isolated-01` still offline. Policy's
+queued isolated developer preflight `45852707850` was cancelled, and the existing
+`use_hosted=true` fallback was dispatched as
+[run 45856821086](https://github.com/Embeint/embeint-kicad-eda/actions/runs/45856821086).
+Its workflow head is the same reviewed `4f482553db`, and it is in progress.
+This supplies ordinary developer preflight on the available hosted runner;
+manual numerical/source reference evidence is recorded separately above.
+Repository settings and required checks are unchanged.
+
+The freed implementation stream is assigned
+`libs.core.application.thin.replacement.p001` (`wx_stl_compat.cpp`), reusing
+accepted wxString/wxPoint/wxSize models. Draft #93 at
+`a0f9d6396d759eae2f86aaf6aeb63c0c879c3d9d` is a claim only. Its worker ended
+before implementation, so the parent submitted a continuation in that same
+prepared checkout to finish the bodies, byte/locale contracts and validation.
+No implementation or review evidence is claimed for #93 yet. Core utility
+headers have claim #92 at `060319e6542579d70a36b56db249d0577ef3ceaf`;
+that is also ownership evidence, not delivery.
+
+Unix system-info #90 is delivered at
+`ab2d7b683c9ea101540adc084492c989b23c4161`, with fresh Sol 6.1 review reporting
+no findings. Its scoped hosted reference run `45852710376` and `rust-port` pass:
+126 exact cases, zero deferrals, 67 matching controls with continuation, and
+wasm parity on GCC 13/glibc 2.39/wx 3.2.4. The parent verified that the hosted
+merge tree equals the reviewed tree and retained the artifact/log hashes in
+[the evidence](validation/2026-11-27-kiplatform-sysinfo/README.md). No duplicate
+local qualification run is needed. The queued isolated preflight `45852706498`
+is replaced by exact-head hosted fallback `45858418153`, still pending.
+
+The freed implementation slot is assigned
+`libs.kimath.src.geometry.circle.application.ui.p001` (`circle.cpp`, 380 lines).
+Its four hard dependencies are accepted partials, and it was unclaimed at
+assignment. Opus 5.5 receives a separate prepared checkout from accepted rust
+`98a12c1123`; it must finish implementation and validation after its scoped
+claim. The independent review waits for a concrete finished head.
+
+Use completion events, not status polling or retry loops. Any renewed routing
+failure must be reported without changing the requested model/provider.
+
+The earlier provider interruption stopped all four Opus assignments around
+02:10-02:11 UTC on 26 November with `503 AgentFleet routing authorization
+denied or unavailable`. Existing changes and claims remain preserved. Recovery
+workers have exclusive scope in those original checkouts and must safely merge
+accepted rust, retain all newly accepted metadata/registrations, and never import
+an open topic. Each completed implementation or graph adoption receives a fresh
+independent Sol 6.1 review of its concrete head before integration.
+
+The original 26 November recovery points are preserved in local patch/
+untracked-file backup archives. The following records describe those historical
+checkpoints; current delivery and assignment states are recorded above. Graph adoption remains at accepted
 `4738a9c23f` with 1,087 changed entries on
 `t3/adopt-canonical-graph-units`; its semantic/qualification checks and
-publication are unfinished. Unix policy [claim #89](https://github.com/Embeint/embeint-kicad-eda/pull/89)
+publication are unfinished. The original Unix policy [claim #89](https://github.com/Embeint/embeint-kicad-eda/pull/89)
 is at `82782c9c76` with 14 local changed entries. Unix system-info
 [claim #90](https://github.com/Embeint/embeint-kicad-eda/pull/90) is at
 `913d4ac93f` with 15 local changed entries. These are claim commits, not
 published implementation evidence. The core utility header checkout is clean
-at `4738a9c23f`, with no new claim or implementation. Resume/recover these
-assignments rather than creating overlapping replacement claims.
+at `4738a9c23f`, with no claim or implementation at that snapshot. Preserve these
+recovery anchors and continue the current assignments without duplicate claims.
 
 Keep four independent implementation streams moving. The parent coordinates
 ownership, integration, reviews and refills; workers deliver one scoped unit or
@@ -241,10 +563,10 @@ CI as a reason to leave an otherwise usable implementation slot empty.
 
 | Stream | Current assignment | Next dependency-ready work |
 | --- | --- | --- |
-| Geometry | SEG #74, ellipse #81, distribute #84 and full hypot #88 are accepted. Core utility header assignment remains interrupted before implementation. | Resume the existing core assignment when Opus routing works; circle is now ready after SEG. Geometry headers p003 await graph adoption. |
-| Polygon operations | Engine #76, rectclip #77 and transform #82 are accepted. Graph-adoption work is preserved but interrupted by provider failure. | Resume graph adoption against the final accepted baseline, preserving all unit metadata; engine/offset source p002 can now start after engine p001. |
-| Core and general utilities | Core headers #73, map helpers #78, arc #85 and vector2wx #86 are accepted. Unix policy #89 remains a claim with unpublished local work. | Recover the existing Unix policy work without a duplicate claim. wx_stl_compat can reuse the accepted wxString model. |
-| Numeric backends and spatial follow-ups | Pow #80, full hypot #88, R-tree depth #83 and poisson #87 are accepted. Unix driver/system-info #90 remains a claim with unpublished local work. | Recover the existing Unix system-info work. Logging host effects and the copy-on-write depth audit remain queued. |
+| Geometry | Core utility #92 corrections assigned; original circle #95 automatically resumed on Opus 5.5. | Complete existing circle and core work, then fresh Sol reviews; geometry p003 follows accepted circle. |
+| Polygon operations | Graph #94 is accepted at `70888b5722` after fresh review and exact-tree manual gate; metadata refresh is complete. | Engine/offset source p002 is assigned in a separate tool-prepared checkout from accepted rust; scoped claim pending. |
+| Core and general utilities | Unix policy #89 is accepted; wx STL #93 needs stream exception/guard/allocation corrections. | The wx stream exception/guard/allocation correction task is assigned to Opus; fresh Sol review follows delivery. |
+| Numeric backends and spatial follow-ups | Unix system-info #90 is accepted with exact-tree manual final CI. Circle #95 resumed automatically at reset with existing work preserved. | Finish the original circle assignment; logging effects and copy-on-write depth remain queued. |
 
 On each implementation completion, immediately inspect the result, start the
 independent Sol review and select the next unclaimed dependency-ready assignment.

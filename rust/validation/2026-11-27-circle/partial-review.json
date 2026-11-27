@@ -1,0 +1,41 @@
+{
+  "reviewed_head": "48e156721a92296c99b4b9e8222a73855fadc30b",
+  "review_task": "rust-review-circle95-sol61-20261127",
+  "result": "Interrupted by provider content flag; no completed review/approval.",
+  "reported_partial_findings": [
+    "Assertion handler effect omitted from failed wxCHECK_MSG continuations.",
+    "Tan-tan intermediate bound exceeded; complete accepted-domain safety not established.",
+    "Test-only SEG::Center truncated odd halves instead of rounded VECTOR2I division.",
+    "Generator emitted zero claimed negative-remainder cases."
+  ],
+  "reported_independent_evidence": [
+    "Hosted C++ hash reproduced with GCC13 binary/glibc2.39.",
+    "Rust output hash and81controls reproduced."
+  ],
+  "parent_correction_head": "6b36ef0440da28259f8761773c91a95815e2b0da",
+  "corrected": [
+    "Test-only rounding with both-sign odd-half checks",
+    "Zero-output generator search and unsupported coverage/intermediate-bound claims"
+  ],
+  "uncorrected_readiness_findings": [
+    "Assertion effect representation",
+    "Complete adapter-domain safety audit"
+  ],
+  "checks": {
+    "circle_tests": 10,
+    "generator": "4978 public/81 controls unchanged",
+    "fmt": "pass",
+    "clippy": "pass"
+  },
+  "new_review_task": "rust-review-circle95-followup-sol61-20261127",
+  "new_review_state": "Follow-up failed; no third retry started. Completed independent review still required.",
+  "earlier_target_scope": "48e156721a only; new head CI pending",
+  "followup_review": {
+    "task": "rust-review-circle95-followup-sol61-20261127",
+    "head": "6b36ef0440da28259f8761773c91a95815e2b0da",
+    "result": "Also interrupted by provider content flag; no completed verdict or approval.",
+    "reported_partial_progress": "Same seven missing assertion effects confirmed; no additional discrepancy reported in constructors/equality/Contains/nearest/furthest/intersection arithmetic/order. Domain assessment unfinished."
+  },
+  "current_head": "0aa3752c1687581a34c64096075926abc015ba74",
+  "latest_parent_correction": "Remove stale intermediate-safety claim from adapter source comments; guard/numerical behavior unchanged."
+}

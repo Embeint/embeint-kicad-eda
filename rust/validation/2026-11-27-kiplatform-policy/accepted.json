@@ -1,0 +1,13 @@
+{
+  "pr": 89,
+  "head": "4f482553db5ded162af1c3d35552ef51ca731a78",
+  "base": "98a12c1123efc4904e0f0c5a59299452a7a15e5d",
+  "accepted": "925fab5de0c5721d0bd5c82c370386ea26e22001",
+  "tree": "6b2c6b73c1c481faf1f1f90f4e43ccf980fba205",
+  "mergedAt": "2026-11-26T16:49:10Z",
+  "preflight_run": 45856821086,
+  "cancelled_replaced_run": 45852707850,
+  "rebase_refusal": null,
+  "source_review": "Sol6.1 no findings",
+  "reference": "manual locked GCC13/glibc2.39/wx3.2.4 passed"
+}
