@@ -22,7 +22,6 @@
 //! unit ([`whatever_works`]) and inserts the buffer's `data()`: bytes up to their first
 //! NUL, or, for a null buffer, `setstate( badbit )`.
 
-
 use kicad_map_helpers::wx_string::WxString;
 use kicad_wx_stl_compat::ostream::{
     check_resources, CallContext, InsertError, OStream, StreamHost,
