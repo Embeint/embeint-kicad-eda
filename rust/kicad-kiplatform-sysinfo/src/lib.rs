@@ -28,6 +28,6 @@ pub mod unix {
 /// The port unit implemented by this crate.
 pub const UNIT: &str = "libs.kiplatform.os.unix.application.pure.p001";
 
-/// The unit owning `libs/kiplatform/include/kiplatform/{drivers,sysinfo,sysinfo_gtk}.h`,
-/// whose declarations are co-ported here in the minimum form the bodies need.
+/// The unit owning `libs/kiplatform/include/kiplatform/{drivers,sysinfo,sysinfo_gtk}.h`.
+/// Their declarations, first co-ported here, are adopted by that unit as its port.
 pub const HEADER_UNIT: &str = "libs.kiplatform.include.kiplatform.application.pure.p001";
