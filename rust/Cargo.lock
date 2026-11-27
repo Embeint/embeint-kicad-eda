@@ -863,6 +863,7 @@ name = "kicad-kiplatform"
 version = "0.1.0"
 dependencies = [
  "kicad-map-helpers",
+ "kicad-math",
 ]
 
 [[package]]
