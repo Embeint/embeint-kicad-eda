@@ -1022,6 +1022,15 @@ name = "kicad-sexpr"
 version = "0.1.0"
 
 [[package]]
+name = "kicad-sexpr-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-sexpr",
+ "serde_json",
+]
+
+[[package]]
 name = "kicad-transform-shim"
 version = "0.1.0"
 dependencies = [
