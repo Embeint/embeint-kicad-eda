@@ -24,8 +24,13 @@
 //!
 //! Signed overflow, `std::abs` of the minimum and out-of-range floating-to-integer conversions
 //! are undefined in the C++ and are refused with [`CircleError::Undefined`] at the first such
-//! operation. A failed `wxCHECK_MSG` returns `*this` as it is at that point, as the accepted
-//! `VECTOR3::Normalize` port does; the host assertion handler is not modelled.
+//! operation.
+//!
+//! A failed `wxCHECK_MSG` (seven sites, all in `ConstructFromTanTanPt`) first calls the wx
+//! assertion handler, a host effect: [`Callees::wx_check_failed`] receives the exact arguments
+//! of that `wxOnAssert` call ([`WxCheck`]). The production [`Pinned`] has no host and defers
+//! with [`WX_ON_ASSERT`]. Only when a host returns does the body continue to `return *this`.
+//! Either way the circle keeps the members already assigned at that point, as in C++.
 use crate::eda_angle::{EdaAngle, GeometryError};
 use crate::fp;
 use crate::seg::{OptVector2I, Seg, SegError, HEADER_UNIT as SEG_HEADER_UNIT};
@@ -45,6 +50,57 @@ pub const TRIGO_UNIT: &str = "libs.kimath.src.trigo.application.ui.p001";
 /// on-circumference and tangent tests. Minimum constant co-port from
 /// `libs.kimath.include.geometry.application.ui.p003`, which keeps ownership.
 pub const MIN_PRECISION_IU: i32 = 4;
+
+/// The upstream symbol of the host assertion effect of a failed `wxCHECK_MSG`.
+pub const WX_ON_ASSERT: &str = "wxOnAssert";
+
+/// One `wxCHECK_MSG( cond, *this, msg )` site of `ConstructFromTanTanPt`, as the arguments its
+/// expansion passes to `wxOnAssert` (wx 3.2 `wxCHECK2_MSG` -> `wxFAIL_COND_MSG( #cond, msg )`
+/// -> `wxFAIL_COND_MSG_AT`), when `wxTheAssertHandler` is set. `__FILE__` is the compiler's
+/// spelling of the circle.cpp path and is left to the host.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WxCheck {
+    /// `__LINE__` in the pinned circle.cpp.
+    pub line: u32,
+    /// `__WXFUNCTION__` (`__FUNCTION__`).
+    pub function: &'static str,
+    /// The condition argument: `#cond` applied to the already stringified condition, so the
+    /// source text in double quotes.
+    pub condition: &'static str,
+    /// The `wxT( ... )` message.
+    pub message: &'static str,
+}
+
+const fn wx_check(line: u32, condition: &'static str, message: &'static str) -> WxCheck {
+    WxCheck {
+        line,
+        function: "ConstructFromTanTanPt",
+        condition,
+        message,
+    }
+}
+
+const NO_SOLUTIONS: &str = "No solutions exist!";
+/// circle.cpp:102, parallel branch: `possibleCenters.size() > 0`.
+pub const WX_CHECK_POSSIBLE_CENTERS: WxCheck =
+    wx_check(102, "\"possibleCenters.size() > 0\"", NO_SOLUTIONS);
+/// circle.cpp:115: `intersectCalc`.
+pub const WX_CHECK_INTERSECT_CALC: WxCheck = wx_check(
+    115,
+    "\"intersectCalc\"",
+    "Lines do not intersect but are not parallel?",
+);
+/// circle.cpp:142: `hProjections.size() > 0`.
+pub const WX_CHECK_H_PROJECTIONS: WxCheck =
+    wx_check(142, "\"hProjections.size() > 0\"", NO_SOLUTIONS);
+/// circle.cpp:157: `actTanA`.
+pub const WX_CHECK_ACT_TAN_A: WxCheck = wx_check(157, "\"actTanA\"", NO_SOLUTIONS);
+/// circle.cpp:162: `actCenter` after the line A tangent.
+pub const WX_CHECK_ACT_CENTER_A: WxCheck = wx_check(162, "\"actCenter\"", NO_SOLUTIONS);
+/// circle.cpp:172: `actTanB`.
+pub const WX_CHECK_ACT_TAN_B: WxCheck = wx_check(172, "\"actTanB\"", NO_SOLUTIONS);
+/// circle.cpp:177: `actCenter` after the line B tangent.
+pub const WX_CHECK_ACT_CENTER_B: WxCheck = wx_check(177, "\"actCenter\"", NO_SOLUTIONS);
 
 /// Why a circle operation produced no value.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -130,6 +186,11 @@ pub(crate) trait Callees {
     ) -> CircleResult<Vector2I>;
     /// `RotatePoint( VECTOR2I&, const EDA_ANGLE& )` (trigo.h).
     fn rotate_point(&self, point: &mut Vector2I, angle: EdaAngle) -> CircleResult<()>;
+    /// The host effect of a failed `wxCHECK_MSG`: `if( wxTheAssertHandler )` the
+    /// `wxOnAssert( __FILE__, line, function, condition, message )` call, then `wxTrap()` if the
+    /// handler set `wxTrapInAssert`. `Ok` means that effect completed and the check's
+    /// `return *this` follows.
+    fn wx_check_failed(&self, check: &WxCheck) -> CircleResult<()>;
 }
 
 /// The pinned callees: the accepted SEG source body, and typed deferrals for the rest.
@@ -176,6 +237,16 @@ impl Callees for Pinned {
         Err(CircleError::Unported {
             upstream: "RotatePoint(VECTOR2I&, EDA_ANGLE)",
             unit: TRIGO_HEADER_UNIT,
+        })
+    }
+
+    fn wx_check_failed(&self, _check: &WxCheck) -> CircleResult<()> {
+        // The assertion handler belongs to the wx host, which no unit ports. The macro's
+        // expansion is this unit's own body, so the deferral names this unit.
+        // UNPORTED(libs.kimath.src.geometry.circle.application.ui.p001): wxOnAssert
+        Err(CircleError::Unported {
+            upstream: WX_ON_ASSERT,
+            unit: UNIT,
         })
     }
 }
@@ -265,6 +336,10 @@ impl Circle {
 
     /// `CIRCLE::ConstructFromTanTanPt`: makes this circle tangent to both lines and passing
     /// through `p`, choosing the fillet solution. Returns this circle (`*this`).
+    ///
+    /// The members are assigned in place as the C++ assigns them. An error (including the
+    /// [`WX_ON_ASSERT`] deferral of a failed `wxCHECK_MSG`) leaves the circle as the C++ leaves
+    /// it at that operation.
     pub fn construct_from_tan_tan_pt(
         &mut self,
         line_a: &Seg,
@@ -303,6 +378,7 @@ impl Circle {
 
             // wxCHECK_MSG( possibleCenters.size() > 0, *this, wxT( "No solutions exist!" ) )
             let Some((front, back)) = front_back(&possible_centers) else {
+                callees.wx_check_failed(&WX_CHECK_POSSIBLE_CENTERS)?;
                 return Ok(self);
             };
             intersect_point = line_a.a; // just for the purpose of deciding which solution to return
@@ -317,6 +393,7 @@ impl Circle {
             let intersect_calc = callees.intersect_lines(line_a, line_b)?;
             // wxCHECK_MSG( intersectCalc, *this, "Lines do not intersect but are not parallel?" )
             let Some(calc) = intersect_calc else {
+                callees.wx_check_failed(&WX_CHECK_INTERSECT_CALC)?;
                 return Ok(self);
             };
             intersect_point = calc;
@@ -346,6 +423,7 @@ impl Circle {
             let h_projections = h_solution.intersect_line(&through_ap)?;
             // wxCHECK_MSG( hProjections.size() > 0, *this, wxT( "No solutions exist!" ) )
             let Some((front, back)) = front_back(&h_projections) else {
+                callees.wx_check_failed(&WX_CHECK_H_PROJECTIONS)?;
                 return Ok(self);
             };
 
@@ -365,6 +443,7 @@ impl Circle {
                 let act_tan_a = callees.intersect_lines(&h_t.parallel_seg(p)?, line_a)?;
                 // wxCHECK_MSG( actTanA, *this, wxT( "No solutions exist!" ) )
                 let Some(act_tan_a) = act_tan_a else {
+                    callees.wx_check_failed(&WX_CHECK_ACT_TAN_A)?;
                     return Ok(self);
                 };
 
@@ -374,6 +453,7 @@ impl Circle {
                     callees.intersect_lines(&perpendicular_to_tan_a, &anglebisector)?;
                 // wxCHECK_MSG( actCenter, *this, wxT( "No solutions exist!" ) )
                 let Some(act_center) = act_center else {
+                    callees.wx_check_failed(&WX_CHECK_ACT_CENTER_A)?;
                     return Ok(self);
                 };
 
@@ -385,6 +465,7 @@ impl Circle {
                 let act_tan_b = callees.intersect_lines(&h_t.parallel_seg(p)?, line_b)?;
                 // wxCHECK_MSG( actTanB, *this, wxT( "No solutions exist!" ) )
                 let Some(act_tan_b) = act_tan_b else {
+                    callees.wx_check_failed(&WX_CHECK_ACT_TAN_B)?;
                     return Ok(self);
                 };
 
@@ -394,6 +475,7 @@ impl Circle {
                     callees.intersect_lines(&perpendicular_to_tan_b, &anglebisector)?;
                 // wxCHECK_MSG( actCenter, *this, wxT( "No solutions exist!" ) )
                 let Some(act_center) = act_center else {
+                    callees.wx_check_failed(&WX_CHECK_ACT_CENTER_B)?;
                     return Ok(self);
                 };
 
@@ -610,9 +692,35 @@ mod tests {
     /// decision is the test's declared input; `SEG::Center` and `SEG::IntersectLines` are the
     /// seg.h one-line bodies (`A + ( B - A ) / 2`; `Intersect( aSeg, false, true )`); RotatePoint
     /// implements only trigo.cpp's exact 0/90/180/270 degree branches and defers otherwise.
-    /// None of this is production code or oracle evidence.
+    /// With `host` set, a failed wxCHECK_MSG is recorded there as a returning assertion handler;
+    /// without it, it defers as [`Pinned`] does. None of this is production code or oracle
+    /// evidence.
     struct Transcribed {
         parallel: bool,
+        host: Option<core::cell::RefCell<Vec<WxCheck>>>,
+    }
+
+    impl Transcribed {
+        fn new(parallel: bool) -> Self {
+            Self {
+                parallel,
+                host: None,
+            }
+        }
+
+        fn with_host(parallel: bool) -> Self {
+            Self {
+                parallel,
+                host: Some(core::cell::RefCell::new(Vec::new())),
+            }
+        }
+
+        fn assertions(&self) -> Vec<WxCheck> {
+            self.host
+                .as_ref()
+                .map(|h| h.borrow().clone())
+                .unwrap_or_default()
+        }
     }
 
     impl Callees for Transcribed {
@@ -652,11 +760,20 @@ mod tests {
             };
             Ok(())
         }
+        fn wx_check_failed(&self, check: &WxCheck) -> CircleResult<()> {
+            match &self.host {
+                Some(host) => {
+                    host.borrow_mut().push(*check);
+                    Ok(())
+                }
+                None => Pinned.wx_check_failed(check),
+            }
+        }
     }
 
     #[test]
     fn transcribed_center_rounds_odd_halves() -> CircleResult<()> {
-        let t = Transcribed { parallel: true };
+        let t = Transcribed::new(true);
         // SEG::Center uses VECTOR2I / double: half integers round away from zero.
         for (a, b, expected) in [
             (v(0, 0), v(1, -1), v(1, -1)),
@@ -748,7 +865,7 @@ mod tests {
 
     #[test]
     fn circle_intersection_continuation_after_cardinal_rotation() -> CircleResult<()> {
-        let t = Transcribed { parallel: false };
+        let t = Transcribed::new(false);
         let a = Circle::with_center_radius(v(0, 0), 5);
         // vecCtoC along +x: angle 0. x = 4, y = 3.
         let points = a.intersect_circle_with(&t, &Circle::with_center_radius(v(8, 0), 5))?;
@@ -796,7 +913,7 @@ mod tests {
 
     #[test]
     fn tan_tan_pt_parallel_continuation() -> CircleResult<()> {
-        let t = Transcribed { parallel: true };
+        let t = Transcribed::new(true);
         let mut c = Circle::new();
         let a = Seg::new(v(0, 0), v(100, 0));
         let b = Seg::new(v(0, 50), v(100, 50));
@@ -812,7 +929,7 @@ mod tests {
 
     #[test]
     fn tan_tan_pt_general_continuation_until_calc_arc_mid() -> CircleResult<()> {
-        let t = Transcribed { parallel: false };
+        let t = Transcribed::new(false);
         let a = Seg::new(v(0, 0), v(100, 0));
         let b = Seg::new(v(0, 0), v(0, 100));
         // aP at the intersection: centre aP, radius 0.
@@ -826,6 +943,74 @@ mod tests {
                 .map(|c| *c),
             Err(unported("CalcArcMid", TRIGO_UNIT))
         );
+        Ok(())
+    }
+
+    #[test]
+    fn wx_check_sites_match_the_pinned_source() {
+        // The seven circle.cpp wxCHECK_MSG lines; the hosted oracle's handler printed e.g.
+        // `circle.cpp(102): assert ""possibleCenters.size() > 0"" failed in
+        // ConstructFromTanTanPt(): No solutions exist!`.
+        let sites = [
+            WX_CHECK_POSSIBLE_CENTERS,
+            WX_CHECK_INTERSECT_CALC,
+            WX_CHECK_H_PROJECTIONS,
+            WX_CHECK_ACT_TAN_A,
+            WX_CHECK_ACT_CENTER_A,
+            WX_CHECK_ACT_TAN_B,
+            WX_CHECK_ACT_CENTER_B,
+        ];
+        let lines: Vec<u32> = sites.iter().map(|s| s.line).collect();
+        assert_eq!(lines, [102, 115, 142, 157, 162, 172, 177]);
+        assert!(sites.iter().all(|s| s.function == "ConstructFromTanTanPt"
+            && s.condition.starts_with('"')
+            && s.condition.ends_with('"')));
+        assert_eq!(
+            WX_CHECK_POSSIBLE_CENTERS.condition,
+            "\"possibleCenters.size() > 0\""
+        );
+        assert_eq!(WX_CHECK_H_PROJECTIONS.message, "No solutions exist!");
+    }
+
+    /// Public case tan_tan_pt-hand-2: the hosted oracle returned `*this` with
+    /// center [-40, 60] and radius 25 after the circle.cpp:102 assertion.
+    #[test]
+    fn failed_wx_check_runs_the_host_then_returns_the_partial_state() -> CircleResult<()> {
+        let a = Seg::new(v(0, 0), v(100, 0));
+        let b = Seg::new(v(0, 50), v(100, 50));
+        let initial = Circle::with_center_radius(v(11, -13), 17);
+        let partial = Circle::with_center_radius(v(-40, 60), 25);
+
+        let t = Transcribed::with_host(true);
+        let mut c = initial;
+        let returned: *const Circle = c.construct_from_tan_tan_pt_with(&t, &a, &b, v(-40, 60))?;
+        assert!(core::ptr::eq(returned, &c));
+        assert_eq!(c, partial);
+        assert_eq!(t.assertions(), [WX_CHECK_POSSIBLE_CENTERS]);
+
+        // Without a host the assertion defers, and the circle keeps the same partial state.
+        let t = Transcribed::new(true);
+        let mut c = initial;
+        assert_eq!(
+            c.construct_from_tan_tan_pt_with(&t, &a, &b, v(-40, 60))
+                .map(|c| *c),
+            Err(unported(WX_ON_ASSERT, UNIT))
+        );
+        assert_eq!(c, partial);
+        Ok(())
+    }
+
+    #[test]
+    fn failed_intersect_calc_check_leaves_the_circle_unchanged() -> CircleResult<()> {
+        // Declared not parallel, but the lines are: IntersectLines finds no point.
+        let a = Seg::new(v(0, 0), v(100, 0));
+        let b = Seg::new(v(0, 50), v(100, 50));
+        let initial = Circle::with_center_radius(v(11, -13), 17);
+        let t = Transcribed::with_host(false);
+        let mut c = initial;
+        c.construct_from_tan_tan_pt_with(&t, &a, &b, v(5, 5))?;
+        assert_eq!(c, initial);
+        assert_eq!(t.assertions(), [WX_CHECK_INTERSECT_CALC]);
         Ok(())
     }
 }
