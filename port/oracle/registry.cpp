@@ -24,6 +24,7 @@ void RegisterEllipse( REGISTRY& aRegistry );
 void RegisterCircle( REGISTRY& aRegistry );
 void RegisterClipper2CoreEngine( REGISTRY& aRegistry );
 void RegisterClipper2EngineP001( REGISTRY& aRegistry );
+void RegisterClipper2EngineP002( REGISTRY& aRegistry );
 void RegisterCoreP001( REGISTRY& aRegistry );
 void RegisterCoreIncludeP001( REGISTRY& aRegistry );
 void RegisterSeg( REGISTRY& aRegistry );
@@ -70,6 +71,7 @@ REGISTRY MakeRegistry()
     RegisterCircle( registry );
     RegisterClipper2CoreEngine( registry );
     RegisterClipper2EngineP001( registry );
+    RegisterClipper2EngineP002( registry );
     RegisterCoreP001( registry );
     RegisterCoreIncludeP001( registry );
     RegisterSeg( registry );
