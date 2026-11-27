@@ -20,6 +20,7 @@
 #include <limits>
 #include <memory>
 #include <optional>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -45,6 +46,8 @@ constexpr size_t      MAX_GROUPS = 64;
 constexpr size_t      MAX_EXECUTES = 4;
 constexpr size_t      MAX_RUNS = 2;
 constexpr size_t      MAX_TABLE = 64;
+// Callback call indices at which a callback may be asked to throw.
+constexpr int64_t     MAX_THROW_CALL = int64_t( 1 ) << 20;
 // Clipper2's declared coordinate range (INT64_MAX >> 2), the engine domain.
 constexpr int64_t     ENGINE_COORD = std::numeric_limits<int64_t>::max() >> 2;
 // The offset domain: coordinates and deltas whose offsets stay far inside the engine domain.
@@ -646,6 +649,37 @@ double OffsetValue( const JSON& aValue )
 }
 
 
+/// The exception a recording callback throws at a requested call index (never a
+/// std::exception, so only the per-execution handler below catches it).
+struct CALLBACK_THROW
+{
+    bool   z;    ///< thrown by the Z callback rather than the delta callback
+    size_t call; ///< the callback's 0-based call index
+};
+
+
+/// The call indices at which one callback throws (`throws.delta` or `throws.z`).
+std::set<size_t> ThrowIndices( const JSON& aValue )
+{
+    if( !aValue.is_array() || aValue.size() > MAX_TABLE )
+        Invalid( "throws" );
+
+    std::set<size_t> out;
+
+    for( const JSON& v : aValue )
+    {
+        const int64_t call = I64( v );
+
+        if( call < 0 || call >= MAX_THROW_CALL )
+            Invalid( "throws" );
+
+        out.insert( size_t( call ) );
+    }
+
+    return out;
+}
+
+
 // DoGroupOffset's non-round singleton branch converts ceil(abs_delta) to int.
 // Check the executed branch, including the callback value after group reversal.
 void GuardSingletonCast( const c2::Path64& aPath, c2::JoinType aJoin, double aGroupDelta )
@@ -658,8 +692,17 @@ void GuardSingletonCast( const c2::Path64& aPath, c2::JoinType aJoin, double aGr
 
 JSON RunOffset( const JSON& aIn )
 {
-    Keys( aIn, { "op", "groups", "miter_limit", "arc_tolerance", "preserve_collinear",
-                 "reverse_solution", "z", "delta_table", "set_callback", "executes" } );
+    // `throws` is optional: requests without it keep their original form.
+    const bool hasThrows = aIn.is_object() && aIn.contains( "throws" );
+
+    if( hasThrows )
+        Keys( aIn, { "op", "groups", "miter_limit", "arc_tolerance", "preserve_collinear",
+                     "reverse_solution", "z", "delta_table", "set_callback", "executes",
+                     "throws" } );
+    else
+        Keys( aIn, { "op", "groups", "miter_limit", "arc_tolerance", "preserve_collinear",
+                     "reverse_solution", "z", "delta_table", "set_callback", "executes" } );
+
     COUNTER count;
 
     struct GROUP_IN
@@ -723,6 +766,20 @@ JSON RunOffset( const JSON& aIn )
 
     if( setCallback && table.empty() )
         Invalid( "callback" );
+
+    auto throwDelta = std::make_shared<std::set<size_t>>();
+    auto throwZ = std::make_shared<std::set<size_t>>();
+
+    if( hasThrows )
+    {
+        const JSON& throws = At( aIn, "throws" );
+        Keys( throws, { "delta", "z" } );
+        *throwDelta = ThrowIndices( At( throws, "delta" ) );
+        *throwZ = ThrowIndices( At( throws, "z" ) );
+
+        if( ( !throwDelta->empty() && table.empty() ) || ( !throwZ->empty() && !recorder ) )
+            Invalid( "throws" );
+    }
 
     struct EXECUTE
     {
@@ -798,12 +855,17 @@ JSON RunOffset( const JSON& aIn )
 
     auto makeCallback = [&]() -> c2::DeltaCallback64
     {
-        return [table, deltaCalls, &co]( const c2::Path64& path, const c2::PathD& normals, size_t curr,
-                                    size_t prev ) -> double
+        return [table, deltaCalls, throwDelta, &co]( const c2::Path64& path,
+                                                     const c2::PathD& normals, size_t curr,
+                                                     size_t prev ) -> double
         {
-            const double value = table[deltaCalls->size() % table.size()];
+            const size_t call = deltaCalls->size();
+            const double value = table[call % table.size()];
             deltaCalls->push_back( JSON::array(
                     { curr, prev, path.size(), normals.size() } ) );
+
+            if( throwDelta->count( call ) )
+                throw CALLBACK_THROW{ false, call };
 
             // The singleton callback receives the group's original path. A table
             // entry used by another path must not restrict the singleton domain.
@@ -829,12 +891,18 @@ JSON RunOffset( const JSON& aIn )
         if( recorder )
         {
             co.SetZCallback(
-                    [zCalls]( const c2::Point64& e1b, const c2::Point64& e1t, const c2::Point64& e2b,
-                              const c2::Point64& e2t, c2::Point64& pt )
+                    [zCalls, throwZ]( const c2::Point64& e1b, const c2::Point64& e1t,
+                                      const c2::Point64& e2b, const c2::Point64& e2t,
+                                      c2::Point64& pt )
                     {
+                        const size_t call = zCalls->size();
                         zCalls->push_back( JSON::array( { WritePoint( e1b ), WritePoint( e1t ),
                                                           WritePoint( e2b ), WritePoint( e2t ),
                                                           WritePoint( pt ) } ) );
+
+                        if( throwZ->count( call ) )
+                            throw CALLBACK_THROW{ true, call };
+
                         pt.z = Z_BASE + int64_t( zCalls->size() );
                     } );
         }
@@ -898,25 +966,43 @@ JSON RunOffset( const JSON& aIn )
                 }
             }
 
-            if( e.kind == 0 )
+            c2::PolyTree64 polytree;
+            JSON           thrown = nullptr;
+
+            // A callback exception ends only this execution: the reply records what the
+            // unwinding left (partial paths or tree, error code, retained groups) and the
+            // next execution runs on the same object.
+            try
             {
-                co.Execute( e.delta, paths );
+                if( e.kind == 0 )
+                    co.Execute( e.delta, paths );
+                else if( e.kind == 1 )
+                    co.Execute( e.delta, polytree );
+                else
+                    co.Execute( makeCallback(), paths );
             }
-            else if( e.kind == 1 )
+            catch( const CALLBACK_THROW& t )
             {
-                c2::PolyTree64 polytree;
-                co.Execute( e.delta, polytree );
+                thrown = JSON{ { "callback", t.z ? "z" : "delta" }, { "call", t.call } };
+            }
+
+            if( e.kind == 1 )
+            {
                 tree = JSON::array();
                 WriteTree( polytree, -1, tree, WritePath );
             }
-            else
+
+            JSON result{ { "paths", WritePaths( paths ) },
+                         { "tree", tree },
+                         { "error_code", co.ErrorCode() } };
+
+            if( !thrown.is_null() )
             {
-                co.Execute( makeCallback(), paths );
+                result["thrown"] = thrown;
+                result["groups"] = ( co.*Get( OFFSET_GROUPS{} ) ).size();
             }
 
-            results.push_back( JSON{ { "paths", WritePaths( paths ) },
-                                     { "tree", tree },
-                                     { "error_code", co.ErrorCode() } } );
+            results.push_back( result );
         }
 
         norms = WritePathD( co.*Get( OFFSET_NORMS{} ) );

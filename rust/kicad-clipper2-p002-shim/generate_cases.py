@@ -74,12 +74,16 @@ def group(paths, join, end, single=False):
 
 
 def offset(groups, executes, miter=2.0, arc=0.0, preserve=False, rev=False, z="none",
-           table=None, set_callback=False):
-    return {"op": "offset", "groups": list(groups), "miter_limit": hexd(miter),
-            "arc_tolerance": hexd(arc), "preserve_collinear": preserve, "reverse_solution": rev,
-            "z": z, "delta_table": None if table is None else [hexd(v) for v in table],
-            "set_callback": set_callback,
-            "executes": [{"kind": k, "delta": hexd(d)} for k, d in executes]}
+           table=None, set_callback=False, throw_delta=None, throw_z=None):
+    out = {"op": "offset", "groups": list(groups), "miter_limit": hexd(miter),
+           "arc_tolerance": hexd(arc), "preserve_collinear": preserve, "reverse_solution": rev,
+           "z": z, "delta_table": None if table is None else [hexd(v) for v in table],
+           "set_callback": set_callback,
+           "executes": [{"kind": k, "delta": hexd(d)} for k, d in executes]}
+    # Optional: the callback call indices at which the recording callbacks throw.
+    if throw_delta is not None or throw_z is not None:
+        out["throws"] = {"delta": list(throw_delta or []), "z": list(throw_z or [])}
+    return out
 
 
 def helper(fn, **args):
@@ -472,6 +476,88 @@ def corpus():
         for initial in [False, True]:
             add(f"helper-lowest-{i}-{initial}",
                 helper("lowest_closed_path_info", paths=paths, is_neg_area=initial))
+
+    # Callback exceptions: a delta or Z callback throws at a chosen call. Each execution
+    # reports what the unwinding left (partial paths or tree, error code, retained groups);
+    # later executions on the same object show the retained groups, callbacks, call counts
+    # and normals. A separate generator keeps every earlier case unchanged.
+    rng3 = random.Random(SEED + 2)
+    zpoly = [[pt(0, 0, 4), pt(50, 0, 4), pt(50, 50, 9), pt(0, 50, 9)],
+             [pt(25, 25, 4), pt(75, 25, 0), pt(75, 75, 0)]]
+    lifecycle = [group([poly], 3, 0), group([line], 1, 2), group([[pt(150, 150, 6)]], 0, 3)]
+    # Every delta call of a polygon, an open path (start cap, joins, end cap) and a singleton.
+    for call in range(0, 24, 2):
+        add(f"offset-throw-delta-callback-{call:02d}",
+            offset(lifecycle, [("callback", 0.0), ("paths", 3.0)],
+                   table=[4.0, 2.5, -1.0, 6.0], throw_delta=[call]))
+    for call in range(1, 24, 4):
+        add(f"offset-throw-delta-set-tree-{call:02d}",
+            offset(lifecycle, [("tree", 5.0), ("tree", 5.0), ("paths", 0.25)],
+                   table=[3.0, 1.0, 5.5], set_callback=True, throw_delta=[call, call + 9]))
+    add("offset-throw-delta-joined",
+        offset([group([[pt(0, 0), pt(40, 10), pt(80, 0)]], 0, 1),
+                group([[pt(0, 50), pt(40, 60)]], 2, 1)],
+               [("callback", 0.0), ("callback", 0.0), ("paths", 2.0)],
+               table=[2.0, 3.0], throw_delta=[3, 10]))
+    add("offset-throw-delta-reversed",
+        offset([group([reverse(poly), [pt(200, 200)]], 0, 0)],
+               [("callback", 0.0), ("tree", 4.0)], table=[1.0, 2.0, 3.0], throw_delta=[6]))
+    # Early returns before and around a throw: insignificant deltas never call back, a
+    # singleton below 1 is skipped, an almost-zero delta emits the vertex, and an empty
+    # solution returns before the finishing union (no Z calls).
+    add("offset-throw-after-insignificant",
+        offset([group([poly], 2, 0)], [("paths", 0.3), ("tree", -0.2), ("paths", 4.0),
+                                       ("paths", 4.0)],
+               table=[2.0], set_callback=True, arc=0.5, throw_delta=[0]))
+    add("offset-throw-skipped-singletons",
+        offset([group([[pt(0, 0)], [pt(10, 10, 3)], [pt(20, 0)]], 1, 2)],
+               [("callback", 0.0), ("callback", 0.0), ("paths", 2.0)],
+               table=[0.5, -3.0, 2.0], z="recorder", throw_delta=[2], throw_z=[0]))
+    add("offset-throw-almost-zero",
+        offset([group([poly], 3, 0), group([line], 0, 3)],
+               [("callback", 0.0), ("paths", 6.0)],
+               table=[1e-13, 3.0, 0.0, -2.0], throw_delta=[7]))
+    add("offset-throw-empty-solution",
+        offset([group([[pt(0, 0)]], 0, 0)], [("callback", 0.0), ("callback", 0.0)],
+               table=[0.25, 0.75], z="recorder", throw_delta=[1], throw_z=[0]))
+    # Z callback exceptions in the finishing union, on paths and trees, then recovery.
+    for call in range(6):
+        add(f"offset-throw-z-paths-{call}",
+            offset([group(zpoly, 0, 0)], [("paths", 10.0), ("paths", 10.0)], z="recorder",
+                   throw_z=[call]))
+        add(f"offset-throw-z-tree-{call}",
+            offset([group([[pt(0, 0, 2), pt(60, 0, 3), pt(0, 30, 2)]], 2, 4),
+                    group(zpoly, 1, 0)],
+                   [("tree", 9.0), ("tree", 9.0)], z="recorder", throw_z=[call, call + 3]))
+    add("offset-throw-z-and-delta",
+        offset([group(zpoly, 3, 0), group([[pt(10, 80, 5), pt(90, 80, 0)]], 3, 2)],
+               [("callback", 0.0), ("paths", 8.0), ("tree", 8.0)],
+               table=[6.0, 9.0], z="recorder", throw_delta=[2], throw_z=[1, 2]))
+    add("offset-throw-every-execute",
+        offset([group([poly], 0, 0)], [("callback", 0.0), ("callback", 0.0), ("callback", 0.0)],
+               table=[3.0], throw_delta=[0, 7, 8]))
+    for i in range(48):
+        shapes = []
+        for _ in range(rng3.randint(1, 3)):
+            n = rng3.randint(1, 3) if rng3.random() < 0.2 else rng3.randint(2, 8)
+            shapes.append(random_poly(rng3, rng3.choice([10, 50, 400]), n,
+                                      rng3.choice([1, 7, 1000]), z=rng3.random() < 0.5))
+        groups = [group(shapes, rng3.randint(0, 3), rng3.randint(0, 4))
+                  for _ in range(rng3.randint(1, 2))]
+        table = [rng3.choice([-3.0, 0.0, 0.5, 1.0, 2.0, 6.5]) for _ in range(rng3.randint(1, 4))]
+        set_cb = rng3.random() < 0.5
+        executes = [(rng3.choice(["paths", "tree", "callback"]),
+                     rng3.choice([-5.5, 0.3, 2.5, 12.0])) for _ in range(rng3.randint(2, 4))]
+        if not set_cb:
+            executes[0] = ("callback", 0.0)
+        z = rng3.choice(["none", "recorder"])
+        add(f"offset-throw-random-{i:02d}",
+            offset(groups, executes, miter=rng3.choice([0.0, 2.0, 3.5]),
+                   arc=rng3.choice([0.0, 0.5, 3.0]), rev=rng3.random() < 0.3, z=z,
+                   table=table, set_callback=set_cb,
+                   throw_delta=sorted(rng3.sample(range(40), rng3.randint(1, 3))),
+                   throw_z=sorted(rng3.sample(range(12), rng3.randint(1, 2)))
+                   if z == "recorder" else None))
     return cases
 
 
@@ -512,6 +598,16 @@ def controls():
                                  [("paths", 1.0)]), "invalid input: single"),
         ("offset-groups", offset([group(ok_poly, 0, 0)] * 65, [("paths", 1.0)]),
          "invalid input: size"),
+        ("offset-throws-without-table", offset([group(ok_poly, 0, 0)], [("paths", 1.0)],
+                                                throw_delta=[0]), "invalid input: throws"),
+        ("offset-throws-without-recorder", offset([group(ok_poly, 0, 0)], [("paths", 1.0)],
+                                                  throw_z=[0]), "invalid input: throws"),
+        ("offset-throws-negative", offset([group(ok_poly, 0, 0)], [("callback", 0.0)],
+                                          table=[1.0], throw_delta=[-1]),
+         "invalid input: throws"),
+        ("offset-throws-huge", offset([group(ok_poly, 0, 0)], [("callback", 0.0)],
+                                      table=[1.0], throw_delta=[2**20]),
+         "invalid input: throws"),
         ("helper-fn", helper("ellipse"), "invalid input: fn"),
         ("helper-normal-domain", helper("unit_normal", a=pt(big, 0), b=pt(0, 0)),
          "invalid input: domain"),
