@@ -360,11 +360,14 @@ def generate():
                 y = vals[(j * 11 + 3 * i + 1) % len(vals)]
                 c.add(f'{op}-pool-{i}-{j}', {'op': op, 'circle': circ(cc, r),
                                              'point': [bits(x), bits(y)]})
-            # aP equal to the centre (signed zeros), so vec.x becomes 1.
-            for j, (dx, dy) in enumerate([(0.0, 0.0), (0.0, -0.0), (-0.0, 0.0), (-0.0, -0.0)]):
-                px = float(cc[0]) + dx if dx == 0.0 and math.copysign(1, dx) > 0 else float(cc[0])
+            # aP equal to the centre, so vec.x becomes 1. A zero centre component takes each
+            # signed zero (-0.0 - 0 is -0.0, which still compares equal to 0); a nonzero one
+            # can only give +0.0, so those requests repeat the centre.
+            for j, (sx, sy) in enumerate([(0.0, 0.0), (0.0, -0.0), (-0.0, 0.0), (-0.0, -0.0)]):
+                px = sx if cc[0] == 0 else float(cc[0])
+                py = sy if cc[1] == 0 else float(cc[1])
                 c.add(f'{op}-centre-{i}-{j}', {'op': op, 'circle': circ(cc, r),
-                                               'point': [bits(px), bits(float(cc[1]))]})
+                                               'point': [bits(px), bits(py)]})
             for j, n in enumerate(NANS):
                 m = NANS[(j + 1) % len(NANS)]
                 for k, pt in enumerate([[n, bits(1.0)], [bits(-2.5), n], [n, n], [n, m],
@@ -422,9 +425,9 @@ def generate():
         if not all(fits(v) for v in (*c1, *c2)):
             continue
         ic(f'intersect_circle-hand-{i}', c1, r1, c2, r2)
-    # No negative-remainder cases are established here. The former equal-radius
-    # search emitted none: d <= 2*r implies trunc(d/2) <= r. Keep that coverage
-    # gap explicit instead of claiming the attempted search generated cases.
+    # The negative-remainder return is unreachable on a defined evaluation: with d > 0 the two
+    # tests imply r1, r2 >= 0 and |d - r1| <= r2 <= d + r1, hence |x0| <= r1 for the exact
+    # quotient x0, and the truncated x has |x| <= |x0|. No case is generated for it.
     for i in range(400):
         scale = rng.choice([20, 1000, 2**20, 2**28])
         c1 = (rng.randint(-scale, scale), rng.randint(-scale, scale))
