@@ -503,14 +503,46 @@ def located(root):
     return out
 
 
+def double_text(pattern):
+    """SEXPR::AsString of a double atom: fmt {:.10g}, or {:.10f} without trailing zeros and
+    point when that has an exponent. fmt prints a NaN's sign, which Python drops."""
+    value = double_value(pattern)
+    if value != value:
+        return '-nan' if int(pattern, 16) >> 63 else 'nan'
+    out = format(value, '.10g')
+    if 'e' in out:
+        out = format(value, '.10f').rstrip('0')
+        if len(out) > 1 and out[-1] == '.':
+            out = out[:-1]
+    return out
+
+
+def integer_text(value):
+    """SEXPR::AsString of an integer atom: GetInteger() (int64 to int32) through operator<<."""
+    return str((value + 2**31) % 2**32 - 2**31)
+
+
+def atom_size(entry):
+    """The exact length of an atom's AsString text."""
+    kind, value = entry[0], entry[1]
+    if kind == 'string':
+        return len(value) // 2 + 2
+    if kind == 'symbol':
+        return len(value) // 2
+    if kind == 'integer':
+        return len(integer_text(value))
+    return len(double_text(value))
+
+
 def as_string_outcome(root, level):
     """Replay the adapters' AsString guard: 'ok', 'length_error' (thrown by the library),
-    'undefined' (a null child) or 'too_large' (a resource bound)."""
+    'undefined' (a null child) or 'too_large' (a resource bound). Each node counts the exact
+    bytes its own frame writes (a list's newline, indentation, parentheses and separators; an
+    atom's text) once towards the output and once per enclosing frame towards the work."""
     total = work = 0
-    stack = [(root, level, 1, False)]
+    stack = [(root, level, 1)]
     while stack:
-        node, at, depth, separated = stack.pop()
-        size = 1 if separated else 0
+        node, at, depth = stack.pop()
         if node is None:
             return 'undefined'
         if node[0] == 'list':
@@ -520,21 +552,53 @@ def as_string_outcome(root, level):
                 return 'length_error'
             if indent > MAX_INDENT:
                 return 'too_large'
-            size += indent + 3
             kids = node[2]
+            size = local + indent + 2 + max(len(kids) - 1, 0)
             for i in range(len(kids) - 1, -1, -1):
-                stack.append((kids[i], (at + 1) % 2**64, depth + 1, i > 0))
+                stack.append((kids[i], (at + 1) % 2**64, depth + 1))
         else:
-            kind, value = node[1][0], node[1][1]
-            if kind in ('string', 'symbol'):
-                size += len(value) // 2 + 2
-            else:
-                size += 12 if kind == 'integer' else 400
+            size = atom_size(node[1])
         total += size
         work += size * depth
         if total > MAX_OUTPUT or work > MAX_WORK:
             return 'too_large'
     return 'ok'
+
+
+def as_string_work(root, level):
+    """Output length and copy work of AsString (the sum of every frame's result length)."""
+    total = work = 0
+    stack = [(root, level, 1)]
+    while stack:
+        node, at, depth = stack.pop()
+        if node[0] == 'list':
+            kids = node[2]
+            size = (1 if at else 0) + (at * 2) % 2**64 + 2 + max(len(kids) - 1, 0)
+            stack.extend((kid, at + 1, depth + 1) for kid in kids)
+        else:
+            size = atom_size(node[1])
+        total += size
+        work += size * depth
+    return total, work
+
+
+def leaf_chain(depth, count, pattern):
+    """depth nested lists, the innermost holding count double atoms with these bits."""
+    return ([['list', None, 1] for _ in range(depth - 1)] + [['list', None, count]]
+            + [['double', bits_of(pattern), None] for _ in range(count)])
+
+
+LONG_DOUBLE = 0xffefffffffffffff  # -DBL_MAX: 310 bytes in fixed notation, the longest text
+
+
+def work_bound_tree(root_symbol):
+    """A root list holding a 199-deep chain, whose leaf holds 17090 -DBL_MAX doubles and a
+    250-byte symbol, then a symbol of root_symbol bytes: AsString(0) copy work is exactly
+    MAX_WORK at 1087 bytes and MAX_WORK + 2 at 1088."""
+    nodes = leaf_chain(199, 17090, LONG_DOUBLE)
+    nodes[198][2] = 17091
+    nodes.append(['symbol', hexs(b'a' * 250), None])
+    return [['list', None, 2]] + nodes + [['symbol', hexs(b'b' * root_symbol), None]]
 
 
 def getter_error(root, path, method, extra):
@@ -768,6 +832,21 @@ def source_cases(rng, controls):
             extra = {'level': level}
             add(f'as-string-{name}-level-{level}', getter(nodes, [], 'AsString', **extra),
                 getter_error(root, [], 'AsString', extra))
+    # Deep chains whose leaf holds many short doubles: practical requests far inside the work
+    # bound once each atom counts its formatted length, and long doubles nearer to it.
+    for name, depth, count, pattern in (('short', 200, 19000, 0), ('short', 1000, 1000, 0),
+                                        ('long', 200, 1000, LONG_DOUBLE)):
+        nodes = leaf_chain(depth, count, pattern)
+        for level in (None, 1):
+            extra = {'level': level}
+            assert getter_error(parse(nodes), [], 'AsString', extra) is None, name
+            add(f'as-string-chain-{depth}-{name}-doubles-{count}-level-{level}',
+                getter(nodes, [], 'AsString', **extra))
+    # The copy work exactly at its bound (its control one symbol byte longer is above it).
+    nodes = work_bound_tree(1087)
+    assert as_string_work(parse(nodes), 0)[1] == MAX_WORK
+    assert getter_error(parse(nodes), [], 'AsString', {'level': None}) is None
+    add('as-string-work-at-bound', getter(nodes, [], 'AsString', level=None))
     for i in range(400):
         nodes = tree(rng, max_nodes=40, max_depth=6, nulls=False)
         root = parse(nodes)
@@ -894,6 +973,16 @@ def source_controls():
                                                  level=2**62 - 1), TOO_LARGE)
     add('as-string-unallocatable-wrapped-indent',
         getter([['list', None, 0]], [], 'AsString', level=2**63 + 2**62 - 1), TOO_LARGE)
+    # The same deep chains with long doubles: genuinely expensive copy work above the bound.
+    for depth, count in ((200, 19000), (3000, 3000)):
+        nodes = leaf_chain(depth, count, LONG_DOUBLE)
+        assert as_string_outcome(parse(nodes), 0) == 'too_large'
+        add(f'as-string-chain-{depth}-long-doubles-{count}',
+            getter(nodes, [], 'AsString', level=None), TOO_LARGE)
+    nodes = work_bound_tree(1088)
+    assert as_string_work(parse(nodes), 0)[1] == MAX_WORK + 2
+    assert as_string_outcome(parse(nodes), 0) == 'too_large'
+    add('as-string-work-above-bound', getter(nodes, [], 'AsString', level=None), TOO_LARGE)
     add('extract-empty', {'op': 'extract', 'tree': [['list', None, 0]],
                           'targets': [{'kind': 'int32', 'initial': 0}]})
     add('extract-past-end', {'op': 'extract', 'tree': two,

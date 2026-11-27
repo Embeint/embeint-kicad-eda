@@ -13,11 +13,11 @@
 //!
 //! `AsString` requests are bounded identically in the reference adapter: in the order
 //! `AsString` opens nodes, an indentation that `append` refuses (`length_error`) ends the
-//! check; before that, an indentation above [`MAX_INDENT`] bytes, an estimated output above
-//! [`MAX_OUTPUT`] bytes or an estimated copy work above [`MAX_WORK`] is refused as a resource
-//! bound. The reference builds each list's text in its own frame and appends it to every
-//! enclosing frame, so a node's bytes are copied once per frame from it to the root; a deep
-//! chain is quadratic in output and cubic in work.
+//! check; before that, an indentation above [`MAX_INDENT`] bytes, an output above
+//! [`MAX_OUTPUT`] bytes or a copy work above [`MAX_WORK`] bytes, both counted from the exact
+//! bytes each node writes, is refused as a resource bound. The reference builds each list's
+//! text in its own frame and appends it to every enclosing frame, so a node's bytes are copied
+//! once per frame from it to the root; a deep chain is quadratic in output and cubic in work.
 
 use crate::codec::{
     bits32, bits64, dump, exception, get, hex, keys, object, raised, read_bool, read_f32, read_f64,
@@ -33,9 +33,10 @@ use serde_json::{json, Map, Value};
 
 /// The largest `AsString` indentation of one list the adapters attempt.
 pub const MAX_INDENT: u64 = 1 << 20;
-/// The largest estimated `AsString` output the adapters attempt.
+/// The largest `AsString` output the adapters attempt.
 pub const MAX_OUTPUT: u64 = 64 << 20;
-/// The largest estimated `AsString` copy work (each byte times the frames that hold it).
+/// The largest `AsString` copy work the adapters attempt (each byte times the frames that
+/// hold it: the sum of every frame's result length).
 pub const MAX_WORK: u64 = 1 << 30;
 const TOO_LARGE: &str = "as_string output too large";
 
@@ -81,15 +82,17 @@ fn navigate<'a>(root: &'a mut Sexpr, path: &[u64]) -> Result<&'a mut Sexpr, Erro
 
 /// Every node `AsString( level )` opens, in order, with its level and its depth below the
 /// node `AsString` is called on (that node is at depth 1), until a refused indentation or a
-/// null child (both left to the library). Each node's estimated bytes (a separating space,
-/// a list's newline, indentation and parentheses, an atom's text) count once towards the
-/// output and once per depth towards the work.
+/// null child (both left to the library). Each node's own bytes are the exact bytes its frame
+/// writes besides its children's text: a list's newline (at a nonzero level), indentation,
+/// parentheses and the spaces between its children; an atom's formatted text (a string with
+/// its quotes, a symbol as it is, an integer or double as the library formats it). They count
+/// once towards the output and once per frame that holds them (the node's depth) towards the
+/// work, so the work is the sum of every frame's result length.
 fn check_as_string(root: View<'_>, level: u64) -> Result<(), Error> {
     let (mut total, mut work): (u64, u64) = (0, 0);
-    let mut stack = vec![(Some(root), level, 1u64, false)];
-    while let Some((node, at, depth, separated)) = stack.pop() {
-        let mut bytes = u64::from(separated);
-        match node {
+    let mut stack = vec![(Some(root), level, 1u64)];
+    while let Some((node, at, depth)) = stack.pop() {
+        let bytes = match node {
             None => return Ok(()),
             Some(View::List(list)) => {
                 let local = u64::from(at != 0);
@@ -100,21 +103,28 @@ fn check_as_string(root: View<'_>, level: u64) -> Result<(), Error> {
                 if indent > MAX_INDENT {
                     return Err(TOO_LARGE.into());
                 }
-                bytes += indent + 3;
-                for (index, child) in list.children.iter().enumerate().rev() {
+                for child in list.children.iter().rev() {
                     stack.push((
                         child.as_deref().map(Node::view),
                         at.wrapping_add(1),
                         depth.saturating_add(1),
-                        index > 0,
                     ));
                 }
+                let separators = (list.children.len() as u64).saturating_sub(1);
+                local + indent + 2 + separators
             }
-            Some(View::String(atom)) => bytes += atom.value.len() as u64 + 2,
-            Some(View::Symbol(atom)) => bytes += atom.value.len() as u64 + 2,
-            Some(View::Integer(_)) => bytes += 12,
-            Some(View::Double(_)) => bytes += 400,
-        }
+            Some(View::String(atom)) => atom.value.len() as u64 + 2,
+            Some(View::Symbol(atom)) => atom.value.len() as u64,
+            // A formatting failure (bad_alloc) is left to the library, which raises it too.
+            Some(View::Integer(atom)) => match atom.as_string(0) {
+                Ok(text) => text.len() as u64,
+                Err(_) => return Ok(()),
+            },
+            Some(View::Double(atom)) => match atom.as_string(0) {
+                Ok(text) => text.len() as u64,
+                Err(_) => return Ok(()),
+            },
+        };
         total = total.saturating_add(bytes);
         work = work.saturating_add(bytes.saturating_mul(depth));
         if total > MAX_OUTPUT || work > MAX_WORK {

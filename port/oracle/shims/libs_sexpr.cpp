@@ -13,7 +13,8 @@
 // m_children[] access, a null child dereference, doScan writing a double through an
 // int32_t*), a guard walks the reference control flow over the decoded tree and refuses the
 // request with "undefined sexpr operation". AsString requests whose output or copy work
-// exceeds a fixed bound are refused as "as_string output too large".
+// (both counted from the exact bytes each node writes) exceeds a fixed bound are refused as
+// "as_string output too large".
 //
 // Units: libs.sexpr.include.sexpr.application.pure.p001 (runHeader: the inline header
 // bodies) and libs.sexpr.application.pure.p001 (runSource: the sexpr.cpp members and
@@ -1110,9 +1111,12 @@ NODE* navigate( NODE* aRoot, const std::vector<uint64_t>& aPath )
 // Walk every node AsString( aLevel ) opens, in its order, with the level it passes and the
 // node's depth below aRoot (aRoot at depth 1). A null child would be dereferenced (undefined)
 // and is refused; an indentation that append refuses with length_error ends the walk (the
-// library throws there). Before that, an indentation above MAX_INDENT, an estimated output
-// above MAX_OUTPUT or an estimated copy work above MAX_WORK (bytes times depth: each frame's
-// text is appended to every enclosing frame) is refused as a resource bound.
+// library throws there). Before that, an indentation above MAX_INDENT, an output above
+// MAX_OUTPUT or a copy work above MAX_WORK is refused as a resource bound. Each node counts
+// the exact bytes its own frame writes besides its children's text (a list's newline,
+// indentation, parentheses and the spaces between its children; an atom's formatted text,
+// integers and doubles formatted by the library itself) once towards the output and once per
+// frame that holds them (its depth) towards the work: the sum of every frame's result length.
 void guardAsString( const NODE* aRoot, uint64_t aLevel )
 {
     struct ITEM
@@ -1120,18 +1124,17 @@ void guardAsString( const NODE* aRoot, uint64_t aLevel )
         const NODE* node;
         uint64_t    level;
         uint64_t    depth;
-        bool        separated;
     };
 
     const uint64_t    maxSize = std::string().max_size();
     uint64_t          total = 0;
     uint64_t          work = 0;
-    std::vector<ITEM> stack{ { aRoot, aLevel, 1, false } };
+    std::vector<ITEM> stack{ { aRoot, aLevel, 1 } };
     while( !stack.empty() )
     {
         const ITEM item = stack.back();
         stack.pop_back();
-        uint64_t bytes = item.separated ? 1 : 0;
+        uint64_t bytes = 0;
         if( !item.node )
             refuse( UNDEFINED );
         if( item.node->IsList() )
@@ -1142,27 +1145,32 @@ void guardAsString( const NODE* aRoot, uint64_t aLevel )
                 return;
             if( indent > MAX_INDENT )
                 refuse( TOO_LARGE );
-            bytes += indent + 3;
             const SEXPR::SEXPR_VECTOR& children =
                     static_cast<const SEXPR_LIST*>( item.node )->m_children;
+            bytes = local + indent + 2 + ( children.empty() ? 0 : children.size() - 1 );
             for( size_t i = children.size(); i-- > 0; )
-                stack.push_back( { children[i], item.level + 1, item.depth + 1, i > 0 } );
+                stack.push_back( { children[i], item.level + 1, item.depth + 1 } );
         }
         else if( item.node->IsString() )
         {
-            bytes += static_cast<const SEXPR::SEXPR_STRING*>( item.node )->m_value.size() + 2;
+            bytes = static_cast<const SEXPR::SEXPR_STRING*>( item.node )->m_value.size() + 2;
         }
         else if( item.node->IsSymbol() )
         {
-            bytes += static_cast<const SEXPR::SEXPR_SYMBOL*>( item.node )->m_value.size() + 2;
-        }
-        else if( item.node->IsInteger() )
-        {
-            bytes += 12;
+            bytes = static_cast<const SEXPR::SEXPR_SYMBOL*>( item.node )->m_value.size();
         }
         else
         {
-            bytes += 400;
+            // An integer or double atom: its text as AsString formats it. A failure
+            // (bad_alloc) is left to the library call, which raises it too.
+            try
+            {
+                bytes = item.node->AsString().size();
+            }
+            catch( ... )
+            {
+                return;
+            }
         }
         total += bytes;
         work += bytes * item.depth;
