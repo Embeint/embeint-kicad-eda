@@ -14,6 +14,7 @@
 //! Signed `int` and `int64_t` overflow and `std::abs` of the minimum are undefined in the C++ and
 //! are refused with [`SegError::Undefined`] at the first such operation.
 use crate::seg::{Ecoord, OptVector2I, SegError, SegResult};
+use crate::stream::{insert_str, StreamError, StreamInsert, StreamState};
 use crate::vector::{Vector2, Vector2I};
 
 /// This unit.
@@ -221,10 +222,20 @@ impl Seg {
         }
         self.a.less(&seg.a)
     }
+}
 
-    /// `operator<<( std::ostream&, const SEG& )`: `"[ " << A << " - " << B << " ]"`, each point
-    /// as `VECTOR2`'s `"[ x | y ]"` (default stream state).
-    pub fn stream(&self) -> SegResult<String> {
-        Ok(format!("[ {} - {} ]", self.a.stream()?, self.b.stream()?))
+/// `operator<<( std::ostream& aStream, const SEG& aSeg )`:
+/// `aStream << "[ " << aSeg.A << " - " << aSeg.B << " ]"` into the caller's stream. The format
+/// flags (base, `showbase`, `showpos`, `uppercase`, adjustment) reach every coordinate through
+/// `VECTOR2<int>`'s `operator<<`; the width pads only the first insertion, `"[ "`, which resets
+/// it to 0, as do all later insertions.
+impl StreamInsert for Seg {
+    fn insert(&self, state: &mut StreamState) -> Result<String, StreamError> {
+        let mut out = insert_str("[ ", state)?;
+        out.push_str(&self.a.insert(state)?);
+        out.push_str(&insert_str(" - ", state)?);
+        out.push_str(&self.b.insert(state)?);
+        out.push_str(&insert_str(" ]", state)?);
+        Ok(out)
     }
 }

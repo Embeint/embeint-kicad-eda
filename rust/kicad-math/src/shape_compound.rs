@@ -15,8 +15,8 @@
 //! [`crate::shape::ShapeError::Unported`]. Rust ownership replaces the destructor's `delete`
 //! of each held shape.
 //!
-//! `m_shapes` holds owning `SHAPE*` that may be null (a base `SHAPE::Clone` returns `nullptr`,
-//! which `AddShape` stores unchanged); a null element is `None`.
+//! `m_shapes` holds owning `SHAPE*` that may be null (`AddShape( SHAPE* )` stores a null
+//! argument unchanged, and a base `SHAPE::Clone` returns `nullptr`); a null element is `None`.
 use core::any::Any;
 use std::rc::Rc;
 
@@ -99,10 +99,17 @@ impl ShapeCompound {
     /// `AddShape( SHAPE* aShape )`: takes ownership. A compound is flattened (its subshapes are
     /// cloned and it is deleted); any other shape is stored as given. `m_dirty` is set after
     /// either, so it stays unchanged when a clone defers.
-    pub fn add_shape(&mut self, shape: Box<dyn Shape>) -> ShapeResult<()> {
+    ///
+    /// A null `aShape` (`None`) is defined: `dynamic_cast` of a null pointer is null, so it is
+    /// stored as a null element (and later `delete nullptr` is a no-op).
+    pub fn add_shape(&mut self, shape: Option<Box<dyn Shape>>) -> ShapeResult<()> {
         // Don't make clients deal with nested SHAPE_COMPOUNDs
-        if !self.append_subshape_clones(shape.as_ref())? {
-            self.shapes.push(Some(shape));
+        let flattened = match shape.as_deref() {
+            Some(s) => self.append_subshape_clones(s)?,
+            None => false,
+        };
+        if !flattened {
+            self.shapes.push(shape);
         }
         // A flattened compound is deleted when `shape` drops here.
         self.dirty = true;
@@ -111,7 +118,11 @@ impl ShapeCompound {
 
     /// `AddShape( std::shared_ptr<SHAPE> aShape )`: the shape stays shared; a compound is
     /// flattened as above, anything else is stored as `aShape->Clone()`.
-    pub fn add_shape_shared(&mut self, shape: Rc<dyn Shape>) -> ShapeResult<()> {
+    ///
+    /// A null `aShape` (`None`) passes the `dynamic_cast` and is then dereferenced by
+    /// `aShape->Clone()`, which is undefined: refused before any change.
+    pub fn add_shape_shared(&mut self, shape: Option<Rc<dyn Shape>>) -> ShapeResult<()> {
+        let shape = shape.ok_or(crate::shape::ShapeError::Undefined)?;
         // Don't make clients deal with nested SHAPE_COMPOUNDs
         if !self.append_subshape_clones(shape.as_ref())? {
             self.shapes.push(shape.clone_shape()?);

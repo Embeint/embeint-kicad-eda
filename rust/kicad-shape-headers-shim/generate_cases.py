@@ -320,13 +320,26 @@ class Run:
             self.defer('arc_copy')
         if state[0] == 'compound':
             self.defer('compound_clone')
+            # SHAPE_COMPOUND's copy constructor calls shape->Clone() on every entry.
+            if any(m[0] == 'null' for m in state[1]):
+                raise Undefined
         return [state[0]] + list(state[1:])
 
     def add_shape(self, members, item, depth):
+        if item['shape'] is None:
+            # AddShape( SHAPE* ) stores a null pointer; the shared overload dereferences it.
+            if item['shared']:
+                raise Undefined
+            self.labels.add('add-null')
+            members.append(['null'])
+            return
         sub = self.build(item['shape'], depth + 1)
         if sub[0] == 'compound':
             self.labels.add('add-flatten-shared' if item['shared'] else 'add-flatten')
             for m in sub[1]:
+                # subshape->Clone() dereferences a null entry.
+                if m[0] == 'null':
+                    raise Undefined
                 members.append(self.clone(m))
         elif item['shared']:
             self.labels.add('add-shared-clone')
@@ -517,6 +530,12 @@ def evaluate(inp):
                                                                 'seg_reverse', 'seg_reversed',
                                                                 'seg_stream'):
             run.seg_op(inp)
+        elif inp['op'] == 'shape_type_as_string':
+            # SHAPE_TYPE's values are 0 to 15 (no fixed underlying type, enumerators 0 to 10);
+            # static_cast of anything else is undefined. 11 to 15 are unnamed.
+            if not 0 <= inp['value'] <= 15:
+                raise Undefined
+            run.labels.add('shape-type-unnamed' if inp['value'] > 10 else 'shape-type-named')
         else:
             run.labels.add(inp['op'])
     except UNDEFINED_ERRORS:
@@ -564,8 +583,10 @@ def seg_candidates(rng):
         out.append((f'seg_reverse-{i}', {'op': 'seg_reverse', 'seg': s, 'index': i}))
     for v in EXTREMES + [2, -2, 3, 12345, -99999]:
         out.append((f'seg_square-{v}', {'op': 'seg_square', 'value': v}))
-    for t in range(11):
+    for t in range(16):
         out.append((f'shape_type_as_string-{t}', {'op': 'shape_type_as_string', 'value': t}))
+    for name, t in [('below', -1), ('above', 16), ('int-min', INT_MIN), ('int-max', INT_MAX)]:
+        out.append((f'shape_type_as_string-{name}', {'op': 'shape_type_as_string', 'value': t}))
     out.append(('constants', {'op': 'constants'}))
     for si, s in enumerate(HAND_SEGS):
         for op in SEG_ONE_OPS:
@@ -621,6 +642,55 @@ def seg_candidates(rng):
             if op == 'seg_approx_overlaps':
                 inp['threshold'] = rng.choice([1, 3, 5])
             out.append((f'{op}-chain-{n}', inp))
+    out.extend(stream_state_candidates())
+    return out
+
+
+def state(flags, width=0, fill=' ', precision=6):
+    return {'flags': flags, 'precision': precision, 'width': width, 'fill': fill}
+
+
+DEFAULT_FLAGS = ['skipws', 'dec']
+STREAM_SEGS = [[[10, 11], [12, 13]], [[0, -1], [INT_MIN, INT_MAX]], [[-1, 0], [8, 9]],
+               [[-255, 4096], [65535, -65536]], [[0, 0], [0, 0]]]
+STREAM_STATES = [
+    ('default', state(DEFAULT_FLAGS)),
+    ('no-flags', state([])),
+    ('hex-showbase-upper-fill-width', state(['skipws', 'hex', 'showbase', 'uppercase'], 5, '_')),
+    ('hex', state(['hex'])),
+    ('hex-showbase', state(['hex', 'showbase'])),
+    ('hex-upper', state(['hex', 'uppercase'], 2, '0')),
+    ('oct-showbase', state(['oct', 'showbase'])),
+    ('oct', state(['oct'], 9, '#')),
+    ('dec-and-hex', state(['dec', 'hex', 'showbase'])),
+    ('hex-and-oct', state(['hex', 'oct', 'showbase'])),
+    ('showpos', state(['dec', 'showpos'])),
+    ('showpos-hex', state(['hex', 'showpos', 'showbase'])),
+    ('left-width', state(['dec', 'left', 'showpos'], 4)),
+    ('right-width', state(['dec', 'right'], 7, '.')),
+    ('internal-width', state(['hex', 'showbase', 'internal'], 12, '*')),
+    ('left-and-right', state(['left', 'right'], 6, '-')),
+    ('width-exact', state(DEFAULT_FLAGS, 2, 'x')),
+    ('width-one', state(DEFAULT_FLAGS, 1, 'x')),
+    ('width-negative', state(DEFAULT_FLAGS, -5, 'x')),
+    ('width-max', state(DEFAULT_FLAGS, 512, '~')),
+    ('float-flags', state(['fixed', 'scientific', 'showpoint', 'boolalpha', 'uppercase'], 3,
+                          ' ', 17)),
+    ('precision-negative', state(['scientific'], 0, ' ', -64)),
+    ('every-flag', state(['boolalpha', 'dec', 'fixed', 'hex', 'internal', 'left', 'oct', 'right',
+                          'scientific', 'showbase', 'showpoint', 'showpos', 'skipws', 'unitbuf',
+                          'uppercase'], 8, '=')),
+]
+
+
+def stream_state_candidates():
+    """operator<<( std::ostream&, const SEG& ) into a caller's stream: flags reach every
+    coordinate, the width pads only the first insertion and is 0 afterwards."""
+    out = []
+    for si, s in enumerate(STREAM_SEGS):
+        for name, st in STREAM_STATES:
+            out.append((f'seg_stream-state-{name}-{si}', {'op': 'seg_stream', 'seg': s,
+                                                           'state': st}))
     return out
 
 
@@ -898,6 +968,63 @@ def shape_candidates(rng):
     out.append(('shape-collide-shape-arc', {'op': 'shape', 'shape': circle_spec(rng, 'small', 'center_radius'),
                                             'calls': [{'call': 'collide_shape',
                                                        'other': {'kind': 'arc', 'ctor': 'default'}}]}))
+    out.extend(null_entry_candidates())
+    return out
+
+
+def null_entry_candidates():
+    """AddShape( (SHAPE*) nullptr ) stores a null entry, which the inline members report without
+    dereferencing it. The shared overload with a null pointer, flattening a compound holding a
+    null entry and copying one (Clone) dereference it: undefined, so controls."""
+    null = {'shape': None, 'shared': False}
+    circle = {'kind': 'circle', 'ctor': 'center_radius', 'center': [3, -4], 'radius': 5}
+    arc = {'kind': 'arc', 'ctor': 'default'}
+    inline = [{'call': c} for c in ['empty', 'size', 'unique_subshape', 'shapes', 'type',
+                                     'type_name', 'is_null', 'has_indexable_subshapes',
+                                     'indexable_subshape_count', 'get_start', 'get_end',
+                                     'get_width']]
+    def compound(*items):
+        return {'kind': 'compound', 'add': list(items)}
+    out = []
+    def add(name, spec, calls):
+        out.append((f'shape-compound-null-{name}', {'op': 'shape', 'shape': spec, 'calls': calls}))
+    add('only', compound(null), inline + [{'call': 'indexable_subshapes', 'prefill': p}
+                                          for p in (0, 2)])
+    add('set-width', compound(null), [{'call': 'set_width', 'width': 7}, {'call': 'get_width'},
+                                      {'call': 'size'}])
+    add('mixed', compound({'shape': circle, 'shared': True}, null, {'shape': arc, 'shared': False},
+                          null), inline + [{'call': 'indexable_subshapes', 'prefill': 1}])
+    add('added-by-call', compound({'shape': circle, 'shared': True}),
+        [{'call': 'unique_subshape'}, {'call': 'add_shape', 'shape': None, 'shared': False},
+         {'call': 'size'}, {'call': 'unique_subshape'}, {'call': 'shapes'},
+         {'call': 'add_shape', 'shape': circle, 'shared': False}, {'call': 'shapes'}])
+    add('added-to-empty', compound(), [{'call': 'empty'},
+                                       {'call': 'add_shape', 'shape': None, 'shared': False},
+                                       {'call': 'empty'}, {'call': 'size'},
+                                       {'call': 'unique_subshape'}])
+    add('nested-flatten-without-null', compound(null, {'shape': compound({'shape': circle,
+                                                                         'shared': False}),
+                                                      'shared': False}),
+        [{'call': 'shapes'}, {'call': 'size'}])
+    # Out-of-line members check their verified domain (circles only) before the call.
+    for call in [{'call': 'bbox'}, {'call': 'centre'}, {'call': 'is_solid'},
+                 {'call': 'move', 'vector': [1, 1]}, {'call': 'collide_point', 'point': [0, 0]}]:
+        add(f'out-of-line-{call["call"]}', compound(null), [{'call': 'size'}, call])
+    # Undefined: these dereference the null entry.
+    add('shared', compound({'shape': None, 'shared': True}), [{'call': 'size'}])
+    add('shared-by-call', compound(), [{'call': 'add_shape', 'shape': None, 'shared': True}])
+    for shared in (False, True):
+        tag = 'shared' if shared else 'raw'
+        add(f'flatten-{tag}', compound({'shape': compound(null), 'shared': shared}), [])
+        add(f'flatten-after-circle-{tag}',
+            compound({'shape': compound({'shape': circle, 'shared': False}, null),
+                      'shared': shared}), [])
+        add(f'flatten-after-arc-{tag}',
+            compound({'shape': compound({'shape': arc, 'shared': False}, null),
+                      'shared': shared}), [])
+        add(f'flatten-by-call-{tag}', compound(),
+            [{'call': 'add_shape', 'shape': compound(null), 'shared': shared}])
+    add('clone', compound(null), [{'call': 'clone'}])
     return out
 
 
@@ -939,7 +1066,8 @@ REQUIRED_LABELS = {
     'add-flatten', 'add-flatten-shared', 'add-shared-clone', 'add-owned',
     'circle-ctor-default', 'circle-ctor-center_radius', 'circle-ctor-circle', 'circle-ctor-copy',
     'arc-ctor-default', 'arc-ctor-three_point', 'ellipse-ctor-default', 'ellipse-ctor-radii',
-    'ellipse-ctor-arc_radii', 'compound-ctor',
+    'ellipse-ctor-arc_radii', 'compound-ctor', 'add-null', 'shape-type-named',
+    'shape-type-unnamed',
 }
 
 

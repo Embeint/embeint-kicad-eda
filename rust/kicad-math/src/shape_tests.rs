@@ -10,10 +10,11 @@ use crate::circle::Circle;
 use crate::eda_angle::EdaAngle;
 use crate::geometry_headers::Ellipse;
 use crate::seg::{Seg, SegError};
+use crate::stream::{StreamError, StreamInsert, StreamState};
 
 use crate::shape::{
     shape_type_as_string, Shape, ShapeError, ShapeLineChainBase, ShapeResult, ShapeType,
-    MIN_PRECISION_IU, SHAPE_COLLISIONS_UNIT,
+    ShapeTypeValue, MIN_PRECISION_IU, SHAPE_COLLISIONS_UNIT,
 };
 use crate::shape_arc::{ShapeArc, ARC_HIGH_DEF, SHAPE_ARC_UNIT};
 use crate::shape_circle::{ShapeCircle, TRIGO_HEADER_UNIT};
@@ -98,7 +99,6 @@ fn seg_order_reverse_center_and_stream() -> Result<(), SegError> {
     assert_eq!(Seg::new(v(-5, 5), v(0, 0)).center()?, v(-2, 2));
     assert!(Seg::new(v(0, 0), v(1, 0)).less(&Seg::new(v(0, 0), v(1, 1))));
     assert!(!Seg::new(v(0, 1), v(0, 0)).less(&Seg::new(v(0, 0), v(9, 9))));
-    assert_eq!(s.stream()?, "[ [ -3 | 4 ] - [ 1 | 2 ] ]");
     assert_eq!(
         Seg::new(v(0, 0), v(10, 0)).intersect_lines(&Seg::new(v(5, -5), v(5, -1)))?,
         Some(v(5, 0))
@@ -107,10 +107,54 @@ fn seg_order_reverse_center_and_stream() -> Result<(), SegError> {
 }
 
 #[test]
+fn seg_stream_uses_the_caller_state() -> Result<(), StreamError> {
+    let s = Seg::with_index(v(-3, 4), v(1, 2), 7);
+    let mut state = StreamState::default();
+    assert_eq!(s.insert(&mut state)?, "[ [ -3 | 4 ] - [ 1 | 2 ] ]");
+    assert_eq!(state, StreamState::default());
+    // Flags reach every coordinate; only the first insertion is padded, and it resets the width.
+    let mut state = StreamState {
+        width: 5,
+        fill: '_',
+        ..StreamState::default()
+    };
+    state.flags.dec = false;
+    state.flags.hex = true;
+    state.flags.showbase = true;
+    state.flags.uppercase = true;
+    assert_eq!(
+        Seg::new(v(10, 11), v(12, 13)).insert(&mut state)?,
+        "___[ [ 0XA | 0XB ] - [ 0XC | 0XD ] ]"
+    );
+    assert_eq!(state.width, 0);
+    // Left adjustment pads after "[ "; showpos marks non-negative decimal values.
+    let mut state = StreamState {
+        width: 4,
+        ..StreamState::default()
+    };
+    state.flags.left = true;
+    state.flags.showpos = true;
+    assert_eq!(
+        Seg::new(v(0, -1), v(i32::MIN, i32::MAX)).insert(&mut state)?,
+        "[   [ +0 | -1 ] - [ -2147483648 | +2147483647 ] ]"
+    );
+    // Octal and hexadecimal insert the bits as unsigned int.
+    let mut state = StreamState::default();
+    state.flags.dec = false;
+    state.flags.oct = true;
+    state.flags.showbase = true;
+    assert_eq!(
+        Seg::new(v(-1, 0), v(8, 9)).insert(&mut state)?,
+        "[ [ 037777777777 | 0 ] - [ 010 | 011 ] ]"
+    );
+    Ok(())
+}
+
+#[test]
 fn shape_type_names_and_values() {
     let names: Vec<&str> = ShapeType::ALL
         .iter()
-        .map(|t| shape_type_as_string(*t))
+        .map(|t| shape_type_as_string(ShapeTypeValue::of(*t)))
         .collect();
     assert_eq!(
         names,
@@ -129,6 +173,17 @@ fn shape_type_names_and_values() {
         ]
     );
     assert_eq!(ShapeType::Ellipse.value(), 10);
+    // 11 to 15 are unnamed values of the enumeration's range; the switch falls through.
+    for value in 0..=15 {
+        let t = ShapeTypeValue::new(value);
+        assert_eq!(t.map(ShapeTypeValue::value), Some(value));
+        assert_eq!(t.and_then(ShapeTypeValue::named).is_some(), value <= 10);
+        if value > 10 {
+            assert_eq!(t.map(shape_type_as_string), Some(""));
+        }
+    }
+    assert_eq!(ShapeTypeValue::new(-1), None);
+    assert_eq!(ShapeTypeValue::new(16), None);
     assert_eq!(MIN_PRECISION_IU, 4);
     assert_eq!(ARC_HIGH_DEF, 5000);
 }
@@ -336,16 +391,16 @@ fn shape_compound_add_and_flatten() -> ShapeResult<()> {
     assert!(c.unique_subshape().is_none());
     let a = ShapeCircle::with_center_radius(v(1, 1), 1);
     let b = ShapeCircle::with_center_radius(v(2, 2), 2);
-    c.add_shape(Box::new(a))?;
+    c.add_shape(Some(Box::new(a)))?;
     assert_eq!(circle_of(c.unique_subshape()), Some(a));
-    c.add_shape_shared(Rc::new(b))?;
+    c.add_shape_shared(Some(Rc::new(b)))?;
     assert_eq!((c.size(), c.get_indexable_subshape_count()), (2, 2));
     assert!(c.unique_subshape().is_none());
 
     // A nested compound is flattened into clones of its members.
     let mut outer = ShapeCompound::new();
-    outer.add_shape(Box::new(ShapeCircle::with_center_radius(v(9, 9), 9)))?;
-    outer.add_shape(Box::new(c))?;
+    outer.add_shape(Some(Box::new(ShapeCircle::with_center_radius(v(9, 9), 9))))?;
+    outer.add_shape(Some(Box::new(c)))?;
     let circles: Vec<Option<ShapeCircle>> = outer
         .shapes()
         .iter()
@@ -365,22 +420,44 @@ fn shape_compound_add_and_flatten() -> ShapeResult<()> {
 
     // The shared overload flattens too.
     let mut shared = ShapeCompound::new();
-    shared.add_shape_shared(Rc::new(outer))?;
+    shared.add_shape_shared(Some(Rc::new(outer)))?;
     assert_eq!(shared.size(), 3);
 
     // A base Clone's nullptr is stored as given.
     let mut nulls = ShapeCompound::new();
-    nulls.add_shape_shared(Rc::new(BaseOnly))?;
+    nulls.add_shape_shared(Some(Rc::new(BaseOnly)))?;
     assert_eq!(nulls.size(), 1);
     assert!(nulls.unique_subshape().is_none());
     assert!(nulls.shapes()[0].is_none());
 
+    // AddShape( (SHAPE*) nullptr ) stores the null pointer: a one-element compound.
+    let mut raw_null = ShapeCompound::new();
+    raw_null.add_shape(None)?;
+    assert!(!raw_null.empty() && raw_null.is_dirty());
+    assert_eq!(
+        (raw_null.size(), raw_null.get_indexable_subshape_count()),
+        (1, 1)
+    );
+    assert!(raw_null.unique_subshape().is_none());
+    let mut subshapes: Vec<Option<&dyn Shape>> = Vec::new();
+    raw_null.get_indexable_subshapes(&mut subshapes);
+    assert!(subshapes.len() == 1 && subshapes[0].is_none());
+    // A null shared_ptr is dereferenced by aShape->Clone(), and flattening a compound holding a
+    // null entry dereferences it in subshape->Clone(): both undefined, refused unchanged.
+    let mut target = ShapeCompound::new();
+    assert_eq!(target.add_shape_shared(None), Err(ShapeError::Undefined));
+    assert_eq!(
+        target.add_shape(Some(Box::new(raw_null))),
+        Err(ShapeError::Undefined)
+    );
+    assert!(target.empty());
+
     // An arc member stops the flattening at its out-of-line copy constructor.
     let mut with_arc = ShapeCompound::new();
-    with_arc.add_shape(Box::new(ShapeArc::new()))?;
+    with_arc.add_shape(Some(Box::new(ShapeArc::new())))?;
     let mut target = ShapeCompound::new();
     assert_eq!(
-        target.add_shape(Box::new(with_arc)),
+        target.add_shape(Some(Box::new(with_arc))),
         Err(deferred(
             "SHAPE_ARC::SHAPE_ARC(const SHAPE_ARC&)",
             SHAPE_ARC_UNIT

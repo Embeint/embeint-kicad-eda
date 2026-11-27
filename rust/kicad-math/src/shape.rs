@@ -135,22 +135,79 @@ impl ShapeType {
     }
 }
 
-/// `SHAPE_TYPE_asString`. The C++ `switch` covers every enumerator; its trailing
-/// `return wxEmptyString` is reachable only for a value outside the enumeration, which
-/// [`ShapeType`] cannot hold.
-pub const fn shape_type_as_string(a: ShapeType) -> &'static str {
-    match a {
-        ShapeType::Rect => "SH_RECT",
-        ShapeType::Segment => "SH_SEGMENT",
-        ShapeType::LineChain => "SH_LINE_CHAIN",
-        ShapeType::Circle => "SH_CIRCLE",
-        ShapeType::Simple => "SH_SIMPLE",
-        ShapeType::PolySet => "SH_POLY_SET",
-        ShapeType::Compound => "SH_COMPOUND",
-        ShapeType::Arc => "SH_ARC",
-        ShapeType::Null => "SH_NULL",
-        ShapeType::PolySetTriangle => "SH_POLY_SET_TRIANGLE",
-        ShapeType::Ellipse => "SH_ELLIPSE",
+/// Any value a `SHAPE_TYPE` object can hold, named or not.
+///
+/// `SHAPE_TYPE` is an unscoped enumeration without a fixed underlying type whose enumerators
+/// span 0 to 10, so its values are those of the smallest bit-field that holds them
+/// ([dcl.enum]/8): 0 to 15. 11 to 15 are defined values without an enumerator (a
+/// `static_cast<SHAPE_TYPE>` of them is defined); converting anything outside 0 to 15 is
+/// undefined, so [`ShapeTypeValue::new`] refuses it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ShapeTypeValue(u8);
+
+impl ShapeTypeValue {
+    /// The largest value of the enumeration's value range.
+    pub const MAX: i32 = 15;
+
+    /// `static_cast<SHAPE_TYPE>( value )`, or `None` when that conversion is undefined.
+    pub const fn new(value: i32) -> Option<Self> {
+        if value < 0 || value > Self::MAX {
+            return None;
+        }
+        Some(Self(value as u8))
+    }
+
+    /// The value of an enumerator.
+    pub const fn of(t: ShapeType) -> Self {
+        Self(t as i32 as u8)
+    }
+
+    /// The integer value.
+    pub const fn value(self) -> i32 {
+        self.0 as i32
+    }
+
+    /// The enumerator with this value, if there is one.
+    pub const fn named(self) -> Option<ShapeType> {
+        match self.0 {
+            0 => Some(ShapeType::Rect),
+            1 => Some(ShapeType::Segment),
+            2 => Some(ShapeType::LineChain),
+            3 => Some(ShapeType::Circle),
+            4 => Some(ShapeType::Simple),
+            5 => Some(ShapeType::PolySet),
+            6 => Some(ShapeType::Compound),
+            7 => Some(ShapeType::Arc),
+            8 => Some(ShapeType::Null),
+            9 => Some(ShapeType::PolySetTriangle),
+            10 => Some(ShapeType::Ellipse),
+            _ => None,
+        }
+    }
+}
+
+impl From<ShapeType> for ShapeTypeValue {
+    fn from(t: ShapeType) -> Self {
+        Self::of(t)
+    }
+}
+
+/// `SHAPE_TYPE_asString`. The C++ `switch` names every enumerator; an unnamed value of the
+/// enumeration (11 to 15) falls through to `return wxEmptyString`.
+pub const fn shape_type_as_string(a: ShapeTypeValue) -> &'static str {
+    match a.named() {
+        Some(ShapeType::Rect) => "SH_RECT",
+        Some(ShapeType::Segment) => "SH_SEGMENT",
+        Some(ShapeType::LineChain) => "SH_LINE_CHAIN",
+        Some(ShapeType::Circle) => "SH_CIRCLE",
+        Some(ShapeType::Simple) => "SH_SIMPLE",
+        Some(ShapeType::PolySet) => "SH_POLY_SET",
+        Some(ShapeType::Compound) => "SH_COMPOUND",
+        Some(ShapeType::Arc) => "SH_ARC",
+        Some(ShapeType::Null) => "SH_NULL",
+        Some(ShapeType::PolySetTriangle) => "SH_POLY_SET_TRIANGLE",
+        Some(ShapeType::Ellipse) => "SH_ELLIPSE",
+        None => "", // Just to quiet GCC.
     }
 }
 
@@ -192,7 +249,7 @@ pub trait Shape: Any + core::fmt::Debug {
 
     /// `SHAPE_BASE::TypeName`: `SHAPE_TYPE_asString( m_type )`.
     fn type_name(&self) -> &'static str {
-        shape_type_as_string(self.shape_type())
+        shape_type_as_string(ShapeTypeValue::of(self.shape_type()))
     }
 
     /// `SHAPE_BASE::HasIndexableSubshapes`.

@@ -2,7 +2,7 @@
 // Derived from KiCad poly_ystripes_index.h, copyright The KiCad Developers.
 //! Y stripe index over a borrowed snapshot of SHAPE_POLY_SET contours.
 //! The snapshot is a transport boundary, not a replacement SHAPE_POLY_SET implementation.
-use crate::eda_angle::{missing, GeometryError, GeometryResult};
+use crate::eda_angle::{GeometryError, GeometryResult};
 use crate::{math_util, Vector2I, VectorDomainError};
 
 /// One outline followed by its holes; vertex and outline order are significant.
@@ -208,12 +208,10 @@ fn vector_error(error: VectorDomainError) -> GeometryError {
         _ => GeometryError::IntegerOverflow,
     }
 }
-fn seg_square(_accuracy: i32) -> GeometryResult<i64> {
-    // UNPORTED(libs.kimath.include.geometry.application.ui.p003): SEG::Square
-    missing(
-        "SEG::Square",
-        "libs.kimath.include.geometry.application.ui.p003",
-    )
+/// `SEG::Square( aAccuracy )` (seg.h, `libs.kimath.include.geometry.application.ui.p003`):
+/// `ecoord( a ) * a`, which always fits `int64_t`.
+fn seg_square(accuracy: i32) -> GeometryResult<i64> {
+    Ok(crate::seg::Seg::square(accuracy))
 }
 /// `SEG( e.A, e.B ).SquaredDistance( aPoint )`.
 fn seg_squared_distance(a: Vector2I, b: Vector2I, point: Vector2I) -> GeometryResult<i64> {

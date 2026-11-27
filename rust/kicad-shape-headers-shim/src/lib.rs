@@ -17,12 +17,14 @@ use kicad_math::circle::Circle;
 use kicad_math::eda_angle::EdaAngle;
 use kicad_math::seg::{Seg, SegError};
 use kicad_math::seg_header::UNIT;
-use kicad_math::shape::{shape_type_as_string, Shape, ShapeError, ShapeType, MIN_PRECISION_IU};
+use kicad_math::shape::{
+    shape_type_as_string, Shape, ShapeError, ShapeTypeValue, MIN_PRECISION_IU,
+};
 use kicad_math::shape_arc::{ShapeArc, ARC_HIGH_DEF};
 use kicad_math::shape_circle::ShapeCircle;
 use kicad_math::shape_compound::ShapeCompound;
 use kicad_math::shape_ellipse::ShapeEllipse;
-use kicad_math::{Box2I, Vector2, Vector2I};
+use kicad_math::{Box2I, FmtFlags, StreamInsert, StreamState, Vector2, Vector2I};
 use serde_json::{json, Map, Value};
 
 const UNDEFINED: &str = "undefined p003 operation";
@@ -132,6 +134,68 @@ fn seg(v: &Value, name: &str) -> Result<Seg> {
         .filter(|a| a.len() == 2)
         .ok_or_else(|| format!("expected segment: {name}"))?;
     Ok(Seg::new(point_value(&a[0])?, point_value(&a[1])?))
+}
+/// `{"flags": [...], "precision": n, "width": n, "fill": "c"}` as the C++ adapter's
+/// `applyStreamState` reads it: each flag named once, precision and width within [-64, 512], a
+/// printable ASCII fill.
+fn stream_state(v: &Value) -> Result<StreamState> {
+    const ERROR: &str = "expected stream state";
+    let o = v.as_object().ok_or(ERROR)?;
+    if o.len() != 4
+        || ["flags", "precision", "width", "fill"]
+            .iter()
+            .any(|k| !o.contains_key(*k))
+    {
+        return Err(ERROR.into());
+    }
+    let names = v["flags"].as_array().ok_or(ERROR)?;
+    let mut flags = FmtFlags::default();
+    let mut seen: Vec<&str> = Vec::new();
+    for name in names {
+        let name = name.as_str().ok_or(ERROR)?;
+        if seen.contains(&name) {
+            return Err(ERROR.into());
+        }
+        seen.push(name);
+        let flag = match name {
+            "boolalpha" => &mut flags.boolalpha,
+            "dec" => &mut flags.dec,
+            "fixed" => &mut flags.fixed,
+            "hex" => &mut flags.hex,
+            "internal" => &mut flags.internal,
+            "left" => &mut flags.left,
+            "oct" => &mut flags.oct,
+            "right" => &mut flags.right,
+            "scientific" => &mut flags.scientific,
+            "showbase" => &mut flags.showbase,
+            "showpoint" => &mut flags.showpoint,
+            "showpos" => &mut flags.showpos,
+            "skipws" => &mut flags.skipws,
+            "unitbuf" => &mut flags.unitbuf,
+            "uppercase" => &mut flags.uppercase,
+            _ => return Err(ERROR.into()),
+        };
+        *flag = true;
+    }
+    let bounded = |name: &str| -> Result<i64> {
+        Ok(v[name]
+            .as_i64()
+            .filter(|n| (-64..=512).contains(n))
+            .ok_or(ERROR)?)
+    };
+    let precision = bounded("precision")?;
+    let width = bounded("width")?;
+    let fill = v["fill"]
+        .as_str()
+        .filter(|t| t.len() == 1 && t.bytes().all(|c| (0x20..0x7f).contains(&c)))
+        .and_then(|t| t.chars().next())
+        .ok_or(ERROR)?;
+    Ok(StreamState {
+        flags,
+        precision,
+        width,
+        fill,
+    })
 }
 fn array<'a>(v: &'a Value, name: &str) -> Result<&'a Vec<Value>> {
     Ok(v.get(name)
@@ -285,11 +349,22 @@ fn add_shape(compound: &mut ShapeCompound, item: &Value, is_call: bool) -> Resul
     } else {
         keys(item, &["shape", "shared"], &[])?;
     }
-    let shape = build(item.get("shape").ok_or("unexpected or missing field")?)?;
+    let spec = item.get("shape").ok_or("unexpected or missing field")?;
+    // A null "shape" is a null SHAPE*: stored by the raw overload, refused as undefined by the
+    // shared one (which dereferences it).
+    if spec.is_null() {
+        if boolean(item, "shared")? {
+            compound.add_shape_shared(None)?;
+        } else {
+            compound.add_shape(None)?;
+        }
+        return Ok(());
+    }
+    let shape = build(spec)?;
     if boolean(item, "shared")? {
-        compound.add_shape_shared(shape.shared())?;
+        compound.add_shape_shared(Some(shape.shared()))?;
     } else {
-        compound.add_shape(shape.boxed())?;
+        compound.add_shape(Some(shape.boxed()))?;
     }
     Ok(())
 }
@@ -807,11 +882,9 @@ fn run(v: &Value) -> Result<Value> {
         "shape_type_as_string" => {
             keys(v, &["op", "value"], &[])?;
             let value = int(v, "value")?;
-            let t = usize::try_from(value)
-                .ok()
-                .and_then(|i| ShapeType::ALL.get(i))
-                .ok_or("integer out of range")?;
-            Ok(json!(shape_type_as_string(*t)))
+            // Outside the enumeration's value range 0 to 15 the conversion is undefined.
+            let t = ShapeTypeValue::new(value).ok_or(UNDEFINED)?;
+            Ok(json!(shape_type_as_string(t)))
         }
         "seg_new" => {
             let ctor = text(v, "ctor")?;
@@ -875,7 +948,11 @@ fn run(v: &Value) -> Result<Value> {
         }
         "seg_canonical" | "seg_length" | "seg_squared_length" | "seg_center" | "seg_stream"
         | "seg_reversed" => {
-            keys(v, &["op", "seg"], &[])?;
+            if op == "seg_stream" {
+                keys(v, &["op", "seg"], &["state"])?;
+            } else {
+                keys(v, &["op", "seg"], &[])?;
+            }
             let s = seg(v, "seg")?;
             Ok(match op {
                 "seg_canonical" => {
@@ -885,7 +962,19 @@ fn run(v: &Value) -> Result<Value> {
                 "seg_length" => json!(s.length()?),
                 "seg_squared_length" => json!(s.squared_length()?),
                 "seg_center" => pt(s.center()?),
-                "seg_stream" => json!(s.stream()?),
+                "seg_stream" => {
+                    // Without "state", a fresh stream and the text alone; with it, the caller's
+                    // stream state, the text and the width left after the insertion.
+                    let Some(state) = v.get("state") else {
+                        let text = s
+                            .insert(&mut StreamState::default())
+                            .map_err(|e| e.to_string())?;
+                        return Ok(json!(text));
+                    };
+                    let mut state = stream_state(state)?;
+                    let text = s.insert(&mut state).map_err(|e| e.to_string())?;
+                    json!({"text": text, "width_after": state.width})
+                }
                 _ => segment(&s.reversed()),
             })
         }

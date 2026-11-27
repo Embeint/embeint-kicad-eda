@@ -2,8 +2,8 @@
 use super::*;
 use std::collections::BTreeMap;
 
-const CASES: usize = 4101;
-const CONTROLS: usize = 446;
+const CASES: usize = 4227;
+const CONTROLS: usize = 466;
 const ARC: &str = "libs.kimath.src.geometry.shape_arc.application.ui.p001";
 const COMPOUND: &str = "libs.kimath.src.geometry.shape_compound.application.ui.p001";
 const ELLIPSE: &str = "libs.kimath.src.geometry.shape_ellipse.application.ui.p001";
@@ -72,7 +72,7 @@ fn public_cases_succeed_or_defer_to_their_actual_owners() {
     .map(|(u, s, n)| ((u.to_string(), s.to_string()), n))
     .collect();
     assert_eq!(deferred, expected);
-    assert_eq!(ok, 3880);
+    assert_eq!(ok, 4006);
     assert_eq!(ok + deferred.values().sum::<usize>(), CASES);
 }
 
@@ -122,8 +122,51 @@ fn malformed_requests_are_refused_before_any_operation() {
             "expected array: coords",
         ),
         (
-            json!({"op": "shape_type_as_string", "value": 11}),
+            json!({"op": "shape_type_as_string", "value": 2147483648_i64}),
             "integer out of range",
+        ),
+        // Outside SHAPE_TYPE's value range 0 to 15 the conversion is undefined.
+        (
+            json!({"op": "shape_type_as_string", "value": 16}),
+            UNDEFINED,
+        ),
+        (
+            json!({"op": "seg_length", "seg": s, "state": {}}),
+            "unexpected or missing field",
+        ),
+        (
+            json!({"op": "seg_stream", "seg": s, "state": 5}),
+            "expected stream state",
+        ),
+        (
+            json!({"op": "seg_stream", "seg": s,
+                   "state": {"flags": ["hex", "hex"], "precision": 6, "width": 0, "fill": " "}}),
+            "expected stream state",
+        ),
+        (
+            json!({"op": "seg_stream", "seg": s,
+                   "state": {"flags": ["hexadecimal"], "precision": 6, "width": 0, "fill": " "}}),
+            "expected stream state",
+        ),
+        (
+            json!({"op": "seg_stream", "seg": s,
+                   "state": {"flags": [], "precision": 6, "width": 513, "fill": " "}}),
+            "expected stream state",
+        ),
+        (
+            json!({"op": "seg_stream", "seg": s,
+                   "state": {"flags": [], "precision": -65, "width": 0, "fill": " "}}),
+            "expected stream state",
+        ),
+        (
+            json!({"op": "seg_stream", "seg": s,
+                   "state": {"flags": [], "precision": 6, "width": 0, "fill": "ab"}}),
+            "expected stream state",
+        ),
+        (
+            json!({"op": "seg_stream", "seg": s,
+                   "state": {"flags": [], "precision": 6, "width": 0, "fill": " ", "x": 1}}),
+            "expected stream state",
         ),
         (
             json!({"op": "shape", "shape": {"kind": "square", "ctor": "default"}, "calls": []}),

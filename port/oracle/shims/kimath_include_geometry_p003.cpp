@@ -31,6 +31,7 @@
 #include <math/box2.h>
 #include <math/util.h>
 #include <trigo.h>
+#include <algorithm>
 #include <bit>
 #include <climits>
 #include <cmath>
@@ -169,6 +170,82 @@ const JSON& readArray( const JSON& aInput, const char* aName )
     if( !aInput.contains( aName ) || !aInput.at( aName ).is_array() )
         throw std::invalid_argument( std::string( "expected array: " ) + aName );
     return aInput.at( aName );
+}
+
+
+// Apply {"flags": [...], "precision": n, "width": n, "fill": "c"} to a fresh stream, as the
+// MATRIX3x3 stream adapter (kimath_math.cpp) does: precision and width within [-64, 512], a
+// printable ASCII fill, each flag named once.
+void applyStreamState( std::ostringstream& aStream, const JSON& aState )
+{
+    static const std::vector<std::pair<const char*, std::ios_base::fmtflags>> names = {
+        { "boolalpha", std::ios_base::boolalpha }, { "dec", std::ios_base::dec },
+        { "fixed", std::ios_base::fixed },         { "hex", std::ios_base::hex },
+        { "internal", std::ios_base::internal },   { "left", std::ios_base::left },
+        { "oct", std::ios_base::oct },             { "right", std::ios_base::right },
+        { "scientific", std::ios_base::scientific }, { "showbase", std::ios_base::showbase },
+        { "showpoint", std::ios_base::showpoint }, { "showpos", std::ios_base::showpos },
+        { "skipws", std::ios_base::skipws },       { "unitbuf", std::ios_base::unitbuf },
+        { "uppercase", std::ios_base::uppercase },
+    };
+    const char* error = "expected stream state";
+
+    if( !aState.is_object() || aState.size() != 4 || !aState.contains( "flags" )
+        || !aState.contains( "precision" ) || !aState.contains( "width" )
+        || !aState.contains( "fill" ) || !aState.at( "flags" ).is_array() )
+    {
+        throw std::invalid_argument( error );
+    }
+
+    std::ios_base::fmtflags  flags{};
+    std::vector<std::string> seen;
+
+    for( const JSON& item : aState.at( "flags" ) )
+    {
+        if( !item.is_string() )
+            throw std::invalid_argument( error );
+
+        const std::string& name = item.get_ref<const std::string&>();
+        const auto         found = std::find_if( names.begin(), names.end(),
+                                                 [&]( const auto& aEntry ) { return name == aEntry.first; } );
+
+        if( found == names.end() || std::find( seen.begin(), seen.end(), name ) != seen.end() )
+            throw std::invalid_argument( error );
+
+        seen.push_back( name );
+        flags |= found->second;
+    }
+
+    auto bounded = [&]( const char* aName )
+    {
+        const JSON& value = aState.at( aName );
+
+        if( !value.is_number_integer()
+            || ( value.is_number_unsigned() && value.get<uint64_t>() > 512 )
+            || ( !value.is_number_unsigned()
+                 && ( value.get<int64_t>() < -64 || value.get<int64_t>() > 512 ) ) )
+        {
+            throw std::invalid_argument( error );
+        }
+
+        return value.get<int64_t>();
+    };
+
+    const int64_t precision = bounded( "precision" );
+    const int64_t width = bounded( "width" );
+    const JSON&   fill = aState.at( "fill" );
+
+    if( !fill.is_string() || fill.get_ref<const std::string&>().size() != 1
+        || fill.get_ref<const std::string&>()[0] < 0x20
+        || fill.get_ref<const std::string&>()[0] > 0x7e )
+    {
+        throw std::invalid_argument( error );
+    }
+
+    aStream.flags( flags );
+    aStream.precision( static_cast<std::streamsize>( precision ) );
+    aStream.width( static_cast<std::streamsize>( width ) );
+    aStream.fill( fill.get_ref<const std::string&>()[0] );
 }
 
 
@@ -753,8 +830,28 @@ void addShape( SHAPE_COMPOUND& aCompound, const JSON& aItem, bool aIsCall )
     else
         checkKeys( aItem, { "shape", "shared" } );
 
+    // A null "shape" is a null SHAPE*: defined for the raw overload (stored unchanged), while
+    // the shared overload dereferences it in aShape->Clone().
+    if( aItem.at( "shape" ).is_null() )
+    {
+        if( readBool( aItem, "shared" ) )
+            undefined();
+        aCompound.AddShape( static_cast<SHAPE*>( nullptr ) );
+        return;
+    }
+
     std::unique_ptr<SHAPE> shape = buildShape( aItem.at( "shape" ) );
     const bool             shared = readBool( aItem, "shared" );
+
+    // Flattening a compound calls subshape->Clone() on every entry, a null one included.
+    if( shape->Type() == SH_COMPOUND )
+    {
+        for( const SHAPE* s : static_cast<const SHAPE_COMPOUND&>( *shape ).Shapes() )
+        {
+            if( !s )
+                undefined();
+        }
+    }
 
     if( shared )
         aCompound.AddShape( std::shared_ptr<SHAPE>( shape.release() ) );
@@ -1010,6 +1107,15 @@ JSON applyCall( SHAPE& aShape, const JSON& aCall )
     if( name == "clone" )
     {
         plain();
+        // SHAPE_COMPOUND's copy constructor calls shape->Clone() on every entry.
+        if( compound )
+        {
+            for( const SHAPE* s : compound->Shapes() )
+            {
+                if( !s )
+                    undefined();
+            }
+        }
         std::unique_ptr<SHAPE> copy( aShape.Clone() );
         return optionalState( copy.get() );
     }
@@ -1261,8 +1367,11 @@ JSON run( const JSON& aInput )
     {
         checkKeys( aInput, { "op", "value" } );
         const int value = readInt( aInput, "value" );
-        if( value < SH_RECT || value > SH_ELLIPSE )
-            throw std::invalid_argument( "integer out of range" );
+        // SHAPE_TYPE has no fixed underlying type and enumerators 0 to 10, so its values are
+        // 0 to 15 ([dcl.enum]/8); 11 to 15 are defined but unnamed. Converting any other value
+        // is undefined.
+        if( value < 0 || value > 15 )
+            undefined();
         return SHAPE_TYPE_asString( static_cast<SHAPE_TYPE>( value ) ).ToStdString();
     }
     if( op == "seg_new" )
@@ -1329,7 +1438,10 @@ JSON run( const JSON& aInput )
     if( op == "seg_canonical" || op == "seg_length" || op == "seg_squared_length"
         || op == "seg_center" || op == "seg_stream" || op == "seg_reversed" )
     {
-        checkKeys( aInput, { "op", "seg" } );
+        if( op == "seg_stream" )
+            checkKeys( aInput, { "op", "seg" }, { "state" } );
+        else
+            checkKeys( aInput, { "op", "seg" } );
         const SEG s = readSeg( aInput, "seg" );
 
         if( op == "seg_canonical" )
@@ -1352,9 +1464,18 @@ JSON run( const JSON& aInput )
         }
         if( op == "seg_stream" )
         {
+            // Without "state", a fresh stream and the text alone; with it, the caller's stream
+            // state, the text and the width left after the insertion.
             std::ostringstream stream;
+            if( !aInput.contains( "state" ) )
+            {
+                stream << s;
+                return stream.str();
+            }
+            applyStreamState( stream, aInput.at( "state" ) );
             stream << s;
-            return stream.str();
+            return JSON{ { "text", stream.str() },
+                         { "width_after", static_cast<int64_t>( stream.width() ) } };
         }
         return segment( s.Reversed() );
     }
