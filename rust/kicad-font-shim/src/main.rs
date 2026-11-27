@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #![forbid(unsafe_code)]
-use kicad_font_shim::{dispatch_with, Options};
+use kicad_font_shim::{dispatch_with, AssertHost, Options};
 use kicad_wx_stl_compat::ostream::SentryFlush;
 use std::io::{self, BufRead, Write};
 
@@ -11,6 +11,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Local diagnostics against a GCC 15+ runtime; the reference is the default.
             "--sentry-flush=when-good" => options.sentry_flush = SentryFlush::WhenGood,
             "--sentry-flush=unconditional" => options.sentry_flush = SentryFlush::Unconditional,
+            // The production wxOnAssert defers; a returning handler compares the continuation.
+            "--assert-host=deferred" => options.assert_host = AssertHost::Deferred,
+            "--assert-host=returning" => options.assert_host = AssertHost::Returning,
             _ => return Err(format!("unknown argument: {arg}").into()),
         }
     }

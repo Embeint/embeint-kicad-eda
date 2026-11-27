@@ -28,7 +28,7 @@ use kicad_wx_stl_compat::ostream::{
 };
 
 use crate::font::Font;
-use crate::wx_conv::{deferred_assert, whatever_works, ConvError};
+use crate::wx_conv::{deferred_assert, whatever_works, ConvError, OnAssert};
 use crate::FontError;
 
 /// Why a font insertion stopped.
@@ -55,7 +55,7 @@ pub fn insert_wx_string<H: StreamHost>(
     out: &mut OStream<H>,
     text: &WxString,
     context: CallContext,
-    on_assert: &mut dyn FnMut() -> Result<(), FontError>,
+    on_assert: &mut OnAssert<'_>,
 ) -> Result<(), FontStreamError<H::Exception>> {
     let buffer = whatever_works(text, on_assert).map_err(|error| match error {
         ConvError::Font(error) => FontStreamError::Font(error),
@@ -80,7 +80,7 @@ pub fn insert_font_with<'a, H: StreamHost, F: Font + ?Sized>(
     out: &'a mut OStream<H>,
     font: &F,
     context: CallContext,
-    on_assert: &mut dyn FnMut() -> Result<(), FontError>,
+    on_assert: &mut OnAssert<'_>,
 ) -> Result<&'a mut OStream<H>, FontStreamError<H::Exception>> {
     check_resources(out)?;
     out.insert_c_str(Some(b"[Font \""), context)?;
@@ -106,13 +106,23 @@ pub fn insert_font_ptr<'a, H: StreamHost, F: Font + ?Sized>(
     font: Option<&F>,
     context: CallContext,
 ) -> Result<&'a mut OStream<H>, FontStreamError<H::Exception>> {
+    insert_font_ptr_with(out, font, context, &mut deferred_assert)
+}
+
+/// [`insert_font_ptr`] with the `wxOnAssert` call supplied by the caller.
+pub fn insert_font_ptr_with<'a, H: StreamHost, F: Font + ?Sized>(
+    out: &'a mut OStream<H>,
+    font: Option<&F>,
+    context: CallContext,
+    on_assert: &mut OnAssert<'_>,
+) -> Result<&'a mut OStream<H>, FontStreamError<H::Exception>> {
     let Some(font) = font else {
         return Err(FontStreamError::Font(FontError::Undefined {
             upstream: "operator<<(std::ostream&, const KIFONT::FONT*)",
             reason: "dereferences a null FONT pointer",
         }));
     };
-    insert_font(out, font, context)
+    insert_font_with(out, font, context, on_assert)
 }
 
 #[cfg(test)]
@@ -199,7 +209,7 @@ mod tests {
     #[test]
     fn null_buffer_sets_badbit_and_later_insertions_fail() -> Result<(), TestError> {
         let mut out = OStream::new(StreamBuf::new(None, false)?);
-        let mut returned = || Ok(());
+        let mut returned = |_: &crate::wx_conv::WxAssert| Ok(());
         let result = insert_font_with(
             &mut out,
             &font(&[0x7FFF_FFFF], [false; 4])?,

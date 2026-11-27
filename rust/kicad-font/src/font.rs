@@ -105,15 +105,22 @@ pub trait Font {
     /// build that buffer is a non-owning view of `m_fontName`'s own conversion cache (or of a
     /// static `""` when the conversion fails), so it stays valid until the name is converted
     /// again or destroyed (`port/findings/font-header-p001-port.md`). A name holding a code
-    /// above U+10FFFF reaches the deferred `wxOnAssert`.
+    /// above U+10FFFF reaches the deferred `wxOnAssert` ([`wx_conv::STRICT_UTF8_ASSERT`]).
     fn name_as_token(&self) -> Result<Vec<u8>, FontError> {
-        wx_conv::utf8_str(self.get_name(), &mut wx_conv::deferred_assert).map_err(|error| {
-            match error {
-                wx_conv::ConvError::Font(error) => error,
-                wx_conv::ConvError::Alloc => FontError::Alloc {
-                    upstream: NAME_AS_TOKEN_UPSTREAM,
-                },
-            }
+        self.name_as_token_with(&mut wx_conv::deferred_assert)
+    }
+
+    /// [`Font::name_as_token`] with the `wxOnAssert` call supplied by the caller. When it
+    /// returns, the failed conversion leaves the static `""`: the token is empty.
+    fn name_as_token_with(
+        &self,
+        on_assert: &mut wx_conv::OnAssert<'_>,
+    ) -> Result<Vec<u8>, FontError> {
+        wx_conv::utf8_str(self.get_name(), on_assert).map_err(|error| match error {
+            wx_conv::ConvError::Font(error) => error,
+            wx_conv::ConvError::Alloc => FontError::Alloc {
+                upstream: NAME_AS_TOKEN_UPSTREAM,
+            },
         })
     }
 

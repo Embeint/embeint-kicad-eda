@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! JSONL adapter for `include.font.application.ui.p001` (the `font.h` and `outline_font.h`
 //! inline bodies). It mirrors `port/oracle/shims/include_font_p001.cpp`: the same requests,
-//! validation order and messages, the same "undefined font operation" refusals where the
-//! pinned evaluation is undefined and "outside the verified domain" refusals. Rust deferrals
-//! are reported as `unported` with their owner. The request schema is in `README.md`.
+//! validation order and messages, and the same "undefined font operation" refusals where the
+//! pinned evaluation is undefined. Rust deferrals are reported as `unported` with their owner;
+//! the production `wxOnAssert` is one of them. `--assert-host=returning` instead supplies a
+//! recording handler that returns, as wx's default handler does in the reference process, so
+//! the continuation after the assertion is compared too. The request schema is in `README.md`.
 #![forbid(unsafe_code)]
 #![deny(
     clippy::unwrap_used,
@@ -13,11 +15,12 @@
 )]
 
 use kicad_font::font::{draw, Font, FontBase};
-use kicad_font::font_stream::{insert_font, insert_font_ptr, FontStreamError};
+use kicad_font::font_stream::{insert_font_ptr_with, insert_font_with, FontStreamError};
 use kicad_font::outline_font::{EmbeddingPermission, FtFace, OutlineFont};
 use kicad_font::text_style::{
     is_bold, is_italic, is_subscript, is_superscript, TextStyle, TextStyleFlags, ITALIC_TILT,
 };
+use kicad_font::wx_conv::{deferred_assert, WxAssert};
 use kicad_font::{FontError, UNIT};
 use kicad_map_helpers::wx_string::{WChar, WxString};
 use kicad_math::Vector2I;
@@ -27,7 +30,6 @@ use kicad_wx_stl_compat::ostream::{
 use serde_json::{json, Map, Value};
 
 const UNDEFINED: &str = "undefined font operation";
-const OUTSIDE: &str = "outside the verified domain";
 const MAX_UNITS: usize = 4096;
 const MAX_WIDTH: i64 = 4096;
 const MAX_CAPACITY: i64 = 4096;
@@ -40,6 +42,58 @@ pub struct Options {
     /// [`SentryFlush::Unconditional`]; `--sentry-flush=when-good` matches a GCC 15+ runtime
     /// for local diagnostics only.
     pub sentry_flush: SentryFlush,
+    /// The `wxOnAssert` callee.
+    pub assert_host: AssertHost,
+}
+
+/// Which `wxOnAssert` callee the shim supplies.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum AssertHost {
+    /// The production callee: a typed `unported` deferral.
+    #[default]
+    Deferred,
+    /// A handler that records the call's arguments and returns, as wx 3.2.4's default handler
+    /// does without a `wxApp` (it logs and returns `false`): the C++ continuation follows.
+    /// Diagnostic comparison of that continuation only; not production behaviour.
+    Returning,
+}
+
+/// The `wxOnAssert` calls one operation made, and the callee it uses.
+struct Assertions {
+    host: AssertHost,
+    calls: Vec<WxAssert>,
+}
+
+impl Assertions {
+    fn new(host: AssertHost) -> Self {
+        Self {
+            host,
+            calls: Vec::new(),
+        }
+    }
+
+    fn on_assert(&mut self, assert: &WxAssert) -> core::result::Result<(), FontError> {
+        match self.host {
+            AssertHost::Deferred => deferred_assert(assert),
+            AssertHost::Returning => {
+                self.calls.push(*assert);
+                Ok(())
+            }
+        }
+    }
+
+    /// The recorded calls, as the oracle reports them.
+    fn json(&self) -> Value {
+        Value::Array(
+            self.calls
+                .iter()
+                .map(|a| {
+                    json!({"line": a.line, "function": a.function,
+                           "condition": a.condition, "message": a.message})
+                })
+                .collect(),
+        )
+    }
 }
 
 enum Error {
@@ -225,7 +279,6 @@ impl Font for ShimFont {
 
 struct Holder {
     font: ShimFont,
-    name: Vec<WChar>,
 }
 
 fn make_font(spec: &Value, outline_only: bool) -> Result<Holder> {
@@ -298,7 +351,7 @@ fn make_font(spec: &Value, outline_only: bool) -> Result<Holder> {
         ShimFont::Base(base) | ShimFont::Scripted(base, _) => base.font_name = name_text,
         ShimFont::Outline(outline) => outline.font_base_mut().font_name = name_text,
     }
-    Ok(Holder { font, name })
+    Ok(Holder { font })
 }
 
 fn outline_of(holder: &mut Holder) -> Result<&mut OutlineFont> {
@@ -306,26 +359,6 @@ fn outline_of(holder: &mut Holder) -> Result<&mut OutlineFont> {
         ShimFont::Outline(font) => Ok(font),
         _ => Err("unknown font kind".into()),
     }
-}
-
-/// See the C++ adapter's `AnyUnitReachesAssert`: the strict encoder of `utf8_str()` runs over
-/// every unit, past NUL units.
-fn any_unit_reaches_assert(name: &[WChar]) -> bool {
-    name.iter()
-        .any(|&unit| u32::from_ne_bytes(unit.to_ne_bytes()) & 0x7FFF_FFFF > 0x10_FFFF)
-}
-
-/// See the C++ adapter's `NameReachesAssert`.
-fn name_reaches_assert(name: &[WChar]) -> bool {
-    for &unit in name {
-        if unit == 0 {
-            return false;
-        }
-        if u32::from_ne_bytes(unit.to_ne_bytes()) & 0x7FFF_FFFF > 0x10_FFFF {
-            return true;
-        }
-    }
-    false
 }
 
 // Streams ---------------------------------------------------------------------------------------
@@ -428,13 +461,6 @@ fn run_insert(input: &Value, options: Options) -> Result<Value> {
         return Err(UNDEFINED.into());
     }
     let holder = make_font(font_spec, false)?;
-    if name_reaches_assert(&holder.name) {
-        return Err(OUTSIDE.into());
-    }
-    let any_mask = mask.bad || mask.eof || mask.fail;
-    if unitbuf && !buffer.is_null() && sync_fails && any_mask {
-        return Err(OUTSIDE.into());
-    }
     let sink = if buffer.is_null() {
         Sink(None)
     } else {
@@ -453,14 +479,25 @@ fn run_insert(input: &Value, options: Options) -> Result<Value> {
     // The mask is still empty, so clear() cannot throw.
     let _ = out.clear(initial);
     let setup_threw = out.set_exceptions(mask).is_err();
+    let mut assertions = Assertions::new(options.assert_host);
+    let mut on_assert = |assert: &WxAssert| assertions.on_assert(assert);
     let reply = if pointer {
-        insert_font_ptr(&mut out, Some(&holder.font), CallContext::NORMAL).map(|_| ())
+        insert_font_ptr_with(
+            &mut out,
+            Some(&holder.font),
+            CallContext::NORMAL,
+            &mut on_assert,
+        )
+        .map(|_| ())
     } else {
-        insert_font(&mut out, &holder.font, CallContext::NORMAL).map(|_| ())
+        insert_font_with(&mut out, &holder.font, CallContext::NORMAL, &mut on_assert).map(|_| ())
     };
     let outcome = match reply {
         Ok(()) => "returned",
         Err(FontStreamError::Stream(InsertError::Failure)) => "failure",
+        // A failing sync() of a unitbuf stream whose setstate( badbit ) throws from the
+        // noexcept ~sentry: the reference process calls std::terminate with the state reached.
+        Err(FontStreamError::Stream(InsertError::Terminate)) => "terminate",
         Err(FontStreamError::Font(error)) => return Err(error.into()),
         Err(other) => return Err(format!("unexpected stream outcome: {other:?}").into()),
     };
@@ -475,6 +512,7 @@ fn run_insert(input: &Value, options: Options) -> Result<Value> {
         "sync_calls": syncs,
         "outcome": outcome,
         "setup_threw": setup_threw,
+        "assertions": assertions.json(),
     }))
 }
 
@@ -543,10 +581,11 @@ fn run(input: &Value, options: Options) -> Result<Value> {
         "name_as_token" => {
             keys(input, &["op", "font"], &[])?;
             let holder = make_font(field(input, "font")?, false)?;
-            if any_unit_reaches_assert(&holder.name) {
-                return Err(OUTSIDE.into());
-            }
-            Ok(json!({"bytes": hex(&holder.font.name_as_token()?)}))
+            let mut assertions = Assertions::new(options.assert_host);
+            let token = holder
+                .font
+                .name_as_token_with(&mut |assert: &WxAssert| assertions.on_assert(assert))?;
+            Ok(json!({"bytes": hex(&token), "assertions": assertions.json()}))
         }
         "insert" => run_insert(input, options),
         "draw" => {
@@ -759,5 +798,71 @@ mod tests {
         );
         assert_eq!(draw["error"]["kind"], json!("unported"));
         assert_eq!(draw["error"]["unit"], json!(kicad_font::FONT_CPP_UNIT));
+    }
+
+    fn unitbuf_stream(mask: Value) -> Value {
+        json!({"state": {"bad": false, "eof": false, "fail": false}, "exceptions": mask,
+               "flags": ["internal", "unitbuf"], "width": 3, "fill": 113,
+               "buffer": {"capacity": null, "sync_fails": true}})
+    }
+
+    #[test]
+    fn failing_unitbuf_sync_returns_or_terminates_by_mask() {
+        let font = json!({"kind": "scripted", "name": [0x4B], "stroke": true, "outline": true,
+                          "bold": false, "italic": true});
+        // The review's control insert-random-1871: an eof-only mask does not intersect the
+        // badbit the failing sync sets, so the eight insertions return (each syncs).
+        let eof = json!({"bad": false, "eof": true, "fail": false});
+        let out = reply(json!({"op": "insert", "font": font, "pointer": true,
+                               "stream": unitbuf_stream(eof)}));
+        assert_eq!(out["result"]["outcome"], json!("returned"));
+        assert_eq!(out["result"]["bytes"], json!(hex(b"[Font \"")));
+        assert_eq!(out["result"]["sync_calls"], json!(8));
+        assert_eq!(
+            out["result"]["state"],
+            json!({"bad": true, "eof": false, "fail": true})
+        );
+        // With badbit in the mask the first ~sentry's setstate( badbit ) terminates.
+        let bad = json!({"bad": true, "eof": false, "fail": false});
+        let out = reply(json!({"op": "insert", "font": font, "pointer": false,
+                               "stream": unitbuf_stream(bad)}));
+        assert_eq!(out["result"]["outcome"], json!("terminate"));
+        assert_eq!(out["result"]["bytes"], json!(hex(b"[Font \"")));
+        assert_eq!(out["result"]["sync_calls"], json!(1));
+        assert_eq!(out["result"]["width"], json!(0));
+    }
+
+    #[test]
+    fn assertion_defers_or_continues_with_a_returning_host() {
+        let font = json!({"kind": "base", "name": [0x41, 0x110000]});
+        let request = json!({"unit": UNIT, "case": "t",
+                             "input": {"op": "name_as_token", "font": font}})
+        .to_string();
+        let deferred = dispatch(&request);
+        assert_eq!(
+            deferred["error"],
+            json!({"kind": "unported", "unit": UNIT, "upstream": "wxOnAssert"})
+        );
+        let returning = dispatch_with(
+            &request,
+            Options {
+                assert_host: AssertHost::Returning,
+                ..Options::default()
+            },
+        );
+        assert_eq!(
+            returning["result"],
+            json!({"bytes": "", "assertions": [{"line": 1165, "function": "FromWChar",
+                   "condition": "Assert failure",
+                   "message": "trying to encode undefined Unicode character"}]})
+        );
+        // A first insertion that throws ends the operator before the name is converted.
+        let stream = json!({"state": {"bad": true, "eof": false, "fail": false},
+                            "exceptions": {"bad": false, "eof": false, "fail": true},
+                            "flags": [], "width": 0, "fill": 32,
+                            "buffer": {"capacity": null, "sync_fails": false}});
+        let out = reply(json!({"op": "insert", "font": font, "pointer": false, "stream": stream}));
+        assert_eq!(out["result"]["outcome"], json!("failure"));
+        assert_eq!(out["result"]["assertions"], json!([]));
     }
 }

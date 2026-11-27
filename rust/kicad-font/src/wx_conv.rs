@@ -10,9 +10,14 @@
 //! - [`utf8_str`]: the bytes `wxString::utf8_str().data()` points to.
 //!
 //! A code above U+10FFFF reaches `wxFAIL_MSG( "trying to encode undefined Unicode character" )`
-//! in the strict encoder. The assertion handler is a wx host effect no unit ports; the caller
-//! supplies it as `on_assert`: an error stops the conversion there, `Ok` continues as the
-//! reference does when the handler returns (the conversion then fails).
+//! in the strict encoder ([`STRICT_UTF8_ASSERT`]). The assertion handler is a wx host effect no
+//! unit ports; the caller supplies it as `on_assert`, which receives the arguments of that
+//! `wxOnAssert` call: an error stops the conversion there, `Ok` continues as the reference
+//! does when the handler returns (the conversion then fails). The production callee is
+//! [`deferred_assert`]. With no `wxApp`, wx 3.2.4's default handler (`src/common/appbase.cpp`,
+//! `wxDefaultAssertHandler` -> `ShowAssertDialog` -> `DoShowAssertDialog`, non-Windows) logs
+//! the message and returns `false`, so `wxTrapInAssert` stays false and the caller continues;
+//! that is the continuation a returning host selects.
 
 use alloc::vec::Vec;
 
@@ -22,6 +27,36 @@ use crate::{FontError, UNIT};
 
 /// `wxOnAssert`, reached by `wxFAIL_MSG` in `wxMBConvStrictUTF8::FromWChar`.
 pub const WX_ON_ASSERT: &str = "wxOnAssert";
+
+/// The arguments of one `wxOnAssert( __FILE__, __LINE__, __WXFUNCTION__, cond, msg )` call
+/// that a `wxFAIL_MSG` expansion makes when `wxTheAssertHandler` is set (wx 3.2
+/// `wxFAIL_MSG( msg )` -> `wxFAIL_COND_MSG( "Assert failure", msg )` ->
+/// `wxFAIL_COND_MSG_AT`). `__FILE__` is the library build's spelling of the source path and
+/// is left to the host.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WxAssert {
+    /// `__LINE__` in the wxWidgets 3.2.4 source.
+    pub line: u32,
+    /// `__WXFUNCTION__` (GCC's `__FUNCTION__`: the unqualified member name).
+    pub function: &'static str,
+    /// The condition argument, `"Assert failure"` for `wxFAIL_MSG`.
+    pub condition: &'static str,
+    /// The `wxT( ... )` message.
+    pub message: &'static str,
+}
+
+/// The only assertion these conversions reach: `wxFAIL_MSG` at `src/common/strconv.cpp:1165`
+/// of wxWidgets 3.2.4, in `wxMBConvStrictUTF8::FromWChar`.
+pub const STRICT_UTF8_ASSERT: WxAssert = WxAssert {
+    line: 1165,
+    function: "FromWChar",
+    condition: "Assert failure",
+    message: "trying to encode undefined Unicode character",
+};
+
+/// The `wxOnAssert` callee: `Ok` when the host's handler returned (and did not request
+/// `wxTrap()`), an error to stop the evaluation there.
+pub type OnAssert<'a> = dyn FnMut(&WxAssert) -> Result<(), FontError> + 'a;
 
 /// Why a conversion did not complete.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -33,8 +68,9 @@ pub enum ConvError {
     Alloc,
 }
 
-/// The production `wxOnAssert`: deferred.
-pub fn deferred_assert() -> Result<(), FontError> {
+/// The production `wxOnAssert`: deferred. No unit ports the wx assertion handler; the call
+/// is reached from this unit's own bodies, so the deferral names this unit.
+pub fn deferred_assert(_assert: &WxAssert) -> Result<(), FontError> {
     // UNPORTED(include.font.application.ui.p001): wxOnAssert
     Err(FontError::Unported {
         upstream: WX_ON_ASSERT,
@@ -48,7 +84,7 @@ pub fn deferred_assert() -> Result<(), FontError> {
 /// after `on_assert` returned for a larger code.
 pub fn strict_utf8(
     units: &[WChar],
-    on_assert: &mut dyn FnMut() -> Result<(), FontError>,
+    on_assert: &mut OnAssert<'_>,
 ) -> Result<Option<Vec<u8>>, ConvError> {
     let mut bytes = Vec::new();
     bytes
@@ -73,7 +109,7 @@ pub fn strict_utf8(
             bytes.push(0x80 | (code & 0x3F) as u8);
         } else {
             // wxFAIL_MSG, then break: "we only get here if an error occurs".
-            on_assert().map_err(ConvError::Font)?;
+            on_assert(&STRICT_UTF8_ASSERT).map_err(ConvError::Font)?;
             return Ok(None);
         }
     }
@@ -90,7 +126,7 @@ pub fn strict_utf8(
 /// convert the same units, so they agree.
 pub fn whatever_works(
     text: &WxString,
-    on_assert: &mut dyn FnMut() -> Result<(), FontError>,
+    on_assert: &mut OnAssert<'_>,
 ) -> Result<Option<Vec<u8>>, ConvError> {
     let units = text.units();
     let end = units
@@ -118,10 +154,7 @@ pub fn whatever_works(
 /// static `""`. Either way the pointer outlives the temporary buffer: it stays valid until the
 /// string is converted again or destroyed. A reader sees the bytes up to the first NUL byte
 /// (from a NUL unit, or a unit 0x80000000).
-pub fn utf8_str(
-    text: &WxString,
-    on_assert: &mut dyn FnMut() -> Result<(), FontError>,
-) -> Result<Vec<u8>, ConvError> {
+pub fn utf8_str(text: &WxString, on_assert: &mut OnAssert<'_>) -> Result<Vec<u8>, ConvError> {
     let Some(mut bytes) = strict_utf8(text.units(), on_assert)? else {
         return Ok(Vec::new());
     };
@@ -166,7 +199,7 @@ mod tests {
         assert_eq!(convert(&[i32::MIN])?, Some(b"\0".to_vec()));
         assert_eq!(convert(&[])?, Some(Vec::new()));
         assert!(convert(&[0x110000]).is_err());
-        let mut returned = || Ok(());
+        let mut returned = |_: &WxAssert| Ok(());
         let text = WxString::from_units(&[0x41, -1])?;
         assert_eq!(whatever_works(&text, &mut returned), Ok(None));
         Ok(())
@@ -174,13 +207,21 @@ mod tests {
 
     #[test]
     fn utf8_str_converts_past_nul_units() -> Result<(), Failed> {
-        let mut returned = || Ok(());
+        let mut returned = |_: &WxAssert| Ok(());
         let text = WxString::from_units(&[0x41, 0xE9, 0, 0x42])?;
         assert_eq!(utf8_str(&text, &mut deferred_assert)?, b"A\xc3\xa9");
         // The strict encoder runs past the NUL unit, so a later invalid code still asserts.
         let text = WxString::from_units(&[0x41, 0, 0x110000])?;
         assert!(utf8_str(&text, &mut deferred_assert).is_err());
         assert_eq!(utf8_str(&text, &mut returned)?, b"");
+        // The handler receives that call's arguments, once per failed conversion.
+        let mut seen = Vec::new();
+        let mut record = |assert: &WxAssert| {
+            seen.push(*assert);
+            Ok(())
+        };
+        assert_eq!(utf8_str(&text, &mut record)?, b"");
+        assert_eq!(seen, [STRICT_UTF8_ASSERT]);
         let text = WxString::from_units(&[0x41, i32::MIN, 0x42])?;
         assert_eq!(utf8_str(&text, &mut deferred_assert)?, b"A");
         Ok(())

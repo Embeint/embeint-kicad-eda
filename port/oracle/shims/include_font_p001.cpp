@@ -9,27 +9,46 @@
 // points to a value-initialised FT_FaceRec owned here with the requested style_flags. Every
 // result comes from the header bodies, the pinned font.cpp/outline_font.cpp, the
 // distribution wxWidgets and libstdc++. Requests whose evaluation is undefined are refused
-// with "undefined font operation"; requests outside the verified domain (a name conversion
-// reaching wxFAIL_MSG, a unitbuf stream whose failing sync could throw from the sentry
-// destructor) with "outside the verified domain". rust/kicad-font-shim mirrors this file's
-// validation order and messages.
+// with "undefined font operation". rust/kicad-font-shim mirrors this file's validation order
+// and messages.
+//
+// Two defined outcomes need a host observation:
+// - A name conversion reaching wxFAIL_MSG calls wxOnAssert. A recording handler wraps the
+//   process's own handler (wx 3.2.4's default: with no wxApp it logs the message and returns),
+//   records the call's arguments in the reply and then calls that handler, so the genuine
+//   continuation follows. With no handler installed, nothing is installed: wxFAIL_MSG then
+//   makes no call.
+// - A unitbuf stream whose failing sync() makes ~sentry's setstate( badbit ) throw calls
+//   std::terminate (the destructor is noexcept). Every insertion therefore runs in a forked
+//   child whose terminate handler reports the state reached, as the accepted wx-stl-compat
+//   adapter (core_wx_stl_compat.cpp) does; an abort in the child is a harness failure.
 #include "registry.h"
 #include <font/font_metrics.h>
 #include <font/outline_font.h>
 #include <font/text_attributes.h>
+#include <wx/debug.h>
 #include <wx/string.h>
+#include <cerrno>
 #include <climits>
+#include <csignal>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
+#include <exception>
+#include <fcntl.h>
+#include <functional>
 #include <initializer_list>
 #include <ios>
+#include <iostream>
 #include <memory>
 #include <optional>
 #include <ostream>
 #include <stdexcept>
 #include <streambuf>
 #include <string>
+#include <sys/wait.h>
+#include <unistd.h>
 #include <vector>
 
 #if !wxUSE_UNICODE_WCHAR
@@ -39,12 +58,24 @@
 static_assert( sizeof( wchar_t ) == 4 && WCHAR_MIN < 0, "names are signed 32-bit wchar_t units" );
 static_assert( sizeof( FT_Long ) == 8, "style_flags is a 64-bit long" );
 
+/// The exit status of an insertion child that received SIGABRT.
+constexpr int FONT_ABORT_STATUS = 5;
+
+extern "C"
+{
+/// The insertion child's SIGABRT handler: only ends the process (std::_Exit is signal-safe).
+/// The oracle process then reports a harness failure; no defined outcome aborts.
+[[noreturn]] static void FontAbortExit( int )
+{
+    std::_Exit( FONT_ABORT_STATUS );
+}
+}
+
 namespace
 {
 using oracle::JSON;
 constexpr const char* FONT_UNIT = "include.font.application.ui.p001";
 constexpr const char* UNDEFINED = "undefined font operation";
-constexpr const char* OUTSIDE = "outside the verified domain";
 constexpr size_t      MAX_UNITS = 4096;
 constexpr int64_t     MAX_WIDTH = 4096;
 constexpr int64_t     MAX_CAPACITY = 4096;
@@ -368,35 +399,184 @@ FONT_HOLDER MakeFont( const JSON& aSpec, bool aOutlineOnly )
 }
 
 
-/// Whether converting the name for the stream reaches wxFAIL_MSG: a unit before the first NUL
-/// whose code (unit & 0x7fffffff) exceeds 0x10FFFF, which wxConvLibc in the C locale rejects
-/// and wxMBConvStrictUTF8 asserts on.
-bool NameReachesAssert( const std::vector<wchar_t>& aName )
-{
-    for( wchar_t unit : aName )
-    {
-        if( unit == 0 )
-            return false;
+/// The wxOnAssert calls of the current operation, and the handler the recorder wraps.
+JSON*             g_assertions = nullptr;
+bool              g_foreignAssertion = false;
+wxAssertHandler_t g_wrappedHandler = nullptr;
 
-        if( ( static_cast<uint32_t>( unit ) & 0x7fffffffu ) > 0x10ffffu )
-            return true;
+
+/// Records one wxOnAssert call (line, function, condition and message; the file is the library
+/// build's spelling of its path and is only checked to be strconv.cpp, the one assertion site
+/// these bodies reach), then calls the wrapped handler.
+void RecordAssertion( const wxString& aFile, int aLine, const wxString& aFunc,
+                      const wxString& aCond, const wxString& aMsg )
+{
+    if( g_assertions )
+    {
+        if( !aFile.EndsWith( wxS( "src/common/strconv.cpp" ) ) )
+            g_foreignAssertion = true;
+
+        g_assertions->push_back( JSON{ { "line", aLine },
+                                       { "function", aFunc.utf8_string() },
+                                       { "condition", aCond.utf8_string() },
+                                       { "message", aMsg.utf8_string() } } );
     }
 
-    return false;
+    if( g_wrappedHandler )
+        g_wrappedHandler( aFile, aLine, aFunc, aCond, aMsg );
 }
 
 
-/// Whether NameAsToken's utf8_str() reaches wxFAIL_MSG: it converts every unit with an
-/// explicit length (past NUL units) through wxMBConvStrictUTF8.
-bool AnyUnitReachesAssert( const std::vector<wchar_t>& aName )
+/// Installs RecordAssertion around the process's handler for one operation, and only if a
+/// handler is installed (wxFAIL_MSG calls wxOnAssert only then).
+class ASSERTION_SCOPE
 {
-    for( wchar_t unit : aName )
+public:
+    explicit ASSERTION_SCOPE( JSON& aCalls )
     {
-        if( ( static_cast<uint32_t>( unit ) & 0x7fffffffu ) > 0x10ffffu )
-            return true;
+        g_assertions = &aCalls;
+        g_foreignAssertion = false;
+        g_wrappedHandler = wxTheAssertHandler;
+
+        if( g_wrappedHandler )
+            wxSetAssertHandler( RecordAssertion );
     }
 
-    return false;
+    ~ASSERTION_SCOPE()
+    {
+        if( g_wrappedHandler )
+            wxSetAssertHandler( g_wrappedHandler );
+
+        g_assertions = nullptr;
+        g_wrappedHandler = nullptr;
+    }
+
+    /// An assertion from another source would be outside what this adapter models.
+    static void Check()
+    {
+        if( g_foreignAssertion )
+            throw std::runtime_error( "unexpected wx assertion site" );
+    }
+
+    ASSERTION_SCOPE( const ASSERTION_SCOPE& ) = delete;
+    ASSERTION_SCOPE& operator=( const ASSERTION_SCOPE& ) = delete;
+};
+
+
+/// The reply for the state reached, from the insertion child's terminate handler.
+std::function<JSON()>* g_terminateReport = nullptr;
+int                    g_replyFd = -1;
+
+
+[[noreturn]] void WriteAndExit( int aFd, const JSON& aReply )
+{
+    const std::string text = aReply.dump();
+    size_t            done = 0;
+
+    while( done < text.size() )
+    {
+        const ssize_t wrote = write( aFd, text.data() + done, text.size() - done );
+
+        if( wrote < 0 && errno == EINTR )
+            continue;
+
+        if( wrote <= 0 )
+            _exit( 4 );
+
+        done += static_cast<size_t>( wrote );
+    }
+
+    _exit( 0 );
+}
+
+
+/// std::terminate in the child: a ~sentry whose setstate( badbit ) threw. Report the state.
+[[noreturn]] void ReportTermination()
+{
+    if( !g_terminateReport )
+        _exit( 4 );
+
+    WriteAndExit( g_replyFd, ( *g_terminateReport )() );
+}
+
+
+/// Runs aRun in a forked child that writes its reply to a pipe, so that a std::terminate
+/// inside it is observed rather than fatal to the oracle. Stdout is closed to the child (the
+/// protocol stream); its stderr (wx's assertion log) is inherited.
+JSON Isolated( const std::function<JSON()>& aRun )
+{
+    int pipeFds[2];
+
+    if( pipe( pipeFds ) != 0 )
+        throw std::runtime_error( "insertion pipe failed" );
+
+    std::cout.flush();
+    std::cerr.flush();
+    std::fflush( nullptr );
+    const pid_t pid = fork();
+
+    if( pid < 0 )
+    {
+        close( pipeFds[0] );
+        close( pipeFds[1] );
+        throw std::runtime_error( "insertion fork failed" );
+    }
+
+    if( pid == 0 )
+    {
+        close( pipeFds[0] );
+        const int null = open( "/dev/null", O_WRONLY );
+
+        if( null < 0 || dup2( null, STDOUT_FILENO ) < 0 )
+            _exit( 4 );
+
+        g_replyFd = pipeFds[1];
+        std::set_terminate( ReportTermination );
+        std::signal( SIGABRT, FontAbortExit );
+
+        try
+        {
+            WriteAndExit( pipeFds[1], aRun() );
+        }
+        catch( ... )
+        {
+            _exit( 4 );
+        }
+    }
+
+    close( pipeFds[1] );
+    std::string text;
+    char        chunk[4096];
+
+    for( ;; )
+    {
+        const ssize_t got = read( pipeFds[0], chunk, sizeof( chunk ) );
+
+        if( got < 0 && errno == EINTR )
+            continue;
+
+        if( got <= 0 )
+            break;
+
+        text.append( chunk, static_cast<size_t>( got ) );
+    }
+
+    close( pipeFds[0] );
+    int status = 0;
+
+    while( waitpid( pid, &status, 0 ) < 0 )
+    {
+        if( errno != EINTR )
+            throw std::runtime_error( "insertion wait failed" );
+    }
+
+    if( WIFEXITED( status ) && WEXITSTATUS( status ) == FONT_ABORT_STATUS )
+        throw std::runtime_error( "insertion child aborted" );
+
+    if( !WIFEXITED( status ) || WEXITSTATUS( status ) != 0 || text.empty() )
+        throw std::runtime_error( "insertion child failed" );
+
+    return JSON::parse( text );
 }
 
 
@@ -528,64 +708,80 @@ JSON RunInsert( const JSON& aInput )
     }
 
     holder = MakeFont( fontSpec, false );
+    const bool hasBuffer = !buffer.is_null();
 
-    if( NameReachesAssert( holder.name ) )
-        Fail( OUTSIDE );
+    // In the child: libstdc++ 14's ~sentry syncs a unitbuf stream and calls setstate( badbit )
+    // from a noexcept destructor when sync fails, which terminates when badbit is in the mask.
+    JSON reply = Isolated(
+            [&]() -> JSON
+            {
+                std::unique_ptr<SINK> sink;
 
-    // libstdc++ 14's ~sentry syncs a unitbuf stream and calls setstate( badbit ) from a
-    // noexcept destructor when sync fails: with a nonempty mask that may terminate.
-    if( ( flags & std::ios::unitbuf ) && !buffer.is_null() && syncFails
-        && mask != std::ios::goodbit )
-    {
-        Fail( OUTSIDE );
-    }
+                if( hasBuffer )
+                    sink = std::make_unique<SINK>( capacity, syncFails );
 
-    std::unique_ptr<SINK> sink;
+                std::ostream os( sink.get() );
+                os.setf( flags );
+                os.width( width );
+                os.fill( fill );
+                os.clear( state );
+                bool setupThrew = false;
 
-    if( !buffer.is_null() )
-        sink = std::make_unique<SINK>( capacity, syncFails );
+                try
+                {
+                    os.exceptions( mask );
+                }
+                catch( const std::ios_base::failure& )
+                {
+                    setupThrew = true;
+                }
 
-    std::ostream os( sink.get() );
-    os.setf( flags );
-    os.width( width );
-    os.fill( fill );
-    os.clear( state );
-    bool setupThrew = false;
+                JSON            assertions = JSON::array();
+                ASSERTION_SCOPE scope( assertions );
 
-    try
-    {
-        os.exceptions( mask );
-    }
-    catch( const std::ios_base::failure& )
-    {
-        setupThrew = true;
-    }
+                auto report = [&]( const char* aOutcome ) -> JSON
+                {
+                    return JSON{ { "bytes", Hex( sink ? sink->bytes : std::string() ) },
+                                 { "state", StateJSON( os.rdstate() ) },
+                                 { "width", static_cast<int64_t>( os.width() ) },
+                                 { "sync_calls", sink ? sink->syncs : 0 },
+                                 { "outcome", aOutcome },
+                                 { "setup_threw", setupThrew },
+                                 { "assertions", assertions },
+                                 { "foreign_assertion", g_foreignAssertion } };
+                };
 
-    std::string outcome = "returned";
+                std::function<JSON()> onTerminate = [&]() { return report( "terminate" ); };
+                g_terminateReport = &onTerminate;
+                const char* outcome = "returned";
 
-    try
-    {
-        if( pointer )
-        {
-            const KIFONT::FONT* font = holder.font.get();
-            os << font;
-        }
-        else
-        {
-            os << static_cast<const KIFONT::FONT&>( *holder.font );
-        }
-    }
-    catch( const std::ios_base::failure& )
-    {
-        outcome = "failure";
-    }
+                try
+                {
+                    if( pointer )
+                    {
+                        const KIFONT::FONT* font = holder.font.get();
+                        os << font;
+                    }
+                    else
+                    {
+                        os << static_cast<const KIFONT::FONT&>( *holder.font );
+                    }
+                }
+                catch( const std::ios_base::failure& )
+                {
+                    outcome = "failure";
+                }
 
-    return JSON{ { "bytes", Hex( sink ? sink->bytes : std::string() ) },
-                 { "state", StateJSON( os.rdstate() ) },
-                 { "width", static_cast<int64_t>( os.width() ) },
-                 { "sync_calls", sink ? sink->syncs : 0 },
-                 { "outcome", outcome },
-                 { "setup_threw", setupThrew } };
+                g_terminateReport = nullptr;
+                return report( outcome );
+            } );
+
+    // The child cannot throw past its reply; an assertion from another site fails here.
+    if( reply.value( "foreign_assertion", true ) )
+        throw std::runtime_error( "unexpected wx assertion site" );
+
+    reply.erase( "foreign_assertion" );
+    return reply;
 }
 
 
@@ -668,14 +864,20 @@ JSON Run( const JSON& aInput )
     {
         Keys( aInput, { "op", "font" } );
         FONT_HOLDER holder = MakeFont( aInput.at( "font" ), false );
+        JSON        assertions = JSON::array();
+        std::string bytes;
 
-        if( AnyUnitReachesAssert( holder.name ) )
-            Fail( OUTSIDE );
+        {
+            ASSERTION_SCOPE scope( assertions );
 
-        // In the wchar_t build the pointer is into m_fontName's own conversion cache, valid
-        // until the name is converted again.
-        const char* token = holder.font->NameAsToken();
-        return JSON{ { "bytes", Hex( std::string( token ) ) } };
+            // In the wchar_t build the pointer is into m_fontName's own conversion cache (or
+            // the static "" of a failed conversion), valid until the name is converted again.
+            const char* token = holder.font->NameAsToken();
+            bytes = token;
+            ASSERTION_SCOPE::Check();
+        }
+
+        return JSON{ { "bytes", Hex( bytes ) }, { "assertions", assertions } };
     }
 
     if( op == "insert" )
