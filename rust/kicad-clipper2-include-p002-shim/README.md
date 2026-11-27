@@ -14,7 +14,10 @@ wrappers call) and calls every overload, including the default-argument forms. I
 evaluation (`port/oracle/reference/clipper2_include_p002_ops.inc`) is compiled a second time
 against the pinned `clipper.engine.cpp`, `clipper.offset.cpp` and `clipper.rectclip.cpp` in a
 renamed namespace with UBSan in trap mode and `_GLIBCXX_ASSERTIONS`; every request runs on that
-copy first in a forked child. A trap, failed assertion or fault there refuses the request as
+copy first in a forked child. GCC 13.3's `std::vector<bool>::operator[]` has no subscript
+assertion (GCC 15's has) and UBSan cannot see a read of a spare bit in an allocated word, so the
+replay copy (only, `INCLUDE_P002_REPLAY`) also reads the flags at the indices
+`details::GetNext`/`GetPrior` read and traps on one outside the vector. A trap, failed assertion or fault there refuses the request as
 `undefined behaviour: <op>`; a child beyond the replay time (20 s) or memory (4 GiB) limit
 refuses it as `harness limit: <op>`. Only a clean replay lets the genuine call answer. The
 adapter is linked after every earlier adapter, so no earlier weak template selection changes.
@@ -50,16 +53,19 @@ Both programs refuse with identical envelopes, before any reference call:
 
 - Input domain (`invalid input: domain`): boolean `int64_t` coordinates outside Clipper2's
   `-MAX_COORD..MAX_COORD`; offset coordinates, deltas, miter limits and arc tolerances outside
-  `±2^40` or non-finite, for `PathsD` after scaling (so `ScalePaths`' range exception is beyond
-  the harness domain); Minkowski coordinates (or scaled coordinates below 2^63) beyond half the
+  `±2^40` or non-finite, for `PathsD` after scaling, unless `ScalePaths<int64_t, double>`'s own
+  bounds test fails first (that request reaches its defined `Values exceed permitted range`
+  exception, compared); Minkowski coordinates (or scaled coordinates below 2^63) beyond half the
   engine domain.
 - Resource guards: round offsets at most 65,536 arc steps per circle and 2^22 points
   (`arc steps`, as the src p002 adapter); `Ellipse` at most 2^20 points (`steps`); at most
   2^14 Minkowski quadrilaterals, 1,024 points per `RamerDouglasPeucker` path (it copies the
   path into every recursive call), 4,096 per `SimplifyPath` path, 4,096 tree nodes, flags and
   `MakePath` values, and 2^16 points per request (`size`).
-- `RamerDouglasPeucker` with a NaN epsilon (`epsilon`): its recursion does not end on nearly
-  every path; the port refuses the repeating call as undefined, the harness refuses the input.
+- `RamerDouglasPeucker` with a NaN epsilon (`epsilon`), only when it would not end: both
+  adapters follow `RDP`'s calls in the reference's order and refuse a call that repeats an active
+  ancestor's arguments (it recurses forever) or calls beyond `4 * 1024 + 16` per path. Paths
+  shorter than five points (copied without an `RDP` call) and recursions that end are compared.
 - Malformed requests: fields, enumerators, defaults, sizes, element ranges.
 
 Everything else, including undefined reference evaluation, is decided per request by the
