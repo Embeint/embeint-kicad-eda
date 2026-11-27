@@ -34,9 +34,9 @@ use kicad_wx_stl_compat::ostream::{
 /// `SEXPR( SEXPR_TYPE, size_t aLineNumber )`, stores its argument unchanged.)
 pub(crate) const DEFAULT_LINE_NUMBER: u64 = 1;
 
-/// `std::string::max_size()` of the reference's libstdc++ on LP64:
-/// `( allocator max_size() - 1 ) / 2` with an allocator limit of `PTRDIFF_MAX`.
-pub const STRING_MAX_SIZE: u64 = (1 << 62) - 1;
+/// `std::string::max_size()` of the reference's libstdc++ (GCC 12 and later) on LP64:
+/// `min( PTRDIFF_MAX, allocator max_size() ) - 1`, both limits being `PTRDIFF_MAX`.
+pub const STRING_MAX_SIZE: u64 = (1 << 63) - 2;
 
 /// `what()` of the `std::length_error` that `std::string::append( n, c )` throws.
 pub const APPEND_LENGTH_ERROR: &str = "basic_string::_M_replace_aux";
@@ -681,7 +681,13 @@ mod tests {
             Some(&b"\n(\n  ())"[..])
         );
         assert_eq!(
-            list.as_string(1 << 61),
+            list.as_string(1 << 62),
+            Err(SexprError::LengthError(APPEND_LENGTH_ERROR))
+        );
+        // At a nonzero level the newline already in the frame's result leaves one byte less:
+        // 2 * (2^62 - 1) = max_size() exceeds max_size() - 1.
+        assert_eq!(
+            SexprList::new().as_string((1 << 62) - 1),
             Err(SexprError::LengthError(APPEND_LENGTH_ERROR))
         );
         assert_eq!(

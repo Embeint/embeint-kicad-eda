@@ -178,7 +178,7 @@ mod tests {
     }
 
     /// The source corpus size (generate_cases.py).
-    const SOURCE_CASES: usize = 5765;
+    const SOURCE_CASES: usize = 5762;
     /// The control count (generate_cases.py).
     const CONTROLS: usize = 97;
 

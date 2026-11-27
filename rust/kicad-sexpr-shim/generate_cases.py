@@ -428,7 +428,7 @@ def control(unit, name, input_, error=None):
 
 # std::string::max_size() of the LP64 libstdc++ reference and the AsString request bounds
 # (identical in both adapters).
-STRING_MAX = 2**62 - 1
+STRING_MAX = 2**63 - 2
 MAX_INDENT = 1 << 20
 MAX_OUTPUT = 64 << 20
 MAX_WORK = 1 << 30
@@ -443,8 +443,8 @@ SPECIAL_FLOAT_BITS = [
 
 # AsString levels: the default argument (None), small levels, the indentation bound, and
 # levels whose size_t indentation wraps or exceeds max_size() (length_error).
-SPECIAL_LEVELS = [None, 0, 1, 2, 3, 7, 100, 2**19, 2**61 - 1, 2**61, 2**62, 2**63 - 1, 2**63,
-                  2**63 + 1, 2**63 + 2**61, 2**64 - 1]
+SPECIAL_LEVELS = [None, 0, 1, 2, 3, 7, 100, 2**19, 2**61, 2**62 - 2, 2**62 - 1, 2**62,
+                  2**63 - 1, 2**63, 2**63 + 1, 2**63 + 2**61, 2**63 + 2**62, 2**64 - 1]
 
 
 def float_bits(pattern):
@@ -858,7 +858,7 @@ def source_controls():
     add('as-string-child-indent-above-bound', getter([['list', None, 1], ['list', None, 0]], [],
                                                      'AsString', level=2**19), TOO_LARGE)
     add('as-string-unallocatable-indent', getter([['list', None, 0]], [], 'AsString',
-                                                 level=2**61 - 1), TOO_LARGE)
+                                                 level=2**62 - 2), TOO_LARGE)
     add('extract-empty', {'op': 'extract', 'tree': [['list', None, 0]],
                           'targets': [{'kind': 'int32', 'initial': 0}]})
     add('extract-past-end', {'op': 'extract', 'tree': two,
