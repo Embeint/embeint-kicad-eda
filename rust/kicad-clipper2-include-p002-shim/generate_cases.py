@@ -23,6 +23,7 @@ successful continuation request in compare_controls.py.
 """
 import argparse
 import json
+import math
 import random
 import struct
 import sys
@@ -549,6 +550,80 @@ def corpus():
                                   "flags": [True, False, True, True, True]})
 
     add("version", {"op": "version"})
+
+    # Added after review (a separate generator, so every earlier case is unchanged).
+    h = Gen(SEED + 1)
+
+    # --- InflatePaths(PathsD): ScalePaths' range exception --------------------------------------
+    # ScalePaths<int64_t, double> throws "Values exceed permitted range" when a scaled bound
+    # passes min_coord..max_coord (2^61), before any offset work, whatever delta, miter limit
+    # or arc tolerance; bounds exactly at +/-2^61 pass it (refused by the offset domain).
+    max_coord = float(ENGINE_COORD)
+    for name, point in [("x-pos", (1e20, 0.0)), ("x-neg", (-1e20, 0.0)),
+                        ("y-pos", (0.0, 1e20)), ("y-neg", (0.0, -1e20)),
+                        ("x-inf", (INF, 0.0)), ("y-neg-inf", (0.0, -INF))]:
+        add(f"inflate-f64-range-{name}", inflate("f64", [[ptd(*point)]], 1.0, 1, 0))
+    for precision, scale in [(0, 1.0), (2, 100.0), (-2, 0.01), (8, 1e8)]:
+        # The smallest x whose scaled value exceeds max_coord.
+        x = max_coord / scale
+        while x * scale > max_coord:
+            x = math.nextafter(x, 0.0)
+        while x * scale <= max_coord:
+            x = math.nextafter(x, INF)
+        for sign, tag in [(1, "pos"), (-1, "neg")]:
+            add(f"inflate-f64-range-edge-p{precision}-{tag}",
+                inflate("f64", [[ptd(0, 0), ptd(sign * x, 1.0)]], 1.0, 1, 0, ml=2.0,
+                        precision=precision))
+    add("inflate-f64-range-mixed-nan",
+        inflate("f64", [[ptd(NAN, 0), ptd(1, 1)], [ptd(2e19, 3, 4)]], 2.0, 2, 4))
+    add("inflate-f64-range-any-delta",
+        inflate("f64", [[ptd(0, 3e19)]], NAN, 3, 0, ml=INF, precision=2, at=NAN))
+    add("inflate-f64-range-delta-zero", inflate("f64", [[ptd(1e300, 0)]], 0.0, 1, 0))
+    # The offset domain's own edge, +/-2^40 after scaling, is offset.
+    for sign, tag in [(1, "pos"), (-1, "neg")]:
+        add(f"inflate-f64-domain-edge-{tag}",
+            inflate("f64", [[ptd(0, 0), ptd(sign * 2.0**40, 0), ptd(0, 5)]], 1.0, 1, 0, ml=2.0,
+                    precision=0))
+
+    # --- RamerDouglasPeucker with a NaN epsilon -------------------------------------------------
+    # Paths shorter than five points are copied without an RDP call; recursions whose calls all
+    # find an interior farthest point end (every vertex is kept).
+    nans = {"qnan": "7ff8000000000000", "negnan": "fff8000000000000",
+            "snan": "7ff0000000000001"}
+    for n in range(5):
+        p = h.poly(n, 50)
+        add(f"rdp-nan-i64-short-{n}", {"op": "rdp", "type": "i64", "form": "path", "value": p,
+                                       "epsilon": nans["qnan"]})
+        add(f"rdp-nan-f64-short-{n}", {"op": "rdp", "type": "f64", "form": "path",
+                                       "value": to_d(p), "epsilon": nans["negnan"]})
+    review = [pt(0, 0), pt(1, 0), pt(2, 2), pt(3, 0), pt(4, 0)]
+    for tag, bits in nans.items():
+        add(f"rdp-nan-i64-review-{tag}", {"op": "rdp", "type": "i64", "form": "path",
+                                          "value": review, "epsilon": bits})
+    add("rdp-nan-f64-review", {"op": "rdp", "type": "f64", "form": "path",
+                               "value": to_d(review, 1.0), "epsilon": nans["qnan"]})
+
+    def general(n, span):
+        """Random distinct points, no three collinear, so every RDP call finds an interior
+        farthest point."""
+        out = []
+        while len(out) < n:
+            c = pt(h.r.randint(-span, span), h.r.randint(-span, span))
+            if c not in out and all(
+                    (b[0] - a[0]) * (c[1] - a[1]) != (b[1] - a[1]) * (c[0] - a[0])
+                    for i, a in enumerate(out) for b in out[i + 1:]):
+                out.append(c)
+        return out
+
+    for i in range(12):
+        p = general(h.r.randint(5, 40), 10**6)
+        add(f"rdp-nan-i64-general-{i}", {"op": "rdp", "type": "i64", "form": "path",
+                                         "value": p, "epsilon": nans["qnan"]})
+        add(f"rdp-nan-f64-general-{i}", {"op": "rdp", "type": "f64", "form": "path",
+                                         "value": to_d(p, 1.0), "epsilon": nans["snan"]})
+    add("rdp-nan-i64-paths", {"op": "rdp", "type": "i64", "form": "paths",
+                              "value": [review, [], [pt(1, 1)] * 4, general(9, 1000)],
+                              "epsilon": nans["qnan"]})
     return out
 
 
@@ -573,8 +648,13 @@ def controls():
          "invalid input: arc steps"),
         ("inflate-f64-domain", inflate("f64", [[ptd(1e11, 0)]], 1.0, 0, 0),
          "invalid input: domain"),
-        # ScalePaths' range exception lies beyond the offset domain: a harness limit.
-        ("inflate-f64-range", inflate("f64", [[ptd(1e30, 0)]], 1.0, 0, 0),
+        # Scaled bounds exactly at max_coord pass ScalePaths' range test: offset domain.
+        ("inflate-f64-range-edge", inflate("f64", [[ptd(float(ENGINE_COORD), 0)]], 1.0, 1, 0,
+                                           ml=2.0, precision=0), "invalid input: domain"),
+        ("inflate-f64-range-edge-neg", inflate("f64", [[ptd(0, -float(ENGINE_COORD))]], 1.0, 1,
+                                               0, ml=2.0, precision=0), "invalid input: domain"),
+        ("inflate-f64-domain-edge", inflate("f64", [[ptd(math.nextafter(2.0**40, INF), 0)]],
+                                            1.0, 1, 0, ml=2.0, precision=0),
          "invalid input: domain"),
         ("inflate-f64-nan", inflate("f64", [[ptd(NAN, 0)]], 1.0, 0, 0), "invalid input: domain"),
         ("inflate-defaults", inflate("i64", ok_sq, 1.0, 0, 0, at=0.5), "invalid input: defaults"),
@@ -605,8 +685,16 @@ def controls():
         ("ellipse-form", {"op": "ellipse", "type": "i64", "form": "rect", "center": pt(0, 0),
                           "rect": [0, 0, 1, 1], "radius_x": None, "radius_y": None,
                           "steps": None}, "invalid input: form"),
+        # NaN epsilon: a call that repeats an active ancestor recurses forever.
         ("rdp-nan", {"op": "rdp", "type": "i64", "form": "path", "value": [pt(0, 0)] * 6,
                      "epsilon": hexd(NAN)}, "invalid input: epsilon"),
+        ("rdp-nan-collinear", {"op": "rdp", "type": "f64", "form": "path",
+                               "value": [ptd(i, 0) for i in range(5)], "epsilon": hexd(NAN)},
+         "invalid input: epsilon"),
+        ("rdp-nan-paths", {"op": "rdp", "type": "i64", "form": "paths",
+                           "value": [[pt(0, 0), pt(1, 0), pt(2, 2), pt(3, 0), pt(4, 0)],
+                                     [pt(0, 0), pt(1, 1), pt(2, 2), pt(3, 3), pt(4, 4)]],
+                           "epsilon": hexd(NAN)}, "invalid input: epsilon"),
         ("rdp-size", {"op": "rdp", "type": "i64", "form": "path",
                       "value": [pt(i, 0) for i in range(1025)], "epsilon": hexd(1.0)},
          "invalid input: size"),
@@ -675,6 +763,12 @@ def controls():
                             "flags": [True, True, True]}, "undefined behaviour: detail"),
         ("ub-detail-prior", {"op": "detail", "fn": "get_prior", "current": 0, "high": 1,
                              "flags": [True, True]}, "undefined behaviour: detail"),
+        # Every flag set: the unbounded wrap scans read past the vector, into spare bits of an
+        # allocated word (sizes 1, 3, 63) or past a full word (64, 65).
+        *[(f"ub-detail-{fn}-all-{n}", {"op": "detail", "fn": fn, "current": n // 2,
+                                       "high": n - 1, "flags": [True] * n},
+           "undefined behaviour: detail")
+          for fn in ["get_next", "get_prior"] for n in [1, 3, 63, 64, 65]],
         ("ub-ellipse-i64-nan", {"op": "ellipse", "type": "i64", "form": "center",
                                 "center": pt(0, 0), "rect": None, "radius_x": hexd(NAN),
                                 "radius_y": hexd(1.0), "steps": 4},
@@ -714,6 +808,10 @@ def controls():
         ("ub-rdp", {"op": "rdp", "type": "i64", "form": "path",
                     "value": [pt(-2**63, 0), pt(0, 1), pt(1, 1), pt(5, 1), pt(2**63 - 1, 0)],
                     "epsilon": hexd(1.0)}, "undefined behaviour: rdp"),
+        # With a NaN epsilon the first call's overflow comes before any repeated call.
+        ("ub-rdp-nan", {"op": "rdp", "type": "i64", "form": "path",
+                        "value": [pt(-2**63, 0), pt(0, 1), pt(1, 1), pt(5, 1), pt(2**63 - 1, 0)],
+                        "epsilon": hexd(NAN)}, "undefined behaviour: rdp"),
         ("ub-make-zd", {"op": "make_path", "fn": "make_path_zd", "elem": "f64",
                         "values": [hexd(1), hexd(2), hexd(1e30)], "array": True},
          "undefined behaviour: make_path"),
