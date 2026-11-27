@@ -14,8 +14,9 @@
 
 typedef double ( *UNARY )( double );
 typedef double ( *BINARY )( double, double );
+typedef double ( *TERNARY )( double, double, double );
 
-static volatile uint64_t g_bits[2];
+static volatile uint64_t g_bits[3];
 static char g_self[PATH_MAX];
 static char g_expected[3][PATH_MAX]; // loader, libc, libm
 static int  g_seen[3];
@@ -132,13 +133,16 @@ static void check_slot( const char* name, void* wrapper, unsigned long slot, uns
 int main( int argc, char** argv )
 {
     // An optional fifth argument "pow" or "hypot" selects that function's records
-    // (x, y, f(x, y)) instead of the five angle functions; every identity check runs
-    // in all modes.
+    // (x, y, f(x, y)) instead of the five angle functions, and "fma" the 24-byte (x, y, z)
+    // domain and 32-byte (x, y, z, fma(x, y, z)) records; every identity check runs in all modes.
     if( argc != 5
-        && !( argc == 6 && ( strcmp( argv[5], "pow" ) == 0 || strcmp( argv[5], "hypot" ) == 0 ) ) )
-        fail( "usage", "DOMAIN RECORDS LIBDIR COUNT [pow|hypot]" );
+        && !( argc == 6
+              && ( strcmp( argv[5], "pow" ) == 0 || strcmp( argv[5], "hypot" ) == 0
+                   || strcmp( argv[5], "fma" ) == 0 ) ) )
+        fail( "usage", "DOMAIN RECORDS LIBDIR COUNT [pow|hypot|fma]" );
     const int powMode = argc == 6 && strcmp( argv[5], "pow" ) == 0;
     const int hypotMode = argc == 6 && strcmp( argv[5], "hypot" ) == 0;
+    const int fmaMode = argc == 6 && strcmp( argv[5], "fma" ) == 0;
     const char* names[3] = { "ld-linux-x86-64.so.2", "libc.so.6", "libm.so.6" };
     if( !realpath( argv[0], g_self ) )
         fail( "own path", argv[0] );
@@ -196,17 +200,34 @@ int main( int argc, char** argv )
     if( dlvsym( RTLD_DEFAULT, "__hypot_finite", "GLIBC_2.15" ) != (void*) hypotPtr )
         fail( "hypot alias", "__hypot_finite is not the same __hypot body" );
     printf( "hypot@@GLIBC_2.35 libm+0x28450 (no IFUNC); compat hypot@GLIBC_2.2.5 libm+0x12db0\n" );
+    // fma@@GLIBC_2.2.5 is an IFUNC (libm+0x33320) choosing __fma_fma3, __fma_fma4 or
+    // __fma_sse2; dlsym returns the selected body, which the tunables make __fma_sse2.
+    TERNARY fmaPtr = (TERNARY) resolve( "fma", "0x32810" );
+    if( dlvsym( RTLD_DEFAULT, "fma", "GLIBC_2.2.5" ) != (void*) fmaPtr )
+        fail( "fma version", "fma@@GLIBC_2.2.5 does not resolve to __fma_sse2" );
+    printf( "fma@@GLIBC_2.2.5 IFUNC -> __fma_sse2 libm+0x32810\n" );
     const unsigned long long count = strtoull( argv[4], NULL, 10 );
+    const unsigned long long width = fmaMode ? 24ULL : 16ULL;
     struct stat st;
-    if( stat( argv[1], &st ) != 0 || (unsigned long long) st.st_size != count * 16ULL )
+    if( stat( argv[1], &st ) != 0 || (unsigned long long) st.st_size != count * width )
         fail( "domain size", argv[1] );
     FILE* in = fopen( argv[1], "rb" );
     FILE* out = fopen( argv[2], "wb" );
     if( !in || !out ) fail( "cannot open", argv[1] );
-    uint64_t inputs[2];
+    uint64_t inputs[3];
     unsigned long long written = 0;
-    while( fread( inputs, sizeof inputs, 1, in ) == 1 )
+    while( fread( inputs, (size_t) width, 1, in ) == 1 )
     {
+        if( fmaMode )
+        {
+            g_bits[0] = inputs[0]; g_bits[1] = inputs[1]; g_bits[2] = inputs[2];
+            const double x = from_bits( g_bits[0] ), y = from_bits( g_bits[1] ),
+                         z = from_bits( g_bits[2] );
+            const uint64_t record[4] = { inputs[0], inputs[1], inputs[2], to_bits( fmaPtr( x, y, z ) ) };
+            if( fwrite( record, sizeof record, 1, out ) != 1 ) fail( "write", argv[2] );
+            ++written;
+            continue;
+        }
         g_bits[0] = inputs[0]; g_bits[1] = inputs[1];
         const double x = from_bits( g_bits[0] ), y = from_bits( g_bits[1] );
         if( hypotMode )

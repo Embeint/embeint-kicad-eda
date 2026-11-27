@@ -20,7 +20,7 @@
 //! `sincos` (glibc 2.39, baseline SSE2 variants) bit for bit without the host libm, so
 //! `SetRotation` and the general `EDA_ANGLE::Sin`/`Cos` fallbacks in [`eda_angle`] give the
 //! same bits natively and in WebAssembly. [`reference_libm`] exposes the raw `sin`, `cos`,
-//! `acos` and `atan2` backends to ports in other crates, unchanged.
+//! `acos`, `atan2`, `pow` and `fma` backends to ports in this and other crates, unchanged.
 //!
 //! Unit `libs.kimath.include.geometry.application.ui.p001` owns [`eda_angle`]
 //! (`geometry/eda_angle.h`), [`geometry_headers`] (`geometry/ellipse.h`, `grid_geometry.h`)

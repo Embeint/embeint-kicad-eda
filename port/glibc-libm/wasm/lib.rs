@@ -41,3 +41,9 @@ pub extern "C" fn pow_libm(x: u64, y: u64) -> u64 {
 pub extern "C" fn hypot_libm(x: u64, y: u64) -> u64 {
     hypot::hypot(f64::from_bits(x), f64::from_bits(y)).to_bits()
 }
+
+/// fma@@GLIBC_2.2.5 (`__fma_sse2`), for the separate 32-byte fma records.
+#[no_mangle]
+pub extern "C" fn fma_libm(x: u64, y: u64, z: u64) -> u64 {
+    glibc_libm::fma(f64::from_bits(x), f64::from_bits(y), f64::from_bits(z)).to_bits()
+}

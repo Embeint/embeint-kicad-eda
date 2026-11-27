@@ -4,9 +4,10 @@
 // Derived from glibc 2.39 (LGPL-2.1-or-later); distributed under GPL-3.0-or-later
 // as permitted by LGPL-2.1 section 3. See port/glibc-libm/README.md.
 
-//! The pinned glibc 2.39 baseline SSE2 angle backends and `pow`. IEEE binary64 operations
-//! stay in source order without contraction. No host libm, FMA, errno or floating
-//! exception flags. Requires round-to-nearest and gradual underflow, like glibc_trig.
+//! The pinned glibc 2.39 baseline SSE2 angle backends, `pow` and `fma` (`__fma_sse2`). IEEE
+//! binary64 operations stay in source order without contraction. No host libm, hardware FMA,
+//! errno or floating exception flags. Requires round-to-nearest and gradual underflow, like
+//! glibc_trig; `fma`'s internal round-toward-zero step is computed exactly (see its module).
 
 #[path = "glibc_libm/asin.rs"]
 mod asin;
@@ -16,6 +17,8 @@ mod asin_table;
 mod atan;
 #[path = "glibc_libm/atan_table.rs"]
 mod atan_table;
+#[path = "glibc_libm/fma.rs"]
+mod fma;
 #[path = "glibc_libm/pow.rs"]
 mod pow;
 #[path = "glibc_libm/pow_table.rs"]
@@ -27,6 +30,7 @@ mod tan_table;
 
 pub(crate) use asin::{acos, asin};
 pub(crate) use atan::{atan, atan2};
+pub(crate) use fma::fma;
 pub(crate) use pow::pow;
 pub(crate) use tan::tan;
 
