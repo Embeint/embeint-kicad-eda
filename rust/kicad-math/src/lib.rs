@@ -47,6 +47,9 @@
 //! (`geometry/circle.cpp`), on minimum co-ports of the `CIRCLE` members from `geometry/circle.h`
 //! and of `SHAPE::MIN_PRECISION_IU`.
 //!
+//! Unit `libs.kimath.src.trigo.application.ui.p001` owns [`trigo`] (`trigo.cpp`); its calls
+//! into the unported `trigo.h` inline wrappers are typed deferrals.
+//!
 //! Unit `libs.kimath.src.geometry.ellipse.application.ui.p001` owns [`ellipse`]
 //! (`geometry/ellipse.cpp`), the out-of-line bodies of the header-owned
 //! [`geometry_headers::Ellipse`].
@@ -82,6 +85,7 @@ pub mod shape_compound;
 pub mod shape_ellipse;
 #[cfg(test)]
 mod shape_tests;
+pub mod trigo;
 
 // `generated.rs` is emitter output (sha256 d24ff0f2..., from the reviewed graph locks of the
 // pinned oracle; port/tools/kimath_nan/README.md). It is bound byte for byte by
