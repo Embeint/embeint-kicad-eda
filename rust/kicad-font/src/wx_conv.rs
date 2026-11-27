@@ -31,15 +31,16 @@ pub const WX_ON_ASSERT: &str = "wxOnAssert";
 /// The arguments of one `wxOnAssert( __FILE__, __LINE__, __WXFUNCTION__, cond, msg )` call
 /// that a `wxFAIL_MSG` expansion makes when `wxTheAssertHandler` is set (wx 3.2
 /// `wxFAIL_MSG( msg )` -> `wxFAIL_COND_MSG( "Assert failure", msg )` ->
-/// `wxFAIL_COND_MSG_AT`). `__FILE__` is the library build's spelling of the source path and
-/// is left to the host.
+/// `wxFAIL_COND_MSG_AT`, which passes `#cond`). `__FILE__` is the library build's spelling of
+/// the source path and is left to the host.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct WxAssert {
     /// `__LINE__` in the wxWidgets 3.2.4 source.
     pub line: u32,
     /// `__WXFUNCTION__` (GCC's `__FUNCTION__`: the unqualified member name).
     pub function: &'static str,
-    /// The condition argument, `"Assert failure"` for `wxFAIL_MSG`.
+    /// The condition argument: `#cond` of the already quoted `"Assert failure"` for
+    /// `wxFAIL_MSG`, so the text keeps its double quotes (observed in the oracle).
     pub condition: &'static str,
     /// The `wxT( ... )` message.
     pub message: &'static str,
@@ -50,7 +51,7 @@ pub struct WxAssert {
 pub const STRICT_UTF8_ASSERT: WxAssert = WxAssert {
     line: 1165,
     function: "FromWChar",
-    condition: "Assert failure",
+    condition: "\"Assert failure\"",
     message: "trying to encode undefined Unicode character",
 };
 

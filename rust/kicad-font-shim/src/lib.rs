@@ -853,7 +853,7 @@ mod tests {
         assert_eq!(
             returning["result"],
             json!({"bytes": "", "assertions": [{"line": 1165, "function": "FromWChar",
-                   "condition": "Assert failure",
+                   "condition": "\"Assert failure\"",
                    "message": "trying to encode undefined Unicode character"}]})
         );
         // A first insertion that throws ends the operator before the name is converted.

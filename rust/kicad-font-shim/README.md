@@ -41,8 +41,9 @@ makes `~sentry`'s `setstate( badbit )` throw: the reference process calls `std::
 (the oracle observes it in a forked child).
 
 `assertions` lists the `wxOnAssert` calls in order, each `{"line", "function", "condition",
-"message"}` (wx 3.2.4 `src/common/strconv.cpp:1165`, `FromWChar`, `Assert failure`, `trying
-to encode undefined Unicode character`); the oracle records them around the process's own
+"message"}` (wx 3.2.4 `src/common/strconv.cpp:1165`, `FromWChar`, `"Assert failure"` with
+its quotes, as `#cond` passes it, and `trying to encode undefined Unicode character`); the
+oracle records them around the process's own
 handler, which logs and returns. The Rust shim's production callee defers instead (`unported`
 `wxOnAssert`); `--assert-host=returning` records and returns, so that continuation is compared.
 `check_deferrals.py` checks both comparisons' deferral accounting.
