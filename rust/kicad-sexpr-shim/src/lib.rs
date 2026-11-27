@@ -178,9 +178,9 @@ mod tests {
     }
 
     /// The source corpus size (generate_cases.py).
-    const SOURCE_CASES: usize = 6240;
+    const SOURCE_CASES: usize = 6234;
     /// The control count (generate_cases.py).
-    const CONTROLS: usize = 97;
+    const CONTROLS: usize = 98;
 
     #[test]
     fn controls_refuse_exactly_as_recorded() -> Result<(), serde_json::Error> {

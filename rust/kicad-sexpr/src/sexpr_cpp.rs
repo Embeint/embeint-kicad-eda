@@ -34,9 +34,12 @@ use kicad_wx_stl_compat::ostream::{
 /// `SEXPR( SEXPR_TYPE, size_t aLineNumber )`, stores its argument unchanged.)
 pub(crate) const DEFAULT_LINE_NUMBER: u64 = 1;
 
-/// `std::string::max_size()` of the reference's libstdc++ (GCC 12 and later) on LP64:
-/// `min( PTRDIFF_MAX, allocator max_size() ) - 1`, both limits being `PTRDIFF_MAX`.
-pub const STRING_MAX_SIZE: u64 = (1 << 63) - 2;
+/// `std::string::max_size()` of the reference build (GCC 13.3 libstdc++ headers, C++20, LP64):
+/// `( allocator_traits::max_size() - 1 ) / 2`, where the C++20 `std::allocator` traits give
+/// `size_t( -1 )`, so 2^63 - 1. The value depends on the headers the reference is compiled
+/// with: GCC 13 in C++17 gives 2^62 - 1 and GCC 14 and later `min( PTRDIFF_MAX, allocator
+/// max ) - 1` = 2^63 - 2 (port/findings/sexpr-string-max-size-toolchain.md).
+pub const STRING_MAX_SIZE: u64 = (1 << 63) - 1;
 
 /// `what()` of the `std::length_error` that `std::string::append( n, c )` throws.
 pub const APPEND_LENGTH_ERROR: &str = "basic_string::_M_replace_aux";
@@ -684,10 +687,19 @@ mod tests {
             list.as_string(1 << 62),
             Err(SexprError::LengthError(APPEND_LENGTH_ERROR))
         );
-        // At a nonzero level the newline already in the frame's result leaves one byte less:
-        // 2 * (2^62 - 1) = max_size() exceeds max_size() - 1.
+        // The largest indentation append accepts at a nonzero level: 2 * (2^62 - 1) =
+        // max_size() - 1, beside the frame's newline. The reference then fails to allocate it.
         assert_eq!(
             SexprList::new().as_string((1 << 62) - 1),
+            Err(SexprError::BadAlloc)
+        );
+        // The same indentation reached through the wrapping size_t product.
+        assert_eq!(
+            SexprList::new().as_string((1 << 63) + (1 << 62) - 1),
+            Err(SexprError::BadAlloc)
+        );
+        assert_eq!(
+            SexprList::new().as_string((1 << 63) + (1 << 62)),
             Err(SexprError::LengthError(APPEND_LENGTH_ERROR))
         );
         assert_eq!(
