@@ -17,3 +17,7 @@ schema_version = 1
 source_category = "thirdparty"
 source_ranges = ["thirdparty/clipper2/Clipper2Lib/include/clipper2/clipper.h:1:796", "thirdparty/clipper2/Clipper2Lib/include/clipper2/clipper.minkowski.h:1:117", "thirdparty/clipper2/Clipper2Lib/include/clipper2/clipper.offset.h:1:125", "thirdparty/clipper2/Clipper2Lib/include/clipper2/clipper.rectclip.h:1:80", "thirdparty/clipper2/Clipper2Lib/include/clipper2/clipper.triangulation.h:1:27", "thirdparty/clipper2/Clipper2Lib/include/clipper2/clipper.version.h:1:6"]
 wx_class = "pure"
+
+[difftest]
+rust_binary = "kicad-clipper2-include-p002-shim"
+rust_package = "kicad-clipper2-include-p002-shim"
