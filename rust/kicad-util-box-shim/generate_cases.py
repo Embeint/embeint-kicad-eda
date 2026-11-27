@@ -160,6 +160,22 @@ def generate():
     for i,(p,sz) in enumerate([([-2**63,0],[-1,0]),([2**63-1,-2**63],[1,0]),
                                ([2**63-1,1],[0,2**63-1]),([0,-1],[2**63-1,-2**63])]):
         add(f'safe-unused-overflow-{i}',op='box',type='i64',kind='safe',a=dict(mode='raw',pos=p,size=sz))
+    # Intersects( p, q ) past both Contains tests: the SegmentIntersectsSegment calls (trigo.cpp,
+    # now ported) on the bottom, right and top sides, including misses, touching corners, a
+    # segment along a side and the untested left side. Coordinates stay below 2^30, so every
+    # int64 product in SegmentIntersectsSegment is defined.
+    seg_boxes=[('new',(10,20),(30,40)),('raw',(10,20),(-30,-40)),('raw',(-2**29,-2**29),(2**30,2**30))]
+    seg_paths=[([0,25],[50,25]),([20,0],[20,100]),([0,0],[50,70]),([45,10],[45,70]),([0,30],[9,30]),
+               ([0,0],[10,20]),([40,60],[60,80]),([40,0],[40,100]),([0,20],[100,20]),([0,10],[100,10]),
+               ([5,70],[45,15]),([-2**29-5,0],[2**29+5,1]),([-1,-2**29+3],[1,2**29-3]),
+               ([5,19],[5,61]),([0,59],[39,61])]
+    for t in ['i32','i64','f64']:
+        cv=lambda n:bits(float(n)) if t=='f64' else n
+        for i,(mode,p,sz) in enumerate(seg_boxes):
+            a=dict(mode=mode,pos=[cv(p[0]),cv(p[1])],size=[cv(sz[0]),cv(sz[1])])
+            for j,(p0,q0) in enumerate(seg_paths):
+                add(f'segment-continuation-{t}-{i}-{j}',op='box',type=t,kind='segment',a=a,
+                    p=[cv(p0[0]),cv(p0[1])],q=[cv(q0[0]),cv(q0[1])])
     assert len({c['case'] for c in cases})==len(cases)
     return ''.join(json.dumps(c,separators=(',',':'),allow_nan=False)+'\n' for c in cases)
 def controls():

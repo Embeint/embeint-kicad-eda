@@ -199,6 +199,12 @@ fn arc_mid_defers_at_the_header_and_continues() -> TrigoResult<()> {
         calc_arc_mid_with(&Forwarding, v(100, 0), v(0, 100), v(0, 0), false)?,
         v(-71, -71)
     );
+    // The pinned oracle's reply to arc_mid ( 1000, 300 ), ( -200, 900 ), ( 0, 0 ) with the
+    // default argument: a general (non-shortcut) rotation.
+    assert_eq!(
+        calc_arc_mid_with(&Forwarding, v(1000, 300), v(-200, 900), v(0, 0), true)?,
+        v(528, 901)
+    );
     // The differences come before the header call.
     assert_eq!(
         calc_arc_mid(v(i32::MIN, 0), v(0, 0), v(1, 0), true),
