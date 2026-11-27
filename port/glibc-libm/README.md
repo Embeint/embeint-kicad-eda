@@ -3,9 +3,11 @@
 
 This is qualification tooling, not a runtime dependency or a golden generator.
 The private `kicad_math::glibc_libm` ports glibc 2.39's baseline SSE2 `atan`,
-`atan2`, `tan`, `asin`, `acos` and `pow` (the `EDA_ANGLE::Round` callee), and
-qualifies the shared `kicad_math::hypot` (the `VECTOR2<double>::EuclideanNorm`
-`std::hypot` callee). The
+`atan2`, `tan`, `asin`, `acos` and `pow` (the `EDA_ANGLE::Round` callee) and
+`fma` (`__fma_sse2`, the explicit `std::fma` calls of trigo.cpp's three-point
+`CalcArcCenter`), and qualifies the shared `kicad_math::hypot` (the
+`VECTOR2<double>::EuclideanNorm` `std::hypot` callee). `kicad_math::reference_libm`
+forwards each of them unchanged. The
 accepted sin/cos/sincos bodies are unchanged; only `branred`'s visibility and its
 test-module path change so tan can reuse the exact accepted reducer and the
 import-free qualification wrapper can compile those private sources.
@@ -51,6 +53,19 @@ exponents against `hypot.rs`, the generic `USE_FMAX_BUILTIN`/`USE_FMIN_BUILTIN` 
 version. Its finite body is the accepted shared one also used by BOX2; this
 qualification adds the non-finite branch and covers both.
 
+`fma` is glibc 2.39 `sysdeps/ieee754/dbl-64/s_fma.c` (FSF, 2010-2024,
+LGPL-2.1-or-later; notice retained in `rust/kicad-math/src/glibc_libm/fma.rs`) as
+`sysdeps/x86_64/fpu/multiarch/s_fma.c` builds it into `__fma_sse2`: generic
+`USE_FMA_BUILTIN` 0 and x86 `TININESS_AFTER_ROUNDING` 1. `check_sources.py` pins
+all four files and checks those settings, the special returns and the Dekker
+constant. Its final addition runs in `FE_TOWARDZERO` and reads `FE_INEXACT`
+(round to odd); the port computes that sum and flag exactly from the
+round-to-nearest sum and its TwoSum error, as Rust cannot set the rounding mode.
+Only its special returns can make a NaN. The locked body compiles `x * y + z` as
+`mulsd %xmm1,%xmm0; addsd %xmm2,%xmm0`, `x * y` as `mulsd %xmm1,%xmm0` and
+`(z + x) + y` as `(x + z) + y` (z is the only possible NaN there), so x's NaN
+wins over y's and the product's (or its invalid indefinite) over z's.
+
 ## Dispatch and floating environment
 
 Use the same setting as the geometry oracle and glibc_trig:
@@ -72,6 +87,9 @@ involved; the probe checks both bindings. Disassembly of the locked body shows n
 FMA and the non-finite `return x + y` as `addsd %xmm1,%xmm0` (x first): a NaN x
 is returned quieted, else the quieted NaN y; an infinity returns the +inf constant
 unless an operand is signalling (`issignaling_inline`).
+`fma@@GLIBC_2.2.5` (libm+0x33320) is an IFUNC choosing `__fma_fma3`,
+`__fma_fma4` or `__fma_sse2`; under these tunables `dlsym` and the oracle's
+`fma@plt` resolve `__fma_sse2` (libm+0x32810), which the probe checks.
 All five 2.39 bodies have no multiprecision fallback. The non-FMA `dla.h`
 EMULV and MUL12 are different algorithms and are preserved separately.
 
@@ -146,8 +164,20 @@ same private source files under `forbid(unsafe_code)`; the separate existing
 geometry job checks the complete public EDA_ANGLE continuations against C++ and
 then import-free wasm. All local builds use `rust/target` and at most -j3.
 
-A green report requires one full-count, zero-mismatch result for each of seven
-functions (pow and hypot with their own counts) on all six configurations. `report.json` hashes the domain, genuine
+`fma_domain.py` writes 145,213 fixed triples plus 1,000,000 seeded triples,
+**1,145,213 fma calls per target/profile**, as a 24-byte (x, y, z) domain and
+32-byte (x, y, z, fma) records (`reference.py fma-domain` / `fma-reference`).
+Fixed cases follow s_fma.c: the special-operand returns over a signed Cartesian
+product of zeros, subnormal/normal edges, 2^+-600, DBL_MAX, infinities and three
+quiet plus two signalling NaN payloads; every exponent-adjustment branch and its
+boundaries (ue + ve against 968, 1076, 3017 and 3070; ue, ve, we against 1994;
+we against 0..4, 53, 218); exact zero results of both signs; cancellation against
+the rounded product (z = -fl(x * y) and neighbours, leaving the round-to-odd
+term); halfway and subnormal results. Seeded modes cover raw bits, cancellation,
+near-overflow and tiny products, huge z, non-finite operands and moderate values.
+
+A green report requires one full-count, zero-mismatch result for each of eight
+functions (pow, hypot and fma with their own counts) on all six configurations. `report.json` hashes the domain, genuine
 records, probe, source verification and logs. CI artifacts are fresh evidence;
 the implementation never reads them. Run:
 
@@ -159,9 +189,12 @@ python3 port/glibc-libm/reference.py pow-domain --out <out>
 python3 port/glibc-libm/reference.py pow-reference --out <out>
 python3 port/glibc-libm/reference.py hypot-domain --out <out>
 python3 port/glibc-libm/reference.py hypot-reference --out <out>
+python3 port/glibc-libm/reference.py fma-domain --out <out>
+python3 port/glibc-libm/reference.py fma-reference --out <out>
 KICAD_GLIBC_LIBM_REFERENCE=<out>/reference.bin KICAD_GLIBC_LIBM_COUNT=1517520 \
 KICAD_GLIBC_LIBM_POW_REFERENCE=<out>/pow-reference.bin KICAD_GLIBC_LIBM_POW_COUNT=1535736 \
 KICAD_GLIBC_LIBM_HYPOT_REFERENCE=<out>/hypot-reference.bin KICAD_GLIBC_LIBM_HYPOT_COUNT=1607712 \
+KICAD_GLIBC_LIBM_FMA_REFERENCE=<out>/fma-reference.bin KICAD_GLIBC_LIBM_FMA_COUNT=1145213 \
   cargo test --locked --manifest-path rust/Cargo.toml -p kicad-math --lib \
   glibc_libm -- --include-ignored --nocapture
 ```

@@ -41,6 +41,7 @@ void RegisterSexprInclude( REGISTRY& aRegistry );
 void RegisterShapeHeadersP003( REGISTRY& aRegistry );
 void RegisterClipper2IncludeP002( REGISTRY& aRegistry );
 void RegisterSexprSource( REGISTRY& aRegistry );
+void RegisterTrigoSource( REGISTRY& aRegistry );
 void RegisterIncludeFontP001( REGISTRY& aRegistry );
 
 
@@ -95,6 +96,7 @@ REGISTRY MakeRegistry()
     RegisterShapeHeadersP003( registry );
     RegisterClipper2IncludeP002( registry );
     RegisterSexprSource( registry );
+    RegisterTrigoSource( registry );
     RegisterIncludeFontP001( registry );
     return registry;
 }

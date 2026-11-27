@@ -17,6 +17,12 @@
     "count": 1607712,
     "sha256": "a4b02776b8f98e27a26700c415616914301fd4563cd1a67465893a4327f4f2a8"
   },
+  "fma_domain": {
+    "fixed_count": 145213,
+    "seeded_count": 1000000,
+    "count": 1145213,
+    "sha256": "3465e8757a366814eabac5b8652b3260f3f8bf328bfff6cc20534dd09276ba45"
+  },
   "dispatch": {
     "atan": "0x2d840",
     "tan": "0x30b80",
@@ -51,6 +57,12 @@
       "offset": "0xe8008",
       "value": 2,
       "mode": "_POSIX_"
+    },
+    "fma": {
+      "ifunc": "0x33320",
+      "version": "GLIBC_2.2.5",
+      "selected": "__fma_sse2",
+      "kernel": "0x32810"
     }
   }
 }

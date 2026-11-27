@@ -308,3 +308,83 @@ fn hypot_reference_records() -> Result<(), String> {
         crate::hypot::hypot,
     )
 }
+
+// s_fma.c's special-operand returns in the locked body's SSE2 operand order: x * y keeps x's
+// NaN over y's, then the product's NaN (or its invalid indefinite) over z's.
+#[test]
+fn fma_special_branches() {
+    use super::fma;
+    let bits = f64::to_bits;
+    let inf = f64::INFINITY;
+    let qa = f64::from_bits(0x7ff8_0000_0000_1234);
+    let qb = f64::from_bits(0xfff8_0000_0000_00bb);
+    let sc = f64::from_bits(0x7ff4_0000_0000_0abc);
+    assert_eq!(bits(fma(inf, 0.0, qa)), 0xfff8_0000_0000_0000);
+    assert_eq!(bits(fma(qa, qb, 1.0)), bits(qa));
+    assert_eq!(bits(fma(qb, qa, qa)), bits(qb));
+    assert_eq!(bits(fma(1.0, sc, qa)), 0x7ffc_0000_0000_0abc);
+    assert_eq!(bits(fma(1.0, 2.0, sc)), 0x7ffc_0000_0000_0abc);
+    // z == 0 with nonzero factors returns x * y.
+    assert_eq!(bits(fma(qa, qb, 0.0)), bits(qa));
+    assert_eq!(bits(fma(inf, -inf, 0.0)), bits(-inf));
+    assert_eq!(bits(fma(2.0, 3.0, -inf)), bits(-inf));
+    assert_eq!(bits(fma(inf, 1.0, -inf)), 0xfff8_0000_0000_0000);
+    // Exact zero results: signs as IEEE round-to-nearest gives them.
+    assert_eq!(bits(fma(3.0, 5.0, -15.0)), 0);
+    assert_eq!(bits(fma(-0.0, 5.0, -0.0)), bits(-0.0));
+    assert_eq!(bits(fma(0.0, -5.0, 0.0)), 0);
+    // The single rounding: (1 + 2^-52)^2 - 1 keeps the 2^-104 term.
+    let x = 1.0 + f64::EPSILON;
+    assert_eq!(
+        fma(x, x, -1.0),
+        2.0 * f64::EPSILON + f64::EPSILON * f64::EPSILON
+    );
+    // Overflow, the tiny product and subnormal results.
+    assert_eq!(fma(f64::MAX, 2.0, -f64::MAX), f64::MAX);
+    assert_eq!(fma(f64::MAX, f64::MAX, 1.0), inf);
+    let tiny = f64::from_bits(1);
+    assert_eq!(fma(tiny, 0.5, 0.0), 0.0);
+    assert_eq!(bits(fma(-tiny, 0.5, 0.0)), bits(-0.0));
+    assert_eq!(fma(tiny, tiny, 1.0), 1.0);
+    assert_eq!(fma(2.0_f64.powi(-537), 2.0_f64.powi(-537), 0.0), tiny);
+}
+
+/// Compares genuine 32-byte (x, y, z, fma(x, y, z)) records from the locked libm.
+#[test]
+#[ignore = "requires fresh glibc 2.39 fma records; see rust-glibc-libm workflow"]
+fn fma_reference_records() -> Result<(), String> {
+    let path = std::env::var("KICAD_GLIBC_LIBM_FMA_REFERENCE").map_err(|e| e.to_string())?;
+    let count = std::env::var("KICAD_GLIBC_LIBM_FMA_COUNT")
+        .map_err(|e| e.to_string())?
+        .parse::<usize>()
+        .map_err(|e| e.to_string())?;
+    let data = std::fs::read(path).map_err(|e| e.to_string())?;
+    assert_eq!(data.len(), count * 32, "record count");
+    let mut mismatches = 0_usize;
+    for row in data.chunks_exact(32) {
+        let mut words = [0_u64; 4];
+        for (w, b) in words.iter_mut().zip(row.chunks_exact(8)) {
+            let mut a = [0_u8; 8];
+            a.copy_from_slice(b);
+            *w = u64::from_le_bytes(a);
+        }
+        let got = super::fma(
+            f64::from_bits(words[0]),
+            f64::from_bits(words[1]),
+            f64::from_bits(words[2]),
+        )
+        .to_bits();
+        if got != words[3] {
+            if mismatches < 10 {
+                println!(
+                    "fma x {:016x} y {:016x} z {:016x}: got {got:016x} want {:016x}",
+                    words[0], words[1], words[2], words[3]
+                );
+            }
+            mismatches += 1;
+        }
+    }
+    println!("glibc_libm fma: {count} records, {mismatches} mismatches");
+    assert_eq!(mismatches, 0);
+    Ok(())
+}

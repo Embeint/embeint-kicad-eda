@@ -22,6 +22,7 @@ HERE=Path(__file__).resolve().parent
 ROOT=HERE.parents[1]
 RUST=ROOT/'rust/kicad-math/src/glibc_libm'
 HYPOT=ROOT/'rust/kicad-math/src/hypot.rs'
+FMA=RUST/'fma.rs'
 
 def need(ok,what):
     if not ok: raise ValueError(what)
@@ -30,9 +31,10 @@ def doubles(text): return [int(s,16) for s in re.findall(r'f64::from_bits\(0x([a
 def bits(x): return struct.unpack('>Q',struct.pack('>d',float(x)))[0]
 def check(get):
     manifest=json.loads((HERE/'source.json').read_text())
-    src={}
+    src={};full={}
     for path,digest in manifest['files'].items():
-        b=get(path);need(hashlib.sha256(b).hexdigest()==digest,f'source hash {path}');src[Path(path).name]=b.decode()
+        b=get(path);need(hashlib.sha256(b).hexdigest()==digest,f'source hash {path}')
+        src[Path(path).name]=full[path]=b.decode()
     for name,out in [('uatan.tbl','atan_table.rs'),('utan.tbl','tan_table.rs'),('asincos.tbl','asin_table.rs')]:
         text=src[name].split('#else')[0]
         text=text[text.index('='):]
@@ -59,6 +61,7 @@ def check(get):
         need(actual is not None and int(actual[1],16)==bits(v),f'constant {name}')
     check_pow(src['e_pow_log_data.c'],src['e_exp_data.c'],(RUST/'pow_table.rs').read_text())
     check_hypot(src,HYPOT.read_text())
+    check_fma(full,FMA.read_text())
     return manifest
 
 def hexexpr(text,n=128):
@@ -108,6 +111,24 @@ def check_hypot(src,rust):
     need(src['w_hypot.c'].strip()=='/* Not needed.  */','dbl-64 w_hypot.c is not empty')
     need('versioned_symbol (libm, __hypot, hypot, GLIBC_2_35);' in text,'hypot GLIBC_2.35 version')
     need('#ifdef __FP_FAST_FMA' in text,'hypot FMA selection')
+
+def check_fma(full,rust):
+    """__fma_sse2 is the generic dbl-64 s_fma.c with x86 tininess and no builtin."""
+    multiarch=full['sysdeps/x86_64/fpu/multiarch/s_fma.c']
+    need('#define __fma __fma_sse2' in multiarch,'multiarch fma renames __fma_sse2')
+    need('#include <sysdeps/ieee754/dbl-64/s_fma.c>' in multiarch,'multiarch fma includes dbl-64')
+    need('CPU_FEATURE_USABLE (FMA4)' in multiarch and ': __fma_sse2));' in multiarch,'fma IFUNC selection')
+    need(re.search(r'#define USE_FMA_BUILTIN 0\n',full['sysdeps/generic/math-use-builtins-fma.h']) is not None,
+         'USE_FMA_BUILTIN is not 0')
+    need(re.search(r'#define TININESS_AFTER_ROUNDING\s+1\n',full['sysdeps/x86/tininess.h']) is not None,
+         'x86 tininess is not after rounding')
+    text=full['sysdeps/ieee754/dbl-64/s_fma.c']
+    for line in ['return (z + x) + y;','return x * y;','return x * y + z;','return tiny + z;',
+                 'libc_fesetround (FE_TOWARDZERO);','#define C ((1 << (DBL_MANT_DIG + 1) / 2) + 1)',
+                 'if (w.ieee.exponent <= 4 * DBL_MANT_DIG + 6)','return (a1 + u.d) * 0x1p53;']:
+        need(line in text,f'fma source line {line}')
+    need('const C: f64 = ((1 << ((MANT_DIG + 1) / 2)) + 1) as f64;' in rust,'fma Dekker constant')
+    need('const MANT_DIG: i32 = 53;' in rust and 'const BIAS: i32 = 1023;' in rust,'fma field constants')
 
 def fetch_archive(spec, archive):
     # Transport mirrors may fail (archive.ubuntu.com refused hosted CI with

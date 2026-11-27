@@ -658,8 +658,9 @@ mod tests {
             }
         }
         // The vector owner's std::hypot wiring returns the 5 former
-        // `VECTOR2<double>::EuclideanNorm std::hypot` deferrals; no other count changes.
-        assert_eq!(counts, [14329, 1602]);
+        // `VECTOR2<double>::EuclideanNorm std::hypot` deferrals. The trigo.cpp port returns the 63
+        // former `SegmentIntersectsSegment` deferrals and adds 135 segment-continuation cases.
+        assert_eq!(counts, [14527, 1539]);
     }
     #[test]
     fn undefined_controls_refuse_and_next_request_survives() -> Result<(), serde_json::Error> {
