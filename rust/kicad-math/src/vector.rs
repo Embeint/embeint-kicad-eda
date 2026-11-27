@@ -14,6 +14,7 @@ use core::ops::{Add, Mul, Sub};
 
 use crate::fp;
 use crate::math_util::{self, MathUtilError};
+use crate::stream::{insert_str, StreamError, StreamInsert, StreamState};
 
 /// `VECTOR2<T>`: a general 2D vector or point. Coordinates keep the C++ component type.
 #[derive(Clone, Copy, Debug, Default)]
@@ -734,6 +735,25 @@ fn scalar_equals(a: f64, b: f64, e: f64) -> VResult<bool> {
 }
 pub fn ki_round_xy(x: f64, y: f64) -> VResult<Vector2<i32>> {
     Vector2::new(x, y).ki_round()
+}
+
+/// `operator<<( std::ostream&, const VECTOR2<T>& )` (vector2d.h:699-704) at `T = int`, into the
+/// caller's stream: `aStream << "[ " << aVector.x << " | " << aVector.y << " ]"`. Each of the five
+/// insertions goes through the modelled libstdc++ insertion in that order, so the format flags
+/// apply to both components and only the first insertion (`"[ "`) is padded to the width, which
+/// it resets to 0.
+///
+/// Minimum co-port by `libs.kimath.include.geometry.application.ui.p003` for `SEG`'s
+/// `operator<<`; the owning unit's default-state [`Vector2::stream`] is unchanged.
+impl StreamInsert for Vector2<i32> {
+    fn insert(&self, state: &mut StreamState) -> Result<String, StreamError> {
+        let mut out = insert_str("[ ", state)?;
+        out.push_str(&self.x.insert(state)?);
+        out.push_str(&insert_str(" | ", state)?);
+        out.push_str(&self.y.insert(state)?);
+        out.push_str(&insert_str(" ]", state)?);
+        Ok(out)
+    }
 }
 
 impl<T: VectorComponent> Vector3<T> {

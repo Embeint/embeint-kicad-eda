@@ -11,10 +11,10 @@
 //! Conversions the C++ defines (C++20 modular `int64_t -> int`, the clamping `VECTOR2` converting
 //! constructor) keep their defined results.
 //!
-//! The [`Seg`] type itself (members, constructors, `operator==`, `Index`) is a minimum type
-//! co-port from `seg.h`, owned by `libs.kimath.include.geometry.application.ui.p003`. That
-//! header's function bodies (`Square`, `SquaredLength`, and the rest) stay with their owner:
-//! the two this file calls return a typed `Unported` deferral.
+//! The [`Seg`] type and the `seg.h` inline bodies (`Square`, `SquaredLength`, `Center`,
+//! `IntersectLines`, ...) belong to `libs.kimath.include.geometry.application.ui.p003`
+//! ([`crate::seg_header`]); this file adds the out-of-line seg.cpp bodies to that type and
+//! calls the header bodies directly.
 use crate::eda_angle::{EdaAngle, GeometryError};
 use crate::math_util;
 use crate::util::{self, isqrt, ki_round};
@@ -23,8 +23,10 @@ use crate::wide_int::{cross_wide, to_double};
 
 /// This unit.
 pub const UNIT: &str = "libs.kimath.src.geometry.seg.application.ui.p001";
-/// Owner of the `seg.h` inline bodies.
-pub const HEADER_UNIT: &str = "libs.kimath.include.geometry.application.ui.p003";
+/// Owner of the `seg.h` type and inline bodies.
+pub const HEADER_UNIT: &str = crate::seg_header::UNIT;
+
+pub use crate::seg_header::Seg;
 
 /// `SEG::ecoord`, `VECTOR2I::extended_type`.
 pub type Ecoord = i64;
@@ -123,67 +125,7 @@ fn isqrt64(v: i64) -> SegResult<i64> {
     Ok(isqrt(v)?)
 }
 
-/// `SEG::Square` (seg.h), owned by the header unit.
-fn square(_value: i32) -> SegResult<Ecoord> {
-    // UNPORTED(libs.kimath.include.geometry.application.ui.p003): SEG::Square
-    Err(SegError::Unported {
-        upstream: "SEG::Square",
-        unit: HEADER_UNIT,
-    })
-}
-
-/// `SEG::SquaredLength` (seg.h), owned by the header unit.
-fn squared_length(_seg: &Seg) -> SegResult<Ecoord> {
-    // UNPORTED(libs.kimath.include.geometry.application.ui.p003): SEG::SquaredLength
-    Err(SegError::Unported {
-        upstream: "SEG::SquaredLength",
-        unit: HEADER_UNIT,
-    })
-}
-
-/// `SEG`: a segment from `a` to `b`, with the index it has within a parent shape.
-#[derive(Clone, Copy, Debug)]
-pub struct Seg {
-    pub a: Vector2I,
-    pub b: Vector2I,
-    index: i32,
-}
-
-impl Default for Seg {
-    /// `SEG()`: zero points, index -1.
-    fn default() -> Self {
-        Self::new(Vector2::default(), Vector2::default())
-    }
-}
-
-impl PartialEq for Seg {
-    /// `SEG::operator==` compares the points only, never the index.
-    fn eq(&self, other: &Self) -> bool {
-        self.a == other.a && self.b == other.b
-    }
-}
-
 impl Seg {
-    /// `SEG( const VECTOR2I& aA, const VECTOR2I& aB )`: index -1.
-    pub const fn new(a: Vector2I, b: Vector2I) -> Self {
-        Self { a, b, index: -1 }
-    }
-
-    /// `SEG( int aX1, int aY1, int aX2, int aY2 )`: index -1.
-    pub const fn from_coords(x1: i32, y1: i32, x2: i32, y2: i32) -> Self {
-        Self::new(Vector2::new(x1, y1), Vector2::new(x2, y2))
-    }
-
-    /// `SEG( const VECTOR2I& aA, const VECTOR2I& aB, int aIndex )`.
-    pub const fn with_index(a: Vector2I, b: Vector2I, index: i32) -> Self {
-        Self { a, b, index }
-    }
-
-    /// `SEG::Index`.
-    pub const fn index(&self) -> i32 {
-        self.index
-    }
-
     /// `SEG::SquaredDistance( const SEG& aSeg )`.
     pub fn squared_distance_seg(&self, seg: &Seg) -> SegResult<Ecoord> {
         // Zero-length segments (points) are handled first: the cross product with a zero
@@ -740,7 +682,7 @@ impl Seg {
     fn mutual_distance_squared(&self, seg: &Seg) -> SegResult<Option<(Ecoord, Ecoord)>> {
         let mut a = *self;
         let mut b = *seg;
-        if squared_length(&a)? < squared_length(&b)? {
+        if a.squared_length()? < b.squared_length()? {
             core::mem::swap(&mut a, &mut b);
         }
         let (p, q, r, l) = canonical(&a)?;
@@ -758,7 +700,7 @@ impl Seg {
 
     /// `SEG::ApproxCollinear`; the C++ default threshold is 1.
     pub fn approx_collinear(&self, seg: &Seg, distance_threshold: i32) -> SegResult<bool> {
-        let threshold_squared = square(distance_threshold)?;
+        let threshold_squared = Seg::square(distance_threshold);
         let Some((d1_sq, d2_sq)) = self.mutual_distance_squared(seg)? else {
             return Ok(false);
         };
@@ -769,7 +711,7 @@ impl Seg {
 
     /// `SEG::ApproxParallel`; the C++ default threshold is 1.
     pub fn approx_parallel(&self, seg: &Seg, distance_threshold: i32) -> SegResult<bool> {
-        let threshold_squared = square(distance_threshold)?;
+        let threshold_squared = Seg::square(distance_threshold);
         let Some((d1_sq, d2_sq)) = self.mutual_distance_squared(seg)? else {
             return Ok(false);
         };

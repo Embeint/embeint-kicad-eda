@@ -150,6 +150,43 @@ def generate(include_undefined=False):
         a=pow_rng.uniform(-2e9,2e9)
         a=a/scale if digits>0 else a*scale
         add(f'pow-round-seeded-{i}', op='round', a=bits(a), digits=digits)
+    # Contains' accuracy fallback after SEG::Square (seg.h, wired by the header unit
+    # libs.kimath.include.geometry.application.ui.p003): hand-placed requests at the
+    # squared-distance boundary, hole skipping, unindexed horizontal edges, clamped stripes
+    # and the largest accuracy. Appended without randomness, so every case above is unchanged.
+    def contains(name, polys, pt, accuracy):
+        add(f'square-continuation-{name}', op='poly',
+            builds=[dict(polygons=polys, point=pt, accuracy=accuracy)])
+    small = [poly([[0,0],[10,0],[10,10],[0,10]])]
+    for name, pt, accuracy in [('review', [11,5], 2), ('edge-exact', [12,5], 2),
+                               ('edge-beyond', [13,5], 2), ('corner-within', [12,12], 3),
+                               ('corner-beyond', [13,13], 3), ('corner-exact', [10,12], 2),
+                               ('horizontal-unindexed', [5,11], 2),
+                               ('horizontal-reached', [5,11], 6), ('left', [-2,7], 2),
+                               ('below-clamped', [5,-1000], 999), ('below-exact', [5,-1000], 1000),
+                               ('far-int-max', [2147483647,5], 2147483647),
+                               ('inside', [5,5], 2), ('accuracy-one', [11,5], 1)]:
+        contains(name, small, pt, accuracy)
+    for name, pt, accuracy in [('hole-skipped', [50,50], 30), ('hole-outline', [50,50], 50),
+                               ('hole-near-edge', [26,50], 10), ('hole-outside', [102,50], 2)]:
+        contains(name, [poly(square,[hole])], pt, accuracy)
+    nine = polygons[-1]
+    for name, pt, accuracy in [('between-within', [150,50], 50), ('between-beyond', [150,50], 49),
+                               ('past-last', [1702,50], 2), ('past-last-beyond', [1703,50], 2)]:
+        contains(name, nine, pt, accuracy)
+    for name, pt, accuracy in [('slanted', [101,1], 2), ('slanted-beyond', [104,1], 2)]:
+        contains(name, [poly([[0,0],[100,1],[0,2]])], pt, accuracy)
+    big = [poly([[2147483000,-2147483000],[2147483600,-2147483000],[2147483600,-2147482400],
+                 [2147483000,-2147482400]])]
+    for name, pt, accuracy in [('high-within', [2147483602,-2147482700], 2),
+                               ('high-beyond', [2147483603,-2147482700], 2),
+                               ('high-int-max', [2147483647,-2147482700], 47)]:
+        contains(name, big, pt, accuracy)
+    add('square-continuation-rebuild', op='poly',
+        builds=[dict(polygons=small, point=[11,5], accuracy=2),
+                dict(polygons=[poly(square,[hole])], point=[50,50], accuracy=30),
+                dict(polygons=[], point=[11,5], accuracy=2),
+                dict(polygons=small, point=[13,5], accuracy=3)])
     assert len({c['case'] for c in cases}) == len(cases)
     if include_undefined: return undefined
     return ''.join(json.dumps(c,separators=(',',':'),allow_nan=False)+'\n' for c in cases)
@@ -161,8 +198,10 @@ def controls():
     add('diff-x-overflow',[[-2147483648,0],[2147483647,100],[0,0]],[0,50])
     add('diff-y-overflow',[[0,-2147483648],[100,2147483647],[200,-2147483648]],[0,0])
     add('point-x-overflow',[[-10,0],[-10,100],[-20,0]],[2147483647,50])
+    # The Rust port refuses these at the same SquaredDistance overflow now that SEG::Square
+    # (libs.kimath.include.geometry.application.ui.p003) no longer defers before it.
     for request in generate(include_undefined=True):
-        result.append(dict(request=request,error=dict(kind='invalid_input',message='intermediate overflow'),rust_error=dict(kind='unported',unit='libs.kimath.include.geometry.application.ui.p003',upstream='SEG::Square')))
+        result.append(dict(request=request,error=dict(kind='invalid_input',message='intermediate overflow')))
     return ''.join(json.dumps(v,separators=(',',':'))+'\n' for v in result)
 
 def priority_controls():

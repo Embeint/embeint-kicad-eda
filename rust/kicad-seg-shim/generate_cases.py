@@ -8,9 +8,10 @@ only to classify a candidate request and label the source branches it reaches; i
 writes a result:
 
 * defined: the pinned evaluation has no undefined behaviour. The request enters the public
-  corpus. The mirror also records the dependency calls the Rust port still defers (the seg.h
-  bodies SEG::Square and SEG::SquaredLength, and util.cpp's kimathLogOverflow, reached by a
-  nonquiet KiROUND overflow), so the expected deferral count is known.
+  corpus. The mirror also records the dependency calls the Rust port still defers (util.cpp's
+  kimathLogOverflow, reached by a nonquiet KiROUND overflow), so the expected deferral count is
+  known. The seg.h bodies SEG::Square and SEG::SquaredLength are ported by the header unit
+  (libs.kimath.include.geometry.application.ui.p003) and are no longer deferrals.
 * undefined: the evaluation reaches signed overflow, negation of the minimum or an
   out-of-range floating-to-integer cast before any deferred call. The request is a separate
   control; both programs must refuse it identically. It never enters the public corpus.
@@ -425,7 +426,6 @@ class Run:
 
     def mutual(self, s, o):
         la = sq_norm(*self.subI(s[0], s[1]))
-        self.defer('SEG::SquaredLength')
         lb = sq_norm(*self.subI(o[0], o[1]))
         a, b = (o, s) if la < lb else (s, o)
         p, q, r, l = self.canonical(a)
@@ -440,7 +440,6 @@ class Run:
         return L(sg(d1) * q1), L(sg(d2) * q2)
 
     def approx(self, s, o, threshold, collinear):
-        self.defer('SEG::Square')
         t = threshold * threshold
         m = self.mutual(s, o)
         if m is None:

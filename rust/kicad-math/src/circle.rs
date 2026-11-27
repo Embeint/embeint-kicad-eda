@@ -13,14 +13,14 @@
 //! Minimum co-ports, ownership unchanged:
 //! - [`Circle`]'s two data members and the defaulted `operator==` come from `geometry/circle.h`,
 //!   owned by `libs.kimath.include.geometry.application.pure.p001` (todo).
-//! - [`MIN_PRECISION_IU`] is the constant `SHAPE::MIN_PRECISION_IU = 4` of `geometry/shape.h`,
-//!   owned by `libs.kimath.include.geometry.application.ui.p003` (todo).
+//! - [`MIN_PRECISION_IU`] re-exports `SHAPE::MIN_PRECISION_IU = 4` of `geometry/shape.h`,
+//!   ported by its owner `libs.kimath.include.geometry.application.ui.p003` in [`crate::shape`].
 //!
-//! Calls into unported owners return [`CircleError::Unported`] and the continuation after each
-//! of them is implemented: `SEG::Square` (reached through `SEG::ApproxParallel`), `SEG::Center`
-//! and `SEG::IntersectLines` (seg.h, header unit p003), `CalcArcMid` (trigo.cpp) and
-//! `RotatePoint( VECTOR2I&, const EDA_ANGLE& )` (trigo.h). A `KiROUND` overflow keeps the math
-//! util unit's `kimathLogOverflow` deferral.
+//! `SEG::Square` (through `SEG::ApproxParallel`), `SEG::Center` and `SEG::IntersectLines` are
+//! the seg.h bodies of [`crate::seg_header`]. Calls into unported owners return
+//! [`CircleError::Unported`] and the continuation after each of them is implemented:
+//! `CalcArcMid` (trigo.cpp) and `RotatePoint( VECTOR2I&, const EDA_ANGLE& )` (trigo.h). A
+//! `KiROUND` overflow keeps the math util unit's `kimathLogOverflow` deferral.
 //!
 //! Signed overflow, `std::abs` of the minimum and out-of-range floating-to-integer conversions
 //! are undefined in the C++ and are refused with [`CircleError::Undefined`] at the first such
@@ -33,7 +33,7 @@
 //! Either way the circle keeps the members already assigned at that point, as in C++.
 use crate::eda_angle::{EdaAngle, GeometryError};
 use crate::fp;
-use crate::seg::{OptVector2I, Seg, SegError, HEADER_UNIT as SEG_HEADER_UNIT};
+use crate::seg::{OptVector2I, Seg, SegError};
 use crate::util::round_i32;
 use crate::vector::{Vector2, Vector2D, Vector2I, Vector2L, VectorDomainError};
 
@@ -47,9 +47,8 @@ pub const TRIGO_HEADER_UNIT: &str = "libs.kimath.include.application.ui.p001";
 pub const TRIGO_UNIT: &str = "libs.kimath.src.trigo.application.ui.p001";
 
 /// `SHAPE::MIN_PRECISION_IU` (geometry/shape.h:129), the rounding margin of the
-/// on-circumference and tangent tests. Minimum constant co-port from
-/// `libs.kimath.include.geometry.application.ui.p003`, which keeps ownership.
-pub const MIN_PRECISION_IU: i32 = 4;
+/// on-circumference and tangent tests, from its owner's port.
+pub use crate::shape::MIN_PRECISION_IU;
 
 /// The upstream symbol of the host assertion effect of a failed `wxCHECK_MSG`.
 pub const WX_ON_ASSERT: &str = "wxOnAssert";
@@ -193,29 +192,22 @@ pub(crate) trait Callees {
     fn wx_check_failed(&self, check: &WxCheck) -> CircleResult<()>;
 }
 
-/// The pinned callees: the accepted SEG source body, and typed deferrals for the rest.
+/// The pinned callees: the accepted SEG source and header bodies, and typed deferrals for the
+/// rest.
 pub(crate) struct Pinned;
 
 impl Callees for Pinned {
     fn approx_parallel(&self, line_a: &Seg, line_b: &Seg) -> CircleResult<bool> {
-        // The accepted seg.cpp body; it reaches its own SEG::Square deferral first.
+        // The accepted seg.cpp body, calling the seg.h SEG::Square and SEG::SquaredLength.
         Ok(line_a.approx_parallel(line_b, 1)?)
     }
 
-    fn seg_center(&self, _seg: &Seg) -> CircleResult<Vector2I> {
-        // UNPORTED(libs.kimath.include.geometry.application.ui.p003): SEG::Center
-        Err(CircleError::Unported {
-            upstream: "SEG::Center",
-            unit: SEG_HEADER_UNIT,
-        })
+    fn seg_center(&self, seg: &Seg) -> CircleResult<Vector2I> {
+        Ok(seg.center()?)
     }
 
-    fn intersect_lines(&self, _seg: &Seg, _other: &Seg) -> CircleResult<OptVector2I> {
-        // UNPORTED(libs.kimath.include.geometry.application.ui.p003): SEG::IntersectLines
-        Err(CircleError::Unported {
-            upstream: "SEG::IntersectLines",
-            unit: SEG_HEADER_UNIT,
-        })
+    fn intersect_lines(&self, seg: &Seg, other: &Seg) -> CircleResult<OptVector2I> {
+        Ok(seg.intersect_lines(other)?)
     }
 
     fn calc_arc_mid(
@@ -690,7 +682,7 @@ mod tests {
 
     /// Test-only callees for exercising continuations behind unported calls. The parallel
     /// decision is the test's declared input; `SEG::Center` and `SEG::IntersectLines` are the
-    /// seg.h one-line bodies (`A + ( B - A ) / 2`; `Intersect( aSeg, false, true )`); RotatePoint
+    /// pinned seg.h bodies, as in [`Pinned`]; RotatePoint
     /// implements only trigo.cpp's exact 0/90/180/270 degree branches and defers otherwise.
     /// With `host` set, a failed wxCHECK_MSG is recorded there as a returning assertion handler;
     /// without it, it defers as [`Pinned`] does. None of this is production code or oracle
@@ -728,11 +720,10 @@ mod tests {
             Ok(self.parallel)
         }
         fn seg_center(&self, seg: &Seg) -> CircleResult<Vector2I> {
-            let half = seg.b.try_sub(seg.a)?.divide(2.0)?;
-            Ok(seg.a.try_add(half)?)
+            Pinned.seg_center(seg)
         }
         fn intersect_lines(&self, seg: &Seg, other: &Seg) -> CircleResult<OptVector2I> {
-            Ok(seg.intersect(other, false, true)?)
+            Pinned.intersect_lines(seg, other)
         }
         fn calc_arc_mid(
             &self,
@@ -772,8 +763,8 @@ mod tests {
     }
 
     #[test]
-    fn transcribed_center_rounds_odd_halves() -> CircleResult<()> {
-        let t = Transcribed::new(true);
+    fn pinned_center_rounds_odd_halves() -> CircleResult<()> {
+        let t = Pinned;
         // SEG::Center uses VECTOR2I / double: half integers round away from zero.
         for (a, b, expected) in [
             (v(0, 0), v(1, -1), v(1, -1)),
@@ -901,14 +892,22 @@ mod tests {
     }
 
     #[test]
-    fn tan_tan_pt_defers_at_its_first_unported_call() {
+    fn tan_tan_pt_pinned_parallel_and_general_paths() -> CircleResult<()> {
+        // Parallel: the seg.h SEG::Square, SquaredLength and Center are ported, so the whole
+        // branch runs. Radius 25; centres (35, 25) and (-15, 25), the second closer to A.
         let mut c = Circle::with_center_radius(v(1, 2), 3);
         let a = Seg::new(v(0, 0), v(100, 0));
         let b = Seg::new(v(0, 50), v(100, 50));
+        c.construct_from_tan_tan_pt(&a, &b, v(10, 25))?;
+        assert_eq!(c, Circle::with_center_radius(v(-15, 25), 25));
+        // General: IntersectLines is ported; CalcArcMid is the first unported call.
+        let b = Seg::new(v(0, 0), v(0, 100));
+        let mut c = Circle::new();
         assert_eq!(
-            c.construct_from_tan_tan_pt(&a, &b, v(10, 25)).map(|c| *c),
-            Err(unported("SEG::Square", SEG_HEADER_UNIT))
+            c.construct_from_tan_tan_pt(&a, &b, v(10, 20)).map(|c| *c),
+            Err(unported("CalcArcMid", TRIGO_UNIT))
         );
+        Ok(())
     }
 
     #[test]

@@ -74,6 +74,14 @@ pub mod mirror;
 pub mod poisson_disk;
 pub mod poly_ystripes;
 pub mod seg;
+pub mod seg_header;
+pub mod shape;
+pub mod shape_arc;
+pub mod shape_circle;
+pub mod shape_compound;
+pub mod shape_ellipse;
+#[cfg(test)]
+mod shape_tests;
 
 // `generated.rs` is emitter output (sha256 d24ff0f2..., from the reviewed graph locks of the
 // pinned oracle; port/tools/kimath_nan/README.md). It is bound byte for byte by
