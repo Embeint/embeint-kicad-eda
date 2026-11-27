@@ -818,6 +818,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "kicad-font"
+version = "0.1.0"
+dependencies = [
+ "kicad-map-helpers",
+ "kicad-math",
+ "kicad-wx-stl-compat",
+]
+
+[[package]]
+name = "kicad-font-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-font",
+ "kicad-map-helpers",
+ "kicad-math",
+ "kicad-wx-stl-compat",
+ "serde_json",
+]
+
+[[package]]
 name = "kicad-geometry-shim"
 version = "0.1.0"
 dependencies = [
