@@ -34,8 +34,8 @@
     "source_revision": "3160ed726dafb8da2af14f4a2b3420c9e9886fb6",
     "tag": "noble-20261110.1"
   },
-  "candidate": "candidate-1",
-  "candidate_sha256": "caf46fb6e5b186ac1639b213045f12c2507258a5788ac61222b9d83caa41f4df",
+  "candidate": "candidate-2",
+  "candidate_sha256": "ad363f6149505bbe3def30eefd2c1a994b5a6127305994afedab8b1be48e2368",
   "generated_by": "port/reference-env/tools/lock_inputs.py",
   "libm": {
     "build_id": "f772fc0c42a75e38f138f8b66f1ebc8aad060525",
@@ -1268,6 +1268,41 @@
       },
       {
         "architecture": "amd64",
+        "name": "gir1.2-freedesktop",
+        "source": "gobject-introspection",
+        "source_version": "1.80.1-1",
+        "version": "1.80.1-1"
+      },
+      {
+        "architecture": "amd64",
+        "name": "gir1.2-freedesktop-dev",
+        "source": "gobject-introspection",
+        "source_version": "1.80.1-1",
+        "version": "1.80.1-1"
+      },
+      {
+        "architecture": "amd64",
+        "name": "gir1.2-glib-2.0",
+        "source": "glib2.0",
+        "source_version": "2.80.0-6ubuntu3.10",
+        "version": "2.80.0-6ubuntu3.10"
+      },
+      {
+        "architecture": "amd64",
+        "name": "gir1.2-glib-2.0-dev",
+        "source": "glib2.0",
+        "source_version": "2.80.0-6ubuntu3.10",
+        "version": "2.80.0-6ubuntu3.10"
+      },
+      {
+        "architecture": "amd64",
+        "name": "gir1.2-harfbuzz-0.0",
+        "source": "harfbuzz",
+        "source_version": "8.3.0-2build2",
+        "version": "8.3.0-2build2"
+      },
+      {
+        "architecture": "amd64",
         "name": "git",
         "source": "git",
         "source_version": "1:2.43.0-1ubuntu7.4",
@@ -1328,6 +1363,13 @@
         "source": "humanity-icon-theme",
         "source_version": "0.6.16",
         "version": "0.6.16"
+      },
+      {
+        "architecture": "amd64",
+        "name": "icu-devtools",
+        "source": "icu",
+        "source_version": "74.2-1ubuntu3.1",
+        "version": "74.2-1ubuntu3.1"
       },
       {
         "architecture": "all",
@@ -1464,6 +1506,13 @@
       },
       {
         "architecture": "amd64",
+        "name": "libblkid-dev",
+        "source": "util-linux",
+        "source_version": "2.39.3-9ubuntu6.6",
+        "version": "2.39.3-9ubuntu6.6"
+      },
+      {
+        "architecture": "amd64",
         "name": "libblkid1",
         "source": "util-linux",
         "source_version": "2.39.3-9ubuntu6.6",
@@ -1485,6 +1534,13 @@
       },
       {
         "architecture": "amd64",
+        "name": "libbrotli-dev",
+        "source": "brotli",
+        "source_version": "1.1.0-2ubuntu0.1",
+        "version": "1.1.0-2ubuntu0.1"
+      },
+      {
+        "architecture": "amd64",
         "name": "libbrotli1",
         "source": "brotli",
         "source_version": "1.1.0-2ubuntu0.1",
@@ -1500,6 +1556,13 @@
       {
         "architecture": "amd64",
         "name": "libbz2-1.0",
+        "source": "bzip2",
+        "source_version": "1.0.8-5.1ubuntu0.1",
+        "version": "1.0.8-5.1ubuntu0.1"
+      },
+      {
+        "architecture": "amd64",
+        "name": "libbz2-dev",
         "source": "bzip2",
         "source_version": "1.0.8-5.1ubuntu0.1",
         "version": "1.0.8-5.1ubuntu0.1"
@@ -1758,6 +1821,13 @@
       },
       {
         "architecture": "amd64",
+        "name": "libexpat1-dev",
+        "source": "expat",
+        "source_version": "2.6.1-2ubuntu0.6",
+        "version": "2.6.1-2ubuntu0.6"
+      },
+      {
+        "architecture": "amd64",
         "name": "libext2fs2t64",
         "source": "e2fsprogs",
         "source_version": "1.47.0-2.4~exp1ubuntu4.1",
@@ -1772,6 +1842,13 @@
       },
       {
         "architecture": "amd64",
+        "name": "libffi-dev",
+        "source": "libffi",
+        "source_version": "3.4.6-1build1",
+        "version": "3.4.6-1build1"
+      },
+      {
+        "architecture": "amd64",
         "name": "libffi8",
         "source": "libffi",
         "source_version": "3.4.6-1build1",
@@ -1779,10 +1856,24 @@
       },
       {
         "architecture": "amd64",
+        "name": "libfontconfig-dev",
+        "source": "fontconfig",
+        "source_version": "2.15.0-1.1ubuntu2",
+        "version": "2.15.0-1.1ubuntu2"
+      },
+      {
+        "architecture": "amd64",
         "name": "libfontconfig1",
         "source": "fontconfig",
         "source_version": "2.15.0-1.1ubuntu2",
         "version": "2.15.0-1.1ubuntu2"
+      },
+      {
+        "architecture": "amd64",
+        "name": "libfreetype-dev",
+        "source": "freetype",
+        "source_version": "2.13.2+dfsg-1ubuntu0.2",
+        "version": "2.13.2+dfsg-1ubuntu0.2"
       },
       {
         "architecture": "amd64",
@@ -1856,6 +1947,13 @@
       },
       {
         "architecture": "amd64",
+        "name": "libgirepository-2.0-0",
+        "source": "glib2.0",
+        "source_version": "2.80.0-6ubuntu3.10",
+        "version": "2.80.0-6ubuntu3.10"
+      },
+      {
+        "architecture": "amd64",
         "name": "libgl-dev",
         "source": "libglvnd",
         "source_version": "1.7.0-1build1",
@@ -1878,6 +1976,34 @@
       {
         "architecture": "amd64",
         "name": "libglib2.0-0t64",
+        "source": "glib2.0",
+        "source_version": "2.80.0-6ubuntu3.10",
+        "version": "2.80.0-6ubuntu3.10"
+      },
+      {
+        "architecture": "amd64",
+        "name": "libglib2.0-bin",
+        "source": "glib2.0",
+        "source_version": "2.80.0-6ubuntu3.10",
+        "version": "2.80.0-6ubuntu3.10"
+      },
+      {
+        "architecture": "all",
+        "name": "libglib2.0-data",
+        "source": "glib2.0",
+        "source_version": "2.80.0-6ubuntu3.10",
+        "version": "2.80.0-6ubuntu3.10"
+      },
+      {
+        "architecture": "amd64",
+        "name": "libglib2.0-dev",
+        "source": "glib2.0",
+        "source_version": "2.80.0-6ubuntu3.10",
+        "version": "2.80.0-6ubuntu3.10"
+      },
+      {
+        "architecture": "amd64",
+        "name": "libglib2.0-dev-bin",
         "source": "glib2.0",
         "source_version": "2.80.0-6ubuntu3.10",
         "version": "2.80.0-6ubuntu3.10"
@@ -1968,6 +2094,13 @@
       },
       {
         "architecture": "amd64",
+        "name": "libgraphite2-dev",
+        "source": "graphite2",
+        "source_version": "1.3.14-2ubuntu0.24.04.1",
+        "version": "1.3.14-2ubuntu0.24.04.1"
+      },
+      {
+        "architecture": "amd64",
         "name": "libgssapi-krb5-2",
         "source": "krb5",
         "source_version": "1.20.1-6ubuntu2.10",
@@ -1986,6 +2119,41 @@
         "source": "gtk+3.0",
         "source_version": "3.24.41-4ubuntu1.3",
         "version": "3.24.41-4ubuntu1.3"
+      },
+      {
+        "architecture": "amd64",
+        "name": "libharfbuzz-cairo0",
+        "source": "harfbuzz",
+        "source_version": "8.3.0-2build2",
+        "version": "8.3.0-2build2"
+      },
+      {
+        "architecture": "amd64",
+        "name": "libharfbuzz-dev",
+        "source": "harfbuzz",
+        "source_version": "8.3.0-2build2",
+        "version": "8.3.0-2build2"
+      },
+      {
+        "architecture": "amd64",
+        "name": "libharfbuzz-gobject0",
+        "source": "harfbuzz",
+        "source_version": "8.3.0-2build2",
+        "version": "8.3.0-2build2"
+      },
+      {
+        "architecture": "amd64",
+        "name": "libharfbuzz-icu0",
+        "source": "harfbuzz",
+        "source_version": "8.3.0-2build2",
+        "version": "8.3.0-2build2"
+      },
+      {
+        "architecture": "amd64",
+        "name": "libharfbuzz-subset0",
+        "source": "harfbuzz",
+        "source_version": "8.3.0-2build2",
+        "version": "8.3.0-2build2"
       },
       {
         "architecture": "amd64",
@@ -2014,6 +2182,13 @@
         "source": "libice",
         "source_version": "2:1.0.10-1build3",
         "version": "2:1.0.10-1build3"
+      },
+      {
+        "architecture": "amd64",
+        "name": "libicu-dev",
+        "source": "icu",
+        "source_version": "74.2-1ubuntu3.1",
+        "version": "74.2-1ubuntu3.1"
       },
       {
         "architecture": "amd64",
@@ -2178,6 +2353,13 @@
       },
       {
         "architecture": "amd64",
+        "name": "libmount-dev",
+        "source": "util-linux",
+        "source_version": "2.39.3-9ubuntu6.6",
+        "version": "2.39.3-9ubuntu6.6"
+      },
+      {
+        "architecture": "amd64",
         "name": "libmount1",
         "source": "util-linux",
         "source_version": "2.39.3-9ubuntu6.6",
@@ -2318,6 +2500,13 @@
       },
       {
         "architecture": "amd64",
+        "name": "libpcre2-16-0",
+        "source": "pcre2",
+        "source_version": "10.42-4ubuntu2.2",
+        "version": "10.42-4ubuntu2.2"
+      },
+      {
+        "architecture": "amd64",
         "name": "libpcre2-32-0",
         "source": "pcre2",
         "source_version": "10.42-4ubuntu2.2",
@@ -2326,6 +2515,20 @@
       {
         "architecture": "amd64",
         "name": "libpcre2-8-0",
+        "source": "pcre2",
+        "source_version": "10.42-4ubuntu2.2",
+        "version": "10.42-4ubuntu2.2"
+      },
+      {
+        "architecture": "amd64",
+        "name": "libpcre2-dev",
+        "source": "pcre2",
+        "source_version": "10.42-4ubuntu2.2",
+        "version": "10.42-4ubuntu2.2"
+      },
+      {
+        "architecture": "amd64",
+        "name": "libpcre2-posix3",
         "source": "pcre2",
         "source_version": "10.42-4ubuntu2.2",
         "version": "10.42-4ubuntu2.2"
@@ -2343,6 +2546,20 @@
         "source": "pixman",
         "source_version": "0.42.2-1build1",
         "version": "0.42.2-1build1"
+      },
+      {
+        "architecture": "amd64",
+        "name": "libpkgconf3",
+        "source": "pkgconf",
+        "source_version": "1.8.1-2build1",
+        "version": "1.8.1-2build1"
+      },
+      {
+        "architecture": "amd64",
+        "name": "libpng-dev",
+        "source": "libpng1.6",
+        "source_version": "1.6.43-5ubuntu0.7",
+        "version": "1.6.43-5ubuntu0.7"
       },
       {
         "architecture": "amd64",
@@ -2457,6 +2674,13 @@
         "version": "3.5-2ubuntu2.1"
       },
       {
+        "architecture": "amd64",
+        "name": "libselinux1-dev",
+        "source": "libselinux",
+        "source_version": "3.5-2ubuntu2.1",
+        "version": "3.5-2ubuntu2.1"
+      },
+      {
         "architecture": "all",
         "name": "libsemanage-common",
         "source": "libsemanage",
@@ -2483,6 +2707,13 @@
         "source": "lm-sensors",
         "source_version": "1:3.6.0-9build1",
         "version": "1:3.6.0-9build1"
+      },
+      {
+        "architecture": "amd64",
+        "name": "libsepol-dev",
+        "source": "libsepol",
+        "source_version": "3.5-2build1",
+        "version": "3.5-2build1"
       },
       {
         "architecture": "amd64",
@@ -3067,6 +3298,27 @@
       },
       {
         "architecture": "amd64",
+        "name": "pkg-config",
+        "source": "pkgconf",
+        "source_version": "1.8.1-2build1",
+        "version": "1.8.1-2build1"
+      },
+      {
+        "architecture": "amd64",
+        "name": "pkgconf",
+        "source": "pkgconf",
+        "source_version": "1.8.1-2build1",
+        "version": "1.8.1-2build1"
+      },
+      {
+        "architecture": "amd64",
+        "name": "pkgconf-bin",
+        "source": "pkgconf",
+        "source_version": "1.8.1-2build1",
+        "version": "1.8.1-2build1"
+      },
+      {
+        "architecture": "amd64",
         "name": "procps",
         "source": "procps",
         "source_version": "2:4.0.4-4ubuntu3.3",
@@ -3085,6 +3337,13 @@
         "source": "python3-defaults",
         "source_version": "3.12.3-0ubuntu2.1",
         "version": "3.12.3-0ubuntu2.1"
+      },
+      {
+        "architecture": "all",
+        "name": "python3-packaging",
+        "source": "python-packaging",
+        "source_version": "24.0-1",
+        "version": "24.0-1"
       },
       {
         "architecture": "all",
@@ -3242,6 +3501,13 @@
       },
       {
         "architecture": "amd64",
+        "name": "uuid-dev",
+        "source": "util-linux",
+        "source_version": "2.39.3-9ubuntu6.6",
+        "version": "2.39.3-9ubuntu6.6"
+      },
+      {
+        "architecture": "amd64",
         "name": "wx-common",
         "source": "wxwidgets3.2",
         "source_version": "3.2.4+dfsg-4build1",
@@ -3299,6 +3565,13 @@
       {
         "architecture": "amd64",
         "name": "zlib1g",
+        "source": "zlib",
+        "source_version": "1:1.3.dfsg-3.1ubuntu2.3",
+        "version": "1:1.3.dfsg-3.1ubuntu2.3"
+      },
+      {
+        "architecture": "amd64",
+        "name": "zlib1g-dev",
         "source": "zlib",
         "source_version": "1:1.3.dfsg-3.1ubuntu2.3",
         "version": "1:1.3.dfsg-3.1ubuntu2.3"
@@ -3783,6 +4056,76 @@
       },
       {
         "architecture": "amd64",
+        "filename": "pool/main/g/gobject-introspection/gir1.2-freedesktop_1.80.1-1_amd64.deb",
+        "name": "gir1.2-freedesktop",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "49944f1fc427b839b55b01c3764ea1c01affa44cacdafdd67f30d31363b178e7",
+        "size": 49680,
+        "source": "gobject-introspection",
+        "source_version": "1.80.1-1",
+        "suite": "noble",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/g/gobject-introspection/gir1.2-freedesktop_1.80.1-1_amd64.deb",
+        "version": "1.80.1-1"
+      },
+      {
+        "architecture": "amd64",
+        "filename": "pool/main/g/gobject-introspection/gir1.2-freedesktop-dev_1.80.1-1_amd64.deb",
+        "name": "gir1.2-freedesktop-dev",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "c3dc412291b8aa46072271458bf6c2b416e59deae2506e0dc70350ec76cdc29e",
+        "size": 28822,
+        "source": "gobject-introspection",
+        "source_version": "1.80.1-1",
+        "suite": "noble",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/g/gobject-introspection/gir1.2-freedesktop-dev_1.80.1-1_amd64.deb",
+        "version": "1.80.1-1"
+      },
+      {
+        "architecture": "amd64",
+        "filename": "pool/main/g/glib2.0/gir1.2-glib-2.0_2.80.0-6ubuntu3.10_amd64.deb",
+        "name": "gir1.2-glib-2.0",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "8fea23cc31ce22d9623049b966a1c6cda2c08da7ef7fedc9b51ffcb9602fdd3d",
+        "size": 183412,
+        "source": "glib2.0",
+        "source_version": "2.80.0-6ubuntu3.10",
+        "suite": "noble-updates",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/g/glib2.0/gir1.2-glib-2.0_2.80.0-6ubuntu3.10_amd64.deb",
+        "version": "2.80.0-6ubuntu3.10"
+      },
+      {
+        "architecture": "amd64",
+        "filename": "pool/main/g/glib2.0/gir1.2-glib-2.0-dev_2.80.0-6ubuntu3.10_amd64.deb",
+        "name": "gir1.2-glib-2.0-dev",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "9642845f8eccc5bed1280a7313a5d97c21917a3800041a153fe5189254416996",
+        "size": 847976,
+        "source": "glib2.0",
+        "source_version": "2.80.0-6ubuntu3.10",
+        "suite": "noble-updates",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/g/glib2.0/gir1.2-glib-2.0-dev_2.80.0-6ubuntu3.10_amd64.deb",
+        "version": "2.80.0-6ubuntu3.10"
+      },
+      {
+        "architecture": "amd64",
+        "filename": "pool/main/h/harfbuzz/gir1.2-harfbuzz-0.0_8.3.0-2build2_amd64.deb",
+        "name": "gir1.2-harfbuzz-0.0",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "a12fea17a9928cad074436d4178b3ac827a4245e253f9a71009557e1c6f34cfb",
+        "size": 44488,
+        "source": "harfbuzz",
+        "source_version": "8.3.0-2build2",
+        "suite": "noble",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/h/harfbuzz/gir1.2-harfbuzz-0.0_8.3.0-2build2_amd64.deb",
+        "version": "8.3.0-2build2"
+      },
+      {
+        "architecture": "amd64",
         "filename": "pool/main/g/git/git_2.43.0-1ubuntu7.4_amd64.deb",
         "name": "git",
         "replaces_base_version": null,
@@ -3850,6 +4193,20 @@
         "suite": "noble",
         "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/h/humanity-icon-theme/humanity-icon-theme_0.6.16_all.deb",
         "version": "0.6.16"
+      },
+      {
+        "architecture": "amd64",
+        "filename": "pool/main/i/icu/icu-devtools_74.2-1ubuntu3.1_amd64.deb",
+        "name": "icu-devtools",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "cfcad4370d2e0d4abdccf33cb3d0ffef24c095d76e2121e0a1fd1286ea50b404",
+        "size": 211852,
+        "source": "icu",
+        "source_version": "74.2-1ubuntu3.1",
+        "suite": "noble-updates",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/i/icu/icu-devtools_74.2-1ubuntu3.1_amd64.deb",
+        "version": "74.2-1ubuntu3.1"
       },
       {
         "architecture": "amd64",
@@ -4021,6 +4378,20 @@
       },
       {
         "architecture": "amd64",
+        "filename": "pool/main/u/util-linux/libblkid-dev_2.39.3-9ubuntu6.6_amd64.deb",
+        "name": "libblkid-dev",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "49ef9eb8716c4d7ec8921b87328052e75efecf89ab5975b5e43360e8cb7aa27c",
+        "size": 204610,
+        "source": "util-linux",
+        "source_version": "2.39.3-9ubuntu6.6",
+        "suite": "noble-updates",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/u/util-linux/libblkid-dev_2.39.3-9ubuntu6.6_amd64.deb",
+        "version": "2.39.3-9ubuntu6.6"
+      },
+      {
+        "architecture": "amd64",
         "filename": "pool/main/b/boost-defaults/libboost-dev_1.83.0.1ubuntu2_amd64.deb",
         "name": "libboost-dev",
         "replaces_base_version": null,
@@ -4049,6 +4420,20 @@
       },
       {
         "architecture": "amd64",
+        "filename": "pool/main/b/brotli/libbrotli-dev_1.1.0-2ubuntu0.1_amd64.deb",
+        "name": "libbrotli-dev",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "eeb4af4ba21b8203007e4440c9e770d5c8031c52d0cc75e3f78d6154b8abf170",
+        "size": 353330,
+        "source": "brotli",
+        "source_version": "1.1.0-2ubuntu0.1",
+        "suite": "noble-updates",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/b/brotli/libbrotli-dev_1.1.0-2ubuntu0.1_amd64.deb",
+        "version": "1.1.0-2ubuntu0.1"
+      },
+      {
+        "architecture": "amd64",
         "filename": "pool/main/b/brotli/libbrotli1_1.1.0-2ubuntu0.1_amd64.deb",
         "name": "libbrotli1",
         "replaces_base_version": null,
@@ -4074,6 +4459,20 @@
         "suite": "noble-updates",
         "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/libb/libbsd/libbsd0_0.12.1-1build1.1_amd64.deb",
         "version": "0.12.1-1build1.1"
+      },
+      {
+        "architecture": "amd64",
+        "filename": "pool/main/b/bzip2/libbz2-dev_1.0.8-5.1ubuntu0.1_amd64.deb",
+        "name": "libbz2-dev",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "f055bb5cb47117020a76dc40fcdb8164f4fa529df2b7f485faacc0b0f5083614",
+        "size": 33608,
+        "source": "bzip2",
+        "source_version": "1.0.8-5.1ubuntu0.1",
+        "suite": "noble-updates",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/b/bzip2/libbz2-dev_1.0.8-5.1ubuntu0.1_amd64.deb",
+        "version": "1.0.8-5.1ubuntu0.1"
       },
       {
         "architecture": "amd64",
@@ -4483,6 +4882,20 @@
       },
       {
         "architecture": "amd64",
+        "filename": "pool/main/e/expat/libexpat1-dev_2.6.1-2ubuntu0.6_amd64.deb",
+        "name": "libexpat1-dev",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "87281ce46d74f261caff4ac404fe5af7b07f185d305246fef81797ddc20fa9f8",
+        "size": 146542,
+        "source": "expat",
+        "source_version": "2.6.1-2ubuntu0.6",
+        "suite": "noble-updates",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/e/expat/libexpat1-dev_2.6.1-2ubuntu0.6_amd64.deb",
+        "version": "2.6.1-2ubuntu0.6"
+      },
+      {
+        "architecture": "amd64",
         "filename": "pool/main/u/util-linux/libfdisk1_2.39.3-9ubuntu6.6_amd64.deb",
         "name": "libfdisk1",
         "replaces_base_version": null,
@@ -4497,6 +4910,34 @@
       },
       {
         "architecture": "amd64",
+        "filename": "pool/main/libf/libffi/libffi-dev_3.4.6-1build1_amd64.deb",
+        "name": "libffi-dev",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "7009959b8a3b77206325026917fb45150ac81bf6139468abc0841d5a29c8619d",
+        "size": 62802,
+        "source": "libffi",
+        "source_version": "3.4.6-1build1",
+        "suite": "noble",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/libf/libffi/libffi-dev_3.4.6-1build1_amd64.deb",
+        "version": "3.4.6-1build1"
+      },
+      {
+        "architecture": "amd64",
+        "filename": "pool/main/f/fontconfig/libfontconfig-dev_2.15.0-1.1ubuntu2_amd64.deb",
+        "name": "libfontconfig-dev",
+        "replaces_base_version": null,
+        "requested": true,
+        "sha256": "7948f3037b39d8bc751dc6104ff490c2d2f1b145d2969227ba591ceb917f9f05",
+        "size": 161130,
+        "source": "fontconfig",
+        "source_version": "2.15.0-1.1ubuntu2",
+        "suite": "noble",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/f/fontconfig/libfontconfig-dev_2.15.0-1.1ubuntu2_amd64.deb",
+        "version": "2.15.0-1.1ubuntu2"
+      },
+      {
+        "architecture": "amd64",
         "filename": "pool/main/f/fontconfig/libfontconfig1_2.15.0-1.1ubuntu2_amd64.deb",
         "name": "libfontconfig1",
         "replaces_base_version": null,
@@ -4508,6 +4949,20 @@
         "suite": "noble",
         "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/f/fontconfig/libfontconfig1_2.15.0-1.1ubuntu2_amd64.deb",
         "version": "2.15.0-1.1ubuntu2"
+      },
+      {
+        "architecture": "amd64",
+        "filename": "pool/main/f/freetype/libfreetype-dev_2.13.2+dfsg-1ubuntu0.2_amd64.deb",
+        "name": "libfreetype-dev",
+        "replaces_base_version": null,
+        "requested": true,
+        "sha256": "dd512109d33b182387be40cfe2b68b912b14f0753ba2a0769ca1950de0713a28",
+        "size": 574070,
+        "source": "freetype",
+        "source_version": "2.13.2+dfsg-1ubuntu0.2",
+        "suite": "noble-updates",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/f/freetype/libfreetype-dev_2.13.2+dfsg-1ubuntu0.2_amd64.deb",
+        "version": "2.13.2+dfsg-1ubuntu0.2"
       },
       {
         "architecture": "amd64",
@@ -4623,6 +5078,20 @@
       },
       {
         "architecture": "amd64",
+        "filename": "pool/main/g/glib2.0/libgirepository-2.0-0_2.80.0-6ubuntu3.10_amd64.deb",
+        "name": "libgirepository-2.0-0",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "1acc58efe3413d76314aeeb7c42a84467a050cbd0e4d83689c96095cbe8e514d",
+        "size": 73534,
+        "source": "glib2.0",
+        "source_version": "2.80.0-6ubuntu3.10",
+        "suite": "noble-updates",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/g/glib2.0/libgirepository-2.0-0_2.80.0-6ubuntu3.10_amd64.deb",
+        "version": "2.80.0-6ubuntu3.10"
+      },
+      {
+        "architecture": "amd64",
         "filename": "pool/main/libg/libglvnd/libgl-dev_1.7.0-1build1_amd64.deb",
         "name": "libgl-dev",
         "replaces_base_version": null,
@@ -4675,6 +5144,62 @@
         "source_version": "2.80.0-6ubuntu3.10",
         "suite": "noble-updates",
         "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/g/glib2.0/libglib2.0-0t64_2.80.0-6ubuntu3.10_amd64.deb",
+        "version": "2.80.0-6ubuntu3.10"
+      },
+      {
+        "architecture": "amd64",
+        "filename": "pool/main/g/glib2.0/libglib2.0-bin_2.80.0-6ubuntu3.10_amd64.deb",
+        "name": "libglib2.0-bin",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "0c60e75d4b5acadc44196bc9fd07eb15d6921c6d4f0a43406f028ed3c8aa458d",
+        "size": 97922,
+        "source": "glib2.0",
+        "source_version": "2.80.0-6ubuntu3.10",
+        "suite": "noble-updates",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/g/glib2.0/libglib2.0-bin_2.80.0-6ubuntu3.10_amd64.deb",
+        "version": "2.80.0-6ubuntu3.10"
+      },
+      {
+        "architecture": "all",
+        "filename": "pool/main/g/glib2.0/libglib2.0-data_2.80.0-6ubuntu3.10_all.deb",
+        "name": "libglib2.0-data",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "f196e280e4286f6dfc5ddaaf8c09cc6e8502e0de77619385e3fde19ea2739122",
+        "size": 50240,
+        "source": "glib2.0",
+        "source_version": "2.80.0-6ubuntu3.10",
+        "suite": "noble-updates",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/g/glib2.0/libglib2.0-data_2.80.0-6ubuntu3.10_all.deb",
+        "version": "2.80.0-6ubuntu3.10"
+      },
+      {
+        "architecture": "amd64",
+        "filename": "pool/main/g/glib2.0/libglib2.0-dev_2.80.0-6ubuntu3.10_amd64.deb",
+        "name": "libglib2.0-dev",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "6d1d88d68192256603c0de05d084b8ef06ed9b16753215ec2c1ef9ef5fa15014",
+        "size": 1860604,
+        "source": "glib2.0",
+        "source_version": "2.80.0-6ubuntu3.10",
+        "suite": "noble-updates",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/g/glib2.0/libglib2.0-dev_2.80.0-6ubuntu3.10_amd64.deb",
+        "version": "2.80.0-6ubuntu3.10"
+      },
+      {
+        "architecture": "amd64",
+        "filename": "pool/main/g/glib2.0/libglib2.0-dev-bin_2.80.0-6ubuntu3.10_amd64.deb",
+        "name": "libglib2.0-dev-bin",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "18c23eb263f0afdd9455dd52f9ef287f8203f1fe33ff4a97934ad636f8bbb522",
+        "size": 137856,
+        "source": "glib2.0",
+        "source_version": "2.80.0-6ubuntu3.10",
+        "suite": "noble-updates",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/g/glib2.0/libglib2.0-dev-bin_2.80.0-6ubuntu3.10_amd64.deb",
         "version": "2.80.0-6ubuntu3.10"
       },
       {
@@ -4805,6 +5330,20 @@
       },
       {
         "architecture": "amd64",
+        "filename": "pool/main/g/graphite2/libgraphite2-dev_1.3.14-2ubuntu0.24.04.1_amd64.deb",
+        "name": "libgraphite2-dev",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "17d04c426a5074aa189794a6a75b0059faefb496da53bed60b05536ea4023f7a",
+        "size": 14712,
+        "source": "graphite2",
+        "source_version": "1.3.14-2ubuntu0.24.04.1",
+        "suite": "noble-updates",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/g/graphite2/libgraphite2-dev_1.3.14-2ubuntu0.24.04.1_amd64.deb",
+        "version": "1.3.14-2ubuntu0.24.04.1"
+      },
+      {
+        "architecture": "amd64",
         "filename": "pool/main/k/krb5/libgssapi-krb5-2_1.20.1-6ubuntu2.10_amd64.deb",
         "name": "libgssapi-krb5-2",
         "replaces_base_version": null,
@@ -4847,6 +5386,76 @@
       },
       {
         "architecture": "amd64",
+        "filename": "pool/main/h/harfbuzz/libharfbuzz-cairo0_8.3.0-2build2_amd64.deb",
+        "name": "libharfbuzz-cairo0",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "44017a53403de66b4fdfe8aeb59782a36d6278965eb39c73a74ccb421236dca5",
+        "size": 26228,
+        "source": "harfbuzz",
+        "source_version": "8.3.0-2build2",
+        "suite": "noble",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/h/harfbuzz/libharfbuzz-cairo0_8.3.0-2build2_amd64.deb",
+        "version": "8.3.0-2build2"
+      },
+      {
+        "architecture": "amd64",
+        "filename": "pool/main/h/harfbuzz/libharfbuzz-dev_8.3.0-2build2_amd64.deb",
+        "name": "libharfbuzz-dev",
+        "replaces_base_version": null,
+        "requested": true,
+        "sha256": "fe2eaa5977d6208328357e289d3166e079b100ce80feb70d4d13b929f508a3e0",
+        "size": 142352,
+        "source": "harfbuzz",
+        "source_version": "8.3.0-2build2",
+        "suite": "noble",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/h/harfbuzz/libharfbuzz-dev_8.3.0-2build2_amd64.deb",
+        "version": "8.3.0-2build2"
+      },
+      {
+        "architecture": "amd64",
+        "filename": "pool/main/h/harfbuzz/libharfbuzz-gobject0_8.3.0-2build2_amd64.deb",
+        "name": "libharfbuzz-gobject0",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "852ead77ff5695f7e5ccde583d2339fde63220f8fc60a507278918db551a56ce",
+        "size": 34332,
+        "source": "harfbuzz",
+        "source_version": "8.3.0-2build2",
+        "suite": "noble",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/h/harfbuzz/libharfbuzz-gobject0_8.3.0-2build2_amd64.deb",
+        "version": "8.3.0-2build2"
+      },
+      {
+        "architecture": "amd64",
+        "filename": "pool/main/h/harfbuzz/libharfbuzz-icu0_8.3.0-2build2_amd64.deb",
+        "name": "libharfbuzz-icu0",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "9098670758e60b190d7edf367ad57e954bfc1b2a616def3f4e281062e036a843",
+        "size": 13310,
+        "source": "harfbuzz",
+        "source_version": "8.3.0-2build2",
+        "suite": "noble",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/h/harfbuzz/libharfbuzz-icu0_8.3.0-2build2_amd64.deb",
+        "version": "8.3.0-2build2"
+      },
+      {
+        "architecture": "amd64",
+        "filename": "pool/main/h/harfbuzz/libharfbuzz-subset0_8.3.0-2build2_amd64.deb",
+        "name": "libharfbuzz-subset0",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "acd9db760e372a931ae04d834998366fb50717e1ba590c987224b3b72b2e411d",
+        "size": 448092,
+        "source": "harfbuzz",
+        "source_version": "8.3.0-2build2",
+        "suite": "noble",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/h/harfbuzz/libharfbuzz-subset0_8.3.0-2build2_amd64.deb",
+        "version": "8.3.0-2build2"
+      },
+      {
+        "architecture": "amd64",
         "filename": "pool/main/h/harfbuzz/libharfbuzz0b_8.3.0-2build2_amd64.deb",
         "name": "libharfbuzz0b",
         "replaces_base_version": null,
@@ -4886,6 +5495,20 @@
         "suite": "noble",
         "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/libi/libice/libice6_1.0.10-1build3_amd64.deb",
         "version": "2:1.0.10-1build3"
+      },
+      {
+        "architecture": "amd64",
+        "filename": "pool/main/i/icu/libicu-dev_74.2-1ubuntu3.1_amd64.deb",
+        "name": "libicu-dev",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "612b98f4fcfc6ebc57a1b21c2695174694db5a0b7ff760b5d41032076c792398",
+        "size": 11892666,
+        "source": "icu",
+        "source_version": "74.2-1ubuntu3.1",
+        "suite": "noble-updates",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/i/icu/libicu-dev_74.2-1ubuntu3.1_amd64.deb",
+        "version": "74.2-1ubuntu3.1"
       },
       {
         "architecture": "amd64",
@@ -5155,6 +5778,20 @@
       },
       {
         "architecture": "amd64",
+        "filename": "pool/main/u/util-linux/libmount-dev_2.39.3-9ubuntu6.6_amd64.deb",
+        "name": "libmount-dev",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "87b7ed1fedfa79aedfb3772c539db2047857c4b0a3cf663161a657a752a3ca2e",
+        "size": 14894,
+        "source": "util-linux",
+        "source_version": "2.39.3-9ubuntu6.6",
+        "suite": "noble-updates",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/u/util-linux/libmount-dev_2.39.3-9ubuntu6.6_amd64.deb",
+        "version": "2.39.3-9ubuntu6.6"
+      },
+      {
+        "architecture": "amd64",
         "filename": "pool/main/m/mpclib3/libmpc3_1.3.1-1build1.1_amd64.deb",
         "name": "libmpc3",
         "replaces_base_version": null,
@@ -5309,6 +5946,20 @@
       },
       {
         "architecture": "amd64",
+        "filename": "pool/main/p/pcre2/libpcre2-16-0_10.42-4ubuntu2.2_amd64.deb",
+        "name": "libpcre2-16-0",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "a6365e17d88d5fb6223fe2b8cb4c8c65425aeac056e1a212a0151c95e83edf38",
+        "size": 211640,
+        "source": "pcre2",
+        "source_version": "10.42-4ubuntu2.2",
+        "suite": "noble-updates",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/p/pcre2/libpcre2-16-0_10.42-4ubuntu2.2_amd64.deb",
+        "version": "10.42-4ubuntu2.2"
+      },
+      {
+        "architecture": "amd64",
         "filename": "pool/main/p/pcre2/libpcre2-32-0_10.42-4ubuntu2.2_amd64.deb",
         "name": "libpcre2-32-0",
         "replaces_base_version": null,
@@ -5319,6 +5970,34 @@
         "source_version": "10.42-4ubuntu2.2",
         "suite": "noble-updates",
         "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/p/pcre2/libpcre2-32-0_10.42-4ubuntu2.2_amd64.deb",
+        "version": "10.42-4ubuntu2.2"
+      },
+      {
+        "architecture": "amd64",
+        "filename": "pool/main/p/pcre2/libpcre2-dev_10.42-4ubuntu2.2_amd64.deb",
+        "name": "libpcre2-dev",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "572714fe3fbe1b49ffb4c5a483223c663a51948e0d8590add1620917326f3d21",
+        "size": 737246,
+        "source": "pcre2",
+        "source_version": "10.42-4ubuntu2.2",
+        "suite": "noble-updates",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/p/pcre2/libpcre2-dev_10.42-4ubuntu2.2_amd64.deb",
+        "version": "10.42-4ubuntu2.2"
+      },
+      {
+        "architecture": "amd64",
+        "filename": "pool/main/p/pcre2/libpcre2-posix3_10.42-4ubuntu2.2_amd64.deb",
+        "name": "libpcre2-posix3",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "90e4f67c2ce096716520ce190d7ae642714ddf692947bbe66e26272ace3cdf8d",
+        "size": 6680,
+        "source": "pcre2",
+        "source_version": "10.42-4ubuntu2.2",
+        "suite": "noble-updates",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/p/pcre2/libpcre2-posix3_10.42-4ubuntu2.2_amd64.deb",
         "version": "10.42-4ubuntu2.2"
       },
       {
@@ -5348,6 +6027,34 @@
         "suite": "noble",
         "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/p/pixman/libpixman-1-0_0.42.2-1build1_amd64.deb",
         "version": "0.42.2-1build1"
+      },
+      {
+        "architecture": "amd64",
+        "filename": "pool/main/p/pkgconf/libpkgconf3_1.8.1-2build1_amd64.deb",
+        "name": "libpkgconf3",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "fc3a57e8f931ec06cb7c51acc56878f1fec247ff02a7adcab26905c2faeb2792",
+        "size": 30652,
+        "source": "pkgconf",
+        "source_version": "1.8.1-2build1",
+        "suite": "noble",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/p/pkgconf/libpkgconf3_1.8.1-2build1_amd64.deb",
+        "version": "1.8.1-2build1"
+      },
+      {
+        "architecture": "amd64",
+        "filename": "pool/main/libp/libpng1.6/libpng-dev_1.6.43-5ubuntu0.7_amd64.deb",
+        "name": "libpng-dev",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "db0d4bc0054ae0061524d009f75bd4409b10f596274f3a9aa07d5e3212812263",
+        "size": 264970,
+        "source": "libpng1.6",
+        "source_version": "1.6.43-5ubuntu0.7",
+        "suite": "noble-updates",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/libp/libpng1.6/libpng-dev_1.6.43-5ubuntu0.7_amd64.deb",
+        "version": "1.6.43-5ubuntu0.7"
       },
       {
         "architecture": "amd64",
@@ -5532,6 +6239,20 @@
         "version": "2.1.28+dfsg1-5ubuntu3.1"
       },
       {
+        "architecture": "amd64",
+        "filename": "pool/main/libs/libselinux/libselinux1-dev_3.5-2ubuntu2.1_amd64.deb",
+        "name": "libselinux1-dev",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "2cc37cb9251f49a11f9c34bc8605c2aace8ded76f50b951ad28ded42d6ab3f68",
+        "size": 163720,
+        "source": "libselinux",
+        "source_version": "3.5-2ubuntu2.1",
+        "suite": "noble-updates",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/libs/libselinux/libselinux1-dev_3.5-2ubuntu2.1_amd64.deb",
+        "version": "3.5-2ubuntu2.1"
+      },
+      {
         "architecture": "all",
         "filename": "pool/main/l/lm-sensors/libsensors-config_3.6.0-9build1_all.deb",
         "name": "libsensors-config",
@@ -5558,6 +6279,20 @@
         "suite": "noble",
         "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/l/lm-sensors/libsensors5_3.6.0-9build1_amd64.deb",
         "version": "1:3.6.0-9build1"
+      },
+      {
+        "architecture": "amd64",
+        "filename": "pool/main/libs/libsepol/libsepol-dev_3.5-2build1_amd64.deb",
+        "name": "libsepol-dev",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "85e47c1d7bcccbc059ea99d4c379659236f63b1716af8d796072875d418402bf",
+        "size": 383718,
+        "source": "libsepol",
+        "source_version": "3.5-2build1",
+        "suite": "noble",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/libs/libsepol/libsepol-dev_3.5-2build1_amd64.deb",
+        "version": "3.5-2build1"
       },
       {
         "architecture": "amd64",
@@ -6443,6 +7178,48 @@
       },
       {
         "architecture": "amd64",
+        "filename": "pool/main/p/pkgconf/pkg-config_1.8.1-2build1_amd64.deb",
+        "name": "pkg-config",
+        "replaces_base_version": null,
+        "requested": true,
+        "sha256": "16bda455d9216da31ad55d72df5a7380cb9d5ac32a2393941cab262a4e5b526f",
+        "size": 7264,
+        "source": "pkgconf",
+        "source_version": "1.8.1-2build1",
+        "suite": "noble",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/p/pkgconf/pkg-config_1.8.1-2build1_amd64.deb",
+        "version": "1.8.1-2build1"
+      },
+      {
+        "architecture": "amd64",
+        "filename": "pool/main/p/pkgconf/pkgconf_1.8.1-2build1_amd64.deb",
+        "name": "pkgconf",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "834a58031069d97d7cfb8b2f5bfd5effc69cecf7f30cc362071875f1f8dc1828",
+        "size": 16790,
+        "source": "pkgconf",
+        "source_version": "1.8.1-2build1",
+        "suite": "noble",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/p/pkgconf/pkgconf_1.8.1-2build1_amd64.deb",
+        "version": "1.8.1-2build1"
+      },
+      {
+        "architecture": "amd64",
+        "filename": "pool/main/p/pkgconf/pkgconf-bin_1.8.1-2build1_amd64.deb",
+        "name": "pkgconf-bin",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "7a812f05ee1610154b433e2ad54f6e4163fcbb306b9fb31afe959afb2e5e1545",
+        "size": 20730,
+        "source": "pkgconf",
+        "source_version": "1.8.1-2build1",
+        "suite": "noble",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/p/pkgconf/pkgconf-bin_1.8.1-2build1_amd64.deb",
+        "version": "1.8.1-2build1"
+      },
+      {
+        "architecture": "amd64",
         "filename": "pool/main/p/python3-defaults/python3_3.12.3-0ubuntu2.1_amd64.deb",
         "name": "python3",
         "replaces_base_version": null,
@@ -6468,6 +7245,20 @@
         "suite": "noble-updates",
         "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/p/python3-defaults/python3-minimal_3.12.3-0ubuntu2.1_amd64.deb",
         "version": "3.12.3-0ubuntu2.1"
+      },
+      {
+        "architecture": "all",
+        "filename": "pool/main/p/python-packaging/python3-packaging_24.0-1_all.deb",
+        "name": "python3-packaging",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "decc936e9512c2de78fcf9e8d8459ce58952c40bf8bd1f06e62556d7fe887db6",
+        "size": 41094,
+        "source": "python-packaging",
+        "source_version": "24.0-1",
+        "suite": "noble",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/p/python-packaging/python3-packaging_24.0-1_all.deb",
+        "version": "24.0-1"
       },
       {
         "architecture": "all",
@@ -6681,6 +7472,20 @@
       },
       {
         "architecture": "amd64",
+        "filename": "pool/main/u/util-linux/uuid-dev_2.39.3-9ubuntu6.6_amd64.deb",
+        "name": "uuid-dev",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "266115cc3bcecef70b9f75c0cf8ca4daccd40958bf7872f8ccebec50502d2a13",
+        "size": 33546,
+        "source": "util-linux",
+        "source_version": "2.39.3-9ubuntu6.6",
+        "suite": "noble-updates",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/u/util-linux/uuid-dev_2.39.3-9ubuntu6.6_amd64.deb",
+        "version": "2.39.3-9ubuntu6.6"
+      },
+      {
+        "architecture": "amd64",
         "filename": "pool/universe/w/wxwidgets3.2/wx-common_3.2.4+dfsg-4build1_amd64.deb",
         "name": "wx-common",
         "replaces_base_version": null,
@@ -6790,6 +7595,20 @@
         "suite": "noble-updates",
         "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/x/xz-utils/xz-utils_5.6.1+really5.4.5-1ubuntu0.4_amd64.deb",
         "version": "5.6.1+really5.4.5-1ubuntu0.4"
+      },
+      {
+        "architecture": "amd64",
+        "filename": "pool/main/z/zlib/zlib1g-dev_1.3.dfsg-3.1ubuntu2.3_amd64.deb",
+        "name": "zlib1g-dev",
+        "replaces_base_version": null,
+        "requested": false,
+        "sha256": "419902a649e1078f24596cdf31ced9c839519828790f59888056fcdcd58e8a28",
+        "size": 894134,
+        "source": "zlib",
+        "source_version": "1:1.3.dfsg-3.1ubuntu2.3",
+        "suite": "noble-updates",
+        "url": "https://snapshot.ubuntu.com/ubuntu/20261120T000000Z/pool/main/z/zlib/zlib1g-dev_1.3.dfsg-3.1ubuntu2.3_amd64.deb",
+        "version": "1:1.3.dfsg-3.1ubuntu2.3"
       }
     ]
   },
@@ -6994,5 +7813,5 @@
       "size": 336056
     }
   ],
-  "verification_plan_sha256": "e1603b2c83d44bcd71a588bb7977d8750cc8b58f201857a8887373a89500ddd0"
+  "verification_plan_sha256": "f1587dda5d3cfc63933db21c769ad0d1c99b400c267fb71c0d3931cccac42d52"
 }
