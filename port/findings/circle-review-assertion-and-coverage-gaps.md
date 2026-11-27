@@ -44,3 +44,30 @@ body groups, but that partial progress is not approval. The remaining stale
 guard code and numerical behavior are unchanged. No third review retry is
 started. A completed independent review and substantive findings resolution
 remain prerequisites to readiness.
+
+## Resolution of the completed review (head 48e156721a) on the next head
+
+The completed Sol 6.1 review requested changes for an admitted overflow (P1),
+the missing assertion effects (P2), the odd-half test helper (P3, already fixed
+at 6b36ef0440) and the audit's evidence accounting. A follow-up UBSan sweep of
+0aa3752c16 found a second admitted overflow. The changes:
+
+- P1: the sufficient domain is removed. `guardTanTanPt` guards every integer
+  operation of the pinned body and its SEG, CalcArcMid and RotatePoint callees,
+  in evaluation order. Both review repros and an ApproxParallel SquaredLength
+  overflow are controls (`rust_unported` at SEG::Square). A local diagnostic
+  UBSan check found the guard's refusals equal to the genuine sources' undefined
+  evaluations over the corpus, controls and fixed-seed families; all 107 public
+  tan-tan cases stay accepted with unchanged replies.
+- P2: each of the seven sites calls a typed host callee with the exact
+  wxOnAssert arguments before `return *this`; production defers as `wxOnAssert`
+  and the partial mutation is kept. See the updated main finding.
+- Accounting: seven sites everywhere; the signed-zero centre cases now give a
+  zero centre component each signed zero (twelve public inputs change, replies
+  unchanged); the negative-remainder branch of `Intersect( CIRCLE )` is recorded
+  as unreachable on defined evaluations (AUDIT.md), not as missing fixtures.
+- The `VECTOR3::Normalize` omission is a separate finding,
+  `vector3-normalize-assertion-effect.md`, for its own owner.
+
+The unit remains partial and draft without a golden. A fresh independent review
+of the new head is required; target evidence is the hosted run on that head.
