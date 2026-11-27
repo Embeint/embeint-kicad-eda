@@ -138,6 +138,24 @@ def check_sexpr_reference(commands, link_commands, source):
         raise ValueError("Oracle does not link the actual sexpr-reference archive")
 
 
+FONT_REFERENCE_SOURCES = (
+    "common/font/font.cpp", "common/font/outline_font.cpp", "common/font/glyph.cpp",
+    "common/font/outline_decomposer.cpp", "common/font/text_attributes.cpp",
+    "common/markup_parser.cpp", "common/string_utils.cpp", "common/gal/color4d.cpp")
+
+
+def check_font_reference(commands, link_commands, source):
+    """Require the unchanged pinned font sources of the include/font adapter, compiled and linked."""
+    required = {source / path for path in FONT_REFERENCE_SOURCES}
+    compiled = {Path(entry["file"]) for entry in commands if any(
+        "CMakeFiles/font-reference.dir/" in token for token in entry["arguments"])}
+    if compiled != required:
+        raise ValueError("Missing actual font-reference compilation: " + repr(required ^ compiled))
+    if not any("-o kicad-oracle" in command and "libfont-reference.a" in command
+               for command in link_commands):
+        raise ValueError("Oracle does not link the actual font-reference archive")
+
+
 def audit(build, source, overlay):
     manifest, manifest_sha = verify_source(source)
     database = json.loads((build / "compile_commands.json").read_text(encoding="utf-8"))
@@ -163,7 +181,7 @@ def audit(build, source, overlay):
             generated = verify_reader_generated(build, source)
         for target in ("core", "clipper2", "kimath", "fmt", "iec60664-reference", "resistor-reference",
                        "calculator-reader-reference", "kiplatform-unix-reference", "sexpr-reference",
-                       "kicad-oracle"):
+                       "font-reference", "kicad-oracle"):
             if any("CMakeFiles/" + target + ".dir/" in token for token in tokens):
                 if (target == "iec60664-reference" and path != source /
                         "pcb_calculator/calculator_panels/iec60664.cpp"):
@@ -173,7 +191,7 @@ def audit(build, source, overlay):
         commands.append({"file": str(path), "arguments": tokens})
     if targets != {"core", "clipper2", "kimath", "fmt", "iec60664-reference", "resistor-reference",
                    "calculator-reader-reference", "kiplatform-unix-reference", "sexpr-reference",
-                   "kicad-oracle"}:
+                   "font-reference", "kicad-oracle"}:
         raise ValueError("Unexpected reference target closure: " + repr(targets))
     link_commands = subprocess.check_output(
         ["ninja", "-C", str(build), "-t", "commands", "kicad-oracle"], text=True).splitlines()
@@ -189,6 +207,7 @@ def audit(build, source, overlay):
     check_reader_reference(commands, link_commands, source, build)
     check_kiplatform_unix_reference(commands, link_commands, source)
     check_sexpr_reference(commands, link_commands, source)
+    check_font_reference(commands, link_commands, source)
     overlay_files = {p.relative_to(overlay).as_posix(): sha(p) for p in sorted(overlay.rglob("*"))
                      if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc"}
     result = {
