@@ -19,7 +19,8 @@
 //! The private `glibc_trig` module reproduces the reference C library's `sin`, `cos` and
 //! `sincos` (glibc 2.39, baseline SSE2 variants) bit for bit without the host libm, so
 //! `SetRotation` and the general `EDA_ANGLE::Sin`/`Cos` fallbacks in [`eda_angle`] give the
-//! same bits natively and in WebAssembly.
+//! same bits natively and in WebAssembly. [`reference_libm`] exposes the raw `sin`, `cos`,
+//! `acos` and `atan2` backends to ports in other crates, unchanged.
 //!
 //! Unit `libs.kimath.include.geometry.application.ui.p001` owns [`eda_angle`]
 //! (`geometry/eda_angle.h`), [`geometry_headers`] (`geometry/ellipse.h`, `grid_geometry.h`)
@@ -80,6 +81,7 @@ pub mod box2;
 mod glibc_libm;
 mod glibc_trig;
 pub mod matrix3x3;
+pub mod reference_libm;
 mod sse2;
 pub mod stream;
 pub mod util;

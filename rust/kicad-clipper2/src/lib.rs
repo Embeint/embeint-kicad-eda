@@ -43,14 +43,18 @@
 //!
 //! Engine bodies written in `clipper.engine.cpp` belong to the
 //! `thirdparty.clipper2.clipper2lib.src.thirdparty.pure.p001`/`p002` units. Lines 1-2271 (unit
-//! p001) are ported in [`engine_p001`]; header and engine bodies that call lines 2272 onward
-//! return [`ClipperError::Unported`] at that call, naming the owning unit.
+//! p001) are ported in [`engine_p001`], lines 2272-3337 in [`engine_p002`] and
+//! `clipper.offset.cpp` in [`offset`] (unit p002). Calls into the unported `clipper.h` bodies
+//! (unit `thirdparty.clipper2.clipper2lib.include.clipper2.thirdparty.pure.p002`) return
+//! [`ClipperError::Unported`] at that call, naming the owning unit.
 
 use std::borrow::Cow;
 
 pub mod clipper_core;
 pub mod clipper_engine;
 pub mod engine_p001;
+pub mod engine_p002;
+pub mod offset;
 pub mod rectclip;
 pub mod stream;
 
@@ -114,6 +118,10 @@ pub enum ClipperError {
     Exception(Clipper2Exception),
     /// `std::bad_function_call`, thrown when an empty `std::function` is invoked.
     BadFunctionCall,
+    /// An exception thrown by a caller-supplied callback (a fallible `ZCallback64` of
+    /// `ClipperOffset` or a `DeltaCallback64`), identified by a value the callback chose. It
+    /// propagates unchanged, leaving the state the C++ leaves when that exception unwinds.
+    Callback(u64),
     /// The C++ expression named here has undefined behaviour for these inputs; the port
     /// refuses instead of inventing a value.
     Undefined(&'static str),
@@ -181,6 +189,7 @@ impl ::core::fmt::Display for ClipperError {
                 write!(formatter, "Clipper2Exception: {}", exception.what())
             }
             Self::BadFunctionCall => formatter.write_str("std::bad_function_call"),
+            Self::Callback(id) => write!(formatter, "callback exception {id}"),
             Self::Undefined(what) => write!(formatter, "undefined behaviour: {what}"),
             Self::Unported { upstream, unit } => write!(formatter, "unported {upstream} ({unit})"),
             Self::Stream(error) => write!(formatter, "{error}"),
