@@ -3,12 +3,11 @@
 """Controls never enter the successful public corpus.
 
 Each control is a request whose pinned evaluation is undefined (a null FONT pointer, signed
-overflow or an out-of-range conversion in faceSize), is malformed in a way the refusal order
-exercises, or leaves the adapter's verified domain (a name conversion reaching wxFAIL_MSG in
-the stream operator or NameAsToken, a unitbuf stream whose failing sync could throw from a
-noexcept sentry destructor); generate_cases.py classifies them. The C++ adapter must refuse
-each with exactly the recorded error, and Rust must give the same refusal. With --rust only,
-the Rust side is checked alone.
+overflow or an out-of-range conversion in faceSize) or is malformed in a way the refusal order
+exercises; generate_cases.py classifies them. Defined outcomes (a wxFAIL_MSG in a name
+conversion, std::terminate from a unitbuf ~sentry) are public cases, not controls. The C++
+adapter must refuse each control with exactly the recorded error, and Rust must give the same
+refusal. With --rust only, the Rust side is checked alone.
 """
 import argparse
 import json

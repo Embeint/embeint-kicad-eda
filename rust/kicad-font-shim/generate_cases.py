@@ -4,9 +4,10 @@
 
 Writes port/cases/include.font.application.ui.p001.jsonl (cases every program must evaluate)
 and port/oracle/fixtures/font-controls.jsonl (requests the C++ adapter and the Rust shim must
-refuse identically: undefined evaluations and requests outside the verified domain). The
-classification mirrors port/oracle/shims/include_font_p001.cpp. With --check, the committed
-files must equal the regenerated ones.
+refuse identically: undefined evaluations and malformed requests). The classification mirrors
+port/oracle/shims/include_font_p001.cpp. Names reaching wxFAIL_MSG and unitbuf streams that
+may terminate are public cases: the oracle observes their defined outcomes. With --check, the
+committed files must equal the regenerated ones.
 """
 import argparse
 import json
@@ -21,7 +22,6 @@ CASES = ROOT / 'port/cases' / f'{UNIT}.jsonl'
 CONTROLS = ROOT / 'port/oracle/fixtures/font-controls.jsonl'
 SEED = 0x464F4E54  # "FONT"
 UNDEFINED = 'undefined font operation'
-OUTSIDE = 'outside the verified domain'
 INT_MIN, INT_MAX = -2**31, 2**31 - 1
 I64_MIN, I64_MAX = -2**63, 2**63 - 1
 
@@ -74,19 +74,6 @@ def outline_font(name=(), file=(), face=None, fake_bold=False, fake_ital=False):
             'fake_bold': fake_bold, 'fake_ital': fake_ital}
 
 
-def reaches_assert(name):
-    for unit in name:
-        if unit == 0:
-            return False
-        if (unit & 0xFFFFFFFF) & 0x7FFFFFFF > 0x10FFFF:
-            return True
-    return False
-
-
-def any_unit_reaches_assert(name):
-    return any((unit & 0xFFFFFFFF) & 0x7FFFFFFF > 0x10FFFF for unit in name)
-
-
 def face_size_defined(size):
     scaled = size * 64
     if not INT_MIN <= scaled <= INT_MAX:
@@ -110,12 +97,6 @@ def insert_refusal(inp):
     font, spec = inp['font'], inp['stream']
     if font is None:
         return UNDEFINED if inp['pointer'] else 'expected font'
-    if reaches_assert(font['name']):
-        return OUTSIDE
-    mask = spec['exceptions']
-    if ('unitbuf' in spec['flags'] and spec['buffer'] is not None and spec['buffer']['sync_fails']
-            and any(mask.values())):
-        return OUTSIDE
     return None
 
 
@@ -173,8 +154,7 @@ def generate():
     for key, name in token_names.items():
         for kind, font in (('base', base_font(name)), ('outline', outline_font(name, [0x66], 1)),
                            ('scripted', scripted_font(name, True, False, True, False))):
-            add(f'name_as_token-{kind}-{key}', {'op': 'name_as_token', 'font': font},
-                OUTSIDE if any_unit_reaches_assert(name) else None)
+            add(f'name_as_token-{kind}-{key}', {'op': 'name_as_token', 'font': font})
 
     # operator<< for both overloads.
     insert_index = 0
@@ -231,6 +211,28 @@ def generate():
                       capacity=rng.choice([None, None, 0, 4, 9, 18, 30]),
                       sync_fails=rng.random() < 0.3)
         insert(font, spec, rng.random() < 0.5, 'random')
+    # Names reaching wxFAIL_MSG, evaluated in order: an insertion that throws or terminates
+    # before the conversion (bad state and failbit in the mask; unitbuf with a failing sync and
+    # badbit in the mask) never asserts; a null converted buffer's setstate( badbit ) throws
+    # after the assertion with badbit in the mask; later insertions see the state reached.
+    for key, name in ASSERT_NAMES.items():
+        for font in (base_font(name), scripted_font(name, True, True, True, True)):
+            for state, mask in ((STATES[4], STATES[1]), (GOOD, STATES[4]), (GOOD, STATES[1]),
+                                (STATES[2], STATES[2]), (GOOD, STATES[7])):
+                insert(font, stream(state=state, exceptions=mask), False, f'assert-order-{key}')
+            for mask in (GOOD, STATES[2], STATES[4]):
+                insert(font, stream(exceptions=mask, flags=('unitbuf',), sync_fails=True,
+                                    width=12), True, f'assert-unitbuf-{key}')
+            insert(font, stream(buffer=False, exceptions=STATES[1]), True, f'assert-nobuf-{key}')
+    # Termination from ~sentry: each insertion position reached by a good unitbuf stream with
+    # a failing sync and badbit (alone or with others) in the mask, and the non-terminating
+    # masks around it.
+    for font in (fonts['base-ascii'], fonts['scripted-15'], fonts['outline-3-3'],
+                 fonts['base-empty'], fonts['base-nul-byte']):
+        for mask in STATES:
+            for capacity in (None, 0, 3, 7):
+                insert(font, stream(exceptions=mask, flags=('unitbuf',), sync_fails=True,
+                                    capacity=capacity, width=9, fill=46), False, 'terminate')
 
     # The cursorless Draw overload forwards to the out-of-line Draw (deferred in Rust).
     draw_index = 0

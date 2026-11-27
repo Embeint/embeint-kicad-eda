@@ -56,6 +56,13 @@ jobs:
             --unit include.font.application.ui.p001 --root "$PWD" \
             --oracle "$out/oracle-build/kicad-oracle" --rust "$PWD/rust/target/debug/kicad-font-shim" \
             --report "$out/compare.json"
+          # The continuation after wxOnAssert, against a returning assertion host.
+          rust/target/debug/kicad-difftest compare --partial \
+            --unit include.font.application.ui.p001 --root "$PWD" \
+            --oracle "$out/oracle-build/kicad-oracle" --rust "$PWD/rust/target/debug/kicad-font-shim" \
+            --rust-arg --assert-host=returning --report "$out/compare-returning-assert.json"
+          python3 rust/kicad-font-shim/check_deferrals.py \
+            --deferred "$out/compare.json" --returning "$out/compare-returning-assert.json"
           python3 rust/kicad-font-shim/compare_controls.py \
             --oracle "$out/oracle-build/kicad-oracle" --rust "$PWD/rust/target/debug/kicad-font-shim"
       - name: Execute every case and control in import-free WebAssembly
@@ -75,6 +82,7 @@ jobs:
           name: font-live-${{ github.run_id }}
           path: |
             ${{ runner.temp }}/font-native/compare.json
+            ${{ runner.temp }}/font-native/compare-returning-assert.json
             ${{ runner.temp }}/font-native/oracle-build/oracle-provenance.json
             ${{ runner.temp }}/font-native/oracle-build/compile_commands.json
             ${{ runner.temp }}/font-native/oracle-build/binary.sha256
