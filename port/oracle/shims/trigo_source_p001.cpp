@@ -9,9 +9,11 @@
 // Where a later operation depends on a computed value, the guard takes it from the genuine
 // function, called only after its own operations have been checked.
 //
-// The three-point VECTOR2D CalcArcCenter passes its coordinates to std::minmax, whose operator<
-// must be a strict weak ordering: a NaN coordinate violates that library precondition, so the
-// adapter refuses one. Every other double input is accepted (the arithmetic is defined).
+// The three-point VECTOR2D CalcArcCenter passes each coordinate triple to std::minmax, whose
+// operator< must induce a strict weak ordering on those values. A NaN with two non-equivalent
+// values violates that library precondition, so the adapter refuses such a triple
+// (breaksStrictWeakOrder); a NaN with equivalent values, or only NaNs, is defined and accepted.
+// Every other double input is accepted (the arithmetic is defined).
 #include "registry.h"
 #include <geometry/eda_angle.h>
 #include <geometry/seg.h>
@@ -327,9 +329,35 @@ void guardCalcArcMid( const VECTOR2I& aStart, const VECTOR2I& aEnd, const VECTOR
 }
 
 
-bool hasNan( const VECTOR2D& aPoint )
+// std::minmax( { a, b, c } ) requires operator< to induce a strict weak ordering on the given
+// values ([alg.sorting.general]). For doubles only the transitivity of equivalence can fail: a
+// NaN is equivalent to every value, so the call is undefined exactly when a NaN is given with
+// two non-NaN values that are not equivalent to each other (+0 and -0 are equivalent).
+bool breaksStrictWeakOrder( double aA, double aB, double aC )
 {
-    return std::isnan( aPoint.x ) || std::isnan( aPoint.y );
+    bool   nan = false;
+    bool   distinct = false;
+    bool   haveFirst = false;
+    double first = 0.0;
+
+    for( double value : { aA, aB, aC } )
+    {
+        if( std::isnan( value ) )
+        {
+            nan = true;
+        }
+        else if( !haveFirst )
+        {
+            first = value;
+            haveFirst = true;
+        }
+        else if( value < first || first < value )
+        {
+            distinct = true;
+        }
+    }
+
+    return nan && distinct;
 }
 
 
@@ -444,7 +472,11 @@ JSON run( const JSON& aInput )
         const VECTOR2D mid = readPointD( aInput.at( "mid" ) );
         const VECTOR2D end = readPointD( aInput.at( "end" ) );
 
-        if( hasNan( start ) || hasNan( mid ) || hasNan( end ) )
+        // degenerateArcCenter calls std::minmax on the x then the y coordinates before anything
+        // else. snapArcCenter's radii minmax is reached only for a finite centre, which needs
+        // finite inputs, so its values are never NaN.
+        if( breaksStrictWeakOrder( start.x, mid.x, end.x )
+            || breaksStrictWeakOrder( start.y, mid.y, end.y ) )
             undefined();
 
         return JSON{ { "center", pointD( CalcArcCenter( start, mid, end ) ) } };

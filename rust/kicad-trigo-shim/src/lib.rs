@@ -2,9 +2,9 @@
 //! JSONL adapter for `libs.kimath.src.trigo.application.ui.p001`. It mirrors
 //! `port/oracle/shims/trigo_source_p001.cpp`: `int` values as JSON integers, `double` values as
 //! exact IEEE bits, angles as the bits of their value in degrees, one operation per request, and
-//! the same `invalid_input` refusal where the pinned evaluation is undefined (including a NaN
-//! coordinate passed to the three-point `VECTOR2D` `CalcArcCenter`, whose `std::minmax` requires a
-//! strict weak ordering).
+//! the same `invalid_input` refusal where the pinned evaluation is undefined (including a
+//! coordinate triple of the three-point `VECTOR2D` `CalcArcCenter` with a NaN and two
+//! non-equivalent values, which breaks the strict weak ordering its `std::minmax` requires).
 #![forbid(unsafe_code)]
 #![deny(
     clippy::unwrap_used,
@@ -107,8 +107,11 @@ fn point_i(p: Vector2I) -> Value {
 fn point_d(p: Vector2D) -> Value {
     json!([bits(p.x), bits(p.y)])
 }
-fn has_nan(p: Vector2D) -> bool {
-    p.x.is_nan() || p.y.is_nan()
+/// Whether `degenerateArcCenter`'s `std::minmax` calls (x, then y) meet their strict weak
+/// ordering requirement; the adapter's guard, mirrored.
+fn minmax_defined(start: Vector2D, mid: Vector2D, end: Vector2D) -> bool {
+    trigo::minmax_precondition_holds(start.x, mid.x, end.x)
+        && trigo::minmax_precondition_holds(start.y, mid.y, end.y)
 }
 
 fn run(input: &Value) -> Result<Value, Error> {
@@ -206,7 +209,7 @@ fn run(input: &Value) -> Result<Value, Error> {
             let start = read_point_d(get(v, "start")?)?;
             let mid = read_point_d(get(v, "mid")?)?;
             let end = read_point_d(get(v, "end")?)?;
-            if has_nan(start) || has_nan(mid) || has_nan(end) {
+            if !minmax_defined(start, mid, end) {
                 return Err(Error::Invalid(UNDEFINED.into()));
             }
             Ok(json!({"center": point_d(trigo::calc_arc_center_d(start, mid, end)?)}))
