@@ -8,10 +8,16 @@ overflow or std::abs( INT_MIN ), with the refusal both programs must give). No r
 written anywhere: the split replays only the pinned integer arithmetic exactly (Python
 integers for int/int64_t/__int128, IEEE binary64 sqrt and products for Resize's lengths).
 
-A few controls are undefined only after a call the Rust port defers (RotatePoint): they carry
-"rust_unported" and check that the oracle refuses while Rust defers to that exact owner first.
-Intersect( CIRCLE ) requests whose solutions would need a non-cardinal rotation are generated
-only where every solution sum is far inside the int range.
+A few controls are undefined only after a call the Rust port defers (RotatePoint, or SEG::Square
+through ApproxParallel): they carry "rust_unported" and check that the oracle refuses while Rust
+defers to that exact owner first. Intersect( CIRCLE ) requests whose solutions would need a
+non-cardinal rotation are generated only where every solution sum is far inside the int range.
+
+ConstructFromTanTanPt is not replayed here (its CalcArcMid needs atan2 and a general rotation).
+Its controls are fixed requests whose undefined operation was established by the reviews'
+traces and by a UBSan build of the genuine sources; the oracle's operation-wise guard must
+refuse them. Its public cases keep their earlier fixed-seed selection, which the oracle's
+guard checks at every request rather than this generator.
 
 --check verifies the committed files equal the generator output.
 """
@@ -33,6 +39,8 @@ M_SQRT1_2 = float.fromhex('0x1.6a09e667f3bcdp-1')
 UNDEFINED = {'kind': 'invalid_input', 'message': 'undefined circle operation'}
 ROTATE = {'upstream': 'RotatePoint(VECTOR2I&, EDA_ANGLE)',
           'unit': 'libs.kimath.include.application.ui.p001'}
+SQUARE = {'upstream': 'SEG::Square', 'unit': 'libs.kimath.include.geometry.application.ui.p003'}
+# The bound of the public tan-tan selection (a generation choice, not an adapter domain).
 TAN_TAN_BOUND = 2**16
 
 
@@ -235,9 +243,9 @@ class Corpus:
             return
         self.cases.append(self.request(name, inp))
 
-    def add_deferred_control(self, name, inp):
+    def add_deferred_control(self, name, inp, owner=ROTATE):
         self.controls.append({'error': UNDEFINED, 'request': self.request(f'control-{name}', inp),
-                              'rust_unported': ROTATE})
+                              'rust_unported': owner})
 
 
 def circ(c, r):
@@ -507,8 +515,10 @@ def generate():
             b = a
         lines(f'rand-{i}', cc, r, a, b)
 
-    # ConstructFromTanTanPt inside the adapter's audited domain: exactly parallel pairs or
-    # angles whose sine is at least 1/8, coordinates within 2^16, non-degenerate lines.
+    # ConstructFromTanTanPt. The public selection is unchanged from the earlier sufficient
+    # domain (exactly parallel pairs or angles whose sine is at least 1/8, coordinates within
+    # 2^16, non-degenerate lines). That set was not arithmetic-safe; the oracle now refuses each
+    # undefined request operation by operation, and every public case must pass that guard.
     def tan_tan(name, init, la, lb, p):
         assert all(abs(v) <= TAN_TAN_BOUND for s in (la, lb) for q in s for v in q), name
         assert all(abs(v) <= TAN_TAN_BOUND for v in p) and la[0] != la[1] and lb[0] != lb[1]
@@ -557,7 +567,7 @@ def generate():
             db = da
         cross = da[0] * db[1] - da[1] * db[0]
         if cross != 0 and cross * cross * 64 < (da[0]**2 + da[1]**2) * (db[0]**2 + db[1]**2):
-            continue  # Outside the adapter's audited angle domain.
+            continue  # Outside the earlier selection; kept so the fixed-seed cases are unchanged.
         o = (rng.randint(-2000, 2000), rng.randint(-2000, 2000))
         ka, kb = rng.randint(50, 3000), rng.randint(50, 3000)
         shift = (rng.randint(-500, 500), rng.randint(-500, 500)) if db == da else (0, 0)
@@ -568,6 +578,25 @@ def generate():
             continue
         p = (o[0] + rng.randint(-1500, 1500), o[1] + rng.randint(-1500, 1500))
         tan_tan(f'rand-{i}', init, la, lb, p)
+
+    # Undefined ConstructFromTanTanPt requests. Rust defers at SEG::Square (the first statement
+    # of ApproxParallel) before any of them, so each is checked as that deferral.
+    def tan_tan_control(name, la, lb, p):
+        c.add_deferred_control(f'tan_tan_pt-{name}',
+                               {'op': 'tan_tan_pt', 'circle': circ(*init),
+                                'line_a': [list(q) for q in la], 'line_b': [list(q) for q in lb],
+                                'point': list(p)}, SQUARE)
+
+    # Both inside the earlier sufficient domain. The first review's trace: actTanA is
+    # (INT_MIN, -32768), then PerpendicularSeg adds Perpendicular()'s x of -1 to INT_MIN.
+    tan_tan_control('review-perpendicular', ((0, 0), (65536, 1)), ((0, 0), (1, 65536)),
+                    (32766, -32768))
+    # The follow-up review's UBSan sweep over the genuine sources (seed 25).
+    tan_tan_control('review-sweep', ((-64561, -62774), (61438, 63223)),
+                    ((42568, -43794), (-24787, 13026)), (-6633, 29240))
+    # ApproxParallel's SquaredLength: A - B overflows int.
+    tan_tan_control('approx-parallel-length', ((INT_MIN, 0), (INT_MAX, 0)), ((0, 5), (10, 5)),
+                    (0, 0))
     return c
 
 

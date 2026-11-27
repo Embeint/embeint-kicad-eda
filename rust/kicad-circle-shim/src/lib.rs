@@ -11,9 +11,6 @@ use kicad_math::{Vector2, Vector2D, Vector2I};
 use serde_json::{json, Map, Value};
 
 const UNDEFINED: &str = "undefined circle operation";
-const OUTSIDE_TAN_TAN: &str = "tan-tan request outside the audited domain";
-/// The adapter's bound on ConstructFromTanTanPt coordinates (`TAN_TAN_BOUND`).
-const TAN_TAN_BOUND: i64 = 1 << 16;
 
 enum Error {
     Invalid(String),
@@ -117,27 +114,6 @@ fn state(c: &Circle) -> Value {
     json!({"center": point_i(c.center), "radius": c.radius})
 }
 
-/// The adapter's ConstructFromTanTanPt domain checks that do not depend on a pinned call:
-/// every coordinate within [`TAN_TAN_BOUND`] and both lines non-degenerate. The adapter's
-/// remaining check (the pinned ApproxParallel, else an angle whose sine is at least 1/8) needs
-/// `SEG::Square`, which is unported here; the public corpus only holds requests that pass it.
-fn tan_tan_bounds(line_a: &Seg, line_b: &Seg, p: Vector2I) -> Result<(), String> {
-    let bounded = |v: Vector2I| {
-        i64::from(v.x).abs() <= TAN_TAN_BOUND && i64::from(v.y).abs() <= TAN_TAN_BOUND
-    };
-    if !bounded(line_a.a)
-        || !bounded(line_a.b)
-        || !bounded(line_b.a)
-        || !bounded(line_b.b)
-        || !bounded(p)
-        || line_a.a == line_a.b
-        || line_b.a == line_b.b
-    {
-        return Err(OUTSIDE_TAN_TAN.into());
-    }
-    Ok(())
-}
-
 fn run(input: &Value) -> Result<Value, Error> {
     let v = object(input)?;
     let op = text(v, "op")?;
@@ -220,7 +196,6 @@ fn run(input: &Value) -> Result<Value, Error> {
             let line_a = read_seg(get(v, "line_a")?)?;
             let line_b = read_seg(get(v, "line_b")?)?;
             let p = read_point_i(get(v, "point")?)?;
-            tan_tan_bounds(&line_a, &line_b, p)?;
             let result: *const Circle = circle.construct_from_tan_tan_pt(&line_a, &line_b, p)?;
             let returns_self = core::ptr::eq(result, &circle);
             Ok(json!({"circle": state(&circle), "returns_self": returns_self}))
@@ -285,7 +260,7 @@ mod tests {
     use super::*;
     use std::collections::BTreeMap;
     const CASES: usize = 4978;
-    const CONTROLS: usize = 81;
+    const CONTROLS: usize = 84;
 
     /// Every public case either succeeds or defers to exactly these owners, these many times.
     #[test]
@@ -376,12 +351,44 @@ mod tests {
             json!({"op": "nearest_f64", "circle": c, "point": ["nothex", "0000000000000000"]}),
             json!({"op": "intersect_seg", "circle": c, "seg": [[0, 0]]}),
             json!({"op": "copy", "circle": {"center": [0, 0]}}),
-            json!({"op": "tan_tan_pt", "circle": c, "line_a": [[0, 0], [0, 0]],
-                   "line_b": [[0, 1], [1, 1]], "point": [0, 0]}),
-            json!({"op": "tan_tan_pt", "circle": c, "line_a": [[0, 0], [70000, 0]],
-                   "line_b": [[0, 1], [1, 1]], "point": [0, 0]}),
+            json!({"op": "tan_tan_pt", "circle": c, "line_a": [[0, 0], [1, 0]],
+                   "line_b": [[0, 1], [1, 1]], "point": [0]}),
         ] {
             assert_eq!(base(input)["error"]["kind"], "invalid_input");
+        }
+    }
+
+    /// No adapter domain restricts ConstructFromTanTanPt: degenerate lines and large
+    /// coordinates reach the body, whose first call defers to the actual owner.
+    #[test]
+    fn tan_tan_requests_reach_the_body() {
+        let c = json!({"center": [0, 0], "radius": 1});
+        for (a, b, p) in [
+            (
+                json!([[0, 0], [0, 0]]),
+                json!([[0, 1], [1, 1]]),
+                json!([0, 0]),
+            ),
+            (
+                json!([[0, 0], [70000, 0]]),
+                json!([[0, 1], [1, 1]]),
+                json!([0, 0]),
+            ),
+            (
+                json!([[i32::MIN, i32::MIN], [i32::MAX, i32::MAX]]),
+                json!([[i32::MAX, i32::MIN], [i32::MIN, i32::MAX]]),
+                json!([i32::MIN, i32::MAX]),
+            ),
+        ] {
+            let input = json!({"op": "tan_tan_pt", "circle": c, "line_a": a, "line_b": b,
+                               "point": p});
+            let reply = dispatch(&json!({"unit": UNIT, "case": "c", "input": input}).to_string());
+            assert_eq!(
+                reply["error"],
+                json!({"kind": "unported", "unit": "libs.kimath.include.geometry.application.ui.p003",
+                       "upstream": "SEG::Square"}),
+                "{reply}"
+            );
         }
     }
 }
