@@ -130,6 +130,10 @@ after the stock body (with grouping, short buffers and a buffer throw inside the
 `sync()` result, throw and `unitbuf`. Each reply carries the trace of host calls, so the
 order of writes, syncs, tie flushes and facet calls is compared, not only the end state.
 
+The call context (an insertion while another exception propagates), the facet's mutable
+`ios_base&` and the stock padding it reaches, forced unwinding and null buffers were added
+after an independent review; they are recorded in `wx-stl-compat-review-corrections.md`.
+
 ## 7. Evidence
 
 Original head `6f272c818852adf3d640aee315d1f4756d86eaa8` (first corpus, 3329 cases), hosted
@@ -148,7 +152,9 @@ the new code or cases.
 
 Corrected code at `6ccd4c4cde08588a521af14e2e48a6edbdb6f401` (overlay tree `port/oracle`
 `f235dbbc54dd9c35b186a1cc2755e22fe09f4aa8`, unchanged by the documentation commits after
-it), local Ubuntu 26.04 WSL, oracle built from a raw-blob export by `build.sh`: compiler
+it), local Ubuntu 26.04 WSL, oracle built by `build.sh` from a `prepare.py` export made in
+the Windows worktree (`core.autocrlf=true` converted its `text=auto` files to CRLF, so it was
+not the raw pinned blobs; see `wx-stl-compat-review-corrections.md`): compiler
 `g++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0`, `libc6 2.43-2ubuntu2.7`, `libwxbase3.2-1t64
 3.2.9+dfsg-1`; source manifest `c322e56929f4b8dedffeda018f9ff2906a76c96cf46b936d92dfdf935fb7c8f1`
 (archive `1c36954a7cf90d8dcdbc57d5a42fc17f453f7e549ad4c746961eda6fdc1f7f5c`, 918 pinned files),
