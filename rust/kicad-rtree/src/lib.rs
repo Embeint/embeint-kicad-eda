@@ -4,7 +4,12 @@
 //! accepted `kicad-rtree-node` types. Reference ordering/accounting targets Linux
 //! x86-64 libstdc++; coordinates remain integers throughout spatial predicates.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 mod error;
 mod iter;
 /// Shared libstdc++ ordering contract for the COW/packed sibling unit.

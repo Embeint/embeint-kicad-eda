@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Runtime probe against freshly collected native replies, not stored goldens.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 use kicad_rtree_cow_packed_shim::operations::run;
 use serde_json::Value;
 const CASES: &str = include_str!(

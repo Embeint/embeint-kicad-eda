@@ -2,7 +2,12 @@
 //! JSONL adapter for `kicad-clipper2`, mirroring `port/oracle/shims/clipper2_core_engine.cpp`
 //! request for request. Doubles travel as 16 hex digit bit patterns, points as `[x, y, z]`.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 
 use kicad_clipper2::clipper_engine::{
     poly_path_base_count, Active, ActiveId, ClipType, Clipper64, ClipperD, HorzJoin, HorzSegment,

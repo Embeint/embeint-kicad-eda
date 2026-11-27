@@ -5,12 +5,19 @@
 //! Every result comes from the portable port (`kicad_core::app_include_core`,
 //! `kicad_math::mirror`); this file only decodes, scripts and encodes.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 
 mod isa;
 mod lifecycle;
 
-use kicad_core::inplace_function::{Callable, InplaceFunction, DEFAULT_CAPACITY};
+use kicad_core::inplace_function::{
+    Callable, CopyError, InplaceFunction, StorageInvariant, DEFAULT_CAPACITY,
+};
 use kicad_core::leak_at_exit::{InitFailure, LeakAtExit};
 use kicad_core::profile::{Milliseconds, TimePoint};
 use kicad_core::throttle::{SteadyClock, Throttle};
@@ -287,14 +294,41 @@ fn read_via(o: &Obj) -> Res<Via> {
 enum Failure {
     Allocation,
     Construction,
+    /// `InitFailure::Storage`, which no C++ exception stands for: the request is refused.
+    Storage,
 }
 
 impl Failure {
-    fn encode(&self) -> Value {
+    fn encode(&self) -> Res<Value> {
         match self {
-            Failure::Allocation => json!({"exception": "bad_alloc"}),
-            Failure::Construction => json!({"exception": "construction failed"}),
+            Failure::Allocation => Ok(json!({"exception": "bad_alloc"})),
+            Failure::Construction => Ok(json!({"exception": "construction failed"})),
+            Failure::Storage => fail("LEAK_AT_EXIT storage invariant failed"),
         }
+    }
+}
+
+impl<E> From<InitFailure<E>> for Failure {
+    fn from(failure: InitFailure<E>) -> Self {
+        match failure {
+            InitFailure::Allocation(_) => Failure::Allocation,
+            InitFailure::Construction(_) => Failure::Construction,
+            InitFailure::Storage => Failure::Storage,
+        }
+    }
+}
+
+/// `INPLACE_FUNCTION`'s storage invariant, which no C++ exception stands for: the request
+/// is refused.
+fn storage_refusal(_: StorageInvariant) -> String {
+    "INPLACE_FUNCTION storage invariant failed".to_string()
+}
+
+/// A failed copy of a lambda, whose copy constructor cannot throw: the request is refused.
+fn copy_refusal(failure: CopyError) -> String {
+    match failure {
+        CopyError::Copy(_) => "copy failed".to_string(),
+        CopyError::Storage(invariant) => storage_refusal(invariant),
     }
 }
 
@@ -352,7 +386,7 @@ fn value_initialized<T: Default + 'static>(
         Via::Arrow => leak.arrow(),
         Via::Convert => leak.as_reference(),
     }
-    .map_err(|_| Failure::Allocation)
+    .map_err(Failure::from)
 }
 
 macro_rules! value_initialized_access {
@@ -486,10 +520,7 @@ impl LeakType for Flaky {
         script: &InitScript,
     ) -> Result<&'a mut Self, Failure> {
         leak.try_get_with(|| script.construct())
-            .map_err(|failure| match failure {
-                InitFailure::Allocation(_) => Failure::Allocation,
-                InitFailure::Construction(()) => Failure::Construction,
-            })
+            .map_err(Failure::from)
     }
 }
 
@@ -593,14 +624,14 @@ fn run_leak<T: LeakType>(steps: &[Value]) -> Res<Value> {
             "identity" => {
                 fields(&step, &["step", "slot"])?;
                 // Every accessor returns the one object `Get()` created.
-                results.push(identity(object, &script));
+                results.push(identity(object, &script)?);
             }
             "read" => {
                 fields(&step, &["step", "slot", "via"])?;
                 let via = read_via(o)?;
                 match T::access(object, via, &script) {
                     Ok(value) => results.push(value.encode()),
-                    Err(failure) => results.push(failure.encode()),
+                    Err(failure) => results.push(failure.encode()?),
                 }
             }
             "write" => {
@@ -613,7 +644,7 @@ fn run_leak<T: LeakType>(steps: &[Value]) -> Res<Value> {
                         *target = value;
                         results.push(Value::Null);
                     }
-                    Err(failure) => results.push(failure.encode()),
+                    Err(failure) => results.push(failure.encode()?),
                 }
             }
             "share" => {
@@ -629,7 +660,7 @@ fn run_leak<T: LeakType>(steps: &[Value]) -> Res<Value> {
                         }
                         results.push(Value::Null);
                     }
-                    Err(failure) => results.push(failure.encode()),
+                    Err(failure) => results.push(failure.encode()?),
                 }
             }
             "size" => {
@@ -642,14 +673,14 @@ fn run_leak<T: LeakType>(steps: &[Value]) -> Res<Value> {
                         Some(size) => results.push(json!(size)),
                         None => return fail("size needs a container"),
                     },
-                    Err(failure) => results.push(failure.encode()),
+                    Err(failure) => results.push(failure.encode()?),
                 }
             }
             "release" => {
                 // `T* p = &leak->Get();` then the wrapper is destroyed; `p` stays usable.
                 fields(&step, &["step", "slot"])?;
                 if let Err(failure) = T::access(object, Via::Get, &script) {
-                    results.push(failure.encode());
+                    results.push(failure.encode()?);
                     continue;
                 }
                 if let Some(object) = leak.take().and_then(LeakAtExit::release) {
@@ -670,7 +701,7 @@ fn run_leak<T: LeakType>(steps: &[Value]) -> Res<Value> {
 
 /// Whether `Get()`, `operator*`, `operator->` and `operator T&` name one object, or the
 /// failure of the first access that failed.
-fn identity<T: LeakType>(leak: &mut LeakAtExit<T>, script: &InitScript) -> Value {
+fn identity<T: LeakType>(leak: &mut LeakAtExit<T>, script: &InitScript) -> Res<Value> {
     let first: *const T = match T::access(leak, Via::Get, script) {
         Ok(first) => first,
         Err(failure) => return failure.encode(),
@@ -682,7 +713,7 @@ fn identity<T: LeakType>(leak: &mut LeakAtExit<T>, script: &InitScript) -> Value
             Err(failure) => return failure.encode(),
         }
     }
-    json!(same)
+    Ok(json!(same))
 }
 
 fn leak_op(v: &Value) -> Res<Value> {
@@ -709,16 +740,16 @@ trait Use<A, R> {
 }
 struct Construct<const CAP: usize>;
 impl<A: 'static, R: 'static, const CAP: usize> Use<A, R> for Construct<CAP> {
-    type Out = InplaceFunction<'static, A, R, CAP>;
+    type Out = Result<InplaceFunction<'static, A, R, CAP>, StorageInvariant>;
     fn apply<F: Callable<A, R> + 'static>(self, callable: F) -> Self::Out {
         InplaceFunction::from_callable(callable)
     }
 }
 struct Assign<'s, A, R, const CAP: usize>(&'s mut InplaceFunction<'static, A, R, CAP>);
 impl<A: 'static, R: 'static, const CAP: usize> Use<A, R> for Assign<'_, A, R, CAP> {
-    type Out = ();
-    fn apply<F: Callable<A, R> + 'static>(self, callable: F) {
-        self.0.assign_callable(callable);
+    type Out = Result<(), StorageInvariant>;
+    fn apply<F: Callable<A, R> + 'static>(self, callable: F) -> Self::Out {
+        self.0.assign_callable(callable)
     }
 }
 
@@ -1051,7 +1082,8 @@ fn run_function<S: Signature, const CAP: usize, B: Big>(o: &Obj) -> Res<Value> {
                 fields(&step, &["step", "slot", "callable"])?;
                 let index = vacant(&slots, o)?;
                 let function =
-                    S::with_callable::<B, _>(member(o, "callable")?, &token, Construct::<CAP>)?;
+                    S::with_callable::<B, _>(member(o, "callable")?, &token, Construct::<CAP>)?
+                        .map_err(storage_refusal)?;
                 if let Some(slot) = slots.get_mut(index) {
                     *slot = Some(function);
                 }
@@ -1062,7 +1094,7 @@ fn run_function<S: Signature, const CAP: usize, B: Big>(o: &Obj) -> Res<Value> {
                 // The lambdas' copy constructors cannot throw.
                 let copy = live(&mut slots, o, "from")?
                     .try_clone()
-                    .map_err(|_| "copy failed".to_string())?;
+                    .map_err(copy_refusal)?;
                 let index = vacant(&slots, o)?;
                 if let Some(slot) = slots.get_mut(index) {
                     *slot = Some(copy);
@@ -1073,7 +1105,8 @@ fn run_function<S: Signature, const CAP: usize, B: Big>(o: &Obj) -> Res<Value> {
                 fields(&step, &["step", "slot", "from"])?;
                 live(&mut slots, o, "from")?;
                 let index = vacant(&slots, o)?;
-                let moved = InplaceFunction::take(live(&mut slots, o, "from")?);
+                let moved =
+                    InplaceFunction::take(live(&mut slots, o, "from")?).map_err(storage_refusal)?;
                 if let Some(slot) = slots.get_mut(index) {
                     *slot = Some(moved);
                 }
@@ -1082,7 +1115,8 @@ fn run_function<S: Signature, const CAP: usize, B: Big>(o: &Obj) -> Res<Value> {
             "assign" => {
                 fields(&step, &["step", "slot", "callable"])?;
                 let target = live(&mut slots, o, "slot")?;
-                S::with_callable::<B, _>(member(o, "callable")?, &token, Assign(target))?;
+                S::with_callable::<B, _>(member(o, "callable")?, &token, Assign(target))?
+                    .map_err(storage_refusal)?;
                 results.push(Value::Null);
             }
             "copy_assign" | "move_assign" => {
@@ -1096,9 +1130,7 @@ fn run_function<S: Signature, const CAP: usize, B: Big>(o: &Obj) -> Res<Value> {
                     // `this == &aOther`: the operators' self-assignment branch.
                     let function = live(&mut slots, o, "slot")?;
                     if copy {
-                        function
-                            .try_copy_assign_self()
-                            .map_err(|_| "copy failed".to_string())?;
+                        function.try_copy_assign_self().map_err(copy_refusal)?;
                     } else {
                         function.move_assign_self();
                     }
@@ -1107,18 +1139,20 @@ fn run_function<S: Signature, const CAP: usize, B: Big>(o: &Obj) -> Res<Value> {
                         .get_mut(from)
                         .and_then(Option::take)
                         .ok_or("slot not constructed")?;
-                    let mut copied = Ok(());
+                    let mut assigned = Ok(());
                     if let Some(Some(destination)) = slots.get_mut(target) {
-                        if copy {
-                            copied = destination.try_copy_assign(&source);
+                        assigned = if copy {
+                            destination.try_copy_assign(&source)
                         } else {
-                            destination.move_assign(&mut source);
-                        }
+                            destination
+                                .move_assign(&mut source)
+                                .map_err(CopyError::from)
+                        };
                     }
                     if let Some(slot) = slots.get_mut(from) {
                         *slot = Some(source);
                     }
-                    copied.map_err(|_| "copy failed".to_string())?;
+                    assigned.map_err(copy_refusal)?;
                 }
                 results.push(Value::Null);
             }

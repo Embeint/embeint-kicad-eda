@@ -182,9 +182,16 @@ the pinned `qa/tests/common/test_inplace_function.cpp` are cases `inplace-qa-*`.
   convertible to `R`; Rust callables return `R` itself.
 - **Allocation failure.** `LEAK_AT_EXIT`'s allocation failure path is ported and reported,
   but neither adapter can make an allocation fail, so no case reaches it.
-- **Two proven-unreachable branches.** `INPLACE_FUNCTION`'s storage construction cannot fail
-  after its compile-time size and alignment assertions, and `LEAK_AT_EXIT`'s storage holds
-  the one object just pushed; each such branch is `unreachable!` with that justification.
+- **Two storage invariants, reported as typed errors.** `INPLACE_FUNCTION`'s storage
+  construction cannot fail after its compile-time size and alignment assertions, and
+  `LEAK_AT_EXIT`'s leaked storage holds the one object just pushed. Neither is reachable,
+  and neither panics: placement returns `StorageInvariant` (with `CopyFailure` combined into
+  `CopyError` on the copy paths), propagated through every constructor and assignment, and
+  `LEAK_AT_EXIT` reads its object back with `first_mut` and returns `InitFailure::Storage`.
+  A failure keeps the C++ order: what is built before a reset is built first, so the
+  destination is unchanged, as with `CopyFailure`. Both adapters refuse such a request
+  instead of encoding a C++ exception, since no C++ exception stands for either; no case or
+  control reaches one. `clippy::unreachable` is denied in every port crate.
 
 ## Remaining gaps (the unit stays partial)
 

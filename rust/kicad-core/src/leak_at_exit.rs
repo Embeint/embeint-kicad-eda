@@ -18,6 +18,11 @@
 //! value-initialization. `Default` has no typed failure channel; a constructor that needs
 //! one uses [`LeakAtExit::try_get_with`].
 //!
+//! A third failure, [`InitFailure::Storage`], has no C++ counterpart and no input reaches
+//! it: the leaked storage, which holds the one object just pushed into it, is read back
+//! with a checked access (`first_mut`), and a missing object is reported instead of
+//! panicking. It too leaves the wrapper uninitialized.
+//!
 //! Every accessor takes `&mut self`: one owner at a time, like the other ported
 //! `include/core` synchronization (`KISPINLOCK`, `SYNC_QUEUE`). `std::call_once` makes
 //! concurrent first accesses create one object; exclusive access gives the same
@@ -33,7 +38,13 @@ pub enum InitFailure<E> {
     Allocation(TryReserveError),
     /// The constructor failed (threw); the allocation was released.
     Construction(E),
+    /// The leaked storage did not hold the object just placed in it: a storage invariant
+    /// that no input reaches, reported instead of panicking.
+    Storage,
 }
+
+/// Why a value-initializing accessor ([`LeakAtExit::get`]) failed; `T::default()` cannot.
+pub type GetFailure = InitFailure<core::convert::Infallible>;
 
 /// `LEAK_AT_EXIT<T>`.
 pub struct LeakAtExit<T: 'static> {
@@ -81,28 +92,24 @@ impl<T: 'static> LeakAtExit<T> {
 
 impl<T: Default + 'static> LeakAtExit<T> {
     /// `Get()`: the object, value-initialized by the first call of any accessor and never
-    /// destroyed. Wrapper allocation errors are returned; a fallible constructor uses
-    /// [`Self::try_get_with`] instead of `Default`.
-    pub fn get(&mut self) -> Result<&mut T, TryReserveError> {
-        self.try_get_with(|| Ok::<T, core::convert::Infallible>(T::default()))
-            .map_err(|failure| match failure {
-                InitFailure::Allocation(error) => error,
-                InitFailure::Construction(never) => match never {},
-            })
+    /// destroyed. Wrapper allocation errors (and the storage invariant) are returned; a
+    /// fallible constructor uses [`Self::try_get_with`] instead of `Default`.
+    pub fn get(&mut self) -> Result<&mut T, GetFailure> {
+        self.try_get_with(|| Ok(T::default()))
     }
 
     /// `operator*()`: `Get()`.
-    pub fn dereference(&mut self) -> Result<&mut T, TryReserveError> {
+    pub fn dereference(&mut self) -> Result<&mut T, GetFailure> {
         self.get()
     }
 
     /// `operator->()`: `&Get()`.
-    pub fn arrow(&mut self) -> Result<&mut T, TryReserveError> {
+    pub fn arrow(&mut self) -> Result<&mut T, GetFailure> {
         self.get()
     }
 
     /// `operator T&()`: `Get()`.
-    pub fn as_reference(&mut self) -> Result<&mut T, TryReserveError> {
+    pub fn as_reference(&mut self) -> Result<&mut T, GetFailure> {
         self.get()
     }
 }
@@ -116,11 +123,8 @@ fn allocate<T: 'static, E>(
         .try_reserve_exact(1)
         .map_err(InitFailure::Allocation)?;
     storage.push(init().map_err(InitFailure::Construction)?);
-    match storage.leak() {
-        [instance] => Ok(instance),
-        // One element was pushed into an empty vector.
-        _ => unreachable!("LEAK_AT_EXIT storage holds one object"),
-    }
+    // One element was pushed into an empty vector, so the leaked slice holds exactly it.
+    storage.leak().first_mut().ok_or(InitFailure::Storage)
 }
 
 #[cfg(test)]

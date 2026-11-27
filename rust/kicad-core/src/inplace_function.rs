@@ -30,6 +30,19 @@
 //! C++ leaves it when the copy constructor throws: the copy constructor builds nothing, and
 //! copy assignment ([`InplaceFunction::try_copy_assign`]) keeps the old target (the C++
 //! builds the copy before it resets). Moves cannot fail: the C++ requires nothrow moves.
+//!
+//! **Storage invariant.** Placing a callable in the inline storage
+//! (`stack_dst::Value::new_stable`) checks the same size and alignment as the compile-time
+//! assertions, so once they hold it cannot fail. Its result is still a runtime value, and
+//! the port reports a refusal instead of panicking: every operation that places a callable
+//! returns [`StorageInvariant`] for it, and the operations that can also fail a copy return
+//! [`CopyError`]. No C++ program can observe either, and no input reaches either. A failure
+//! keeps the C++ order of the operation reporting it. What is built before a reset (the
+//! copy of copy assignment, the temporary of callable assignment) is built first, so its
+//! failure leaves the destination unchanged, as [`CopyFailure`] does. A move that cannot
+//! place its new object leaves the destination empty (it was empty, or reset before the
+//! move as in C++) and the source holding its moved-from callable; a constructor that
+//! cannot place builds nothing.
 
 use core::marker::PhantomData;
 use stack_dst::embeint_inline::MaxAlignBuf;
@@ -48,6 +61,33 @@ pub struct BadFunctionCall;
 /// The failure of a callable's copy constructor (the exception it throws in C++).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CopyFailure;
+
+/// The inline storage refused a callable that the compile-time size and alignment
+/// assertions admitted. It has no C++ counterpart and no input reaches it (see the module
+/// documentation); it is reported instead of panicking.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct StorageInvariant;
+
+/// Why an operation that copies a callable failed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CopyError {
+    /// The callable's copy constructor failed (threw).
+    Copy(CopyFailure),
+    /// The storage invariant failed ([`StorageInvariant`]).
+    Storage(StorageInvariant),
+}
+
+impl From<CopyFailure> for CopyError {
+    fn from(failure: CopyFailure) -> Self {
+        Self::Copy(failure)
+    }
+}
+
+impl From<StorageInvariant> for CopyError {
+    fn from(failure: StorageInvariant) -> Self {
+        Self::Storage(failure)
+    }
+}
 
 /// A callable `INPLACE_FUNCTION` can store, with the special members its `m_manage` calls.
 ///
@@ -119,10 +159,10 @@ trait Stored<'a, A, R, const CAPACITY: usize> {
     fn invoke(&self, args: A) -> R;
 
     /// `OP::MOVE` into new storage; `None`: relocate this storage instead.
-    fn move_out(&mut self) -> Option<Storage<'a, A, R, CAPACITY>>;
+    fn move_out(&mut self) -> Option<Result<Storage<'a, A, R, CAPACITY>, StorageInvariant>>;
 
     /// `OP::COPY` into new storage.
-    fn copy_out(&self) -> Result<Storage<'a, A, R, CAPACITY>, CopyFailure>;
+    fn copy_out(&self) -> Result<Storage<'a, A, R, CAPACITY>, CopyError>;
 }
 
 impl<'a, F, A, R, const CAPACITY: usize> Stored<'a, A, R, CAPACITY> for F
@@ -133,12 +173,12 @@ where
         Callable::invoke(self, args)
     }
 
-    fn move_out(&mut self) -> Option<Storage<'a, A, R, CAPACITY>> {
+    fn move_out(&mut self) -> Option<Result<Storage<'a, A, R, CAPACITY>, StorageInvariant>> {
         self.move_construct().map(place)
     }
 
-    fn copy_out(&self) -> Result<Storage<'a, A, R, CAPACITY>, CopyFailure> {
-        self.copy_construct().map(place)
+    fn copy_out(&self) -> Result<Storage<'a, A, R, CAPACITY>, CopyError> {
+        Ok(place(self.copy_construct()?)?)
     }
 }
 
@@ -154,19 +194,20 @@ where
 
 /// `::new( &m_storage ) DECAYED( ... )`: place an already constructed callable in inline
 /// storage. The size and alignment assertions are checked when this is instantiated.
-fn place<'a, F, A, R, const CAPACITY: usize>(callable: F) -> Storage<'a, A, R, CAPACITY>
+///
+/// `Requirements` proves at compile time that `F` fits the payload and its alignment, which
+/// is all `new_stable` checks; a refusal is still reported, as [`StorageInvariant`], and
+/// the refused callable is destroyed.
+fn place<'a, F, A, R, const CAPACITY: usize>(
+    callable: F,
+) -> Result<Storage<'a, A, R, CAPACITY>, StorageInvariant>
 where
     F: Callable<A, R> + 'a,
 {
     #[allow(clippy::let_unit_value)]
     let () = Requirements::<F, CAPACITY>::HOLD;
 
-    match Value::new_stable(callable, erase::<F, A, R, CAPACITY>) {
-        Ok(storage) => storage,
-        // `Requirements` proved at compile time that `F` fits the payload and its alignment,
-        // which is all `new_stable` checks.
-        Err(_) => unreachable!("INPLACE_FUNCTION payload checked at compile time"),
-    }
+    Value::new_stable(callable, erase::<F, A, R, CAPACITY>).map_err(|_| StorageInvariant)
 }
 
 /// `INPLACE_FUNCTION<R( A... ), CAPACITY>`.
@@ -191,64 +232,64 @@ impl<'a, A, R, const CAPACITY: usize> InplaceFunction<'a, A, R, CAPACITY> {
     /// `INPLACE_FUNCTION( F&& aCallable )` with an rvalue: `assign` move-constructs the
     /// callable into the storage. The moved-from argument is destroyed when the
     /// construction is complete, as the C++ temporary is at the end of the full-expression.
-    pub fn from_callable<F>(callable: F) -> Self
+    pub fn from_callable<F>(callable: F) -> Result<Self, StorageInvariant>
     where
         F: Callable<A, R> + 'a,
     {
-        let (target, _moved_from) = construct(callable);
-        Self {
+        let (target, _moved_from) = construct(callable)?;
+        Ok(Self {
             target: Some(target),
-        }
+        })
     }
 
     /// `INPLACE_FUNCTION( F&& aCallable )` with an lvalue (`F` deduced as `F&`): `assign`
     /// copy-constructs the callable; a failing copy constructs nothing.
-    pub fn try_from_copy<F>(callable: &F) -> Result<Self, CopyFailure>
+    pub fn try_from_copy<F>(callable: &F) -> Result<Self, CopyError>
     where
         F: Callable<A, R> + 'a,
     {
         Ok(Self {
-            target: Some(place(callable.copy_construct()?)),
+            target: Some(place(callable.copy_construct()?)?),
         })
     }
 
     /// `INPLACE_FUNCTION( const INPLACE_FUNCTION& aOther )`: `copyFrom( aOther )`. A
     /// failing copy constructs nothing.
-    pub fn try_clone(&self) -> Result<Self, CopyFailure> {
+    pub fn try_clone(&self) -> Result<Self, CopyError> {
         let mut function = Self::new();
         function.copy_from(self)?;
         Ok(function)
     }
 
     /// `INPLACE_FUNCTION( INPLACE_FUNCTION&& aOther )`: `moveFrom( aOther )`.
-    pub fn take(other: &mut Self) -> Self {
+    pub fn take(other: &mut Self) -> Result<Self, StorageInvariant> {
         let mut function = Self::new();
-        function.move_from(other);
-        function
+        function.move_from(other)?;
+        Ok(function)
     }
 
     /// `operator=( const INPLACE_FUNCTION& aOther )` for another object: the copy is built
     /// before the old target is reset, then moved in. A failing copy leaves `self`
     /// unchanged.
-    pub fn try_copy_assign(&mut self, other: &Self) -> Result<(), CopyFailure> {
+    pub fn try_copy_assign(&mut self, other: &Self) -> Result<(), CopyError> {
         let mut copy = other.try_clone()?;
         self.reset();
-        self.move_from(&mut copy);
+        self.move_from(&mut copy)?;
         Ok(())
     }
 
     /// `operator=( const INPLACE_FUNCTION& )` with `this == &aOther`: nothing happens.
     /// (Rust's exclusive borrow cannot name `self` as the source of
     /// [`Self::try_copy_assign`]; this is that call.)
-    pub fn try_copy_assign_self(&mut self) -> Result<(), CopyFailure> {
+    pub fn try_copy_assign_self(&mut self) -> Result<(), CopyError> {
         Ok(())
     }
 
     /// `operator=( INPLACE_FUNCTION&& aOther )` for another object: reset, then take
     /// `aOther`'s target, leaving it empty.
-    pub fn move_assign(&mut self, other: &mut Self) {
+    pub fn move_assign(&mut self, other: &mut Self) -> Result<(), StorageInvariant> {
         self.reset();
-        self.move_from(other);
+        self.move_from(other)
     }
 
     /// `operator=( INPLACE_FUNCTION&& )` with `this == &aOther`: nothing happens.
@@ -257,29 +298,30 @@ impl<'a, A, R, const CAPACITY: usize> InplaceFunction<'a, A, R, CAPACITY> {
     /// `operator=( F&& aCallable )` with an rvalue: build a temporary wrapper from the
     /// callable, reset, then move the temporary in. The moved-from argument is destroyed
     /// last, as the C++ temporary is.
-    pub fn assign_callable<F>(&mut self, callable: F)
+    pub fn assign_callable<F>(&mut self, callable: F) -> Result<(), StorageInvariant>
     where
         F: Callable<A, R> + 'a,
     {
-        let (target, moved_from) = construct(callable);
+        let (target, moved_from) = construct(callable)?;
         let mut temporary = Self {
             target: Some(target),
         };
         self.reset();
-        self.move_from(&mut temporary);
+        let moved = self.move_from(&mut temporary);
         drop(temporary);
         drop(moved_from);
+        moved
     }
 
     /// `operator=( F&& aCallable )` with an lvalue: the temporary wrapper copies the
     /// callable first, so a failing copy leaves `self` unchanged.
-    pub fn try_assign_copy<F>(&mut self, callable: &F) -> Result<(), CopyFailure>
+    pub fn try_assign_copy<F>(&mut self, callable: &F) -> Result<(), CopyError>
     where
         F: Callable<A, R> + 'a,
     {
         let mut temporary = Self::try_from_copy(callable)?;
         self.reset();
-        self.move_from(&mut temporary);
+        self.move_from(&mut temporary)?;
         Ok(())
     }
 
@@ -304,21 +346,28 @@ impl<'a, A, R, const CAPACITY: usize> InplaceFunction<'a, A, R, CAPACITY> {
     }
 
     /// `moveFrom( aOther )` into an empty wrapper: `OP::MOVE`, then `aOther.reset()`
-    /// destroys the moved-from source. A relocated callable has no source left.
-    fn move_from(&mut self, other: &mut Self) {
+    /// destroys the moved-from source. A relocated callable has no source left. If the
+    /// moved object cannot be placed ([`StorageInvariant`]), `self` stays empty and
+    /// `other` keeps its moved-from source.
+    fn move_from(&mut self, other: &mut Self) -> Result<(), StorageInvariant> {
         if let Some(mut source) = other.target.take() {
             match source.move_out() {
-                Some(moved) => {
+                Some(Ok(moved)) => {
                     self.target = Some(moved);
                     drop(source);
+                }
+                Some(Err(failure)) => {
+                    other.target = Some(source);
+                    return Err(failure);
                 }
                 None => self.target = Some(source),
             }
         }
+        Ok(())
     }
 
     /// `copyFrom( aOther )` into an empty wrapper: `OP::COPY`, if `aOther` has a target.
-    fn copy_from(&mut self, other: &Self) -> Result<(), CopyFailure> {
+    fn copy_from(&mut self, other: &Self) -> Result<(), CopyError> {
         if let Some(source) = &other.target {
             self.target = Some(source.copy_out()?);
         }
@@ -330,13 +379,13 @@ impl<'a, A, R, const CAPACITY: usize> InplaceFunction<'a, A, R, CAPACITY> {
 /// callable has a move constructor, the moved-from argument the caller destroys later.
 fn construct<'a, F, A, R, const CAPACITY: usize>(
     mut callable: F,
-) -> (Storage<'a, A, R, CAPACITY>, Option<F>)
+) -> Result<(Storage<'a, A, R, CAPACITY>, Option<F>), StorageInvariant>
 where
     F: Callable<A, R> + 'a,
 {
     match callable.move_construct() {
-        Some(moved) => (place(moved), Some(callable)),
-        None => (place(callable), None),
+        Some(moved) => Ok((place(moved)?, Some(callable))),
+        None => Ok((place(callable)?, None)),
     }
 }
 
@@ -366,10 +415,10 @@ mod tests {
     }
 
     #[test]
-    fn callables_are_stored_inside_the_wrapper() {
+    fn callables_are_stored_inside_the_wrapper() -> Result<(), CopyError> {
         let wide = [1i64, 2, 3, 4];
         let function: InplaceFunction<'_, (i64,), i64> =
-            InplaceFunction::from_callable(move |x: i64| wide.iter().sum::<i64>() + x);
+            InplaceFunction::from_callable(move |x: i64| wide.iter().sum::<i64>() + x)?;
         assert_eq!(function.call((5,)), Ok(15));
         assert_eq!(
             core::mem::align_of::<InplaceFunction<'_, (), usize>>(),
@@ -377,18 +426,15 @@ mod tests {
         );
 
         let mut functions: [InplaceFunction<'_, (), usize>; 2] = Default::default();
-        functions[0] = InplaceFunction::from_callable(Whereabouts([0; 2]));
-        let copy = functions[0].try_clone();
-        assert!(copy.is_ok());
-        if let Ok(copy) = copy {
-            functions[1] = copy;
-        }
+        functions[0] = InplaceFunction::from_callable(Whereabouts([0; 2]))?;
+        functions[1] = functions[0].try_clone()?;
         for function in &functions {
             let start = function as *const InplaceFunction<'_, (), usize> as usize;
             let end = start + core::mem::size_of::<InplaceFunction<'_, (), usize>>();
             let at = function.call(());
             assert!(at.is_ok_and(|at| (start..end).contains(&at) && at % MAX_ALIGN == 0));
         }
+        Ok(())
     }
 
     /// A callable that records its special members.
@@ -456,22 +502,22 @@ mod tests {
     }
 
     #[test]
-    fn moves_run_the_move_constructor_and_destroy_the_source() {
+    fn moves_run_the_move_constructor_and_destroy_the_source() -> Result<(), StorageInvariant> {
         let log = Rc::new(RefCell::new(Vec::new()));
         let copies = Rc::new(Cell::new(1));
         let mut a: InplaceFunction<'_, (i64,), i64> =
-            InplaceFunction::from_callable(probe(&log, &copies, 1));
+            InplaceFunction::from_callable(probe(&log, &copies, 1))?;
         assert_eq!(drain(&log), ["move 1", "destroy 1 moved-from"]);
 
-        let b = InplaceFunction::take(&mut a);
+        let b = InplaceFunction::take(&mut a)?;
         assert_eq!(drain(&log), ["move 1", "destroy 1 moved-from"]);
         assert!(!a.is_set());
         assert_eq!(b.call((2,)), Ok(3));
 
         let mut c: InplaceFunction<'_, (i64,), i64> =
-            InplaceFunction::from_callable(probe(&log, &copies, 7));
+            InplaceFunction::from_callable(probe(&log, &copies, 7))?;
         drain(&log);
-        c.assign_callable(probe(&log, &copies, 9));
+        c.assign_callable(probe(&log, &copies, 9))?;
         assert_eq!(
             drain(&log),
             [
@@ -486,19 +532,23 @@ mod tests {
         assert_eq!(drain(&log), ["destroy 1 live"]);
         drop(c);
         assert_eq!(drain(&log), ["destroy 9 live"]);
+        Ok(())
     }
 
     #[test]
-    fn failing_copy_keeps_the_old_target() {
+    fn failing_copy_keeps_the_old_target() -> Result<(), StorageInvariant> {
         let log = Rc::new(RefCell::new(Vec::new()));
         let copies = Rc::new(Cell::new(0));
         let source: InplaceFunction<'_, (i64,), i64> =
-            InplaceFunction::from_callable(probe(&log, &copies, 1));
+            InplaceFunction::from_callable(probe(&log, &copies, 1))?;
         let mut target: InplaceFunction<'_, (i64,), i64> =
-            InplaceFunction::from_callable(probe(&log, &copies, 5));
+            InplaceFunction::from_callable(probe(&log, &copies, 5))?;
         drain(&log);
 
-        assert_eq!(target.try_copy_assign(&source), Err(CopyFailure));
+        assert_eq!(
+            target.try_copy_assign(&source),
+            Err(CopyError::Copy(CopyFailure))
+        );
         assert_eq!(drain(&log), ["copy-failed 1"]);
         assert_eq!(target.call((0,)), Ok(5));
         assert!(source.try_clone().is_err());
@@ -515,5 +565,6 @@ mod tests {
         target.move_assign_self();
         assert!(drain(&log).is_empty());
         assert_eq!(target.call((0,)), Ok(1));
+        Ok(())
     }
 }

@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 
 //! Native JSONL adapter for unit `libs.kimath.include.math.application.pure.p001`.
 //! The operation schema is in this crate's README; `port/oracle/shims/kimath_math.cpp` is the

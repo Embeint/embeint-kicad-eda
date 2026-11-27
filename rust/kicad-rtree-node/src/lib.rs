@@ -11,7 +11,12 @@
 //! [`SlabArena`] may free and re-allocate any node, as in C++.
 //! See `README.md` for the storage design and the unported branches.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 
 mod coord;
 mod error;

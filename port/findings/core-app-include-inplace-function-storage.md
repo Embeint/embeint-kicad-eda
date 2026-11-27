@@ -42,6 +42,11 @@ when the copy fails; `try_copy_assign_self` and `move_assign_self` are the `this
 branches, which the adapter now calls for the 63 copy and 59 move self-assignments of the
 existing corpus. Rust closures, which have no move constructor, are relocated.
 
+Placing a callable in the storage (`Value::new_stable`) checks only what the compile-time
+assertions already proved, so it cannot fail; its runtime result is still reported, as
+`StorageInvariant` (or `CopyError::Storage` where a copy can also fail), through every
+constructor and assignment instead of a panic. No input reaches it.
+
 The `inplace_lifecycle` operation compares, event for event, a callable that records its
 construction, copies, failed copies, moves, calls and destruction (`PROBE` in the C++
 adapter, `Probe` in Rust) through every constructor and assignment operator.

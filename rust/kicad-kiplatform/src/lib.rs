@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #![forbid(unsafe_code)]
 #![no_std]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 
 //! Portable port of KiCad's `libs/kiplatform` platform layer. Only the Unix policy
 //! source (`libs/kiplatform/os/unix/policy.cpp`) is ported so far; see `policy`.

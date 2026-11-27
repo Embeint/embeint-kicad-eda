@@ -4,7 +4,12 @@
 //! integers, rectangles `[left, top, right, bottom]`, locations the `Location` enumerator
 //! values 0..=4.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 
 use kicad_clipper2::rectclip::{self, Location, RectClip64, RectClipBudget, RectClipLines64};
 use kicad_clipper2::{ClipperError, Path64, Paths64, Point64, Rect64};

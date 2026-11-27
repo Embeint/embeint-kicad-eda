@@ -5,7 +5,12 @@
 // (Copyright Jens Maurer 2006) and detail/seed.hpp (Copyright Steven Watanabe 2009), Boost
 // Software License 1.0; see LICENSE-BSL-1.0. Port: Embeint, GPL-3.0-or-later.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 
 //! Faithful port of the parts of Boost.Random 1.83.0 that KiCad's
 //! `POISSON_DISK::ToroidalUnitTile` instantiates, as shipped in the oracle's locked

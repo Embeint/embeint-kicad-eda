@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Rust-only checks of the committed corpus and refusal controls. The exact C++
 //! comparison is the live difftest; these keep the Rust side's counts explicit.
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 
 use kicad_kiplatform_shim::{dispatch, UNIT};
 use serde_json::Value;
@@ -23,12 +28,19 @@ fn every_case_is_a_genuine_call_with_the_whole_key() -> Result<(), serde_json::E
         let result = &reply["result"];
         let length = request["input"]["key"].as_array().map(Vec::len);
         assert_eq!(result["key_length"].as_u64(), length.map(|n| n as u64));
-        let expected = match request["input"]["op"].as_str() {
-            Some("get_policy_bool") => Value::from("NOT_CONFIGURED"),
-            Some("get_policy_enum_uint") => Value::Null,
-            other => unreachable!("unexpected op {other:?}"),
+        let op = request["input"]["op"].as_str();
+        let expected = match op {
+            Some("get_policy_bool") => Some(Value::from("NOT_CONFIGURED")),
+            Some("get_policy_enum_uint") => Some(Value::Null),
+            _ => None,
         };
-        assert_eq!(result["value"], expected, "{}", request["case"]);
+        assert!(expected.is_some(), "unexpected op {op:?}");
+        assert_eq!(
+            Some(&result["value"]),
+            expected.as_ref(),
+            "{}",
+            request["case"]
+        );
         count += 1;
     }
     assert_eq!(count, 36);

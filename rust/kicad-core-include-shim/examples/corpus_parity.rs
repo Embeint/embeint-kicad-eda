@@ -4,7 +4,12 @@
 //! must be a successful result and the Rust reply must equal it exactly; the unit has
 //! no deferred calls, so any other reply fails the probe.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 use serde_json::Value;
 const CASES: &str =
     include_str!("../../../port/cases/libs.core.include.core.application.pure.p001.jsonl");

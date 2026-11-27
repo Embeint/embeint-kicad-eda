@@ -5,7 +5,12 @@
 //! no deferrals, so any other reply fails. The case count must equal
 //! `expected-replies.json`, which the corpus generator derives from the inputs.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 use serde_json::Value;
 const CASES: &str = include_str!(
     "../../../port/cases/libs.core.include.core.application.thin.replacement.p001.jsonl"

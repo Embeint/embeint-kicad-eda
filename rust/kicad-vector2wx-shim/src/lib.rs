@@ -4,7 +4,12 @@
 //! (or of a default-constructed source) per request; integer results as JSON integers,
 //! VECTOR2D components as exact IEEE bits. No other output is computed here.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 use kicad_math::vector::{Vector2D, Vector2I};
 use kicad_math::vector2wx::{
     to_vector2d_from_point, to_vector2d_from_size, to_vector2i_from_point, to_vector2i_from_size,

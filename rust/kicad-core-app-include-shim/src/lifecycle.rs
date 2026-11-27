@@ -7,8 +7,8 @@
 //! temporaries of the assignment operators and the strong guarantee of copy assignment are
 //! compared event for event.
 
-use super::{fail, fields, member, signed, text, Obj, Res, MAX_STEPS, SLOTS};
-use kicad_core::inplace_function::{Callable, CopyFailure, InplaceFunction};
+use super::{fail, fields, member, signed, storage_refusal, text, Obj, Res, MAX_STEPS, SLOTS};
+use kicad_core::inplace_function::{Callable, CopyError, CopyFailure, InplaceFunction};
 use serde_json::{json, Value};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -118,11 +118,13 @@ fn read_id(o: &Obj) -> Res<i32> {
 
 const COPY_FAILED: &str = "copy failed";
 
-/// The outcome of a copy: nothing, or the exception that ended the operation.
-fn copied(result: Result<(), CopyFailure>) -> Value {
+/// The outcome of a copy: nothing, or the exception that ended the operation. The storage
+/// invariant, which no C++ exception stands for, refuses the request.
+fn copied(result: Result<(), CopyError>) -> Res<Value> {
     match result {
-        Ok(()) => Value::Null,
-        Err(CopyFailure) => json!({"exception": COPY_FAILED}),
+        Ok(()) => Ok(Value::Null),
+        Err(CopyError::Copy(CopyFailure)) => Ok(json!({"exception": COPY_FAILED})),
+        Err(CopyError::Storage(invariant)) => Err(storage_refusal(invariant)),
     }
 }
 
@@ -167,7 +169,8 @@ pub(super) fn lifecycle_op(v: &Value) -> Res<Value> {
                 fields(&step, &["step", "slot", "id"])?;
                 let index = vacant(&slots, o)?;
                 let id = read_id(o)?;
-                let function = Function::from_callable(Probe::new(&log, id));
+                let function =
+                    Function::from_callable(Probe::new(&log, id)).map_err(storage_refusal)?;
                 if let Some(slot) = slots.get_mut(index) {
                     *slot = Some(function);
                 }
@@ -188,7 +191,7 @@ pub(super) fn lifecycle_op(v: &Value) -> Res<Value> {
                         }
                         Value::Null
                     }
-                    Err(failure) => copied(Err(failure)),
+                    Err(failure) => copied(Err(failure))?,
                 }
             }
             "copy_construct" => {
@@ -203,14 +206,15 @@ pub(super) fn lifecycle_op(v: &Value) -> Res<Value> {
                         }
                         Value::Null
                     }
-                    Err(failure) => copied(Err(failure)),
+                    Err(failure) => copied(Err(failure))?,
                 }
             }
             "move_construct" => {
                 fields(&step, &["step", "slot", "from"])?;
                 live(&mut slots, o, "from")?;
                 let index = vacant(&slots, o)?;
-                let moved = Function::take(live(&mut slots, o, "from")?);
+                let moved =
+                    Function::take(live(&mut slots, o, "from")?).map_err(storage_refusal)?;
                 if let Some(slot) = slots.get_mut(index) {
                     *slot = Some(moved);
                 }
@@ -221,7 +225,9 @@ pub(super) fn lifecycle_op(v: &Value) -> Res<Value> {
                 fields(&step, &["step", "slot", "id"])?;
                 let target = live(&mut slots, o, "slot")?;
                 let id = read_id(o)?;
-                target.assign_callable(Probe::new(&log, id));
+                target
+                    .assign_callable(Probe::new(&log, id))
+                    .map_err(storage_refusal)?;
                 Value::Null
             }
             "assign_copy" => {
@@ -232,7 +238,7 @@ pub(super) fn lifecycle_op(v: &Value) -> Res<Value> {
                 let probe = Probe::new(&log, id);
                 let result = target.try_assign_copy(&probe);
                 drop(probe);
-                copied(result)
+                copied(result)?
             }
             "copy_assign" | "move_assign" => {
                 fields(&step, &["step", "slot", "from"])?;
@@ -244,7 +250,7 @@ pub(super) fn lifecycle_op(v: &Value) -> Res<Value> {
                 if target == from {
                     let function = live(&mut slots, o, "slot")?;
                     if copy {
-                        copied(function.try_copy_assign_self())
+                        copied(function.try_copy_assign_self())?
                     } else {
                         function.move_assign_self();
                         Value::Null
@@ -259,13 +265,15 @@ pub(super) fn lifecycle_op(v: &Value) -> Res<Value> {
                         if copy {
                             result = destination.try_copy_assign(&source);
                         } else {
-                            destination.move_assign(&mut source);
+                            result = destination
+                                .move_assign(&mut source)
+                                .map_err(CopyError::from);
                         }
                     }
                     if let Some(slot) = slots.get_mut(from) {
                         *slot = Some(source);
                     }
-                    copied(result)
+                    copied(result)?
                 }
             }
             "destroy" => {

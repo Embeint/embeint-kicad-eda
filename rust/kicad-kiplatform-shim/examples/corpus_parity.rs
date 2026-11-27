@@ -4,7 +4,12 @@
 //! reply must be a successful result, and the wasm reply must equal it exactly;
 //! this unit has no deferral.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 use serde_json::Value;
 const CASES: &str = include_str!(
     "../../../port/cases/libs.kiplatform.os.unix.application.thin.replacement.p001.jsonl"

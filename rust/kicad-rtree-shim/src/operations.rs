@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Native I/O adapter. The portable tree contains no JSON or host operations.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 use kicad_rtree::{BulkEntry, Coord, DynamicRtree, NodeData, NodeHandle};
 use kicad_rtree_node::{RtreeNode, SlabArena, SlabNode};
 use serde_json::{json, Value};

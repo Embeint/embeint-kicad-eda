@@ -4,7 +4,12 @@
 //! IEEE angle bits in, returned values out. Inputs whose reference evaluation is undefined are
 //! refused by the port itself with the same message the C++ adapter's guard reports.
 #![forbid(unsafe_code)]
-#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 use kicad_hash::transform_source::{TransformError, UNIT};
 use kicad_hash::{StdHash, Transform};
 use kicad_math::box2::Box2I;
