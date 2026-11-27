@@ -57,6 +57,24 @@ jobs:
         run: |
           export PATH="/usr/bin:/bin:$PATH"
           /usr/bin/python3 port/oracle/prepare.py --output-dir "$RUNNER_TEMP/wx-stl-compat-stage"
+          # Every staged file must be the raw pinned Git blob, byte for byte (no checkout
+          # end-of-line conversion).
+          /usr/bin/python3 - "$RUNNER_TEMP/wx-stl-compat-stage" <<'PY'
+          import hashlib, json, subprocess, sys
+          manifest = json.load(open(sys.argv[1] + "/source-manifest.json", encoding="utf-8"))
+          paths = sorted(manifest["files"])
+          batch = "".join(f"{manifest['kicad_pin']}:{path}\n" for path in paths).encode()
+          out = subprocess.run(["git", "cat-file", "--batch"], input=batch, capture_output=True, check=True).stdout
+          pos, differing = 0, []
+          for path in paths:
+              end = out.index(b"\n", pos)
+              size = int(out[pos:end].split()[2])
+              if hashlib.sha256(out[end + 1:end + 1 + size]).hexdigest() != manifest["files"][path]:
+                  differing.append(path)
+              pos = end + 1 + size + 1
+          print(f"{len(paths)} staged pinned files, {len(differing)} differ from the raw blobs")
+          sys.exit(1 if differing else 0)
+          PY
           bash port/oracle/build.sh "$RUNNER_TEMP/wx-stl-compat-stage" "$PWD/port/oracle" "$RUNNER_TEMP/wx-stl-compat-native"
       - name: Compare every public case exactly and replay the controls on both sides
         run: |
