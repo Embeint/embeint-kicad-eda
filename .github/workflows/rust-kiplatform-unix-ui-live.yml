@@ -1,0 +1,109 @@
+name: Rust kiplatform unix application ui live validation
+
+# Scoped live evidence for libs.kiplatform.os.unix.application.ui.p001 (the Linux bodies in
+# libs/kiplatform/os/unix/{app,environment,io,printing,secrets}.cpp): the pinned sources
+# compiled into the oracle with their OS, GLib/GIO, GTK, poppler, cairo and libsecret calls
+# wrapped by scripted fakes, compared against the Rust shim's scripted host; the refusal
+# controls on both; a check that every library call the reference archive makes is wrapped;
+# and the whole corpus replayed in import-free wasm32 against this run's native C++ replies.
+# The rust-port job remains the gate.
+on:
+  pull_request:
+    branches: [rust]
+    paths:
+      - rust/kicad-kiplatform/**
+      - rust/kicad-kiplatform-unix/**
+      - rust/kicad-kiplatform-unix-shim/**
+      - rust/kicad-kiplatform-include-shim/**
+      - rust/kicad-map-helpers/**
+      - rust/Cargo.toml
+      - rust/Cargo.lock
+      - port/oracle/**
+      - port/cases/libs.kiplatform.os.unix.application.ui.p001.jsonl
+      - port/units/libs.kiplatform.os.unix.application.ui.p001.toml
+      - .github/workflows/rust-kiplatform-unix-ui-live.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  kiplatform-unix-ui-live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      CARGO_BUILD_JOBS: "2"
+      ORACLE_JOBS: "2"
+      UNIT: libs.kiplatform.os.unix.application.ui.p001
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0 # The oracle exports the pinned upstream commit, not HEAD.
+      - name: Install toolchain and oracle dependencies
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal --component clippy,rustfmt --target wasm32-unknown-unknown
+          rustup default 1.99.1
+          # The image's packages.microsoft.com source is unused here and intermittently fails apt with 403.
+          for src in /etc/apt/sources.list.d/*; do if grep -qs packages.microsoft.com "$src"; then sudo rm -f "$src"; fi; done
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++ gcc cmake ninja-build python3 rsync git libboost-dev libwxgtk3.2-dev libfreetype-dev libharfbuzz-dev libfontconfig-dev pkg-config libglib2.0-dev libgtk-3-dev libsecret-1-dev libpoppler-glib-dev
+      - name: Check the portable implementation and deterministic corpus
+        run: |
+          crates="-p kicad-kiplatform -p kicad-kiplatform-unix -p kicad-kiplatform-unix-shim -p kicad-kiplatform-include-shim"
+          cargo fmt --manifest-path rust/Cargo.toml $crates --check
+          cargo clippy --locked --manifest-path rust/Cargo.toml $crates --all-targets -j2 -- -D warnings
+          cargo test --locked --manifest-path rust/Cargo.toml $crates -j2
+          cargo check --locked --manifest-path rust/Cargo.toml -p kicad-kiplatform -p kicad-kiplatform-unix --target wasm32-unknown-unknown -j2
+          python3 rust/kicad-kiplatform-unix-shim/generate_cases.py --check
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-difftest -p kicad-kiplatform-unix-shim -j2
+      - name: Build the genuine pinned own-library oracle
+        env:
+          LD_LIBRARY_PATH: ""
+        run: |
+          export PATH="/usr/bin:/bin:$PATH"
+          /usr/bin/python3 port/oracle/prepare.py --output-dir "$RUNNER_TEMP/unix-ui-stage"
+          bash port/oracle/build.sh "$RUNNER_TEMP/unix-ui-stage" "$PWD/port/oracle" "$RUNNER_TEMP/unix-ui-native"
+      - name: Check that every library call of the reference archive is wrapped
+        run: |
+          out="$RUNNER_TEMP/unix-ui-native"
+          archive=$(find "$out/oracle-build" -name 'libkiplatform-unix-ui-reference.a')
+          nm -u "$archive" | awk '{print $2}' | sort -u > "$out/reference-undefined.txt"
+          sed -n '/^set( KIPLATFORM_UNIX_UI_WRAPPED/,/)$/p' port/oracle/CMakeLists.txt \
+            | tr -s ' ()' '\n' | grep -v -e '^set$' -e '^KIPLATFORM_UNIX_UI_WRAPPED$' -e '^$' | sort -u > "$out/wrapped.txt"
+          # GLib/GIO, GTK, libsecret, poppler and cairo calls, the wx process services and the C
+          # library calls the bodies make. Each must be wrapped; _exit is not, it is observed
+          # through the forked child's exit status.
+          grep -E '^(g_|gtk_|secret_|poppler_|cairo_|_Z8wxGetEnv|_Z8wxSetEnv|_Z17wxGetActiveWindow|_Z19wxGetTopLevelParent|stat|lstat|fstat|open|close|mmap|madvise|munmap|readlink|readdir|opendir|closedir|fnmatch|fopen|fclose|fflush|fileno|fsync|posix_fadvise|access|chmod|realpath|setpriority|syscall|fseek|ftell|fread|free)' \
+            "$out/reference-undefined.txt" > "$out/library-calls.txt" || true
+          missing=$(comm -23 "$out/library-calls.txt" "$out/wrapped.txt")
+          if [ -n "$missing" ]; then echo "unwrapped library calls:"; echo "$missing"; exit 1; fi
+          echo "$(wc -l < "$out/library-calls.txt") library calls, all wrapped"
+      - name: Compare every public case exactly and replay the controls on both sides
+        run: |
+          out="$RUNNER_TEMP/unix-ui-native"
+          oracle="$out/oracle-build/kicad-oracle"
+          rust/target/debug/kicad-difftest compare --partial --unit "$UNIT" --root "$PWD" \
+            --oracle "$oracle" --rust "$PWD/rust/target/debug/kicad-kiplatform-unix-shim" \
+            --report "$out/compare.json"
+          python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); print({k: r[k] for k in ("status","cases","compared","deferred","failures","unprocessed")})' "$out/compare.json"
+          python3 port/oracle/test_kiplatform_unix_ui_p001_inputs.py "$oracle" "$PWD/rust/target/debug/kicad-kiplatform-unix-shim"
+          "$oracle" < "port/cases/$UNIT.jsonl" > "$out/native.jsonl"
+      - name: Replay the complete corpus in import-free WebAssembly against the C++ replies
+        run: |
+          export KICAD_KIPLATFORM_UNIX_UI_WASM_REFERENCE="$RUNNER_TEMP/unix-ui-native/native.jsonl"
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-kiplatform-unix-shim \
+            --example corpus_parity --features live-wasm --target wasm32-unknown-unknown --release -j2
+          node rust/kicad-kiplatform-unix-shim/wasm-test.mjs rust/target/wasm32-unknown-unknown/release/examples/corpus_parity.wasm
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: kiplatform-unix-ui-live-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/unix-ui-native/compare.json
+            ${{ runner.temp }}/unix-ui-native/native.jsonl
+            ${{ runner.temp }}/unix-ui-native/reference-undefined.txt
+            ${{ runner.temp }}/unix-ui-native/oracle-build/oracle-provenance.json
+            ${{ runner.temp }}/unix-ui-native/oracle-build/compile_commands.json
+            ${{ runner.temp }}/unix-ui-native/oracle-build/binary.sha256
+            ${{ runner.temp }}/unix-ui-native/unix-ui-stage/source-manifest.json
+          retention-days: 14
