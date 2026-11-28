@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[package]
+name = "kicad-font-shim"
+description = "Native JSONL adapter for the font.h and outline_font.h inline body port"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[package.metadata.kicad]
+portable = false
+
+[dependencies]
+kicad-font = { path = "../kicad-font" }
+kicad-map-helpers = { path = "../kicad-map-helpers" }
+kicad-math = { path = "../kicad-math" }
+kicad-wx-stl-compat = { path = "../kicad-wx-stl-compat" }
+kicad-difftest = { path = "../kicad-difftest" }
+serde_json.workspace = true
+
+[features]
+live-wasm = []
+
+[[example]]
+name = "corpus_parity"
+required-features = ["live-wasm"]

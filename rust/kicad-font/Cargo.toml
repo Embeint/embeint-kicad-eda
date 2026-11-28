@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[package]
+name = "kicad-font"
+description = "Portable port of KiCad's font layer: the include/font/font.h and outline_font.h inline bodies"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+kicad-map-helpers = { path = "../kicad-map-helpers" }
+kicad-math = { path = "../kicad-math" }
+kicad-wx-stl-compat = { path = "../kicad-wx-stl-compat" }

@@ -956,6 +956,27 @@ impl<H: StreamHost> OStream<H> {
         }
         self.sentry_exit(context)
     }
+
+    /// `operator<<( basic_ostream<char>&, const char* s )` (`<ostream>`, identical in the
+    /// GCC 13.3 headers and later): `setstate( badbit )` for a null pointer (`None`), outside
+    /// any sentry, so a mask containing `badbit` throws `ios_base::failure`; otherwise
+    /// `__ostream_insert( out, s, strlen( s ) )`, i.e. the bytes before the first NUL, as for
+    /// a literal. Added for other units' stream insertions (the `KIFONT::FONT` operator, unit
+    /// `include.font.application.ui.p001`); the wxPoint/wxSize operators do not use it.
+    /// Call [`check_resources`] first, as the operators of this module do.
+    pub fn insert_c_str(
+        &mut self,
+        text: Option<&[u8]>,
+        context: CallContext,
+    ) -> Result<(), InsertError<H::Exception>> {
+        let Some(bytes) = text else {
+            return self
+                .setstate(IoState::BAD)
+                .map_err(|Thrown| InsertError::Failure);
+        };
+        let length = bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len());
+        self.insert_literal(bytes.get(..length).unwrap_or(bytes), context)
+    }
 }
 
 /// The field the stock `num_put<char>::_M_insert_int<long>` formats before padding, without
@@ -1083,7 +1104,7 @@ fn add_grouping(out: &mut Field, separator: u8, grouping: &[u8], digits: &[u8]) 
 }
 
 /// Refuse a width the port would not pad into a host without a capacity, before any change.
-fn check_resources<H: StreamHost>(out: &OStream<H>) -> Result<(), InsertError<H::Exception>> {
+pub fn check_resources<H: StreamHost>(out: &OStream<H>) -> Result<(), InsertError<H::Exception>> {
     if out.host.capacity_left().is_none() && out.width > MAX_UNBOUNDED_WIDTH {
         return Err(InsertError::Refused(StreamRefusal::UnboundedWidth {
             requested: out.width,
