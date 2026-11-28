@@ -65,8 +65,8 @@ unit `libs.kimath.src.transform.application.ui.p001`) as `PartialEq::eq` in
 
 The `BEZIER_POLY` type itself, its two `VECTOR2I` constructors, `GetPoly`, its
 private helpers and `TransformEllipseToBeziers` belong to
-`libs.kimath.src.bezier_curves.application.ui.p001`. Only the fields the owned
-constructor sets (`m_minSegLen`, `m_ctrlPts`) are represented here. No call from an
+`libs.kimath.src.bezier_curves.application.ui.p001`, which implements them on these types
+in `kicad_hash::bezier_curves` (the two fields are `pub(crate)` for it). No call from an
 owned body reaches them, so no deferral is needed.
 
 ## Refusals (undefined behaviour in the reference)
