@@ -14,7 +14,7 @@ this crate mirrors it. Status `partial`.
 | `DIRECTION_45( Directions = UNDEFINED )` | `Direction45::new`, `Default` | `m_dir( aDir )`, `m_90deg( false )`; any `int` (fixed underlying type) | `direction45-*` with every member on 33 `int` values from `INT_MIN` to `INT_MAX` | none |
 | `DIRECTION_45( const VECTOR2I&, bool a90 = false )` | `from_vector` | `vec.y = -vec.y` (undefined for `INT_MIN`), `construct_` | compass vectors, 22.5 degree boundaries at 1e3 and 1e9, `INT_MIN`/`INT_MAX` components, `a90` omitted/false/true | none |
 | `DIRECTION_45( const SEG&, bool a90 = false )` | `from_seg` | `aSeg.B - aSeg.A` (int overflow undefined), then as above | overflowing and in-range differences, a zero segment | none |
-| `DIRECTION_45( const SHAPE_ARC&, bool a90 = false )` | `from_arc` | `GetP1() - GetP0()`, then as above | `SHAPE_ARC()` (UNDEFINED); three-point arcs compared in the oracle | the three-point `SHAPE_ARC` constructor is shape_arc.cpp's: 81 cases defer to `libs.kimath.src.geometry.shape_arc.application.ui.p001` |
+| `DIRECTION_45( const SHAPE_ARC&, bool a90 = false )` | `from_arc` | `GetP1() - GetP0()` (int overflow undefined), then as above | `SHAPE_ARC()` (UNDEFINED); three-point arcs evaluated by the oracle (collinear, closed, repeated points, any width, the int limits) | the three-point `SHAPE_ARC` constructor is shape_arc.cpp's: 366 cases defer to `libs.kimath.src.geometry.shape_arc.application.ui.p001` |
 | `construct_` | `Direction45::construct` | zero vector UNDEFINED; `360 - 180/pi * atan2 + 90`, the two folds, `( mag + 22.5 ) / 45` truncated, the two wraps; `atan2` through `reference_libm` (glibc 2.39) | every constructor case | none |
 | `Format` | `format` | every `case` and `default` (`"<Error>"`) | all directions, out-of-range values | none |
 | `Opposite` | `opposite` | `OppositeMap[m_dir]`; index outside 0..8 undefined | 0..8 compared, the rest controls | none |
@@ -26,10 +26,10 @@ this crate mirrors it. Status `partial`.
 | `KIGEOM::detail::inCircleLegalDouble` | `in_circle_legal_double` | source-order `double` determinant and tie margin | called directly on the same quads as the exact test, beyond-bound quads | none |
 | `KIGEOM::InCircleDelaunayLegal` | `in_circle_delaunay_legal` | the `kMaxSafeDiff` filter (at exactly 1.5e9 and one past), exact `KI_INT128` determinant | qa cocircular/inside/outside quads, near-cocircular large circles | none |
 | `KIGEOM::IsSliverTriangle` | `is_sliver_triangle` | squared edges, `std::max`/`std::min` of three, zero shortest | qa needle, degenerate triangles | none |
-| `KIGEOM::FRACTURE_INDEX::*` (9 functions, 5 constants) | `fracture_edge_index_utils` | `size_t` as `u64` on every target; the wraps of `aStripeCount + 1`, `( MAX_BUCKET_SPAN + 2 ) * aHoleCount`, `aStripeCount - 1`; `std::sqrt` and `std::clamp`; short-circuit order; `aBytes` null/non-null | boundaries of every helper (`u64` extremes, perfect squares, `2^53 + 1`, inverted extents, zero stripes) | none |
+| `KIGEOM::FRACTURE_INDEX::*` (8 functions, 5 constants) | `fracture_edge_index_utils` | `size_t` as `u64` on every target; the wraps of `aStripeCount + 1`, `( MAX_BUCKET_SPAN + 2 ) * aHoleCount`, `aStripeCount - 1`; `std::sqrt` and `std::clamp`; short-circuit order; `aBytes` null/non-null | boundaries of every helper (`u64` extremes, perfect squares, `2^53 + 1`, inverted extents, zero stripes) | none |
 | `GetVectorSnapped45<T>` | `get_vector_snapped45_i`, `_d` | the four branches, `ext_type` (`int64_t` / `double`), `std::copysign`; `std::abs( INT_MIN )` undefined | `int` grid around the 2:1 and 1:1 boundaries, `only45` omitted/false/true; `double` NaN payloads (signalling too), signed zeros, overflow of `* 2` | none |
 | `GetVectorSnapped90<T>` | `get_vector_snapped90_i`, `_d` | `>=` tie to `x` | as above | none |
-| `GetClampedCoords<in, ret, unsigned>` | `get_clamped_coords_i`, `_d`, `_d_to_i` | `INT_MAX - aPadding` in `int64_t` / `double`, `std::clamp` as `min( max( v, lo ), hi )` (GCC 13.3 libstdc++), quiet `KiROUND<double, int>`; padding above `INT_MAX` undefined | the three pinned instantiations, default padding, padding 0 to `UINT32_MAX`, every bound and its neighbours, NaN and infinities | none |
+| `GetClampedCoords<in, ret, unsigned>` | `get_clamped_coords_i`, `_d`, `_d_to_i` | `INT_MAX - aPadding` in `int64_t` / `double`, `std::clamp` as `min( max( v, lo ), hi )` (GCC 13.3 libstdc++), quiet `KiROUND<double, int>`; padding above `INT_MAX` undefined, and a NaN coordinate with distinct bounds (padding below `INT_MAX`, [alg.clamp]/2) | the three pinned instantiations, default padding, padding 0 to `UINT32_MAX`, every bound and its neighbours, infinities, NaN with the equivalent bounds of padding `INT_MAX` | none |
 | `IsVec2SafeXY<T>` | `is_vec2_safe_xy_d`, `_i` | strict comparisons with `INT_MIN`/`INT_MAX` as `T` | `+-2^31`, one step inside and outside, NaN | none |
 | `HALF_LINE` (2 constructors, `GetStart`, `GetContainedPoint`, `operator==`, `GetContainedSeg`) | `half_line::HalfLine` | `m_seg` copy (index kept) or `SEG( a, b )` (index -1); `SEG::operator==` | both constructors, equal and reversed segments, extreme indices | none |
 | `LINE` (2 constructors, `operator==`, `GetContainedSeg`) | `line::Line` | as above; `LINE::ecoord` | as above | none |
@@ -70,30 +70,87 @@ The adapter refuses only undefined evaluations, as "undefined geometry header op
 negation of `INT_MIN` and the `int` differences of the `DIRECTION_45` constructors, an
 `OppositeMap` index outside 0..8, a `Mask` shift count outside 0..31, `int` overflow and
 `std::abs( INT_MIN )` in `Angle`, `Right` and `Left`, `std::abs( INT_MIN )` in the `int`
-snapping templates and a `GetClampedCoords` padding above `INT_MAX` (the clamp's lower bound
-would exceed its upper bound, [alg.clamp]). The Rust functions decide these themselves and return
-a typed `Undefined`; the generator classifies them independently with exact integer replay.
-Every other body is defined for every input and compared.
+snapping templates, a `GetClampedCoords` padding above `INT_MAX` (the clamp's lower bound would
+exceed its upper bound, [alg.clamp]), a floating `GetClampedCoords` coordinate that is NaN while
+the bounds differ, and the undefined operations of the three-point `SHAPE_ARC` constructor
+(below). The Rust functions decide the owned ones themselves and return a typed `Undefined`; the
+generator classifies every request independently with exact arithmetic. Every other evaluation
+is compared. There is no verified-domain limit.
 
-The three-point `SHAPE_ARC` constructor is not replayed: as in the shape header adapter it runs
-only inside that adapter's verified domain (coordinates and width within 2^20, distinct start and
-end, a mid-point angle with a sine of at least 1/8), and both programs refuse anything else as
-"outside the verified domain" (harness bound, not an undefined domain).
+### NaN clamps
 
-Controls (805): 690 undefined and refused identically (430 `direction45`, 242 `clamped_coords`
-paddings above `INT_MAX`, 13 `snapped45` and 5 `snapped90` with an `INT_MIN` coordinate); 6
-undefined only after the three-point arc constructor that Rust defers (`rust_unported`: `Angle`
-against `INT_MIN`); 79 three-point arcs outside the verified domain; 30 malformed inputs with
-identical messages (every multi-field read is sequenced in the adapter, and the two orderings
-that matter, `a90` before the constructor guard and the coordinates before the padding guard,
-have their own controls).
+`std::clamp<double>( v, lo, hi )` requires `operator<` to induce a strict weak ordering on the
+three values ([alg.clamp]/2, `Cpp17LessThanComparable`; [alg.sorting.general]), the requirement
+the accepted arc chord port applies (`port/upstream-issues/arc-chord-params-nan-clamp.md`). A NaN
+is equivalent to every value, so with `lo < hi` the equivalence is not transitive: every padding
+below `INT_MAX`. Padding `INT_MAX` gives the equivalent bounds `-0.0` and `0.0`, with which a NaN
+keeps the ordering: defined, returned unchanged by `<double, double>` and rounded to 0 by the
+quiet `KiROUND` of `<double, int>`. Both programs refuse the first case before the clamp of the
+offending coordinate (`x`, then `y`; the Rust `clamp_ordered` returns `Undefined`); the 195
+former public cases with a NaN and distinct bounds are controls, and the 24 NaN cases with
+padding `INT_MAX` are still compared.
 
-Cases (7545) by operation: `direction45` 3122, `clamped_coords` 1150, `snapped45` 998,
-`snapped90` 620, `map_y_to_stripe` 528, `is_vec2_safe_xy` 186, `in_circle_delaunay_legal` 99,
-`in_circle_legal_double` 99, `stripe_span` 80, `orientation_sign` 79, `is_sliver_triangle` 79,
-`actual_capacity_fits` 78, `stripe_count_for` 75, `arc_chord_params` 75, `capacity_fits` 71,
-`half_line` 64, `line` 64, `circle_eq` 49, `checked_add` 13, `capacity_budget` 9,
-`should_index` 6, `header_types` 1.
+### Three-point SHAPE_ARC
+
+The constructor (shape_arc.cpp) copies its arguments and runs `update_values`. The adapter's
+`guardArcConstructor` replays that evaluation with the same expressions and types, on the genuine
+`CalcArcCenter`, `EDA_ANGLE` and `rescale`, and refuses exactly its undefined operations:
+
+- `IsEffectiveLine` (distinct start and end): the `int` differences `start - mid` and `mid - end`
+  of `SEG::SquaredLength`; `SEG::mutualDistanceSquared`'s `int64_t` products and sums, the sign
+  times `rescale` (`-1 * INT64_MIN`) and `std::abs( INT64_MIN )` in `ApproxCollinear`; for
+  approximately collinear segments the `int` differences `mid - start`, `end - mid` and the Dot;
+- `IsCCW`: the `int64_t` cross product;
+- each quadrant point the arc covers, when the radius is below `INT_MAX / 2`: the rounded radius
+  added to an `int` centre coordinate (the centre is clamped to `INT_MIN + 100 .. INT_MAX - 100`,
+  so even a tiny arc at the `int` limits overflows);
+- `BOX2I::Compute`: `vmax - vmin` in `int`, for points spanning more than `INT_MAX`.
+
+`CalcArcCenter` is defined for every `int` point (64- and 128-bit exact arithmetic, a division by
+a nonzero determinant, finite doubles, `std::clamp` and `KiROUND` of finite values); so are the
+radius, the angles (finite doubles, `int64_t` differences) and the width (only stored). Rust defers
+at the constructor for every three-point arc, so these refusals are `rust_unported` controls.
+
+The generator replays the `int` and `int64_t` operations of `IsEffectiveLine` and `IsCCW`
+exactly and bounds the rest with exact rationals: the centre (cluster centroid, chord midpoints,
+the collinear stand-in through integer square roots, the circumcentre with the rounding of
+`ToDouble` and the division and `snapArcCenter`'s grid move of at most 50), the radius through
+integer square roots, and the quadrants an arc covers from exact sign tests of `start - centre`
+and `end - centre` (at least a 2^-40 component ratio from the axes) and the `IsCCW` sign. An arc
+it cannot decide is dropped; none of the corpus arcs is.
+
+A diagnostic probe (not committed) built the genuine shape_arc.cpp, seg.cpp, trigo.cpp and
+util.cpp with GCC 13.3 `-fsanitize=undefined,float-cast-overflow -fno-sanitize-recover=all` and
+constructed 18189 arcs: every corpus and control arc and 20000 fixed-seed random arcs from 4 to
+2^31, near the limits, small arcs at the limits and closed arcs. The adapter's guard refused
+exactly the 2598 arcs UBSan diagnosed (all signed integer overflow) and accepted the other 15591;
+the generator classified 15254 as defined and 2491 as undefined with no contradiction, and left
+444 undecided.
+
+### Counts
+
+Controls (1127): 885 undefined and refused identically (430 `direction45`, 242
+`clamped_coords` paddings above `INT_MAX`, 195 floating `clamped_coords` with a NaN and distinct
+bounds, 13 `snapped45` and 5 `snapped90` with an `INT_MIN` coordinate); 212 undefined at or after
+the three-point constructor that Rust defers (`rust_unported`): 198 whose construction is
+undefined (165 distinct arcs: 99 `int`/`int64_t` operations of `IsEffectiveLine` and `IsCCW`,
+45 quadrant points, 21 spans beyond `INT_MAX`) and 14 undefined after it (`Angle` against
+`INT_MIN` for 10, `Opposite` and `Mask` of the closed arc's `UNDEFINED` for 4); 30 malformed
+inputs with identical messages (every multi-field read is sequenced in
+the adapter, and the two orderings that matter, `a90` before the constructor guard and the
+coordinates before the padding guard, have their own controls).
+
+The 79 arcs the former harness bound refused are now 71 public cases and 8 controls undefined
+after the constructor (`Angle` against `INT_MIN`, `Opposite` and `Mask` of `UNDEFINED`), among
+them the review's collinear `(0,0) (1,0) (2,0)`, closed `(0,0) (5,5) (0,0)` and
+beyond-2^20 `(1048577,0) (0,1048576) (-1048576,0)` arcs.
+
+Cases (7635) by operation: `direction45` 3407 (366 through a three-point `SHAPE_ARC`, 184
+distinct arcs), `snapped45` 998, `clamped_coords` 955, `snapped90` 620, `map_y_to_stripe` 528,
+`is_vec2_safe_xy` 186, `in_circle_delaunay_legal` 99, `in_circle_legal_double` 99, `stripe_span`
+80, `is_sliver_triangle` 79, `orientation_sign` 79, `actual_capacity_fits` 78, `arc_chord_params`
+75, `stripe_count_for` 75, `capacity_fits` 71, `half_line` 64, `line` 64, `circle_eq` 49,
+`checked_add` 13, `capacity_budget` 9, `should_index` 6, `header_types` 1.
 
 ## Floating point
 
@@ -102,14 +159,15 @@ No double result of this unit comes from arithmetic that could produce a NaN: GC
 `comisd`, `subsd`/`addsd` 360, `addsd` 22.5, `divsd` 45) on finite values only; `fabs` and
 `copysign` in the snapping templates are `andpd`/`andnpd`/`orpd` bit operations, which keep NaN
 payloads (signalling ones too) exactly as Rust's `abs` and `copysign`; `std::clamp` is
-`maxsd`/`minsd` plus comparisons, equivalent to `min( max( v, lo ), hi )` for NaN and signed
-zeros; the `<double, int>` rounding is the inlined quiet `KiROUND`. The predicates return
+`maxsd`/`minsd` plus comparisons, equivalent to `min( max( v, lo ), hi )` for signed zeros and
+for a NaN between the equivalent bounds of padding `INT_MAX`; the `<double, int>` rounding is the inlined quiet `KiROUND`. The predicates return
 booleans of finite products. Disassembled from the adapter object built with the hosted flags.
 
 ## Evidence
 
 Local diagnostic (extracted Ubuntu GCC 13.3 oracle on the WSL glibc 2.43 host with the hosted
-`GLIBC_TUNABLES` and `fma` bound to the locked glibc 2.39 libm): 7545 cases, 7464 compared,
-0 failures, 81 deferred at the three-point `SHAPE_ARC` constructor; all 805 controls refused
-identically by both programs (6 after the Rust deferral). The hosted `rust-geometry-pure-live`
-run (GCC 13.3, glibc 2.39) is the reference.
+`GLIBC_TUNABLES` and `fma` bound to the locked glibc 2.39 libm): 7635 cases, 7269 compared,
+0 failures, 366 deferred at the three-point `SHAPE_ARC` constructor; all 1127 controls refused
+or deferred as recorded by both programs (212 after the Rust deferral); every case and control
+replayed identically in import-free wasm. The hosted `rust-geometry-pure-live` run (GCC 13.3,
+glibc 2.39) is the reference.

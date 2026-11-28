@@ -54,31 +54,75 @@ subtracting it from `INT_MAX`; a padding above `INT_MAX` makes `-max > max`, whi
 for doubles, so a negative value becomes `-0.0` (both programs). Pinned callers pass 1 (the
 default), the tools' `COORDS_PADDING` of 20 mm or item_modification_routine.cpp's 200 mm.
 
+`std::clamp<double>` also requires `operator<` to induce a strict weak ordering on its three
+values ([alg.clamp]/2; [alg.sorting.general]), as the accepted
+`port/upstream-issues/arc-chord-params-nan-clamp.md` applies. A NaN is equivalent to both bounds,
+so with distinct bounds (every padding below `INT_MAX`) equivalence is not transitive and the
+call is undefined, whatever libstdc++ happens to return; both programs refuse it (the Rust
+`geometry_utils::clamp_ordered` returns `GeometryUtilsError::Undefined`). With padding `INT_MAX`
+the bounds `-0.0` and `0.0` are equivalent and a NaN is defined: those 24 cases are compared.
+
 `DIRECTION_45( const SHAPE_ARC& )` needs a constructed arc. `SHAPE_ARC()` gives `UNDEFINED`; the
 three-point constructor is shape_arc.cpp's (`libs.kimath.src.geometry.shape_arc.application.ui.p001`,
-todo), so its 81 cases defer in Rust. The adapter calls it only inside the shape header adapter's
-verified domain; 79 arcs outside it are controls refused by both programs, and 6 controls are
-undefined only after that constructor (`Angle` against `INT_MIN`), refused by the oracle while
-Rust defers first.
+todo), so its 366 cases defer in Rust, for every arc, without a harness bound. The adapter
+evaluates the genuine constructor on every arc except those whose construction is undefined,
+which `guardArcConstructor` decides by replaying `update_values` on the genuine `CalcArcCenter`,
+`EDA_ANGLE` and `rescale`: the `int` differences and `int64_t` products and sums of
+`IsEffectiveLine` (through `SEG::mutualDistanceSquared`, including `-1 * INT64_MIN` and
+`std::abs( INT64_MIN )`), the `int64_t` cross product of `IsCCW`, the `int` sums of the quadrant
+points (the centre is clamped to `INT_MIN + 100 .. INT_MAX - 100`, so a tiny arc at the limits
+overflows) and the `int` size `vmax - vmin` of `BOX2I::Compute`. Collinear, closed and
+repeated-point arcs, any width and coordinates up to the limits are defined and compared. 198
+controls are undefined in the constructor (165 distinct arcs) and 14 after it (`Angle` against
+`INT_MIN`, `Opposite` and `Mask` of `UNDEFINED`); the oracle refuses them while Rust defers first.
 
 ## Floating point
 
 No observable `double` result depends on GCC's choice between two NaN operands: the snapping
 templates compile to bit operations (`andpd`, `andnpd`, `orpd`) for `fabs` and `copysign`, which
 keep NaN payloads and signalling NaNs as Rust's `abs` and `copysign` do; `std::clamp` compiles to
-`maxsd`/`minsd` and comparisons, equivalent to libstdc++'s `min( max( v, lo ), hi )` for NaN and
-signed zeros (the GCC 13.3 header definition, read from the extracted toolchain); `construct_`
+`maxsd`/`minsd` and comparisons, equivalent to libstdc++'s `min( max( v, lo ), hi )` for signed
+zeros and for a NaN between the equivalent bounds of padding `INT_MAX` (the GCC 13.3 header definition, read from the extracted toolchain); `construct_`
 evaluates `360.0 - 180.0 / M_PI * atan2( y, x ) + 90.0` in source order on finite values only,
 with `atan2` from the glibc 2.39 facade. The cases include quiet and signalling NaN payloads in
 every floating input.
 
+## Review of 7c911843a6
+
+The independent review requested two corrections, both made:
+
+1. The three-point arc guard refused arcs whose C++ construction is defined (a harness bound
+   copied from the shape header adapter: coordinates and width within 2^20, distinct points, a
+   mid-point sine of at least 1/8), and the Rust shim copied it before its deferral. No deferred
+   call needs a verified-domain limit: the guard now refuses exactly the undefined operations
+   above, and Rust defers at the constructor for every arc. Of the 79 former "outside the verified
+   domain" controls, 71 are public cases and 8 are controls undefined after the constructor; the
+   review's `control-direction45-state-3144` (collinear), `-3168` (closed) and `-3216` (start
+   beyond 2^20) are the public cases `direction45-state-3144`, `-3168` and `-3216`.
+2. The floating clamps compared 195 NaN cases with distinct bounds, outside std::clamp's ordering
+   precondition. Both programs now refuse exactly those (Rust: typed `Undefined`) and they are
+   controls; the 24 NaN cases with padding `INT_MAX` stay compared.
+
+The review's documentation note is corrected too: `FRACTURE_INDEX` has eight functions, not nine.
+
 ## Local evidence
 
 Oracle built from the committed blobs with the extracted Ubuntu GCC 13.3 toolchain in WSL
-(`port/oracle/build.sh`, ctest 17/17), run on the glibc 2.43 host with the hosted
+(`port/oracle/build.sh`, ctest passed), run on the glibc 2.43 host with the hosted
 `GLIBC_TUNABLES` and `fma` bound to the locked glibc 2.39 libm. `kicad-difftest compare --partial`:
-7545 cases, 7464 compared, 0 failures, 81 deferred; `compare_controls.py`: 805 controls as
-recorded on both programs; wasm replay identical. Callers rerun with 0 failures and unchanged
-counts: shape headers (above), arc chord params 1611/1611, arc construction 2912/2912, circle
-4978 cases, 4877 compared, 101 deferred. `generate_cases.py --check` is byte-identical on Windows
-and Linux. The hosted `rust-geometry-pure-live` workflow (GCC 13.3, glibc 2.39) is the reference.
+7635 cases, 7269 compared, 0 failures, 366 deferred; `compare_controls.py`: 1127 controls as
+recorded on both programs (212 after the Rust deferral); wasm replay identical. Callers rerun with
+0 failures and unchanged counts: shape headers 4255 cases, 4068 compared, 187 deferred (484
+controls), arc chord params 1611/1611 (79 controls), arc construction 2912/2912 (20 controls; its
+vector and util-box callers 12208/11737/471 and 16066/14605/1461), circle 4978 cases, 4877
+compared, 101 deferred (84 controls); their wasm replays are identical.
+
+Diagnostic UBSan probe (not committed): the genuine shape_arc.cpp, seg.cpp, trigo.cpp and util.cpp
+recompiled with `-fsanitize=undefined,float-cast-overflow -fno-sanitize-recover=all` constructed
+18189 arcs (every corpus and control arc and 20000 fixed-seed random arcs at scales from 4 to
+2^31, near and at the limits, closed). The adapter's guard refused exactly the 2598 arcs UBSan
+diagnosed (signed integer overflow) and none of the 15591 others; the generator's classification
+(15254 defined, 2491 undefined, 444 undecided and dropped) never contradicted UBSan.
+
+`generate_cases.py --check` is byte-identical on Windows and Linux. The hosted
+`rust-geometry-pure-live` workflow (GCC 13.3, glibc 2.39) is the reference.
