@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[package]
+name = "kicad-kiplatform-unix"
+description = "Portable port of KiCad's Linux kiplatform app, environment, io, printing and secrets bodies"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+# The host traits and header types these bodies implement (the accepted public header unit).
+kicad-kiplatform = { path = "../kicad-kiplatform" }
+# The accepted minimum wxString co-port, with the strict UTF-8 decoder of wxString::FromUTF8.
+kicad-map-helpers = { path = "../kicad-map-helpers" }

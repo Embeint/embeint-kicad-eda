@@ -923,6 +923,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "kicad-kiplatform-unix"
+version = "0.1.0"
+dependencies = [
+ "kicad-kiplatform",
+ "kicad-map-helpers",
+]
+
+[[package]]
 name = "kicad-map-helpers"
 version = "0.1.0"
 
