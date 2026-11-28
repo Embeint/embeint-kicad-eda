@@ -3,7 +3,7 @@ use super::*;
 use std::collections::BTreeMap;
 
 const CASES: usize = 4255;
-const CONTROLS: usize = 478;
+const CONTROLS: usize = 484;
 const ARC: &str = "libs.kimath.src.geometry.shape_arc.application.ui.p001";
 const COMPOUND: &str = "libs.kimath.src.geometry.shape_compound.application.ui.p001";
 const ELLIPSE: &str = "libs.kimath.src.geometry.shape_ellipse.application.ui.p001";
