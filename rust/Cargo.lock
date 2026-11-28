@@ -1089,6 +1089,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "kicad-shape-line-chain-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-math",
+ "kicad-rtree-cow-packed",
+ "serde_json",
+]
+
+[[package]]
 name = "kicad-transform-shim"
 version = "0.1.0"
 dependencies = [
