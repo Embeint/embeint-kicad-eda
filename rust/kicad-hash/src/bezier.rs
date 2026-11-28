@@ -26,7 +26,8 @@
 //!
 //! Every other `BEZIER_POLY` member (the `VECTOR2I` constructors, `GetPoly` and the private
 //! helpers) and `TransformEllipseToBeziers` belong to
-//! `libs.kimath.src.bezier_curves.application.ui.p001` and are not implemented here.
+//! `libs.kimath.src.bezier_curves.application.ui.p001` and are implemented on these types in
+//! [`crate::bezier_curves`].
 
 use kicad_math::{Vector2, Vector2D, VectorDomainError};
 
@@ -275,8 +276,10 @@ fn lerp<T: BezierCoordinate>(
 /// The private members are exposed read-only so the oracle can compare the constructed state.
 #[derive(Clone, Debug)]
 pub struct BezierPoly {
-    min_seg_len: f64,
-    ctrl_pts: Vec<Vector2D>,
+    // The bezier_curves.cpp bodies (crate::bezier_curves, unit
+    // libs.kimath.src.bezier_curves.application.ui.p001) are members of this type.
+    pub(crate) min_seg_len: f64,
+    pub(crate) ctrl_pts: Vec<Vector2D>,
 }
 
 impl BezierPoly {

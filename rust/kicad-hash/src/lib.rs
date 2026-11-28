@@ -22,9 +22,12 @@
 //! (`bezier_f64_sites`, through the private SSE2 scalar interface `sse2`).
 //!
 //! Unit `libs.kimath.src.transform.application.ui.p001` adds the out-of-line
-//! `libs/kimath/src/transform.cpp` bodies to [`Transform`] in [`transform_source`].
+//! `libs/kimath/src/transform.cpp` bodies to [`Transform`] in [`transform_source`], and unit
+//! `libs.kimath.src.bezier_curves.application.ui.p001` the `libs/kimath/src/bezier_curves.cpp`
+//! bodies to [`BezierPoly`] and [`Bezier`] in [`bezier_curves`].
 
 pub mod bezier;
+pub mod bezier_curves;
 mod bezier_f64_sites;
 pub mod hash;
 pub mod hash_128;
