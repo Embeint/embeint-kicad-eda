@@ -109,9 +109,10 @@ logged error or trace is not in the corpus.
 
 Own WSL tree, extracted Ubuntu `g++-13` 13.3.0, local wx 3.2.9 and glibc 2.43 (the hosted target
 is wx 3.2.4 and glibc 2.39; hosted CI is the reference). Oracle sha256
-`f6a80cddb31998fd0908b5c610b3d17f473c65d7f965eaf1d89eb2121dea4f7d`; `kicad-difftest compare
---partial`: 664 cases, 657 compared exactly, 7 deferred, 0 failures, 0 unprocessed (oracle
-replies sha256 `8e1013d8…0b61`). 58 controls refused identically by both programs, each
+`a1134464089eb3b9d9dc3ff81f1baf12eedfa22298332f38856d216c0c6bbc07`; `kicad-difftest compare
+--partial`: 663 cases, 657 compared exactly, 6 deferred, 0 failures, 0 unprocessed (oracle
+replies sha256 `91df0cc9…3c4d`, Rust replies `3b191305…f615`). Two oracle runs from different
+working directories give identical replies. 58 controls refused identically by both programs, each
 followed by a successful request. Import-free wasm32 agrees with every native reply (9
 `TerminateWithCode` cases are native only). Full oracle ctest passes. `generate_cases.py
 --check` is byte-identical on Windows and Linux; MSRV 1.85 workspace check and wasm32 checks
@@ -119,7 +120,9 @@ pass.
 
 ## Remaining gaps
 
-- Status `partial`: 7 cases defer; no golden is supplied.
+- Status `partial`: 6 cases defer; no golden is supplied. A documents-path case whose home
+  directory the converter fails on is not in the corpus: the reference's `MakeAbsolute` then
+  reads the process working directory, so its retained reply would not be deterministic.
 - Hosted qualification on wx 3.2.4 is pending: wx-internal behaviour the corpus depends on
   (`CmpNoCase`, `wxURI`, the PCRE2 messages, log formatting) was observed locally on 3.2.9.
 - `gtk_print_operation_get_print_settings` returning null after `set_print_settings` (not

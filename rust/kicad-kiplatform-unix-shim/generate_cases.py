@@ -183,9 +183,8 @@ def environment(c):
         c.add("documents", "env_get_documents_path", {},
               {"replies": {"g_get_user_data_dir": [data], "g_get_home_dir": [H("/home/u")]}},
               deferred=True)
-    c.add("documents", "env_get_documents_path", {},
-          {"libc": "fail", "replies": {"g_get_user_data_dir": [H("/home/u/.local/share")],
-                                       "g_get_home_dir": [H("/home/u")]}}, deferred=True)
+    # (A home directory the converter fails on would make the reference's MakeAbsolute read
+    # the process working directory: not a deterministic reference reply, so not a case.)
 
     proxies = (
         "http://proxy:8080", "http://proxy", "https://proxy.example.org:3128/",
