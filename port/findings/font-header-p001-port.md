@@ -34,8 +34,10 @@ so the same packages were added to its candidate selection and the lock re-resol
 `tools/lock_inputs.py` from the same base image and archive snapshot: candidate-2 adds 39
 packages and changes none of candidate-1's (libm record, Rust and toolchain identity files
 included). `rust-port.yml`'s dispatch-only `migrate_resistor_sse2` job built its image from an
-old tools revision with the candidate-1 lock; it now builds the image from the migrated
-revision's own lock. `rust-kimath-nan.yml`'s frozen-reference job is unchanged: it builds a
+old tools revision with the candidate-1 lock; it now builds the image from the dispatched
+revision's own lock. That migration was applied once (`cee4373220`) and its reviewed tool
+still requires the candidate-1 lock and the pre-migration golden, so it fails closed on later
+revisions (see `font-header-p001-review-e36c.md`). `rust-kimath-nan.yml`'s frozen-reference job is unchanged: it builds a
 pinned historical revision that needs no font libraries, in the image its locks were bound to.
 
 The adapter sets the protected/private members the out-of-line loaders would set
