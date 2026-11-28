@@ -1,0 +1,591 @@
+== BEZIER_POLY::eval(double)
+endbr64
+movsd D(%rip),%xmm1
+mov D(%rsi),%rcx
+mov %rdi,%rax
+mov D(%rsi),%rdx
+subsd %xmm0,%xmm1
+sub %rcx,%rdx
+movapd %xmm1,%xmm2
+mulsd %xmm1,%xmm2
+cmp $D,%rdx
+je A <>
+cmp $D,%rdx
+je A <>
+cmpq $D,D(%rip)
+je A <>
+sub $D,%rsp
+xor %r8d,%r8d
+lea D(%rip),%rcx
+mov $D,%esi
+mov %rdi,D(%rsp)
+lea D(%rip),%rdx
+lea D(%rip),%rdi
+call A <>
+cmpb $D,D(%rip)
+mov D(%rsp),%rax
+je A <>
+movb $D,D(%rip)
+int3
+pxor %xmm0,%xmm0
+movups %xmm0,(%rax)
+add $D,%rsp
+ret
+nopl D(%rax)
+movsd D(%rip),%xmm6
+movapd %xmm0,%xmm3
+movapd %xmm0,%xmm4
+movapd %xmm2,%xmm5
+mulsd %xmm0,%xmm3
+movupd D(%rcx),%xmm7
+mulsd %xmm6,%xmm0
+mulsd %xmm1,%xmm5
+mulsd %xmm3,%xmm4
+mulsd %xmm6,%xmm3
+movupd (%rcx),%xmm6
+mulsd %xmm2,%xmm0
+movapd %xmm4,%xmm2
+mulsd %xmm1,%xmm3
+movapd %xmm5,%xmm1
+unpcklpd %xmm2,%xmm2
+unpcklpd %xmm1,%xmm1
+unpcklpd %xmm0,%xmm0
+mulpd %xmm6,%xmm1
+mulpd %xmm7,%xmm0
+unpcklpd %xmm3,%xmm3
+addpd %xmm1,%xmm0
+movupd D(%rcx),%xmm1
+mulpd %xmm3,%xmm1
+addpd %xmm1,%xmm0
+movupd D(%rcx),%xmm1
+mulpd %xmm2,%xmm1
+addpd %xmm1,%xmm0
+movups %xmm0,(%rdi)
+ret
+nopl D(%rax,%rax,1)
+addsd %xmm1,%xmm1
+movapd %xmm0,%xmm3
+movupd D(%rcx),%xmm7
+unpcklpd %xmm2,%xmm2
+mulsd %xmm0,%xmm3
+mulsd %xmm0,%xmm1
+movupd (%rcx),%xmm0
+mulpd %xmm2,%xmm0
+movapd %xmm3,%xmm2
+unpcklpd %xmm2,%xmm2
+unpcklpd %xmm1,%xmm1
+mulpd %xmm7,%xmm1
+addpd %xmm1,%xmm0
+movupd D(%rcx),%xmm1
+mulpd %xmm2,%xmm1
+addpd %xmm1,%xmm0
+movups %xmm0,(%rdi)
+ret
+xchg %ax,%ax
+pxor %xmm0,%xmm0
+movups %xmm0,(%rdi)
+ret
+== BEZIER_POLY::subdivide(double, BEZIER_POLY&, BEZIER_POLY&)
+endbr64
+push %r12
+mov %rdx,%r12
+movapd %xmm0,%xmm1
+push %rbp
+unpcklpd %xmm1,%xmm1
+mov %rsi,%rbp
+push %rbx
+sub $D,%rsp
+mov D(%rdi),%rdx
+mov %fs:D,%rax
+mov %rax,D(%rsp)
+xor %eax,%eax
+mov D(%rdi),%rax
+sub %rdx,%rax
+cmp $D,%rax
+je A <>
+cmp $D,%rax
+je A <>
+cmpq $D,D(%rip)
+je A <>
+xor %r8d,%r8d
+lea D(%rip),%rcx
+lea D(%rip),%rdx
+mov $D,%esi
+lea D(%rip),%rdi
+call A <>
+cmpb $D,D(%rip)
+jne A <>
+xchg %ax,%ax
+mov D(%rsp),%rax
+sub %fs:D,%rax
+jne A <>
+add $D,%rsp
+pop %rbx
+pop %rbp
+pop %r12
+ret
+nopl (%rax)
+movupd D(%rdx),%xmm5
+movupd D(%rdx),%xmm0
+movupd (%rdx),%xmm6
+mov D(%rsi),%rax
+movapd %xmm5,%xmm3
+movapd %xmm0,%xmm4
+subpd %xmm0,%xmm3
+subpd %xmm6,%xmm4
+mulpd %xmm1,%xmm3
+mulpd %xmm1,%xmm4
+addpd %xmm0,%xmm3
+movupd D(%rdx),%xmm0
+movups %xmm6,(%rax)
+addpd %xmm6,%xmm4
+subpd %xmm5,%xmm0
+movapd %xmm3,%xmm2
+subpd %xmm4,%xmm2
+movups %xmm4,D(%rax)
+mulpd %xmm1,%xmm0
+mulpd %xmm1,%xmm2
+addpd %xmm5,%xmm0
+addpd %xmm4,%xmm2
+movapd %xmm0,%xmm5
+subpd %xmm3,%xmm5
+movups %xmm2,D(%rax)
+mulpd %xmm1,%xmm5
+addpd %xmm3,%xmm5
+movapd %xmm5,%xmm3
+subpd %xmm2,%xmm3
+mulpd %xmm3,%xmm1
+addpd %xmm2,%xmm1
+movups %xmm1,D(%rax)
+mov D(%r12),%rax
+movupd D(%rdx),%xmm7
+movups %xmm0,D(%rax)
+movups %xmm7,D(%rax)
+movups %xmm5,D(%rax)
+movups %xmm1,(%rax)
+jmp A <>
+movupd (%rdx),%xmm2
+mov D(%rsi),%rax
+mov %rdi,%rbx
+lea D(%rsp),%rdi
+movsd (%rdx),%xmm4
+mov %rbx,%rsi
+movaps %xmm1,(%rsp)
+movups %xmm2,(%rax)
+movapd %xmm2,%xmm3
+movsd D(%rdx),%xmm2
+movsd D(%rdx),%xmm5
+subsd %xmm3,%xmm2
+movsd D(%rdx),%xmm3
+subsd %xmm5,%xmm3
+unpcklpd %xmm3,%xmm2
+movapd %xmm4,%xmm3
+mulpd %xmm1,%xmm2
+unpcklpd %xmm5,%xmm3
+addpd %xmm3,%xmm2
+movups %xmm2,D(%rax)
+call A <>
+mov D(%rbp),%rdx
+mov D(%rbx),%rcx
+movapd D(%rsp),%xmm7
+mov D(%r12),%rax
+movapd (%rsp),%xmm1
+movups %xmm7,D(%rdx)
+movupd D(%rcx),%xmm0
+movups %xmm0,D(%rax)
+movupd D(%rcx),%xmm2
+subpd %xmm2,%xmm0
+mulpd %xmm1,%xmm0
+addpd %xmm2,%xmm0
+movups %xmm0,D(%rax)
+movupd D(%rdx),%xmm7
+movups %xmm7,(%rax)
+jmp A <>
+nopl (%rax)
+movb $D,D(%rip)
+int3
+jmp A <>
+call A <>
+== BEZIER_POLY::thirdControlPointDeviation()
+endbr64
+mov D(%rdi),%rax
+movsd D(%rip),%xmm7
+movsd D(%rax),%xmm5
+movsd D(%rax),%xmm6
+movsd D(%rax),%xmm2
+movsd (%rax),%xmm4
+movapd %xmm5,%xmm3
+subsd %xmm6,%xmm3
+movapd %xmm2,%xmm0
+subsd %xmm4,%xmm0
+movapd %xmm3,%xmm1
+mulsd %xmm0,%xmm0
+mulsd %xmm3,%xmm1
+addsd %xmm0,%xmm1
+pxor %xmm0,%xmm0
+comisd %xmm1,%xmm7
+jbe A <>
+ret
+xchg %ax,%ax
+movapd %xmm4,%xmm0
+sqrtsd %xmm1,%xmm1
+mulsd %xmm5,%xmm4
+subsd %xmm2,%xmm0
+mulsd %xmm6,%xmm2
+divsd %xmm1,%xmm3
+subsd %xmm4,%xmm2
+divsd %xmm1,%xmm0
+mulsd D(%rax),%xmm3
+divsd %xmm1,%xmm2
+mulsd D(%rax),%xmm0
+addsd %xmm3,%xmm0
+addsd %xmm2,%xmm0
+andpd D(%rip),%xmm0
+ret
+== void TransformEllipseToBeziers<double>(ELLIPSE<double> const&, std::vector<BEZIER<double>, std::allocator<BEZIER<double> > >&)
+endbr64
+push %r15
+pxor %xmm1,%xmm1
+push %r14
+push %r13
+mov %rsi,%r13
+push %r12
+push %rbp
+push %rbx
+mov %rdi,%rbx
+sub $D,%rsp
+movsd D(%rdi),%xmm5
+movsd D(%rdi),%xmm0
+mov %fs:D,%rax
+mov %rax,D(%rsp)
+xor %eax,%eax
+subsd %xmm5,%xmm0
+comisd %xmm0,%xmm1
+movapd %xmm0,%xmm2
+xorpd D(%rip),%xmm2
+jb A <>(ELLIPSE<> const&, std::vector<>, std::allocator<> > >&)+D>
+subsd D(%rip),%xmm2
+mulsd D(%rip),%xmm2
+movq D(%rip),%xmm1
+movsd D(%rip),%xmm3
+movapd %xmm2,%xmm0
+divsd D(%rip),%xmm0
+andpd %xmm1,%xmm0
+movapd %xmm0,%xmm4
+andpd %xmm1,%xmm4
+ucomisd %xmm4,%xmm3
+jbe A <>(ELLIPSE<> const&, std::vector<>, std::allocator<> > >&)+D>
+cvttsd2si %xmm0,%rax
+pxor %xmm4,%xmm4
+movapd %xmm0,%xmm6
+movsd D(%rip),%xmm3
+andnpd %xmm0,%xmm1
+cvtsi2sd %rax,%xmm4
+cmpnlesd %xmm4,%xmm6
+andpd %xmm3,%xmm6
+addsd %xmm6,%xmm4
+orpd %xmm1,%xmm4
+movapd %xmm4,%xmm0
+cvttsd2si %xmm0,%r14d
+pxor %xmm0,%xmm0
+lea D(%rsp),%rdi
+movsd %xmm5,D(%rsp)
+lea D(%rsp),%rsi
+cvtsi2sd %r14d,%xmm0
+mov %r14d,D(%rsp)
+divsd %xmm0,%xmm2
+movapd %xmm2,%xmm0
+movsd %xmm2,D(%rsp)
+call A <>
+movsd D(%rsp),%xmm0
+mulsd D(%rip),%xmm0
+call A <>
+movsd D(%rip),%xmm1
+movsd D(%rsp),%xmm3
+movsd D(%rsp),%xmm6
+mulsd %xmm0,%xmm1
+movapd %xmm3,%xmm2
+movapd %xmm6,%xmm4
+unpcklpd %xmm3,%xmm4
+mulsd %xmm1,%xmm2
+addsd %xmm6,%xmm2
+mulsd %xmm1,%xmm6
+subsd %xmm6,%xmm3
+unpcklpd %xmm3,%xmm2
+test %r14d,%r14d
+jle A <>(ELLIPSE<> const&, std::vector<>, std::allocator<> > >&)+D>
+lea D(%rsp),%rax
+movsd D(%rip),%xmm3
+xor %r15d,%r15d
+movsd D(%rsp),%xmm5
+mov %rax,D(%rsp)
+lea D(%rsp),%rax
+lea D(%rsp),%r12
+mov %rax,D(%rsp)
+lea D(%rsp),%rax
+lea D(%rsp),%r14
+mov %rax,D(%rsp)
+lea D(%rsp),%rax
+mov %rax,D(%rsp)
+lea D(%rsp),%rax
+mov %rax,D(%rsp)
+lea D(%rsp),%rax
+mov %rax,D(%rsp)
+lea D(%rsp),%rax
+mov %rax,D(%rsp)
+movsd %xmm1,D(%rsp)
+movaps %xmm4,D(%rsp)
+movaps %xmm2,D(%rsp)
+movsd %xmm3,D(%rsp)
+jmp A <>(ELLIPSE<> const&, std::vector<>, std::allocator<> > >&)+D>
+nopl D(%rax)
+movups %xmm6,D(%rbp)
+add $D,%rbp
+add $D,%r15d
+movups %xmm7,D(%rbp)
+movups %xmm5,D(%rbp)
+movups %xmm0,D(%rbp)
+mov %rbp,D(%r13)
+cmp %r15d,D(%rsp)
+je A <>(ELLIPSE<> const&, std::vector<>, std::allocator<> > >&)+D>
+movsd D(%rbx),%xmm5
+pxor %xmm0,%xmm0
+mov D(%rsp),%rsi
+mov %r12,%rdx
+mov %r14,%rdi
+mulsd D(%rip),%xmm5
+cvtsi2sd %r15d,%xmm0
+movq D(%rip),%xmm2
+mulsd D(%rsp),%xmm0
+movaps %xmm2,D(%rsp)
+movq %xmm0,%rbp
+subsd %xmm5,%xmm0
+divsd D(%rip),%xmm0
+xorpd D(%rip),%xmm0
+movsd %xmm0,D(%rsp)
+call A <>
+movupd D(%rbx),%xmm0
+mov %r12,%rdx
+mov %r14,%rdi
+mulpd D(%rsp),%xmm0
+mov D(%rsp),%rsi
+movaps %xmm0,D(%rsp)
+movsd D(%rbx),%xmm0
+xorpd D(%rip),%xmm0
+movsd %xmm0,D(%rsp)
+call A <>
+movsd D(%rip),%xmm5
+mulsd D(%rbx),%xmm5
+movq %rbp,%xmm0
+movupd (%rbx),%xmm6
+mov D(%rsp),%rsi
+mov %r12,%rdx
+addpd D(%rsp),%xmm6
+mov D(%rsp),%rdi
+movsd D(%rsp),%xmm1
+movsd D(%rsp),%xmm3
+subsd %xmm5,%xmm0
+movaps %xmm6,D(%rsp)
+divsd D(%rip),%xmm0
+xorpd D(%rip),%xmm0
+movaps %xmm6,D(%rsp)
+movsd %xmm1,D(%rsp)
+movsd %xmm3,D(%rsp)
+movsd %xmm0,D(%rsp)
+call A <>
+movupd D(%rbx),%xmm0
+mov D(%rsp),%rsi
+mov %r12,%rdx
+mulpd D(%rsp),%xmm0
+mov D(%rsp),%rdi
+movaps %xmm0,D(%rsp)
+movsd D(%rbx),%xmm0
+xorpd D(%rip),%xmm0
+movsd %xmm0,D(%rsp)
+call A <>
+movsd D(%rip),%xmm5
+mulsd D(%rbx),%xmm5
+movq %rbp,%xmm0
+movupd (%rbx),%xmm7
+mov D(%rsp),%rsi
+mov %r12,%rdx
+addpd D(%rsp),%xmm7
+mov D(%rsp),%rdi
+movapd D(%rsp),%xmm4
+subsd %xmm5,%xmm0
+divsd D(%rip),%xmm0
+xorpd D(%rip),%xmm0
+movaps %xmm7,D(%rsp)
+movaps %xmm7,D(%rsp)
+movaps %xmm4,D(%rsp)
+movsd %xmm0,D(%rsp)
+call A <>
+movupd D(%rbx),%xmm0
+mov D(%rsp),%rsi
+mov %r12,%rdx
+mulpd D(%rsp),%xmm0
+mov D(%rsp),%rdi
+movaps %xmm0,D(%rsp)
+movsd D(%rbx),%xmm0
+xorpd D(%rip),%xmm0
+movsd %xmm0,D(%rsp)
+call A <>
+movupd (%rbx),%xmm5
+movq %rbp,%xmm0
+mov %r12,%rdi
+movsd D(%rip),%xmm8
+mulsd D(%rbx),%xmm8
+addpd D(%rsp),%xmm5
+mov D(%rsp),%rbp
+movapd D(%rsp),%xmm2
+mov D(%rsp),%rdx
+mov %rbp,%rsi
+movaps %xmm5,D(%rsp)
+subsd %xmm8,%xmm0
+divsd D(%rip),%xmm0
+xorpd D(%rip),%xmm0
+movaps %xmm5,D(%rsp)
+movaps %xmm2,D(%rsp)
+movsd %xmm0,D(%rsp)
+call A <>
+movupd D(%rbx),%xmm0
+mov %rbp,%rsi
+mov %r12,%rdi
+mulpd D(%rsp),%xmm0
+mov D(%rsp),%rdx
+movaps %xmm0,D(%rsp)
+movsd D(%rbx),%xmm0
+xorpd D(%rip),%xmm0
+movsd %xmm0,D(%rsp)
+call A <>
+movupd (%rbx),%xmm0
+mov D(%r13),%rbp
+addpd D(%rsp),%xmm0
+mov D(%r13),%rsi
+movapd D(%rsp),%xmm5
+movapd D(%rsp),%xmm7
+cmp %rsi,%rbp
+movapd D(%rsp),%xmm6
+movaps %xmm0,D(%rsp)
+jne A <>(ELLIPSE<> const&, std::vector<>, std::allocator<> > >&)+D>
+mov D(%r13),%r10
+mov %rbp,%rdx
+movabs $D,%rax
+sub %r10,%rdx
+mov %rdx,%r9
+sar $D,%r9
+cmp %rax,%r9
+je A <>(ELLIPSE<> const&, std::vector<>, std::allocator<> > >&)+D>
+cmp %r10,%rbp
+je A <>(ELLIPSE<> const&, std::vector<>, std::allocator<> > >&)+D>
+lea (%r9,%r9,1),%rax
+cmp %r9,%rax
+jb A <>(ELLIPSE<> const&, std::vector<>, std::allocator<> > >&)+D>
+test %rax,%rax
+jne A <>(ELLIPSE<> const&, std::vector<>, std::allocator<> > >&)+D>
+movups %xmm6,(%rdx)
+xor %r9d,%r9d
+xor %r11d,%r11d
+movups %xmm7,D(%rdx)
+movups %xmm5,D(%rdx)
+movups %xmm0,D(%rdx)
+lea D(%rbp),%rdi
+mov %r11,%rdx
+mov %r10,%rax
+xor %ecx,%ecx
+sub %r10,%rdi
+shr $D,%rdi
+add $D,%rdi
+nopl (%rax)
+movupd (%rax),%xmm4
+add $D,%rcx
+add $D,%rdx
+add $D,%rax
+movupd D(%rax),%xmm2
+movupd D(%rax),%xmm1
+movupd D(%rax),%xmm3
+movups %xmm4,D(%rdx)
+movups %xmm2,D(%rdx)
+movups %xmm1,D(%rdx)
+movups %xmm3,D(%rdx)
+cmp %rdi,%rcx
+jb A <>(ELLIPSE<> const&, std::vector<>, std::allocator<> > >&)+D>
+sub %r10,%rbp
+lea D(%r11,%rbp,1),%rbp
+test %r10,%r10
+je A <>(ELLIPSE<> const&, std::vector<>, std::allocator<> > >&)+D>
+sub %r10,%rsi
+mov %r10,%rdi
+mov %r9,D(%rsp)
+mov %r11,D(%rsp)
+call A <>
+mov D(%rsp),%r9
+mov D(%rsp),%r11
+mov %r11,D(%r13)
+add $D,%r15d
+mov %rbp,D(%r13)
+mov %r9,D(%r13)
+cmp %r15d,D(%rsp)
+jne A <>(ELLIPSE<> const&, std::vector<>, std::allocator<> > >&)+D>
+nopl D(%rax,%rax,1)
+mov D(%rsp),%rax
+sub %fs:D,%rax
+jne A <>(ELLIPSE<> const&, std::vector<>, std::allocator<> > >&)+D>
+add $D,%rsp
+pop %rbx
+pop %rbp
+pop %r12
+pop %r13
+pop %r14
+pop %r15
+ret
+nopl D(%rax)
+add $D,%r9
+jb A <>(ELLIPSE<> const&, std::vector<>, std::allocator<> > >&)+D>
+movabs $D,%rax
+cmp %rax,%r9
+cmova %rax,%r9
+shl $D,%r9
+mov %r9,%rdi
+mov %rdx,D(%rsp)
+mov %r10,D(%rsp)
+mov %r9,D(%rsp)
+movaps %xmm0,D(%rsp)
+movaps %xmm5,D(%rsp)
+movaps %xmm6,D(%rsp)
+movaps %xmm7,D(%rsp)
+call A <>
+mov D(%rsp),%r9
+mov D(%r13),%rsi
+movapd D(%rsp),%xmm6
+movapd D(%rsp),%xmm7
+mov %rax,%r11
+mov D(%rsp),%rdx
+mov D(%rsp),%r10
+add %rax,%r9
+movapd D(%rsp),%xmm5
+movapd D(%rsp),%xmm0
+add %rax,%rdx
+movups %xmm6,(%rdx)
+movups %xmm7,D(%rdx)
+movups %xmm5,D(%rdx)
+movups %xmm0,D(%rdx)
+cmp %r10,%rbp
+jne A <>(ELLIPSE<> const&, std::vector<>, std::allocator<> > >&)+D>
+lea D(%rax),%rbp
+jmp A <>(ELLIPSE<> const&, std::vector<>, std::allocator<> > >&)+D>
+nopw D(%rax,%rax,1)
+movabs $D,%r9
+jmp A <>(ELLIPSE<> const&, std::vector<>, std::allocator<> > >&)+D>
+movabs $D,%rcx
+cmp %rcx,%rax
+cmova %rcx,%rax
+shl $D,%rax
+mov %rax,%r9
+jmp A <>(ELLIPSE<> const&, std::vector<>, std::allocator<> > >&)+D>
+mov D(%rsp),%rax
+sub %fs:D,%rax
+jne A <>(ELLIPSE<> const&, std::vector<>, std::allocator<> > >&)+D>
+lea D(%rip),%rdi
+call A <>
+call A <>

@@ -2,17 +2,19 @@
 
 //! Public facade over the private `glibc_trig` and `glibc_libm` backends, for ports in other
 //! crates whose pinned C++ calls `std::sin`, `std::cos`, `std::acos`, `std::atan2`,
-//! `std::pow` or `std::fma` on a `double` (first user: the Clipper2 `ClipperOffset` port in
+//! `std::pow`, `std::tan`, `std::hypot` or `std::fma` on a `double` (or a `sincos` GCC forms
+//! from a `std::sin` and `std::cos`) (first user: the Clipper2 `ClipperOffset` port in
 //! `kicad-clipper2`; `pow` is `std::pow(10, precision)` in the Clipper2 `clipper.h` and
 //! `clipper.minkowski.h` wrappers; `fma` is the explicit `std::fma` of trigo.cpp's three-point
 //! `CalcArcCenter`, which GCC calls in libm on the baseline x86-64 target).
 //!
 //! Value contract: each function returns exactly the bits of the pinned reference C library,
 //! glibc 2.39's baseline SSE2 variant (`__sin_sse2`, `__cos_sse2`, `__ieee754_acos`,
-//! `__ieee754_atan2`, `pow@@GLIBC_2.29` over `__ieee754_pow_sse2`, `fma@@GLIBC_2.2.5` over
-//! `__fma_sse2`), natively and in WebAssembly, without the host libm. It assumes the
-//! default round-to-nearest mode with gradual underflow, like the backends. errno, floating
-//! point exception flags and other rounding modes are not modelled.
+//! `__ieee754_atan2`, `pow@@GLIBC_2.29` over `__ieee754_pow_sse2`, `__tan_sse2`,
+//! `hypot@@GLIBC_2.35`, `__sincos_sse2`, `fma@@GLIBC_2.2.5` over `__fma_sse2`), natively and
+//! in WebAssembly, without the host libm. It assumes the default round-to-nearest mode with
+//! gradual underflow, like the backends. errno, floating point exception flags and other
+//! rounding modes are not modelled.
 //!
 //! Each function only forwards to the accepted private body: no degree conversion, argument
 //! reordering or special-casing is added here, so signed zeros, infinities and NaN payloads
@@ -42,6 +44,24 @@ pub fn atan2(y: f64, x: f64) -> f64 {
 /// body `EDA_ANGLE::Round` already uses. `std::pow(int, int)` promotes both to `double`.
 pub fn pow(x: f64, y: f64) -> f64 {
     crate::glibc_libm::pow(x, y)
+}
+
+/// `std::tan(double)`: glibc 2.39 `__tan_sse2`, the body `EDA_ANGLE::Tan` already uses.
+pub fn tan(x: f64) -> f64 {
+    crate::glibc_libm::tan(x)
+}
+
+/// `std::hypot(double x, double y)`: glibc 2.39 `hypot@@GLIBC_2.35`, the body
+/// `VECTOR2<double>::EuclideanNorm` already uses.
+pub fn hypot(x: f64, y: f64) -> f64 {
+    crate::hypot::hypot(x, y)
+}
+
+/// glibc 2.39 `__sincos_sse2`, returned as `(sin(x), cos(x))`: the one call GCC makes for a
+/// `std::sin(x)` and `std::cos(x)` of the same argument (as in `ELLIPSE::GetPointAtAngle` and
+/// `MATRIX3x3::SetRotation`, which already use it).
+pub fn sincos(x: f64) -> (f64, f64) {
+    crate::glibc_trig::sincos(x)
 }
 
 /// `std::fma(double x, double y, double z)`: glibc 2.39 `fma@@GLIBC_2.2.5` (`__fma_sse2`), in
@@ -75,12 +95,17 @@ mod tests {
             assert_eq!(sin(x).to_bits(), crate::glibc_trig::sin(x).to_bits());
             assert_eq!(cos(x).to_bits(), crate::glibc_trig::cos(x).to_bits());
             assert_eq!(acos(x).to_bits(), crate::glibc_libm::acos(x).to_bits());
+            assert_eq!(tan(x).to_bits(), crate::glibc_libm::tan(x).to_bits());
+            let (s, c) = sincos(x);
+            let (rs, rc) = crate::glibc_trig::sincos(x);
+            assert_eq!((s.to_bits(), c.to_bits()), (rs.to_bits(), rc.to_bits()));
             for &y in &samples {
                 assert_eq!(
                     atan2(y, x).to_bits(),
                     crate::glibc_libm::atan2(y, x).to_bits()
                 );
                 assert_eq!(pow(x, y).to_bits(), crate::glibc_libm::pow(x, y).to_bits());
+                assert_eq!(hypot(x, y).to_bits(), crate::hypot::hypot(x, y).to_bits());
                 for &z in &samples {
                     assert_eq!(
                         fma(x, y, z).to_bits(),

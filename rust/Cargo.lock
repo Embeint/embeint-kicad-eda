@@ -676,6 +676,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "kicad-bezier-curves-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-hash",
+ "kicad-math",
+ "serde_json",
+]
+
+[[package]]
 name = "kicad-boost-random"
 version = "0.1.0"
 

@@ -275,6 +275,11 @@ list( REMOVE_ITEM ORACLE_SHIMS "${FONT_P001_SHIM}" )
 # inline bodies, JSON helpers) is selected ahead of an earlier adapter's.
 set( TRIGO_HEADER_P001_SHIM "${ORACLE_OVERLAY}/shims/trigo_header_p001.cpp" )
 list( REMOVE_ITEM ORACLE_SHIMS "${TRIGO_HEADER_P001_SHIM}" )
+# The bezier_curves.cpp adapter follows every previously qualified object, the trigo.h inline
+# body adapter included, so none of its weak template copies (VECTOR2, EDA_ANGLE, ELLIPSE, BEZIER,
+# JSON and wxString helpers) is selected ahead of an earlier adapter's.
+set( BEZIER_CURVES_P001_SHIM "${ORACLE_OVERLAY}/shims/kimath_src_bezier_curves.cpp" )
+list( REMOVE_ITEM ORACLE_SHIMS "${BEZIER_CURVES_P001_SHIM}" )
 # Its undefined-behaviour replay: the adapter's request evaluation compiled against the pinned,
 # unmodified clipper.engine.cpp, clipper.offset.cpp and clipper.rectclip.cpp (renamed
 # namespace) with UBSan in trap mode and _GLIBCXX_ASSERTIONS, run only in a forked child. It
@@ -292,7 +297,8 @@ add_executable( kicad-oracle main.cpp protocol.cpp registry.cpp ${ORACLE_SHIMS}
                 "${WX_STL_COMPAT_SHIM}" "${SEXPR_SHIM}" "${SHAPE_HEADERS_P003_SHIM}"
                 "${CLIPPER2_INCLUDE_P002_SHIM}" "${TRIGO_SOURCE_P001_SHIM}"
                 "${KIPLATFORM_INCLUDE_P001_SHIM}" "${KIPLATFORM_INCLUDE_P001_PROBE}"
-                "${FONT_P001_SHIM}" "${TRIGO_HEADER_P001_SHIM}" )
+                "${FONT_P001_SHIM}" "${TRIGO_HEADER_P001_SHIM}"
+                "${BEZIER_CURVES_P001_SHIM}" )
 target_include_directories( kicad-oracle PRIVATE "${ORACLE_OVERLAY}" "${CMAKE_BINARY_DIR}"
                             "${KICAD_REFERENCE_SOURCE}/libs/kiplatform/include" )
 target_link_libraries( kicad-oracle PRIVATE kimath nlohmann_json iec60664-reference resistor-reference
@@ -341,7 +347,8 @@ add_executable( oracle-dispatch-test EXCLUDE_FROM_ALL test_dispatch.cpp protocol
                 "${SHAPE_HEADERS_P003_SHIM}"
                 "${CLIPPER2_INCLUDE_P002_SHIM}" "${TRIGO_SOURCE_P001_SHIM}"
                 "${KIPLATFORM_INCLUDE_P001_SHIM}" "${KIPLATFORM_INCLUDE_P001_PROBE}"
-                "${FONT_P001_SHIM}" "${TRIGO_HEADER_P001_SHIM}" )
+                "${FONT_P001_SHIM}" "${TRIGO_HEADER_P001_SHIM}"
+                "${BEZIER_CURVES_P001_SHIM}" )
 target_include_directories( oracle-dispatch-test PRIVATE "${ORACLE_OVERLAY}"
                             "${KICAD_REFERENCE_SOURCE}/libs/kiplatform/include" )
 target_link_libraries( oracle-dispatch-test PRIVATE kimath nlohmann_json iec60664-reference
