@@ -127,6 +127,21 @@ impl ShapeArc {
         unported("SHAPE_ARC::SHAPE_ARC(const SHAPE_ARC&)", SHAPE_ARC_UNIT)
     }
 
+    /// `SHAPE_ARC`'s implicit copy assignment operator (no assignment is declared, so the
+    /// compiler defines it inline): `SHAPE`'s (`m_type` is `SH_ARC` on both sides), then every
+    /// member in declaration order. Co-ported by `libs.kimath.include.geometry.application.ui.p004`
+    /// for `SHAPE_LINE_CHAIN`'s copy assignment of its arcs.
+    pub fn assign_from(&mut self, other: &ShapeArc) -> &mut Self {
+        self.start = other.start;
+        self.mid = other.mid;
+        self.end = other.end;
+        self.width = other.width;
+        self.bbox = other.bbox;
+        self.center = other.center;
+        self.radius = other.radius;
+        self
+    }
+
     /// `GetP0`.
     pub const fn get_p0(&self) -> Vector2I {
         self.start

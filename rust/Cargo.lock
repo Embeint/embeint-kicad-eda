@@ -940,6 +940,7 @@ name = "kicad-math"
 version = "0.1.0"
 dependencies = [
  "kicad-boost-random",
+ "kicad-rtree-cow-packed",
 ]
 
 [[package]]

@@ -84,6 +84,11 @@ pub mod shape_arc;
 pub mod shape_circle;
 pub mod shape_compound;
 pub mod shape_ellipse;
+pub mod shape_index;
+pub mod shape_index_list;
+pub mod shape_line_chain;
+#[cfg(test)]
+mod shape_line_chain_tests;
 #[cfg(test)]
 mod shape_tests;
 pub mod trigo;
