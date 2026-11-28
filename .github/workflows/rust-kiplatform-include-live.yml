@@ -1,0 +1,99 @@
+name: Rust kiplatform public headers live validation
+
+# Scoped live evidence for libs.kiplatform.include.kiplatform.application.pure.p001 (the
+# public kiplatform headers): the pinned headers compiled into the oracle against the
+# Rust shim, the malformed-request controls on both, a check that the header probe
+# defines no genuine KIPLATFORM symbol, and the whole corpus replayed in import-free
+# wasm32 against this run's native C++ replies. The rust-port job remains the gate.
+on:
+  pull_request:
+    branches: [rust]
+    paths:
+      - rust/kicad-kiplatform/**
+      - rust/kicad-kiplatform-sysinfo/**
+      - rust/kicad-kiplatform-include-shim/**
+      - rust/kicad-map-helpers/**
+      - rust/kicad-math/**
+      - rust/Cargo.toml
+      - rust/Cargo.lock
+      - port/oracle/**
+      - port/cases/libs.kiplatform.include.kiplatform.application.pure.p001.jsonl
+      - port/units/libs.kiplatform.include.kiplatform.application.pure.p001.toml
+      - .github/workflows/rust-kiplatform-include-live.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  kiplatform-include-live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: "2"
+      ORACLE_JOBS: "2"
+      UNIT: libs.kiplatform.include.kiplatform.application.pure.p001
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0 # The oracle exports the pinned upstream commit, not HEAD.
+      - name: Install toolchain and oracle dependencies
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal --component clippy,rustfmt --target wasm32-unknown-unknown
+          rustup default 1.99.1
+          # The image's packages.microsoft.com source is unused here and intermittently fails apt with 403.
+          for src in /etc/apt/sources.list.d/*; do if grep -qs packages.microsoft.com "$src"; then sudo rm -f "$src"; fi; done
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++ gcc cmake ninja-build python3 rsync git libboost-dev libwxgtk3.2-dev libfreetype-dev libharfbuzz-dev libfontconfig-dev pkg-config
+      - name: Check the portable implementation and deterministic corpus
+        run: |
+          cargo fmt --manifest-path rust/Cargo.toml -p kicad-kiplatform -p kicad-kiplatform-sysinfo -p kicad-kiplatform-include-shim --check
+          cargo clippy --locked --manifest-path rust/Cargo.toml -p kicad-kiplatform -p kicad-kiplatform-sysinfo -p kicad-kiplatform-include-shim --all-targets -j2 -- -D warnings
+          cargo test --locked --manifest-path rust/Cargo.toml -p kicad-kiplatform -p kicad-kiplatform-sysinfo -p kicad-kiplatform-include-shim -j2
+          cargo check --locked --manifest-path rust/Cargo.toml -p kicad-kiplatform -p kicad-kiplatform-sysinfo --target wasm32-unknown-unknown -j2
+          python3 rust/kicad-kiplatform-include-shim/generate_cases.py --check
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-difftest -p kicad-kiplatform-include-shim -j2
+      - name: Build the genuine pinned own-library oracle
+        env:
+          LD_LIBRARY_PATH: ""
+        run: |
+          export PATH="/usr/bin:/bin:$PATH"
+          /usr/bin/python3 port/oracle/prepare.py --output-dir "$RUNNER_TEMP/include-stage"
+          bash port/oracle/build.sh "$RUNNER_TEMP/include-stage" "$PWD/port/oracle" "$RUNNER_TEMP/include-native"
+      - name: Compare every public case exactly and replay the controls on both sides
+        run: |
+          out="$RUNNER_TEMP/include-native"
+          oracle="$out/oracle-build/kicad-oracle"
+          # The probe compiles the pinned io.h, secrets.h and ui.h in a renamed namespace: it
+          # must define its recording bodies there and no genuine KIPLATFORM symbol.
+          probe=$(find "$out/oracle-build" -name 'kiplatform_include_probe.cpp.o' -path '*kicad-oracle.dir*')
+          nm -C --defined-only "$probe" > "$out/probe-symbols.txt"
+          grep -F 'KIPLATFORM_INCLUDE_P001_PROBE::IO::AtomicRename(' "$out/probe-symbols.txt" > /dev/null
+          grep -F 'KIPLATFORM_INCLUDE_P001_PROBE::IO::MAPPED_FILE::MAPPED_FILE(' "$out/probe-symbols.txt" > /dev/null
+          if grep -E '(^|[^_A-Z])KIPLATFORM::' "$out/probe-symbols.txt"; then
+            echo 'the probe defines a genuine KIPLATFORM symbol'; exit 1
+          fi
+          rust/target/debug/kicad-difftest compare --partial --unit "$UNIT" --root "$PWD" \
+            --oracle "$oracle" --rust "$PWD/rust/target/debug/kicad-kiplatform-include-shim" \
+            --report "$out/compare.json"
+          python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); print({k: r[k] for k in ("status","cases","compared","deferred","failures","unprocessed")})' "$out/compare.json"
+          python3 port/oracle/test_kiplatform_include_p001_inputs.py "$oracle" "$PWD/rust/target/debug/kicad-kiplatform-include-shim"
+          "$oracle" < "port/cases/$UNIT.jsonl" > "$out/native.jsonl"
+      - name: Replay the complete corpus in import-free WebAssembly against the C++ replies
+        run: |
+          export KICAD_KIPLATFORM_INCLUDE_WASM_REFERENCE="$RUNNER_TEMP/include-native/native.jsonl"
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-kiplatform-include-shim \
+            --example corpus_parity --features live-wasm --target wasm32-unknown-unknown --release -j2
+          node rust/kicad-kiplatform-include-shim/wasm-test.mjs rust/target/wasm32-unknown-unknown/release/examples/corpus_parity.wasm
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: kiplatform-include-live-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/include-native/compare.json
+            ${{ runner.temp }}/include-native/probe-symbols.txt
+            ${{ runner.temp }}/include-native/oracle-build/oracle-provenance.json
+            ${{ runner.temp }}/include-native/oracle-build/compile_commands.json
+            ${{ runner.temp }}/include-native/oracle-build/binary.sha256
+            ${{ runner.temp }}/include-stage/source-manifest.json
+          retention-days: 14

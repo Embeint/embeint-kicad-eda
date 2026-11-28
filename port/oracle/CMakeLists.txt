@@ -256,10 +256,18 @@ list( REMOVE_ITEM ORACLE_SHIMS "${CLIPPER2_INCLUDE_P002_SHIM}" )
 # is selected ahead of an earlier adapter's and every accepted selection is unchanged.
 set( TRIGO_SOURCE_P001_SHIM "${ORACLE_OVERLAY}/shims/trigo_source_p001.cpp" )
 list( REMOVE_ITEM ORACLE_SHIMS "${TRIGO_SOURCE_P001_SHIM}" )
+# The kiplatform public header adapter and its probe follow every previously qualified object,
+# the clipper.h header and trigo.cpp source adapters included, so none of their weak template
+# copies (wxString, std::function, JSON helpers) is selected ahead of an earlier adapter's.
+# The probe compiles the pinned io.h, secrets.h and ui.h with namespace KIPLATFORM renamed and
+# defines only symbols in that renamed namespace, never a genuine KIPLATFORM function.
+set( KIPLATFORM_INCLUDE_P001_SHIM "${ORACLE_OVERLAY}/shims/kiplatform_include_p001.cpp" )
+list( REMOVE_ITEM ORACLE_SHIMS "${KIPLATFORM_INCLUDE_P001_SHIM}" )
+set( KIPLATFORM_INCLUDE_P001_PROBE "${ORACLE_OVERLAY}/reference/kiplatform_include_probe.cpp" )
 # The include/font header adapter follows every previously qualified object, the trigo.cpp
-# source adapter included, so none of its weak template copies (wxString, VECTOR2, BOX2,
-# EDA_ANGLE, JSON helpers) is selected ahead of an earlier adapter's; its font-reference
-# archive is linked after every earlier archive.
+# source adapter and the kiplatform public header adapter and probe included, so none of its
+# weak template copies (wxString, VECTOR2, BOX2, EDA_ANGLE, JSON helpers) is selected ahead of
+# an earlier adapter's; its font-reference archive is linked after every earlier archive.
 set( FONT_P001_SHIM "${ORACLE_OVERLAY}/shims/include_font_p001.cpp" )
 list( REMOVE_ITEM ORACLE_SHIMS "${FONT_P001_SHIM}" )
 # Its undefined-behaviour replay: the adapter's request evaluation compiled against the pinned,
@@ -278,6 +286,7 @@ add_executable( kicad-oracle main.cpp protocol.cpp registry.cpp ${ORACLE_SHIMS}
                 "${KIPLATFORM_POLICY_SOURCE}" "${CLIPPER2_ENGINE_P002_SHIM}"
                 "${WX_STL_COMPAT_SHIM}" "${SEXPR_SHIM}" "${SHAPE_HEADERS_P003_SHIM}"
                 "${CLIPPER2_INCLUDE_P002_SHIM}" "${TRIGO_SOURCE_P001_SHIM}"
+                "${KIPLATFORM_INCLUDE_P001_SHIM}" "${KIPLATFORM_INCLUDE_P001_PROBE}"
                 "${FONT_P001_SHIM}" )
 target_include_directories( kicad-oracle PRIVATE "${ORACLE_OVERLAY}" "${CMAKE_BINARY_DIR}"
                             "${KICAD_REFERENCE_SOURCE}/libs/kiplatform/include" )
@@ -326,6 +335,7 @@ add_executable( oracle-dispatch-test EXCLUDE_FROM_ALL test_dispatch.cpp protocol
                 "${CLIPPER2_ENGINE_P002_SHIM}" "${WX_STL_COMPAT_SHIM}" "${SEXPR_SHIM}"
                 "${SHAPE_HEADERS_P003_SHIM}"
                 "${CLIPPER2_INCLUDE_P002_SHIM}" "${TRIGO_SOURCE_P001_SHIM}"
+                "${KIPLATFORM_INCLUDE_P001_SHIM}" "${KIPLATFORM_INCLUDE_P001_PROBE}"
                 "${FONT_P001_SHIM}" )
 target_include_directories( oracle-dispatch-test PRIVATE "${ORACLE_OVERLAY}"
                             "${KICAD_REFERENCE_SOURCE}/libs/kiplatform/include" )
@@ -387,6 +397,10 @@ add_test( NAME oracle-kiplatform-unix-p001-inputs
     COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_kiplatform_unix_p001_inputs.py"
             "$<TARGET_FILE:kicad-oracle>" )
 set_tests_properties( oracle-kiplatform-unix-p001-inputs PROPERTIES TIMEOUT 60 )
+add_test( NAME oracle-kiplatform-include-p001-inputs
+    COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_kiplatform_include_p001_inputs.py"
+            "$<TARGET_FILE:kicad-oracle>" )
+set_tests_properties( oracle-kiplatform-include-p001-inputs PROPERTIES TIMEOUT 60 )
 add_test( NAME oracle-wx-stl-compat-inputs
     COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_wx_stl_compat_inputs.py"
             "$<TARGET_FILE:kicad-oracle>" )

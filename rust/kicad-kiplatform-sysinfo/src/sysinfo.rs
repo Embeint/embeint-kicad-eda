@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! `KIPLATFORM::SYSINFO` for Unix (libs/kiplatform/os/unix/sysinfo.cpp).
 //!
-//! Minimum co-port of the data types from `kiplatform/sysinfo.h` and the class
-//! declaration from `kiplatform/sysinfo_gtk.h`; both headers stay owned by
-//! [`crate::HEADER_UNIT`].
+//! The data types and [`SysinfoBase`] are the port of `kiplatform/sysinfo.h`, and
+//! [`Sysinfo`]'s declaration that of `kiplatform/sysinfo_gtk.h`, both owned by
+//! [`crate::HEADER_UNIT`] (first co-ported here by the Unix unit and adopted by the header
+//! unit). `sysinfo.h` selects `sysinfo_gtk.h` on Unix; its Windows and macOS branches
+//! (`sysinfo_windows.h`, `sysinfo_osx.h`) belong to the blocked unit
+//! `libs.kiplatform.include.kiplatform.application.ui.p001` and are not modelled.
 //!
-//! The C++ structs are aggregates whose scalar members are left uninitialized by
-//! default construction (`std::string` members start empty). Rust has no
-//! uninitialized value, so these types deliberately have no `Default`: every caller
-//! supplies every field, as the oracle fixtures do before any observation.
-//! `std::string` members are byte vectors because a C++ string may hold NUL and
-//! bytes that are not UTF-8.
-//!
-//! `SYSINFO_BASE` (pure virtual, inherited privately by `SYSINFO`, so it is not a
-//! usable base outside the class) is not ported; the overrides are inherent methods.
+//! The C++ structs are aggregates. Default-initialization (`GPU_INFO info;`) leaves their
+//! scalar members indeterminate, which Rust cannot represent, so it is not modelled: every
+//! caller supplies every field, as the oracle fixtures do before any observation.
+//! [`Default`] is value-initialization (`GPU_INFO{}`): empty strings and zero scalars.
+//! `std::string` members are byte vectors because a C++ string may hold NUL and bytes that
+//! are not UTF-8.
 
 /// `KIPLATFORM::GPU_INFO`.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct GpuInfo {
     /// `std::string Name`.
     pub name: Vec<u8>,
@@ -29,7 +29,7 @@ pub struct GpuInfo {
 }
 
 /// `KIPLATFORM::CPU_INFO`.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct CpuInfo {
     /// `std::string Name`.
     pub name: Vec<u8>,
@@ -42,7 +42,7 @@ pub struct CpuInfo {
 }
 
 /// `KIPLATFORM::MEMORY_INFO`.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct MemoryInfo {
     /// `uint32_t Usage`.
     pub usage: u32,
@@ -58,6 +58,22 @@ pub struct MemoryInfo {
     pub total_virtual: u64,
     /// `uint64_t FreeVirtual`.
     pub free_virtual: u64,
+}
+
+/// `KIPLATFORM::SYSINFO_BASE`: the abstract interface every platform's `SYSINFO` implements.
+///
+/// On Unix `class SYSINFO : SYSINFO_BASE` inherits it privately, so outside the class a
+/// `SYSINFO` cannot be used as a `SYSINFO_BASE`; [`Sysinfo`] therefore keeps its overrides
+/// as inherent methods and does not implement this trait. A platform backend implements it.
+pub trait SysinfoBase {
+    /// `virtual bool GetGPUInfo( std::vector<GPU_INFO>& aGpuInfos ) = 0`.
+    fn get_gpu_info(&mut self, gpu_infos: &mut Vec<GpuInfo>) -> bool;
+
+    /// `virtual bool GetCPUInfo( std::vector<CPU_INFO>& aCpuInfos ) = 0`.
+    fn get_cpu_info(&mut self, cpu_infos: &mut Vec<CpuInfo>) -> bool;
+
+    /// `virtual bool GetMemoryInfo( MEMORY_INFO& aMemoryInfo ) = 0`.
+    fn get_memory_info(&mut self, memory_info: &mut MemoryInfo) -> bool;
 }
 
 /// `KIPLATFORM::SYSINFO` (Unix). The class has no data members.
@@ -117,6 +133,15 @@ impl Drop for Sysinfo {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn value_initialization_is_empty_and_zero() {
+        let gpu = GpuInfo::default();
+        assert_eq!((gpu.name.len(), gpu.memory_size), (0, 0));
+        let cpu = CpuInfo::default();
+        assert_eq!((cpu.number_cores, cpu.number_logical), (0, 0));
+        assert_eq!(MemoryInfo::default().free_virtual, 0);
+    }
 
     #[test]
     fn queries_report_failure_and_leave_outputs_untouched() {
