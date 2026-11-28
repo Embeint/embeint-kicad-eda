@@ -4,7 +4,8 @@
 
 Each control is a request the trigo.h adapter refuses: a wrapper whose forwarded trigo.cpp
 evaluation reaches int overflow or the negation of INT_MIN (classified by generate_cases.py's exact
-integer replay), a long long template angle beyond the adapter's loop bound, or a malformed input.
+integer replay), a double template loop that never terminates (also undefined), a template angle
+whose loops need more passes than the adapter's budget, or a malformed input.
 The C++ adapter must refuse it with exactly the recorded error. Rust must give the same refusal, except
 for a control marked "rust_unported": there the undefined operation follows a call the Rust port
 defers, and Rust must defer to exactly that owner instead. With --rust only, the Rust side is

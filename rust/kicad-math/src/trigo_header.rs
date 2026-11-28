@@ -9,7 +9,9 @@
 //! [`rotate_point_d`], [`rotate_point_d_about`]), the three `GetRotated` ([`get_rotated`],
 //! [`get_rotated_about`], [`get_rotated_d`]), [`deg2rad`], [`rad2deg`], [`rad2decideg`], the
 //! `NormalizeAnglePos`, `NORMALIZE_ANGLE_POS` and `NormalizeAngle180` templates
-//! ([`normalize_angle_pos`], [`normalize_angle_pos_in_place`], [`normalize_angle_180`]) and
+//! ([`normalize_angle_pos`], [`normalize_angle_pos_in_place`], [`normalize_angle_180`], and for
+//! `double` [`normalize_angle_pos_d`], [`normalize_angle_pos_in_place_d`],
+//! [`normalize_angle_180_d`]) and
 //! [`intercepts_positive_x`] / [`intercepts_negative_x`]. The out-of-line declarations belong to
 //! trigo.cpp (`libs.kimath.src.trigo.application.ui.p001`, [`crate::trigo`]), which these
 //! wrappers call unchanged.

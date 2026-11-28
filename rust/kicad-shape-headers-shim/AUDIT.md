@@ -140,8 +140,13 @@ const EDA_ANGLE& )` (`kicad_math::trigo_header::rotate_point_about`, unit
 the centre unchanged and maps to `ShapeError::Undefined`. The 34 former `RotatePoint` deferrals
 compare exactly. The generator now replays a cardinal rotation (an integral multiple of 90 degrees,
 or a non-finite angle, which `foldToTwoPeriods` makes 0) and continues the script on the rotated
-centre: 28 `shape-circle-rotate-then-*` cases and 12 controls with calls after a rotation, from
-their own seed (every earlier case and control is unchanged; label `circle-after-rotate`). A
+centre: 28 `shape-circle-rotate-then-*` cases with calls after a rotation, from their own seed
+(every earlier case and control is unchanged; label `circle-after-rotate`). The same scripts give
+12 controls: 6 (`16`, `19`, `20`, `21`, `25`, `28`) fail after the rotation, 6 (`7`, `14`, `33`,
+`34`, `36`, `37`) already before it, so only the first six exercise the continuation. Six hand
+controls `shape-circle-rotate-then-undefined-*` fail only after a cardinal rotation and because of
+it (a `Move` or `Collide` difference that overflows only from the rotated centre); the generator
+checks that and that the same calls on the unrotated circle are defined, and prints the split. A
 rotation that needs sin/cos still ends its script. Local diagnostic difftest against a GCC 13.3
-oracle build: 4,255 cases, 4,068 compared, 187 deferred, 0 failures; all 478 controls as recorded.
+oracle build: 4,255 cases, 4,068 compared, 187 deferred, 0 failures; all 484 controls as recorded.
 See `port/findings/trigo-header-port.md`.
