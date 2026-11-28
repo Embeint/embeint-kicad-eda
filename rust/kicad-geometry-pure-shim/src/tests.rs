@@ -2,10 +2,10 @@
 use super::*;
 use std::collections::BTreeMap;
 
-const CASES: usize = 7545;
-const CONTROLS: usize = 805;
+const CASES: usize = 7635;
+const CONTROLS: usize = 1127;
 /// Public cases whose DIRECTION_45 is built from a three-point SHAPE_ARC.
-const DEFERRED: usize = 81;
+const DEFERRED: usize = 366;
 
 fn cases() -> impl Iterator<Item = &'static str> {
     include_str!("../../../port/cases/libs.kimath.include.geometry.application.pure.p001.jsonl")
@@ -136,4 +136,51 @@ fn compass_directions() {
                                   "dir": {"ctor": "directions", "value": k}}));
         assert_eq!(back["result"]["value"], json!(vec));
     }
+}
+
+/// Every three-point arc defers to the constructor's owner, with no harness bound: collinear,
+/// closed, repeated and beyond-2^20 arcs and any width (the review's reproducers).
+#[test]
+fn three_point_arcs_defer_without_a_domain() {
+    let arcs = [
+        ([0, 0], [1, 0], [2, 0], 0),
+        ([0, 0], [5, 5], [0, 0], 0),
+        ([1048577, 0], [0, 1048576], [-1048576, 0], 0),
+        ([0, 0], [5, 5], [10, 0], 1048577),
+        ([0, 0], [0, 0], [10, 0], 0),
+        ([i32::MIN, 0], [i32::MAX, 1], [0, 5], i32::MIN),
+    ];
+    for (start, mid, end, width) in arcs {
+        let reply = request(json!({"op": "direction45", "member": "state",
+            "dir": {"ctor": "arc", "arc": {"ctor": "three_point", "start": start, "mid": mid,
+                                           "end": end, "width": width}}}));
+        assert_eq!(reply["error"]["kind"], "unported", "{reply}");
+        assert_eq!(
+            reply["error"]["unit"],
+            "libs.kimath.src.geometry.shape_arc.application.ui.p001"
+        );
+    }
+}
+
+/// A NaN coordinate is refused for every padding below INT_MAX and compared at INT_MAX.
+#[test]
+fn nan_clamps_follow_the_ordering_precondition() {
+    for (ret, padding) in [("double", 1u64), ("int", 0), ("double", 2147483646)] {
+        let reply = request(json!({"op": "clamped_coords", "in": "double", "ret": ret,
+            "coords": ["7ff80000000000aa", "0000000000000000"], "padding": padding}));
+        assert_eq!(reply["error"]["message"], UNDEFINED, "{reply}");
+    }
+    let reply = request(
+        json!({"op": "clamped_coords", "in": "double", "ret": "double",
+        "coords": ["0000000000000000", "fff40000000000ee"]}),
+    );
+    assert_eq!(reply["error"]["message"], UNDEFINED, "{reply}");
+    let reply = request(
+        json!({"op": "clamped_coords", "in": "double", "ret": "double",
+        "coords": ["7ff80000000000aa", "bff0000000000000"], "padding": 2147483647u64}),
+    );
+    assert_eq!(
+        reply["result"]["coords"],
+        json!(["7ff80000000000aa", "8000000000000000"])
+    );
 }

@@ -23,9 +23,13 @@
 //!
 //! The undefined operations of the integral instantiations are `std::abs( INT_MIN )` and a
 //! padding above `INT_MAX`, which makes `std::clamp`'s lower bound exceed its upper bound
-//! ([alg.clamp]); both return [`GeometryUtilsError::Undefined`]. Floating values are only
-//! compared, copied, sign-copied (`std::copysign`, a bit operation that keeps NaN payloads) or
-//! rounded by the accepted `KiROUND` port, so every result bit is the reference's.
+//! ([alg.clamp]); both return [`GeometryUtilsError::Undefined`]. The floating `GetClampedCoords`
+//! instantiations are also undefined for that padding and for a NaN coordinate while the bounds
+//! differ (every padding below `INT_MAX`): `std::clamp`'s `operator<` must then induce a strict
+//! weak ordering on the value and the two bounds ([alg.clamp]/2), which a NaN breaks; they
+//! return the same error. Floating values are only compared, copied, sign-copied
+//! (`std::copysign`, a bit operation that keeps NaN payloads) or rounded by the accepted
+//! `KiROUND` port, so every result bit is the reference's.
 use crate::util::{clamp, ki_round};
 use crate::vector::{Vector2, Vector2D, Vector2I};
 
@@ -173,15 +177,26 @@ pub fn get_clamped_coords_i(coords: Vector2I, padding: u32) -> GeometryUtilsResu
     Ok(Vector2::new(x as i32, y as i32))
 }
 
-/// The clamped `double` coordinates of the floating instantiations. `std::clamp` is
-/// `std::min( std::max( v, lo ), hi )` (GCC 13.3 libstdc++), so a NaN is returned unchanged and
-/// equal values keep the first operand.
+/// `std::clamp<double>( v, lo, hi )` with `lo <= hi`. [alg.clamp]/2 requires `operator<` to
+/// induce a strict weak ordering on the values ([alg.sorting.general]); a NaN is equivalent to
+/// every value, so with bounds that are not equivalent (`lo < hi`) the equivalence is not
+/// transitive and the call is undefined. With equivalent bounds (`-0.0` and `0.0`, padding
+/// `INT_MAX`) a NaN is defined and returned unchanged.
+fn clamp_ordered(v: f64, lo: f64, hi: f64) -> GeometryUtilsResult<f64> {
+    if v.is_nan() && lo < hi {
+        return Err(GeometryUtilsError::Undefined);
+    }
+    clamp(v, lo, hi).map_err(|_| GeometryUtilsError::Undefined)
+}
+
+/// The clamped `double` coordinates of the floating instantiations, `x` then `y`. `std::clamp`
+/// is `std::min( std::max( v, lo ), hi )` (GCC 13.3 libstdc++), so equal values keep the first
+/// operand.
 fn clamp_d(coords: Vector2D, padding: u32) -> GeometryUtilsResult<(f64, f64)> {
     let (min, max) = floating_bounds(padding)?;
-    let undefined = |_| GeometryUtilsError::Undefined;
     Ok((
-        clamp(coords.x, min, max).map_err(undefined)?,
-        clamp(coords.y, min, max).map_err(undefined)?,
+        clamp_ordered(coords.x, min, max)?,
+        clamp_ordered(coords.y, min, max)?,
     ))
 }
 
@@ -261,8 +276,31 @@ mod tests {
             Ok(((-0.0f64).to_bits(), 0))
         );
         assert_eq!(
-            get_clamped_coords_d_to_i(Vector2::new(f64::NAN, 1e300), 0),
-            Ok(vi(0, i32::MAX))
+            get_clamped_coords_d_to_i(Vector2::new(-1e300, 1e300), 0),
+            Ok(vi(-i32::MAX, i32::MAX))
+        );
+        // A NaN with distinct bounds breaks the strict weak ordering std::clamp requires.
+        for padding in [0, 1, i32::MAX as u32 - 1] {
+            assert_eq!(
+                get_clamped_coords_d(Vector2::new(f64::NAN, 1.0), padding),
+                Err(GeometryUtilsError::Undefined)
+            );
+            assert_eq!(
+                get_clamped_coords_d_to_i(Vector2::new(1.0, f64::NAN), padding),
+                Err(GeometryUtilsError::Undefined)
+            );
+        }
+        // Padding INT_MAX gives the equivalent bounds -0.0 and 0.0: defined, NaN unchanged, and
+        // quiet KiROUND turns it into 0.
+        let nan = f64::from_bits(0x7ff8_0000_0000_00aa);
+        let kept = get_clamped_coords_d(Vector2::new(nan, -1.0), i32::MAX as u32);
+        assert_eq!(
+            kept.map(|v| (v.x.to_bits(), v.y.to_bits())),
+            Ok((nan.to_bits(), (-0.0f64).to_bits()))
+        );
+        assert_eq!(
+            get_clamped_coords_d_to_i(Vector2::new(nan, 1.0), i32::MAX as u32),
+            Ok(vi(0, 0))
         );
         assert!(!is_vec2_safe_xy_d(Vector2::new(f64::from(i32::MAX), 0.0)));
         assert!(is_vec2_safe_xy_d(Vector2::new(2147483646.5, -2147483647.5)));

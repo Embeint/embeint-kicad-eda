@@ -7,10 +7,9 @@
 //! It mirrors `port/oracle/shims/kimath_include_geometry_p001.cpp`: `int` values and `size_t`
 //! values as JSON integers, `double` values as exact IEEE bits, one operation per request, and
 //! the same refusals: `invalid_input` "undefined geometry header operation" where the pinned
-//! evaluation is undefined (decided by the Rust port itself), and "outside the verified domain"
-//! for a three-point `SHAPE_ARC` outside the shape header adapter's verified domain (a harness
-//! bound of the oracle). Inside that domain the constructor is shape_arc.cpp's, which the Rust
-//! port defers to its owner.
+//! evaluation is undefined (decided by the Rust port itself). The three-point `SHAPE_ARC`
+//! constructor is shape_arc.cpp's, which the Rust port defers to its owner for every arc; the
+//! oracle refuses the arcs whose construction is undefined, after that deferral point.
 #![forbid(unsafe_code)]
 #![deny(
     clippy::unwrap_used,
@@ -39,10 +38,6 @@ use serde_json::{json, Map, Value};
 pub const UNIT: &str = "libs.kimath.include.geometry.application.pure.p001";
 
 const UNDEFINED: &str = "undefined geometry header operation";
-const OUTSIDE: &str = "outside the verified domain";
-
-/// The shape header adapter's verified domain of the three-point `SHAPE_ARC` constructor.
-const ARC_DOMAIN: i64 = 1 << 20;
 
 enum Error {
     Invalid(String),
@@ -187,32 +182,6 @@ fn dir_state(d: &Direction45) -> Value {
     json!({"dir": d.dir(), "deg90": d.is_90deg()})
 }
 
-fn within(v: i64) -> bool {
-    (-ARC_DOMAIN..=ARC_DOMAIN).contains(&v)
-}
-
-fn within_point(p: Vector2I) -> bool {
-    within(i64::from(p.x)) && within(i64::from(p.y))
-}
-
-/// The shape header adapter's arc domain (exact; every product fits `i128` for coordinates
-/// within 2^20).
-fn arc_domain(start: Vector2I, mid: Vector2I, end: Vector2I, width: i32) -> Result<(), String> {
-    if !within_point(start) || !within_point(mid) || !within_point(end) || !within(width.into()) {
-        return Err(OUTSIDE.into());
-    }
-    let w = |a: i32, b: i32| i128::from(a) - i128::from(b);
-    let (d1x, d1y) = (w(mid.x, start.x), w(mid.y, start.y));
-    let (d2x, d2y) = (w(end.x, mid.x), w(end.y, mid.y));
-    let n1 = d1x * d1x + d1y * d1y;
-    let n2 = d2x * d2x + d2y * d2y;
-    let cross = d1x * d2y - d1y * d2x;
-    if start == end || n1 == 0 || n2 == 0 || cross * cross * 64 < n1 * n2 {
-        return Err(OUTSIDE.into());
-    }
-    Ok(())
-}
-
 fn build_arc(spec: &Value) -> R<ShapeArc> {
     match text(spec, "ctor")? {
         "default" => {
@@ -225,7 +194,7 @@ fn build_arc(spec: &Value) -> R<ShapeArc> {
             let mid = read_point_i(get(spec, "mid")?)?;
             let end = read_point_i(get(spec, "end")?)?;
             let width = read_int(get(spec, "width")?)?;
-            arc_domain(start, mid, end, width)?;
+            // The constructor is shape_arc.cpp's: every three-point arc defers to its owner.
             Ok(ShapeArc::from_three_points(start, mid, end, width)?)
         }
         _ => Err("unknown arc constructor".into()),

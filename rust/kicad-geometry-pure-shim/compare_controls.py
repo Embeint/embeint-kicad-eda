@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Controls never enter the successful public corpus.
 
-Each control is a request the kimath geometry pure p001 header adapter refuses: an inline body
-whose pinned evaluation is undefined (classified by generate_cases.py's exact integer replay), a
-three-point SHAPE_ARC outside the shape header adapter's verified domain, or a malformed input.
+Each control is a request the kimath geometry pure p001 header adapter refuses: an evaluation
+that is undefined (an inline body, or the three-point SHAPE_ARC constructor, classified by
+generate_cases.py's exact replay), or a malformed input.
 The C++ adapter must refuse it with exactly the recorded error. Rust must give the same refusal, except
 for a control marked "rust_unported": there the undefined operation follows a call the Rust port
 defers, and Rust must defer to exactly that owner instead. With --rust only, the Rust side is

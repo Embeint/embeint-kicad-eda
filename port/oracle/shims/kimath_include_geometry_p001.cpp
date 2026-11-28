@@ -17,14 +17,15 @@
 // geometry header operation" when it would reach undefined behaviour: the negation of INT_MIN or
 // an int difference that overflows in the DIRECTION_45 constructors, an OppositeMap index outside
 // 0..8, a Mask shift count outside 0..31, an int overflow or std::abs( INT_MIN ) in Angle, Right
-// and Left, std::abs( INT_MIN ) in the int snapping templates, and a GetClampedCoords padding
-// above INT_MAX (std::clamp's lower bound would exceed its upper bound, [alg.clamp]). Every
-// other body is defined for every input.
+// and Left, std::abs( INT_MIN ) in the int snapping templates, a GetClampedCoords padding above
+// INT_MAX (std::clamp's lower bound would exceed its upper bound, [alg.clamp]) and a floating
+// GetClampedCoords coordinate that is NaN while the bounds differ (std::clamp's operator< must
+// then induce a strict weak ordering on the three values, which a NaN breaks, [alg.clamp]/2).
+// Every other body is defined for every input.
 //
-// The three-point SHAPE_ARC constructor (shape_arc.cpp) is not replayed here; as in the shape
-// header adapter, it is called only inside that adapter's verified domain (coordinates and
-// width within 2^20, distinct start and end, a mid-point whose angle has a sine of at least 1/8)
-// and refused as "outside the verified domain" otherwise.
+// The three-point SHAPE_ARC constructor (shape_arc.cpp) is the genuine body; guardArcConstructor
+// replays its evaluation and refuses, with the same message, exactly the arcs whose construction
+// is undefined. Every other three-point arc is constructed and compared.
 #include "registry.h"
 #include <geometry/approximation.h>
 #include <geometry/arc_chord_params.h>
@@ -33,6 +34,7 @@
 #include <geometry/corner_operations.h>
 #include <geometry/corner_strategy.h>
 #include <geometry/direction45.h>
+#include <geometry/eda_angle.h>
 #include <geometry/fracture_edge_index_utils.h>
 #include <geometry/geometry_predicates.h>
 #include <geometry/geometry_utils.h>
@@ -43,9 +45,13 @@
 #include <geometry/oval.h>
 #include <geometry/seg.h>
 #include <geometry/shape_arc.h>
+#include <math/util.h>
 #include <math/vector2d.h>
+#include <trigo.h>
+#include <algorithm>
 #include <bit>
 #include <climits>
+#include <cmath>
 #include <cstdint>
 #include <iomanip>
 #include <locale>
@@ -53,25 +59,16 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace
 {
 using oracle::JSON;
 constexpr const char* GEOMETRY_P001_UNIT = "libs.kimath.include.geometry.application.pure.p001";
 
-// The shape header adapter's verified domain of the three-point SHAPE_ARC constructor.
-constexpr int64_t ARC_DOMAIN = int64_t( 1 ) << 20;
-
-
 [[noreturn]] void undefined()
 {
     throw std::invalid_argument( "undefined geometry header operation" );
-}
-
-
-[[noreturn]] void outside()
-{
-    throw std::invalid_argument( "outside the verified domain" );
 }
 
 
@@ -278,31 +275,230 @@ JSON dirState( const DIRECTION_45& aDir )
 }
 
 
-bool within( int64_t aValue )
+// The constructor's vector with y negated: undefined for y == INT_MIN.
+void guardConstructVector( const VECTOR2I& aVec )
 {
-    return aValue >= -ARC_DOMAIN && aValue <= ARC_DOMAIN;
+    if( aVec.y == INT_MIN )
+        undefined();
 }
 
 
-bool within( const VECTOR2I& aPoint )
+// The int difference aB - aA of VECTOR2I operator-.
+VECTOR2I guardedDifference( const VECTOR2I& aB, const VECTOR2I& aA )
 {
-    return within( aPoint.x ) && within( aPoint.y );
+    const int64_t x = int64_t( aB.x ) - aA.x;
+    const int64_t y = int64_t( aB.y ) - aA.y;
+    if( x < INT_MIN || x > INT_MAX || y < INT_MIN || y > INT_MAX )
+        undefined();
+    return VECTOR2I( static_cast<int>( x ), static_cast<int>( y ) );
 }
 
 
-void arcDomain( const VECTOR2I& aStart, const VECTOR2I& aMid, const VECTOR2I& aEnd, int aWidth )
+// int64_t ( SEG::ecoord ) arithmetic that must not overflow.
+int64_t checkedAdd( int64_t aA, int64_t aB )
 {
-    if( !within( aStart ) || !within( aMid ) || !within( aEnd ) || !within( aWidth ) )
-        outside();
+    int64_t result;
 
-    const __int128 d1x = int64_t( aMid.x ) - aStart.x, d1y = int64_t( aMid.y ) - aStart.y;
-    const __int128 d2x = int64_t( aEnd.x ) - aMid.x, d2y = int64_t( aEnd.y ) - aMid.y;
-    const __int128 n1 = d1x * d1x + d1y * d1y;
-    const __int128 n2 = d2x * d2x + d2y * d2y;
-    const __int128 cross = d1x * d2y - d1y * d2x;
+    if( __builtin_add_overflow( aA, aB, &result ) )
+        undefined();
 
-    if( aStart == aEnd || n1 == 0 || n2 == 0 || cross * cross * 64 < n1 * n2 )
-        outside();
+    return result;
+}
+
+
+int64_t checkedSub( int64_t aA, int64_t aB )
+{
+    int64_t result;
+
+    if( __builtin_sub_overflow( aA, aB, &result ) )
+        undefined();
+
+    return result;
+}
+
+
+int64_t checkedMul( int64_t aA, int64_t aB )
+{
+    int64_t result;
+
+    if( __builtin_mul_overflow( aA, aB, &result ) )
+        undefined();
+
+    return result;
+}
+
+
+// seg.cpp's sgn.
+int signOf( int64_t aValue )
+{
+    return ( 0 < aValue ) - ( aValue < 0 );
+}
+
+
+// SHAPE_ARC::IsEffectiveLine for the stored points: SEG( start, mid ).ApproxCollinear( SEG( mid,
+// end ) ) with its default threshold 1 (SEG::mutualDistanceSquared), then the Dot of
+// mid - start and end - mid. Refuses the undefined operations on the way.
+bool guardedEffectiveLine( const VECTOR2I& aStart, const VECTOR2I& aMid, const VECTOR2I& aEnd )
+{
+    SEG a( aStart, aMid );
+    SEG b( aMid, aEnd );
+
+    // SquaredLength is ( A - B ).SquaredEuclideanNorm(), an int difference.
+    const int64_t lengthA = guardedDifference( a.A, a.B ).SquaredEuclideanNorm();
+    const int64_t lengthB = guardedDifference( b.A, b.B ).SquaredEuclideanNorm();
+
+    if( lengthA < lengthB )
+        std::swap( a, b );
+
+    const int64_t p = int64_t( a.A.y ) - a.B.y;
+    const int64_t q = int64_t( a.B.x ) - a.A.x;
+    const int64_t r = checkedSub( checkedMul( -p, a.A.x ), checkedMul( q, a.A.y ) );
+    const int64_t l = checkedAdd( checkedMul( p, p ), checkedMul( q, q ) );
+
+    // A point line: ApproxCollinear is false and the Dot is not evaluated.
+    if( l == 0 )
+        return false;
+
+    auto det = [&]( const VECTOR2I& aPoint )
+               {
+                   return checkedAdd( checkedAdd( checkedMul( p, aPoint.x ), checkedMul( q, aPoint.y ) ),
+                                      r );
+               };
+
+    const int64_t det1 = det( b.A );
+    const int64_t det2 = det( b.B );
+
+    // The genuine util.cpp rescale: its __int128 quotient converts to int64_t modulo 2^64.
+    const int64_t d1 = checkedMul( signOf( det1 ), rescale( det1, det1, l ) );
+    const int64_t d2 = checkedMul( signOf( det2 ), rescale( det2, det2, l ) );
+
+    // std::abs( INT64_MIN ) is undefined; the second abs runs only after the first passes.
+    if( d1 == INT64_MIN )
+        undefined();
+    if( std::abs( d1 ) > 1 )
+        return false;
+    if( d2 == INT64_MIN )
+        undefined();
+    if( std::abs( d2 ) > 1 )
+        return false;
+
+    const VECTOR2I u = guardedDifference( aMid, aStart );
+    const VECTOR2I v = guardedDifference( aEnd, aMid );
+
+    return checkedAdd( checkedMul( u.x, v.x ), checkedMul( u.y, v.y ) ) > 0;
+}
+
+
+// SHAPE_ARC::IsCCW: the int64_t cross product of end - mid and start - mid.
+bool guardedCCW( const VECTOR2I& aStart, const VECTOR2I& aMid, const VECTOR2I& aEnd )
+{
+    const VECTOR2L mid = aMid;
+    const VECTOR2L v1 = aEnd - mid;
+    const VECTOR2L v2 = aStart - mid;
+
+    return checkedSub( checkedMul( v1.x, v2.y ), checkedMul( v1.y, v2.x ) ) > 0;
+}
+
+
+// SHAPE_ARC( aStart, aMid, aEnd, aWidth ) (shape_arc.cpp) copies its arguments and runs
+// update_values. This replays that evaluation with the same expressions and types, on the
+// genuine CalcArcCenter, EDA_ANGLE and rescale, and refuses exactly the arcs whose construction
+// is undefined:
+// - CalcArcCenter (trigo.cpp) is defined for every int point: 64- and 128-bit differences and
+//   products, a division by a nonzero determinant, finite doubles, std::clamp of a finite value
+//   and KiROUND of the clamped value;
+// - the radius, GetStartAngle and the central angle's arithmetic use doubles of int values,
+//   int64_t differences and EDA_ANGLE of finite vectors;
+// - GetCentralAngle, for distinct start and end, evaluates IsEffectiveLine and, when that is
+//   false, IsCCW (guarded above);
+// - each quadrant point adds the rounded radius to an int centre coordinate;
+// - BOX2I::Compute subtracts the int minimum of the points from their int maximum.
+// The width is only stored. The floating values that select the quadrant points are therefore
+// the constructor's own.
+void guardArcConstructor( const VECTOR2I& aStart, const VECTOR2I& aMid, const VECTOR2I& aEnd )
+{
+    const VECTOR2I center = CalcArcCenter( aStart, aMid, aEnd );
+    const double   radius = std::sqrt( ( VECTOR2D( aStart ) - center ).SquaredEuclideanNorm() );
+    const VECTOR2L wideCenter = center;
+
+    EDA_ANGLE startAngle( aStart - wideCenter );
+    startAngle = startAngle.Normalize();
+
+    EDA_ANGLE centralAngle = ANGLE_360;
+
+    if( aStart != aEnd )
+    {
+        if( guardedEffectiveLine( aStart, aMid, aEnd ) )
+        {
+            centralAngle = ANGLE_0;
+        }
+        else
+        {
+            EDA_ANGLE angle = EDA_ANGLE( aEnd - wideCenter ) - EDA_ANGLE( aStart - wideCenter );
+
+            if( guardedCCW( aStart, aMid, aEnd ) )
+            {
+                if( angle < ANGLE_0 )
+                    angle += ANGLE_360;
+            }
+            else
+            {
+                if( angle > ANGLE_0 )
+                    angle -= ANGLE_360;
+            }
+
+            centralAngle = angle;
+        }
+    }
+
+    EDA_ANGLE endAngle = startAngle + centralAngle;
+
+    if( startAngle > endAngle )
+        std::swap( startAngle, endAngle );
+
+    const int quadStart = std::ceil( startAngle.AsDegrees() / 90.0 );
+    const int quadEnd = std::floor( endAngle.AsDegrees() / 90.0 );
+
+    std::vector<VECTOR2I> points = { aStart, aMid, aEnd };
+
+    if( radius < (double) INT_MAX / 2.0 )
+    {
+        const int rounded = KiROUND( radius );
+
+        for( int quad = quadStart; quad <= quadEnd; ++quad )
+        {
+            VECTOR2I offset;
+
+            switch( quad % 4 )
+            {
+            case 0:          offset = { rounded, 0 };  break;
+            case 1: case -3: offset = { 0, rounded };  break;
+            case 2: case -2: offset = { -rounded, 0 }; break;
+            default:         offset = { 0, -rounded }; break;
+            }
+
+            int x, y;
+
+            if( __builtin_add_overflow( center.x, offset.x, &x )
+                || __builtin_add_overflow( center.y, offset.y, &y ) )
+            {
+                undefined();
+            }
+
+            points.emplace_back( x, y );
+        }
+    }
+
+    VECTOR2I low = points[0];
+    VECTOR2I high = points[0];
+
+    for( const VECTOR2I& point : points )
+    {
+        low = VECTOR2I( std::min( low.x, point.x ), std::min( low.y, point.y ) );
+        high = VECTOR2I( std::max( high.x, point.x ), std::max( high.y, point.y ) );
+    }
+
+    guardedDifference( high, low );
 }
 
 
@@ -322,29 +518,10 @@ std::unique_ptr<SHAPE_ARC> buildArc( const JSON& aSpec )
         const VECTOR2I mid = readPointI( aSpec.at( "mid" ) );
         const VECTOR2I end = readPointI( aSpec.at( "end" ) );
         const int      width = readInt( aSpec.at( "width" ) );
-        arcDomain( start, mid, end, width );
+        guardArcConstructor( start, mid, end );
         return std::make_unique<SHAPE_ARC>( start, mid, end, width );
     }
     throw std::invalid_argument( "unknown arc constructor" );
-}
-
-
-// The constructor's vector with y negated: undefined for y == INT_MIN.
-void guardConstructVector( const VECTOR2I& aVec )
-{
-    if( aVec.y == INT_MIN )
-        undefined();
-}
-
-
-// The int difference aB - aA of VECTOR2I operator-.
-VECTOR2I guardedDifference( const VECTOR2I& aB, const VECTOR2I& aA )
-{
-    const int64_t x = int64_t( aB.x ) - aA.x;
-    const int64_t y = int64_t( aB.y ) - aA.y;
-    if( x < INT_MIN || x > INT_MAX || y < INT_MIN || y > INT_MAX )
-        undefined();
-    return VECTOR2I( static_cast<int>( x ), static_cast<int>( y ) );
 }
 
 
@@ -635,6 +812,16 @@ JSON runClamped( const JSON& aInput )
 
     const VECTOR2D coords = readPointD( aInput.at( "coords" ) );
     guardPadding();
+
+    // std::clamp<double>( v, min, max ) requires operator< to induce a strict weak ordering on
+    // the three values ([alg.clamp]/2): a NaN is equivalent to both bounds, so it breaks the
+    // transitivity of equivalence unless the bounds are equivalent (padding INT_MAX gives -0.0
+    // and 0.0).
+    const double max = static_cast<double>( INT_MAX ) - padding;
+    const double min = -max;
+
+    if( ( std::isnan( coords.x ) || std::isnan( coords.y ) ) && min < max )
+        undefined();
 
     if( retFloating )
     {
