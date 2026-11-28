@@ -127,7 +127,7 @@ PENDING with no reviewer. Modules, measured results, commands and gaps are in
 Manual dispatch with `frozen_reference: true`:
 
 1. Builds the pinned measurement image twice with the reference tools at `33535308…`
-   (`qualify.sh --rebuild-check`, as rust-port.yml's resistor migration does).
+   (`qualify.sh --rebuild-check`), whose candidate-1 lock the frozen locks name.
 2. Seals the exact unit source `8ef0c0e…`, from the retained bundle when its URL and SHA-256
    are given, otherwise from a fresh Linux export.
 3. Builds the oracle from that snapshot inside the image at the locked `/work/kicad-port`

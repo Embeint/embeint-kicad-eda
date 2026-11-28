@@ -206,11 +206,14 @@ jobs:
         with:
           fetch-depth: 0
           path: source
-      # The measurement image is the candidate locked at the migrated revision itself:
+      # The measurement image is the candidate locked at the dispatched revision itself:
       # its lock must contain the packages the current oracle needs (the font
       # libraries since candidate-2; the compiler, libm, runtime and Rust identity
       # files are those of candidate-1 used by the original migration). The image
-      # remains an unqualified candidate.
+      # remains an unqualified candidate. The migration itself was applied once
+      # (cee4373220): migrate_resistor_reference.py still requires the candidate-1
+      # lock and the pre-migration golden, so on later revisions this job fails
+      # closed before blessing anything.
       - name: Build and verify the locked measurement image twice
         env:
           ORACLE_JOBS: "2"
