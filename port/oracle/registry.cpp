@@ -35,6 +35,7 @@ void RegisterVector2Wx( REGISTRY& aRegistry );
 void RegisterPoissonDisk( REGISTRY& aRegistry );
 void RegisterKiplatformPolicy( REGISTRY& aRegistry );
 void RegisterKiplatformUnixP001( REGISTRY& aRegistry );
+void RegisterKiplatformIncludeP001( REGISTRY& aRegistry );
 void RegisterCoreWxStlCompat( REGISTRY& aRegistry );
 void RegisterCoreAppIncludeP001( REGISTRY& aRegistry );
 void RegisterSexprInclude( REGISTRY& aRegistry );
@@ -96,6 +97,7 @@ REGISTRY MakeRegistry()
     RegisterClipper2IncludeP002( registry );
     RegisterSexprSource( registry );
     RegisterTrigoSource( registry );
+    RegisterKiplatformIncludeP001( registry );
     return registry;
 }
 
