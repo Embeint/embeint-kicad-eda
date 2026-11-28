@@ -383,7 +383,7 @@ fn shape_base_defaults() -> ShapeResult<()> {
     assert_eq!(out.len(), 1);
     assert!(b.get_cached_bbox().is_none());
     let mut buffer = ();
-    b.transform_to_polygon(&mut buffer, 5, 0_i32);
+    b.transform_to_polygon(&mut buffer, 5, crate::approximation::ErrorLoc::ErrorInside);
     Ok(())
 }
 
