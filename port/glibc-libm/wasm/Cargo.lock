@@ -11,6 +11,7 @@ name = "kicad-math"
 version = "0.1.0"
 dependencies = [
  "kicad-boost-random",
+ "kicad-rtree-cow-packed",
 ]
 
 [[package]]
@@ -19,3 +20,22 @@ version = "0.0.0"
 dependencies = [
  "kicad-math",
 ]
+
+[[package]]
+name = "kicad-rtree"
+version = "0.1.0"
+dependencies = [
+ "kicad-rtree-node",
+]
+
+[[package]]
+name = "kicad-rtree-cow-packed"
+version = "0.1.0"
+dependencies = [
+ "kicad-rtree",
+ "kicad-rtree-node",
+]
+
+[[package]]
+name = "kicad-rtree-node"
+version = "0.1.0"
