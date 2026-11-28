@@ -7,7 +7,10 @@
     clippy::unreachable
 )]
 
-use kicad_math::math_util::{self, MathUtilError, UNIT};
+use kicad_math::math_util::{
+    self, FormatPiece, LogArgument, LogEvent, MathUtilError, RecordingLog, UNIT, WX_LOG_DEBUG,
+    WX_LOG_MAX,
+};
 use serde_json::{json, Value};
 use std::io::{self, BufRead, Write};
 
@@ -57,18 +60,72 @@ fn text<'a>(input: &'a Value, name: &str) -> Result<&'a str, String> {
         .and_then(Value::as_str)
         .ok_or_else(|| format!("expected string: {name}"))
 }
-fn bits(input: &Value) -> Result<f64, String> {
-    let text = text(input, "bits")?;
+fn bits(input: &Value, name: &str) -> Result<f64, String> {
+    let text = text(input, name)?;
     if text.len() != 16
         || !text
             .bytes()
             .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
     {
-        return Err("invalid hex: bits".into());
+        return Err(format!("invalid hex: {name}"));
     }
     u64::from_str_radix(text, 16)
         .map(f64::from_bits)
-        .map_err(|_| "invalid hex: bits".into())
+        .map_err(|_| format!("invalid hex: {name}"))
+}
+/// The adapter's closed format grammar: printable ASCII and newline text, `%%`, `%lld`, `%f`.
+fn format_pieces(format: &str) -> Result<Vec<FormatPiece<'_>>, String> {
+    if !format
+        .bytes()
+        .all(|b| (0x20..=0x7e).contains(&b) || b == b'\n')
+    {
+        return Err("unsupported format".into());
+    }
+    math_util::parse_format(format).ok_or_else(|| "unsupported format".into())
+}
+/// `args`: up to four `{"lld": i64}` or `{"f": hex bits}` objects, as the oracle builds them.
+fn log_args(input: &Value) -> Result<Vec<LogArgument<'static>>, String> {
+    let list = input
+        .get("args")
+        .and_then(Value::as_array)
+        .filter(|list| list.len() <= 4)
+        .ok_or("invalid args")?;
+    list.iter()
+        .map(|arg| match arg.as_object() {
+            Some(object) if object.len() == 1 && object.contains_key("lld") => {
+                signed(arg, "lld", i64::MIN, i64::MAX).map(LogArgument::Signed)
+            }
+            Some(object) if object.len() == 1 && object.contains_key("f") => {
+                bits(arg, "f").map(LogArgument::Float)
+            }
+            _ => Err("invalid args".into()),
+        })
+        .collect()
+}
+/// Every conversion has an argument of its type; excess arguments are ignored.
+fn args_match(pieces: &[FormatPiece<'_>], args: &[LogArgument<'_>]) -> bool {
+    let mut next = args.iter();
+    pieces.iter().all(|piece| match piece {
+        FormatPiece::LongLong => matches!(next.next(), Some(LogArgument::Signed(_))),
+        FormatPiece::Double => matches!(next.next(), Some(LogArgument::Float(_))),
+        FormatPiece::Literal(_) | FormatPiece::Percent => true,
+    })
+}
+/// The recorded wx host calls, as the oracle reports them.
+fn log_json(events: &[LogEvent]) -> Value {
+    Value::Array(
+        events
+            .iter()
+            .map(|event| match event {
+                LogEvent::Assert(call) => json!({"call": "wxOnAssert", "line": call.line,
+                    "function": call.function, "condition": call.condition,
+                    "message": call.message}),
+                LogEvent::Log(call) => json!({"call": "wxLog", "level": call.level,
+                    "message": call.message, "line": call.line, "function": call.function,
+                    "component": call.component}),
+            })
+            .collect(),
+    )
 }
 fn run(input: &Value) -> Result<Value, Error> {
     let op = text(input, "op")?;
@@ -94,17 +151,30 @@ fn run(input: &Value) -> Result<Value, Error> {
             Ok(json!({"value": math_util::rescale_i64_int128(n, v, d)?}))
         }
         "log_debug" => {
-            keys(input, &["op", "format"])?;
-            math_util::kimath_log_debug(text(input, "format")?, &[])?;
-            // A void hook may return only after the actual host effect completes.
-            Ok(Value::Null)
+            keys(input, &["op", "format", "args", "log_level", "logging"])?;
+            let format = text(input, "format")?;
+            let pieces = format_pieces(format)?;
+            let args = log_args(input)?;
+            let level = signed(input, "log_level", 0, WX_LOG_MAX.into())? as u32;
+            let logging = input
+                .get("logging")
+                .and_then(Value::as_bool)
+                .ok_or_else(|| Error::Invalid("expected boolean: logging".into()))?;
+            // Formatting happens only past both level queries; a mismatch is undefined there.
+            if logging && level >= WX_LOG_DEBUG && !args_match(&pieces, &args) {
+                return Err(Error::Invalid("undefined format arguments".into()));
+            }
+            let log = RecordingLog::new(level, logging);
+            math_util::kimath_log_debug(&log, format, &args)?;
+            Ok(json!({"kimath_log": log_json(&log.events())}))
         }
         "log_overflow" => {
             keys(input, &["op", "bits", "type_name"])?;
-            let value = bits(input)?;
-            math_util::kimath_log_overflow(value, text(input, "type_name")?)?;
-            // A void hook may return only after the actual host effect completes.
-            Ok(Value::Null)
+            let value = bits(input, "bits")?;
+            let type_name = text(input, "type_name")?;
+            let log = RecordingLog::default();
+            math_util::kimath_log_overflow(&log, value, type_name)?;
+            Ok(json!({"kimath_log": log_json(&log.events())}))
         }
         _ => Err(Error::Invalid("unknown operation".into())),
     }
@@ -160,6 +230,7 @@ fn dispatch(line: &str) -> Value {
             "invalid_input",
             match error {
                 MathUtilError::ZeroDenominator => "zero denominator",
+                MathUtilError::UndefinedFormat => "undefined format arguments",
                 _ => "intermediate overflow",
             },
         ),
@@ -217,7 +288,7 @@ mod tests {
                 counts[1] += 1;
             }
         }
-        assert_eq!(counts, [10656, 0, 0]);
+        assert_eq!(counts, [10656 + 949, 0, 0]);
         let controls = include_str!("../../../port/oracle/fixtures/math-util-controls.jsonl");
         let mut refusals = 0;
         let mut deferrals = 0;
@@ -231,7 +302,7 @@ mod tests {
                 refusals += 1;
             }
         }
-        assert_eq!((refusals, deferrals), (411, 7));
+        assert_eq!((refusals, deferrals), (453, 0));
         Ok(())
     }
 }
