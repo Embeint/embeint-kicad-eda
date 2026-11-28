@@ -196,3 +196,19 @@ HarfBuzz (`libharfbuzz-dev`; MIT-style "Old MIT") and fontconfig headers (`libfo
 MIT-style). These are oracle-only build dependencies of the reference program, like
 wxWidgets and Boost there: nothing of them is vendored, linked into a Rust crate or shipped.
 `port/findings/font-header-p001-port.md` records why the oracle needs them.
+
+## Linux kiplatform bodies and their oracle closure
+
+`rust/kicad-kiplatform-unix` adds no external crate: it depends only on the workspace's
+`kicad-kiplatform` and `kicad-map-helpers`, so the portable closure is unchanged. Its shim reuses
+`kicad-difftest` and `serde_json`, already recorded.
+
+The C++ oracle's `kiplatform-unix-ui-reference` archive (unit
+`libs.kiplatform.os.unix.application.ui.p001`) compiles the pinned bodies against the
+distribution GLib/GIO and GTK 3 (`libglib2.0-dev`, `libgtk-3-dev`; LGPL-2.1-or-later),
+libsecret (`libsecret-1-dev`; LGPL-2.1-or-later), poppler-glib (`libpoppler-glib-dev`;
+GPL-2.0-only OR GPL-3.0-only) and cairo (LGPL-2.1-only OR MPL-1.1) headers. Every call into
+libsecret, poppler, cairo and GTK printing is an oracle fake, so those libraries are not linked;
+GLib, GObject, GIO and GTK are linked for the real functions an unarmed fake forwards to. All are
+oracle-only build dependencies, like wxWidgets: nothing is vendored, linked into a Rust crate or
+shipped. `port/findings/kiplatform-unix-ui-p001-port.md` records why the oracle needs them.
