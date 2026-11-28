@@ -1,14 +1,17 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 # Reference environment (candidate)
 
-**Status: candidate-2, unqualified.** This directory prepares one reproducible
+**Status: candidate-3, unqualified.** This directory prepares one reproducible
 Linux x86-64 environment in which the unchanged pinned KiCad C++ oracle and the
 Rust port can be compared bit for bit and byte for byte. It is a recipe, a lock
 and a validation entrypoint for independent review. It is **not** the accepted
 oracle environment. candidate-2 is candidate-1 plus the font development packages
-the shared oracle needs since unit `include.font.application.ui.p001` (see
-[candidate-2](#candidate-2-font-development-packages)); every candidate-1 package,
-the libm record, Rust and the toolchain identity files are unchanged. Official
+the shared oracle needs since unit `include.font.application.ui.p001`; candidate-3
+is candidate-2 plus the GLib, GTK 3, libsecret and poppler-glib development packages
+its `kiplatform-unix-ui-reference` archive needs since unit
+`libs.kiplatform.os.unix.application.ui.p001`. Each resolution was purely additive:
+every earlier package, the libm record, Rust and the toolchain identity files are
+unchanged. Official
 `rust` now includes the separately reviewed resistor reference migration from
 [PR #56](https://github.com/Embeint/embeint-kicad-eda/pull/56), including its golden,
 evidence and hosted reference-step changes. Candidate images were built natively
@@ -39,20 +42,22 @@ these inputs and makes the libm dispatch explicit and checkable.
 
 All values are resolved by `tools/lock_inputs.py` from primary sources and
 recorded in [inputs.lock.json](inputs.lock.json) (SHA-256
-`df49786f720c16bf07a05d49cc5db60a5d67905bda66fba21350a193483d4381` at this
-revision; candidate-1 was `c4d1c9c0aca71985f07bd36ff759301daa88a43e4a17335d31e4446bbd6101d2`);
-[candidate.toml](candidate.toml) (SHA-256 `ad363f61…e2368`) is the human-readable candidate
+`520c097b1b0f84b38d06e74a6108ce7e41f1f3c22195a37fa00552d5821bf9fb` at this
+revision; candidate-2 was `df49786f720c16bf07a05d49cc5db60a5d67905bda66fba21350a193483d4381`,
+candidate-1 `c4d1c9c0aca71985f07bd36ff759301daa88a43e4a17335d31e4446bbd6101d2`);
+[candidate.toml](candidate.toml) (SHA-256 `4edaf6e1…86a1`) is the human-readable candidate
 selection, awaiting independent review.
 
 | Input | Pin | Source |
 | --- | --- | --- |
 | Base image | `docker.io/library/ubuntu:noble-20261110.1`, index `sha256:882e1e56…1560`, linux/amd64 manifest `sha256:9a04f13b3f80ef056361e30868593b1cfd2279fe19e4081cb93a90bf56819d6a`, config `sha256:2b147973…f0e4`, single layer `sha256:8e8df940…9050` (Ubuntu 24.04.5) | Docker Official Image, built from `git.launchpad.net/cloud-images/+oci/ubuntu-base` revision `3160ed726dafb8da2af14f4a2b3420c9e9886fb6` |
-| Packages | snapshot `20261120T000000Z` of `noble`, `noble-updates`, `noble-security` (main, universe); 288 locked `.deb` files on the base's 92 packages: 286 new packages and upgrades of `libc6` and `libsystemd0` (378 installed in total; candidate-1: 249 files, 339 installed) | `snapshot.ubuntu.com`; InRelease signed by the Ubuntu Archive Automatic Signing Key (2018), `F6ECB3762474EDA9D21B7022871920D1991BC93C` |
+| Packages | snapshot `20261120T000000Z` of `noble`, `noble-updates`, `noble-security` (main, universe); 372 locked `.deb` files on the base's 92 packages: 370 new packages and upgrades of `libc6` and `libsystemd0` (462 installed in total; candidate-2: 288 files, 378 installed; candidate-1: 249 files, 339 installed) | `snapshot.ubuntu.com`; InRelease signed by the Ubuntu Archive Automatic Signing Key (2018), `F6ECB3762474EDA9D21B7022871920D1991BC93C` |
 | C/C++ compiler | GCC `13.3.0-6ubuntu2~24.04.1` (`gcc`/`g++` 4:13.2.0-7ubuntu1 select it), binutils `2.42-4ubuntu2.10` | Ubuntu |
 | C library, libm | glibc `2.39-0ubuntu8.12` (upgraded from the base's 8.9 because `libc6-dev` requires the exact runtime version), `libc6-dbg` of the same build | Ubuntu |
 | C++ runtime | `libstdc++6 14.2.0-4ubuntu2~24.04.1`, `libstdc++.so.6.0.33` (GCC 14 family), headers `libstdc++-13-dev` | Ubuntu (the base image already ships this runtime) |
 | Build tools | CMake `3.28.3-1build7`, Ninja `1.11.1-2`, Python `3.12.3-0ubuntu2.1`, Git `1:2.43.0-1ubuntu7.4`, rsync `3.2.7-1ubuntu1.5`, wxWidgets `3.2.4+dfsg-4build1`, Boost `1.83.0.1ubuntu2` | Ubuntu |
 | Font libraries (candidate-2) | FreeType `2.13.2+dfsg-1ubuntu0.2`, HarfBuzz `8.3.0-2build2`, fontconfig `2.15.0-1.1ubuntu2` development packages, `pkg-config` `1.8.1-2build1` (pkgconf) | Ubuntu |
+| Platform libraries (candidate-3) | GLib `2.80.0-6ubuntu3.10`, GTK 3 `3.24.41-4ubuntu1.3`, libsecret `0.21.4-1build3` and poppler-glib `24.02.0-1ubuntu9.11` development packages (with cairo `1.18.0-3build1`); libsecret, poppler and cairo contribute headers only, every call into them being an oracle fake | Ubuntu |
 | Rust | 1.99.1 (`channel-rust-1.99.1.toml` dated 2026-10-15, SHA-256 `fb152be8…f463`): `rustc`, `cargo`, `rust-std` for `x86_64-unknown-linux-gnu` and `wasm32-unknown-unknown` | `static.rust-lang.org`; manifest signed by the Rust release key `108F66205EAEB0AAA8DD5E1C85AB96E6FA1BE5FE` |
 
 The LWG 4084 change is in the compiled runtime (`__num_base::_S_format_float` in
@@ -734,7 +739,7 @@ matched exactly. The committed artifact validator also accepted the retained pro
 files. That run did not request corpus difftests; it is not full qualification.
 
 Publication is a separate, authorised step: tag the locally built image as
-`registry.taileef599.ts.net/embeint-kicad/rust-port-reference:noble-20261110.1-gcc13.3-candidate-2`
+`registry.taileef599.ts.net/embeint-kicad/rust-port-reference:noble-20261110.1-gcc13.3-candidate-3`
 (the tag `candidate.toml` names), push it, and record the pushed digest; consumers must then pin
 `…/rust-port-reference@sha256:<digest>`. No tool here pushes.
 
@@ -815,7 +820,8 @@ GCC runtime libraries with the GCC Runtime Library Exception), glibc
 (LGPL-2.1-or-later), wxWidgets (wxWindows Library Licence), Boost (BSL-1.0), CMake
 (BSD-3-Clause), Ninja (Apache-2.0), Python (PSF-2.0), Git (GPL-2.0-only), rsync
 (GPL-3.0-or-later), FreeType (FreeType License or GPL-2.0, as recorded in `port/DEPENDENCIES.md`), HarfBuzz (Old MIT),
-fontconfig (MIT-style), pkgconf (ISC) and their dependencies, plus the Rust toolchain (MIT OR Apache-2.0). All are compatible
+fontconfig (MIT-style), pkgconf (ISC), GLib and GTK 3 (LGPL-2.1-or-later), libsecret (LGPL-2.1-or-later),
+poppler (GPL-2.0-only OR GPL-3.0-only), cairo (LGPL-2.1-only OR MPL-1.1) and their dependencies, plus the Rust toolchain (MIT OR Apache-2.0). All are compatible
 with building and running the GPL-3.0-or-later port and oracle. Each package keeps
 `/usr/share/doc/<package>/copyright` (the base image excludes other docs). Any
 distribution of the image, including to the internal registry for wider use, must
