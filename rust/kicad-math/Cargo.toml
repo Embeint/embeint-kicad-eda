@@ -12,3 +12,4 @@ publish.workspace = true
 [dependencies]
 kicad-boost-random = { path = "../kicad-boost-random" }
 kicad-rtree-cow-packed = { path = "../kicad-rtree-cow-packed" }
+kicad-rtree-node = { path = "../kicad-rtree-node" }

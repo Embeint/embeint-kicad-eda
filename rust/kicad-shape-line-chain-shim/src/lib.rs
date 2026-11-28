@@ -36,8 +36,11 @@ use serde_json::{json, Map, Value};
 const UNDEFINED: &str = "undefined p004 operation";
 const OUTSIDE: &str = "outside the verified domain";
 const DOMAIN: i64 = 1 << 20;
-const TREE_DOMAIN: i64 = 1 << 29;
-const RESERVE_DOMAIN: u64 = 1 << 20;
+/// `ReservePoints` sizes above this (and up to `max_size()`) are defined allocations whose
+/// success depends on the host: a harness limit, refused as [`BUDGET`].
+const RESERVE_BUDGET: u64 = 1 << 22;
+const BUDGET: &str = "harness allocation budget exceeded";
+const LISTS: i64 = 2;
 const CHAINS: i64 = 4;
 const INDICES: i64 = 3;
 const ITEMS: usize = 64;
@@ -217,16 +220,6 @@ fn collide_shape_domain(
     shape_domain(shape)?;
     shape_domain(other)
 }
-fn tree_domain(b: &Box2I) -> Result<()> {
-    if !within(b.x().into(), TREE_DOMAIN)
-        || !within(b.y().into(), TREE_DOMAIN)
-        || !within(b.right()?.into(), TREE_DOMAIN)
-        || !within(b.bottom()?.into(), TREE_DOMAIN)
-    {
-        return outside();
-    }
-    Ok(())
-}
 
 // Line chains -------------------------------------------------------------------------------------
 
@@ -387,8 +380,8 @@ fn chain_call(chains: &mut [ShapeLineChain], step: &Value) -> Result<Value> {
         "reserve_points" => {
             keys(step, &["call", "a", "size"], &[])?;
             let size = u64_field(step, "size")?;
-            if size > RESERVE_DOMAIN && size <= POINTS_MAX_SIZE {
-                return outside();
+            if size > RESERVE_BUDGET && size <= POINTS_MAX_SIZE {
+                return Err(BUDGET.into());
             }
             match c.reserve_points(size) {
                 Ok(()) => Ok(Value::Null),
@@ -788,9 +781,8 @@ fn index_call<'a>(
         "add" | "remove" => {
             keys(step, &["call", "a", "item"], &[])?;
             let item = read_item(step, "item", items)?;
-            let b = item_box(item, layer)?;
+            item_box(item, layer)?;
             if name == "add" {
-                tree_domain(&b)?;
                 index.add(forest, item, &mut on_assert)?;
             } else {
                 index.remove(forest, item, &mut on_assert)?;
@@ -829,13 +821,7 @@ fn index_call<'a>(
                     Ok(json!(visits))
                 }
                 _ => {
-                    // Reindex adds every item again under its current box.
-                    let mut it = index.begin(forest)?;
-                    let end = index.end(forest);
-                    while it != end {
-                        tree_domain(&item_box(*it.current(), layer)?)?;
-                        it.advance().map_err(ShapeIndexError::from)?;
-                    }
+                    // The tree reports an undefined insertion itself.
                     index.reindex(forest, &mut on_assert)?;
                     Ok(Value::Null)
                 }
@@ -889,16 +875,15 @@ fn index_call<'a>(
     }
 }
 
-/// `BOX2I( pos, VECTOR2L( size ) )` for a tree, with its components within 2^29.
+/// `BOX2I( pos, VECTOR2L( size ) )` for a tree; the tree reports an undefined insertion or bulk
+/// load itself.
 fn tree_box(v: &Value) -> Result<Box2I> {
     let pos = point(v, "pos")?;
     let size = point(v, "size")?;
-    if !within_point(pos, TREE_DOMAIN) || !within_point(size, TREE_DOMAIN) {
-        return outside();
-    }
-    let b = Box2I::new(pos, Vector2::new(i64::from(size.x), i64::from(size.y)))?;
-    tree_domain(&b)?;
-    Ok(b)
+    Ok(Box2I::new(
+        pos,
+        Vector2::new(i64::from(size.x), i64::from(size.y)),
+    )?)
 }
 
 fn run_index(v: &Value) -> Result<Value> {
@@ -1104,13 +1089,87 @@ fn list_call<'a>(list: &mut List<'a>, items: &'a [Item], step: &Value) -> Result
     }
 }
 
+/// The adapter's `compare` call: `operator==` and `operator!=` of two iterators, possibly of
+/// different lists (see the adapter for the request shape).
+fn compare_iterators<'a>(lists: &[List<'a>], step: &Value) -> Result<Value> {
+    keys(step, &["call", "kind", "left", "right"], &[])?;
+    let kind = text(step, "kind")?;
+    let side = |name: &str, query: bool| -> Result<(&List<'a>, &str, i32)> {
+        let spec = field(step, name)?;
+        if query {
+            keys(spec, &["l", "at"], &[])?;
+        } else {
+            keys(spec, &["l", "at"], &["inc"])?;
+        }
+        let list = &lists[slot(spec, "l", LISTS)?];
+        let at = text(spec, "at")?;
+        let inc = if spec.get("inc").is_some() {
+            int(spec, "inc")?
+        } else {
+            0
+        };
+        if inc < 0 || inc > STEPS as i32 {
+            return Err("invalid increment".into());
+        }
+        Ok((list, at, inc))
+    };
+    match kind {
+        "iterator" => {
+            let make = |name: &str| -> Result<ListIterator<'_, 'a, Option<ItemRef<'a>>>> {
+                let (list, at, inc) = side(name, false)?;
+                let mut it = match at {
+                    "begin" => list.begin(),
+                    "end" => list.end(),
+                    "null" => ListIterator::null(),
+                    _ => return Err("unknown position".into()),
+                };
+                for _ in 0..inc {
+                    it.increment()?;
+                }
+                Ok(it)
+            };
+            let left = make("left")?;
+            let right = make("right")?;
+            Ok(json!({"eq": left == right, "ne": left != right}))
+        }
+        "query" => {
+            let make = |name: &str| -> Result<QueryIterator<'_, 'a, Option<ItemRef<'a>>>> {
+                let (list, at, _) = side(name, true)?;
+                Ok(match at {
+                    "begin" => list.qbegin(None, 0, false)?,
+                    "end" => list.qend()?,
+                    "null" => QueryIterator::null(),
+                    _ => return Err("unknown position".into()),
+                })
+            };
+            let left = make("left")?;
+            let right = make("right")?;
+            Ok(json!({"eq": left == right, "ne": left != right}))
+        }
+        _ => Err("unknown kind".into()),
+    }
+}
+
 fn run_list(v: &Value) -> Result<Value> {
     keys(v, &["op", "items", "steps"], &[])?;
     let items = read_items(v)?;
-    let mut list = List::new();
+    let mut lists = [List::new(), List::new()];
     let mut replies = Vec::new();
     for step in array(v, "steps", STEPS)? {
-        replies.push(list_call(&mut list, &items, step)?);
+        if text(step, "call")? == "compare" {
+            replies.push(compare_iterators(&lists, step)?);
+            continue;
+        }
+        // Every other call acts on list "l" (0 when absent).
+        let mut call = step.clone();
+        let mut l = 0;
+        if step.get("l").is_some() {
+            l = slot(step, "l", LISTS)?;
+            if let Value::Object(map) = &mut call {
+                map.remove("l");
+            }
+        }
+        replies.push(list_call(&mut lists[l], &items, &call)?);
     }
     Ok(json!({"replies": replies}))
 }

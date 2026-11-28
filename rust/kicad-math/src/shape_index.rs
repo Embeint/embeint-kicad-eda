@@ -23,6 +23,7 @@ use core::marker::PhantomData;
 use kicad_rtree_cow_packed::{
     BulkEntry, CowCursor, CowForest, Error as TreeError, NodeData, TreeId,
 };
+use kicad_rtree_node::RtreeError;
 
 use crate::box2::Box2I;
 use crate::seg::Seg;
@@ -106,8 +107,12 @@ impl From<crate::vector::VectorDomainError> for ShapeIndexError {
 impl From<TreeError> for ShapeIndexError {
     fn from(error: TreeError) -> Self {
         match error {
-            // The reference evaluation is undefined (a signed overflow, a floating conversion).
-            TreeError::Overflow | TreeError::Conversion => Self::Undefined,
+            // The reference evaluation is undefined: a signed overflow in the tree (a split
+            // extent) or in a node's area arithmetic (ChildArea, ChildEnlargement), or a floating
+            // conversion out of range (BulkLoad's Hilbert coordinates).
+            TreeError::Overflow | TreeError::Conversion | TreeError::Node(RtreeError::Overflow) => {
+                Self::Undefined
+            }
             TreeError::Unported { upstream, unit } => Self::Unported { upstream, unit },
             other => Self::Tree(other),
         }

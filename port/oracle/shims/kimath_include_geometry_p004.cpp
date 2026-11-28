@@ -11,19 +11,26 @@
 // dereference or increment of an end or null iterator, an out-of-range floating-to-integer
 // conversion, copying an indeterminate value).
 //
-// Calls into bodies this unit does not port and whose undefined domain is not replayed here are
-// accepted only inside a verified domain, and anything else is refused as "outside the verified
-// domain" before the call:
+// The accepted KIRTREE::COW_RTREE is guarded exactly: before an insertion the guard walks the
+// genuine tree read-only along the path insertSimple takes and evaluates ChildEnlargement's
+// int64_t products and difference and, at a full leaf, simpleSplit's ELEMTYPE extents; Reindex
+// is replayed on a scratch tree; BulkLoad's Hilbert coordinates are checked before their
+// floating-to-integer conversion.
+//
+// Calls into out-of-line bodies the Rust port defers (it stops before them) and whose undefined
+// domain is not replayed here are accepted only inside a verified domain, and anything else is
+// refused as "outside the verified domain" before the call:
 // - shape_line_chain.cpp on chains without arcs (every chain this adapter builds): Segment with
 //   an index its wxCHECK accepts, Remove with an index of at least -PointCount(), and
 //   SquaredDistance with every point and the query point within 2^20;
 // - shape_collisions.cpp (SHAPE::Collide( const SHAPE* )): a circle against a circle, both
 //   within 2^20, clearance in [0, 2^20]; SHAPE_CIRCLE and SHAPE_LINE_CHAIN Collide( SEG ) or
-//   ( VECTOR2I ) with every coordinate, radius, width and clearance within 2^20;
-// - KIRTREE::COW_RTREE insertion and bulk loading (its split extents and Hilbert scaling): every
-//   inserted box corner within 2^29;
-// - ReservePoints: sizes up to 2^20 (larger allocations depend on the host) and sizes above
-//   std::vector<VECTOR2I>::max_size(), which throw std::length_error before allocating.
+//   ( VECTOR2I ) with every coordinate, radius, width and clearance within 2^20.
+//
+// One harness limit is not a claim about the reference: ReservePoints above 2^22 points and up to
+// std::vector<VECTOR2I>::max_size() is a defined allocation whose success depends on the host, so
+// it is refused as "harness allocation budget exceeded". Sizes above max_size() throw
+// std::length_error before allocating and are compared.
 //
 // A failed wxCHECK in shapeFunctor, boundingBox or collide calls wxOnAssert; the calls are
 // recorded around the process's assertion handler and returned with the reply.
@@ -42,7 +49,9 @@
 #include <climits>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -52,10 +61,10 @@ namespace
 using oracle::JSON;
 constexpr const char* P004_UNIT = "libs.kimath.include.geometry.application.ui.p004";
 constexpr int64_t     DOMAIN = int64_t( 1 ) << 20;
-constexpr int64_t     TREE_DOMAIN = int64_t( 1 ) << 29;
-constexpr uint64_t    RESERVE_DOMAIN = uint64_t( 1 ) << 20;
+constexpr uint64_t    RESERVE_BUDGET = uint64_t( 1 ) << 22;
 constexpr int         CHAINS = 4;
 constexpr int         INDICES = 3;
+constexpr int         LISTS = 2;
 constexpr size_t      ITEMS = 64;
 constexpr size_t      STEPS = 256;
 
@@ -68,6 +77,13 @@ constexpr size_t      STEPS = 256;
 [[noreturn]] void outside()
 {
     throw std::invalid_argument( "outside the verified domain" );
+}
+
+
+// A host resource limit of this harness, not a property of the reference input.
+[[noreturn]] void budget()
+{
+    throw std::invalid_argument( "harness allocation budget exceeded" );
 }
 
 
@@ -359,14 +375,6 @@ void collideShapeDomain( const SHAPE& aShape, const SHAPE* aOther, int aClearanc
 }
 
 
-// A tree box: GetX, GetY, GetRight, GetBottom within 2^29.
-void treeDomain( const BOX2I& aBox )
-{
-    if( !within( aBox.GetX(), TREE_DOMAIN ) || !within( aBox.GetY(), TREE_DOMAIN )
-        || !within( aBox.GetRight(), TREE_DOMAIN ) || !within( aBox.GetBottom(), TREE_DOMAIN ) )
-        outside();
-}
-
 
 // ---------------------------------------------------------------------------------------------
 // Line chains.
@@ -566,8 +574,8 @@ JSON chainCall( std::array<std::unique_ptr<SHAPE_LINE_CHAIN>, CHAINS>& aChains, 
     {
         checkKeys( aStep, { "call", "a", "size" } );
         const uint64_t size = readU64( aStep, "size" );
-        if( size > RESERVE_DOMAIN && size <= std::vector<VECTOR2I>().max_size() )
-            outside();
+        if( size > RESERVE_BUDGET && size <= std::vector<VECTOR2I>().max_size() )
+            budget();
         try
         {
             c.ReservePoints( size );
@@ -899,6 +907,156 @@ JSON runCollide( ITEM* aItem, int aLayer, int aMinDistance, const JSON& aTarget 
 // SHAPE_INDEX.
 
 using INDEX = SHAPE_INDEX<ITEM*>;
+using TREE = KIRTREE::COW_RTREE<ITEM*, int, 2>; // SHAPE_INDEX<ITEM*>::TREE_TYPE
+using NODE = TREE::NODE;
+constexpr int TREE_FANOUT = sizeof( NODE::children ) / sizeof( NODE::children[0] );
+
+
+// SHAPE_INDEX::m_tree and COW_RTREE::m_root are private; an explicit instantiation names them
+// without an access check, and the guards only read through them.
+template <class TAG, auto MEMBER>
+struct ACCESS
+{
+    friend auto Get( TAG ) { return MEMBER; }
+};
+struct INDEX_TREE_TAG
+{
+    friend auto Get( INDEX_TREE_TAG );
+};
+struct TREE_ROOT_TAG
+{
+    friend auto Get( TREE_ROOT_TAG );
+};
+template struct ACCESS<INDEX_TREE_TAG, &INDEX::m_tree>;
+template struct ACCESS<TREE_ROOT_TAG, &TREE::m_root>;
+
+
+const TREE& treeOf( const INDEX& aIndex )
+{
+    return aIndex.*Get( INDEX_TREE_TAG{} );
+}
+
+
+// The corners SHAPE_INDEX passes to the tree for a box.
+void corners( const BOX2I& aBox, int aMin[2], int aMax[2] )
+{
+    aMin[0] = aBox.GetX();
+    aMin[1] = aBox.GetY();
+    aMax[0] = aBox.GetRight();
+    aMax[1] = aBox.GetBottom();
+}
+
+
+// COW_RTREE::Insert( aMin, aMax ) on the tree as it is: insertSimple descends from the root
+// through every internal node, computing RTREE_NODE::ChildEnlargement for each child (ChildArea's
+// and the enlarged area's int64_t products, then their difference) and taking the first child
+// with the least increase; a full leaf is split by simpleSplit, whose per-axis extent hi - lo is
+// an ELEMTYPE (int) subtraction. The remaining work (copying shared nodes, int64_t sort keys of
+// two ints, min/max bounds) is defined. The walk reads the genuine nodes and changes nothing.
+void guardInsert( const TREE& aTree, const int aMin[2], const int aMax[2] )
+{
+    const NODE* node = aTree.*Get( TREE_ROOT_TAG{} );
+
+    if( !node )
+        return; // Insert allocates an empty leaf.
+
+    while( !node->IsLeaf() )
+    {
+        if( node->count < 1 || node->count > TREE_FANOUT )
+            throw std::logic_error( "tree invariant violation" );
+
+        int     best = 0;
+        int64_t bestInc = std::numeric_limits<int64_t>::max();
+
+        for( int i = 0; i < node->count; ++i )
+        {
+            int64_t area = 1;
+
+            for( int d = 0; d < 2; ++d )
+                area = L( __int128( area )
+                          * ( int64_t( node->bounds[d * 2 + 1][i] ) - node->bounds[d * 2][i] ) );
+
+            int64_t enlarged = 1;
+
+            for( int d = 0; d < 2; ++d )
+            {
+                const int lo = std::min( node->bounds[d * 2][i], aMin[d] );
+                const int hi = std::max( node->bounds[d * 2 + 1][i], aMax[d] );
+                enlarged = L( __int128( enlarged ) * ( int64_t( hi ) - lo ) );
+            }
+
+            const int64_t inc = L( __int128( enlarged ) - area );
+
+            if( inc < bestInc )
+            {
+                best = i;
+                bestInc = inc;
+            }
+        }
+
+        node = node->children[best];
+
+        if( !node )
+            throw std::logic_error( "tree invariant violation" );
+    }
+
+    if( node->IsFull() )
+    {
+        int nodeMin[2], nodeMax[2];
+        node->ComputeEnclosingBounds( nodeMin, nodeMax );
+
+        for( int d = 0; d < 2; ++d )
+            I( int64_t( std::max( nodeMax[d], aMax[d] ) ) - std::min( nodeMin[d], aMin[d] ) );
+    }
+}
+
+
+// COW_RTREE::BulkLoad: the per-axis range and scale over every entry, then for each entry the
+// centre's ( c - globalMin ) * scale, converted to uint32_t (undefined unless in (-1, 2^32)).
+// Packing the sorted entries into nodes involves no further arithmetic on coordinates.
+void guardBulkLoad( const std::vector<std::pair<ITEM*, BOX2I>>& aItems )
+{
+    if( aItems.empty() )
+        return;
+
+    int lo[2], hi[2];
+    corners( aItems[0].second, lo, hi );
+
+    for( const auto& [item, box] : aItems )
+    {
+        int min[2], max[2];
+        corners( box, min, max );
+
+        for( int d = 0; d < 2; ++d )
+        {
+            lo[d] = std::min( lo[d], min[d] );
+            hi[d] = std::max( hi[d], max[d] );
+        }
+    }
+
+    double scale[2];
+
+    for( int d = 0; d < 2; ++d )
+    {
+        const double range = static_cast<double>( hi[d] ) - lo[d];
+        scale[d] = range > 0 ? 65535.0 / range : 0.0;
+    }
+
+    for( const auto& [item, box] : aItems )
+    {
+        int min[2], max[2];
+        corners( box, min, max );
+
+        for( int d = 0; d < 2; ++d )
+        {
+            const double c = ( static_cast<double>( min[d] ) + max[d] ) * 0.5;
+            const double x = ( c - lo[d] ) * scale[d];
+
+            if( !std::isfinite( x ) || x <= -1.0 || x >= 4294967296.0 )
+                undefined();
+        }
+    }
+}
 
 
 // The indices, with the layer each was constructed with (m_shapeLayer, which the guards need).
@@ -976,7 +1134,9 @@ JSON indexCall( INDICES_STATE& aState, const std::vector<std::unique_ptr<ITEM>>&
         const BOX2I box = guardItemBox( item, layer );
         if( name == "add" )
         {
-            treeDomain( box );
+            int min[2], max[2];
+            corners( box, min, max );
+            guardInsert( treeOf( index ), min, max );
             index.Add( item );
         }
         else
@@ -989,10 +1149,11 @@ JSON indexCall( INDICES_STATE& aState, const std::vector<std::unique_ptr<ITEM>>&
         ITEM*          item = readItem( aStep, "item", aItems );
         const VECTOR2I pos = readPoint( aStep, "pos" );
         const VECTOR2I size = readPoint( aStep, "size" );
-        if( !within( pos, TREE_DOMAIN ) || !within( size, TREE_DOMAIN ) )
-            outside();
+        // BOX2's constructor and Normalize convert their int64_t sums modularly (defined).
         const BOX2I box( pos, VECTOR2L( size.x, size.y ) );
-        treeDomain( box );
+        int         min[2], max[2];
+        corners( box, min, max );
+        guardInsert( treeOf( index ), min, max );
         index.Add( item, box );
         return nullptr;
     }
@@ -1018,9 +1179,16 @@ JSON indexCall( INDICES_STATE& aState, const std::vector<std::unique_ptr<ITEM>>&
             index.Accept( VISITOR{ &out, 0, INT_MAX } );
             return out;
         }
-        // Reindex adds every item again under its current box.
+        // Reindex empties the tree and adds every item again, in iteration order, under its
+        // current box: the same insertions are guarded and made on a scratch tree first.
+        TREE scratch;
         for( ITEM* item : index )
-            treeDomain( guardItemBox( item, layer ) );
+        {
+            int min[2], max[2];
+            corners( guardItemBox( item, layer ), min, max );
+            guardInsert( scratch, min, max );
+            scratch.Insert( min, max, item );
+        }
         index.Reindex();
         return nullptr;
     }
@@ -1034,12 +1202,9 @@ JSON indexCall( INDICES_STATE& aState, const std::vector<std::unique_ptr<ITEM>>&
             ITEM*          item = readItem( e, "item", aItems );
             const VECTOR2I pos = readPoint( e, "pos" );
             const VECTOR2I size = readPoint( e, "size" );
-            if( !within( pos, TREE_DOMAIN ) || !within( size, TREE_DOMAIN ) )
-                outside();
-            const BOX2I box( pos, VECTOR2L( size.x, size.y ) );
-            treeDomain( box );
-            entries.emplace_back( item, box );
+            entries.emplace_back( item, BOX2I( pos, VECTOR2L( size.x, size.y ) ) );
         }
+        guardBulkLoad( entries );
         index.BulkLoad( entries );
         return nullptr;
     }
@@ -1136,6 +1301,87 @@ size_t guardNext( const std::vector<ENTRY>& aEntries, size_t aPos, const BOX2I& 
         ++aPos;
     }
     return aPos;
+}
+
+
+// A list and the adapter-side replica of its entries.
+struct LIST_STATE
+{
+    LIST               list;
+    std::vector<ENTRY> entries;
+};
+
+
+// "compare": operator== and operator!= of two iterators, possibly of different lists, each
+// { "l": list, "at": "begin" | "end" | "null" } and, for a normal iterator, an optional "inc"
+// count of operator++ from there. A query iterator at "begin" is qbegin( nullptr, 0, false ),
+// which finds no match; "null" is a default-constructed iterator, which is compared in place
+// (operator== reads only its value-initialised m_current; copying it would read indeterminate
+// members).
+JSON compareIterators( std::array<LIST_STATE, LISTS>& aLists, const JSON& aStep )
+{
+    checkKeys( aStep, { "call", "kind", "left", "right" } );
+    const std::string kind = readText( aStep, "kind" );
+
+    if( kind == "iterator" )
+    {
+        auto make = [&]( const JSON& aSpec )
+        {
+            checkKeys( aSpec, { "l", "at" }, { "inc" } );
+            LIST_STATE&       s = aLists[readSlot( aSpec, "l", LISTS )];
+            const std::string at = readText( aSpec, "at" );
+            const int         inc = aSpec.contains( "inc" ) ? readInt( aSpec, "inc" ) : 0;
+            if( inc < 0 || inc > int( STEPS ) )
+                throw std::invalid_argument( "invalid increment" );
+            LIST::iterator it;
+            size_t         pos = 0;
+            if( at == "begin" )
+                it = s.list.begin();
+            else if( at == "end" )
+            {
+                it = s.list.end();
+                pos = s.entries.size();
+            }
+            else if( at != "null" )
+                throw std::invalid_argument( "unknown position" );
+            for( int k = 0; k < inc; ++k )
+            {
+                // A null iterator, or the end (including a never-allocated list's null begin()).
+                if( at == "null" || pos >= s.entries.size() )
+                    undefined();
+                ++it;
+                ++pos;
+            }
+            return it;
+        };
+        const LIST::iterator left = make( aStep.at( "left" ) );
+        const LIST::iterator right = make( aStep.at( "right" ) );
+        return JSON{ { "eq", left == right }, { "ne", left != right } };
+    }
+    if( kind == "query" )
+    {
+        const LIST::query_iterator                         null;
+        std::array<std::optional<LIST::query_iterator>, 2> made;
+        auto pick = [&]( const JSON& aSpec, int aSide ) -> const LIST::query_iterator&
+        {
+            checkKeys( aSpec, { "l", "at" } );
+            LIST_STATE&       s = aLists[readSlot( aSpec, "l", LISTS )];
+            const std::string at = readText( aSpec, "at" );
+            if( at == "null" )
+                return null;
+            if( at == "begin" )
+                made[aSide].emplace( s.list.qbegin( nullptr, 0, false ) );
+            else if( at == "end" )
+                made[aSide].emplace( s.list.qend() );
+            else
+                throw std::invalid_argument( "unknown position" );
+            return *made[aSide];
+        };
+        const LIST::query_iterator& left = pick( aStep.at( "left" ), 0 );
+        const LIST::query_iterator& right = pick( aStep.at( "right" ), 1 );
+        return JSON{ { "eq", left == right }, { "ne", left != right } };
+    }
+    throw std::invalid_argument( "unknown kind" );
 }
 
 
@@ -1327,11 +1573,25 @@ JSON runList( const JSON& aInput )
 {
     checkKeys( aInput, { "op", "items", "steps" } );
     std::vector<std::unique_ptr<ITEM>> items = readItems( aInput );
-    LIST                               list;
-    std::vector<ENTRY>                 entries;
+    std::array<LIST_STATE, LISTS>      lists;
     JSON                               replies = JSON::array();
     for( const JSON& step : readArray( aInput, "steps", STEPS ) )
-        replies.push_back( listCall( list, entries, items, step ) );
+    {
+        if( readText( step, "call" ) == "compare" )
+        {
+            replies.push_back( compareIterators( lists, step ) );
+            continue;
+        }
+        // Every other call acts on list "l" (0 when absent).
+        int  l = 0;
+        JSON call = step;
+        if( step.is_object() && step.contains( "l" ) )
+        {
+            l = readSlot( step, "l", LISTS );
+            call.erase( "l" );
+        }
+        replies.push_back( listCall( lists[l].list, lists[l].entries, items, call ) );
+    }
     return JSON{ { "replies", replies } };
 }
 
