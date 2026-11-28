@@ -36,12 +36,19 @@ Two consumers bind the candidate-1 lock by hash:
   closed before blessing anything. That was already true on `rust` before this PR, because
   the golden is the migrated `db61789…`. The reviewed tool is deliberately left unchanged:
   rebinding a completed migration to another image would need its own review.
-- `rust-kimath-nan.yml`'s manual `object-reference` job binds the derived, unreviewed
-  experimental object lock (input lock `c4d1c9c0…`, the oracle's `DT_NEEDED` set). With
-  candidate-2, and with the font libraries now linked into the oracle, it fails closed on those
-  two checks as well as on its documented, never-passed blockers. Only a new review may rebind
-  that lock. Its `frozen-reference` job builds the historical `8ef0c0e` oracle in the candidate-1
-  image its locks name, and is unaffected.
+- `rust-kimath-nan.yml`'s manual `object-reference` job binds the reviewed, scoped experimental
+  object lock (`gate/locks/object.lock.json`, status `REVIEWED-EXPERIMENTAL-UNQUALIFIED`, with
+  its context review in `gate/review/object-context-review.md`). That baseline passed: native run
+  45380617555 (`rust/kicad-math-shim/validation/2026-11-24-bb3262fc/`) passed all 159 gate checks
+  and supplied the initial math golden. Candidate-2 is new input and closure drift against that
+  baseline: the complete installed identity and its input-lock hash change, the oracle gains the
+  font libraries in its `DT_NEEDED` set, and the exact compile command gains the font and PEGTL
+  usage requirements. The current-image manual job therefore fails closed, as a lock-bound
+  checker should, and must stay failed until a separate review remeasures and assesses the
+  identity, object, include, link and execution facts. This PR does not rebind the lock or
+  weaken the gate, and a passing golden replay is not a substitute for that review. Its
+  `frozen-reference` job builds the historical `8ef0c0e` oracle in the candidate-1 image its
+  locks name, and is unaffected.
 
 ## P2: unitbuf stream guards refused defined outcomes
 
