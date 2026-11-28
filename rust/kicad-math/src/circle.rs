@@ -12,7 +12,8 @@
 //!
 //! Minimum co-ports, ownership unchanged:
 //! - [`Circle`]'s two data members and the defaulted `operator==` come from `geometry/circle.h`,
-//!   owned by `libs.kimath.include.geometry.application.pure.p001` (todo).
+//!   owned by `libs.kimath.include.geometry.application.pure.p001`, which audited and adopted
+//!   them unchanged (its corpus compares `operator==` on constructed circles).
 //! - [`MIN_PRECISION_IU`] re-exports `SHAPE::MIN_PRECISION_IU = 4` of `geometry/shape.h`,
 //!   ported by its owner `libs.kimath.include.geometry.application.ui.p003` in [`crate::shape`].
 //!

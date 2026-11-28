@@ -8,8 +8,9 @@
 //! public `ProjectToChordBisector`, `ArcThroughPoints`, `ArcFromStartEndMidDrag`,
 //! `ArcFromStartEndCenterDrag` and `ArcFromStartTangentEnd`. The `ARC_SOLUTION` aggregate and its
 //! default member initializers are declared in `geometry/arc_construction.h`, owned by
-//! `libs.kimath.include.geometry.application.pure.p001`; [`ArcSolution`] co-ports those fields
-//! and defaults only, as recorded in the owning unit's notes.
+//! `libs.kimath.include.geometry.application.pure.p001`; [`ArcSolution`] co-ported those fields
+//! and defaults only, and the header unit audited and adopted it unchanged (its corpus observes
+//! the default-constructed aggregate).
 //!
 //! Arithmetic follows the source expression order without contraction. `crossZ` calls `std::fma`
 //! explicitly, so it uses the correctly rounded [`f64::mul_add`], which is the single IEEE fused

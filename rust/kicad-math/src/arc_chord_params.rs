@@ -6,8 +6,10 @@
 //! bodies from `geometry/arc_chord_params.cpp`: `Compute`, `GetCenterPoint`, `GetStartAngle`,
 //! `GetEndAngle` and `GetArcAngle`. The class layout, its default member initializers and the
 //! trivial inline accessors belong to `geometry/arc_chord_params.h`, owned by
-//! `libs.kimath.include.geometry.application.pure.p001`; they are co-ported here as the minimum
-//! type needed to hold and observe the state (plain field reads, no other behaviour).
+//! `libs.kimath.include.geometry.application.pure.p001`. They were co-ported here as the minimum
+//! type needed to hold and observe the state (plain field reads, no other behaviour); the header
+//! unit audited them against the pinned header (member order and initializers, each accessor's
+//! field) and adopted them unchanged, and its corpus observes every accessor after `Compute`.
 //!
 //! Arithmetic follows the source expression order without contraction. Binary operations use
 //! the accepted reference NaN selection (`fp` and the angle division), so the NaN results that a
@@ -170,7 +172,7 @@ impl ArcChordParams {
         Ok(base_angle)
     }
 
-    // Header-owned inline accessors (minimum co-port of arc_chord_params.h).
+    // The inline accessors of arc_chord_params.h, adopted by its header unit.
     pub fn is_valid(&self) -> bool {
         self.valid
     }

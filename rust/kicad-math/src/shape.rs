@@ -23,6 +23,7 @@
 //! reached by inline overrides here and return [`ShapeError::Unported`] naming their owner.
 use core::any::Any;
 
+use crate::approximation::ErrorLoc;
 use crate::box2::Box2I;
 use crate::circle::CircleError;
 use crate::eda_angle::EdaAngle;
@@ -385,9 +386,10 @@ pub trait ShapeLineChainBase: Shape {
     }
 
     /// `TransformToPolygon( SHAPE_POLY_SET& aBuffer, int aError, ERROR_LOC aErrorLoc )`: an
-    /// empty body. `SHAPE_POLY_SET` and `ERROR_LOC` belong to other units that are not ported;
-    /// the body uses neither, so they are type parameters here.
-    fn transform_to_polygon<B: ?Sized, L>(&self, _buffer: &mut B, _error: i32, _error_loc: L)
+    /// empty body. `SHAPE_POLY_SET` belongs to a unit that is not ported and the body does not
+    /// use it, so it is a type parameter here; `ERROR_LOC` is geometry/approximation.h's
+    /// [`ErrorLoc`].
+    fn transform_to_polygon<B: ?Sized>(&self, _buffer: &mut B, _error: i32, _error_loc: ErrorLoc)
     where
         Self: Sized,
     {
