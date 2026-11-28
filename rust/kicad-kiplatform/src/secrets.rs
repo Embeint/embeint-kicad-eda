@@ -18,9 +18,16 @@ pub type GetDone = Option<Box<dyn FnMut(bool, &WxString)>>;
 
 /// The `KIPLATFORM::SECRETS` functions, implemented by the native host.
 pub trait SecretsPlatform {
+    /// Why a call did not complete.
+    type Error;
     /// `bool StoreSecret( const wxString& aService, const wxString& aKey,
     /// const wxString& aSecret )`.
-    fn store_secret(&mut self, service: &WxString, key: &WxString, secret: &WxString) -> bool;
+    fn store_secret(
+        &mut self,
+        service: &WxString,
+        key: &WxString,
+        secret: &WxString,
+    ) -> Result<bool, Self::Error>;
 
     /// `void StoreSecretAsync( const wxString& aService, const wxString& aKey,
     /// const wxString& aSecret, std::function<void( bool )> aDone )`.
@@ -30,7 +37,7 @@ pub trait SecretsPlatform {
         key: &WxString,
         secret: &WxString,
         done: StoreDone,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// `StoreSecretAsync( aService, aKey, aSecret )`: the default argument
     /// `aDone = nullptr`, an empty `std::function`.
@@ -39,16 +46,26 @@ pub trait SecretsPlatform {
         service: &WxString,
         key: &WxString,
         secret: &WxString,
-    ) {
-        self.store_secret_async(service, key, secret, None);
+    ) -> Result<(), Self::Error> {
+        self.store_secret_async(service, key, secret, None)
     }
 
     /// `bool GetSecret( const wxString& aService, const wxString& aKey, wxString& aSecret )`.
-    fn get_secret(&mut self, service: &WxString, key: &WxString, secret: &mut WxString) -> bool;
+    fn get_secret(
+        &mut self,
+        service: &WxString,
+        key: &WxString,
+        secret: &mut WxString,
+    ) -> Result<bool, Self::Error>;
 
     /// `void GetSecretAsync( const wxString& aService, const wxString& aKey,
     /// std::function<void( bool, const wxString& )> aDone )`.
-    fn get_secret_async(&mut self, service: &WxString, key: &WxString, done: GetDone);
+    fn get_secret_async(
+        &mut self,
+        service: &WxString,
+        key: &WxString,
+        done: GetDone,
+    ) -> Result<(), Self::Error>;
 
     /// `bool GetSecretNoPrompt( const wxString& aService, const wxString& aKey,
     /// wxString& aSecret )`.
@@ -57,8 +74,8 @@ pub trait SecretsPlatform {
         service: &WxString,
         key: &WxString,
         secret: &mut WxString,
-    ) -> bool;
+    ) -> Result<bool, Self::Error>;
 
     /// `bool DeleteSecret( const wxString& aService, const wxString& aKey )`.
-    fn delete_secret(&mut self, service: &WxString, key: &WxString) -> bool;
+    fn delete_secret(&mut self, service: &WxString, key: &WxString) -> Result<bool, Self::Error>;
 }

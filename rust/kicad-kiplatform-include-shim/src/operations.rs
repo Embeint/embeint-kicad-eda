@@ -471,7 +471,12 @@ fn mapped_file(input: &Value) -> Result<Value> {
     let length = bytes.len();
     let file = match state {
         "empty_file" => MappedFile::from_members(MappedData::Null, 0, false, Vec::new()),
-        "mapped" => MappedFile::from_members(MappedData::Mapping(bytes), length, true, Vec::new()),
+        "mapped" => MappedFile::from_members(
+            MappedData::Mapping { address: 1, bytes },
+            length,
+            true,
+            Vec::new(),
+        ),
         _ => MappedFile::from_members(MappedData::FallbackBuffer, length, false, bytes),
     };
     let size = file.size();
@@ -482,7 +487,7 @@ fn mapped_file(input: &Value) -> Result<Value> {
                 .get(..size)
                 .ok_or_else(|| Refusal::Execution("Data() is shorter than Size()".into()))?;
             let target = match file.data_member() {
-                MappedData::Mapping(_) => "mapping",
+                MappedData::Mapping { .. } => "mapping",
                 MappedData::FallbackBuffer => "fallback_buffer",
                 MappedData::Null => {
                     return Err(Refusal::Execution(
@@ -494,6 +499,14 @@ fn mapped_file(input: &Value) -> Result<Value> {
         }
     };
     Ok(json!({"data": data, "points_to": points_to, "size": size}))
+}
+
+/// The value of a recording host call, which cannot fail.
+fn ok<T>(result: core::result::Result<T, std::convert::Infallible>) -> T {
+    match result {
+        Ok(value) => value,
+        Err(never) => match never {},
+    }
 }
 
 fn call_json(recorder: &Recorder, returned: Option<bool>, returned_null: Option<bool>) -> Value {
@@ -598,9 +611,9 @@ fn default_arguments(input: &Value) -> Result<Value> {
         "atomic_rename" => {
             let (src, dst) = (argument(0)?, argument(1)?);
             let value = if explicit {
-                host.atomic_rename(src, dst, Some(&mut error))
+                ok(host.atomic_rename(src, dst, Some(&mut error)))
             } else {
-                host.atomic_rename_without_error(src, dst)
+                ok(host.atomic_rename_without_error(src, dst))
             };
             call_json(&host, Some(value), None)
         }
@@ -608,32 +621,36 @@ fn default_arguments(input: &Value) -> Result<Value> {
             let (target, mode) = (argument(0)?, argument(1)?);
             let mut temp_path = WxString::default();
             let file = if explicit {
-                host.open_unique_sibling_temp_file(
+                ok(host.open_unique_sibling_temp_file(
                     target,
                     mode,
                     Some(&mut temp_path),
                     Some(&mut error),
-                )
+                ))
             } else {
-                host.open_unique_sibling_temp_file_without_error(target, mode, Some(&mut temp_path))
+                ok(host.open_unique_sibling_temp_file_without_error(
+                    target,
+                    mode,
+                    Some(&mut temp_path),
+                ))
             };
             call_json(&host, None, Some(file.is_none()))
         }
         "commit_temp_file" => {
             let (temp, target) = (argument(0)?, argument(1)?);
             let value = if explicit {
-                host.commit_temp_file(temp, target, Some(&mut error))
+                ok(host.commit_temp_file(temp, target, Some(&mut error)))
             } else {
-                host.commit_temp_file_without_error(temp, target)
+                ok(host.commit_temp_file_without_error(temp, target))
             };
             call_json(&host, Some(value), None)
         }
         "atomic_write_file" => {
             let target = argument(0)?;
             let value = if explicit {
-                host.atomic_write_file(target, &data, Some(&mut error))
+                ok(host.atomic_write_file(target, &data, Some(&mut error)))
             } else {
-                host.atomic_write_file_without_error(target, &data)
+                ok(host.atomic_write_file_without_error(target, &data))
             };
             call_json(&host, Some(value), None)
         }
@@ -641,9 +658,9 @@ fn default_arguments(input: &Value) -> Result<Value> {
             let (service, key, secret) = (argument(0)?, argument(1)?, argument(2)?);
             if explicit {
                 let done: StoreDone = Some(Box::new(|_: bool| {}));
-                host.store_secret_async(service, key, secret, done);
+                ok(host.store_secret_async(service, key, secret, done));
             } else {
-                host.store_secret_async_without_done(service, key, secret);
+                ok(host.store_secret_async_without_done(service, key, secret));
             }
             call_json(&host, None, None)
         }

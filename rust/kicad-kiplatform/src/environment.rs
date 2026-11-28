@@ -39,42 +39,49 @@ impl ProxyConfig {
 pub trait EnvPlatform {
     /// Host handle for a `wxWindow*`.
     type Window;
+    /// Why a call did not complete.
+    type Error;
 
     /// `void Init()`.
-    fn init(&mut self);
+    fn init(&mut self) -> Result<(), Self::Error>;
 
     /// `bool MoveToTrash( const wxString& aPath, wxString& aError )`.
-    fn move_to_trash(&mut self, path: &WxString, error: &mut WxString) -> bool;
+    fn move_to_trash(&mut self, path: &WxString, error: &mut WxString)
+        -> Result<bool, Self::Error>;
 
     /// `bool IsNetworkPath( const wxString& aPath )`.
-    fn is_network_path(&mut self, path: &WxString) -> bool;
+    fn is_network_path(&mut self, path: &WxString) -> Result<bool, Self::Error>;
 
     /// `bool IsRemovablePath( const wxString& aPath )`.
-    fn is_removable_path(&mut self, path: &WxString) -> bool;
+    fn is_removable_path(&mut self, path: &WxString) -> Result<bool, Self::Error>;
 
     /// `wxString GetDocumentsPath()`.
-    fn get_documents_path(&mut self) -> WxString;
+    fn get_documents_path(&mut self) -> Result<WxString, Self::Error>;
 
     /// `wxString GetUserConfigPath()`.
-    fn get_user_config_path(&mut self) -> WxString;
+    fn get_user_config_path(&mut self) -> Result<WxString, Self::Error>;
 
     /// `wxString GetUserDataPath()`.
-    fn get_user_data_path(&mut self) -> WxString;
+    fn get_user_data_path(&mut self) -> Result<WxString, Self::Error>;
 
     /// `wxString GetUserLocalDataPath()`.
-    fn get_user_local_data_path(&mut self) -> WxString;
+    fn get_user_local_data_path(&mut self) -> Result<WxString, Self::Error>;
 
     /// `wxString GetUserCachePath()`.
-    fn get_user_cache_path(&mut self) -> WxString;
+    fn get_user_cache_path(&mut self) -> Result<WxString, Self::Error>;
 
     /// `bool GetSystemProxyConfig( const wxString& aURL, PROXY_CONFIG& aCfg )`.
-    fn get_system_proxy_config(&mut self, url: &WxString, cfg: &mut ProxyConfig) -> bool;
+    fn get_system_proxy_config(
+        &mut self,
+        url: &WxString,
+        cfg: &mut ProxyConfig,
+    ) -> Result<bool, Self::Error>;
 
     /// `bool VerifyFileSignature( const wxString& aPath )`.
-    fn verify_file_signature(&mut self, path: &WxString) -> bool;
+    fn verify_file_signature(&mut self, path: &WxString) -> Result<bool, Self::Error>;
 
     /// `wxString GetAppUserModelId()`.
-    fn get_app_user_model_id(&mut self) -> WxString;
+    fn get_app_user_model_id(&mut self) -> Result<WxString, Self::Error>;
 
     /// `void SetAppDetailsForWindow( wxWindow* aWindow, const wxString& aRelaunchCommand,
     /// const wxString& aRelaunchDisplayName )`. `None` is a null window.
@@ -83,11 +90,11 @@ pub trait EnvPlatform {
         window: Option<&Self::Window>,
         relaunch_command: &WxString,
         relaunch_display_name: &WxString,
-    );
+    ) -> Result<(), Self::Error>;
 
     /// `wxString GetCommandLineStr()`.
-    fn get_command_line_str(&mut self) -> WxString;
+    fn get_command_line_str(&mut self) -> Result<WxString, Self::Error>;
 
     /// `void AddToRecentDocs( const wxString& aPath )`.
-    fn add_to_recent_docs(&mut self, path: &WxString);
+    fn add_to_recent_docs(&mut self, path: &WxString) -> Result<(), Self::Error>;
 }

@@ -10,6 +10,7 @@ use kicad_kiplatform::io::{
 use kicad_kiplatform::secrets::{GetDone, SecretsPlatform, StoreDone};
 use kicad_kiplatform::ui::{UiPlatform, WxPoint, WxSize};
 use kicad_map_helpers::{WChar, WxString};
+use std::convert::Infallible;
 
 /// What a recorded call received.
 #[derive(Debug, Default)]
@@ -31,30 +32,33 @@ impl Recorder {
 }
 
 impl IoPlatform for Recorder {
+    type Error = Infallible;
     type File = ();
     type FileName = ();
 
-    fn seq_f_open(&mut self, _: &WxString, _: &WxString) -> Option<()> {
-        None
+    fn seq_f_open(&mut self, _: &WxString, _: &WxString) -> Result<Option<()>, Infallible> {
+        Ok(None)
     }
-    fn duplicate_permissions(&mut self, _: &WxString, _: &WxString) -> bool {
-        false
+    fn duplicate_permissions(&mut self, _: &WxString, _: &WxString) -> Result<bool, Infallible> {
+        Ok(false)
     }
-    fn make_writeable(&mut self, _: &WxString) -> bool {
-        false
+    fn make_writeable(&mut self, _: &WxString) -> Result<bool, Infallible> {
+        Ok(false)
     }
-    fn is_file_hidden(&mut self, _: &WxString) -> bool {
-        false
+    fn is_file_hidden(&mut self, _: &WxString) -> Result<bool, Infallible> {
+        Ok(false)
     }
-    fn long_path_adjustment(&mut self, _: &mut ()) {}
-    fn timestamp_dir(&mut self, _: &WxString, _: &WxString) -> i64 {
-        0
+    fn long_path_adjustment(&mut self, _: &mut ()) -> Result<(), Infallible> {
+        Ok(())
     }
-    fn flush_to_disk(&mut self, _: Option<&mut ()>) -> bool {
-        false
+    fn timestamp_dir(&mut self, _: &WxString, _: &WxString) -> Result<i64, Infallible> {
+        Ok(0)
     }
-    fn flush_directory(&mut self, _: &WxString) -> bool {
-        false
+    fn flush_to_disk(&mut self, _: Option<&mut ()>) -> Result<bool, Infallible> {
+        Ok(false)
+    }
+    fn flush_directory(&mut self, _: &WxString) -> Result<bool, Infallible> {
+        Ok(false)
     }
 
     fn atomic_rename(
@@ -62,14 +66,14 @@ impl IoPlatform for Recorder {
         src: &WxString,
         dst: &WxString,
         error: Option<&mut WxString>,
-    ) -> bool {
+    ) -> Result<bool, Infallible> {
         self.record(&[src, dst]);
         self.flags.push(("error_is_null", error.is_none()));
-        self.returned
+        Ok(self.returned)
     }
 
-    fn make_sibling_temp_path(&mut self, _: &WxString) -> WxString {
-        WxString::default()
+    fn make_sibling_temp_path(&mut self, _: &WxString) -> Result<WxString, Infallible> {
+        Ok(WxString::default())
     }
 
     fn open_unique_sibling_temp_file(
@@ -78,22 +82,26 @@ impl IoPlatform for Recorder {
         mode: &WxString,
         temp_path_out: Option<&mut WxString>,
         error: Option<&mut WxString>,
-    ) -> Option<()> {
+    ) -> Result<Option<()>, Infallible> {
         self.record(&[target_path, mode]);
         self.flags
             .push(("temp_path_out_is_null", temp_path_out.is_none()));
         self.flags.push(("error_is_null", error.is_none()));
-        None
+        Ok(None)
     }
 
-    fn resolve_symlink_target(&mut self, _: &WxString) -> WxString {
-        WxString::default()
+    fn resolve_symlink_target(&mut self, _: &WxString) -> Result<WxString, Infallible> {
+        Ok(WxString::default())
     }
-    fn capture_target_attributes(&mut self, _: &WxString) -> TargetAttrs {
-        TargetAttrs::default()
+    fn capture_target_attributes(&mut self, _: &WxString) -> Result<TargetAttrs, Infallible> {
+        Ok(TargetAttrs::default())
     }
-    fn apply_target_attributes(&mut self, _: &WxString, _: &TargetAttrs) -> bool {
-        false
+    fn apply_target_attributes(
+        &mut self,
+        _: &WxString,
+        _: &TargetAttrs,
+    ) -> Result<bool, Infallible> {
+        Ok(false)
     }
 
     fn commit_temp_file(
@@ -101,10 +109,10 @@ impl IoPlatform for Recorder {
         temp_path: &WxString,
         target_path: &WxString,
         error: Option<&mut WxString>,
-    ) -> bool {
+    ) -> Result<bool, Infallible> {
         self.record(&[temp_path, target_path]);
         self.flags.push(("error_is_null", error.is_none()));
-        self.returned
+        Ok(self.returned)
     }
 
     fn atomic_write_file(
@@ -112,45 +120,76 @@ impl IoPlatform for Recorder {
         target_path: &WxString,
         data: &[u8],
         error: Option<&mut WxString>,
-    ) -> bool {
+    ) -> Result<bool, Infallible> {
         self.record(&[target_path]);
         self.data = Some(data.to_vec());
         self.flags.push(("error_is_null", error.is_none()));
-        self.returned
+        Ok(self.returned)
     }
 
-    fn mapped_file_open(&mut self, _: &WxString) -> Result<MappedFile, RuntimeError> {
-        Err(RuntimeError {
+    fn mapped_file_open(
+        &mut self,
+        _: &WxString,
+    ) -> Result<Result<MappedFile, RuntimeError>, Infallible> {
+        Ok(Err(RuntimeError {
             what: b"not used by the adapter".to_vec(),
-        })
+        }))
     }
-    fn mapped_file_close(&mut self, _: MappedFile) {}
-    fn file_lock_acquire(&mut self, _: &mut FileLock, _: &WxString, _: &mut bool) -> FileLockState {
-        FileLockState::None
+    fn mapped_file_close(&mut self, _: MappedFile) -> Result<(), Infallible> {
+        Ok(())
     }
-    fn file_lock_open_for_inspect(&mut self, _: &mut FileLock, _: &WxString, _: &mut bool) -> bool {
-        false
+    fn file_lock_acquire(
+        &mut self,
+        _: &mut FileLock,
+        _: &WxString,
+        _: &mut bool,
+    ) -> Result<FileLockState, Infallible> {
+        Ok(FileLockState::None)
     }
-    fn file_lock_is_open(&self, _: &FileLock) -> bool {
-        false
+    fn file_lock_open_for_inspect(
+        &mut self,
+        _: &mut FileLock,
+        _: &WxString,
+        _: &mut bool,
+    ) -> Result<bool, Infallible> {
+        Ok(false)
     }
-    fn file_lock_read_all(&self, _: &FileLock, _: &mut Vec<u8>) -> bool {
-        false
+    fn file_lock_is_open(&self, _: &FileLock) -> Result<bool, Infallible> {
+        Ok(false)
     }
-    fn file_lock_rewrite(&mut self, _: &mut FileLock, _: &[u8]) -> bool {
-        false
+    fn file_lock_read_all(&self, _: &FileLock, _: &mut Vec<u8>) -> Result<bool, Infallible> {
+        Ok(false)
     }
-    fn file_lock_release(&mut self, _: &mut FileLock) {}
-    fn file_lock_destroy(&mut self, _: FileLock) {}
-    fn file_lock_move_construct(&mut self, _: &mut FileLock) -> FileLock {
-        FileLock::new()
+    fn file_lock_rewrite(&mut self, _: &mut FileLock, _: &[u8]) -> Result<bool, Infallible> {
+        Ok(false)
     }
-    fn file_lock_move_assign(&mut self, _: &mut FileLock, _: &mut FileLock) {}
+    fn file_lock_release(&mut self, _: &mut FileLock) -> Result<(), Infallible> {
+        Ok(())
+    }
+    fn file_lock_destroy(&mut self, _: FileLock) -> Result<(), Infallible> {
+        Ok(())
+    }
+    fn file_lock_move_construct(&mut self, _: &mut FileLock) -> Result<FileLock, Infallible> {
+        Ok(FileLock::new())
+    }
+    fn file_lock_move_assign(
+        &mut self,
+        _: &mut FileLock,
+        _: &mut FileLock,
+    ) -> Result<(), Infallible> {
+        Ok(())
+    }
 }
 
 impl SecretsPlatform for Recorder {
-    fn store_secret(&mut self, _: &WxString, _: &WxString, _: &WxString) -> bool {
-        false
+    type Error = Infallible;
+    fn store_secret(
+        &mut self,
+        _: &WxString,
+        _: &WxString,
+        _: &WxString,
+    ) -> Result<bool, Infallible> {
+        Ok(false)
     }
 
     fn store_secret_async(
@@ -159,20 +198,38 @@ impl SecretsPlatform for Recorder {
         key: &WxString,
         secret: &WxString,
         done: StoreDone,
-    ) {
+    ) -> Result<(), Infallible> {
         self.record(&[service, key, secret]);
         self.flags.push(("done_is_empty", done.is_none()));
+        Ok(())
     }
 
-    fn get_secret(&mut self, _: &WxString, _: &WxString, _: &mut WxString) -> bool {
-        false
+    fn get_secret(
+        &mut self,
+        _: &WxString,
+        _: &WxString,
+        _: &mut WxString,
+    ) -> Result<bool, Infallible> {
+        Ok(false)
     }
-    fn get_secret_async(&mut self, _: &WxString, _: &WxString, _: GetDone) {}
-    fn get_secret_no_prompt(&mut self, _: &WxString, _: &WxString, _: &mut WxString) -> bool {
-        false
+    fn get_secret_async(
+        &mut self,
+        _: &WxString,
+        _: &WxString,
+        _: GetDone,
+    ) -> Result<(), Infallible> {
+        Ok(())
     }
-    fn delete_secret(&mut self, _: &WxString, _: &WxString) -> bool {
-        false
+    fn get_secret_no_prompt(
+        &mut self,
+        _: &WxString,
+        _: &WxString,
+        _: &mut WxString,
+    ) -> Result<bool, Infallible> {
+        Ok(false)
+    }
+    fn delete_secret(&mut self, _: &WxString, _: &WxString) -> Result<bool, Infallible> {
+        Ok(false)
     }
 }
 
