@@ -4,8 +4,9 @@
 
 Writes port/cases/<unit>.jsonl (requests whose pinned evaluation is defined and inside the
 adapter's verified domain) and port/oracle/fixtures/trigo-header-controls.jsonl (requests both
-programs must refuse, with the refusal: an undefined pinned evaluation, a long long template angle
-beyond the adapter's loop bound, or a malformed input). No result is written anywhere.
+programs must refuse, with the refusal: an undefined pinned evaluation, a template angle whose
+loops need more passes than the adapter's budget, or a malformed input). No result is written
+anywhere.
 
 The split replays only exact arithmetic: Python integers for int sums and negations, IEEE binary64
 products and sums (which Python evaluates exactly as the oracle does without contraction) for the
@@ -20,11 +21,18 @@ overflow and the negation of INT_MIN in the 90/180/270 degree shortcuts. A contr
 "rust_unported" is undefined only after a logging KiROUND, which the Rust port defers to the math
 util unit: the oracle refuses it and Rust defers to that exact owner first.
 
+The angle templates' passes are counted exactly, with fractions for a double angle (whose
+intermediate values are exact up to 2^57; the one pass that can round is replayed with Python's
+correctly rounded fraction-to-float conversion). A double loop that makes no progress
+(fl( a +- 3600 ) == a: an infinite angle or a magnitude above 2^65) never terminates, which is
+undefined; any other angle needing more than 2^24 passes is outside the adapter's budget.
+
 --check verifies the committed files equal the generator output.
 """
 import argparse
 from fractions import Fraction
 import json
+import math
 from pathlib import Path
 import random
 import struct
@@ -35,14 +43,17 @@ CASES = ROOT / 'port/cases' / f'{UNIT}.jsonl'
 CONTROLS = ROOT / 'port/oracle/fixtures/trigo-header-controls.jsonl'
 INT_MIN, INT_MAX = -2**31, 2**31 - 1
 I64_MIN, I64_MAX = -2**63, 2**63 - 1
-# The adapter's harness bound for long long template angles (3600LL << 24).
-LOOP_BOUND = 3600 << 24
+# The adapter's pass budget for the template loops, and the angle 3600 * 2^24 that takes it.
+PASS_BUDGET = 1 << 24
+LOOP_BOUND = 3600 * PASS_BUDGET
 M_SQRT1_2 = float.fromhex('0x1.6a09e667f3bcdp-1')
 UNDEFINED = {'kind': 'invalid_input', 'message': 'undefined trigo.h operation'}
 OUTSIDE = {'kind': 'invalid_input', 'message': 'outside the verified domain'}
 LOG_OVERFLOW = {'upstream': 'kimathLogOverflow',
                 'unit': 'libs.kimath.src.math.util.application.ui.p001'}
 SEED = 20261128
+# The double template cases, added after the first corpus, use their own seed.
+DOUBLE_SEED = 20261129
 
 
 class Undefined(Exception):
@@ -374,8 +385,62 @@ def gen_conversions(c, rng):
 TEMPLATE_OPS = ('normalize_angle_pos', 'normalize_angle_pos_ref', 'normalize_angle_180')
 
 
+def template_passes(op, x):
+    """The literal passes of the template loops (both together) for an int, long long or finite
+    double angle of magnitude at most 2^57, where every pass but the one that leaves the first
+    loop is exact."""
+    x = Fraction(x)
+    if op == 'normalize_angle_180':
+        if x <= -1800:
+            return math.floor((-1800 - x) / 3600) + 1
+        if x > 1800:
+            return math.ceil((x - 1800) / 3600)
+        return 0
+    if x < 0:
+        k = math.ceil(-x / 3600)
+        # The last pass, from the exact x + 3600 ( k - 1 ), rounds; at 3600 the second loop runs
+        # once more. That needs a last value within 2^-42 of 0, so only for k == 1.
+        if float(x + 3600 * k) >= 3600.0:
+            assert k == 1, x
+            return k + 1
+        return k
+    if x >= 3600:
+        return math.floor(x / 3600)
+    return 0
+
+
+def double_refusal(op, x):
+    """The refusal of a double template request, or None where both programs evaluate it."""
+    if x != x:
+        return None
+    half = op == 'normalize_angle_180'
+    first = x <= -1800.0 if half else x < 0.0
+    second = x > 1800.0 if half else x >= 3600.0
+    # A pass that makes no progress repeats forever: undefined.
+    if (first and x + 3600.0 == x) or (second and x - 3600.0 == x):
+        return UNDEFINED
+    # Up to 2^57 each pass moves the angle by exactly 3600.
+    if abs(x) > 2.0**40 or template_passes(op, x) > PASS_BUDGET:
+        return OUTSIDE
+    return None
+
+
+def next_up(v):
+    """The next binary64 value above a finite v (bit arithmetic, no libm)."""
+    if v == 0.0:
+        return 5e-324
+    n = struct.unpack('>q', struct.pack('>d', v))[0]
+    return struct.unpack('>d', struct.pack('>q', n + 1 if v > 0 else n - 1))[0]
+
+
+def next_down(v):
+    return -next_up(-v)
+
+
 def gen_templates(c, rng):
-    """NormalizeAnglePos, NORMALIZE_ANGLE_POS and NormalizeAngle180 for int and long long."""
+    """NormalizeAnglePos, NORMALIZE_ANGLE_POS and NormalizeAngle180 for int and long long.
+    Returns the original 'beyond' requests that fit the pass budget (compared at the end)."""
+    within = []
     edges = [-3601, -3600, -3599, -1801, -1800, -1799, -1, 0, 1, 1799, 1800, 1801, 3599, 3600,
              3601, 7199, 7200, 36000, -36000]
     ints = edges + [INT_MIN, INT_MIN + 1, INT_MIN + 1799, INT_MAX, INT_MAX - 1, INT_MAX - 1800,
@@ -393,9 +458,68 @@ def gen_templates(c, rng):
             c.add(f'{op}-int-r{k}', {'op': op, 'type': 'int', 'angle': a})
             b = rng.randint(-LOOP_BOUND, LOOP_BOUND) if k % 2 else rng.randint(-10**7, 10**7)
             c.add(f'{op}-ll-r{k}', {'op': op, 'type': 'long long', 'angle': b})
-        # Beyond the adapter's loop bound: a harness refusal on both programs.
+        # Past 3600 * 2^24: a harness refusal on both programs where the loops need more passes
+        # than the budget. The first two take exactly the budget for some operations: those are
+        # compared, at the end of the corpus.
         for k, a in enumerate([LOOP_BOUND + 1, -LOOP_BOUND - 1, I64_MAX, I64_MIN, 2**62]):
+            if template_passes(op, a) <= PASS_BUDGET:
+                within.append((op, k, a))
+                continue
             c.refuse(f'{op}-ll-beyond-{k}', {'op': op, 'type': 'long long', 'angle': a}, OUTSIDE)
+    return within
+
+
+def gen_template_budget(c, within):
+    """The long long requests at the exact pass budget: compared where they fit, refused one past."""
+    for op, k, a in within:
+        c.add(f'{op}-ll-within-{k}', {'op': op, 'type': 'long long', 'angle': a})
+    n = PASS_BUDGET
+    for op in TEMPLATE_OPS:
+        if op == 'normalize_angle_180':
+            edges = [3600 * n + 1800, 3600 * n + 1801, -3600 * n - 1799, -3600 * n - 1800]
+        else:
+            edges = [3600 * (n + 1) - 1, 3600 * (n + 1), -3600 * n, -3600 * n - 1]
+        for k, a in enumerate(edges):
+            inp = {'op': op, 'type': 'long long', 'angle': a}
+            if template_passes(op, a) <= PASS_BUDGET:
+                c.add(f'{op}-ll-budget-{k}', inp)
+            else:
+                c.refuse(f'{op}-ll-budget-{k}', inp, OUTSIDE)
+
+
+def gen_templates_double(c, rng):
+    """The double instantiation: signed zeros, NaN payloads, subnormals, the rounding last pass,
+    every loop boundary, the pass budget, magnitudes that terminate beyond the budget and those
+    that never terminate."""
+    n = PASS_BUDGET
+    budget = [float(3600 * (n + 1)), float(-3600 * n), float(3600 * n + 1800),
+              float(-3600 * n - 1800)]
+    values = [0.0, -0.0, 5e-324, -5e-324, 1e-310, -1e-310, -1e-300, -2.0**-42, -2.0**-43,
+              -1.5 * 2.0**-42, -2.0**-41, -2.0**-30, -0.1, -0.25, 0.25, 0.5, -0.5, 1.0, -1.0]
+    for e in (-7200.0, -5400.0, -3600.0, -1800.0, 0.0, 1800.0, 3600.0, 5400.0, 7200.0, 36000.5):
+        values += [e, next_up(e), next_down(e), e + 0.25, e - 0.25]
+    for b in budget:
+        values += [b, next_up(b), next_down(b), b + 0.5, b - 0.5]
+    values += [1e15, -1e15, 2.0**53, 2.0**53 + 2, -2.0**53 - 2, 2.0**57, -2.0**57, 2.0**57 + 32,
+               2.0**65, -2.0**65, next_up(2.0**65), next_down(-2.0**65), 2.0**66, -2.0**66, 1e300,
+               -1e300, 1.7976931348623157e308, -1.7976931348623157e308, INF, -INF]
+    values = [bits(v) for v in values] + NANS
+    for _ in range(30):
+        values.append(bits(rng.uniform(-1e4, 1e4)))
+    for _ in range(30):
+        values.append(bits(rng.uniform(-float(LOOP_BOUND), float(LOOP_BOUND))))
+    for _ in range(20):
+        values.append(f'{rng.getrandbits(64):016x}')
+    for op in TEMPLATE_OPS:
+        for k, v in enumerate(values):
+            inp = {'op': op, 'type': 'double', 'angle': v}
+            refusal = double_refusal(op, raw(v))
+            if refusal is None:
+                c.add(f'{op}-double-{k}', inp)
+            else:
+                c.refuse(f'{op}-double-{k}', inp, refusal)
+    c.refuse('malformed-double-angle', {'op': 'normalize_angle_pos', 'type': 'double', 'angle': 0},
+             {'kind': 'invalid_input', 'message': 'expected hex'})
 
 
 def gen_intercepts(c, rng):
@@ -450,9 +574,11 @@ def generate():
     gen_rotate_i_about(c, rng)
     gen_rotate_d(c, rng)
     gen_conversions(c, rng)
-    gen_templates(c, rng)
+    within = gen_templates(c, rng)
     gen_intercepts(c, rng)
     gen_malformed(c)
+    gen_template_budget(c, within)
+    gen_templates_double(c, random.Random(DOUBLE_SEED))
     return c
 
 

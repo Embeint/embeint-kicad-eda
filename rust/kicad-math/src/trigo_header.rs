@@ -20,13 +20,14 @@
 //! constant, evaluated in source order with the reference NaN rules ([`fp`]); a constant is never
 //! a NaN, so which operand GCC makes the destination does not change the result.
 //!
-//! The angle templates are ported for the integer types the pinned tree instantiates: `int`
-//! (`NORMALIZE_ANGLE_POS`, eeschema's legacy library reader) and `long long`
-//! (`NormalizeAngle180( UNIT_BINDER::GetValue() )`, pcbnew's zone properties panel). Their loops
-//! cannot overflow (an addition runs only below `-1800`, a subtraction only above `1800`) and
-//! always terminate; GCC 13.3 compiles them as loops, which this port evaluates in closed form
-//! with the identical result. A floating-point `T` is not instantiated anywhere in the pinned
-//! tree and is not ported.
+//! The angle templates are ported for `int` and `long long`, the types the pinned tree
+//! instantiates (`NORMALIZE_ANGLE_POS` in eeschema's legacy library reader,
+//! `NormalizeAngle180( UNIT_BINDER::GetValue() )` in pcbnew's zone properties panel), and for
+//! `double`, which no pinned caller uses. The integer loops cannot overflow (an addition runs only
+//! below `-1800`, a subtraction only above `1800`) and always terminate; GCC 13.3 compiles them
+//! as loops, which this port evaluates in closed form with the identical result. The `double`
+//! loops round at every pass; [`normalize_angle_pos_d`] and [`normalize_angle_180_d`] reproduce
+//! each rounded pass exactly and refuse only the inputs on which a loop never terminates.
 use crate::eda_angle::{self, EdaAngle};
 use crate::fp;
 use crate::trigo::{self, TrigoResult};
@@ -186,6 +187,183 @@ pub fn normalize_angle_180<T: AngleInt>(angle: T) -> T {
     }
 
     narrow(angle)
+}
+
+// ---------------------------------------------------------------------------------------------
+// The `double` instantiations.
+//
+// GCC 13.3 (`-O3 -ffp-contract=off`, no fast math) compiles each loop literally: a `comisd` test
+// and one `addsd` or `subsd` of the constant 3600.0 per pass, so every pass rounds to nearest,
+// ties to even. A NaN fails every comparison and is returned unchanged (no arithmetic touches
+// it, so a signalling NaN keeps its bits), as is `-0.0`.
+//
+// Rounding is symmetric under negation, so both directions are one sequence on the magnitude:
+// `m -> fl( m - 3600 )` (an addition to a negative angle is this step on `-angle`). That step:
+//
+// * is exact while `m <= 2^57`: `m` is then a multiple of its ulp `u <= 16`, 3600 = 225 * 16 is
+//   a multiple of `u`, and a smaller non-negative result is a multiple of its own (smaller) ulp.
+//   Only the pass that changes the angle's sign can round (an addition from a tiny negative
+//   angle to just below 3600, for example, gives 3600 and so one more pass of the second loop of
+//   `NormalizeAnglePos`); the reduction below stops before such a pass and runs it literally.
+// * above `2^57`, within the binade `[2^e, 2^(e+1))` of ulp `u`, rounds `m - 3600` to the grid
+//   `u` whenever `m - 3600 >= 2^e`. The step is then the same for every member of the binade:
+//   3600 rounded to a multiple of `u` is 3584 for `u = 64 .. 512` and 4096 for `u = 1024 .. 4096`;
+//   for `u = 32` it is a tie, decided by the parity of `m / 32`, and every result of a step is an
+//   even multiple of 32, from which the step is 3584 and the parity stays even.
+// * makes no progress (`fl( m - 3600 ) == m`) for every `m > 2^65`: the ulp is at least 8192,
+//   more than twice 3600, and at the bottom of a binade above `2^65` the lower binade's ulp is
+//   at least 8192 too. At `m = 2^65` the lower ulp is 4096 and the step 4096. Below `2^65` every
+//   step is at least 3584, so a sequence that progresses once never stops progressing.
+//
+// A loop that makes no progress never terminates: undefined behaviour in C++ (a side-effect-free
+// loop must terminate, [intro.progress]), refused as `TrigoError::Undefined`. That is exactly the
+// magnitude above `2^65` or infinite, tested by the first pass. Every other input terminates and
+// is evaluated exactly, however many passes the loops need.
+
+/// The literal constant of the template loops.
+const TURN: f64 = 3600.0;
+
+/// `2^57`: up to this magnitude every pass is exact.
+const EXACT_STEPS: i128 = 1 << 57;
+
+/// `2^65`: the largest magnitude whose sequence progresses.
+const LAST_PROGRESS: f64 = 36_893_488_147_419_103_232.0;
+
+/// `fl( m - 3600 )` for an integer magnitude whose binary64 value is `m` (an `i128` to binary64
+/// conversion rounds to nearest, ties to even, as the `subsd` of the exact difference does).
+fn step_large(m: i128) -> i128 {
+    // Every member here is below 2^66, so the conversion back is exact.
+    ((m - 3600) as f64) as i128
+}
+
+/// The first member of the sequence `m, fl( m - 3600 ), ...` that is at most `floor`, for an
+/// integral magnitude `m <= 2^65` and `floor >= 7200`. Within a binade the constant step (above;
+/// below `2^57` it is the exact 3600) lets the members be skipped in one subtraction.
+fn skip_large(mut m: i128, floor: i128) -> TrigoResult<i128> {
+    while m > floor {
+        let next = step_large(m);
+
+        if next == m {
+            return Err(trigo::TrigoError::Undefined);
+        }
+
+        m = next;
+
+        if m <= floor {
+            break;
+        }
+
+        // The binade [lo, 2 lo) of this member: while a member minus 3600 stays at or above lo,
+        // its step is the same as this member's.
+        let lo = 1_i128 << (127 - m.leading_zeros());
+        let delta = m - step_large(m);
+
+        if delta > 0 && m - 3600 >= lo {
+            // Passes from members m - s * delta, s = 0 .. passes - 1, each still at least
+            // lo + 3600 and above the floor.
+            let by_binade = (m - 3600 - lo) / delta + 1;
+            let by_floor = (m - floor - 1) / delta;
+            m -= by_binade.min(by_floor).max(0) * delta;
+        }
+    }
+
+    Ok(m)
+}
+
+/// A member of the magnitude sequence `m, fl( m - 3600 ), ...` for a positive (or infinite) `m`
+/// on which every one of the four loops still runs: `m` itself below 7200, otherwise the first
+/// member below 7200 (which is at least 3600). Every member before it is a pass the loop takes.
+fn skip_turns(m: f64) -> TrigoResult<f64> {
+    if m < 2.0 * TURN {
+        return Ok(m);
+    }
+
+    // The first pass decides termination (above).
+    if m - TURN == m {
+        return Err(trigo::TrigoError::Undefined);
+    }
+
+    let mut m = m;
+
+    if m > EXACT_STEPS as f64 {
+        // Integral and at most 2^65 here: the conversions are exact.
+        if m > LAST_PROGRESS {
+            return Err(trigo::TrigoError::Undefined);
+        }
+        m = skip_large(m as i128, EXACT_STEPS)? as f64;
+    }
+
+    // Exact passes from here: the member m - 3600 i in [3600, 7200), computed from the integer
+    // part n (exact, m < 2^63) and the exact fraction f = m - n.
+    let n = m as i64;
+    let f = m - n as f64;
+    let whole = (n - 3600).rem_euclid(3600) + 3600;
+
+    // Both terms are exact and so is their sum, a member of the sequence.
+    Ok(whole as f64 + f)
+}
+
+/// `NormalizeAnglePos<double>`: both loops, run literally after the reduction.
+fn pos_loops(mut angle: f64) -> f64 {
+    while angle < 0.0 {
+        angle += TURN;
+    }
+
+    while angle >= TURN {
+        angle -= TURN;
+    }
+
+    angle
+}
+
+/// `NormalizeAngle180<double>`: both loops, run literally after the reduction.
+fn half_loops(mut angle: f64) -> f64 {
+    while angle <= -1800.0 {
+        angle += TURN;
+    }
+
+    while angle > 1800.0 {
+        angle -= TURN;
+    }
+
+    angle
+}
+
+/// `NormalizeAnglePos<double>( double Angle )`. `Err(Undefined)` where a loop never terminates:
+/// an infinite angle, or a magnitude above `2^65`, where `Angle + 3600` (or `- 3600`) rounds back
+/// to `Angle`. Any other angle gives the exact result of the rounded passes; a NaN and `-0.0` are
+/// returned unchanged.
+pub fn normalize_angle_pos_d(angle: f64) -> TrigoResult<f64> {
+    let mut angle = angle;
+
+    // Skip the passes of whichever loop runs first to a member from which it still runs.
+    if angle < 0.0 {
+        angle = -skip_turns(-angle)?;
+    } else if angle >= TURN {
+        angle = skip_turns(angle)?;
+    }
+
+    Ok(pos_loops(angle))
+}
+
+/// `NORMALIZE_ANGLE_POS<double>( double& Angle )`: `Angle = NormalizeAnglePos( Angle )`. On an
+/// error the angle is unchanged.
+pub fn normalize_angle_pos_in_place_d(angle: &mut f64) -> TrigoResult<()> {
+    *angle = normalize_angle_pos_d(*angle)?;
+    Ok(())
+}
+
+/// `NormalizeAngle180<double>( double Angle )`, refusing as [`normalize_angle_pos_d`] does.
+pub fn normalize_angle_180_d(angle: f64) -> TrigoResult<f64> {
+    let mut angle = angle;
+
+    if angle <= -1800.0 {
+        angle = -skip_turns(-angle)?;
+    } else if angle > 1800.0 {
+        angle = skip_turns(angle)?;
+    }
+
+    Ok(half_loops(angle))
 }
 
 /// `InterceptsPositiveX( aStartAngle, aEndAngle )`: whether the counter-clockwise arc from

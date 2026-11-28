@@ -3,9 +3,10 @@
 //! It mirrors `port/oracle/shims/trigo_header_p001.cpp`: `int` and `long long` values as JSON
 //! integers, `double` values as exact IEEE bits, angles as the bits of their value in degrees,
 //! one operation per request, and the same refusals: `invalid_input` "undefined trigo.h
-//! operation" where the pinned evaluation is undefined, and "outside the verified domain" for a
-//! `long long` template angle beyond the adapter's loop bound (a harness bound, not an undefined
-//! domain).
+//! operation" where the pinned evaluation is undefined (for the `double` template loops, one
+//! that never terminates), and "outside the verified domain" for a template angle whose loops
+//! need more than [`PASS_BUDGET`] passes (a harness bound of the oracle, which runs the compiled
+//! loops; the Rust port evaluates every such angle).
 #![forbid(unsafe_code)]
 #![deny(
     clippy::unwrap_used,
@@ -21,9 +22,12 @@ use serde_json::{json, Map, Value};
 
 const UNDEFINED: &str = "undefined trigo.h operation";
 
-/// The largest `long long` angle magnitude the oracle adapter evaluates (`3600LL << 24`, at most
-/// 2^24 passes of the compiled template loops).
-pub const LOOP_BOUND: i64 = 3600 << 24;
+/// The most passes of the compiled template loops (both loops together) the oracle adapter runs.
+pub const PASS_BUDGET: i128 = 1 << 24;
+
+/// Beyond this magnitude a finite `double` angle needs more than [`PASS_BUDGET`] passes: up to
+/// `2^57` every pass changes the angle by exactly 3600.
+const DOUBLE_COUNTED: f64 = 1_099_511_627_776.0; // 2^40
 
 enum Error {
     Invalid(String),
@@ -112,21 +116,82 @@ fn point_i(p: Vector2I) -> Value {
 fn point_d(p: Vector2D) -> Value {
     json!([bits(p.x), bits(p.y)])
 }
-/// The template's integer type: `false` for "int", `true` for "long long".
-fn read_wide(v: &Map<String, Value>) -> Result<bool, String> {
+/// The template's type `T`.
+enum TemplateType {
+    Int,
+    LongLong,
+    Double,
+}
+fn read_type(v: &Map<String, Value>) -> Result<TemplateType, String> {
     match text(v, "type")? {
-        "int" => Ok(false),
-        "long long" => Ok(true),
+        "int" => Ok(TemplateType::Int),
+        "long long" => Ok(TemplateType::LongLong),
+        "double" => Ok(TemplateType::Double),
         _ => Err("unknown type".into()),
     }
 }
-fn bounded_long_long(v: &Value) -> Result<i64, String> {
-    let angle = read_long_long(v)?;
-    if !(-LOOP_BOUND..=LOOP_BOUND).contains(&angle) {
-        return Err("outside the verified domain".into());
+
+/// The passes of the template loops (both loops together) for the angle `floor + g`, where
+/// `floor` is an integer and `g` in `[0, 1)` is nonzero exactly when `fraction`. Each loop runs
+/// until the first value past its bound, and every pass before the last changes the angle by
+/// exactly 3600 within the counted range, so each count is a quotient:
+///
+/// * `NormalizeAnglePos`, angle < 0: `ceil( -angle / 3600 )`; angle >= 3600:
+///   `floor( angle / 3600 )`. (For a `double` the first loop's last pass can round up to 3600,
+///   adding one pass of the second loop; that happens only for an angle above `-2^11`, which
+///   takes one pass, so it never decides admission and is not counted.)
+/// * `NormalizeAngle180`, angle <= -1800: `floor( ( -1800 - angle ) / 3600 ) + 1`; angle > 1800:
+///   `ceil( ( angle - 1800 ) / 3600 )`.
+fn template_passes(op: &str, floor: i128, fraction: bool) -> i128 {
+    let q = |a: i128| a.div_euclid(3600);
+    let f = i128::from(fraction);
+    if op == "normalize_angle_180" {
+        if floor < -1800 || (floor == -1800 && !fraction) {
+            return q(-1800 - floor - f) + 1;
+        }
+        if floor > 1800 || (floor == 1800 && fraction) {
+            return if fraction {
+                q(floor - 1800) + 1
+            } else {
+                -q(1800 - floor)
+            };
+        }
+        return 0;
     }
-    Ok(angle)
+    if floor < 0 {
+        return if fraction {
+            q(-floor - 1) + 1
+        } else {
+            -q(floor)
+        };
+    }
+    if floor >= 3600 {
+        return q(floor);
+    }
+    0
 }
+
+/// Whether an integer template angle needs more passes than the adapter runs.
+fn over_budget(op: &str, angle: i64) -> bool {
+    template_passes(op, i128::from(angle), false) > PASS_BUDGET
+}
+
+/// Whether a `double` template angle (one whose loops terminate) needs more passes than the
+/// adapter runs. A NaN takes none.
+fn over_budget_d(op: &str, angle: f64) -> bool {
+    if angle.is_nan() {
+        return false;
+    }
+    if !(-DOUBLE_COUNTED..=DOUBLE_COUNTED).contains(&angle) {
+        return true;
+    }
+    // Exact: |angle| <= 2^40.
+    let truncated = angle as i64;
+    let floor = truncated - i64::from((truncated as f64) > angle);
+    template_passes(op, i128::from(floor), floor as f64 != angle) > PASS_BUDGET
+}
+
+const OUTSIDE: &str = "outside the verified domain";
 
 /// One template operation on either instantiation.
 fn template<T: header::AngleInt>(op: &str, angle: T) -> T {
@@ -137,6 +202,19 @@ fn template<T: header::AngleInt>(op: &str, angle: T) -> T {
             let mut angle = angle;
             header::normalize_angle_pos_in_place(&mut angle);
             angle
+        }
+    }
+}
+
+/// One template operation on the `double` instantiation.
+fn template_d(op: &str, angle: f64) -> Result<f64, TrigoError> {
+    match op {
+        "normalize_angle_pos" => header::normalize_angle_pos_d(angle),
+        "normalize_angle_180" => header::normalize_angle_180_d(angle),
+        _ => {
+            let mut angle = angle;
+            header::normalize_angle_pos_in_place_d(&mut angle)?;
+            Ok(angle)
         }
     }
 }
@@ -195,12 +273,31 @@ fn run(input: &Value) -> Result<Value, Error> {
         }
         "normalize_angle_pos" | "normalize_angle_pos_ref" | "normalize_angle_180" => {
             keys(v, &["op", "type", "angle"])?;
-            if read_wide(v)? {
-                let angle = bounded_long_long(get(v, "angle")?)?;
-                return Ok(json!({"angle": template(op, angle)}));
+            match read_type(v)? {
+                TemplateType::Int => {
+                    let angle = read_int(get(v, "angle")?)?;
+                    if over_budget(op, i64::from(angle)) {
+                        return Err(OUTSIDE.into());
+                    }
+                    Ok(json!({"angle": template(op, angle)}))
+                }
+                TemplateType::LongLong => {
+                    let angle = read_long_long(get(v, "angle")?)?;
+                    if over_budget(op, angle) {
+                        return Err(OUTSIDE.into());
+                    }
+                    Ok(json!({"angle": template(op, angle)}))
+                }
+                TemplateType::Double => {
+                    let angle = decode_bits(get(v, "angle")?)?;
+                    // A loop that never terminates is undefined; the port decides that itself.
+                    let result = template_d(op, angle)?;
+                    if over_budget_d(op, angle) {
+                        return Err(OUTSIDE.into());
+                    }
+                    Ok(json!({"angle": bits(result)}))
+                }
             }
-            let angle = read_int(get(v, "angle")?)?;
-            Ok(json!({"angle": template(op, angle)}))
         }
         "intercepts_positive_x" | "intercepts_negative_x" => {
             keys(v, &["op", "start", "end"])?;

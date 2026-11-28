@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use super::*;
 use std::collections::BTreeMap;
-const CASES: usize = 4215;
-const CONTROLS: usize = 274;
+const CASES: usize = 4693;
+const CONTROLS: usize = 397;
+/// `3600 * 2^24`: the angle whose loops take exactly [`PASS_BUDGET`] passes.
+const BUDGET_ANGLE: i64 = 3600 << 24;
 /// Public cases whose forwarded rotation reaches a logging KiROUND.
 const DEFERRED: usize = 109;
 
@@ -109,14 +111,15 @@ fn malformed_requests_are_refused_before_any_operation() {
         json!({"op": "rotate_d", "point": [zero, "NOTHEX0000000000"], "angle": zero}),
         json!({"op": "deg2rad", "value": 1.0}),
         json!({"op": "normalize_angle_pos", "type": "int", "angle": 2147483648_i64}),
-        json!({"op": "normalize_angle_180", "type": "long long", "angle": LOOP_BOUND + 1}),
+        json!({"op": "normalize_angle_180", "type": "long long", "angle": BUDGET_ANGLE + 1801}),
+        json!({"op": "normalize_angle_pos", "type": "double", "angle": 0}),
         json!({"op": "normalize_angle_180", "type": "unsigned", "angle": 0}),
         json!({"op": "intercepts_positive_x", "start": zero}),
     ] {
         assert_eq!(base(input)["error"]["kind"], "invalid_input");
     }
     assert_eq!(
-        base(json!({"op": "normalize_angle_pos", "type": "long long", "angle": LOOP_BOUND}))
+        base(json!({"op": "normalize_angle_pos", "type": "long long", "angle": BUDGET_ANGLE}))
             ["result"]["angle"],
         json!(0)
     );
@@ -125,4 +128,107 @@ fn malformed_requests_are_refused_before_any_operation() {
         dispatch(&json!({"unit": "other", "case": "c", "input": {}}).to_string())["error"]["kind"],
         "unknown_unit"
     );
+}
+
+/// The literal passes of the template loops, for counts small enough to run.
+fn literal_passes(op: &str, angle: f64) -> i128 {
+    let half = op == "normalize_angle_180";
+    let mut a = angle;
+    let mut passes = 0;
+    while if half { a <= -1800.0 } else { a < 0.0 } {
+        a += 3600.0;
+        passes += 1;
+    }
+    while if half { a > 1800.0 } else { a >= 3600.0 } {
+        a -= 3600.0;
+        passes += 1;
+    }
+    passes
+}
+
+/// The pass count deciding admission is the literal count, except for the one uncounted pass
+/// after a `NormalizeAnglePos` first loop that rounds up to 3600 (a single-pass angle).
+#[test]
+fn pass_counts_equal_the_literal_loops() {
+    for op in ["normalize_angle_pos", "normalize_angle_180"] {
+        for base in [
+            -36_000_i64,
+            -7200,
+            -3600,
+            -1800,
+            0,
+            1800,
+            3600,
+            7200,
+            36_000,
+        ] {
+            for d in -3..=3 {
+                let a = base + d;
+                assert_eq!(
+                    template_passes(op, i128::from(a), false),
+                    literal_passes(op, a as f64),
+                    "{op} {a}"
+                );
+                for g in [0.25, 0.5, 0.75] {
+                    let x = a as f64 + g;
+                    let counted = template_passes(op, i128::from(a), true);
+                    assert_eq!(counted, literal_passes(op, x), "{op} {x}");
+                }
+            }
+        }
+        for x in [-1e-300, -5e-324, -0.1, -2.5e-13] {
+            let counted = template_passes(op, -1, true);
+            let literal = literal_passes(op, x);
+            assert!(
+                counted == literal || (counted == 1 && literal == 2),
+                "{op} {x}"
+            );
+        }
+    }
+    // The budget boundaries.
+    let b = i128::from(BUDGET_ANGLE);
+    assert_eq!(
+        template_passes("normalize_angle_pos", b + 3599, false),
+        PASS_BUDGET
+    );
+    assert_eq!(
+        template_passes("normalize_angle_pos", b + 3600, false),
+        PASS_BUDGET + 1
+    );
+    assert_eq!(
+        template_passes("normalize_angle_pos", -b, false),
+        PASS_BUDGET
+    );
+    assert_eq!(
+        template_passes("normalize_angle_pos", -b - 1, false),
+        PASS_BUDGET + 1
+    );
+    assert_eq!(
+        template_passes("normalize_angle_180", b + 1800, false),
+        PASS_BUDGET
+    );
+    assert_eq!(
+        template_passes("normalize_angle_180", b + 1801, false),
+        PASS_BUDGET + 1
+    );
+    assert_eq!(
+        template_passes("normalize_angle_180", -b - 1799, false),
+        PASS_BUDGET
+    );
+    assert_eq!(
+        template_passes("normalize_angle_180", -b - 1800, false),
+        PASS_BUDGET + 1
+    );
+    assert!(over_budget("normalize_angle_180", i64::MIN));
+    assert!(over_budget("normalize_angle_pos", i64::MAX));
+    assert!(!over_budget_d("normalize_angle_pos", f64::NAN));
+    assert!(over_budget_d("normalize_angle_pos", 1e15));
+    assert!(!over_budget_d(
+        "normalize_angle_pos",
+        -(BUDGET_ANGLE as f64)
+    ));
+    assert!(over_budget_d(
+        "normalize_angle_pos",
+        (-(BUDGET_ANGLE as f64)).next_down()
+    ));
 }
