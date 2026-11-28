@@ -26,6 +26,12 @@ SHAPE hierarchy's `ShapeLineChainBase` trait (p003) gains its first concrete imp
   `begin()` of a list that never allocated, and copying a default `query_iterator` (indeterminate
   `bool`, pointer and `int` members).
 - `defaultShapeFunctor` on a null item, and `SHAPE_ENTRY` on an item without a shape for layer -1.
+- Through `SHAPE_INDEX`, the accepted COW R-tree's insertion arithmetic: `ChildEnlargement`'s
+  `int64_t` products (and their difference) at an internal node, and `simpleSplit`'s `int` extent
+  `hi - lo` when a full leaf splits (`index-edge-split-extent-overflow`,
+  `index-edge-enlargement-overflow`, `index-edge-reindex-split-overflow`); `BulkLoad`'s
+  `uint32_t` conversion of a Hilbert coordinate whose centre lies outside the global bounds (an
+  entry whose `GetRight` wrapped, `index-edge-bulk-conversion-overflow`).
 
 ## Defined behaviour worth noting
 
@@ -38,20 +44,41 @@ SHAPE hierarchy's `ShapeLineChainBase` trait (p003) gains its first concrete imp
   `operator*` is defined at the end: `nullptr` before any item, else the last item reached.
 - `Accept` copies the visitor for every item (`acceptVisitor` takes it by value), whereas `Query`
   passes it by reference to the tree's search, which stops only the current leaf on `false`.
+- `SHAPE_LINE_CHAIN`'s copy assignment follows libstdc++'s `vector::operator=` for `m_arcs`: past
+  the capacity every arc is copy-constructed into new storage before the old arcs change; within
+  it the existing arcs are assigned first and the rest copy-constructed after them. A chain whose
+  arcs shrank keeps the capacity, so a later growing assignment has already assigned its first arc
+  when the (deferred) `SHAPE_ARC` copy constructor runs. Only chains built through out-of-line
+  members hold arcs, so this is covered by in-crate tests and a GCC 13.3 probe, not the corpus.
+- `SHAPE_INDEX_LIST` iterators compare `std::vector` iterators, which libstdc++ compares as
+  element pointers: iterators of two live lists differ even at the same offset (`begin()` and
+  `qbegin( nullptr, 0, false )` of two one-entry lists, `list-edge-two-lists`, `list-pair-*`). The
+  standard leaves `==` across different sequences outside the forward-iterator domain; the pinned
+  build (libstdc++ without `_GLIBCXX_DEBUG`) defines it as that pointer comparison, which the port
+  follows.
+- The COW R-tree does no arithmetic until a leaf is full, so the first sixteen insertions are
+  defined for any box (`index-edge-defined-index`, a box at 536870913); a later insertion is
+  defined while every extent fits an `int` and every area product an `int64_t`
+  (`index-edge-large-split-query-reindex`). A wrapped `GetRight` stores an inverted box, which the
+  tree handles without arithmetic until it splits or bulk loads (`index-edge-bulk-wrapped-defined`).
 - A failed `wxCHECK` reaches `wxOnAssert` with the doubly stringified condition and an empty
   message (`(const char*)NULL`); wx 3.2's default handler logs and returns, so the check's value is
   returned. Recorded in both programs.
 
-## Verified domains
+## Guards, verified domains and the harness limit
 
-Out-of-line bodies (shape_line_chain.cpp, shape_collisions.cpp) and the COW R-tree insertion and
-bulk loading run in the oracle only inside the domains listed in the adapter header and AUDIT.md;
-everything else is refused as "outside the verified domain" by both programs before the call.
-Those owners replace a domain with exact guards when they port the bodies.
+The owned bodies and the accepted COW R-tree are guarded exactly (the adapter replays the tree's
+insertion and bulk-load arithmetic on the genuine tree; see AUDIT.md). Only the out-of-line bodies
+the port defers (shape_line_chain.cpp, shape_collisions.cpp) keep a verified domain, listed in the
+adapter header and AUDIT.md; anything outside it is refused as "outside the verified domain" before
+the call, and their owners replace the domain with exact guards when they port the bodies.
+`ReservePoints` above 2^22 points (up to `max_size()`) is refused as "harness allocation budget
+exceeded": a host-dependent allocation the harness does not run, not an invalid input.
 
 ## Local diagnostic evidence
 
-GCC 13.3 oracle (WSL, hosted `GLIBC_TUNABLES`, `fma` bound to glibc 2.39 libm): 4093 cases, 3898
-compared, 195 deferred, 0 failures; 1572 controls as recorded; wasm identical; goldens policy
-`--base` (Windows), `--wasm` and `--ci` (WSL, every live unit, 0 failures) exit 0. The hosted
+GCC 13.3 oracle (WSL, glibc 2.43 with the hosted `GLIBC_TUNABLES` and `fma` bound to glibc 2.39
+libm): 4256 cases, 4053 compared, 203 deferred, 0 failures; 1548 controls as recorded on both
+programs; wasm identical. The review reproductions (two lists' `begin()` and `qbegin()`,
+`ReservePoints( 1048577 )`, a first insertion at 536870913) are compared cases. The hosted
 `rust-shape-line-chain-live` run (GCC 13.3, glibc 2.39) is the reference.
