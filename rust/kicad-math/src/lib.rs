@@ -63,18 +63,30 @@
 // exactly as the generator emits it, so the generated file stays byte-identical.
 extern crate self as kicad_math;
 
+pub mod approximation;
 pub mod arc_chord_params;
 pub mod arc_construction;
 pub mod circle;
+pub mod corner_operations;
+pub mod corner_strategy;
+pub mod direction45;
 pub mod distribute;
 pub mod eda_angle;
 pub mod eda_angle_source;
 pub mod ellipse;
 mod fp;
+pub mod fracture_edge_index_utils;
 pub mod geometry_headers;
+pub mod geometry_predicates;
+pub mod geometry_utils;
+pub mod half_line;
 mod hypot;
+pub mod intersection;
+pub mod line;
 pub mod math_util;
 pub mod mirror;
+pub mod nearest;
+pub mod oval;
 pub mod poisson_disk;
 pub mod poly_ystripes;
 pub mod seg;
