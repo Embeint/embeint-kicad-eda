@@ -4,6 +4,23 @@ use crate::eda_angle::{AngleUnit, ANGLE_180, ANGLE_270, ANGLE_90};
 use crate::trigo::TrigoError;
 use crate::vector::Vector2;
 
+/// `f64::next_up` and `next_down` are newer than the workspace minimum Rust (1.85); step by bits.
+fn next_up(value: f64) -> f64 {
+    if value.is_nan() || value == f64::INFINITY {
+        value
+    } else if value == 0.0 {
+        f64::from_bits(1)
+    } else if value > 0.0 {
+        f64::from_bits(value.to_bits() + 1)
+    } else {
+        f64::from_bits(value.to_bits() - 1)
+    }
+}
+
+fn next_down(value: f64) -> f64 {
+    -next_up(-value)
+}
+
 fn v(x: i32, y: i32) -> Vector2I {
     Vector2::new(x, y)
 }
@@ -211,7 +228,7 @@ fn double_templates_equal_the_loops() {
         for edge in edges {
             for step in -2..=2 {
                 let a = base + edge + f64::from(step) * 3600.0;
-                for b in [a, a.next_up(), a.next_down(), a + 0.25, a - 0.75, -a] {
+                for b in [a, next_up(a), next_down(a), a + 0.25, a - 0.75, -a] {
                     check_d(b);
                 }
             }
@@ -343,7 +360,7 @@ fn double_loops_that_never_terminate_are_refused() {
     // Above 2^65 no pass progresses, at every exponent; at 2^65 it does.
     for e in 65..=1023 {
         let base = f64::from_bits(((1023 + e) as u64) << 52);
-        for m in [base, base.next_up(), base * 1.5, base.next_up().next_up()] {
+        for m in [base, next_up(base), base * 1.5, next_up(next_up(base))] {
             if m == two65 || !m.is_finite() {
                 continue;
             }
@@ -365,7 +382,7 @@ fn double_loops_that_never_terminate_are_refused() {
         assert_eq!(normalize_angle_180_d(a), undefined);
     }
     assert_ne!(two65 - 3600.0, two65);
-    for a in [two65, -two65, two65.next_down(), 1.0e19, -1.0e18] {
+    for a in [two65, -two65, next_down(two65), 1.0e19, -1.0e18] {
         let pos = normalize_angle_pos_d(a);
         let half = normalize_angle_180_d(a);
         assert!(

@@ -1,6 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use super::*;
 use std::collections::BTreeMap;
+
+/// `f64::next_up` and `next_down` are newer than the workspace minimum Rust (1.85); step by bits.
+fn next_up(value: f64) -> f64 {
+    if value.is_nan() || value == f64::INFINITY {
+        value
+    } else if value == 0.0 {
+        f64::from_bits(1)
+    } else if value > 0.0 {
+        f64::from_bits(value.to_bits() + 1)
+    } else {
+        f64::from_bits(value.to_bits() - 1)
+    }
+}
+
+fn next_down(value: f64) -> f64 {
+    -next_up(-value)
+}
 const CASES: usize = 4693;
 const CONTROLS: usize = 397;
 /// `3600 * 2^24`: the angle whose loops take exactly [`PASS_BUDGET`] passes.
@@ -229,6 +246,6 @@ fn pass_counts_equal_the_literal_loops() {
     ));
     assert!(over_budget_d(
         "normalize_angle_pos",
-        (-(BUDGET_ANGLE as f64)).next_down()
+        next_down(-(BUDGET_ANGLE as f64))
     ));
 }
