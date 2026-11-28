@@ -1,0 +1,79 @@
+name: Rust kimath geometry pure p001 header live validation
+on:
+  pull_request:
+    branches: [rust]
+    paths:
+      - rust/kicad-geometry-pure-shim/**
+      - rust/kicad-math/**
+      - port/oracle/**
+      - port/cases/libs.kimath.include.geometry.application.pure.p001.jsonl
+      - port/units/libs.kimath.include.geometry.application.pure.p001.toml
+      - .github/workflows/rust-geometry-pure-live.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  geometry-pure-live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CARGO_BUILD_JOBS: "2"
+      ORACLE_JOBS: "2"
+      GLIBC_TUNABLES: "glibc.cpu.hwcaps=-AVX,-AVX2,-FMA,-FMA4,-AVX512F"
+      LD_LIBRARY_PATH: ""
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - name: Install toolchain and oracle dependencies
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal --component clippy,rustfmt --target wasm32-unknown-unknown
+          rustup default 1.99.1
+          # The image's packages.microsoft.com source is unused here and intermittently fails apt with 403.
+          for src in /etc/apt/sources.list.d/*; do if grep -qs packages.microsoft.com "$src"; then sudo rm -f "$src"; fi; done
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++ gcc cmake ninja-build python3 rsync git libboost-dev libwxgtk3.2-dev libfreetype-dev libharfbuzz-dev libfontconfig-dev pkg-config
+      - name: Check portable implementation, generated corpus and controls
+        run: |
+          cargo fmt --manifest-path rust/Cargo.toml -p kicad-math -p kicad-geometry-pure-shim --check
+          cargo clippy --locked --manifest-path rust/Cargo.toml -p kicad-math -p kicad-geometry-pure-shim --all-targets -j2 -- -D warnings
+          cargo test --locked --manifest-path rust/Cargo.toml -p kicad-math -p kicad-geometry-pure-shim -j2
+          cargo check --locked --manifest-path rust/Cargo.toml -p kicad-math --target wasm32-unknown-unknown -j2
+          python3 rust/kicad-geometry-pure-shim/generate_cases.py --check
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-geometry-pure-shim -p kicad-difftest -j2
+      - name: Build genuine pinned own-library oracle
+        run: |
+          python3 port/oracle/prepare.py --output-dir "$RUNNER_TEMP/geometry-pure-stage"
+          bash port/oracle/build.sh "$RUNNER_TEMP/geometry-pure-stage" "$PWD/port/oracle" "$RUNNER_TEMP/geometry-pure-native"
+      - name: Compare every public case and separate undefined-domain controls
+        run: |
+          out="$RUNNER_TEMP/geometry-pure-native"
+          rust/target/debug/kicad-difftest compare --partial \
+            --unit libs.kimath.include.geometry.application.pure.p001 --root "$PWD" \
+            --oracle "$out/oracle-build/kicad-oracle" --rust "$PWD/rust/target/debug/kicad-geometry-pure-shim" \
+            --report "$out/compare.json"
+          python3 rust/kicad-geometry-pure-shim/compare_controls.py \
+            --oracle "$out/oracle-build/kicad-oracle" --rust "$PWD/rust/target/debug/kicad-geometry-pure-shim"
+      - name: Execute every case and control in import-free WebAssembly
+        run: |
+          out="$RUNNER_TEMP/geometry-pure-native"
+          python3 -c "import json,sys; [print(json.dumps(json.loads(l)['request'])) for l in open(sys.argv[1])]" \
+            port/oracle/fixtures/geometry-pure-p001-controls.jsonl > "$out/controls.jsonl"
+          cat port/cases/libs.kimath.include.geometry.application.pure.p001.jsonl "$out/controls.jsonl" \
+            | rust/target/debug/kicad-geometry-pure-shim > "$out/rust-native.jsonl"
+          export KICAD_GEOMETRY_PURE_WASM_REFERENCE="$out/rust-native.jsonl"
+          cargo build --locked --manifest-path rust/Cargo.toml -p kicad-geometry-pure-shim \
+            --example corpus_parity --features live-wasm --target wasm32-unknown-unknown --release -j2
+          node rust/kicad-geometry-pure-shim/wasm-test.mjs rust/target/wasm32-unknown-unknown/release/examples/corpus_parity.wasm
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: geometry-pure-live-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/geometry-pure-native/compare.json
+            ${{ runner.temp }}/geometry-pure-native/oracle-build/oracle-provenance.json
+            ${{ runner.temp }}/geometry-pure-native/oracle-build/compile_commands.json
+            ${{ runner.temp }}/geometry-pure-native/oracle-build/binary.sha256
+            ${{ runner.temp }}/geometry-pure-native/oracle-build/kicad-oracle
+            ${{ runner.temp }}/geometry-pure-stage/source-manifest.json
+          retention-days: 14
