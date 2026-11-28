@@ -134,6 +134,9 @@ class Run:
     def __init__(self):
         self.events = []
         self.labels = set()
+        # Set after a SHAPE_CIRCLE::Rotate the replay could not follow (a non-cardinal angle);
+        # such a rotation must end its script.
+        self.unknown_centre = False
 
     def defer(self, name):
         self.events.append(name)
@@ -376,6 +379,9 @@ class Run:
     def call(self, state, c):
         name = c['call']
         kind = state[0]
+        assert not self.unknown_centre, c
+        if 'circle-rotate' in self.labels:
+            self.labels.add('circle-after-rotate')
         self.labels.add(f'{kind}-{name}')
         if name in ('type', 'type_name', 'is_null', 'has_indexable_subshapes',
                     'indexable_subshape_count', 'indexable_subshapes', 'get_start', 'get_end',
@@ -476,10 +482,17 @@ class Run:
                 ox, oy = subI(state[1], center)
                 # Only the cardinal branches negate; the generator keeps every rotation within
                 # 2^29 of a centre within 2^29, so the final sums cannot overflow. The trigo.h
-                # wrapper is ported (libs.kimath.include.application.ui.p001) and a rotation is
-                # always a script's last call, so the rotated centre is not replayed.
+                # wrapper is ported (libs.kimath.include.application.ui.p001). A cardinal
+                # rotation is replayed exactly, so later calls are classified on the rotated
+                # centre; any other angle needs sin/cos and must end the script.
                 assert all(abs(v) <= 2**29 for v in (ox, oy) + center), c
                 self.labels.add('circle-rotate')
+                turn = cardinal_turn(c['angle'])
+                if turn is None:
+                    self.unknown_centre = True
+                else:
+                    rotated = [(ox, oy), (oy, -ox), (-ox, -oy), (-oy, ox)][turn]
+                    state[1] = addI(rotated, center)
             else:
                 compound_domain(state)
                 if not all(within(v) for v in center):
@@ -491,6 +504,18 @@ class Run:
 
 def within(v):
     return -DOMAIN <= v <= DOMAIN
+
+
+def cardinal_turn(angle_bits):
+    """The quarter turn RotatePoint( int*, int*, const EDA_ANGLE& ) takes for an angle in
+    degrees whose EDA_ANGLE::Normalize is 0, 90, 180 or 270 (an integral multiple of 90, or a
+    non-finite value, which foldToTwoPeriods makes 0), or None."""
+    a = struct.unpack('>d', bytes.fromhex(angle_bits))[0]
+    if a != a or a in (float('inf'), float('-inf')):
+        return 0
+    if a != int(a) or int(a) % 90:
+        return None
+    return (int(a) % 360) // 90
 
 
 def circle_domain(state):
@@ -969,6 +994,20 @@ def shape_candidates(rng):
                                             'calls': [{'call': 'collide_shape',
                                                        'other': {'kind': 'arc', 'ctor': 'default'}}]}))
     out.extend(null_entry_candidates())
+    # Continuations after SHAPE_CIRCLE::Rotate, which the trigo.h port
+    # (libs.kimath.include.application.ui.p001) made reachable: cardinal rotations, replayed
+    # exactly, followed by further calls on the rotated circle. Their own seed leaves the earlier
+    # cases unchanged.
+    crng = random.Random(SEED + 0x7419)
+    turns = [0.0, -0.0, 90.0, 180.0, 270.0, -90.0, 360.0, 450.0, -720.0, 1170.0, 3.6e15 + 90.0]
+    for n in range(40):
+        spec = circle_spec(crng, 10**6, 'center_radius')
+        call = {'call': 'rotate', 'angle': bits(crng.choice(turns))}
+        if n % 2:
+            call['center'] = rand_point(crng, 10**6)
+        calls = circle_script(crng, 1000)[:2] + [call] + circle_script(crng, 1000)[:4]
+        out.append((f'shape-circle-rotate-then-{n}', {'op': 'shape', 'shape': spec,
+                                                      'calls': calls}))
     return out
 
 
@@ -1067,7 +1106,7 @@ REQUIRED_LABELS = {
     'circle-ctor-default', 'circle-ctor-center_radius', 'circle-ctor-circle', 'circle-ctor-copy',
     'arc-ctor-default', 'arc-ctor-three_point', 'ellipse-ctor-default', 'ellipse-ctor-radii',
     'ellipse-ctor-arc_radii', 'compound-ctor', 'add-null', 'shape-type-named',
-    'shape-type-unnamed', 'circle-rotate',
+    'shape-type-unnamed', 'circle-rotate', 'circle-after-rotate',
 }
 
 
