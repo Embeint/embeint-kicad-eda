@@ -11,12 +11,14 @@
 //! `ShapeFunctor` the function giving an item's shape; here they are `T` and `F`. A pointer item
 //! is `Option<P>`, `None` being `nullptr`, with [`ShapeItem`] giving `aItem->Shape( aLayer )`.
 //!
-//! The two iterator classes keep the C++ positions (`std::vector` iterators): `None` is a null
-//! pointer, which is what a default-constructed iterator holds and what `begin()`/`end()` of a
-//! list that never allocated return (libstdc++ and Rust both allocate on the first insertion and
-//! keep the allocation through `erase`/`clear`). Dereferencing the end, or incrementing past it,
-//! is undefined and refused. Iterators borrow the list, so the C++ invalidation of iterators by
-//! `Add`/`Remove`/`Clear` cannot occur.
+//! The two iterator classes keep the C++ positions (`std::vector` iterators, which libstdc++
+//! represents and compares as element pointers): a position is the list's allocation together
+//! with an offset into it. `None` is a null pointer, which is what a default-constructed iterator
+//! holds and what `begin()`/`end()` of a list that never allocated return (libstdc++ and Rust both
+//! allocate on the first insertion and keep the allocation through `erase`/`clear`). Iterators of
+//! two lists that are both allocated therefore never compare equal, even at the same offset.
+//! Dereferencing the end, or incrementing past it, is undefined and refused. Iterators borrow the
+//! list, so the C++ invalidation of iterators by `Add`/`Remove`/`Clear` cannot occur.
 use crate::box2::Box2I;
 use crate::shape::{Shape, ShapeError, ShapeResult};
 
@@ -224,6 +226,26 @@ fn entry<'l, 'a, T>(
         .ok_or(ShapeError::Undefined)
 }
 
+/// `m_current == aRhs.m_current` for two `std::vector` iterators: libstdc++'s `__normal_iterator`
+/// compares the element pointers. Two null pointers are equal and a null pointer equals no element
+/// pointer. Element pointers are equal when they address the same allocation at the same offset;
+/// the allocation is identified by its address, which is only compared, never observed, and is
+/// distinct for every simultaneously live list. (A one-past-the-end pointer of one allocation
+/// never equals an element pointer of another with glibc's allocator, whose chunk header lies
+/// between them.)
+fn same_position<T>(
+    entries: &[ShapeEntry<'_, T>],
+    current: Option<usize>,
+    rhs_entries: &[ShapeEntry<'_, T>],
+    rhs_current: Option<usize>,
+) -> bool {
+    match (current, rhs_current) {
+        (None, None) => true,
+        (Some(i), Some(j)) => i == j && core::ptr::eq(entries.as_ptr(), rhs_entries.as_ptr()),
+        _ => false,
+    }
+}
+
 /// `++m_current`: undefined for a null pointer or the end.
 fn increment<T>(entries: &[ShapeEntry<'_, T>], current: &mut Option<usize>) -> ShapeResult<()> {
     match *current {
@@ -272,9 +294,9 @@ impl<'l, 'a, T: Copy> ListIterator<'l, 'a, T> {
 }
 
 impl<T> PartialEq for ListIterator<'_, '_, T> {
-    /// `operator==` (and `operator!=`): the same position.
+    /// `operator==` (and `operator!=`): the same `std::vector` iterator (allocation and offset).
     fn eq(&self, rhs: &Self) -> bool {
-        self.current == rhs.current
+        same_position(self.entries, self.current, rhs.entries, rhs.current)
     }
 }
 
@@ -397,8 +419,10 @@ impl<'l, 'a, T: Copy> QueryIterator<'l, 'a, T> {
 }
 
 impl<T> PartialEq for QueryIterator<'_, '_, T> {
-    /// `operator==` (and `operator!=`): the same `m_current`.
+    /// `operator==` (and `operator!=`): the same `m_current` (allocation and offset). Only
+    /// `m_current` is read, which a default-constructed iterator value-initialises, so comparing
+    /// one is defined.
     fn eq(&self, rhs: &Self) -> bool {
-        self.current == rhs.current
+        same_position(self.entries, self.current, rhs.entries, rhs.current)
     }
 }

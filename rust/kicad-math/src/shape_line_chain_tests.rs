@@ -595,3 +595,43 @@ fn shape_index_list_iterators_and_queries() {
     // Cleared but allocated: begin() is no longer a null iterator.
     assert!(list.begin() != ListIterator::null() && list.begin() == list.end());
 }
+
+/// `std::vector` iterators compare element pointers, so iterators of two simultaneously live,
+/// allocated lists never compare equal, even at the same offset; null iterators equal only each
+/// other. GCC 13.3 reference: the pinned header gives `false` for both `begin()` and
+/// `qbegin( nullptr, 0, false )` of two one-entry lists.
+#[test]
+fn list_iterators_compare_the_allocation_and_the_offset() {
+    let items = [circle_item(0, 0, 5), circle_item(100, 0, 5)];
+    let a_ref = ItemRef(&items[0], 0);
+    let b_ref = ItemRef(&items[1], 1);
+    let mut a = ShapeIndexList::new();
+    let mut b = ShapeIndexList::new();
+    let never = ShapeIndexList::<Option<ItemRef<'_>>, _>::new();
+    assert_eq!(a.add(Some(a_ref)), Ok(()));
+    assert_eq!(b.add(Some(b_ref)), Ok(()));
+
+    assert!(a.begin() != b.begin());
+    assert!(a.end() != b.end());
+    assert!(a.begin() == a.begin() && a.end() == a.end() && a.begin() != a.end());
+    let mut stepped = a.begin();
+    assert!(stepped.increment().is_ok());
+    assert!(stepped == a.end() && stepped != b.end());
+    // Never allocated: begin() and end() are null pointers, equal to the null iterator.
+    assert!(never.begin() == ListIterator::null() && never.begin() == never.end());
+    assert!(never.begin() != a.begin() && never.end() != b.end());
+
+    let qa = a.qbegin(None, 0, false);
+    let qb = b.qbegin(None, 0, false);
+    assert!(matches!((&qa, &qb), (Ok(x), Ok(y)) if x != y));
+    assert!(matches!((&qa, &a.qbegin(None, 0, false)), (Ok(x), Ok(y)) if x == y));
+    assert!(matches!((&a.qend(), &b.qend()), (Ok(x), Ok(y)) if x != y));
+    let null = QueryIterator::<Option<ItemRef<'_>>>::null();
+    assert!(matches!(&never.qend(), Ok(x) if *x == null));
+    assert!(matches!(&a.qend(), Ok(x) if *x != null));
+
+    // Cleared lists keep their allocations: still distinct.
+    a.clear();
+    b.clear();
+    assert!(a.begin() == a.end() && a.begin() != b.begin());
+}
