@@ -2,8 +2,8 @@
 use super::*;
 use std::collections::BTreeMap;
 
-const CASES: usize = 4227;
-const CONTROLS: usize = 466;
+const CASES: usize = 4255;
+const CONTROLS: usize = 484;
 const ARC: &str = "libs.kimath.src.geometry.shape_arc.application.ui.p001";
 const COMPOUND: &str = "libs.kimath.src.geometry.shape_compound.application.ui.p001";
 const ELLIPSE: &str = "libs.kimath.src.geometry.shape_ellipse.application.ui.p001";
@@ -37,11 +37,6 @@ fn public_cases_succeed_or_defer_to_their_actual_owners() {
         ),
         (ARC, "SHAPE_ARC::BBox", 2),
         (
-            "libs.kimath.include.application.ui.p001",
-            "RotatePoint(VECTOR2I&, const VECTOR2I&, EDA_ANGLE)",
-            34,
-        ),
-        (
             "libs.kimath.src.geometry.shape_collisions.application.ui.p001",
             "SHAPE::Collide(const SHAPE*, int, int*, VECTOR2I*)",
             20,
@@ -72,7 +67,7 @@ fn public_cases_succeed_or_defer_to_their_actual_owners() {
     .map(|(u, s, n)| ((u.to_string(), s.to_string()), n))
     .collect();
     assert_eq!(deferred, expected);
-    assert_eq!(ok, 4006);
+    assert_eq!(ok, 4068);
     assert_eq!(ok + deferred.values().sum::<usize>(), CASES);
 }
 

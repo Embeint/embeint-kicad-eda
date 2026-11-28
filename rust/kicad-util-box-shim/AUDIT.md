@@ -38,11 +38,11 @@ live reports; a mapping is not proof of complete qualification.
 | Contains point/xy/box | extended relative coords, negative sizes, inclusive boundaries, short circuit origin/end | contains/contains_xy/contains_box with inside/edge/outside cases |
 | Intersects box, Intersect | normalize copies; extended ends vs narrowed getters; inclusive intersects, strict positive-area intersection; zero-box fallback | intersects/intersect with separated/edge/degenerate/inverted boxes |
 | Intersects segment | contains short circuits, three side calls, false continuation | segment-* and segment-continuation-*; SegmentIntersectsSegment is the ported trigo.cpp body (`kicad_math::trigo`, unit libs.kimath.src.trigo.application.ui.p001) |
-| Intersects rotated box | invalid short circuit, normalized angle, epsilon cardinal branches, 90-degree +1 inflation, A/B/C loops | rotated-* exercises invalid/0/180/360/90/270/epsilon/general; RotatePoint calls defer to libs.kimath.include.application.ui.p001; all loops/continuations implemented but deferred general path not executed |
+| Intersects rotated box | invalid short circuit, normalized angle, epsilon cardinal branches, 90-degree +1 inflation, A/B/C loops | rotated-* exercises invalid/0/180/360/90/270/epsilon/general; RotatePoint is the ported trigo.h wrapper (`kicad_math::trigo_header`, unit libs.kimath.include.application.ui.p001) |
 | IntersectsCircle/IntersectsCircleEdge | invalid short circuit, normalized nearest/farthest, squared comparisons, width int/2 vs double/2, +1 outer margin, inner test | circle/circle_edge including zero/negative radii and widths |
 | Inflate/GetInflated overloads, inflateAxis | positive/negative sizes, collapse branches, outward coordinate clamps, x-then-y writes | inflate/inflated/uniform, box-random-* and direct outward saturation test |
 | Merge box/point | uninitialized source/destination branches; normalize/end expansion and setters | merge/merge_point across all constructor modes |
-| GetBoundingBoxRotated | corners order, four RotatePoint calls, min/max scan, origin/end writes | rotated-bbox-*; dependency call defers, downstream scan implemented |
+| GetBoundingBoxRotated | corners order, four RotatePoint calls, min/max scan, origin/end writes | rotated-bbox-*; the four RotatePoint calls are the ported trigo.h wrapper and every case compares |
 | Area/Diagonal/SquaredDiagonal | extended product; accepted vector norm and saturating squared norm | area/diagonal/squared_diagonal; vector double general hypot still defers to vector owner |
 | SquaredDistance/Distance point/box | extended bounds, max difference, checked squares/sum, ordered box axis branches, sqrt, conditional integer KiROUND | distance/squared_distance and *_box, both signed axis directions; UB controls separate |
 | NearestPoint/FarthestPointTo | normalize copy, clamp, center and four edge choices | nearest/farthest with inside/edge/outside points |
@@ -168,3 +168,11 @@ the three side calls. Local diagnostic difftest against a GCC 13.3 oracle build:
 14,527 compared, 1,539 deferred (1,447 kimathLogOverflow, 78 header RotatePoint, 10 vector
 formatting, 4 SHAPE_ARC::BBox), 0 failures, all 19 controls as recorded. The hosted
 rust-util-box-live run remains the reference.
+
+The trigo.h inline bodies (`libs.kimath.include.application.ui.p001`, `kicad_math::trigo_header`)
+are ported: the rotated `Intersects` and `GetBoundingBoxRotated` call its `RotatePoint` wrappers
+(`rotate_point`, `rotate_point_about`), whose undefined evaluations map to the box refusal. The 78
+former header `RotatePoint` deferrals compare exactly. Local diagnostic difftest against a GCC 13.3
+oracle build: 16,066 cases, 14,605 compared, 1,461 deferred (1,447 kimathLogOverflow, 10 vector
+formatting, 4 SHAPE_ARC::BBox), 0 failures, all 19 controls as recorded; the vector and geometry
+callers are unchanged with 0 failures. See `port/findings/trigo-header-port.md`.

@@ -8,9 +8,9 @@ overflow or std::abs( INT_MIN ), with the refusal both programs must give). No r
 written anywhere: the split replays only the pinned integer arithmetic exactly (Python
 integers for int/int64_t/__int128, IEEE binary64 sqrt and products for Resize's lengths).
 
-A few controls are undefined only after a call the Rust port defers (RotatePoint, or the trigo.h
-RotatePoint wrapper inside CalcArcMid in ConstructFromTanTanPt): they carry "rust_unported" and check that the oracle refuses while Rust
-defers to that exact owner first. SEG::Square, SEG::SquaredLength, SEG::Center and
+Controls undefined only after a rotation (RotatePoint in Intersect( CIRCLE ), or CalcArcMid's
+trigo.h RotatePoint wrapper in ConstructFromTanTanPt) are refused by both programs: the trigo.h
+wrappers are ported (libs.kimath.include.application.ui.p001). SEG::Square, SEG::SquaredLength, SEG::Center and
 SEG::IntersectLines are ported by the seg.h header unit and are no longer deferrals. Intersect( CIRCLE ) requests whose solutions would need a
 non-cardinal rotation are generated only where every solution sum is far inside the int range.
 
@@ -38,11 +38,6 @@ I64_MIN, I64_MAX = -2**63, 2**63 - 1
 MIN_PRECISION_IU = 4
 M_SQRT1_2 = float.fromhex('0x1.6a09e667f3bcdp-1')
 UNDEFINED = {'kind': 'invalid_input', 'message': 'undefined circle operation'}
-ROTATE = {'upstream': 'RotatePoint(VECTOR2I&, EDA_ANGLE)',
-          'unit': 'libs.kimath.include.application.ui.p001'}
-# CalcArcMid (trigo.cpp) is ported; Rust defers at its trigo.h RotatePoint wrapper.
-CALC_ARC_MID = {'upstream': 'RotatePoint(VECTOR2I&, const VECTOR2I&, EDA_ANGLE)',
-                'unit': 'libs.kimath.include.application.ui.p001'}
 # The bound of the public tan-tan selection (a generation choice, not an adapter domain).
 TAN_TAN_BOUND = 2**16
 
@@ -246,9 +241,8 @@ class Corpus:
             return
         self.cases.append(self.request(name, inp))
 
-    def add_deferred_control(self, name, inp, owner=ROTATE):
-        self.controls.append({'error': UNDEFINED, 'request': self.request(f'control-{name}', inp),
-                              'rust_unported': owner})
+    def add_fixed_control(self, name, inp):
+        self.controls.append({'error': UNDEFINED, 'request': self.request(f'control-{name}', inp)})
 
 
 def circ(c, r):
@@ -455,9 +449,9 @@ def generate():
         res = intersect_circle(c1, r1, c2, r2)
         sols = cardinal_solutions(c1, res[0], res[1], res[2])
         assert not all(fits(v) for s in sols for v in s), i
-        c.add_deferred_control(f'intersect_circle-after-rotate-{i}',
-                               {'op': 'intersect_circle', 'circle': circ(c1, r1),
-                                'other': circ(c2, r2)})
+        c.add_fixed_control(f'intersect_circle-after-rotate-{i}',
+                            {'op': 'intersect_circle', 'circle': circ(c1, r1),
+                             'other': circ(c2, r2)})
 
     # IntersectLine and Intersect( SEG ): miss, tangent band, chords, degenerate lines,
     # endpoints and the containment threshold, and the int/int64 limits.
@@ -585,25 +579,19 @@ def generate():
         p = (o[0] + rng.randint(-1500, 1500), o[1] + rng.randint(-1500, 1500))
         tan_tan(f'rand-{i}', init, la, lb, p)
 
-    # Undefined ConstructFromTanTanPt requests. With owner set, Rust reaches that deferral
-    # (CalcArcMid's trigo.h RotatePoint wrapper, in the general branch) before the undefined operation; otherwise Rust refuses
-    # the request as the oracle does.
-    def tan_tan_control(name, la, lb, p, owner=None):
+    # Undefined ConstructFromTanTanPt requests, refused by both programs.
+    def tan_tan_control(name, la, lb, p):
         inp = {'op': 'tan_tan_pt', 'circle': circ(*init), 'line_a': [list(q) for q in la],
                'line_b': [list(q) for q in lb], 'point': list(p)}
-        if owner:
-            c.add_deferred_control(f'tan_tan_pt-{name}', inp, owner)
-        else:
-            c.controls.append({'error': UNDEFINED,
-                               'request': c.request(f'control-tan_tan_pt-{name}', inp)})
+        c.add_fixed_control(f'tan_tan_pt-{name}', inp)
 
     # Both inside the earlier sufficient domain. The first review's trace: actTanA is
     # (INT_MIN, -32768), then PerpendicularSeg adds Perpendicular()'s x of -1 to INT_MIN.
     tan_tan_control('review-perpendicular', ((0, 0), (65536, 1)), ((0, 0), (1, 65536)),
-                    (32766, -32768), CALC_ARC_MID)
+                    (32766, -32768))
     # The follow-up review's UBSan sweep over the genuine sources (seed 25).
     tan_tan_control('review-sweep', ((-64561, -62774), (61438, 63223)),
-                    ((42568, -43794), (-24787, 13026)), (-6633, 29240), CALC_ARC_MID)
+                    ((42568, -43794), (-24787, 13026)), (-6633, 29240))
     # ApproxParallel's SquaredLength: A - B overflows int.
     tan_tan_control('approx-parallel-length', ((INT_MIN, 0), (INT_MAX, 0)), ((0, 5), (10, 5)),
                     (0, 0))

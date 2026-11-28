@@ -47,8 +47,9 @@
 //! (`geometry/circle.cpp`), on minimum co-ports of the `CIRCLE` members from `geometry/circle.h`
 //! and of `SHAPE::MIN_PRECISION_IU`.
 //!
-//! Unit `libs.kimath.src.trigo.application.ui.p001` owns [`trigo`] (`trigo.cpp`); its calls
-//! into the unported `trigo.h` inline wrappers are typed deferrals.
+//! Unit `libs.kimath.src.trigo.application.ui.p001` owns [`trigo`] (`trigo.cpp`). Unit
+//! `libs.kimath.include.application.ui.p001` owns [`trigo_header`], the inline bodies of
+//! `trigo.h` (its `RotatePoint` wrappers, `GetRotated`, the angle conversions and templates).
 //!
 //! Unit `libs.kimath.src.geometry.ellipse.application.ui.p001` owns [`ellipse`]
 //! (`geometry/ellipse.cpp`), the out-of-line bodies of the header-owned
@@ -86,6 +87,7 @@ pub mod shape_ellipse;
 #[cfg(test)]
 mod shape_tests;
 pub mod trigo;
+pub mod trigo_header;
 
 // `generated.rs` is emitter output (sha256 d24ff0f2..., from the reviewed graph locks of the
 // pinned oracle; port/tools/kimath_nan/README.md). It is bound byte for byte by

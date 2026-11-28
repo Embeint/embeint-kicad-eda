@@ -44,6 +44,7 @@ void RegisterClipper2IncludeP002( REGISTRY& aRegistry );
 void RegisterSexprSource( REGISTRY& aRegistry );
 void RegisterTrigoSource( REGISTRY& aRegistry );
 void RegisterIncludeFontP001( REGISTRY& aRegistry );
+void RegisterTrigoHeader( REGISTRY& aRegistry );
 
 
 void REGISTRY::Add( const std::string& aUnit, const std::string& aUpstream, SHIM aShim )
@@ -100,6 +101,7 @@ REGISTRY MakeRegistry()
     RegisterTrigoSource( registry );
     RegisterKiplatformIncludeP001( registry );
     RegisterIncludeFontP001( registry );
+    RegisterTrigoHeader( registry );
     return registry;
 }
 

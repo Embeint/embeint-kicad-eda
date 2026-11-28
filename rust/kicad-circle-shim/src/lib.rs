@@ -297,20 +297,11 @@ mod tests {
         }
         let expected: BTreeMap<(String, String), usize> = [
             (
-                "libs.kimath.include.application.ui.p001",
-                "RotatePoint(VECTOR2I&, EDA_ANGLE)",
-                193,
-            ),
-            (
+                // 17 before the trigo.h wrappers were ported; 22 tan-tan cases that deferred at
+                // CalcArcMid's wrapper now reach a failing wxCHECK_MSG.
                 "libs.kimath.src.geometry.circle.application.ui.p001",
                 "wxOnAssert",
-                17,
-            ),
-            (
-                // CalcArcMid (trigo.cpp) is ported; it defers at its trigo.h wrapper.
-                "libs.kimath.include.application.ui.p001",
-                "RotatePoint(VECTOR2I&, const VECTOR2I&, EDA_ANGLE)",
-                70,
+                39,
             ),
             (
                 "libs.kimath.include.math.application.ui.p002",

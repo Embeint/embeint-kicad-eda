@@ -47,7 +47,6 @@ ARC_UNIT = 'libs.kimath.src.geometry.shape_arc.application.ui.p001'
 COMPOUND_UNIT = 'libs.kimath.src.geometry.shape_compound.application.ui.p001'
 ELLIPSE_UNIT = 'libs.kimath.src.geometry.shape_ellipse.application.ui.p001'
 COLLISIONS_UNIT = 'libs.kimath.src.geometry.shape_collisions.application.ui.p001'
-TRIGO_HEADER_UNIT = 'libs.kimath.include.application.ui.p001'
 UTIL_UNIT = 'libs.kimath.src.math.util.application.ui.p001'
 DEFERRALS = {
     'arc_ctor': ('SHAPE_ARC::SHAPE_ARC(const VECTOR2I&, const VECTOR2I&, const VECTOR2I&, int)',
@@ -59,7 +58,6 @@ DEFERRALS = {
                       ELLIPSE_UNIT),
     'ellipse_arc_radii': ('SHAPE_ELLIPSE::SHAPE_ELLIPSE(const VECTOR2I&, int, int, const EDA_ANGLE&, '
                           'const EDA_ANGLE&, const EDA_ANGLE&)', ELLIPSE_UNIT),
-    'rotate': ('RotatePoint(VECTOR2I&, const VECTOR2I&, EDA_ANGLE)', TRIGO_HEADER_UNIT),
     'collide_shape': ('SHAPE::Collide(const SHAPE*, int, int*, VECTOR2I*)', COLLISIONS_UNIT),
     'compound_clone': ('SHAPE_COMPOUND::Clone', COMPOUND_UNIT),
     'compound_bbox': ('SHAPE_COMPOUND::BBox', COMPOUND_UNIT),
@@ -136,6 +134,9 @@ class Run:
     def __init__(self):
         self.events = []
         self.labels = set()
+        # Set after a SHAPE_CIRCLE::Rotate the replay could not follow (a non-cardinal angle);
+        # such a rotation must end its script.
+        self.unknown_centre = False
 
     def defer(self, name):
         self.events.append(name)
@@ -378,6 +379,9 @@ class Run:
     def call(self, state, c):
         name = c['call']
         kind = state[0]
+        assert not self.unknown_centre, c
+        if 'circle-rotate' in self.labels:
+            self.labels.add('circle-after-rotate')
         self.labels.add(f'{kind}-{name}')
         if name in ('type', 'type_name', 'is_null', 'has_indexable_subshapes',
                     'indexable_subshape_count', 'indexable_subshapes', 'get_start', 'get_end',
@@ -477,9 +481,18 @@ class Run:
             if kind == 'circle':
                 ox, oy = subI(state[1], center)
                 # Only the cardinal branches negate; the generator keeps every rotation within
-                # 2^29 of a centre within 2^29, so the final sums cannot overflow.
+                # 2^29 of a centre within 2^29, so the final sums cannot overflow. The trigo.h
+                # wrapper is ported (libs.kimath.include.application.ui.p001). A cardinal
+                # rotation is replayed exactly, so later calls are classified on the rotated
+                # centre; any other angle needs sin/cos and must end the script.
                 assert all(abs(v) <= 2**29 for v in (ox, oy) + center), c
-                self.defer('rotate')
+                self.labels.add('circle-rotate')
+                turn = cardinal_turn(c['angle'])
+                if turn is None:
+                    self.unknown_centre = True
+                else:
+                    rotated = [(ox, oy), (oy, -ox), (-ox, -oy), (-oy, ox)][turn]
+                    state[1] = addI(rotated, center)
             else:
                 compound_domain(state)
                 if not all(within(v) for v in center):
@@ -491,6 +504,18 @@ class Run:
 
 def within(v):
     return -DOMAIN <= v <= DOMAIN
+
+
+def cardinal_turn(angle_bits):
+    """The quarter turn RotatePoint( int*, int*, const EDA_ANGLE& ) takes for an angle in
+    degrees whose EDA_ANGLE::Normalize is 0, 90, 180 or 270 (an integral multiple of 90, or a
+    non-finite value, which foldToTwoPeriods makes 0), or None."""
+    a = struct.unpack('>d', bytes.fromhex(angle_bits))[0]
+    if a != a or a in (float('inf'), float('-inf')):
+        return 0
+    if a != int(a) or int(a) % 90:
+        return None
+    return (int(a) % 360) // 90
 
 
 def circle_domain(state):
@@ -839,7 +864,7 @@ def shape_candidates(rng):
                         {'op': 'shape', 'shape': {'kind': 'circle', 'ctor': 'center_radius',
                                                   'center': [0, 0], 'radius': 0},
                          'calls': [call]}))
-    # Rotations (deferred in Rust) as the last call, within the safe range.
+    # Rotations as the last call, within the safe range.
     for n in range(40):
         spec = circle_spec(rng, 10**6, 'center_radius')
         call = {'call': 'rotate', 'angle': bits(rng.choice(ANGLES + [rng.uniform(-400, 400)]))}
@@ -969,7 +994,71 @@ def shape_candidates(rng):
                                             'calls': [{'call': 'collide_shape',
                                                        'other': {'kind': 'arc', 'ctor': 'default'}}]}))
     out.extend(null_entry_candidates())
+    # Continuations after SHAPE_CIRCLE::Rotate, which the trigo.h port
+    # (libs.kimath.include.application.ui.p001) made reachable: cardinal rotations, replayed
+    # exactly, followed by further calls on the rotated circle. Their own seed leaves the earlier
+    # cases unchanged.
+    crng = random.Random(SEED + 0x7419)
+    turns = [0.0, -0.0, 90.0, 180.0, 270.0, -90.0, 360.0, 450.0, -720.0, 1170.0, 3.6e15 + 90.0]
+    for n in range(40):
+        spec = circle_spec(crng, 10**6, 'center_radius')
+        call = {'call': 'rotate', 'angle': bits(crng.choice(turns))}
+        if n % 2:
+            call['center'] = rand_point(crng, 10**6)
+        calls = circle_script(crng, 1000)[:2] + [call] + circle_script(crng, 1000)[:4]
+        out.append((f'shape-circle-rotate-then-{n}', {'op': 'shape', 'shape': spec,
+                                                      'calls': calls}))
+    # Of the scripts above, 28 are defined and 12 are controls, of which 6 reach their undefined
+    # call before the rotation (continuation_split reports the split). These controls instead
+    # reach an undefined call only after the rotation and because of it: the same calls on the
+    # unrotated circle are defined (build checks both).
+    h = 2**29
+    for n, (centre, rotate, calls) in enumerate([
+            ((h, 0), {'angle': bits(90.0)}, [{'call': 'move', 'vector': [0, -(2**31 - h) - 1]}]),
+            ((0, h), {'angle': bits(180.0)}, [{'call': 'move', 'vector': [5, -(2**31 - h) - 1]}]),
+            ((h, 0), {'angle': bits(180.0)}, [{'call': 'collide_point', 'point': [INT_MAX, 0],
+                                               'clearance': 0}]),
+            ((2 * h, h), {'angle': bits(270.0), 'center': [h, h]},
+             [{'call': 'move', 'vector': [0, 2**31 - 2 * h]}]),
+            ((0, -h), {'angle': bits(450.0)},
+             [{'call': 'get_radius'}, {'call': 'move', 'vector': [1, 1]},
+              {'call': 'move', 'vector': [-(2**31 - h) - 2, 0]}]),
+            ((-h, 0), {'angle': bits(-180.0)},
+             [{'call': 'collide_seg', 'seg': [[INT_MIN, 0], [INT_MIN, 10]], 'clearance': 1}])]):
+        spec = {'kind': 'circle', 'ctor': 'center_radius', 'center': list(centre), 'radius': 5}
+        prefix = [{'call': 'get_center'}, {'call': 'is_null'}]
+        out.append((f'shape-circle-rotate-then-undefined-{n}',
+                    {'op': 'shape', 'shape': spec,
+                     'calls': prefix + [{'call': 'rotate', **rotate}] + calls}))
     return out
+
+
+def first_undefined_call(inp):
+    """The index of the first call whose script prefix is undefined, or None."""
+    for k in range(len(inp['calls']) + 1):
+        if evaluate({**inp, 'calls': inp['calls'][:k]})[0] == 'undefined':
+            return k - 1
+    return None
+
+
+def continuation_split(candidates):
+    """For every rotate-then script that is undefined: (case, first undefined call, rotation
+    index), checking that each rotate-then-undefined control fails after its rotation and that
+    its calls are defined on the unrotated circle."""
+    split = []
+    for case, inp in candidates:
+        if not case.startswith('shape-circle-rotate-then-'):
+            continue
+        first = first_undefined_call(inp)
+        if first is None:
+            continue
+        turn = next(k for k, c in enumerate(inp['calls']) if c['call'] == 'rotate')
+        if '-undefined-' in case:
+            assert first > turn, case
+            unrotated = {**inp, 'calls': inp['calls'][:turn] + inp['calls'][turn + 1:]}
+            assert evaluate(unrotated)[0] == 'defined', case
+        split.append((case, first, turn))
+    return split
 
 
 def null_entry_candidates():
@@ -1067,7 +1156,7 @@ REQUIRED_LABELS = {
     'circle-ctor-default', 'circle-ctor-center_radius', 'circle-ctor-circle', 'circle-ctor-copy',
     'arc-ctor-default', 'arc-ctor-three_point', 'ellipse-ctor-default', 'ellipse-ctor-radii',
     'ellipse-ctor-arc_radii', 'compound-ctor', 'add-null', 'shape-type-named',
-    'shape-type-unnamed',
+    'shape-type-unnamed', 'circle-rotate', 'circle-after-rotate',
 }
 
 
@@ -1076,6 +1165,9 @@ def main():
     parser.add_argument('--check', action='store_true', help='verify the committed files')
     args = parser.parse_args()
     corpus, controls, stats, labels, deferrals = build()
+    split = continuation_split(shape_candidates(random.Random(SEED)))
+    before = sorted((c for c, first, turn in split if first < turn), key=lambda c: int(c.rsplit("-", 1)[1]))
+    after = sorted(c for c, first, turn in split if first > turn)
     missing = REQUIRED_LABELS - set(labels)
     if missing:
         sys.exit(f'unreached branches: {sorted(missing)}')
@@ -1093,6 +1185,8 @@ def main():
           f'({stats["undefined"]} undefined, {stats["outside"]} outside the verified domain)')
     print('expected first Rust deferral per public case:', dict(sorted(deferrals.items())))
     print('branch labels:', len(labels))
+    print(f'rotate-then controls: {len(after)} undefined after the rotation, {len(before)} before '
+          f'it ({", ".join(c.rsplit("-", 1)[1] for c in before)})')
 
 
 if __name__ == '__main__':

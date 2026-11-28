@@ -733,26 +733,24 @@ fn segment_intersects<T: BoxCoord>(
     let [a, b, c, d] = points;
     // SegmentIntersectsSegment (trigo.cpp, libs.kimath.src.trigo.application.ui.p001) with the
     // default nullptr intersection point.
-    crate::trigo::segment_intersects_segment(a, b, c, d, None).map_err(|e| match e {
+    crate::trigo::segment_intersects_segment(a, b, c, d, None).map_err(trigo_error)
+}
+fn trigo_error(e: crate::trigo::TrigoError) -> VectorDomainError {
+    match e {
         crate::trigo::TrigoError::Undefined => VectorDomainError::IntegerOverflow,
         crate::trigo::TrigoError::Unported { upstream, unit } => {
             VectorDomainError::Unported { upstream, unit }
         }
-    })
+    }
 }
-fn rotate(_p: &mut Vector2I, _angle: EdaAngle) -> Result<()> {
-    // UNPORTED(libs.kimath.include.application.ui.p001): RotatePoint(VECTOR2I&, EDA_ANGLE)
-    Err(VectorDomainError::Unported {
-        upstream: "RotatePoint(VECTOR2I&, EDA_ANGLE)",
-        unit: "libs.kimath.include.application.ui.p001",
-    })
+/// `RotatePoint( VECTOR2I&, const EDA_ANGLE& )` (trigo.h, libs.kimath.include.application.ui.p001).
+fn rotate(p: &mut Vector2I, angle: EdaAngle) -> Result<()> {
+    crate::trigo_header::rotate_point(p, angle).map_err(trigo_error)
 }
-fn rotate_center(_p: &mut Vector2I, _c: Vector2I, _angle: EdaAngle) -> Result<()> {
-    // UNPORTED(libs.kimath.include.application.ui.p001): RotatePoint(VECTOR2I&, VECTOR2I, EDA_ANGLE)
-    Err(VectorDomainError::Unported {
-        upstream: "RotatePoint(VECTOR2I&, VECTOR2I, EDA_ANGLE)",
-        unit: "libs.kimath.include.application.ui.p001",
-    })
+/// `RotatePoint( VECTOR2I&, const VECTOR2I&, const EDA_ANGLE& )` (trigo.h,
+/// libs.kimath.include.application.ui.p001).
+fn rotate_center(p: &mut Vector2I, c: Vector2I, angle: EdaAngle) -> Result<()> {
+    crate::trigo_header::rotate_point_about(p, c, angle).map_err(trigo_error)
 }
 pub fn box2i_safe_parts(pos: Vector2D, size: Vector2D) -> Result<Box2I> {
     let lo = -2_147_483_647.0;

@@ -17,7 +17,7 @@ use crate::shape::{
     ShapeTypeValue, MIN_PRECISION_IU, SHAPE_COLLISIONS_UNIT,
 };
 use crate::shape_arc::{ShapeArc, ARC_HIGH_DEF, SHAPE_ARC_UNIT};
-use crate::shape_circle::{ShapeCircle, TRIGO_HEADER_UNIT};
+use crate::shape_circle::ShapeCircle;
 use crate::shape_compound::{ShapeCompound, SHAPE_COMPOUND_UNIT};
 use crate::shape_ellipse::{ShapeEllipse, SHAPE_ELLIPSE_UNIT};
 use crate::vector::{Vector2, Vector2I};
@@ -214,12 +214,19 @@ fn shape_circle_members() -> ShapeResult<()> {
     let mut d = ShapeCircle::new();
     d.assign_from(&c);
     assert_eq!(d, c);
+    // RotatePoint( Center, aCenter, aAngle ) through the trigo.h wrapper: (11, -19) about
+    // (1, 1) by 90 degrees is (1 + -20, 1 - 10).
+    c.rotate(EdaAngle::degrees(90.0), v(1, 1))?;
+    assert_eq!(c.centre()?, v(-19, -9));
+    // A refusal of the callee leaves the centre unchanged.
+    let mut far = ShapeCircle::with_center_radius(v(i32::MIN, 0), 1);
     assert_eq!(
-        c.rotate(EdaAngle::degrees(90.0), v(0, 0)),
-        Err(deferred(
-            "RotatePoint(VECTOR2I&, const VECTOR2I&, EDA_ANGLE)",
-            TRIGO_HEADER_UNIT
-        ))
+        far.rotate(EdaAngle::degrees(180.0), v(0, 0)),
+        Err(ShapeError::Undefined)
+    );
+    assert_eq!(
+        far.get_circle(),
+        Circle::with_center_radius(v(i32::MIN, 0), 1)
     );
     // Center - rc overflows int.
     let edge = ShapeCircle::with_center_radius(v(i32::MIN, 0), 1);
