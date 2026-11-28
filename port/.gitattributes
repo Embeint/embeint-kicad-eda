@@ -5,3 +5,5 @@ goldens/evidence/pcb_calculator.application.pure.p001*.json text eol=lf
 cases/libs.kimath.include.geometry.rtree.application.pure.p003.jsonl text eol=lf
 goldens/libs.kimath.include.geometry.rtree.application.pure.p003.jsonl text eol=lf
 goldens/evidence/libs.kimath.include.geometry.rtree.application.pure.p003*.json text eol=lf
+# The generated p004 corpus: generate_cases.py writes LF and --check compares its lines.
+cases/libs.kimath.include.geometry.application.ui.p004.jsonl text eol=lf

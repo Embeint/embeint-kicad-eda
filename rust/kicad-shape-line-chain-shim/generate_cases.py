@@ -11,8 +11,9 @@ The split replays the guarded evaluation with exact Python integers only: the SH
 members and its cached BOX2I (Compute, Inflate's inflateAxis, Merge with Normalize, Move, the
 modular int conversions of GetRight/GetBottom), the SHAPE_CIRCLE and SHAPE_LINE_CHAIN boxes, the
 BOX2 box distances (KiROUND( sqrt ) replayed with an integer square root, exact for the squared
-distances below 2^46 the list cases use) and the iterator positions. No host libm function and no
-float arithmetic is evaluated, so the output is identical on every host.
+distances below 2^46 the list cases use), what the COW R-tree's insertion arithmetic needs (see
+Tree) and the iterator positions. No host libm function and no float arithmetic is evaluated, so
+the output is identical on every host.
 
 A script stops at its first call the Rust port defers (a call into shape_line_chain.cpp,
 shape_arc.cpp or shape_collisions.cpp): such a case is compared by neither program beyond the
@@ -20,7 +21,9 @@ deferral, but the oracle still evaluates it inside its verified domain. A contro
 "rust_unported" is undefined only after such a call: the oracle refuses it and Rust defers to the
 recorded owner first.
 
---check verifies the committed files equal the generator output.
+--check verifies the committed files equal the generator output. It compares lines, so a
+checkout that converted the committed LF files to CRLF (core.autocrlf) still compares their
+content; the files are written, and committed, with LF endings (.gitattributes).
 """
 import argparse
 import json
@@ -34,11 +37,12 @@ CONTROLS = ROOT / 'port/oracle/fixtures/shape-line-chain-controls.jsonl'
 INT_MIN, INT_MAX = -2**31, 2**31 - 1
 I64_MIN, I64_MAX = -2**63, 2**63 - 1
 DOMAIN = 1 << 20
-TREE_DOMAIN = 1 << 29
-RESERVE_DOMAIN = 1 << 20
+RESERVE_BUDGET = 1 << 22
+FANOUT = 16
 POINTS_MAX_SIZE = I64_MAX // 8
 UNDEFINED = {'kind': 'invalid_input', 'message': 'undefined p004 operation'}
 OUTSIDE = {'kind': 'invalid_input', 'message': 'outside the verified domain'}
+BUDGET = {'kind': 'invalid_input', 'message': 'harness allocation budget exceeded'}
 P001 = 'libs.kimath.src.geometry.shape_line_chain.application.ui.p001'
 P002 = 'libs.kimath.src.geometry.shape_line_chain.application.ui.p002'
 COLLISIONS = 'libs.kimath.src.geometry.shape_collisions.application.ui.p001'
@@ -51,6 +55,10 @@ class Undefined(Exception):
 
 class Outside(Exception):
     """A call outside the adapter's verified domain."""
+
+
+class Budget(Exception):
+    """A defined call the harness does not run (a host-dependent allocation)."""
 
 
 class Drop(Exception):
@@ -278,10 +286,85 @@ def shape_within(shape):
     return shape[1].within()
 
 
-def tree_domain(b):
-    for v in (b.pos[0], b.pos[1], b.right(), b.bottom()):
-        if abs(v) > TREE_DOMAIN:
-            raise Outside()
+def corners(b):
+    """The corners SHAPE_INDEX passes to the tree: ( GetX, GetY, GetRight, GetBottom )."""
+    return (b.pos[0], b.pos[1], b.right(), b.bottom())
+
+
+def overlaps(a, b):
+    """RTREE_NODE::ChildOverlaps of corners a with the query corners b."""
+    return all(not (a[d] > b[2 + d] or a[2 + d] < b[d]) for d in (0, 1))
+
+
+class Tree:
+    """What the split needs to know of a KIRTREE::COW_RTREE<T, int, 2, 16> (the adapter's
+    guardInsert replays its arithmetic on the genuine tree).
+
+    It keeps the live entries (item, corners), whether the root has stayed a leaf since the last
+    reset and every corner coordinate inserted since then, per axis. While the root is a leaf an
+    insertion does no arithmetic until the leaf is full; the split then subtracts, as int, the
+    extremes of exactly the leaf's entries and the new corners. In a deeper tree every node bound
+    is one of the inserted coordinates (bounds are minima and maxima of corners), so when both
+    axes span at most INT_MAX every ChildArea / ChildEnlargement factor is at most INT_MAX in
+    magnitude, the products are below 2^62, their difference below 2^63 and every split extent an
+    int: the insertion is defined. Otherwise the model does not know the path and the candidate
+    is dropped."""
+
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.entries = []
+        self.leaf = True
+        self.lo = [None, None]
+        self.hi = [None, None]
+
+    def copy(self):
+        t = Tree()
+        t.entries, t.leaf, t.lo, t.hi = list(self.entries), self.leaf, list(self.lo), list(self.hi)
+        return t
+
+    def note(self, c):
+        for d in (0, 1):
+            for v in (c[d], c[2 + d]):
+                self.lo[d] = v if self.lo[d] is None else min(self.lo[d], v)
+                self.hi[d] = v if self.hi[d] is None else max(self.hi[d], v)
+
+    def insert(self, item, c):
+        if self.leaf and len(self.entries) >= FANOUT:
+            for d in (0, 1):
+                lo = min([e[1][d] for e in self.entries] + [c[d]])
+                hi = max([e[1][2 + d] for e in self.entries] + [c[2 + d]])
+                I(hi - lo)
+            self.leaf = False
+        elif not self.leaf:
+            self.note(c)
+            if any(self.hi[d] - self.lo[d] > INT_MAX for d in (0, 1)):
+                raise Drop()
+        self.note(c)
+        self.entries.append((item, c))
+
+    def remove(self, item, c):
+        """Remove the entry holding the item whose corners overlap c (every ancestor's bounds
+        enclose it, so the walk reaches it). Which of several such entries goes first depends on
+        the tree order the model does not keep."""
+        found = [e for e in self.entries if e[0] == item and overlaps(e[1], c)]
+        if len({e[1] for e in found}) > 1:
+            raise Drop()
+        if found:
+            self.entries.remove(found[0])
+
+    def bulk_load(self, boxes):
+        """BulkLoad: a centre outside [globalMin, globalMax] (an entry whose GetRight or
+        GetBottom wrapped) may convert out of range; the model does not replay that rounding."""
+        self.reset()
+        for item, b in boxes:
+            c = corners(b)
+            if c[0] > c[2] or c[1] > c[3]:
+                raise Drop()
+            self.entries.append((item, c))
+            self.note(c)
+        self.leaf = len(self.entries) <= FANOUT
 
 
 # Corpus -----------------------------------------------------------------------------------------
@@ -318,6 +401,8 @@ class Corpus:
             return self.control(name, inp, UNDEFINED)
         except Outside:
             return self.control(name, inp, OUTSIDE)
+        except Budget:
+            return self.control(name, inp, BUDGET)
         except OutsideAfter as e:
             return self.control(name, inp, OUTSIDE, e.owner)
         except UndefinedAfter as e:
@@ -447,13 +532,13 @@ def chain_step(rng, chains, call):
             chains[a] = Chain()
         return step, replay
     if call == 'reserve_points':
-        size = rng.choice([0, 1, 7, 1000, RESERVE_DOMAIN, RESERVE_DOMAIN + 1, POINTS_MAX_SIZE,
-                           POINTS_MAX_SIZE + 1, 1 << 62, 2**64 - 1])
+        size = rng.choice([0, 1, 7, 1000, 1 << 20, (1 << 20) + 1, RESERVE_BUDGET, RESERVE_BUDGET + 1,
+                           POINTS_MAX_SIZE, POINTS_MAX_SIZE + 1, 1 << 62, 2**64 - 1])
         step['size'] = size
 
         def replay():
-            if RESERVE_DOMAIN < size <= POINTS_MAX_SIZE:
-                raise Outside()
+            if RESERVE_BUDGET < size <= POINTS_MAX_SIZE:
+                raise Budget()
         return step, replay
     if call == 'set_closed':
         step['closed'] = rng.random() < 0.7
@@ -593,10 +678,13 @@ def gen_chain_edges(corpus):
                            {'call': 'move_assign', 'a': 0, 'src': 0}, {'call': 'copy', 'a': 0, 'src': 0}])
     script('ne', [ap(0, [1, 1]), ap(1, [1, 1]), {'call': 'ne', 'a': 0, 'src': 1}, ap(1, [2, 2]),
                   {'call': 'ne', 'a': 0, 'src': 1}, ap(0, [3, 3]), {'call': 'ne', 'a': 0, 'src': 1}])
-    for size in (0, RESERVE_DOMAIN, POINTS_MAX_SIZE + 1, 2**64 - 1):
+    for size in (0, 1 << 20, (1 << 20) + 1, RESERVE_BUDGET, POINTS_MAX_SIZE + 1, 2**64 - 1):
         script(f'reserve-{size}', [{'call': 'reserve_points', 'a': 0, 'size': size}])
-    for size in (RESERVE_DOMAIN + 1, POINTS_MAX_SIZE):
-        script(f'reserve-{size}', [{'call': 'reserve_points', 'a': 0, 'size': size}], Outside())
+    script('defined-reserve-keeps-count', [{'call': 'reserve_points', 'a': 0, 'size': 1048577},
+                                           {'call': 'point_count', 'a': 0}, ap(0, [1, 2]),
+                                           {'call': 'reserve_points', 'a': 0, 'size': 3}, {'call': 'cpoints', 'a': 0}])
+    for size in (RESERVE_BUDGET + 1, POINTS_MAX_SIZE):
+        script(f'reserve-{size}', [{'call': 'reserve_points', 'a': 0, 'size': size}], Budget())
     script('closed-one', [ap(0, [1, 1]), {'call': 'set_closed', 'a': 0, 'closed': True}],
            Deferred('merge', P001))
     script('distance-empty', [{'call': 'distance', 'a': 0, 'point': [0, 0], 'outline_only': True}],
@@ -694,8 +782,10 @@ def gen_index(corpus, rng):
         clean = rng.random() < 0.85
         items = rand_items(rng, rng.randint(1, 10), clean)
         layers = [None, None, None]
+        trees = [None, None, None]
         steps = [{'call': 'new', 'a': 0, 'layer': rng.choice([0, -1, 1])}]
         layers[0] = steps[0]['layer']
+        trees[0] = Tree()
         outcome = None
         for _ in range(rng.choice([2, 5, 10, 20])):
             call = rng.choice(INDEX_CALLS)
@@ -738,19 +828,24 @@ def gen_index(corpus, rng):
                     if call == 'new':
                         step['layer'] = rng.choice([0, -1, 1])
                         layers[a] = step['layer']
+                        trees[a] = Tree()
                     elif layers[a] is None:
                         continue
                     elif call in ('add', 'remove'):
                         step['item'] = rand_ref(rng, items)
                         b = item_box(items, step['item'], layers[a])
                         if call == 'add':
-                            tree_domain(b)
+                            trees[a].insert(step['item'], corners(b))
+                        else:
+                            trees[a].remove(step['item'], corners(b))
                     elif call == 'add_bbox':
                         step['item'] = rand_ref(rng, items)
-                        step['pos'] = pt(rng, rng.choice([1000, TREE_DOMAIN]))
+                        step['pos'] = pt(rng, rng.choice([1000, 1 << 29, 1 << 30]))
                         step['size'] = pt(rng, rng.choice([100, 1000]))
                         b = Box(step['pos'], step['size'], True).normalized()
-                        tree_domain(b)
+                        trees[a].insert(step['item'], corners(b))
+                    elif call == 'remove_all':
+                        trees[a].reset()
                     elif call == 'query':
                         step['shape'] = rand_shape(rng, clean or rng.random() < 0.5)
                         step['min_distance'] = rng.choice([0, 1, 10, 500, -5, 100000])
@@ -765,17 +860,21 @@ def gen_index(corpus, rng):
                             continue
                         step['src'] = src
                         layers[a] = layers[src]
+                        trees[a] = trees[src].copy()
                     elif call == 'destroy':
                         layers[a] = None
+                        trees[a] = None
                     elif call == 'bulk_load':
                         step['entries'] = [{'item': rand_ref(rng, items), 'pos': pt(rng, 1000),
                                             'size': pt(rng, 200)} for _ in range(rng.randint(0, 40))]
+                        trees[a].bulk_load([(e['item'], Box(e['pos'], e['size'], True).normalized())
+                                            for e in step['entries']])
                     elif call == 'reindex':
-                        if not clean:
-                            continue
-                        # Every item an index of this layer may hold, re-added under its own box.
-                        for ref in [None] + list(range(len(items))):
-                            tree_domain(item_box(items, ref, layers[a]))
+                        # RemoveAll, then every item again (in tree order) under its current box.
+                        fresh = Tree()
+                        for ref, _ in trees[a].entries:
+                            fresh.insert(ref, corners(item_box(items, ref, layers[a])))
+                        trees[a] = fresh
                 steps.append(step)
             except Exception as e:  # noqa: BLE001 - classification
                 steps.append(step)
@@ -817,9 +916,68 @@ def gen_index_edges(corpus):
                           {'call': 'bulk_load', 'a': 0, 'entries': [{'item': i, 'pos': [i, -i], 'size': [3, 3]}
                                                                     for i in range(60)]},
                           {'call': 'range', 'a': 0}, {'call': 'bulk_load', 'a': 0, 'entries': []}, {'call': 'size', 'a': 0}])
-    big = [{'shape': circle([TREE_DOMAIN, 0], 5), 'layers': [0]}, {'shape': circle([INT_MIN, 0], 1), 'layers': [0]},
+    big = [{'shape': circle([1 << 29, 0], 5), 'layers': [0]}, {'shape': circle([INT_MIN, 0], 1), 'layers': [0]},
            {'shape': circle([INT_MAX, 0], 1), 'layers': [0]}]
-    script('tree-domain', big, [{'call': 'new', 'a': 0, 'layer': 0}, {'call': 'add', 'a': 0, 'item': 0}], Outside())
+    script('large-first-insert', big, [{'call': 'new', 'a': 0, 'layer': 0}, {'call': 'add', 'a': 0, 'item': 0},
+                                       {'call': 'size', 'a': 0}, {'call': 'range', 'a': 0}])
+    # The first insertion stores the leaf bounds without arithmetic (review reproduction).
+    script('defined-index', [], [{'call': 'new', 'a': 0, 'layer': 0},
+                                 {'call': 'add_bbox', 'a': 0, 'item': None, 'pos': [536870913, 0], 'size': [0, 0]},
+                                 {'call': 'size', 'a': 0}, {'call': 'range', 'a': 0}])
+    # Beyond 2^29: 40 boxes spanning [-2^30, 2^30 - 1] on both axes (every extent within INT_MAX,
+    # every area product below 2^62) split leaves, choose subtrees, answer queries and reindex.
+    far = [{'shape': circle([(i * 2654435761) % ((1 << 31) - 16) - (1 << 30) + 8,
+                             (i * 40503) % ((1 << 31) - 16) - (1 << 30) + 8], 8),
+            'layers': [0]} for i in range(40)]
+    far_steps = [{'call': 'new', 'a': 0, 'layer': 0}] + [{'call': 'add', 'a': 0, 'item': i} for i in range(40)]
+    far_steps += [{'call': 'add_bbox', 'a': 0, 'item': 0, 'pos': [-(1 << 30), -(1 << 30)], 'size': [INT_MAX, INT_MAX]},
+                  {'call': 'size', 'a': 0}, {'call': 'range', 'a': 0},
+                  {'call': 'query', 'a': 0, 'shape': far[3]['shape'], 'min_distance': 0, 'stop': 1000},
+                  {'call': 'query', 'a': 0, 'shape': circle([0, 0], 1 << 29), 'min_distance': 1 << 28, 'stop': 1000},
+                  {'call': 'clone', 'a': 1, 'src': 0}, {'call': 'remove', 'a': 0, 'item': 5},
+                  {'call': 'remove', 'a': 0, 'item': 0}, {'call': 'range', 'a': 0}, {'call': 'range', 'a': 1},
+                  {'call': 'reindex', 'a': 1}, {'call': 'range', 'a': 1}, {'call': 'accept', 'a': 1},
+                  {'call': 'iterate', 'a': 1, 'ops': ['next'] * 8 + ['deref', 'is_null']},
+                  {'call': 'bulk_load', 'a': 2, 'entries': []},
+                  {'call': 'bulk_load', 'a': 0, 'entries': [{'item': i, 'pos': [(i * 977) % 2000000000 - 1000000000, -i << 24],
+                                                             'size': [i, 7]} for i in range(40)]},
+                  {'call': 'range', 'a': 0}, {'call': 'add', 'a': 0, 'item': 7}, {'call': 'size', 'a': 0},
+                  {'call': 'query', 'a': 0, 'shape': circle([0, 0], (1 << 30) - 1), 'min_distance': 0, 'stop': 5}]
+    far_steps.insert(1, {'call': 'new', 'a': 2, 'layer': 0})
+    script('large-split-query-reindex', far, far_steps)
+    # simpleSplit's extent INT_MAX - INT_MIN overflows int: 16 boxes at INT_MIN, then one at INT_MAX.
+    split = [{'call': 'new', 'a': 0, 'layer': 0}]
+    split += [{'call': 'add_bbox', 'a': 0, 'item': None, 'pos': [INT_MIN, i], 'size': [0, 0]} for i in range(16)]
+    script('split-extent-defined', [], split + [{'call': 'add_bbox', 'a': 0, 'item': None, 'pos': [-1, 0],
+                                                 'size': [0, 0]}, {'call': 'size', 'a': 0}, {'call': 'range', 'a': 0}])
+    script('split-extent-overflow', [], split + [{'call': 'add_bbox', 'a': 0, 'item': None, 'pos': [INT_MAX, 0],
+                                                  'size': [0, 0]}], Undefined())
+    # ChildEnlargement's int64_t product overflows: 17 boxes spanning [-2^30, 2^30 - 1] split the root,
+    # then a box at (INT_MAX, INT_MAX) enlarges a child to about 3.2e9 by 3.2e9.
+    wide = [{'call': 'new', 'a': 0, 'layer': 0}]
+    wide += [{'call': 'add_bbox', 'a': 0, 'item': None, 'pos': [-(1 << 30), -(1 << 30)], 'size': [INT_MAX, INT_MAX]}
+             for _ in range(17)]
+    script('enlargement-defined', [], wide + [{'call': 'add_bbox', 'a': 0, 'item': None, 'pos': [0, 0],
+                                               'size': [5, 5]}, {'call': 'size', 'a': 0}])
+    script('enlargement-overflow', [], wide + [{'call': 'add_bbox', 'a': 0, 'item': None, 'pos': [INT_MAX, INT_MAX],
+                                                'size': [0, 0]}], Undefined())
+    # Reindex replays the insertions: the same overflow from items whose boxes moved apart.
+    reitems = [{'shape': circle([INT_MIN + 2 if i == 16 else 0, i], 1), 'layers': [0]} for i in range(17)]
+    script('reindex-split-overflow', reitems,
+           [{'call': 'new', 'a': 0, 'layer': 0}]
+           + [{'call': 'add_bbox', 'a': 0, 'item': i, 'pos': [0, i], 'size': [0, 0]} for i in range(17)]
+           + [{'call': 'size', 'a': 0}, {'call': 'reindex', 'a': 0}], Undefined())
+    # A wrapped GetRight puts a centre far outside the bulk bounds: the Hilbert coordinate's
+    # conversion to uint32_t is out of range.
+    script('bulk-conversion-overflow', [], [{'call': 'new', 'a': 0, 'layer': 0},
+                                            {'call': 'bulk_load', 'a': 0, 'entries': [
+                                                {'item': None, 'pos': [INT_MAX - 1, 0], 'size': [INT_MAX, 0]},
+                                                {'item': None, 'pos': [0, 0], 'size': [10, 10]}]}], Undefined())
+    script('bulk-wrapped-defined', [], [{'call': 'new', 'a': 0, 'layer': 0},
+                                        {'call': 'bulk_load', 'a': 0, 'entries': [
+                                            {'item': None, 'pos': [INT_MAX - 1, 0], 'size': [4, 0]},
+                                            {'item': None, 'pos': [0, 0], 'size': [10, 10]}]},
+                                        {'call': 'range', 'a': 0}, {'call': 'size', 'a': 0}])
     script('bbox-overflow', big, [{'call': 'new', 'a': 0, 'layer': 0}, {'call': 'add', 'a': 0, 'item': 1}], Undefined())
     script('functor-overflow', big, [{'call': 'bounding_box', 'item': 1, 'layer': 0}], Undefined())
     script('remove-big', big, [{'call': 'new', 'a': 0, 'layer': 0}, {'call': 'remove', 'a': 0, 'item': 0},
@@ -1017,11 +1175,86 @@ def gen_list_edges(corpus):
     script('exact-circle', items, [{'call': 'add', 'item': 0},
                                    {'call': 'query', 'shape': circle([0, 0], 1), 'min_distance': 7, 'stop': 100}],
            Deferred('c', COLLISIONS))
+    # Iterators of two live lists compare their allocations as well as their offsets (review
+    # reproduction: begin() and qbegin( nullptr, 0, false ) of two one-entry lists differ).
+    it = lambda l, at, inc=None: dict({'l': l, 'at': at}, **({} if inc is None else {'inc': inc}))
+    cmp = lambda kind, left, right: {'call': 'compare', 'kind': kind, 'left': left, 'right': right}
+    script('two-lists', items, [cmp('iterator', it(0, 'begin'), it(1, 'begin')),
+                                cmp('iterator', it(0, 'null'), it(1, 'end')),
+                                {'call': 'add', 'item': 0}, {'call': 'add', 'item': 0, 'l': 1},
+                                cmp('iterator', it(0, 'begin'), it(1, 'begin')),
+                                cmp('query', it(0, 'begin'), it(1, 'begin')),
+                                cmp('iterator', it(0, 'end'), it(1, 'end')),
+                                cmp('query', it(0, 'end'), it(1, 'end')),
+                                cmp('iterator', it(0, 'begin', 1), it(0, 'end')),
+                                cmp('iterator', it(0, 'begin', 1), it(1, 'end')),
+                                cmp('iterator', it(0, 'begin'), it(0, 'begin')),
+                                cmp('query', it(0, 'begin'), it(0, 'begin')),
+                                cmp('query', it(1, 'null'), it(0, 'null')),
+                                cmp('query', it(0, 'null'), it(0, 'end')),
+                                {'call': 'clear', 'l': 1}, {'call': 'size', 'l': 1},
+                                cmp('iterator', it(1, 'begin'), it(1, 'end')),
+                                cmp('iterator', it(1, 'begin'), it(0, 'begin')),
+                                cmp('iterator', it(1, 'begin'), it(0, 'null')),
+                                {'call': 'iterate', 'ops': ['eq_end', 'eq_null'], 'l': 1}])
+    script('two-lists-null-inc', items, [{'call': 'add', 'item': 0},
+                                         cmp('iterator', it(0, 'null', 1), it(0, 'begin'))], Undefined())
+    script('two-lists-unallocated-inc', items, [{'call': 'add', 'item': 0},
+                                                cmp('iterator', it(0, 'begin'), it(1, 'begin', 1))], Undefined())
+    script('two-lists-end-inc', items, [{'call': 'add', 'item': 0, 'l': 1},
+                                        cmp('iterator', it(1, 'begin', 2), it(1, 'end'))], Undefined())
     huge = [{'shape': circle([INT_MAX - 10, INT_MAX - 10], 10), 'layers': [-1]},
             {'shape': circle([INT_MIN + 10, INT_MIN + 10], 10), 'layers': [-1]}]
     script('squared-distance-overflow', huge,
            [{'call': 'add', 'item': 0}, {'call': 'query', 'shape': circle([INT_MIN + 10, INT_MIN + 10], 10),
                                          'min_distance': 0, 'stop': 1, 'exact': False}], Undefined())
+
+
+def gen_list_pairs(corpus, rng):
+    """Two simultaneously live lists: additions, removals and clears on either, and comparisons
+    of their iterators (operator== reads only the positions, which the model does not need)."""
+    circle = lambda c, r: {'kind': 'circle', 'center': c, 'radius': r}
+    items = [{'shape': circle([i * 10, 0], 3), 'layers': [-1]} for i in range(4)]
+    for n in range(120):
+        lists = [None, None]  # the parents in each list; None: never allocated
+        steps = []
+        outcome = None
+        for _ in range(rng.choice([3, 6, 12])):
+            call = rng.choice(['add', 'add', 'remove', 'clear', 'compare', 'compare', 'compare'])
+            l = rng.randrange(2)
+            if call in ('add', 'remove'):
+                ref = rng.randrange(len(items))
+                steps.append({'call': call, 'item': ref, 'l': l})
+                if call == 'add':
+                    lists[l] = (lists[l] or []) + [ref]
+                elif lists[l] and ref in lists[l]:
+                    lists[l].remove(ref)
+                continue
+            if call == 'clear':
+                steps.append({'call': 'clear', 'l': l})
+                if lists[l] is not None:
+                    lists[l] = []
+                continue
+            kind = rng.choice(['iterator', 'iterator', 'query'])
+            sides = []
+            for _ in range(2):
+                side = {'l': rng.randrange(2), 'at': rng.choice(['begin', 'end', 'null'])}
+                # operator++ steps from begin() stay defined up to the size.
+                room = len(lists[side['l']] or []) if side['at'] == 'begin' else 0
+                if kind == 'iterator' and rng.random() < 0.4:
+                    side['inc'] = rng.randint(0, room + (1 if rng.random() < 0.15 else 0))
+                    if side['inc'] > room:
+                        outcome = Undefined()
+                sides.append(side)
+            steps.append({'call': 'compare', 'kind': kind, 'left': sides[0], 'right': sides[1]})
+            if outcome:
+                break
+        inp = {'op': 'index_list', 'items': items, 'steps': steps}
+
+        def replay(outcome=outcome):
+            if outcome:
+                raise outcome
+        corpus.classify(f'list-pair-{n}', inp, replay)
 
 
 def gen_malformed(corpus):
@@ -1047,6 +1280,19 @@ def gen_malformed(corpus):
     bad('target', {'op': 'index', 'items': [], 'steps': [{'call': 'collide', 'item': None, 'layer': 0,
                                                           'min_distance': 0, 'target': {}}]}, 'expected one target')
     bad('iter-op', {'op': 'index_list', 'items': [], 'steps': [{'call': 'iterate', 'ops': ['nope']}]}, 'unknown op')
+    bad('list-slot', {'op': 'index_list', 'items': [], 'steps': [{'call': 'size', 'l': 2}]}, 'invalid slot')
+    bad('compare-kind', {'op': 'index_list', 'items': [], 'steps': [
+        {'call': 'compare', 'kind': 'nope', 'left': {'l': 0, 'at': 'null'}, 'right': {'l': 0, 'at': 'null'}}]},
+        'unknown kind')
+    bad('compare-at', {'op': 'index_list', 'items': [], 'steps': [
+        {'call': 'compare', 'kind': 'query', 'left': {'l': 0, 'at': 'middle'}, 'right': {'l': 0, 'at': 'null'}}]},
+        'unknown position')
+    bad('compare-query-inc', {'op': 'index_list', 'items': [], 'steps': [
+        {'call': 'compare', 'kind': 'query', 'left': {'l': 0, 'at': 'end', 'inc': 0}, 'right': {'l': 0, 'at': 'null'}}]},
+        'unexpected or missing field')
+    bad('compare-inc', {'op': 'index_list', 'items': [], 'steps': [
+        {'call': 'compare', 'kind': 'iterator', 'left': {'l': 0, 'at': 'end', 'inc': -1}, 'right': {'l': 0, 'at': 'null'}}]},
+        'invalid increment')
 
 
 def generate():
@@ -1059,6 +1305,7 @@ def generate():
     gen_index(c, rng)
     gen_list_edges(c)
     gen_list(c, rng)
+    gen_list_pairs(c, rng)
     gen_malformed(c)
     return c
 
@@ -1074,8 +1321,10 @@ def main():
     c = generate()
     outputs = {CASES: lines_text(c.cases), CONTROLS: lines_text(c.controls)}
     if args.check:
-        stale = [str(p.relative_to(ROOT)) for p, text in outputs.items()
-                 if not p.exists() or p.read_bytes() != text.encode()]
+        # Compare lines: Git may check the LF blobs out with CRLF endings (core.autocrlf).
+        def current(p):
+            return p.read_bytes().replace(b'\r\n', b'\n') if p.exists() else None
+        stale = [str(p.relative_to(ROOT)) for p, text in outputs.items() if current(p) != text.encode()]
         if stale:
             raise SystemExit(f'stale generated files: {stale}')
     else:
