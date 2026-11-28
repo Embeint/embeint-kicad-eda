@@ -26,19 +26,17 @@ Minimum co-ports, ownership unchanged and recorded in the owners' notes:
 | `ConstructFromTanTanPt` first statement | `SEG::ApproxParallel` (accepted) -> `SEG::Square`, `libs.kimath.include.geometry.application.ui.p003` | every tan-tan case defers |
 | parallel branch | `SEG::Center`, header p003 | behind the above |
 | general branch (4 sites) | `SEG::IntersectLines`, header p003 | behind the above |
-| general branch, inside `CalcArcMid` (trigo.cpp, ported as `kicad_math::trigo::calc_arc_mid`) | `RotatePoint( VECTOR2I&, const VECTOR2I&, const EDA_ANGLE& )` (trigo.h), `libs.kimath.include.application.ui.p001` | behind the above |
-| `Intersect( CIRCLE )`, both solutions | `RotatePoint( VECTOR2I&, const EDA_ANGLE& )`, `libs.kimath.include.application.ui.p001` | every case with intersection points defers |
 | `Resize` / `KiROUND` overflow | `kimathLogOverflow`, `libs.kimath.src.math.util.application.ui.p001` | radius `INT_MIN` axis cases |
 | double `Resize` with two distinct NaN components | vector unit's distinct-NaN arithmetic site, `libs.kimath.include.math.application.ui.p002` | 56 double cases |
 | failed `wxCHECK_MSG` (7 sites) | `wxOnAssert` host effect, this unit (no unit ports the wx handler) | behind `SEG::Square`; continuation returns `*this` |
 
 The unported calls go through one `Callees` seam whose only production implementation is
 `Pinned`. In-crate tests drive the continuations with test-only callees (the parallel decision
-as declared input, the seg.h one-line bodies of `Center` and `IntersectLines`, and only the exact
-0/90/180/270 degree branches of `RotatePoint`, optionally with a recording assertion host): the
+as declared input, the seg.h one-line bodies of `Center` and `IntersectLines`, and the ported
+`CalcArcMid` and `RotatePoint`, optionally with a recording assertion host): the
 tan-tan parallel branch to completion and to its failed line 102 check (`tan_tan_pt-hand-2`'s
 oracle state, with the host and with the `wxOnAssert` deferral), the failed line 115 check, the
-general branch through `CalcArcMid` (the ported trigo.cpp body with its trigo.h wrapper forwarded,
+general branch through `CalcArcMid` (the ported trigo.cpp body and its ported trigo.h wrapper,
 to completion on two requests whose oracle replies are asserted, and the `aP == intersectPoint`
 return), and both
 `Intersect( CIRCLE )` solutions, tangency and translation for cardinal rotations. These are not
@@ -118,3 +116,17 @@ that deferred at `CalcArcMid` now defer at that wrapper instead (no case changes
 circle corpus is unchanged and the two controls' `rust_unported` owner is updated). Local
 diagnostic difftest against a GCC 13.3 oracle build: 4,978 cases, 4,636 compared, 342 deferred,
 0 failures; all 84 controls as recorded.
+
+## trigo.h caller wiring
+
+The trigo.h inline bodies (`libs.kimath.include.application.ui.p001`, `kicad_math::trigo_header`)
+are ported: `Pinned::rotate_point` calls `trigo_header::rotate_point` and `CalcArcMid` calls the
+ported `RotatePoint( VECTOR2I&, const VECTOR2I&, const EDA_ANGLE& )` wrapper. The 193
+`Intersect( CIRCLE )` and 70 tan-tan deferrals at that unit are gone, and the 6 controls that
+carried its `rust_unported` owner (4 after `Intersect( CIRCLE )`'s rotation, 2 after
+`CalcArcMid`'s) are refused identically by both programs. Of the 70 tan-tan cases 48 complete and
+22 continue to a failing `wxCHECK_MSG` and defer at this unit's `wxOnAssert` (17 -> 39). The
+test-only cardinal `RotatePoint` and forwarding callees are removed. Local diagnostic difftest
+against a GCC 13.3 oracle build: 4,978 cases, 4,877 compared, 101 deferred (39 `wxOnAssert`, 56
+distinct-NaN `Resize`, 6 `kimathLogOverflow`), 0 failures; all 84 controls refused identically.
+See `port/findings/trigo-header-port.md`.

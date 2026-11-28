@@ -43,7 +43,6 @@ of virtual members are passed explicitly (every declaration repeats the same def
 | `SHAPE_ARC` constructors other than the default, copy constructor (`Clone`), `BBox`, `Collide( SEG )`, `Collide( VECTOR2I )`, `Move`, `Rotate` | `libs.kimath.src.geometry.shape_arc.application.ui.p001` | `ShapeArc` |
 | `SHAPE_COMPOUND` vector and copy constructors, `Clone`, `Collide( SEG )`, `BBox`, `Distance( SEG )`, `Move`, `Rotate`, `IsSolid` | `libs.kimath.src.geometry.shape_compound.application.ui.p001` | `ShapeCompound`; `Centre` and `Collide( VECTOR2I )` through them |
 | every `SHAPE_ELLIPSE` constructor, `Collide( SEG )`, `BBox`, `Move`, `Rotate` | `libs.kimath.src.geometry.shape_ellipse.application.ui.p001` | `ShapeEllipse` |
-| `RotatePoint( VECTOR2I&, const VECTOR2I&, const EDA_ANGLE& )` | `libs.kimath.include.application.ui.p001` (trigo.h) | `SHAPE_CIRCLE::Rotate` |
 | `kimathLogOverflow` | `libs.kimath.src.math.util.application.ui.p001` | a saturating `KiROUND` inside `CIRCLE::Intersect( SEG )` (none in this corpus) |
 
 Not ported here (out-of-line members of `SHAPE` itself, shape.cpp): `GetClearance`, `Distance`,
@@ -132,3 +131,17 @@ exactly. Import-free wasm replays identically: p003 (4693 requests), geometry (2
 (5062). The hosted `rust-shape-headers-live`, `rust-seg-live`, `rust-circle-live` and
 `rust-geometry-live` runs (GCC 13.3 / glibc 2.39) are the reference. Details and the
 verified-domain rationale: `port/findings/shape-headers-p003-port.md`.
+
+## trigo.h caller wiring
+
+`SHAPE_CIRCLE::Rotate` calls the ported trigo.h wrapper `RotatePoint( VECTOR2I&, const VECTOR2I&,
+const EDA_ANGLE& )` (`kicad_math::trigo_header::rotate_point_about`, unit
+`libs.kimath.include.application.ui.p001`); a refusal of the forwarded trigo.cpp overload leaves
+the centre unchanged and maps to `ShapeError::Undefined`. The 34 former `RotatePoint` deferrals
+compare exactly. The generator now replays a cardinal rotation (an integral multiple of 90 degrees,
+or a non-finite angle, which `foldToTwoPeriods` makes 0) and continues the script on the rotated
+centre: 28 `shape-circle-rotate-then-*` cases and 12 controls with calls after a rotation, from
+their own seed (every earlier case and control is unchanged; label `circle-after-rotate`). A
+rotation that needs sin/cos still ends its script. Local diagnostic difftest against a GCC 13.3
+oracle build: 4,255 cases, 4,068 compared, 187 deferred, 0 failures; all 478 controls as recorded.
+See `port/findings/trigo-header-port.md`.
