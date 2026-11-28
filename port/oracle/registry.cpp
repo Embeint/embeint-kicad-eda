@@ -43,6 +43,7 @@ void RegisterShapeHeadersP003( REGISTRY& aRegistry );
 void RegisterClipper2IncludeP002( REGISTRY& aRegistry );
 void RegisterSexprSource( REGISTRY& aRegistry );
 void RegisterTrigoSource( REGISTRY& aRegistry );
+void RegisterIncludeFontP001( REGISTRY& aRegistry );
 void RegisterTrigoHeader( REGISTRY& aRegistry );
 
 
@@ -99,6 +100,7 @@ REGISTRY MakeRegistry()
     RegisterSexprSource( registry );
     RegisterTrigoSource( registry );
     RegisterKiplatformIncludeP001( registry );
+    RegisterIncludeFontP001( registry );
     RegisterTrigoHeader( registry );
     return registry;
 }

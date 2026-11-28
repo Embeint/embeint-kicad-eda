@@ -13,7 +13,8 @@ import unittest
 
 from audit import (audit, check_flags, verify_source, check_resistor_reference,
                    check_reader_reference, check_kiplatform_unix_reference,
-                   check_sexpr_reference, verify_reader_generated)
+                   check_sexpr_reference, check_font_reference, FONT_REFERENCE_SOURCES,
+                   verify_reader_generated)
 from pin import KICAD_PIN, SOURCE_PATHS
 
 
@@ -66,6 +67,22 @@ class Guards(unittest.TestCase):
             check_sexpr_reference(substitute, link, source)
         with self.assertRaisesRegex(ValueError, "archive"):
             check_sexpr_reference(commands, ["g++ -o kicad-oracle"], source)
+
+    def test_font_requires_every_pinned_source_and_archive(self):
+        source = Path("/reference")
+        commands = [{"file": str(source / path), "arguments": [
+            "g++", "-o", "CMakeFiles/font-reference.dir/object.o"]} for path in FONT_REFERENCE_SOURCES]
+        link = ["g++ -o kicad-oracle libfont-reference.a"]
+        check_font_reference(commands, link, source)
+        for index in range(len(commands)):
+            with self.subTest(missing=index), self.assertRaisesRegex(ValueError, "compilation"):
+                check_font_reference(commands[:index] + commands[index + 1:], link, source)
+        substitute = commands + [{"file": "/overlay/font.cpp", "arguments": [
+            "g++", "-o", "CMakeFiles/font-reference.dir/extra.o"]}]
+        with self.assertRaisesRegex(ValueError, "compilation"):
+            check_font_reference(substitute, link, source)
+        with self.assertRaisesRegex(ValueError, "archive"):
+            check_font_reference(commands, ["g++ -o kicad-oracle"], source)
 
     @unittest.skipUnless(shutil.which("cmake"), "CMake regenerates the fixture lexer")
     def test_generated_reader_source_is_regenerated_and_byte_checked(self):

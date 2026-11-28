@@ -24,4 +24,8 @@ SOURCE_PATHS = (
     "libs/kiplatform/os/unix/policy.cpp",
     "libs/kiplatform/os/unix/drivers.cpp", "libs/kiplatform/os/unix/sysinfo.cpp",
     "libs/sexpr/include", "libs/sexpr/sexpr.cpp",
+    "common/font/font.cpp", "common/font/outline_font.cpp", "common/font/glyph.cpp",
+    "common/font/outline_decomposer.cpp", "common/font/text_attributes.cpp",
+    "common/markup_parser.cpp", "common/string_utils.cpp", "common/gal/color4d.cpp",
+    "thirdparty/pegtl",
 )

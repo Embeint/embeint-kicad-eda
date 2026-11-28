@@ -184,3 +184,15 @@ The resolved closure added to `kicad-core`:
 `generic-array` and `typenum` were already locked by the workspace. `generic-array`'s build
 script only queries the compiler version; nothing native is built or linked, and the crate
 builds for `wasm32-unknown-unknown`.
+
+## Font layer and its oracle closure
+
+`rust/kicad-font` adds no external crate: it depends only on the workspace's `kicad-math`,
+`kicad-map-helpers` and `kicad-wx-stl-compat`, so the portable closure is unchanged.
+
+The C++ oracle's `font-reference` archive (unit `include.font.application.ui.p001`) links the
+distribution FreeType (`libfreetype-dev`; FreeType License or GPL-2.0, KiCad's own dependency),
+HarfBuzz (`libharfbuzz-dev`; MIT-style "Old MIT") and fontconfig headers (`libfontconfig-dev`;
+MIT-style). These are oracle-only build dependencies of the reference program, like
+wxWidgets and Boost there: nothing of them is vendored, linked into a Rust crate or shipped.
+`port/findings/font-header-p001-port.md` records why the oracle needs them.

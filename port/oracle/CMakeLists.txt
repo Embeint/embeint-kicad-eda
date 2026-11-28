@@ -102,6 +102,31 @@ add_library( sexpr-reference STATIC "${KICAD_REFERENCE_SOURCE}/libs/sexpr/sexpr.
 target_include_directories( sexpr-reference PUBLIC "${KICAD_REFERENCE_SOURCE}/libs/sexpr/include" )
 target_link_libraries( sexpr-reference PUBLIC fmt::fmt )
 
+# The genuine pinned font sources the include/font header adapter needs, unchanged: font.cpp
+# (FONT's constructor, Draw and METRICS::Default), outline_font.cpp (OUTLINE_FONT's constructor
+# and vtable) and the bodies those keep reachable (glyph.cpp, outline_decomposer.cpp,
+# text_attributes.cpp, markup_parser.cpp, string_utils.cpp, color4d.cpp). Each function is its
+# own section, so the final link keeps only what the adapter reaches; ADVANCED_CFG stays the
+# fail-closed reference/geometry_unreachable_config.cpp.
+find_package( Freetype REQUIRED )
+find_package( PkgConfig REQUIRED )
+pkg_check_modules( ORACLE_HARFBUZZ REQUIRED IMPORTED_TARGET harfbuzz )
+pkg_check_modules( ORACLE_FONTCONFIG REQUIRED IMPORTED_TARGET fontconfig )
+add_library( font-reference STATIC
+    "${KICAD_REFERENCE_SOURCE}/common/font/font.cpp"
+    "${KICAD_REFERENCE_SOURCE}/common/font/outline_font.cpp"
+    "${KICAD_REFERENCE_SOURCE}/common/font/glyph.cpp"
+    "${KICAD_REFERENCE_SOURCE}/common/font/outline_decomposer.cpp"
+    "${KICAD_REFERENCE_SOURCE}/common/font/text_attributes.cpp"
+    "${KICAD_REFERENCE_SOURCE}/common/markup_parser.cpp"
+    "${KICAD_REFERENCE_SOURCE}/common/string_utils.cpp"
+    "${KICAD_REFERENCE_SOURCE}/common/gal/color4d.cpp" )
+target_include_directories( font-reference PUBLIC "${KICAD_REFERENCE_SOURCE}/thirdparty/pegtl"
+    "${KICAD_REFERENCE_SOURCE}/libs/kiplatform/include" "${CMAKE_BINARY_DIR}" )
+target_compile_options( font-reference PRIVATE -ffunction-sections -fdata-sections )
+target_link_libraries( font-reference PUBLIC kimath fmt::fmt nlohmann_json Freetype::Freetype
+                       PkgConfig::ORACLE_HARFBUZZ PkgConfig::ORACLE_FONTCONFIG )
+
 file( GLOB ORACLE_SHIMS CONFIGURE_DEPENDS "${ORACLE_OVERLAY}/shims/*.cpp" )
 # GNU ld keeps the first weak/COMDAT template definition. Preserve the measured
 # matrix adapter's selection when the later hash adapter is present: alphabetical
@@ -239,9 +264,15 @@ list( REMOVE_ITEM ORACLE_SHIMS "${TRIGO_SOURCE_P001_SHIM}" )
 set( KIPLATFORM_INCLUDE_P001_SHIM "${ORACLE_OVERLAY}/shims/kiplatform_include_p001.cpp" )
 list( REMOVE_ITEM ORACLE_SHIMS "${KIPLATFORM_INCLUDE_P001_SHIM}" )
 set( KIPLATFORM_INCLUDE_P001_PROBE "${ORACLE_OVERLAY}/reference/kiplatform_include_probe.cpp" )
-# The trigo.h inline body adapter follows every previously qualified object, the kiplatform public
-# header adapter and its probe included, so none of its weak template copies (VECTOR2, EDA_ANGLE,
-# the trigo.h inline bodies, JSON helpers) is selected ahead of an earlier adapter's.
+# The include/font header adapter follows every previously qualified object, the trigo.cpp
+# source adapter and the kiplatform public header adapter and probe included, so none of its
+# weak template copies (wxString, VECTOR2, BOX2, EDA_ANGLE, JSON helpers) is selected ahead of
+# an earlier adapter's; its font-reference archive is linked after every earlier archive.
+set( FONT_P001_SHIM "${ORACLE_OVERLAY}/shims/include_font_p001.cpp" )
+list( REMOVE_ITEM ORACLE_SHIMS "${FONT_P001_SHIM}" )
+# The trigo.h inline body adapter follows every previously qualified object, the include/font
+# header adapter included, so none of its weak template copies (VECTOR2, EDA_ANGLE, the trigo.h
+# inline bodies, JSON helpers) is selected ahead of an earlier adapter's.
 set( TRIGO_HEADER_P001_SHIM "${ORACLE_OVERLAY}/shims/trigo_header_p001.cpp" )
 list( REMOVE_ITEM ORACLE_SHIMS "${TRIGO_HEADER_P001_SHIM}" )
 # Its undefined-behaviour replay: the adapter's request evaluation compiled against the pinned,
@@ -261,12 +292,13 @@ add_executable( kicad-oracle main.cpp protocol.cpp registry.cpp ${ORACLE_SHIMS}
                 "${WX_STL_COMPAT_SHIM}" "${SEXPR_SHIM}" "${SHAPE_HEADERS_P003_SHIM}"
                 "${CLIPPER2_INCLUDE_P002_SHIM}" "${TRIGO_SOURCE_P001_SHIM}"
                 "${KIPLATFORM_INCLUDE_P001_SHIM}" "${KIPLATFORM_INCLUDE_P001_PROBE}"
-                "${TRIGO_HEADER_P001_SHIM}" )
+                "${FONT_P001_SHIM}" "${TRIGO_HEADER_P001_SHIM}" )
 target_include_directories( kicad-oracle PRIVATE "${ORACLE_OVERLAY}" "${CMAKE_BINARY_DIR}"
                             "${KICAD_REFERENCE_SOURCE}/libs/kiplatform/include" )
 target_link_libraries( kicad-oracle PRIVATE kimath nlohmann_json iec60664-reference resistor-reference
                        calculator-reader-reference clipper2-rectclip-replay
-                       kiplatform-unix-reference sexpr-reference clipper2-include-p002-guard )
+                       kiplatform-unix-reference sexpr-reference clipper2-include-p002-guard
+                       font-reference )
 # shims/core_p001.cpp scripts the clock that the reference GetRunningMicroSecs reads,
 # and shims/core_include_p001.cpp the std::chrono::system_clock::now() that the
 # profile.h timers read (libstdc++'s high_resolution_clock), and
@@ -289,7 +321,8 @@ add_custom_target( oracle-audit
     VERBATIM )
 foreach( target core clipper2 kimath fmt iec60664-reference resistor-reference
          calculator-reader-reference clipper2-rectclip-replay
-         kiplatform-unix-reference sexpr-reference clipper2-include-p002-guard kicad-oracle )
+         kiplatform-unix-reference sexpr-reference clipper2-include-p002-guard font-reference
+         kicad-oracle )
     add_dependencies( ${target} oracle-audit )
 endforeach()
 
@@ -308,12 +341,13 @@ add_executable( oracle-dispatch-test EXCLUDE_FROM_ALL test_dispatch.cpp protocol
                 "${SHAPE_HEADERS_P003_SHIM}"
                 "${CLIPPER2_INCLUDE_P002_SHIM}" "${TRIGO_SOURCE_P001_SHIM}"
                 "${KIPLATFORM_INCLUDE_P001_SHIM}" "${KIPLATFORM_INCLUDE_P001_PROBE}"
-                "${TRIGO_HEADER_P001_SHIM}" )
+                "${FONT_P001_SHIM}" "${TRIGO_HEADER_P001_SHIM}" )
 target_include_directories( oracle-dispatch-test PRIVATE "${ORACLE_OVERLAY}"
                             "${KICAD_REFERENCE_SOURCE}/libs/kiplatform/include" )
 target_link_libraries( oracle-dispatch-test PRIVATE kimath nlohmann_json iec60664-reference
                        resistor-reference calculator-reader-reference clipper2-rectclip-replay
-                       kiplatform-unix-reference sexpr-reference clipper2-include-p002-guard )
+                       kiplatform-unix-reference sexpr-reference clipper2-include-p002-guard
+                       font-reference )
 target_link_options( oracle-dispatch-test PRIVATE -Wl,--gc-sections ${ORACLE_CLOCK_WRAPS} )
 add_dependencies( oracle-dispatch-test oracle-audit )
 add_test( NAME oracle-dispatch COMMAND oracle-dispatch-test )

@@ -63,7 +63,8 @@ concurrency:
 env:
   # Exact unit source the locks were derived from (oracle sha256 0bac7567...).
   UNIT_REVISION: 8ef0c0e846ba8f190080ddf46c77373dcc0e4608
-  # Reference-image tools, as in rust-port.yml's resistor migration.
+  # Reference-image tools whose candidate-1 lock the frozen unit's locks name (the tools
+  # rust-port.yml's resistor migration used before candidate-2).
   REFERENCE_TOOLS: 33535308d33e019f04af6e089b14ca593ea84ccb
   NANTOOLS: port/tools/kimath_nan
 
