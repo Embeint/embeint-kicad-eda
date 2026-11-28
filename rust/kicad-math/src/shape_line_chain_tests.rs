@@ -225,6 +225,59 @@ fn copies_and_moves() {
     assert_eq!(f.arc(1).err(), Some(ShapeError::Undefined));
 }
 
+/// libstdc++'s `vector::operator=` chooses between reallocating (copy-constructing every arc from
+/// the first) and assigning the existing arcs before constructing the rest, by capacity; a
+/// shrinking assignment keeps the capacity. GCC 13.3 reference: an instrumented element type
+/// in the same vector sequence sees the existing element already assigned at the first copy
+/// construction when the capacity suffices, and unchanged when it does not.
+#[test]
+fn arc_assignment_follows_the_vector_capacity_branches() {
+    let arc = |width| ShapeArc::with_points(v(0, 0), v(1, 1), v(2, 0), width);
+    let width = |c: &ShapeLineChain, i| c.arc(i).map(|a| a.get_width());
+    let copy_ctor = unported("SHAPE_ARC::SHAPE_ARC(const SHAPE_ARC&)", SHAPE_ARC_UNIT);
+
+    // Shrinking: assign in order, destroy the rest, keep the capacity.
+    let mut d = ShapeLineChain::with_members(vec![], vec![], vec![arc(1), arc(2), arc(3)], false);
+    let one = ShapeLineChain::with_members(vec![], vec![], vec![arc(77)], false);
+    assert_eq!(d.assign_from(&one), Ok(()));
+    assert_eq!((d.arc_count(), d.arcs_capacity()), (1, 3));
+    assert_eq!(width(&d, 0), Ok(77));
+
+    // Growing within the capacity: the existing arc is assigned before the first copy
+    // construction, which defers; the size is unchanged and the later members not assigned.
+    let two = ShapeLineChain::with_members(
+        vec![v(5, 5)],
+        vec![SHAPES_ARE_PT],
+        vec![arc(9), arc(9)],
+        true,
+    );
+    d.set_width(4);
+    assert_eq!(d.assign_from(&two), Err(copy_ctor));
+    assert_eq!((d.arc_count(), d.arcs_capacity()), (1, 3));
+    assert_eq!(width(&d, 0), Ok(9));
+    assert_eq!(d.cpoints(), &[v(5, 5)]);
+    assert_eq!((d.is_closed(), d.width()), (false, 4));
+
+    // Growing past the capacity: the first copy construction is of the source's first arc, before
+    // anything in the destination's arcs changes.
+    let mut e = ShapeLineChain::with_members(vec![], vec![], vec![arc(77)], false);
+    assert_eq!(e.arcs_capacity(), 1);
+    assert_eq!(e.assign_from(&two), Err(copy_ctor));
+    assert_eq!((e.arc_count(), e.arcs_capacity()), (1, 1));
+    assert_eq!(width(&e, 0), Ok(77));
+    assert_eq!(e.cpoints(), &[v(5, 5)]);
+
+    // Moving takes the capacity with the arcs; clearing keeps it.
+    let mut f = ShapeLineChain::new();
+    f.move_assign_from(&mut d);
+    assert_eq!((f.arc_count(), f.arcs_capacity()), (1, 3));
+    assert_eq!((d.arc_count(), d.arcs_capacity()), (0, 0));
+    f.clear();
+    assert_eq!((f.arc_count(), f.arcs_capacity()), (0, 3));
+    assert_eq!(f.assign_from(&one), Err(copy_ctor));
+    assert_eq!(f.arc_count(), 0);
+}
+
 #[test]
 fn deferred_out_of_line_calls_keep_earlier_effects() {
     let mut c = chain(&[(0, 0), (1, 0), (0, 0)]);

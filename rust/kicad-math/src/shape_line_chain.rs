@@ -172,6 +172,10 @@ pub struct ShapeLineChain {
     shapes: Vec<(i64, i64)>,
     /// `m_arcs`.
     arcs: Vec<ShapeArc>,
+    /// `m_arcs.capacity()` as libstdc++ keeps it (the Rust vector's own capacity is not
+    /// specified to match). Only the copy assignment observes it: it decides whether that
+    /// assignment reallocates (and copy-constructs every arc) or assigns the existing arcs first.
+    arcs_capacity: usize,
     /// `m_accuracy`: the maxError to use when converting arcs to points. No inline body reads it.
     accuracy: i32,
     /// `m_closed`.
@@ -197,6 +201,7 @@ impl ShapeLineChain {
             points: Vec::new(),
             shapes: Vec::new(),
             arcs: Vec::new(),
+            arcs_capacity: 0,
             accuracy: 0,
             closed: false,
             width: 0,
@@ -210,18 +215,31 @@ impl ShapeLineChain {
         unported("SHAPE_ARC::SHAPE_ARC(const SHAPE_ARC&)", SHAPE_ARC_UNIT)
     }
 
+    /// Copy-construct `source`'s arcs into new storage (libstdc++ `__uninitialized_copy_a`), in
+    /// order. The copies only become elements once every one is constructed, so a deferral at
+    /// any of them leaves the destination unchanged.
+    fn copy_arcs(source: &[ShapeArc]) -> ShapeResult<Vec<ShapeArc>> {
+        let mut copies = Vec::new();
+        copies
+            .try_reserve_exact(source.len())
+            .map_err(|_| ShapeError::Undefined)?;
+        for arc in source {
+            copies.push(Self::copy_arc(arc)?);
+        }
+        Ok(copies)
+    }
+
     /// `SHAPE_LINE_CHAIN( const SHAPE_LINE_CHAIN& aShape )`: the members in declaration order;
-    /// each arc is copied by the out-of-line `SHAPE_ARC` copy constructor.
+    /// each arc is copied by the out-of-line `SHAPE_ARC` copy constructor. The vector copy
+    /// constructor allocates exactly `size()` elements.
     pub fn copy_of(shape: &ShapeLineChain) -> ShapeResult<Self> {
         let points = shape.points.clone();
         let shapes = shape.shapes.clone();
-        let mut arcs = Vec::with_capacity(shape.arcs.len());
-        for arc in &shape.arcs {
-            arcs.push(Self::copy_arc(arc)?);
-        }
+        let arcs = Self::copy_arcs(&shape.arcs)?;
         Ok(Self {
             points,
             shapes,
+            arcs_capacity: arcs.len(),
             arcs,
             accuracy: shape.accuracy,
             closed: shape.closed,
@@ -231,30 +249,56 @@ impl ShapeLineChain {
     }
 
     /// `operator=( const SHAPE_LINE_CHAIN& ) = default`: memberwise in declaration order (the
-    /// base's `m_type` is `SH_LINE_CHAIN` on both sides). Assigning `m_arcs` assigns the existing
-    /// elements with `SHAPE_ARC`'s implicit copy assignment and copy-constructs any further ones
-    /// (libstdc++ `vector::operator=`), so it defers at the `SHAPE_ARC` copy constructor exactly
-    /// when the source holds more arcs than this chain. The points and shapes are assigned by then.
+    /// base's `m_type` is `SH_LINE_CHAIN` on both sides). The points and shapes are trivially
+    /// copyable, so only their values are observable; `m_arcs` follows [`Self::assign_arcs`].
+    /// At a deferral in the arcs the points and shapes are assigned and the later members are not.
     pub fn assign_from(&mut self, other: &ShapeLineChain) -> ShapeResult<()> {
         self.points.clone_from(&other.points);
         self.shapes.clone_from(&other.shapes);
-
-        if other.arcs.len() > self.arcs.len() {
-            let first = other
-                .arcs
-                .get(self.arcs.len())
-                .ok_or(ShapeError::Undefined)?;
-            Self::copy_arc(first)?;
-        }
-        self.arcs.truncate(other.arcs.len());
-        for (arc, source) in self.arcs.iter_mut().zip(other.arcs.iter()) {
-            arc.assign_from(source);
-        }
+        self.assign_arcs(&other.arcs)?;
 
         self.accuracy = other.accuracy;
         self.closed = other.closed;
         self.width = other.width;
         self.bbox = other.bbox;
+        Ok(())
+    }
+
+    /// `m_arcs = aOther.m_arcs`: libstdc++'s `vector::operator=( const vector& )` (vector.tcc,
+    /// GCC 13.3; `std::allocator` does not propagate on copy assignment). With `xlen` the
+    /// source's size:
+    ///
+    /// - `xlen > capacity()`: new storage of exactly `xlen` arcs, each copy-constructed in order
+    ///   from the source's first (`_M_allocate_and_copy`); the old arcs are destroyed and the
+    ///   storage replaced only once every copy exists.
+    /// - `size() >= xlen`: `std::copy` assigns the first `xlen` arcs in order with `SHAPE_ARC`'s
+    ///   implicit copy assignment, then the rest are destroyed; the capacity is kept.
+    /// - otherwise: the existing `size()` arcs are assigned first, then the remaining source arcs
+    ///   are copy-constructed after them (`__uninitialized_copy_a`); `size()` changes only once
+    ///   they all exist.
+    ///
+    /// The self-assignment check cannot be reached (Rust borrows exclude it). `SHAPE_ARC`'s
+    /// destructor has no observable effect.
+    fn assign_arcs(&mut self, source: &[ShapeArc]) -> ShapeResult<()> {
+        let xlen = source.len();
+
+        if xlen > self.arcs_capacity {
+            let copies = Self::copy_arcs(source)?;
+            self.arcs = copies;
+            self.arcs_capacity = xlen;
+        } else if self.arcs.len() >= xlen {
+            for (arc, from) in self.arcs.iter_mut().zip(source.iter()) {
+                arc.assign_from(from);
+            }
+            self.arcs.truncate(xlen);
+        } else {
+            let (prefix, tail) = source.split_at(self.arcs.len());
+            for (arc, from) in self.arcs.iter_mut().zip(prefix.iter()) {
+                arc.assign_from(from);
+            }
+            let copies = Self::copy_arcs(tail)?;
+            self.arcs.extend(copies);
+        }
         Ok(())
     }
 
@@ -265,6 +309,7 @@ impl ShapeLineChain {
         self.points = core::mem::take(&mut other.points);
         self.shapes = core::mem::take(&mut other.shapes);
         self.arcs = core::mem::take(&mut other.arcs);
+        self.arcs_capacity = core::mem::take(&mut other.arcs_capacity);
 
         self.accuracy = other.accuracy;
         self.closed = other.closed;
@@ -545,7 +590,8 @@ impl ShapeLineChain {
     }
 
     /// Memberwise state with arcs, for in-crate tests: the C++ reaches arcs only through
-    /// out-of-line members (shape_line_chain.cpp and shape_arc.cpp).
+    /// out-of-line members (shape_line_chain.cpp and shape_arc.cpp). The arc capacity is the arc
+    /// count, as after a copy construction.
     #[cfg(test)]
     pub(crate) fn with_members(
         points: Vec<Vector2I>,
@@ -556,10 +602,17 @@ impl ShapeLineChain {
         Self {
             points,
             shapes,
+            arcs_capacity: arcs.len(),
             arcs,
             closed,
             ..Self::new()
         }
+    }
+
+    /// The modelled `m_arcs.capacity()`, for in-crate tests.
+    #[cfg(test)]
+    pub(crate) fn arcs_capacity(&self) -> usize {
+        self.arcs_capacity
     }
 }
 
