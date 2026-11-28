@@ -196,8 +196,9 @@ pub fn flush_to_disk<H: UnixHost + ?Sized>(host: &mut H, fp: Option<Ptr>) -> Res
     Ok(host.fsync(fd)? == 0)
 }
 
-/// `std::string( prefix ) + aFileName.ToStdString()`: the message of a thrown
-/// `std::runtime_error` (`ToStdString()` converts with `wxConvLibc` and keeps every byte).
+/// `std::runtime_error( std::string( prefix ) + aFileName.ToStdString() )`: `ToStdString()`
+/// converts with `wxConvLibc`; `what()` returns the message as a C string, so a reader sees it
+/// up to its first NUL.
 fn runtime_error<H: UnixHost + ?Sized>(
     host: &mut H,
     prefix: &[u8],
@@ -207,7 +208,7 @@ fn runtime_error<H: UnixHost + ?Sized>(
     let mut what = Vec::new();
     reserve(&mut what, prefix.len().saturating_add(name.len()))?;
     what.extend_from_slice(prefix);
-    what.extend_from_slice(&name);
+    what.extend_from_slice(c_str(&name));
     Ok(RuntimeError { what })
 }
 

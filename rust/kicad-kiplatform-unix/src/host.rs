@@ -202,8 +202,10 @@ pub trait UnixHost {
     /// `towlower( c )` in the current locale, as `wcscasecmp` applies it.
     fn towlower(&mut self, c: WChar) -> Result<WChar>;
 
-    /// `wxOnAssert( ... )` of a failed `wxFAIL_MSG`. `Ok` when the handler returned (the
-    /// caller continues as the reference does); an error stops the evaluation there.
+    /// `wxOnAssert( __FILE__, __LINE__, __WXFUNCTION__, cond, msg )` of a failed `wxFAIL_MSG`.
+    /// The narrow file, function and condition reach the handler as `wxString`s converted with
+    /// `wxConvLibc`. `Ok` when the handler returned (the caller continues as the reference
+    /// does); an error stops the evaluation there.
     fn on_assert(&mut self, assert: &WxAssert) -> Result<()>;
 
     /// `wxLogError( _( msgid ), arg )` (from `wxRegEx::Matches`).
