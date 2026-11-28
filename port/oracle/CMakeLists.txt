@@ -127,6 +127,60 @@ target_compile_options( font-reference PRIVATE -ffunction-sections -fdata-sectio
 target_link_libraries( font-reference PUBLIC kimath fmt::fmt nlohmann_json Freetype::Freetype
                        PkgConfig::ORACLE_HARFBUZZ PkgConfig::ORACLE_FONTCONFIG )
 
+# The genuine pinned Linux kiplatform bodies of unit libs.kiplatform.os.unix.application.ui.p001,
+# unchanged: app.cpp, environment.cpp, io.cpp, printing.cpp and secrets.cpp, with os/common/io.cpp
+# for MAPPED_FILE::readIntoBuffer (its other bodies are unused and dropped by the final link).
+# Every call they make into libsecret, poppler, cairo, GTK printing and GIO is a --wrap fake in
+# shims/kiplatform_unix_ui_p001.cpp, so those libraries contribute headers only; GLib, GObject,
+# GIO and GTK are linked for the real functions an unarmed fake forwards to.
+pkg_check_modules( ORACLE_UNIX_UI_LINKED REQUIRED IMPORTED_TARGET glib-2.0 gobject-2.0 gio-2.0
+                   gtk+-3.0 )
+pkg_check_modules( ORACLE_UNIX_UI_FAKED REQUIRED libsecret-1 poppler-glib cairo )
+add_library( kiplatform-unix-ui-reference STATIC
+    "${KICAD_REFERENCE_SOURCE}/libs/kiplatform/os/unix/app.cpp"
+    "${KICAD_REFERENCE_SOURCE}/libs/kiplatform/os/unix/environment.cpp"
+    "${KICAD_REFERENCE_SOURCE}/libs/kiplatform/os/unix/io.cpp"
+    "${KICAD_REFERENCE_SOURCE}/libs/kiplatform/os/unix/printing.cpp"
+    "${KICAD_REFERENCE_SOURCE}/libs/kiplatform/os/unix/secrets.cpp"
+    "${KICAD_REFERENCE_SOURCE}/libs/kiplatform/os/common/io.cpp" )
+target_include_directories( kiplatform-unix-ui-reference PUBLIC
+    "${KICAD_REFERENCE_SOURCE}/libs/kiplatform/include" ${ORACLE_UNIX_UI_FAKED_INCLUDE_DIRS} )
+target_compile_options( kiplatform-unix-ui-reference PRIVATE -ffunction-sections -fdata-sections )
+target_link_libraries( kiplatform-unix-ui-reference PUBLIC PkgConfig::ORACLE_UNIX_UI_LINKED )
+# The calls the unix application ui adapter fakes: C functions by name, wxWidgets functions by
+# their mangled names. An unarmed C library, GLib or wx fake forwards to the real function.
+set( KIPLATFORM_UNIX_UI_WRAPPED
+     _Z8wxGetEnvRK8wxStringPS_ _Z8wxSetEnvRK8wxStringS1_ _Z17wxGetActiveWindowv
+     _Z19wxGetTopLevelParentP12wxWindowBase
+     g_log_set_writer_func g_error_free g_clear_error g_object_unref g_free g_strfreev
+     g_list_free_full g_hash_table_unref g_type_check_instance_cast g_get_user_data_dir
+     g_get_user_config_dir g_get_user_cache_dir g_get_home_dir g_filename_to_uri
+     g_signal_connect_data g_file_new_for_path g_file_new_for_uri g_file_trash
+     g_file_find_enclosing_mount g_mount_get_drive g_drive_is_removable g_file_get_parent
+     g_file_get_basename g_file_get_path g_proxy_resolver_get_default g_proxy_resolver_lookup
+     syscall setpriority realpath free fopen fopen64 fileno posix_fadvise posix_fadvise64 fclose
+     fflush fsync stat stat64 lstat lstat64 fstat fstat64 chmod opendir readdir readdir64 closedir
+     readlink fnmatch open open64 close mmap mmap64 madvise munmap access fseek ftell fread
+     secret_password_store_sync secret_password_store secret_password_store_finish
+     secret_password_lookup_sync secret_password_lookup secret_password_lookup_finish
+     secret_attributes_build secret_service_search_sync secret_item_get_locked
+     secret_item_get_secret secret_value_get_text secret_value_unref secret_password_clear_sync
+     poppler_document_new_from_file poppler_document_get_n_pages poppler_document_get_page
+     poppler_page_get_size poppler_page_render
+     gtk_print_operation_new gtk_print_operation_set_use_full_page gtk_print_operation_set_unit
+     gtk_print_operation_set_print_settings gtk_print_operation_set_job_name
+     gtk_print_operation_set_current_page gtk_print_operation_set_n_pages
+     gtk_print_operation_cancel gtk_print_operation_run gtk_print_operation_get_print_settings
+     gtk_print_settings_new gtk_print_settings_copy gtk_print_settings_get gtk_print_settings_set
+     gtk_print_settings_unset gtk_print_settings_set_print_pages
+     gtk_print_context_get_cairo_context gtk_print_context_get_width gtk_print_context_get_height
+     gtk_page_setup_set_orientation gtk_widget_get_toplevel gtk_widget_is_toplevel
+     cairo_save cairo_restore cairo_translate cairo_scale cairo_set_source_rgb cairo_paint )
+set( KIPLATFORM_UNIX_UI_WRAPS )
+foreach( symbol ${KIPLATFORM_UNIX_UI_WRAPPED} )
+    list( APPEND KIPLATFORM_UNIX_UI_WRAPS "-Wl,--wrap=${symbol}" )
+endforeach()
+
 file( GLOB ORACLE_SHIMS CONFIGURE_DEPENDS "${ORACLE_OVERLAY}/shims/*.cpp" )
 # GNU ld keeps the first weak/COMDAT template definition. Preserve the measured
 # matrix adapter's selection when the later hash adapter is present: alphabetical
@@ -275,6 +329,12 @@ list( REMOVE_ITEM ORACLE_SHIMS "${FONT_P001_SHIM}" )
 # inline bodies, JSON helpers) is selected ahead of an earlier adapter's.
 set( TRIGO_HEADER_P001_SHIM "${ORACLE_OVERLAY}/shims/trigo_header_p001.cpp" )
 list( REMOVE_ITEM ORACLE_SHIMS "${TRIGO_HEADER_P001_SHIM}" )
+# The unix application ui adapter follows every previously qualified object, the trigo.h inline
+# body adapter included, so none of its weak template copies (wxString, std::function, JSON
+# helpers) is selected ahead of an earlier adapter's; its kiplatform-unix-ui-reference archive is
+# linked after every earlier archive.
+set( KIPLATFORM_UNIX_UI_P001_SHIM "${ORACLE_OVERLAY}/shims/kiplatform_unix_ui_p001.cpp" )
+list( REMOVE_ITEM ORACLE_SHIMS "${KIPLATFORM_UNIX_UI_P001_SHIM}" )
 # Its undefined-behaviour replay: the adapter's request evaluation compiled against the pinned,
 # unmodified clipper.engine.cpp, clipper.offset.cpp and clipper.rectclip.cpp (renamed
 # namespace) with UBSan in trap mode and _GLIBCXX_ASSERTIONS, run only in a forked child. It
@@ -292,13 +352,14 @@ add_executable( kicad-oracle main.cpp protocol.cpp registry.cpp ${ORACLE_SHIMS}
                 "${WX_STL_COMPAT_SHIM}" "${SEXPR_SHIM}" "${SHAPE_HEADERS_P003_SHIM}"
                 "${CLIPPER2_INCLUDE_P002_SHIM}" "${TRIGO_SOURCE_P001_SHIM}"
                 "${KIPLATFORM_INCLUDE_P001_SHIM}" "${KIPLATFORM_INCLUDE_P001_PROBE}"
-                "${FONT_P001_SHIM}" "${TRIGO_HEADER_P001_SHIM}" )
+                "${FONT_P001_SHIM}" "${TRIGO_HEADER_P001_SHIM}"
+                "${KIPLATFORM_UNIX_UI_P001_SHIM}" )
 target_include_directories( kicad-oracle PRIVATE "${ORACLE_OVERLAY}" "${CMAKE_BINARY_DIR}"
                             "${KICAD_REFERENCE_SOURCE}/libs/kiplatform/include" )
 target_link_libraries( kicad-oracle PRIVATE kimath nlohmann_json iec60664-reference resistor-reference
                        calculator-reader-reference clipper2-rectclip-replay
                        kiplatform-unix-reference sexpr-reference clipper2-include-p002-guard
-                       font-reference )
+                       font-reference kiplatform-unix-ui-reference )
 # shims/core_p001.cpp scripts the clock that the reference GetRunningMicroSecs reads,
 # and shims/core_include_p001.cpp the std::chrono::system_clock::now() that the
 # profile.h timers read (libstdc++'s high_resolution_clock), and
@@ -309,7 +370,8 @@ target_link_libraries( kicad-oracle PRIVATE kimath nlohmann_json iec60664-refere
 set( ORACLE_CLOCK_WRAPS -Wl,--wrap=clock_gettime
      -Wl,--wrap=_ZNSt6chrono3_V212system_clock3nowEv
      -Wl,--wrap=_ZNSt6chrono3_V212steady_clock3nowEv )
-target_link_options( kicad-oracle PRIVATE -Wl,--gc-sections ${ORACLE_CLOCK_WRAPS} )
+target_link_options( kicad-oracle PRIVATE -Wl,--gc-sections ${ORACLE_CLOCK_WRAPS}
+                     ${KIPLATFORM_UNIX_UI_WRAPS} )
 
 # Audit every build, including direct cmake --build calls and warm cache builds.
 add_custom_target( oracle-audit
@@ -322,7 +384,7 @@ add_custom_target( oracle-audit
 foreach( target core clipper2 kimath fmt iec60664-reference resistor-reference
          calculator-reader-reference clipper2-rectclip-replay
          kiplatform-unix-reference sexpr-reference clipper2-include-p002-guard font-reference
-         kicad-oracle )
+         kiplatform-unix-ui-reference kicad-oracle )
     add_dependencies( ${target} oracle-audit )
 endforeach()
 
@@ -341,14 +403,16 @@ add_executable( oracle-dispatch-test EXCLUDE_FROM_ALL test_dispatch.cpp protocol
                 "${SHAPE_HEADERS_P003_SHIM}"
                 "${CLIPPER2_INCLUDE_P002_SHIM}" "${TRIGO_SOURCE_P001_SHIM}"
                 "${KIPLATFORM_INCLUDE_P001_SHIM}" "${KIPLATFORM_INCLUDE_P001_PROBE}"
-                "${FONT_P001_SHIM}" "${TRIGO_HEADER_P001_SHIM}" )
+                "${FONT_P001_SHIM}" "${TRIGO_HEADER_P001_SHIM}"
+                "${KIPLATFORM_UNIX_UI_P001_SHIM}" )
 target_include_directories( oracle-dispatch-test PRIVATE "${ORACLE_OVERLAY}"
                             "${KICAD_REFERENCE_SOURCE}/libs/kiplatform/include" )
 target_link_libraries( oracle-dispatch-test PRIVATE kimath nlohmann_json iec60664-reference
                        resistor-reference calculator-reader-reference clipper2-rectclip-replay
                        kiplatform-unix-reference sexpr-reference clipper2-include-p002-guard
-                       font-reference )
-target_link_options( oracle-dispatch-test PRIVATE -Wl,--gc-sections ${ORACLE_CLOCK_WRAPS} )
+                       font-reference kiplatform-unix-ui-reference )
+target_link_options( oracle-dispatch-test PRIVATE -Wl,--gc-sections ${ORACLE_CLOCK_WRAPS}
+                     ${KIPLATFORM_UNIX_UI_WRAPS} )
 add_dependencies( oracle-dispatch-test oracle-audit )
 add_test( NAME oracle-dispatch COMMAND oracle-dispatch-test )
 add_test( NAME oracle-md5-inputs
@@ -406,6 +470,10 @@ add_test( NAME oracle-kiplatform-include-p001-inputs
     COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_kiplatform_include_p001_inputs.py"
             "$<TARGET_FILE:kicad-oracle>" )
 set_tests_properties( oracle-kiplatform-include-p001-inputs PROPERTIES TIMEOUT 60 )
+add_test( NAME oracle-kiplatform-unix-ui-p001-inputs
+    COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_kiplatform_unix_ui_p001_inputs.py"
+            "$<TARGET_FILE:kicad-oracle>" )
+set_tests_properties( oracle-kiplatform-unix-ui-p001-inputs PROPERTIES TIMEOUT 120 )
 add_test( NAME oracle-wx-stl-compat-inputs
     COMMAND "${Python3_EXECUTABLE}" "${ORACLE_OVERLAY}/test_wx_stl_compat_inputs.py"
             "$<TARGET_FILE:kicad-oracle>" )

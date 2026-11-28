@@ -156,6 +156,26 @@ def check_font_reference(commands, link_commands, source):
         raise ValueError("Oracle does not link the actual font-reference archive")
 
 
+KIPLATFORM_UNIX_UI_SOURCES = (
+    "libs/kiplatform/os/unix/app.cpp", "libs/kiplatform/os/unix/environment.cpp",
+    "libs/kiplatform/os/unix/io.cpp", "libs/kiplatform/os/unix/printing.cpp",
+    "libs/kiplatform/os/unix/secrets.cpp", "libs/kiplatform/os/common/io.cpp")
+
+
+def check_kiplatform_unix_ui_reference(commands, link_commands, source):
+    """Require the unchanged pinned Linux kiplatform bodies of the unix ui adapter, compiled and
+    linked with their external calls wrapped."""
+    required = {source / path for path in KIPLATFORM_UNIX_UI_SOURCES}
+    compiled = {Path(entry["file"]) for entry in commands if any(
+        "CMakeFiles/kiplatform-unix-ui-reference.dir/" in token for token in entry["arguments"])}
+    if compiled != required:
+        raise ValueError("Missing actual kiplatform-unix-ui-reference compilation: "
+                         + repr(required ^ compiled))
+    if not any("-o kicad-oracle" in command and "libkiplatform-unix-ui-reference.a" in command
+               and "--wrap=g_file_trash" in command for command in link_commands):
+        raise ValueError("Oracle does not link the wrapped kiplatform-unix-ui-reference archive")
+
+
 def audit(build, source, overlay):
     manifest, manifest_sha = verify_source(source)
     database = json.loads((build / "compile_commands.json").read_text(encoding="utf-8"))
@@ -181,7 +201,7 @@ def audit(build, source, overlay):
             generated = verify_reader_generated(build, source)
         for target in ("core", "clipper2", "kimath", "fmt", "iec60664-reference", "resistor-reference",
                        "calculator-reader-reference", "kiplatform-unix-reference", "sexpr-reference",
-                       "font-reference", "kicad-oracle"):
+                       "font-reference", "kiplatform-unix-ui-reference", "kicad-oracle"):
             if any("CMakeFiles/" + target + ".dir/" in token for token in tokens):
                 if (target == "iec60664-reference" and path != source /
                         "pcb_calculator/calculator_panels/iec60664.cpp"):
@@ -191,7 +211,7 @@ def audit(build, source, overlay):
         commands.append({"file": str(path), "arguments": tokens})
     if targets != {"core", "clipper2", "kimath", "fmt", "iec60664-reference", "resistor-reference",
                    "calculator-reader-reference", "kiplatform-unix-reference", "sexpr-reference",
-                   "font-reference", "kicad-oracle"}:
+                   "font-reference", "kiplatform-unix-ui-reference", "kicad-oracle"}:
         raise ValueError("Unexpected reference target closure: " + repr(targets))
     link_commands = subprocess.check_output(
         ["ninja", "-C", str(build), "-t", "commands", "kicad-oracle"], text=True).splitlines()
@@ -208,6 +228,7 @@ def audit(build, source, overlay):
     check_kiplatform_unix_reference(commands, link_commands, source)
     check_sexpr_reference(commands, link_commands, source)
     check_font_reference(commands, link_commands, source)
+    check_kiplatform_unix_ui_reference(commands, link_commands, source)
     overlay_files = {p.relative_to(overlay).as_posix(): sha(p) for p in sorted(overlay.rglob("*"))
                      if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc"}
     result = {

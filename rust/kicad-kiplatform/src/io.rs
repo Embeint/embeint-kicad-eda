@@ -118,8 +118,14 @@ impl Default for FileLock {
 pub enum MappedData {
     /// `nullptr`, the default member initializer (and the value for an empty file).
     Null,
-    /// The host's read-only mapping of the file (`mmap`), whose bytes the host supplies.
-    Mapping(Vec<u8>),
+    /// The host's read-only mapping of the file (`mmap`): the address it returned, which
+    /// `munmap` receives, and the bytes the host supplies.
+    Mapping {
+        /// The mapping's address as the host identifies it.
+        address: u64,
+        /// The mapped bytes.
+        bytes: Vec<u8>,
+    },
     /// `m_fallbackBuffer.data()`.
     FallbackBuffer,
 }
@@ -165,7 +171,7 @@ impl MappedFile {
     pub fn data(&self) -> Option<&[u8]> {
         match &self.data {
             MappedData::Null => None,
-            MappedData::Mapping(bytes) => Some(bytes),
+            MappedData::Mapping { bytes, .. } => Some(bytes),
             MappedData::FallbackBuffer if self.fallback_buffer.is_empty() => None,
             MappedData::FallbackBuffer => Some(&self.fallback_buffer),
         }
@@ -210,33 +216,47 @@ pub trait IoPlatform {
     type File;
     /// Host handle for a `wxFileName`.
     type FileName;
+    /// Why a call did not complete.
+    type Error;
 
     /// `FILE* SeqFOpen( const wxString& aPath, const wxString& mode )`
     /// (`os/unix/io.cpp`).
-    fn seq_f_open(&mut self, path: &WxString, mode: &WxString) -> Option<Self::File>;
+    fn seq_f_open(
+        &mut self,
+        path: &WxString,
+        mode: &WxString,
+    ) -> Result<Option<Self::File>, Self::Error>;
 
     /// `bool DuplicatePermissions( const wxString& aSrc, const wxString& aDest )`
     /// (`os/unix/io.cpp`).
-    fn duplicate_permissions(&mut self, src: &WxString, dest: &WxString) -> bool;
+    fn duplicate_permissions(
+        &mut self,
+        src: &WxString,
+        dest: &WxString,
+    ) -> Result<bool, Self::Error>;
 
     /// `bool MakeWriteable( const wxString& aFilePath )` (`os/unix/io.cpp`).
-    fn make_writeable(&mut self, file_path: &WxString) -> bool;
+    fn make_writeable(&mut self, file_path: &WxString) -> Result<bool, Self::Error>;
 
     /// `bool IsFileHidden( const wxString& aFileName )` (`os/unix/io.cpp`).
-    fn is_file_hidden(&mut self, file_name: &WxString) -> bool;
+    fn is_file_hidden(&mut self, file_name: &WxString) -> Result<bool, Self::Error>;
 
     /// `void LongPathAdjustment( wxFileName& aFilename )` (`os/unix/io.cpp`).
-    fn long_path_adjustment(&mut self, filename: &mut Self::FileName);
+    fn long_path_adjustment(&mut self, filename: &mut Self::FileName) -> Result<(), Self::Error>;
 
     /// `long long TimestampDir( const wxString& aDirPath, const wxString& aFilespec )`
     /// (`os/unix/io.cpp`).
-    fn timestamp_dir(&mut self, dir_path: &WxString, filespec: &WxString) -> i64;
+    fn timestamp_dir(
+        &mut self,
+        dir_path: &WxString,
+        filespec: &WxString,
+    ) -> Result<i64, Self::Error>;
 
     /// `bool FlushToDisk( FILE* aFp )` (`os/unix/io.cpp`).
-    fn flush_to_disk(&mut self, fp: Option<&mut Self::File>) -> bool;
+    fn flush_to_disk(&mut self, fp: Option<&mut Self::File>) -> Result<bool, Self::Error>;
 
     /// `bool FlushDirectory( const wxString& aDirPath )` (`os/common/io.cpp`).
-    fn flush_directory(&mut self, dir_path: &WxString) -> bool;
+    fn flush_directory(&mut self, dir_path: &WxString) -> Result<bool, Self::Error>;
 
     /// `bool AtomicRename( const wxString& aSrc, const wxString& aDst, wxString* aError )`
     /// (`os/common/io.cpp`).
@@ -245,15 +265,19 @@ pub trait IoPlatform {
         src: &WxString,
         dst: &WxString,
         error: Option<&mut WxString>,
-    ) -> bool;
+    ) -> Result<bool, Self::Error>;
 
     /// `AtomicRename( aSrc, aDst )`: the default argument `aError = nullptr`.
-    fn atomic_rename_without_error(&mut self, src: &WxString, dst: &WxString) -> bool {
+    fn atomic_rename_without_error(
+        &mut self,
+        src: &WxString,
+        dst: &WxString,
+    ) -> Result<bool, Self::Error> {
         self.atomic_rename(src, dst, None)
     }
 
     /// `wxString MakeSiblingTempPath( const wxString& aTargetPath )` (`os/common/io.cpp`).
-    fn make_sibling_temp_path(&mut self, target_path: &WxString) -> WxString;
+    fn make_sibling_temp_path(&mut self, target_path: &WxString) -> Result<WxString, Self::Error>;
 
     /// `FILE* OpenUniqueSiblingTempFile( const wxString& aTargetPath, const wxString& aMode,
     /// wxString* aTempPathOut, wxString* aError )` (`os/common/io.cpp`).
@@ -263,7 +287,7 @@ pub trait IoPlatform {
         mode: &WxString,
         temp_path_out: Option<&mut WxString>,
         error: Option<&mut WxString>,
-    ) -> Option<Self::File>;
+    ) -> Result<Option<Self::File>, Self::Error>;
 
     /// `OpenUniqueSiblingTempFile( aTargetPath, aMode, aTempPathOut )`: the default
     /// argument `aError = nullptr`.
@@ -272,19 +296,23 @@ pub trait IoPlatform {
         target_path: &WxString,
         mode: &WxString,
         temp_path_out: Option<&mut WxString>,
-    ) -> Option<Self::File> {
+    ) -> Result<Option<Self::File>, Self::Error> {
         self.open_unique_sibling_temp_file(target_path, mode, temp_path_out, None)
     }
 
     /// `wxString ResolveSymlinkTarget( const wxString& aPath )` (`os/common/io.cpp`).
-    fn resolve_symlink_target(&mut self, path: &WxString) -> WxString;
+    fn resolve_symlink_target(&mut self, path: &WxString) -> Result<WxString, Self::Error>;
 
     /// `TARGET_ATTRS CaptureTargetAttributes( const wxString& aPath )` (`os/unix/io.cpp`).
-    fn capture_target_attributes(&mut self, path: &WxString) -> TargetAttrs;
+    fn capture_target_attributes(&mut self, path: &WxString) -> Result<TargetAttrs, Self::Error>;
 
     /// `bool ApplyTargetAttributes( const wxString& aPath, const TARGET_ATTRS& aAttrs )`
     /// (`os/unix/io.cpp`).
-    fn apply_target_attributes(&mut self, path: &WxString, attrs: &TargetAttrs) -> bool;
+    fn apply_target_attributes(
+        &mut self,
+        path: &WxString,
+        attrs: &TargetAttrs,
+    ) -> Result<bool, Self::Error>;
 
     /// `bool CommitTempFile( const wxString& aTempPath, const wxString& aTargetPath,
     /// wxString* aError )` (`os/common/io.cpp`).
@@ -293,14 +321,14 @@ pub trait IoPlatform {
         temp_path: &WxString,
         target_path: &WxString,
         error: Option<&mut WxString>,
-    ) -> bool;
+    ) -> Result<bool, Self::Error>;
 
     /// `CommitTempFile( aTempPath, aTargetPath )`: the default argument `aError = nullptr`.
     fn commit_temp_file_without_error(
         &mut self,
         temp_path: &WxString,
         target_path: &WxString,
-    ) -> bool {
+    ) -> Result<bool, Self::Error> {
         self.commit_temp_file(temp_path, target_path, None)
     }
 
@@ -311,20 +339,27 @@ pub trait IoPlatform {
         target_path: &WxString,
         data: &[u8],
         error: Option<&mut WxString>,
-    ) -> bool;
+    ) -> Result<bool, Self::Error>;
 
     /// `AtomicWriteFile( aTargetPath, aData, aSize )`: the default argument
     /// `aError = nullptr`.
-    fn atomic_write_file_without_error(&mut self, target_path: &WxString, data: &[u8]) -> bool {
+    fn atomic_write_file_without_error(
+        &mut self,
+        target_path: &WxString,
+        data: &[u8],
+    ) -> Result<bool, Self::Error> {
         self.atomic_write_file(target_path, data, None)
     }
 
     /// `explicit MAPPED_FILE( const wxString& aFileName )` (`os/unix/io.cpp`, with
     /// `readIntoBuffer` in `os/common/io.cpp`); a thrown `std::runtime_error` is `Err`.
-    fn mapped_file_open(&mut self, file_name: &WxString) -> Result<MappedFile, RuntimeError>;
+    fn mapped_file_open(
+        &mut self,
+        file_name: &WxString,
+    ) -> Result<Result<MappedFile, RuntimeError>, Self::Error>;
 
     /// `~MAPPED_FILE()` (`os/unix/io.cpp`).
-    fn mapped_file_close(&mut self, file: MappedFile);
+    fn mapped_file_close(&mut self, file: MappedFile) -> Result<(), Self::Error>;
 
     /// `STATE FILE_LOCK::Acquire( const wxString& aPath, bool& aCreated )`
     /// (`os/common/io.cpp`).
@@ -333,7 +368,7 @@ pub trait IoPlatform {
         lock: &mut FileLock,
         path: &WxString,
         created: &mut bool,
-    ) -> FileLockState;
+    ) -> Result<FileLockState, Self::Error>;
 
     /// `bool FILE_LOCK::OpenForInspect( const wxString& aPath, bool& aHeldByAnother )`
     /// (`os/common/io.cpp`).
@@ -342,29 +377,41 @@ pub trait IoPlatform {
         lock: &mut FileLock,
         path: &WxString,
         held_by_another: &mut bool,
-    ) -> bool;
+    ) -> Result<bool, Self::Error>;
 
     /// `bool FILE_LOCK::IsOpen() const` (`os/common/io.cpp`).
-    fn file_lock_is_open(&self, lock: &FileLock) -> bool;
+    fn file_lock_is_open(&self, lock: &FileLock) -> Result<bool, Self::Error>;
 
     /// `bool FILE_LOCK::ReadAll( std::string& aContents ) const` (`os/common/io.cpp`).
-    fn file_lock_read_all(&self, lock: &FileLock, contents: &mut Vec<u8>) -> bool;
+    fn file_lock_read_all(
+        &self,
+        lock: &FileLock,
+        contents: &mut Vec<u8>,
+    ) -> Result<bool, Self::Error>;
 
     /// `bool FILE_LOCK::Rewrite( const std::string& aContents )` (`os/common/io.cpp`).
-    fn file_lock_rewrite(&mut self, lock: &mut FileLock, contents: &[u8]) -> bool;
+    fn file_lock_rewrite(
+        &mut self,
+        lock: &mut FileLock,
+        contents: &[u8],
+    ) -> Result<bool, Self::Error>;
 
     /// `void FILE_LOCK::Release()` (`os/common/io.cpp`).
-    fn file_lock_release(&mut self, lock: &mut FileLock);
+    fn file_lock_release(&mut self, lock: &mut FileLock) -> Result<(), Self::Error>;
 
     /// `~FILE_LOCK()` (`os/common/io.cpp`).
-    fn file_lock_destroy(&mut self, lock: FileLock);
+    fn file_lock_destroy(&mut self, lock: FileLock) -> Result<(), Self::Error>;
 
     /// `FILE_LOCK( FILE_LOCK&& aOther ) noexcept` (`os/common/io.cpp`).
-    fn file_lock_move_construct(&mut self, other: &mut FileLock) -> FileLock;
+    fn file_lock_move_construct(&mut self, other: &mut FileLock) -> Result<FileLock, Self::Error>;
 
     /// `FILE_LOCK& operator=( FILE_LOCK&& aOther ) noexcept` (`os/common/io.cpp`). The
     /// reference's self-assignment branch cannot be reached through two distinct `&mut`.
-    fn file_lock_move_assign(&mut self, lock: &mut FileLock, other: &mut FileLock);
+    fn file_lock_move_assign(
+        &mut self,
+        lock: &mut FileLock,
+        other: &mut FileLock,
+    ) -> Result<(), Self::Error>;
 }
 
 #[cfg(test)]
@@ -400,7 +447,15 @@ mod tests {
     fn mapped_file_accessors() {
         let empty = MappedFile::from_members(MappedData::Null, 0, false, Vec::new());
         assert_eq!((empty.data(), empty.size()), (None, 0));
-        let mapped = MappedFile::from_members(MappedData::Mapping(vec![1, 2]), 2, true, Vec::new());
+        let mapped = MappedFile::from_members(
+            MappedData::Mapping {
+                address: 1,
+                bytes: vec![1, 2],
+            },
+            2,
+            true,
+            Vec::new(),
+        );
         assert_eq!((mapped.data(), mapped.size()), (Some(&[1u8, 2][..]), 2));
         let fallback = MappedFile::from_members(MappedData::FallbackBuffer, 1, false, vec![9]);
         assert_eq!((fallback.data(), fallback.size()), (Some(&[9u8][..]), 1));

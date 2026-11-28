@@ -14,7 +14,9 @@
 //! - [`policy`]: the Unix policy source (`libs/kiplatform/os/unix/policy.cpp`, unit [`UNIT`]).
 //! - [`app`], [`environment`], [`io`], [`secrets`], [`touchpad`], [`ui`] and [`webview`]: the
 //!   public headers `kiplatform/{app,environment,io,secrets,touchpad,ui,webview}.h` (unit
-//!   [`INCLUDE_UNIT`]). `drivers.h`, `sysinfo.h` and `sysinfo_gtk.h` of the same unit are in
+//!   [`INCLUDE_UNIT`]).
+//! - [`printing`]: the minimum co-port of `libs/kiplatform/include/printing.h` (`PRINT_RESULT`
+//!   and the `PrintPDF`/`ResetPrintToFilePath` declarations) the Linux printing bodies need. `drivers.h`, `sysinfo.h` and `sysinfo_gtk.h` of the same unit are in
 //!   `kicad_kiplatform_sysinfo`, next to the Unix bodies they declare.
 //!
 //! The headers define a few data types, constants and inline bodies, which are ported here
@@ -23,7 +25,10 @@
 //! OS call, file or process I/O and has no GUI, so each header's declarations are a typed
 //! host boundary: a trait the native host implements, with wx and OS objects as associated
 //! handle types. The header's default arguments are provided trait methods that call the
-//! full form with the default value, as the C++ call site does.
+//! full form with the default value, as the C++ call site does. Each trait has an `Error`
+//! type, so an implementation can report a deferred continuation, a refused allocation or a
+//! host failure instead of returning a guessed value (`kicad_kiplatform_unix` implements the
+//! Linux bodies this way).
 
 extern crate alloc;
 
@@ -31,6 +36,7 @@ pub mod app;
 pub mod environment;
 pub mod io;
 pub mod policy;
+pub mod printing;
 pub mod secrets;
 pub mod touchpad;
 pub mod ui;

@@ -923,6 +923,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "kicad-kiplatform-unix"
+version = "0.1.0"
+dependencies = [
+ "kicad-kiplatform",
+ "kicad-map-helpers",
+]
+
+[[package]]
+name = "kicad-kiplatform-unix-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-kiplatform",
+ "kicad-kiplatform-unix",
+ "kicad-map-helpers",
+ "serde_json",
+]
+
+[[package]]
 name = "kicad-map-helpers"
 version = "0.1.0"
 

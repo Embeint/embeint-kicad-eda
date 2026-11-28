@@ -45,6 +45,7 @@ void RegisterSexprSource( REGISTRY& aRegistry );
 void RegisterTrigoSource( REGISTRY& aRegistry );
 void RegisterIncludeFontP001( REGISTRY& aRegistry );
 void RegisterTrigoHeader( REGISTRY& aRegistry );
+void RegisterKiplatformUnixUiP001( REGISTRY& aRegistry );
 
 
 void REGISTRY::Add( const std::string& aUnit, const std::string& aUpstream, SHIM aShim )
@@ -102,6 +103,7 @@ REGISTRY MakeRegistry()
     RegisterKiplatformIncludeP001( registry );
     RegisterIncludeFontP001( registry );
     RegisterTrigoHeader( registry );
+    RegisterKiplatformUnixUiP001( registry );
     return registry;
 }
 
