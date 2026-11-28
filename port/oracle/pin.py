@@ -28,4 +28,7 @@ SOURCE_PATHS = (
     "common/font/outline_decomposer.cpp", "common/font/text_attributes.cpp",
     "common/markup_parser.cpp", "common/string_utils.cpp", "common/gal/color4d.cpp",
     "thirdparty/pegtl",
+    "libs/kiplatform/os/unix/app.cpp", "libs/kiplatform/os/unix/environment.cpp",
+    "libs/kiplatform/os/unix/io.cpp", "libs/kiplatform/os/unix/printing.cpp",
+    "libs/kiplatform/os/unix/secrets.cpp", "libs/kiplatform/os/common/io.cpp",
 )
