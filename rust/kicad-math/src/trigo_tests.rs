@@ -249,10 +249,13 @@ fn arc_center_from_angle() -> TrigoResult<()> {
     // A zero angle returns the chord midpoint before the header call.
     let c = calc_arc_center_angle(d(0.0, 0.0), d(10.0, 0.0), ANGLE_0)?;
     assert_eq!((c.x, c.y), (5.0, 0.0));
-    // 90 degrees: d = 5 * cot 45 degrees, the chord's half turned by -90 degrees.
+    // 90 degrees: d = 5 * cot 45 degrees, the chord's half turned by -90 degrees. Exactly
+    // ( 5, 5 ), the pinned oracle's reply to case center-angle-2.
     let c = calc_arc_center_angle(d(0.0, 0.0), d(10.0, 0.0), ANGLE_90)?;
-    assert_eq!(c.x, 5.0);
-    assert!((c.y - 5.0).abs() < 1e-9);
+    assert_eq!(
+        (c.x.to_bits(), c.y.to_bits()),
+        (5.0_f64.to_bits(), 5.0_f64.to_bits())
+    );
     // 180 degrees: the center is the chord midpoint (d is cot 90 = 0 here).
     let c = calc_arc_center_angle(d(0.0, 0.0), d(10.0, 0.0), ANGLE_180)?;
     assert_eq!((c.x, c.y), (5.0, 0.0));
