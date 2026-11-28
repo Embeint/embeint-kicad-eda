@@ -231,6 +231,8 @@ impl From<MathUtilError> for VectorDomainError {
             MathUtilError::ZeroDenominator => Self::DivisionByZero,
             MathUtilError::IntermediateOverflow => Self::IntegerOverflow,
             MathUtilError::Unported { upstream, unit } => Self::Unported { upstream, unit },
+            // Only kimathLogDebug formats, and no vector or header body calls it.
+            MathUtilError::UndefinedFormat => Self::IntegerOverflow,
         }
     }
 }
@@ -252,8 +254,10 @@ pub trait VectorComponent: Copy + Default + PartialOrd + core::fmt::Display {
     fn from_double(value: f64) -> VResult<Self>;
     fn norm2(x: Self, y: Self) -> VResult<Self>;
     fn squared_norm2(x: Self, y: Self) -> VResult<Self::Extended>;
-    fn div_double(self, rhs: f64) -> VResult<Self>;
-    fn resize(x: Self, y: Self, length: Self) -> VResult<Vector2<Self>>;
+    /// `operator/( double )` of one component; `log` is the wx host of a `KiROUND` overflow.
+    fn div_double(self, rhs: f64, log: &dyn KimathLog) -> VResult<Self>;
+    /// `Resize( length )`; `log` is the wx host of a `KiROUND` overflow.
+    fn resize(x: Self, y: Self, length: Self, log: &dyn KimathLog) -> VResult<Vector2<Self>>;
     fn stream(self) -> VResult<String>;
     fn normalization_norm(x: Self, y: Self, z: Self) -> VResult<Self> {
         Vector3::new(x, y, z).euclidean_norm()
@@ -264,7 +268,8 @@ fn overflow<T>(value: Option<T>) -> VResult<T> {
     value.ok_or(VectorDomainError::IntegerOverflow)
 }
 
-use crate::util::{round_i32, rounded_hypot};
+use crate::math_util::{KimathLog, PINNED_LOG};
+use crate::util::{round_i32_with, rounded_hypot};
 
 // GCC's operand selection varies by compiled site when two quieted NaNs differ.
 // The bound live oracle did establish the unambiguous cases: a single distinct
@@ -354,11 +359,16 @@ macro_rules! signed_component {
                 // Equivalent to the narrowMax early return and uint64 saturation; no signed UB.
                 Ok((ax * ax + ay * ay).min(i64::MAX as u128) as i64)
             }
-            fn div_double(self, rhs: f64) -> VResult<Self> {
+            fn div_double(self, rhs: f64, log: &dyn KimathLog) -> VResult<Self> {
                 // Upstream rounds to int even when T is int64_t.
-                Ok(round_i32(self as f64 / rhs)? as Self)
+                Ok(round_i32_with(self as f64 / rhs, log)? as Self)
             }
-            fn resize(x: Self, y: Self, length: Self) -> VResult<Vector2<Self>> {
+            fn resize(
+                x: Self,
+                y: Self,
+                length: Self,
+                log: &dyn KimathLog,
+            ) -> VResult<Vector2<Self>> {
                 if x == 0 && y == 0 {
                     return Ok(Vector2::new(0, 0));
                 }
@@ -369,8 +379,8 @@ macro_rules! signed_component {
                 } else {
                     resize_general_lengths(x as i64, y as i64, length as i64)?
                 };
-                let nx = round_i32(nx)?;
-                let ny = round_i32(ny)?;
+                let nx = round_i32_with(nx, log)?;
+                let ny = round_i32_with(ny, log)?;
                 let nx = if x < 0 { nx.c_neg()? } else { nx } as Self;
                 let ny = if y < 0 { ny.c_neg()? } else { ny } as Self;
                 let sign = scalar_sign(length)? as Self;
@@ -460,10 +470,10 @@ impl VectorComponent for u32 {
     fn squared_norm2(x: Self, y: Self) -> VResult<Self> {
         x.c_mul(x)?.c_add(y.c_mul(y)?)
     }
-    fn div_double(self, rhs: f64) -> VResult<Self> {
-        Ok(round_i32(f64::from(self) / rhs)? as Self)
+    fn div_double(self, rhs: f64, log: &dyn KimathLog) -> VResult<Self> {
+        Ok(round_i32_with(f64::from(self) / rhs, log)? as Self)
     }
-    fn resize(_x: Self, _y: Self, _length: Self) -> VResult<Vector2<Self>> {
+    fn resize(_x: Self, _y: Self, _length: Self, _log: &dyn KimathLog) -> VResult<Vector2<Self>> {
         missing(
             "VECTOR2<unsigned>::Resize (unqualified instantiation)",
             VECTOR_UNIT,
@@ -524,10 +534,10 @@ impl VectorComponent for f64 {
     fn squared_norm2(x: Self, y: Self) -> VResult<Self> {
         x.c_mul(x)?.c_add(y.c_mul(y)?)
     }
-    fn div_double(self, rhs: Self) -> VResult<Self> {
+    fn div_double(self, rhs: Self, _log: &dyn KimathLog) -> VResult<Self> {
         self.c_div(rhs)
     }
-    fn resize(x: Self, y: Self, length: Self) -> VResult<Vector2<Self>> {
+    fn resize(x: Self, y: Self, length: Self, _log: &dyn KimathLog) -> VResult<Vector2<Self>> {
         if x == 0.0 && y == 0.0 {
             return Ok(Vector2::new(0.0, 0.0));
         }
@@ -676,12 +686,20 @@ impl<T: VectorComponent> Vector2<T> {
         T::norm2(self.x, self.y)
     }
     pub fn resize(self, length: T) -> VResult<Self> {
-        T::resize(self.x, self.y, length)
+        self.resize_with(length, &PINNED_LOG)
+    }
+    /// [`Self::resize`] with `log` as the wx host of a `KiROUND` overflow log.
+    pub fn resize_with(self, length: T, log: &dyn KimathLog) -> VResult<Self> {
+        T::resize(self.x, self.y, length, log)
     }
     pub fn divide(self, factor: f64) -> VResult<Self> {
+        self.divide_with(factor, &PINNED_LOG)
+    }
+    /// [`Self::divide`] with `log` as the wx host of a `KiROUND` overflow log.
+    pub fn divide_with(self, factor: f64, log: &dyn KimathLog) -> VResult<Self> {
         Ok(Self::new(
-            self.x.div_double(factor)?,
-            self.y.div_double(factor)?,
+            self.x.div_double(factor, log)?,
+            self.y.div_double(factor, log)?,
         ))
     }
     pub fn format(self) -> VResult<String> {
@@ -727,14 +745,25 @@ impl Vector2<f64> {
         scalar_equals(self.y, rhs.y, e)
     }
     pub fn ki_round(self) -> VResult<Vector2<i32>> {
-        Ok(Vector2::new(round_i32(self.x)?, round_i32(self.y)?))
+        self.ki_round_with(&PINNED_LOG)
+    }
+    /// [`Self::ki_round`] with `log` as the wx host of a `KiROUND` overflow log.
+    pub fn ki_round_with(self, log: &dyn KimathLog) -> VResult<Vector2<i32>> {
+        Ok(Vector2::new(
+            round_i32_with(self.x, log)?,
+            round_i32_with(self.y, log)?,
+        ))
     }
 }
 fn scalar_equals(a: f64, b: f64, e: f64) -> VResult<bool> {
     Ok(crate::util::equals_f64(a, b, Some(e)))
 }
 pub fn ki_round_xy(x: f64, y: f64) -> VResult<Vector2<i32>> {
-    Vector2::new(x, y).ki_round()
+    ki_round_xy_with(x, y, &PINNED_LOG)
+}
+/// [`ki_round_xy`] with `log` as the wx host of a `KiROUND` overflow log.
+pub fn ki_round_xy_with(x: f64, y: f64, log: &dyn KimathLog) -> VResult<Vector2<i32>> {
+    Vector2::new(x, y).ki_round_with(log)
 }
 
 /// `operator<<( std::ostream&, const VECTOR2<T>& )` (vector2d.h:699-704) at `T = int`, into the
@@ -994,15 +1023,23 @@ macro_rules! scalar_float {
     ($t:ty) => {
         impl Vector2<$t> {
             pub fn add_float(self, scalar: f64) -> VResult<Self> {
-                Ok(Self::new(
-                    round_i32(self.x as f64 + scalar)? as $t,
-                    round_i32(self.y as f64 + scalar)? as $t,
-                ))
+                self.add_float_with(scalar, &PINNED_LOG)
             }
             pub fn sub_float(self, scalar: f64) -> VResult<Self> {
+                self.sub_float_with(scalar, &PINNED_LOG)
+            }
+            /// [`Self::add_float`] with `log` as the wx host of a `KiROUND` overflow log.
+            pub fn add_float_with(self, scalar: f64, log: &dyn KimathLog) -> VResult<Self> {
                 Ok(Self::new(
-                    round_i32(self.x as f64 - scalar)? as $t,
-                    round_i32(self.y as f64 - scalar)? as $t,
+                    round_i32_with(self.x as f64 + scalar, log)? as $t,
+                    round_i32_with(self.y as f64 + scalar, log)? as $t,
+                ))
+            }
+            /// [`Self::sub_float`] with `log` as the wx host of a `KiROUND` overflow log.
+            pub fn sub_float_with(self, scalar: f64, log: &dyn KimathLog) -> VResult<Self> {
+                Ok(Self::new(
+                    round_i32_with(self.x as f64 - scalar, log)? as $t,
+                    round_i32_with(self.y as f64 - scalar, log)? as $t,
                 ))
             }
         }

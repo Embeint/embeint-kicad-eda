@@ -6,7 +6,7 @@
 // Copyright (C) Bruce Dawson, Apache-2.0 (LICENSE.APACHE-2.0 at the repository root).
 // https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/
 //! Header utilities at pin 4cf939778df04d2b747bb2c4714fc5014a7565c7.
-use crate::math_util;
+use crate::math_util::{self, KimathLog, PINNED_LOG};
 use crate::vector::{VectorComponent, VectorDomainError};
 pub const UNIT: &str = "libs.kimath.include.math.application.ui.p001";
 pub type Result<T> = core::result::Result<T, VectorDomainError>;
@@ -122,79 +122,104 @@ macro_rules! integer { ($($t:ty => $name:literal),*) => {$ (
 integer!(i8=>"a",u8=>"h",i16=>"s",u16=>"t",i32=>"i",u32=>"j",i64=>"l");
 
 pub trait RoundSource: Copy {
-    fn round_to<R: RoundInteger>(self, quiet: bool) -> Result<R>;
+    /// `KiROUND<Self, R>( v, aQuiet )`; a non-quiet overflow calls `kimathLogOverflow` with
+    /// `log` as its wx host, then returns the clamped value when the host returns.
+    fn round_to<R: RoundInteger>(self, quiet: bool, log: &dyn KimathLog) -> Result<R>;
 }
-fn overflow<R: RoundInteger>(value: f64, result: i128, quiet: bool) -> Result<R> {
+fn overflow<R: RoundInteger>(
+    value: f64,
+    result: i128,
+    quiet: bool,
+    log: &dyn KimathLog,
+) -> Result<R> {
     if !quiet {
-        // UNPORTED(libs.kimath.src.math.util.application.ui.p001): kimathLogOverflow
-        math_util::kimath_log_overflow(value, R::TYPE_NAME)?;
+        // kimathLogOverflow( double( v ), typeid( ret_type ).name() ) (util.cpp, ported); its
+        // wxFAIL_MSG is a host effect of `log`.
+        math_util::kimath_log_overflow(log, value, R::TYPE_NAME)?;
     }
     Ok(R::from_bounded(result))
 }
 /// KiROUND's integral branch compares integers without conversion through double.
 macro_rules! source_integer { ($($t:ty),*) => {$ (
-    impl RoundSource for $t { fn round_to<R:RoundInteger>(self,quiet:bool)->Result<R> {
+    impl RoundSource for $t { fn round_to<R:RoundInteger>(self,quiet:bool,log:&dyn KimathLog)->Result<R> {
         let v=self as i128;
-        if v>R::HIGH { return overflow::<R>(self as f64,R::HIGH,quiet); }
-        if v<R::LOW { return overflow::<R>(self as f64,R::LOW,quiet); }
+        if v>R::HIGH { return overflow::<R>(self as f64,R::HIGH,quiet,log); }
+        if v<R::LOW { return overflow::<R>(self as f64,R::LOW,quiet,log); }
         Ok(R::from_bounded(v))
     }}
 )*}; }
 source_integer!(i8, u8, i16, u16, i32, u32, i64, u64);
 impl RoundSource for f64 {
-    fn round_to<R: RoundInteger>(self, quiet: bool) -> Result<R> {
+    fn round_to<R: RoundInteger>(self, quiet: bool, log: &dyn KimathLog) -> Result<R> {
         if self.is_nan() {
-            return overflow::<R>(self, 0, quiet);
+            return overflow::<R>(self, 0, quiet, log);
         }
         if self >= R::HIGH as f64 + 0.5 {
-            return overflow::<R>(self, R::HIGH, quiet);
+            return overflow::<R>(self, R::HIGH, quiet, log);
         }
         if self - R::LOW as f64 <= -0.5 {
-            return overflow::<R>(self, R::LOW, quiet);
+            return overflow::<R>(self, R::LOW, quiet, log);
         }
         let rounded = self.round() as i128;
         let clamped = rounded.clamp(R::LOW, R::HIGH);
         if clamped != rounded {
-            return overflow::<R>(self, clamped, quiet);
+            return overflow::<R>(self, clamped, quiet, log);
         }
         Ok(R::from_bounded(clamped))
     }
 }
 impl RoundSource for f32 {
-    fn round_to<R: RoundInteger>(self, quiet: bool) -> Result<R> {
+    fn round_to<R: RoundInteger>(self, quiet: bool, log: &dyn KimathLog) -> Result<R> {
         if self.is_nan() {
-            return overflow::<R>(f64::from(self), 0, quiet);
+            return overflow::<R>(f64::from(self), 0, quiet, log);
         }
         // The +0.5 and comparison promote the converted float bound to double in C++.
         if f64::from(self) >= f64::from(R::HIGH as f32) + 0.5 {
-            return overflow::<R>(f64::from(self), R::HIGH, quiet);
+            return overflow::<R>(f64::from(self), R::HIGH, quiet, log);
         }
         if f64::from(self - R::LOW as f32) <= -0.5 {
-            return overflow::<R>(f64::from(self), R::LOW, quiet);
+            return overflow::<R>(f64::from(self), R::LOW, quiet, log);
         }
         let rounded = f64::from(self).round() as i128;
         let clamped = rounded.clamp(R::LOW, R::HIGH);
         if clamped != rounded {
-            return overflow::<R>(f64::from(self), clamped, quiet);
+            return overflow::<R>(f64::from(self), clamped, quiet, log);
         }
         Ok(R::from_bounded(clamped))
     }
 }
+/// `KiROUND` with the production wx host ([`PINNED_LOG`]): an overflow log defers.
 pub fn ki_round<S: RoundSource, R: RoundInteger>(value: S, quiet: bool) -> Result<R> {
-    value.round_to::<R>(quiet)
+    ki_round_with(value, quiet, &PINNED_LOG)
+}
+/// `KiROUND` with `log` as the wx host of its overflow log.
+pub fn ki_round_with<S: RoundSource, R: RoundInteger>(
+    value: S,
+    quiet: bool,
+    log: &dyn KimathLog,
+) -> Result<R> {
+    value.round_to::<R>(quiet, log)
 }
 pub fn round_i32(value: f64) -> Result<i32> {
     ki_round(value, false)
+}
+/// `KiROUND( double )` (default `int` result, not quiet) with `log` as the wx host.
+pub fn round_i32_with(value: f64, log: &dyn KimathLog) -> Result<i32> {
+    ki_round_with(value, false, log)
 }
 
 /// The special `long long -> int` overload. Linux `int64_t` is *long*, not long long;
 /// BOX2's explicitly instantiated generic casts use `BoxCoord::narrow` instead.
 pub fn checked_cast_long_long_to_int(value: i64) -> Result<i32> {
+    checked_cast_long_long_to_int_with(value, &PINNED_LOG)
+}
+/// [`checked_cast_long_long_to_int`] with `log` as the wx host of its overflow log.
+pub fn checked_cast_long_long_to_int_with(value: i64, log: &dyn KimathLog) -> Result<i32> {
     if value > i64::from(i32::MAX) {
-        return overflow::<i32>(value as f64, i128::from(i32::MAX), false);
+        return overflow::<i32>(value as f64, i128::from(i32::MAX), false, log);
     }
     if value < i64::from(i32::MIN) {
-        return overflow::<i32>(value as f64, i128::from(i32::MIN), false);
+        return overflow::<i32>(value as f64, i128::from(i32::MIN), false, log);
     }
     Ok(value as i32)
 }
@@ -379,7 +404,7 @@ impl CheckedCast<f32> for f64 {
 }
 
 /// Keep the Linux C++ `long long` identity distinct from int64_t (`long`) when
-/// the deferred logger eventually observes typeid(ret_type).name().
+/// the overflow logger observes typeid(ret_type).name().
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct LongLong(pub i64);
 impl RoundInteger for LongLong {
@@ -391,8 +416,8 @@ impl RoundInteger for LongLong {
     }
 }
 impl RoundSource for LongLong {
-    fn round_to<R: RoundInteger>(self, quiet: bool) -> Result<R> {
-        self.0.round_to(quiet)
+    fn round_to<R: RoundInteger>(self, quiet: bool, log: &dyn KimathLog) -> Result<R> {
+        self.0.round_to(quiet, log)
     }
 }
 impl CheckedCast<i32> for LongLong {
@@ -418,4 +443,8 @@ impl Rescale for LongLong {
 /// Omitted ret_type and aQuiet arguments of KiROUND.
 pub fn ki_round_default<S: RoundSource>(value: S) -> Result<i32> {
     ki_round(value, false)
+}
+/// [`ki_round_default`] with `log` as the wx host of its overflow log.
+pub fn ki_round_default_with<S: RoundSource>(value: S, log: &dyn KimathLog) -> Result<i32> {
+    ki_round_with(value, false, log)
 }

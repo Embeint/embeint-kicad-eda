@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use kicad_math::math_util::{
-    kimath_log_debug, kimath_log_overflow, rescale_i32, rescale_i64_int128, rounded_hypot_wide,
-    MathUtilError, UNIT,
+    format_printf, kimath_log_debug, kimath_log_overflow, printf_f, rescale_i32,
+    rescale_i64_int128, rounded_hypot_wide, LogArgument, LogEvent, MathUtilError, RecordingLog,
+    WxAssertCall, WxLogCall, PINNED_LOG, UNIT,
 };
 
 #[test]
@@ -57,18 +58,106 @@ fn undefined_divisions_and_missing_host_effects_are_typed() {
         rescale_i64_int128(i64::MIN, i64::MIN, 0),
         Err(MathUtilError::ZeroDenominator)
     );
+    // The production host defers at the first wx call each body makes.
     assert_eq!(
-        kimath_log_debug("%lld", &[]),
+        kimath_log_debug(&PINNED_LOG, "%lld", &[]),
         Err(MathUtilError::Unported {
-            upstream: "kimathLogDebug",
+            upstream: "wxLog::IsLevelEnabled",
             unit: UNIT
         })
     );
     assert_eq!(
-        kimath_log_overflow(f64::INFINITY, "i"),
+        kimath_log_overflow(&PINNED_LOG, f64::INFINITY, "i"),
         Err(MathUtilError::Unported {
-            upstream: "kimathLogOverflow",
+            upstream: "wxOnAssert",
             unit: UNIT
         })
+    );
+}
+
+#[test]
+fn overflow_formats_the_value_and_type_name_and_returns_after_the_assertion() {
+    let log = RecordingLog::default();
+    let cases: [(f64, &str, &str); 11] = [
+        (f64::INFINITY, "i", "inf to i"),
+        (f64::NEG_INFINITY, "l", "-inf to l"),
+        (f64::NAN, "i", "nan to i"),
+        (-f64::NAN, "i", "-nan to i"),
+        (-0.0, "i", "-0.000000 to i"),
+        (2147483647.5, "i", "2147483647.500000 to i"),
+        (0.0078125, "j", "0.007812 to j"),
+        (0.0234375, "j", "0.023438 to j"),
+        (-1e-10, "x", "-0.000000 to x"),
+        (1e22, "a\0b", "10000000000000000000000.000000 to a"),
+        (1.0, "\u{e9}", "1.000000 to "),
+    ];
+    for (value, name, text) in cases {
+        assert_eq!(kimath_log_overflow(&log, value, name), Ok(()));
+        assert_eq!(
+            log.events().last(),
+            Some(&LogEvent::Assert(WxAssertCall {
+                line: 58,
+                function: "kimathLogOverflow",
+                condition: "\"Assert failure\"",
+                message: format!("\n\nOverflow converting value {text}."),
+            }))
+        );
+    }
+    assert_eq!(log.events().len(), cases.len());
+    assert_eq!(printf_f(f64::MAX).len(), 309 + 7);
+    assert_eq!(printf_f(5e-324), "0.000000");
+}
+
+#[test]
+fn debug_logs_a_warning_only_when_the_debug_level_is_enabled() {
+    let args = [
+        LogArgument::Signed(i64::MIN),
+        LogArgument::Signed(-1),
+        LogArgument::Signed(i64::MAX),
+        LogArgument::Signed(7),
+    ];
+    let format = "Overflow in rescale (%lld * %lld + %lld) / %lld";
+    let log = RecordingLog::default();
+    assert_eq!(kimath_log_debug(&log, format, &args), Ok(()));
+    assert_eq!(
+        log.events(),
+        [LogEvent::Log(WxLogCall {
+            level: 2,
+            message: "Overflow in rescale (-9223372036854775808 * -1 + 9223372036854775807) / 7"
+                .into(),
+            line: 48,
+            function: "kimathLogDebug",
+            component: "",
+        })]
+    );
+    // Below wxLOG_Debug, or with logging disabled, nothing is formatted, so a missing
+    // argument is never read either.
+    for log in [RecordingLog::new(5, true), RecordingLog::new(10000, false)] {
+        assert_eq!(kimath_log_debug(&log, "%lld %f", &[]), Ok(()));
+        assert_eq!(log.events(), []);
+    }
+    assert_eq!(
+        kimath_log_debug(&RecordingLog::new(6, true), "%lld", &[]),
+        Err(MathUtilError::UndefinedFormat)
+    );
+    assert_eq!(
+        format_printf(
+            "%% %f %lld",
+            &[LogArgument::Float(0.5), LogArgument::Signed(3)]
+        ),
+        Ok("% 0.500000 3".into())
+    );
+    assert_eq!(
+        format_printf("%f", &[LogArgument::Signed(3)]),
+        Err(MathUtilError::UndefinedFormat)
+    );
+    assert_eq!(
+        format_printf("%d", &[LogArgument::Signed(3)]),
+        Err(MathUtilError::UndefinedFormat)
+    );
+    // Excess arguments are evaluated but ignored.
+    assert_eq!(
+        format_printf("x", &[LogArgument::Signed(3)]),
+        Ok("x".into())
     );
 }
