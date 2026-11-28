@@ -940,6 +940,8 @@ name = "kicad-math"
 version = "0.1.0"
 dependencies = [
  "kicad-boost-random",
+ "kicad-rtree-cow-packed",
+ "kicad-rtree-node",
 ]
 
 [[package]]
@@ -1084,6 +1086,16 @@ version = "0.1.0"
 dependencies = [
  "kicad-difftest",
  "kicad-math",
+ "serde_json",
+]
+
+[[package]]
+name = "kicad-shape-line-chain-shim"
+version = "0.1.0"
+dependencies = [
+ "kicad-difftest",
+ "kicad-math",
+ "kicad-rtree-cow-packed",
  "serde_json",
 ]
 
